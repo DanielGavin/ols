@@ -49,7 +49,7 @@ ResponseError :: struct {
 };
 
 NotificationLoggingParams :: struct {
-    type: int, 
+    type: int,
     message: string,
 };
 
@@ -58,8 +58,8 @@ NotificationParams :: union {
 };
 
 Notification :: struct {
-    jsonrpc: string, 
-    method: string, 
+    jsonrpc: string,
+    method: string,
     params: NotificationParams
 };
 
@@ -106,10 +106,6 @@ ClientCapabilities :: struct {
     textDocument: TextDocumentClientCapabilities,
 };
 
-DidOpenTextDocumentParams :: struct {
-    textDocument: TextDocumentItem,
-};
-
 Position :: struct {
 	line: int,
 	character: int,
@@ -134,16 +130,25 @@ VersionedTextDocumentIdentifier :: struct  {
     uri: string,
 };
 
-DidChangeTextDocumentParams :: struct {
-	textDocument: VersionedTextDocumentIdentifier,
-	contentChanges: [dynamic] TextDocumentContentChangeEvent,
-};
-
-DidCloseTextDocumentParams :: struct{
-    textDocument: TextDocumentItem,
+TextDocumentIdentifier :: struct {
+	uri: string,
 };
 
 TextDocumentItem :: struct {
 	uri: string,
 	text: string,
 };
+
+DidOpenTextDocumentParams :: struct {
+    textDocument: TextDocumentItem,
+};
+
+DidChangeTextDocumentParams :: struct {
+	textDocument: VersionedTextDocumentIdentifier,
+	contentChanges: [dynamic] TextDocumentContentChangeEvent,
+};
+
+DidCloseTextDocumentParams :: struct{
+    textDocument: TextDocumentIdentifier,
+};
+

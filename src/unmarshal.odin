@@ -78,7 +78,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator
     case json.Integer:
         #partial switch variant in &type_info.variant {
         case Type_Info_Integer:
-            switch type_info.size {<
+            switch type_info.size {
             case 8:
                 tmp := i64(j);
                 mem.copy(v.data, &tmp, type_info.size);

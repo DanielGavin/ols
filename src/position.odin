@@ -2,22 +2,23 @@ package main
 
 import "core:strings"
 import "core:unicode/utf8"
+import "core:fmt"
 
 /*
-    This file handles the conversion from utf-16 to utf-8 offsets in the text document
+    This file handles the conversion between utf-16 and utf-8 offsets in the text document
  */
 
 
 AbsoluteRange :: struct {
-    begin: int,
+    start: int,
     end: int,
 };
 
-get_absolute_range :: proc(range: Range, document_text: string) -> (AbsoluteRange, bool) {
+get_absolute_range :: proc(range: Range, document_text: [] u8) -> (AbsoluteRange, bool) {
 
     absolute: AbsoluteRange;
 
-    if len(document_text) >= 2 {
+    if len(document_text) <= 2 {
         return absolute, false;
     }
 
@@ -25,16 +26,27 @@ get_absolute_range :: proc(range: Range, document_text: string) -> (AbsoluteRang
     index := 1;
     last := document_text[0];
 
-    get_index_at_line(&index, &index, &last, document_text, range.start.line);
+    if !get_index_at_line(&index, &line_count, &last, document_text, range.start.line) {
+        return absolute, false;
+    }
 
-    
-    
+    absolute.start = index + get_character_offset_u16_to_u8(range.start.character, document_text[index:]);
+
+    if !get_index_at_line(&index, &line_count, &last, document_text, range.end.line) {
+        return absolute, false;
+    }
+
+    absolute.end = index + get_character_offset_u16_to_u8(range.end.character, document_text[index:]);
 
     return absolute, true;
 }
 
 
-get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, document_text: string, end_line: int) -> bool {
+get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
+
+    if current_line^ == end_line {
+        return true;
+    }
 
     for ; current_index^ < len(document_text); current_index^ += 1 {
 
@@ -67,4 +79,30 @@ get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, do
 
     return false;
 
+}
+
+get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: [] u8) -> int {
+
+    utf8_idx := 0;
+    utf16_idx := 0;
+
+    fmt.println(character_offset);
+
+    for utf16_idx < character_offset {
+
+        r, w := utf8.decode_rune(document_text[utf8_idx:]);
+
+        if r < 0x10000 {
+            utf16_idx += 1;
+        }
+
+        else {
+            utf16_idx += 2;
+        }
+
+        utf8_idx += w;
+
+    }
+
+    return utf8_idx;
 }

@@ -12,7 +12,7 @@ import src "../src"
 initialize_request := `
 {   "jsonrpc":"2.0",
     "id":0,
-    "method":"initialize", 
+    "method":"initialize",
     "params": {
     "processId": 39964,
     "clientInfo": {
@@ -341,7 +341,7 @@ test_init_check_shutdown :: proc() -> bool {
     writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
 
     src.run(&reader, &writer);
-    
+
     delete(buffer.data);
 
     return true;
@@ -359,7 +359,7 @@ test_open_and_change_notification :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:log\"\r\n\r\n\r\n\r\nmain :: proc() {\r\n\r\n}"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:log\"\r\n\r\n\r\n\r\nmain :: proc() {\r\n\r\n}import \"core:fmt\"\r\nimport \"core:log\"\r\n"
         }
     }
     }`;
@@ -372,37 +372,37 @@ test_open_and_change_notification :: proc() -> bool {
         "textDocument": {
         "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
         "version": 2
-        },
-        "contentChanges": [
-            {
-                "range": {
-                    "start": {
-                        "line": 8,
-                        "character": 1
-                    },
-                    "end": {
-                        "line": 8,
-                        "character": 1
-                    }
+    },
+    "contentChanges": [
+        {
+            "range": {
+                "start": {
+                    "line": 9,
+                    "character": 1
                 },
-                "rangeLength": 0,
-                "text": "h"
-            }
-        ]
+                "end": {
+                    "line": 10,
+                    "character": 17
+                }
+            },
+            "rangeLength": 36,
+            "text": ""
+        }
+    ]
     }
     }`;
 
     buffer := TestReadBuffer {
-        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification), 
-                                               make_request(change_notification), make_request(shutdown_request), 
+        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
+                                               make_request(change_notification), make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.temp_allocator),
     };
-    
+
     reader := src.make_reader(test_read, &buffer);
     writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
 
     src.run(&reader, &writer);
-       
+
     delete(buffer.data);
 
     return true;
@@ -414,19 +414,9 @@ main :: proc() {
     context.logger = log.create_console_logger();
 
     test_init_check_shutdown();
-    
+
     test_open_and_change_notification();
 
-    /* 
-    
-
- 
-    reader := src.make_reader(test_read, &TestReadBuffer, context.temp_allocator);
-
-    header, success := src.read_and_parse_header(&reader);
-
-    log.info(header);
-    */
 
 }
 

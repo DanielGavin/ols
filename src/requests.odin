@@ -1,4 +1,4 @@
-package main 
+package main
 
 import "core:fmt"
 import "core:log"
@@ -99,7 +99,7 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
                 return header, false;
             }
         }
-        
+
     }
 
     return header, found_content_length;
@@ -126,12 +126,12 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
     }
 
     return value, true;
-} 
+}
 
 
 handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) -> bool {
     log.info("Handling request");
-    
+
     root, ok := request.value.(json.Object);
 
     if !ok  {
@@ -151,13 +151,13 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
         case json.Integer:
             id = v;
         case:
-            id = 0; 
+            id = 0;
         }
     }
 
     method := root["method"].value.(json.String);
 
-    call_map : map [string] proc(json.Value, RequestId, ^Config, ^Writer) -> Error = 
+    call_map : map [string] proc(json.Value, RequestId, ^Config, ^Writer) -> Error =
         {"initialize" = request_initialize,
          "initialized" = request_initialized,
          "shutdown" = request_shutdown,
@@ -196,7 +196,7 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
     return true;
 }
 
-request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {  
+request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -221,8 +221,8 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, w
             config.hover_support_md = true;
         }
     }
-    
-    response := make_response_message(   
+
+    response := make_response_message(
         params = ResponseInitializeParams {
             capabilities = ServerCapabilities {
                 textDocumentSync = 2, //incremental
@@ -242,7 +242,7 @@ request_initialized :: proc(params: json.Value, id: RequestId, config: ^Config, 
 
 request_shutdown :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
 
-    response := make_response_message(   
+    response := make_response_message(
         params = nil,
         id = id,
     );
@@ -270,7 +270,7 @@ notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config
     if unmarshal(params, open_params, context.allocator) != .None {
         return .ParseError;
     }
-   
+
     return document_open(open_params.textDocument.uri, open_params.textDocument.text);
 }
 
@@ -288,7 +288,7 @@ notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Conf
         return .ParseError;
     }
 
-    fmt.println(change_params);
+    document_apply_changes(change_params.textDocument.uri, change_params.contentChanges);
 
     return .None;
 }
@@ -307,6 +307,6 @@ notification_did_close :: proc(params: json.Value, id: RequestId, config: ^Confi
         return .ParseError;
     }
 
-    return document_close(close_params.textDocument.uri, close_params.textDocument.text);
+    return document_close(close_params.textDocument.uri);
 }
 

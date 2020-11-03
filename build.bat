@@ -1,8 +1,12 @@
 @echo off
 
-odin run tests\ -llvm-api -show-timings -microarch:native -collection:shared=src -out:ols
+
+odin run tests\ -show-timings -llvm-api -collection:shared=src -microarch:native -out:test
 
 
-odin build src\ -llvm-api -show-timings -microarch:native -collection:shared=src -out:ols
+rem odin build tests\ -show-timings  -collection:shared=src -microarch:native -out:test -debug
+
+
+odin build src\ -llvm-api -show-timings -microarch:native -collection:shared=src -out:ols -debug
 
 
