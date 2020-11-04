@@ -27,6 +27,11 @@ run :: proc(reader: ^Reader, writer: ^Writer) {
 
     config: Config;
 
+    //temporary collections being set manually, need to get client configuration set up.
+    config.collections = make(map [string] string);
+
+    config.collections["core"] = "C:/Users/danie/OneDrive/Desktop/Computer_Science/Odin/core";
+
     log.info("Starting Odin Language Server");
 
     running = true;

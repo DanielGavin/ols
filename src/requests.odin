@@ -272,7 +272,7 @@ notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config
         return .ParseError;
     }
 
-    return document_open(open_params.textDocument.uri, open_params.textDocument.text, writer);
+    return document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer);
 }
 
 notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
@@ -289,7 +289,7 @@ notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Conf
         return .ParseError;
     }
 
-    document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, writer);
+    document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer);
 
     return .None;
 }

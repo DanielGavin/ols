@@ -3,6 +3,7 @@ package main
 import "core:strings"
 import "core:fmt"
 import "core:log"
+import "core:os"
 
 Package :: struct {
     documents: [dynamic]^Document,
@@ -15,6 +16,7 @@ Document :: struct {
     used_text: int, //allow for the text to be reallocated with more data than needed
     client_owned: bool,
     diagnosed_errors: bool,
+    symbols: DocumentSymbols,
 };
 
 DocumentStorage :: struct {
@@ -23,8 +25,46 @@ DocumentStorage :: struct {
 
 document_storage: DocumentStorage;
 
+/*
+    Note(Daniel, Should there be reference counting of documents or just clear everything on workspace change?
+        You usually always need the documents that are loaded in core files, your own files, etc.)
+ */
 
-document_open :: proc(uri_string: string, text: string, writer: ^Writer) -> Error {
+/*
+    Server opens a new document with text from filesystem
+*/
+document_new :: proc(path: string, config: ^Config) -> Error {
+
+    text, ok := os.read_entire_file(path);
+
+    cloned_path := strings.clone(path);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    document := Document {
+        uri = cloned_path,
+        path = cloned_path,
+        text = transmute([] u8)text,
+        client_owned = true,
+        used_text = len(text),
+    };
+
+    if err := document_refresh(&document, config, nil); err != .None {
+        return err;
+    }
+
+    document_storage.documents[path] = document;
+
+    return .None;
+}
+
+/*
+    Client opens a document with transferred text
+*/
+
+document_open :: proc(uri_string: string, text: string, config: ^Config, writer: ^Writer) -> Error {
 
     uri, parsed_ok := parse_uri(uri_string);
 
@@ -43,11 +83,17 @@ document_open :: proc(uri_string: string, text: string, writer: ^Writer) -> Erro
             delete(document.text);
         }
 
+        if len(document.uri) > 0 {
+            delete(document.uri);
+        }
+
+        document.uri = uri.full;
+        document.path = uri.path;
         document.client_owned = true;
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
 
-        if err := document_refresh(document, writer); err != .None {
+        if err := document_refresh(document, config, writer); err != .None {
             return err;
         }
 
@@ -63,7 +109,7 @@ document_open :: proc(uri_string: string, text: string, writer: ^Writer) -> Erro
             used_text = len(text),
         };
 
-        if err := document_refresh(&document, writer); err != .None {
+        if err := document_refresh(&document, config, writer); err != .None {
             return err;
         }
 
@@ -81,7 +127,7 @@ document_open :: proc(uri_string: string, text: string, writer: ^Writer) -> Erro
 /*
     Function that applies changes to the given document through incremental syncronization
  */
-document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent, writer: ^Writer) -> Error {
+document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent, config: ^Config, writer: ^Writer) -> Error {
 
     uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
 
@@ -139,7 +185,7 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     }
 
-    return document_refresh(document, writer);
+    return document_refresh(document, config, writer);
 }
 
 document_close :: proc(uri_string: string) -> Error {
@@ -164,16 +210,19 @@ document_close :: proc(uri_string: string) -> Error {
 
 
 
-document_refresh :: proc(document: ^Document, writer: ^Writer) -> Error {
+document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer) -> Error {
 
 
-    document_symbols, errors, ok := parse_document_symbols(document);
+    document_symbols, errors, package_name, imports, ok := parse_document_symbols(document, config);
+
+    document.symbols = document_symbols;
 
     if !ok {
         return .ParseError;
     }
 
-    if len(errors) > 0 {
+    //right now we don't allow to writer errors out from files read from the file directory, core files, etc.
+    if writer != nil && len(errors) > 0 {
         document.diagnosed_errors = true;
 
         params := NotificationPublishDiagnosticsParams {
@@ -211,7 +260,7 @@ document_refresh :: proc(document: ^Document, writer: ^Writer) -> Error {
 
     }
 
-    if len(errors) == 0 {
+    if writer != nil && len(errors) == 0 {
 
         //send empty diagnosis to remove the clients errors
         if document.diagnosed_errors {
@@ -233,6 +282,46 @@ document_refresh :: proc(document: ^Document, writer: ^Writer) -> Error {
 
     }
 
+
+    /*
+        go through the imports from this document and see if we need to load them into memory(not owned by client),
+        and also refresh them if needed
+    */
+    for imp in imports {
+
+        if err := document_load_package(imp, config); err != .None {
+            return err;
+        }
+
+    }
+
+
     return .None;
 }
 
+document_load_package :: proc(package_directory: string, config: ^Config) -> Error {
+
+    fd, err := os.open(package_directory);
+
+    if err != 0 {
+        return .ParseError;
+    }
+
+    files: []os.File_Info;
+    files, err = os.read_dir(fd, 100, context.temp_allocator);
+
+    for file in files {
+
+        //if we have never encountered the document
+        if _, ok := document_storage.documents[file.fullpath]; !ok {
+
+            if doc_err := document_new(file.fullpath, config); doc_err != .None {
+                return doc_err;
+            }
+
+        }
+
+    }
+
+    return .None;
+}
