@@ -10,7 +10,7 @@ import src "../src"
 
 
 /*
-    This is really tests, but just where i quickly got look at error crashes from specific messages.
+    This is isn't really tests, but just where i quickly got to look at error crashes from specific messages.
 
     There needs either to be a process spawned
     or just keep overwriting the writer and reader functions, but either way, there needs
