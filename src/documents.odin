@@ -11,9 +11,10 @@ Package :: struct {
 Document :: struct {
     uri: string,
     path: string,
-    text: [] u8, //transmuted version of text plus potential unused space
+    text: [] u8,
     used_text: int, //allow for the text to be reallocated with more data than needed
     client_owned: bool,
+    diagnosed_errors: bool,
 };
 
 DocumentStorage :: struct {
@@ -23,7 +24,7 @@ DocumentStorage :: struct {
 document_storage: DocumentStorage;
 
 
-document_open :: proc(uri_string: string, text: string) -> Error {
+document_open :: proc(uri_string: string, text: string, writer: ^Writer) -> Error {
 
     uri, parsed_ok := parse_uri(uri_string);
 
@@ -33,7 +34,6 @@ document_open :: proc(uri_string: string, text: string) -> Error {
 
     if document := &document_storage.documents[uri.path]; document != nil {
 
-        //According to the specification you can't call open more than once without closing it.
         if document.client_owned {
             log.errorf("Client called open on an already open document: %v ", document.path);
             return .InvalidRequest;
@@ -47,11 +47,10 @@ document_open :: proc(uri_string: string, text: string) -> Error {
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
 
-        if err := document_refresh(document); err != .None {
+        if err := document_refresh(document, writer); err != .None {
             return err;
         }
 
-        document_refresh(document);
     }
 
     else {
@@ -64,7 +63,7 @@ document_open :: proc(uri_string: string, text: string) -> Error {
             used_text = len(text),
         };
 
-        if err := document_refresh(&document); err != .None {
+        if err := document_refresh(&document, writer); err != .None {
             return err;
         }
 
@@ -79,7 +78,10 @@ document_open :: proc(uri_string: string, text: string) -> Error {
     return .None;
 }
 
-document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent) -> Error {
+/*
+    Function that applies changes to the given document through incremental syncronization
+ */
+document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent, writer: ^Writer) -> Error {
 
     uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
 
@@ -96,24 +98,25 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     for change in changes {
 
-        absolute_range, ok := get_absolute_range(change.range, document.text);
+        absolute_range, ok := get_absolute_range(change.range, document.text[:document.used_text]);
 
         if !ok {
             return .ParseError;
         }
 
         //lower bound is before the change
-        lower  := document.text[:absolute_range.start];
+        lower := document.text[:absolute_range.start];
 
         //new change between lower and upper
         middle := change.text;
 
         //upper bound is after the change
-        upper := document.text[min(len(document.text), absolute_range.end+1):];
+        upper := document.text[absolute_range.end:document.used_text];
 
         //total new size needed
         document.used_text = len(lower) + len(change.text) + len(upper);
 
+        //Reduce the amount of allocation by allocating more memory than needed
         if document.used_text > len(document.text) {
             new_text := make([]u8, document.used_text * 2);
 
@@ -128,33 +131,15 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
         }
 
         else {
-            //no need to copy the lower since it is already in the document.
-            copy(document.text[len(lower):], middle);
+            //order matters here, we need to make sure we swap the data already in the text before the middle
+            copy(document.text, lower);
             copy(document.text[len(lower)+len(middle):], upper);
+            copy(document.text[len(lower):], middle);
         }
-
-
-        /*
-        fmt.println(string(document.text[:document.used_text]));
-
-        fmt.println("LOWER");
-        fmt.println(string(lower));
-
-        fmt.println("CHANGE");
-        fmt.println(change.text);
-        fmt.println(len(change.text));
-
-        fmt.println("UPPER");
-        fmt.println(string(upper));
-        */
 
     }
 
-
-
-
-
-    return .None;
+    return document_refresh(document, writer);
 }
 
 document_close :: proc(uri_string: string) -> Error {
@@ -177,7 +162,77 @@ document_close :: proc(uri_string: string) -> Error {
     return .None;
 }
 
-document_refresh :: proc(document: ^Document) -> Error {
+
+
+document_refresh :: proc(document: ^Document, writer: ^Writer) -> Error {
+
+
+    document_symbols, errors, ok := parse_document_symbols(document);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    if len(errors) > 0 {
+        document.diagnosed_errors = true;
+
+        params := NotificationPublishDiagnosticsParams {
+            uri = document.uri,
+            diagnostics = make([] Diagnostic, len(errors), context.temp_allocator),
+        };
+
+        for error, i in errors {
+
+            params.diagnostics[i] = Diagnostic {
+                range = Range {
+                    start = Position {
+                        line = error.line - 1,
+                        character = 0,
+                    },
+                    end = Position {
+                        line = error.line,
+                        character = 0,
+                    },
+                },
+                severity = DiagnosticSeverity.Error,
+                code = "test",
+                message = error.message,
+            };
+
+        }
+
+        notifaction := Notification {
+            jsonrpc = "2.0",
+            method = "textDocument/publishDiagnostics",
+            params = params,
+        };
+
+        send_notification(notifaction, writer);
+
+    }
+
+    if len(errors) == 0 {
+
+        //send empty diagnosis to remove the clients errors
+        if document.diagnosed_errors {
+
+            notifaction := Notification {
+            jsonrpc = "2.0",
+            method = "textDocument/publishDiagnostics",
+
+            params = NotificationPublishDiagnosticsParams {
+                uri = document.uri,
+                diagnostics = make([] Diagnostic, len(errors), context.temp_allocator),
+                },
+            };
+
+            document.diagnosed_errors = false;
+
+            send_notification(notifaction, writer);
+        }
+
+    }
+
     return .None;
 }
 

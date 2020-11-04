@@ -1,10 +1,9 @@
 package main
 
-import "core:fmt"
-import "core:log"
-
-
+test :: struct {
+    int a;
+}
 
 main :: proc() {
- 
+
 }

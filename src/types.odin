@@ -2,6 +2,12 @@ package main
 
 import "core:encoding/json"
 
+/*
+    General types
+*/
+
+//TODO(Daniel, move some of the more specific structs to their appropriate place)
+
 RequestId :: union {
     string,
     i64,
@@ -53,8 +59,14 @@ NotificationLoggingParams :: struct {
     message: string,
 };
 
+NotificationPublishDiagnosticsParams :: struct {
+	uri: string,
+	diagnostics: [] Diagnostic,
+};
+
 NotificationParams :: union {
     NotificationLoggingParams,
+    NotificationPublishDiagnosticsParams,
 };
 
 Notification :: struct {
@@ -86,6 +98,7 @@ MarkupKind :: enum {
 
 ServerCapabilities :: struct {
     textDocumentSync: int,
+    definitionProvider: bool,
 };
 
 CompletionClientCapabilities :: struct {
@@ -139,6 +152,20 @@ TextDocumentItem :: struct {
 	text: string,
 };
 
+DiagnosticSeverity :: enum {
+    Error = 1,
+    Warning = 2,
+	Information = 3,
+	Hint = 4,
+};
+
+Diagnostic :: struct {
+	range: Range,
+	severity: DiagnosticSeverity,
+	code: string,
+	message: string,
+};
+
 DidOpenTextDocumentParams :: struct {
     textDocument: TextDocumentItem,
 };
@@ -148,7 +175,6 @@ DidChangeTextDocumentParams :: struct {
 	contentChanges: [dynamic] TextDocumentContentChangeEvent,
 };
 
-DidCloseTextDocumentParams :: struct{
+DidCloseTextDocumentParams :: struct {
     textDocument: TextDocumentIdentifier,
 };
-

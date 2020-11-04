@@ -130,7 +130,6 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 
 
 handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) -> bool {
-    log.info("Handling request");
 
     root, ok := request.value.(json.Object);
 
@@ -164,7 +163,8 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
          "exit" = notification_exit,
          "textDocument/didOpen" = notification_did_open,
          "textDocument/didChange" = notification_did_change,
-         "textDocument/didClose" = notification_did_close};
+         "textDocument/didClose" = notification_did_close,
+         "textDocument/didSave" = notification_did_save };
 
     fn: proc(json.Value, RequestId, ^Config, ^Writer) -> Error;
     fn, ok = call_map[method];
@@ -226,6 +226,7 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, w
         params = ResponseInitializeParams {
             capabilities = ServerCapabilities {
                 textDocumentSync = 2, //incremental
+                definitionProvider = true,
             },
         },
         id = id,
@@ -271,7 +272,7 @@ notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config
         return .ParseError;
     }
 
-    return document_open(open_params.textDocument.uri, open_params.textDocument.text);
+    return document_open(open_params.textDocument.uri, open_params.textDocument.text, writer);
 }
 
 notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
@@ -288,7 +289,7 @@ notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Conf
         return .ParseError;
     }
 
-    document_apply_changes(change_params.textDocument.uri, change_params.contentChanges);
+    document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, writer);
 
     return .None;
 }
@@ -308,5 +309,12 @@ notification_did_close :: proc(params: json.Value, id: RequestId, config: ^Confi
     }
 
     return document_close(close_params.textDocument.uri);
+}
+
+notification_did_save :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+
+
+
+    return .None;
 }
 

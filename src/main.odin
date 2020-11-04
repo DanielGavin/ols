@@ -40,7 +40,7 @@ run :: proc(reader: ^Reader, writer: ^Writer) {
             return;
         }
 
-       
+
         value: json.Value;
         value, success = read_and_parse_body(reader, header);
 
@@ -56,12 +56,14 @@ run :: proc(reader: ^Reader, writer: ^Writer) {
             return;
         }
 
+        free_all(context.temp_allocator);
+
     }
 
 }
 
 end :: proc() {
-    
+
 }
 
 
@@ -69,7 +71,9 @@ main :: proc() {
 
     reader := make_reader(os_read, cast(rawptr)os.stdin);
     writer := make_writer(os_write, cast(rawptr)os.stdout);
-  
+
+    context.logger = create_lsp_logger(&writer);
+
     run(&reader, &writer);
 }
 

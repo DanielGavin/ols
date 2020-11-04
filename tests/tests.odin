@@ -9,6 +9,16 @@ import "core:strings"
 import src "../src"
 
 
+/*
+    This is really tests, but just where i quickly got look at error crashes from specific messages.
+
+    There needs either to be a process spawned
+    or just keep overwriting the writer and reader functions, but either way, there needs
+    to client mimick behavior where we can consume the text we get from the client, and make
+    actual tests.
+
+ */
+
 initialize_request := `
 {   "jsonrpc":"2.0",
     "id":0,
@@ -334,7 +344,7 @@ make_request :: proc(request: string) -> string {
 test_init_check_shutdown :: proc() -> bool {
 
     buffer := TestReadBuffer {
-        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(shutdown_request), make_request(exit_notification)}, "", context.temp_allocator),
+        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(shutdown_request), make_request(exit_notification)}, "", context.allocator),
     };
 
     reader := src.make_reader(test_read, &buffer);
@@ -359,7 +369,7 @@ test_open_and_change_notification :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:log\"\r\n\r\n\r\n\r\nmain :: proc() {\r\n\r\n}import \"core:fmt\"\r\nimport \"core:log\"\r\n"
+            "text": ""
         }
     }
     }`;
@@ -377,29 +387,71 @@ test_open_and_change_notification :: proc() -> bool {
         {
             "range": {
                 "start": {
-                    "line": 9,
-                    "character": 1
+                    "line": 0,
+                    "character": 0
                 },
                 "end": {
-                    "line": 10,
-                    "character": 17
+                    "line": 0,
+                    "character": 0
                 }
             },
-            "rangeLength": 36,
+            "rangeLength": 0,
+            "text": "aadasfasgasgs"
+        }
+    ]
+    }
+    }`;
+
+    change_notification_2 := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didChange",
+    "params":  {
+        "textDocument": {
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+        "version": 3
+    },
+    "contentChanges": [
+        {
+            "range": {
+                "start": {
+                    "line": 8,
+                    "character": 0
+                },
+                "end": {
+                    "line": 8,
+                    "character": 1
+                }
+            },
+            "rangeLength": 1,
             "text": ""
         }
     ]
     }
     }`;
 
+
+    /*
+    buffer := TestReadBuffer {
+        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
+                                               make_request(change_notification), make_request(change_notification_2), make_request(shutdown_request),
+                                               make_request(exit_notification)}, "", context.temp_allocator),
+    };
+    */
+
+
+
     buffer := TestReadBuffer {
         data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
                                                make_request(change_notification), make_request(shutdown_request),
-                                               make_request(exit_notification)}, "", context.temp_allocator),
+                                               make_request(exit_notification)}, "", context.allocator),
     };
+
 
     reader := src.make_reader(test_read, &buffer);
     writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
+
+    context.logger = src.create_lsp_logger(&writer);
 
     src.run(&reader, &writer);
 
@@ -407,7 +459,6 @@ test_open_and_change_notification :: proc() -> bool {
 
     return true;
 }
-
 
 main :: proc() {
 

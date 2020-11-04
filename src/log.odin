@@ -48,13 +48,13 @@ lsp_logger_proc :: proc(logger_data: rawptr, level: log.Level, text: string, opt
 		}
 	}
 
-    message := fmt.tprintf("%s %s", buf, text);
+    message := fmt.tprintf("%s", text);
 
     notification := Notification {
-        jsonrpc = "2.0", 
-        method = "window/logMessage", 
+        jsonrpc = "2.0",
+        method = "window/logMessage",
         params = NotificationLoggingParams {
-            type = 1, 
+            type = 1,
             message = message,
         }
     };
