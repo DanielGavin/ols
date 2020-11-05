@@ -9,19 +9,26 @@ import "core:strings"
 import "core:path"
 
 
-DocumentPositionContextType :: enum {
-    GlobalVariable,
-    DottedVariable,
-    Unknown,
+DocumentPositionContextDottedValue :: struct {
+    prefix: string,
+    postfix: string,
 };
 
+DocumentPositionContextGlobalValue :: struct {
+
+};
+
+DocumentPositionContextUnknownValue :: struct {
+
+}
+
 DocumentPositionContextValue :: union {
-    string,
-    int,
+    DocumentPositionContextDottedValue,
+    DocumentPositionContextGlobalValue,
+    DocumentPositionContextUnknownValue
 };
 
 DocumentPositionContext :: struct {
-    type: DocumentPositionContextType,
     value: DocumentPositionContextValue,
 };
 
@@ -44,14 +51,18 @@ get_document_position_context :: proc(document: ^Document, position: Position) -
     }
 
 
-    //Using the ast is not really viable since this may be broken code
+    //Using the ast is not really viable since the code may be broken code
     t: tokenizer.Tokenizer;
 
-    tokenizer.init(&t, document.text, document.path, tokenizer_error_handler);
+    tokenizer.init(&t, document.text, document.uri.path, tokenizer_error_handler);
 
     stack := make([dynamic] tokenizer.Token, context.temp_allocator);
 
     current_token: tokenizer.Token;
+    last_token: tokenizer.Token;
+
+    struct_or_package_dotted: bool;
+    struct_or_package: tokenizer.Token;
 
     /*
         Idea is to push and pop into braces, brackets, etc, and use the final stack to infer context
@@ -62,10 +73,16 @@ get_document_position_context :: proc(document: ^Document, position: Position) -
         current_token = tokenizer.scan(&t);
 
         #partial switch current_token.kind {
-        case .Open_Paren:
-
+        case .Period:
+            if last_token.kind == .Ident {
+                struct_or_package_dotted = true;
+                struct_or_package = last_token;
+            }
+        case .Ident:
         case .EOF:
             break;
+        case:
+            struct_or_package_dotted = false;
 
         }
 
@@ -76,15 +93,27 @@ get_document_position_context :: proc(document: ^Document, position: Position) -
             break;
         }
 
+        last_token = current_token;
     }
 
     #partial switch current_token.kind {
         case .Ident:
-            position_context.type = .GlobalVariable;
-            position_context.value = current_token.text;
+            if struct_or_package_dotted {
+                position_context.value = DocumentPositionContextDottedValue {
+                    prefix = struct_or_package.text,
+                    postfix = current_token.text,
+                };
+            }
+            else {
+
+            }
         case:
-            position_context.type = .Unknown;
+            position_context.value = DocumentPositionContextUnknownValue {
+
+            };
     }
+
+    //fmt.println(position_context);
 
     return position_context, true;
 }
@@ -100,8 +129,26 @@ get_definition_location :: proc(document: ^Document, position: Position) -> (Loc
         return location, false;
     }
 
+    symbol: Symbol;
 
+    #partial switch v in position_context.value {
+    case DocumentPositionContextDottedValue:
+        symbol, ok = indexer_get_symbol(strings.concatenate({v.prefix, v.postfix}, context.temp_allocator));
+    case:
+        return location, false;
+    }
 
+    //fmt.println(indexer.symbol_table);
+
+    if !ok {
+        return location, false;
+    }
+
+    switch v in symbol {
+    case ProcedureSymbol:
+        location.range = v.range;
+        location.uri = v.uri.uri;
+    }
 
     return location, true;
 }

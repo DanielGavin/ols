@@ -278,11 +278,16 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^Config, w
     location, ok2 := get_definition_location(document, definition_params.position);
 
     if !ok2 {
+        log.error("Failed to get definition location");
         return .InternalError;
     }
 
+    response := make_response_message(
+        params = location,
+        id = id,
+    );
 
-
+    send_response(response, writer);
 
 
     return .None;

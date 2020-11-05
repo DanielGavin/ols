@@ -4,9 +4,11 @@ import "core:mem"
 import "core:strings"
 import "core:strconv"
 import "core:fmt"
+import "core:unicode/utf8"
 
 Uri :: struct {
-    full: string,
+    uri: string,
+    decode_full: string,
     path: string,
 };
 
@@ -28,10 +30,70 @@ parse_uri :: proc(value: string, allocator := context.allocator) -> (Uri, bool) 
         return uri, false;
     }
 
-    uri.full = decoded;
+    uri.uri = strings.clone(value);
+    uri.decode_full = decoded;
     uri.path = decoded[len(starts):];
 
     return uri, true;
+}
+
+
+//Note(Daniel, Again some really incomplete and scuffed uri writer)
+create_uri :: proc(path: string, allocator := context.allocator) -> Uri {
+
+    builder := strings.make_builder(allocator);
+
+    strings.write_string(&builder, "file:///");
+    strings.write_string(&builder, encode_percent(path, context.temp_allocator));
+
+    uri: Uri;
+
+    uri.uri = strings.to_string(builder);
+    uri.decode_full = strings.clone(path, allocator);
+    uri.path = uri.decode_full;
+
+    return uri;
+}
+
+delete_uri :: proc(uri: Uri) {
+
+    if uri.uri != "" {
+        delete(uri.uri);
+    }
+
+    if uri.decode_full != "" {
+        delete(uri.decode_full);
+    }
+}
+
+encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
+
+    builder := strings.make_builder(allocator);
+
+    data := transmute([]u8)value;
+    index: int;
+
+    for index < len(value) {
+
+        r, w := utf8.decode_rune(data[index:]);
+
+        if r > 127 || r == ':'{
+
+            for i := 0; i < w; i += 1 {
+                strings.write_string(&builder, strings.concatenate({"%", fmt.tprintf("%X", data[index+i])},
+                                                                         context.temp_allocator));
+            }
+
+        }
+
+        else {
+            strings.write_byte(&builder, data[index]);
+        }
+
+        index += w;
+    }
+
+    return strings.to_string(builder);
 }
 
 @(private)
@@ -56,7 +118,7 @@ starts_with :: proc(value: string, starts_with: string) -> bool {
 @(private)
 decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
 
-    builder := strings.make_builder(allocator);    
+    builder := strings.make_builder(allocator);
 
     for i := 0; i < len(value); i += 1 {
 

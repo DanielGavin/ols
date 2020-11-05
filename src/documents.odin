@@ -23,8 +23,7 @@ Package :: struct {
 };
 
 Document :: struct {
-    uri: string,
-    path: string,
+    uri: Uri,
     text: [] u8,
     used_text: int, //allow for the text to be reallocated with more data than needed
     client_owned: bool,
@@ -66,7 +65,7 @@ document_new :: proc(path: string, config: ^Config) -> Error {
 
     text, ok := os.read_entire_file(path);
 
-    cloned_path := strings.clone(path);
+    uri := create_uri(path);
 
     if !ok {
         log.error("Failed to parse uri");
@@ -74,8 +73,7 @@ document_new :: proc(path: string, config: ^Config) -> Error {
     }
 
     document := Document {
-        uri = cloned_path,
-        path = cloned_path,
+        uri = uri,
         text = transmute([] u8)text,
         client_owned = true,
         used_text = len(text),
@@ -86,12 +84,14 @@ document_new :: proc(path: string, config: ^Config) -> Error {
         return err;
     }
 
-    if err := index_document(&document); err != .None {
+     document_storage.documents[path] = document;
+
+    if err := index_document(&document_storage.documents[path]); err != .None {
         log.error("Failed to index new document");
         return err;
     }
 
-    document_storage.documents[path] = document;
+
 
     return .None;
 }
@@ -114,7 +114,7 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
     if document := &document_storage.documents[uri.path]; document != nil {
 
         if document.client_owned {
-            log.errorf("Client called open on an already open document: %v ", document.path);
+            log.errorf("Client called open on an already open document: %v ", document.uri.path);
             return .InvalidRequest;
         }
 
@@ -122,12 +122,11 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
             delete(document.text);
         }
 
-        if len(document.uri) > 0 {
-            delete(document.uri);
+        if len(document.uri.uri) > 0 {
+            delete_uri(document.uri);
         }
 
-        document.uri = uri.full;
-        document.path = uri.path;
+        document.uri = uri;
         document.client_owned = true;
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
@@ -141,8 +140,7 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
     else {
 
         document := Document {
-            uri = uri.full,
-            path = uri.path,
+            uri = uri,
             text = transmute([] u8)text,
             client_owned = true,
             used_text = len(text),
@@ -177,7 +175,7 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
     document := &document_storage.documents[uri.path];
 
     if !document.client_owned {
-        log.errorf("Client called change on an document not opened: %v ", document.path);
+        log.errorf("Client called change on an document not opened: %v ", document.uri.path);
         return .InvalidRequest;
     }
 
@@ -238,7 +236,7 @@ document_close :: proc(uri_string: string) -> Error {
     document := &document_storage.documents[uri.path];
 
     if document == nil || !document.client_owned {
-        log.errorf("Client called close on a document that was never opened: %v ", document.path);
+        log.errorf("Client called close on a document that was never opened: %v ", document.uri.path);
         return .InvalidRequest;
     }
 
@@ -262,7 +260,7 @@ document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, 
         document.diagnosed_errors = true;
 
         params := NotificationPublishDiagnosticsParams {
-            uri = document.uri,
+            uri = document.uri.uri,
             diagnostics = make([] Diagnostic, len(errors), context.temp_allocator),
         };
 
@@ -306,7 +304,7 @@ document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, 
             method = "textDocument/publishDiagnostics",
 
             params = NotificationPublishDiagnosticsParams {
-                uri = document.uri,
+                uri = document.uri.uri,
                 diagnostics = make([] Diagnostic, len(errors), context.temp_allocator),
                 },
             };
@@ -388,13 +386,14 @@ parse_document :: proc(document: ^Document, config: ^Config) -> ([] ParserError,
     current_errors = make([dynamic] ParserError, context.temp_allocator);
 
     document.ast = ast.File {
-        fullpath = document.path,
+        fullpath = document.uri.path,
         src = document.text[:document.used_text],
     };
 
     parser.parse_file(&p, &document.ast);
 
     document.imports = make([]string, len(document.ast.imports));
+    document.package_name = document.ast.pkg_name;
 
     for imp, index in document.ast.imports {
 

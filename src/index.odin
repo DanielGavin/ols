@@ -22,10 +22,14 @@ import "core:strings"
     TODO(Daniel, Look into data structure for fuzzy searching)
 
  */
+BaseSymbol :: struct {
+    range: Range,
+    uri: ^Uri,
+};
 
 ProcedureSymbol :: struct {
-    range: Range,
-}
+    using symbolbase: BaseSymbol,
+};
 
 Symbol :: union {
     ProcedureSymbol,
@@ -52,6 +56,7 @@ index_document :: proc(document: ^Document) -> Error {
                     symbol: ProcedureSymbol;
 
                     symbol.range = get_token_range(proc_lit, document.text);
+                    symbol.uri = &document.uri;
 
                     indexer.symbol_table[strings.concatenate({document.package_name, name}, context.temp_allocator)] = symbol;
 
@@ -70,7 +75,5 @@ index_document :: proc(document: ^Document) -> Error {
 }
 
 indexer_get_symbol :: proc(id: string) -> (Symbol, bool) {
-
-
-
+    return indexer.symbol_table[id];
 }

@@ -16,6 +16,7 @@ RequestId :: union {
 ResponseParams :: union {
     ResponseInitializeParams,
     rawptr,
+    Location,
 };
 
 ResponseMessage :: struct {
