@@ -129,6 +129,11 @@ Range :: struct {
 	end: Position,
 };
 
+Location :: struct {
+	uri: string,
+	range: Range,
+};
+
 TextDocumentContentChangeEvent :: struct {
 	range: Range,
 	text: string,
@@ -177,4 +182,9 @@ DidChangeTextDocumentParams :: struct {
 
 DidCloseTextDocumentParams :: struct {
     textDocument: TextDocumentIdentifier,
+};
+
+TextDocumentPositionParams :: struct {
+	textDocument: TextDocumentIdentifier,
+	position: Position,
 };

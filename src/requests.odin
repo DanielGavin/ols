@@ -164,7 +164,8 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
          "textDocument/didOpen" = notification_did_open,
          "textDocument/didChange" = notification_did_change,
          "textDocument/didClose" = notification_did_close,
-         "textDocument/didSave" = notification_did_save };
+         "textDocument/didSave" = notification_did_save,
+         "textDocument/definition" = request_definition };
 
     fn: proc(json.Value, RequestId, ^Config, ^Writer) -> Error;
     fn, ok = call_map[method];
@@ -253,6 +254,40 @@ request_shutdown :: proc(params: json.Value, id: RequestId, config: ^Config, wri
     return .None;
 }
 
+request_definition :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    definition_params: TextDocumentPositionParams;
+
+    if unmarshal(params, definition_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+
+    document := document_get(definition_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    location, ok2 := get_definition_location(document, definition_params.position);
+
+    if !ok2 {
+        return .InternalError;
+    }
+
+
+
+
+
+    return .None;
+}
+
 notification_exit :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
     running = false;
     return .None;
@@ -263,12 +298,14 @@ notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config
     params_object, ok := params.value.(json.Object);
 
     if !ok {
+        log.error("Failed to parse open document notification");
         return .ParseError;
     }
 
     open_params: DidOpenTextDocumentParams;
 
     if unmarshal(params, open_params, context.allocator) != .None {
+        log.error("Failed to parse open document notification");
         return .ParseError;
     }
 

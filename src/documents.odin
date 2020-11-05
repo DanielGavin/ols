@@ -4,6 +4,19 @@ import "core:strings"
 import "core:fmt"
 import "core:log"
 import "core:os"
+import "core:odin/parser"
+import "core:odin/ast"
+import "core:odin/tokenizer"
+import "core:path"
+
+ParserError :: struct {
+    message: string,
+    line: int,
+    column: int,
+    file: string,
+    offset: int,
+};
+
 
 Package :: struct {
     documents: [dynamic]^Document,
@@ -16,14 +29,30 @@ Document :: struct {
     used_text: int, //allow for the text to be reallocated with more data than needed
     client_owned: bool,
     diagnosed_errors: bool,
-    symbols: DocumentSymbols,
+    indexed: bool,
+    ast: ast.File,
+    package_name: string,
+    imports: [] string,
 };
 
 DocumentStorage :: struct {
     documents: map [string] Document,
+    packages: map [string] Package,
 };
 
 document_storage: DocumentStorage;
+
+
+document_get :: proc(uri_string: string) -> ^Document {
+
+    uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
+
+    if !parsed_ok {
+        return nil;
+    }
+
+    return &document_storage.documents[uri.path];
+}
 
 /*
     Note(Daniel, Should there be reference counting of documents or just clear everything on workspace change?
@@ -40,6 +69,7 @@ document_new :: proc(path: string, config: ^Config) -> Error {
     cloned_path := strings.clone(path);
 
     if !ok {
+        log.error("Failed to parse uri");
         return .ParseError;
     }
 
@@ -51,7 +81,13 @@ document_new :: proc(path: string, config: ^Config) -> Error {
         used_text = len(text),
     };
 
-    if err := document_refresh(&document, config, nil); err != .None {
+    if err := document_refresh(&document, config, nil, false); err != .None {
+        log.error("Failed to refresh new document");
+        return err;
+    }
+
+    if err := index_document(&document); err != .None {
+        log.error("Failed to index new document");
         return err;
     }
 
@@ -68,7 +104,10 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
 
     uri, parsed_ok := parse_uri(uri_string);
 
+    log.infof("document_open: %v", uri_string);
+
     if !parsed_ok {
+        log.error("Failed to parse uri");
         return .ParseError;
     }
 
@@ -93,7 +132,7 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
 
-        if err := document_refresh(document, config, writer); err != .None {
+        if err := document_refresh(document, config, writer, true); err != .None {
             return err;
         }
 
@@ -109,7 +148,7 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
             used_text = len(text),
         };
 
-        if err := document_refresh(&document, config, writer); err != .None {
+        if err := document_refresh(&document, config, writer, true); err != .None {
             return err;
         }
 
@@ -185,7 +224,7 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     }
 
-    return document_refresh(document, config, writer);
+    return document_refresh(document, config, writer, true);
 }
 
 document_close :: proc(uri_string: string) -> Error {
@@ -210,12 +249,9 @@ document_close :: proc(uri_string: string) -> Error {
 
 
 
-document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer) -> Error {
+document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, parse_imports: bool) -> Error {
 
-
-    document_symbols, errors, package_name, imports, ok := parse_document_symbols(document, config);
-
-    document.symbols = document_symbols;
+    errors, ok := parse_document(document, config);
 
     if !ok {
         return .ParseError;
@@ -282,15 +318,18 @@ document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer) 
 
     }
 
+    if parse_imports {
 
-    /*
-        go through the imports from this document and see if we need to load them into memory(not owned by client),
-        and also refresh them if needed
-    */
-    for imp in imports {
+        /*
+            go through the imports from this document and see if we need to load them into memory(not owned by client),
+            and also refresh them if needed
+        */
+        for imp in document.imports {
 
-        if err := document_load_package(imp, config); err != .None {
-            return err;
+            if err := document_load_package(imp, config); err != .None {
+                return err;
+            }
+
         }
 
     }
@@ -324,4 +363,62 @@ document_load_package :: proc(package_directory: string, config: ^Config) -> Err
     }
 
     return .None;
+}
+
+
+current_errors: [dynamic] ParserError;
+
+parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
+    error := ParserError { line = pos.line, column = pos.column, file = pos.file,
+                           offset = pos.offset, message = fmt.tprintf(msg, ..args) };
+    append(&current_errors, error);
+}
+
+parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
+
+}
+
+parse_document :: proc(document: ^Document, config: ^Config) -> ([] ParserError, bool) {
+
+    p := parser.Parser {
+		err  = parser_error_handler,
+		warn = parser_warning_handler,
+	};
+
+    current_errors = make([dynamic] ParserError, context.temp_allocator);
+
+    document.ast = ast.File {
+        fullpath = document.path,
+        src = document.text[:document.used_text],
+    };
+
+    parser.parse_file(&p, &document.ast);
+
+    document.imports = make([]string, len(document.ast.imports));
+
+    for imp, index in document.ast.imports {
+
+        //collection specified
+        if i := strings.index(imp.fullpath, ":"); i != -1 {
+
+            collection := imp.fullpath[1:i];
+            p := imp.fullpath[i+1:len(imp.fullpath)-1];
+
+            dir, ok := config.collections[collection];
+
+            if !ok {
+                continue;
+            }
+
+            document.imports[index] = path.join(dir, p);
+
+        }
+
+        //relative
+        else {
+
+        }
+    }
+
+    return current_errors[:], true;
 }

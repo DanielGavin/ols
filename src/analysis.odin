@@ -8,127 +8,101 @@ import "core:log"
 import "core:strings"
 import "core:path"
 
-ParserError :: struct {
-    message: string,
-    line: int,
-    column: int,
-    file: string,
-    offset: int,
+
+DocumentPositionContextType :: enum {
+    GlobalVariable,
+    DottedVariable,
+    Unknown,
 };
 
-StructSymbol :: struct {
-
-};
-
-ProcedureSymbol :: struct {
-
-};
-
-PackageSymbol :: struct {
-
-};
-
-Symbol :: union {
-    StructSymbol,
-    ProcedureSymbol,
-    PackageSymbol
-};
-
-DocumentSymbols :: struct {
-    file: ast.File,
-    globals: map [string] Symbol,
-    imports: [] string,
+DocumentPositionContextValue :: union {
+    string,
+    int,
 };
 
 DocumentPositionContext :: struct {
-    symbol: Symbol,
+    type: DocumentPositionContextType,
+    value: DocumentPositionContextValue,
 };
 
-current_errors: [dynamic] ParserError;
 
-parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
-    error := ParserError { line = pos.line, column = pos.column, file = pos.file,
-                           offset = pos.offset, message = fmt.tprintf(msg, ..args) };
-    append(&current_errors, error);
-}
-
-parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
+tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
-
-
-/*
-    Parses and walks through the ast saving all the global symbols for the document. Local symbols are not saved
-    because they are determined by the position.
-
-    Document is responsible in freeing the DocumentSymbols with free_document_symbols
-
-    Returns DocumentSymbols, Errors, file package name, imports processed with correct path directory
-*/
-
-parse_document_symbols :: proc(document: ^Document, config: ^Config) -> (DocumentSymbols, [dynamic] ParserError, string, []string, bool) {
-
-    symbols: DocumentSymbols;
-
-    p := parser.Parser {
-		err  = parser_error_handler,
-		warn = parser_warning_handler,
-	};
-
-    current_errors = make([dynamic] ParserError, context.temp_allocator);
-
-    symbols.file = ast.File {
-        fullpath = document.path,
-        src = document.text[:document.used_text],
-    };
-
-    parser.parse_file(&p, &symbols.file);
-
-    symbols.imports = make([]string, len(symbols.file.imports));
-
-    for imp, index in symbols.file.imports {
-
-        //collection specified
-        if i := strings.index(imp.fullpath, ":"); i != -1 {
-
-            collection := imp.fullpath[1:i];
-            p := imp.fullpath[i+1:len(imp.fullpath)-1];
-
-            dir, ok := config.collections[collection];
-
-            if !ok {
-                continue;
-            }
-
-            symbols.imports[index] = path.join(allocator = context.temp_allocator, elems = {dir, p});
-
-        }
-
-        //relative
-        else {
-
-        }
-    }
-
-
-
-    return symbols, current_errors, symbols.file.pkg_name, symbols.imports, true;
-}
-
-free_document_symbols :: proc(symbols: DocumentSymbols) {
-
-}
-
 
 /*
     Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
-get_document_position_context :: proc(document: ^Document, position: Position) -> DocumentPositionContext {
+get_document_position_context :: proc(document: ^Document, position: Position) -> (DocumentPositionContext, bool) {
 
     position_context: DocumentPositionContext;
 
-    return position_context;
+    absolute_position, ok := get_absolute_position(position, document.text);
+
+    if !ok {
+        return position_context, false;
+    }
+
+
+    //Using the ast is not really viable since this may be broken code
+    t: tokenizer.Tokenizer;
+
+    tokenizer.init(&t, document.text, document.path, tokenizer_error_handler);
+
+    stack := make([dynamic] tokenizer.Token, context.temp_allocator);
+
+    current_token: tokenizer.Token;
+
+    /*
+        Idea is to push and pop into braces, brackets, etc, and use the final stack to infer context
+     */
+
+    for true {
+
+        current_token = tokenizer.scan(&t);
+
+        #partial switch current_token.kind {
+        case .Open_Paren:
+
+        case .EOF:
+            break;
+
+        }
+
+        //fmt.println(current_token.text);
+        //fmt.println();
+
+        if current_token.pos.offset+len(current_token.text) >= absolute_position {
+            break;
+        }
+
+    }
+
+    #partial switch current_token.kind {
+        case .Ident:
+            position_context.type = .GlobalVariable;
+            position_context.value = current_token.text;
+        case:
+            position_context.type = .Unknown;
+    }
+
+    return position_context, true;
 }
 
 
+get_definition_location :: proc(document: ^Document, position: Position) -> (Location, bool) {
+
+    location: Location;
+
+    position_context, ok := get_document_position_context(document, position);
+
+    if !ok {
+        return location, false;
+    }
+
+
+
+
+    return location, true;
+}
 
