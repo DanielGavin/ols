@@ -10,13 +10,12 @@ import src "../src"
 
 
 /*
-    This is isn't really tests, but just where i quickly got to look at error crashes from specific messages.
+    This is really tests, but just where i quickly got look at error crashes from specific messages.
 
     There needs either to be a process spawned
     or just keep overwriting the writer and reader functions, but either way, there needs
-    to client mimick behavior where we can consume the text we get from the client, and make
+    to be client mimick behavior where we can consume the text we get from the client, and make
     actual tests.
-
  */
 
 initialize_request := `
@@ -369,7 +368,7 @@ test_open_and_change_notification :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": ""
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(\"hello ols\");\r\n}\r\n"
         }
     }
     }`;
@@ -443,7 +442,62 @@ test_open_and_change_notification :: proc() -> bool {
 
     buffer := TestReadBuffer {
         data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
-                                               make_request(change_notification), make_request(shutdown_request),
+                                               make_request(shutdown_request),
+                                               make_request(exit_notification)}, "", context.allocator),
+    };
+
+
+    reader := src.make_reader(test_read, &buffer);
+    writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
+
+    context.logger = src.create_lsp_logger(&writer);
+
+    src.run(&reader, &writer);
+
+    delete(buffer.data);
+
+    return true;
+}
+
+
+test_definition_request :: proc() -> bool {
+
+    open_notification := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didOpen",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+            "languageId": "odin",
+            "version": 1,
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(\"hello ols\");\r\n}\r\n"
+        }
+    }
+    }`;
+
+    definition_request := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/definition",
+    "params":   {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
+        },
+        "position": {
+            "line": 5,
+            "character": 11
+        }
+    }
+
+    }`;
+
+
+
+
+    buffer := TestReadBuffer {
+        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification), make_request(definition_request),
+                                               make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.allocator),
     };
 
@@ -464,9 +518,11 @@ main :: proc() {
 
     context.logger = log.create_console_logger();
 
-    test_init_check_shutdown();
+    //test_init_check_shutdown();
 
-    test_open_and_change_notification();
+    test_definition_request();
+
+    //test_open_and_change_notification();
 
 
 }

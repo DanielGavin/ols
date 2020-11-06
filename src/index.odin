@@ -6,7 +6,11 @@ import "core:strings"
 
 
 /*
-    File is responsible for implementing the indexing of symbols for static files.
+    Concept ideas:
+
+    static indexing:
+
+    is responsible for implementing the indexing of symbols for static files.
 
     This is to solve the scaling problem of large projects with many files and symbols, as most of these files will be static.
 
@@ -18,6 +22,18 @@ import "core:strings"
 
     Potential features:
         Allow for saving the indexer, instead of recreating it everytime the lsp starts(but you would have to account for stale data).
+
+
+    dynamic indexing:
+
+    When the user modifies files we need some smaller index to handle everything the user is using right now. This will allow
+    us to rebuild parts of the index without too much of a performance hit.
+
+    This index is first searched and if nothing is found look in the static index.
+
+    interface ideas:
+
+    index_search_fuzzy(symbol: string, scope: [] string) -> [] SymbolResult
 
     TODO(Daniel, Look into data structure for fuzzy searching)
 
