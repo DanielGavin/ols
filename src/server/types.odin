@@ -19,6 +19,7 @@ ResponseParams :: union {
     ResponseInitializeParams,
     rawptr,
     common.Location,
+    CompletionList,
 };
 
 ResponseMessage :: struct {
@@ -78,10 +79,12 @@ MarkupKind :: enum {
 ServerCapabilities :: struct {
     textDocumentSync: int,
     definitionProvider: bool,
+    completionProvider: CompletionOptions,
 };
 
-CompletionClientCapabilities :: struct {
-
+CompletionOptions  :: struct {
+    resolveProvider: bool,
+	triggerCharacters: [] string,
 };
 
 HoverClientCapabilities :: struct {
@@ -92,6 +95,10 @@ HoverClientCapabilities :: struct {
 TextDocumentClientCapabilities :: struct {
     completion: CompletionClientCapabilities,
     hover: HoverClientCapabilities,
+};
+
+CompletionClientCapabilities :: struct {
+
 };
 
 ClientCapabilities :: struct {
@@ -151,4 +158,47 @@ DidCloseTextDocumentParams :: struct {
 TextDocumentPositionParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position: common.Position,
+};
+
+CompletionParams :: struct {
+    textDocument: TextDocumentIdentifier,
+	position: common.Position,
+};
+
+CompletionItemKind :: enum {
+	Text = 1,
+	Method = 2,
+	Function = 3,
+	Constructor = 4,
+	Field = 5,
+	Variable = 6,
+	Class = 7,
+	Interface = 8,
+	Module = 9,
+	Property = 10,
+	Unit = 11,
+	Value = 12,
+	Enum = 13,
+	Keyword = 14,
+	Snippet = 15,
+	Color = 16,
+	File = 17,
+	Reference = 18,
+	Folder = 19,
+	EnumMember = 20,
+	Constant = 21,
+	Struct = 22,
+	Event = 23,
+	Operator = 24,
+	TypeParameter = 25,
+};
+
+CompletionItem :: struct {
+	label: string,
+	kind: CompletionItemKind,
+};
+
+CompletionList :: struct {
+    isIncomplete: bool,
+	items: [] CompletionItem,
 };

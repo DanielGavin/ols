@@ -4,6 +4,7 @@ import "core:odin/ast"
 import "core:hash"
 import "core:strings"
 import "core:mem"
+import "core:fmt"
 
 import "shared:common"
 
@@ -11,6 +12,8 @@ Symbol :: struct {
     id: u64,
     range: common.Range,
     uri: string,
+    scope: string,
+    name: string,
 };
 
 SymbolCollection :: struct {
@@ -42,6 +45,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                     symbol: Symbol;
 
                     symbol.range = common.get_token_range(proc_lit, file.src);
+                    symbol.name = strings.clone(name);
+                    symbol.scope = strings.clone(file.pkg_name); //have this use unique strings to save space
 
                     uri_id := hash.murmur64(transmute([]u8)uri);
 

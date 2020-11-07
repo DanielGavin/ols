@@ -167,7 +167,8 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
          "textDocument/didChange" = notification_did_change,
          "textDocument/didClose" = notification_did_close,
          "textDocument/didSave" = notification_did_save,
-         "textDocument/definition" = request_definition };
+         "textDocument/definition" = request_definition,
+         "textDocument/completion" = request_completion};
 
     fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
     fn, ok = call_map[method];
@@ -225,11 +226,17 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
         }
     }
 
+    triggerCharacters := [] string { "." };
+
     response := make_response_message(
         params = ResponseInitializeParams {
             capabilities = ServerCapabilities {
                 textDocumentSync = 2, //incremental
                 definitionProvider = true,
+                completionProvider = CompletionOptions {
+                    resolveProvider = false,
+                    triggerCharacters = triggerCharacters,
+                },
             },
         },
         id = id,
@@ -294,6 +301,46 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     return .None;
 }
+
+
+request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    completition_params: CompletionParams;
+
+    if unmarshal(params, completition_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+
+    document := document_get(completition_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    list: CompletionList;
+    list, ok = get_completion_list(document, completition_params.position);
+
+    if !ok {
+        return .InternalError;
+    }
+
+    response := make_response_message(
+        params = list,
+        id = id,
+    );
+
+    send_response(response, writer);
+
+    return .None;
+}
+
 
 notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
     config.running = false;

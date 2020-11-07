@@ -40,7 +40,6 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
         data, ok := os.read_entire_file(info.fullpath, context.allocator);
 
         if !ok {
-            fmt.println("failed to read");
             return 1, false;
         }
 

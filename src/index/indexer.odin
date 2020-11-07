@@ -31,10 +31,6 @@ import "core:strings"
 
     This index is first searched and if nothing is found look in the static index.
 
-    interface ideas:
-
-    index_search_fuzzy(symbol: string, scope: [] string) -> [] SymbolResult
-
     TODO(Daniel, Look into data structure for fuzzy searching)
 
  */
@@ -51,4 +47,8 @@ lookup :: proc(id: string) -> (Symbol, bool) {
     return memory_index_lookup(&indexer.static_index, id);
 }
 
-//indexer_fuzzy_search :: proc(name: string, scope: [] string, )
+
+fuzzy_search :: proc(name: string, scope: [] string) -> ([] Symbol, bool) {
+    return memory_index_fuzzy_search(&indexer.static_index, name, scope);
+}
+

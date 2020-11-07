@@ -13,13 +13,17 @@ import "shared:index"
 
 
 
-DocumentPositionContextDottedValue :: struct {
+DocumentPositionContextVariableDotVariableValue :: struct {
     prefix: string,
     postfix: string,
 };
 
 DocumentPositionContextGlobalValue :: struct {
+    name: string,
+};
 
+DocumentPositionContextVariableDotValue :: struct {
+    prefix: string,
 };
 
 DocumentPositionContextUnknownValue :: struct {
@@ -27,9 +31,10 @@ DocumentPositionContextUnknownValue :: struct {
 }
 
 DocumentPositionContextValue :: union {
-    DocumentPositionContextDottedValue,
+    DocumentPositionContextVariableDotValue,
     DocumentPositionContextGlobalValue,
-    DocumentPositionContextUnknownValue
+    DocumentPositionContextUnknownValue,
+    DocumentPositionContextVariableDotVariableValue,
 };
 
 DocumentPositionContext :: struct {
@@ -69,6 +74,8 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
     struct_or_package_dotted: bool;
     struct_or_package: tokenizer.Token;
 
+    last_label: bool;
+
     /*
         Idea is to push and pop into braces, brackets, etc, and use the final stack to infer context
      */
@@ -84,11 +91,13 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
                 struct_or_package = last_token;
             }
         case .Ident:
+            last_label = true;
         case .EOF:
+            last_label = false;
             break;
         case:
             struct_or_package_dotted = false;
-
+            last_label = false;
         }
 
         if current_token.pos.offset+len(current_token.text) >= absolute_position {
@@ -101,21 +110,35 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
     #partial switch current_token.kind {
         case .Ident:
             if struct_or_package_dotted {
-                position_context.value = DocumentPositionContextDottedValue {
+                position_context.value = DocumentPositionContextVariableDotVariableValue {
                     prefix = struct_or_package.text,
                     postfix = current_token.text,
                 };
             }
             else {
-
+                position_context.value = DocumentPositionContextGlobalValue {
+                    name = current_token.text,
+                };
             }
+        case .Period:
+            if last_label {
+                position_context.value = DocumentPositionContextVariableDotValue {
+                    prefix = last_token.text,
+                };
+            }
+            else {
+                position_context.value = DocumentPositionContextUnknownValue {
+
+                };
+            }
+
         case:
             position_context.value = DocumentPositionContextUnknownValue {
 
             };
     }
 
-    //fmt.println(position_context);
+    log.info(position_context);
 
     return position_context, true;
 }
@@ -123,10 +146,7 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
 
-
     location: common.Location;
-
-
 
     position_context, ok := get_document_position_context(document, position);
 
@@ -137,13 +157,13 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     symbol: index.Symbol;
 
     #partial switch v in position_context.value {
-    case DocumentPositionContextDottedValue:
+    case DocumentPositionContextVariableDotVariableValue:
         symbol, ok = index.lookup(strings.concatenate({v.prefix, v.postfix}, context.temp_allocator));
+    case DocumentPositionContextGlobalValue:
+        symbol, ok = index.lookup(strings.concatenate({document.ast.pkg_name, v.name}, context.temp_allocator));
     case:
         return location, false;
     }
-
-    //fmt.println(indexer.symbol_table);
 
     if !ok {
         return location, false;
@@ -156,3 +176,38 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     return location, true;
 }
 
+get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
+
+    list: CompletionList;
+
+
+    position_context, ok := get_document_position_context(document, position);
+    symbols: [] index.Symbol;
+    empty_dot := false;
+
+
+    #partial switch v in position_context.value {
+    case DocumentPositionContextVariableDotVariableValue:
+        symbols, ok = index.fuzzy_search(v.postfix, {v.prefix});
+    case DocumentPositionContextVariableDotValue:
+        empty_dot = true;
+    }
+
+    if empty_dot {
+        list.isIncomplete = true;
+        return list, true;
+    }
+
+    if !ok {
+        return list, false;
+    }
+
+    list.items = make([] CompletionItem, len(symbols), context.temp_allocator);
+
+    for symbol, i in symbols {
+        list.items[i].label = symbol.name;
+        list.items[i].kind = .Function;
+    }
+
+    return list, true;
+}

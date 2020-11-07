@@ -516,16 +516,77 @@ test_definition_request :: proc() -> bool {
     return true;
 }
 
+
+test_completion_request :: proc() -> bool {
+
+    open_notification := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didOpen",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+            "languageId": "odin",
+            "version": 1,
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(\"hello ols\");\r\n    fmt.p \r\n}\r\n"
+        }
+    }
+    }`;
+
+    completion_request := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/completion",
+    "params":   {
+        "textDocument": {
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
+    },
+    "position": {
+        "line": 6,
+        "character": 9
+    },
+    "context": {
+        "triggerKind": 2,
+        "triggerCharacter": "."
+    }
+    }
+
+    }`;
+
+
+
+
+    buffer := TestReadBuffer {
+        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification), make_request(completion_request),
+                                               make_request(shutdown_request),
+                                               make_request(exit_notification)}, "", context.allocator),
+    };
+
+
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
+
+    context.logger = server.create_lsp_logger(&writer);
+
+    src.run(&reader, &writer);
+
+    delete(buffer.data);
+
+    return true;
+}
+
+
 main :: proc() {
 
     context.logger = log.create_console_logger();
 
     //test_init_check_shutdown();
 
-    test_definition_request();
+    //test_definition_request();
 
     //test_open_and_change_notification();
 
+    test_completion_request();
 
 }
 
