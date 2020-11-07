@@ -1,4 +1,4 @@
-package main
+package server
 
 import "core:encoding/json"
 import "core:strings"

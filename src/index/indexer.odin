@@ -1,4 +1,4 @@
-package main
+package index
 
 import "core:odin/ast"
 import "core:fmt"
@@ -38,58 +38,17 @@ import "core:strings"
     TODO(Daniel, Look into data structure for fuzzy searching)
 
  */
-BaseSymbol :: struct {
-    range: Range,
-    uri: ^Uri,
-};
 
-ProcedureSymbol :: struct {
-    using symbolbase: BaseSymbol,
-};
-
-Symbol :: union {
-    ProcedureSymbol,
-};
 
 Indexer :: struct {
-    symbol_table: map [string] Symbol,
+    static_index: MemoryIndex,
 };
 
 indexer: Indexer;
 
-index_document :: proc(document: ^Document) -> Error {
 
-    for decl in document.ast.decls {
-
-        if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-
-            name := string(document.text[value_decl.names[0].pos.offset:value_decl.names[0].end.offset]);
-
-            if len(value_decl.values) == 1 {
-
-                if proc_lit, ok := value_decl.values[0].derived.(ast.Proc_Lit); ok {
-
-                    symbol: ProcedureSymbol;
-
-                    symbol.range = get_token_range(proc_lit, document.text);
-                    symbol.uri = &document.uri;
-
-                    indexer.symbol_table[strings.concatenate({document.package_name, name}, context.temp_allocator)] = symbol;
-
-                    //fmt.println(proc_lit.type);
-
-                }
-
-            }
-
-        }
-    }
-
-    //fmt.println(indexer.symbol_table);
-
-    return .None;
+lookup :: proc(id: string) -> (Symbol, bool) {
+    return memory_index_lookup(&indexer.static_index, id);
 }
 
-indexer_get_symbol :: proc(id: string) -> (Symbol, bool) {
-    return indexer.symbol_table[id];
-}
+//indexer_fuzzy_search :: proc(name: string, scope: [] string, )

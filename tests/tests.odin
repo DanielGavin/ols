@@ -6,7 +6,9 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 
+
 import src "../src"
+import "shared:server"
 
 
 /*
@@ -346,8 +348,8 @@ test_init_check_shutdown :: proc() -> bool {
         data = transmute([]byte) strings.join({make_request(initialize_request), make_request(shutdown_request), make_request(exit_notification)}, "", context.allocator),
     };
 
-    reader := src.make_reader(test_read, &buffer);
-    writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
 
     src.run(&reader, &writer);
 
@@ -447,10 +449,10 @@ test_open_and_change_notification :: proc() -> bool {
     };
 
 
-    reader := src.make_reader(test_read, &buffer);
-    writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
 
-    context.logger = src.create_lsp_logger(&writer);
+    context.logger = server.create_lsp_logger(&writer);
 
     src.run(&reader, &writer);
 
@@ -502,10 +504,10 @@ test_definition_request :: proc() -> bool {
     };
 
 
-    reader := src.make_reader(test_read, &buffer);
-    writer := src.make_writer(src.os_write, cast(rawptr)os.stdout);
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
 
-    context.logger = src.create_lsp_logger(&writer);
+    context.logger = server.create_lsp_logger(&writer);
 
     src.run(&reader, &writer);
 

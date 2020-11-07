@@ -9,6 +9,10 @@ import "core:slice"
 import "core:strconv"
 import "core:encoding/json"
 
+import "shared:index"
+import "shared:server"
+import "shared:common"
+
 running: bool;
 
 os_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
@@ -23,9 +27,9 @@ os_write :: proc(handle: rawptr, data: [] byte) -> (int, int)
 
 //Note(Daniel, Should look into handling errors without crashing from parsing)
 
-run :: proc(reader: ^Reader, writer: ^Writer) {
+run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
-    config: Config;
+    config: common.Config;
 
     //temporary collections being set manually, need to get client configuration set up.
     config.collections = make(map [string] string);
@@ -34,11 +38,14 @@ run :: proc(reader: ^Reader, writer: ^Writer) {
 
     log.info("Starting Odin Language Server");
 
-    running = true;
+    index.build_static_index(context.allocator, &config);
 
-    for running {
 
-        header, success := read_and_parse_header(reader);
+    config.running = true;
+
+    for config.running {
+
+        header, success := server.read_and_parse_header(reader);
 
         if(!success) {
             log.error("Failed to read and parse header");
@@ -47,14 +54,14 @@ run :: proc(reader: ^Reader, writer: ^Writer) {
 
 
         value: json.Value;
-        value, success = read_and_parse_body(reader, header);
+        value, success = server.read_and_parse_body(reader, header);
 
         if(!success) {
             log.error("Failed to read and parse body");
             return;
         }
 
-        success = handle_request(value, &config, writer);
+        success = server.handle_request(value, &config, writer);
 
         if(!success) {
             log.error("Unrecoverable handle request");
@@ -74,10 +81,10 @@ end :: proc() {
 
 main :: proc() {
 
-    reader := make_reader(os_read, cast(rawptr)os.stdin);
-    writer := make_writer(os_write, cast(rawptr)os.stdout);
+    reader := server.make_reader(os_read, cast(rawptr)os.stdin);
+    writer := server.make_writer(os_write, cast(rawptr)os.stdout);
 
-    context.logger = create_lsp_logger(&writer);
+    context.logger = server.create_lsp_logger(&writer);
 
     run(&reader, &writer);
 }

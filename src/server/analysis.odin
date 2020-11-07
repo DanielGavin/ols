@@ -1,4 +1,4 @@
-package main
+package server
 
 import "core:odin/parser"
 import "core:odin/ast"
@@ -7,6 +7,10 @@ import "core:fmt"
 import "core:log"
 import "core:strings"
 import "core:path"
+
+import "shared:common"
+import "shared:index"
+
 
 
 DocumentPositionContextDottedValue :: struct {
@@ -37,14 +41,15 @@ tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
+
 /*
     Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
-get_document_position_context :: proc(document: ^Document, position: Position) -> (DocumentPositionContext, bool) {
+get_document_position_context :: proc(document: ^Document, position: common.Position) -> (DocumentPositionContext, bool) {
 
     position_context: DocumentPositionContext;
 
-    absolute_position, ok := get_absolute_position(position, document.text);
+    absolute_position, ok := common.get_absolute_position(position, document.text);
 
     if !ok {
         return position_context, false;
@@ -86,9 +91,6 @@ get_document_position_context :: proc(document: ^Document, position: Position) -
 
         }
 
-        //fmt.println(current_token.text);
-        //fmt.println();
-
         if current_token.pos.offset+len(current_token.text) >= absolute_position {
             break;
         }
@@ -119,9 +121,12 @@ get_document_position_context :: proc(document: ^Document, position: Position) -
 }
 
 
-get_definition_location :: proc(document: ^Document, position: Position) -> (Location, bool) {
+get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
 
-    location: Location;
+
+    location: common.Location;
+
+
 
     position_context, ok := get_document_position_context(document, position);
 
@@ -129,11 +134,11 @@ get_definition_location :: proc(document: ^Document, position: Position) -> (Loc
         return location, false;
     }
 
-    symbol: Symbol;
+    symbol: index.Symbol;
 
     #partial switch v in position_context.value {
     case DocumentPositionContextDottedValue:
-        symbol, ok = indexer_get_symbol(strings.concatenate({v.prefix, v.postfix}, context.temp_allocator));
+        symbol, ok = index.lookup(strings.concatenate({v.prefix, v.postfix}, context.temp_allocator));
     case:
         return location, false;
     }
@@ -144,11 +149,9 @@ get_definition_location :: proc(document: ^Document, position: Position) -> (Loc
         return location, false;
     }
 
-    switch v in symbol {
-    case ProcedureSymbol:
-        location.range = v.range;
-        location.uri = v.uri.uri;
-    }
+    location.range = symbol.range;
+    location.uri = symbol.uri;
+
 
     return location, true;
 }

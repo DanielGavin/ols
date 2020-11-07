@@ -1,4 +1,4 @@
-package main
+package server
 
 import "core:strings"
 import "core:fmt"
@@ -8,6 +8,8 @@ import "core:odin/parser"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:path"
+
+import "shared:common"
 
 ParserError :: struct {
     message: string,
@@ -23,12 +25,11 @@ Package :: struct {
 };
 
 Document :: struct {
-    uri: Uri,
+    uri: common.Uri,
     text: [] u8,
     used_text: int, //allow for the text to be reallocated with more data than needed
     client_owned: bool,
     diagnosed_errors: bool,
-    indexed: bool,
     ast: ast.File,
     package_name: string,
     imports: [] string,
@@ -44,7 +45,7 @@ document_storage: DocumentStorage;
 
 document_get :: proc(uri_string: string) -> ^Document {
 
-    uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
+    uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
     if !parsed_ok {
         return nil;
@@ -61,11 +62,11 @@ document_get :: proc(uri_string: string) -> ^Document {
 /*
     Server opens a new document with text from filesystem
 */
-document_new :: proc(path: string, config: ^Config) -> Error {
+document_new :: proc(path: string, config: ^common.Config) -> common.Error {
 
     text, ok := os.read_entire_file(path);
 
-    uri := create_uri(path);
+    uri := common.create_uri(path);
 
     if !ok {
         log.error("Failed to parse uri");
@@ -75,23 +76,12 @@ document_new :: proc(path: string, config: ^Config) -> Error {
     document := Document {
         uri = uri,
         text = transmute([] u8)text,
-        client_owned = true,
+        client_owned = false,
         used_text = len(text),
     };
 
-    if err := document_refresh(&document, config, nil, false); err != .None {
-        log.error("Failed to refresh new document");
-        return err;
-    }
 
-     document_storage.documents[path] = document;
-
-    if err := index_document(&document_storage.documents[path]); err != .None {
-        log.error("Failed to index new document");
-        return err;
-    }
-
-
+    document_storage.documents[path] = document;
 
     return .None;
 }
@@ -100,9 +90,9 @@ document_new :: proc(path: string, config: ^Config) -> Error {
     Client opens a document with transferred text
 */
 
-document_open :: proc(uri_string: string, text: string, config: ^Config, writer: ^Writer) -> Error {
+document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
 
-    uri, parsed_ok := parse_uri(uri_string);
+    uri, parsed_ok := common.parse_uri(uri_string);
 
     log.infof("document_open: %v", uri_string);
 
@@ -123,7 +113,7 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
         }
 
         if len(document.uri.uri) > 0 {
-            delete_uri(document.uri);
+            common.delete_uri(document.uri);
         }
 
         document.uri = uri;
@@ -164,9 +154,9 @@ document_open :: proc(uri_string: string, text: string, config: ^Config, writer:
 /*
     Function that applies changes to the given document through incremental syncronization
  */
-document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent, config: ^Config, writer: ^Writer) -> Error {
+document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
 
-    uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
+    uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
     if !parsed_ok {
         return .ParseError;
@@ -181,7 +171,7 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     for change in changes {
 
-        absolute_range, ok := get_absolute_range(change.range, document.text[:document.used_text]);
+        absolute_range, ok := common.get_absolute_range(change.range, document.text[:document.used_text]);
 
         if !ok {
             return .ParseError;
@@ -225,9 +215,9 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
     return document_refresh(document, config, writer, true);
 }
 
-document_close :: proc(uri_string: string) -> Error {
+document_close :: proc(uri_string: string) -> common.Error {
 
-    uri, parsed_ok := parse_uri(uri_string, context.temp_allocator);
+    uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
     if !parsed_ok {
         return .ParseError;
@@ -247,7 +237,7 @@ document_close :: proc(uri_string: string) -> Error {
 
 
 
-document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, parse_imports: bool) -> Error {
+document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer, parse_imports: bool) -> common.Error {
 
     errors, ok := parse_document(document, config);
 
@@ -267,12 +257,12 @@ document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, 
         for error, i in errors {
 
             params.diagnostics[i] = Diagnostic {
-                range = Range {
-                    start = Position {
+                range = common.Range {
+                    start = common.Position {
                         line = error.line - 1,
                         character = 0,
                     },
-                    end = Position {
+                    end = common.Position {
                         line = error.line,
                         character = 0,
                     },
@@ -316,27 +306,10 @@ document_refresh :: proc(document: ^Document, config: ^Config, writer: ^Writer, 
 
     }
 
-    if parse_imports {
-
-        /*
-            go through the imports from this document and see if we need to load them into memory(not owned by client),
-            and also refresh them if needed
-        */
-        for imp in document.imports {
-
-            if err := document_load_package(imp, config); err != .None {
-                return err;
-            }
-
-        }
-
-    }
-
-
     return .None;
 }
 
-document_load_package :: proc(package_directory: string, config: ^Config) -> Error {
+document_load_package :: proc(package_directory: string, config: ^common.Config) -> common.Error {
 
     fd, err := os.open(package_directory);
 
@@ -376,7 +349,7 @@ parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
-parse_document :: proc(document: ^Document, config: ^Config) -> ([] ParserError, bool) {
+parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] ParserError, bool) {
 
     p := parser.Parser {
 		err  = parser_error_handler,
@@ -392,6 +365,11 @@ parse_document :: proc(document: ^Document, config: ^Config) -> ([] ParserError,
 
     parser.parse_file(&p, &document.ast);
 
+    /*
+    if document.imports != nil {
+        delete(document.imports);
+        delete(document.package_name);
+    }
     document.imports = make([]string, len(document.ast.imports));
     document.package_name = document.ast.pkg_name;
 
@@ -418,6 +396,7 @@ parse_document :: proc(document: ^Document, config: ^Config) -> ([] ParserError,
 
         }
     }
+    */
 
     return current_errors[:], true;
 }

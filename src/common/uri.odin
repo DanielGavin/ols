@@ -1,4 +1,4 @@
-package main
+package common
 
 import "core:mem"
 import "core:strings"

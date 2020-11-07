@@ -1,4 +1,4 @@
-package main
+package common
 
 import "core:strings"
 import "core:unicode/utf8"
@@ -8,6 +8,22 @@ import "core:odin/ast"
 /*
     This file handles the conversion between utf-16 and utf-8 offsets in the text document
  */
+
+Position :: struct {
+	line: int,
+	character: int,
+};
+
+Range :: struct {
+	start: Position,
+	end: Position,
+};
+
+Location :: struct {
+	uri: string,
+	range: Range,
+};
+
 
 AbsoluteRange :: struct {
     start: int,
@@ -59,12 +75,15 @@ get_token_range :: proc(node: ast.Node, document_text: [] u8) -> Range {
         return index+1;
     }
 
-    offset := go_backwards_to_endline(node.pos.offset, document_text);
+    pos_offset := min(len(document_text)-1, node.pos.offset);
+    end_offset := min(len(document_text)-1, node.end.offset);
+
+    offset := go_backwards_to_endline(pos_offset, document_text);
 
     range.start.line = node.pos.line-1;
     range.start.character = get_character_offset_u8_to_u16(node.pos.column-1, document_text[offset:]);
 
-    offset = go_backwards_to_endline(node.end.offset, document_text);
+    offset = go_backwards_to_endline(end_offset, document_text);
 
     range.end.line = node.end.line-1;
     range.end.character = get_character_offset_u8_to_u16(node.end.column-1, document_text[offset:]);

@@ -1,4 +1,4 @@
-package main
+package server
 
 import "core:fmt"
 import "core:log"
@@ -8,6 +8,8 @@ import "core:strings"
 import "core:slice"
 import "core:strconv"
 import "core:encoding/json"
+
+import "shared:common"
 
 
 Header :: struct {
@@ -129,7 +131,7 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 }
 
 
-handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) -> bool {
+handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
 
     root, ok := request.value.(json.Object);
 
@@ -156,7 +158,7 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
 
     method := root["method"].value.(json.String);
 
-    call_map : map [string] proc(json.Value, RequestId, ^Config, ^Writer) -> Error =
+    call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error =
         {"initialize" = request_initialize,
          "initialized" = request_initialized,
          "shutdown" = request_shutdown,
@@ -167,7 +169,7 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
          "textDocument/didSave" = notification_did_save,
          "textDocument/definition" = request_definition };
 
-    fn: proc(json.Value, RequestId, ^Config, ^Writer) -> Error;
+    fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
     fn, ok = call_map[method];
 
 
@@ -197,7 +199,7 @@ handle_request :: proc(request: json.Value, config: ^Config, writer: ^Writer) ->
     return true;
 }
 
-request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -211,7 +213,7 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, w
         return  .ParseError;
     }
 
-    config.workspace_folders = make([dynamic]WorkspaceFolder);
+    config.workspace_folders = make([dynamic]common.WorkspaceFolder);
 
     for s in initialize_params.workspaceFolders {
         append_elem(&config.workspace_folders, s);
@@ -238,11 +240,11 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^Config, w
     return .None;
 }
 
-request_initialized :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+request_initialized :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
     return .None;
 }
 
-request_shutdown :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+request_shutdown :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     response := make_response_message(
         params = nil,
@@ -254,7 +256,7 @@ request_shutdown :: proc(params: json.Value, id: RequestId, config: ^Config, wri
     return .None;
 }
 
-request_definition :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -293,12 +295,12 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^Config, w
     return .None;
 }
 
-notification_exit :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
-    running = false;
+notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+    config.running = false;
     return .None;
 }
 
-notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+notification_did_open :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -317,7 +319,7 @@ notification_did_open :: proc(params: json.Value, id: RequestId, config: ^Config
     return document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer);
 }
 
-notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+notification_did_change :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -336,7 +338,7 @@ notification_did_change :: proc(params: json.Value, id: RequestId, config: ^Conf
     return .None;
 }
 
-notification_did_close :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+notification_did_close :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     params_object, ok := params.value.(json.Object);
 
@@ -353,7 +355,7 @@ notification_did_close :: proc(params: json.Value, id: RequestId, config: ^Confi
     return document_close(close_params.textDocument.uri);
 }
 
-notification_did_save :: proc(params: json.Value, id: RequestId, config: ^Config, writer: ^Writer) -> Error {
+notification_did_save :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
 
 

@@ -1,4 +1,4 @@
-package main
+package server
 
 import "core:os"
 import "core:mem"
@@ -46,7 +46,7 @@ read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.B
         }
     }
 
-    return true;   
+    return true;
 }
 
 read_sized :: proc(reader: ^Reader, data: []u8) -> bool {

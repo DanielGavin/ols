@@ -1,6 +1,8 @@
-package main
+package server
 
 import "core:encoding/json"
+
+import "shared:common"
 
 /*
     General types
@@ -16,7 +18,7 @@ RequestId :: union {
 ResponseParams :: union {
     ResponseInitializeParams,
     rawptr,
-    Location,
+    common.Location,
 };
 
 ResponseMessage :: struct {
@@ -31,27 +33,8 @@ ResponseMessageError :: struct {
     error: ResponseError,
 };
 
-Error :: enum {
-    None = 0,
-
-	// Defined by JSON RPC
-	ParseError = -32700,
-	InvalidRequest = -32600,
-	MethodNotFound = -32601,
-	InvalidParams = -32602,
-	InternalError = -32603,
-	serverErrorStart = -32099,
-	serverErrorEnd = -32000,
-	ServerNotInitialized = -32002,
-	UnknownErrorCode = -32001,
-
-	// Defined by the protocol.
-	RequestCancelled = -32800,
-	ContentModified = -32801,
-};
-
 ResponseError :: struct {
- 	code: Error,
+ 	code: common.Error,
 	message: string,
 };
 
@@ -76,18 +59,13 @@ Notification :: struct {
     params: NotificationParams
 };
 
-WorkspaceFolder :: struct {
-    name: string,
-    uri: string,
-};
-
 ResponseInitializeParams :: struct {
     capabilities: ServerCapabilities,
 };
 
 RequestInitializeParams :: struct {
     trace: string,
-    workspaceFolders: [dynamic] WorkspaceFolder,
+    workspaceFolders: [dynamic] common.WorkspaceFolder,
     capabilities: ClientCapabilities,
 };
 
@@ -120,23 +98,8 @@ ClientCapabilities :: struct {
     textDocument: TextDocumentClientCapabilities,
 };
 
-Position :: struct {
-	line: int,
-	character: int,
-};
-
-Range :: struct {
-	start: Position,
-	end: Position,
-};
-
-Location :: struct {
-	uri: string,
-	range: Range,
-};
-
 TextDocumentContentChangeEvent :: struct {
-	range: Range,
+	range: common.Range,
 	text: string,
 };
 
@@ -166,7 +129,7 @@ DiagnosticSeverity :: enum {
 };
 
 Diagnostic :: struct {
-	range: Range,
+	range: common.Range,
 	severity: DiagnosticSeverity,
 	code: string,
 	message: string,
@@ -187,5 +150,5 @@ DidCloseTextDocumentParams :: struct {
 
 TextDocumentPositionParams :: struct {
 	textDocument: TextDocumentIdentifier,
-	position: Position,
+	position: common.Position,
 };
