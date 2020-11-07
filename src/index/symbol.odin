@@ -14,6 +14,34 @@ Symbol :: struct {
     uri: string,
     scope: string,
     name: string,
+    type: SymbolType,
+};
+
+SymbolType :: enum {
+    Text = 1,
+	Method = 2,
+	Function = 3,
+	Constructor = 4,
+	Field = 5,
+	Variable = 6,
+	Interface = 8,
+	Module = 9,
+	Property = 10,
+	Unit = 11,
+	Value = 12,
+	Enum = 13,
+	Keyword = 14,
+	Snippet = 15,
+	Color = 16,
+	File = 17,
+	Reference = 18,
+	Folder = 19,
+	EnumMember = 20,
+	Constant = 21,
+	Struct = 22,
+	Event = 23,
+	Operator = 24,
+	TypeParameter = 25,
 };
 
 SymbolCollection :: struct {
@@ -34,34 +62,44 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
     for decl in file.decls {
 
+        symbol: Symbol;
+
         if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
 
             name := string(file.src[value_decl.names[0].pos.offset:value_decl.names[0].end.offset]);
 
             if len(value_decl.values) == 1 {
 
-                if proc_lit, ok := value_decl.values[0].derived.(ast.Proc_Lit); ok {
+                token: ast.Node;
+                token_type: SymbolType;
 
-                    symbol: Symbol;
-
-                    symbol.range = common.get_token_range(proc_lit, file.src);
-                    symbol.name = strings.clone(name);
-                    symbol.scope = strings.clone(file.pkg_name); //have this use unique strings to save space
-
-                    uri_id := hash.murmur64(transmute([]u8)uri);
-
-                    if _, ok := collection.unique_strings[uri_id]; !ok {
-                        collection.unique_strings[uri_id] = strings.clone(uri);
-                    }
-
-                    symbol.uri = collection.unique_strings[uri_id];
-
-                    id := hash.murmur64(transmute([]u8)strings.concatenate({file.pkg_name, name}, context.temp_allocator));
-
-                    collection.symbols[id] = symbol;
-
+                switch v in value_decl.values[0].derived {
+                case ast.Proc_Lit:
+                    token = v;
+                    token_type = .Function;
+                case ast.Struct_Type:
+                    token = v;
+                    token_type = .Struct;
+                case: // default
+                    break;
                 }
 
+                symbol.range = common.get_token_range(token, file.src);
+                symbol.name = strings.clone(name);
+                symbol.scope = strings.clone(file.pkg_name); //have this use unique strings to save space
+                symbol.type = token_type;
+
+                uri_id := hash.murmur64(transmute([]u8)uri);
+
+                if _, ok := collection.unique_strings[uri_id]; !ok {
+                    collection.unique_strings[uri_id] = strings.clone(uri);
+                }
+
+                symbol.uri = collection.unique_strings[uri_id];
+
+                id := hash.murmur64(transmute([]u8)strings.concatenate({file.pkg_name, name}, context.temp_allocator));
+
+                collection.symbols[id] = symbol;
             }
 
         }

@@ -34,8 +34,6 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
             return 0, false;
         }
 
-        //fmt.println(info.fullpath);
-
         //bit worried about using temp allocator here since we might overwrite all our temp allocator budget
         data, ok := os.read_entire_file(info.fullpath, context.allocator);
 

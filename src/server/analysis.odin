@@ -183,19 +183,13 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     position_context, ok := get_document_position_context(document, position);
     symbols: [] index.Symbol;
-    empty_dot := false;
 
 
     #partial switch v in position_context.value {
     case DocumentPositionContextVariableDotVariableValue:
         symbols, ok = index.fuzzy_search(v.postfix, {v.prefix});
     case DocumentPositionContextVariableDotValue:
-        empty_dot = true;
-    }
-
-    if empty_dot {
-        list.isIncomplete = true;
-        return list, true;
+        symbols, ok = index.fuzzy_search("", {v.prefix});
     }
 
     if !ok {
@@ -206,7 +200,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     for symbol, i in symbols {
         list.items[i].label = symbol.name;
-        list.items[i].kind = .Function;
+        list.items[i].kind = cast(CompletionItemKind) symbol.type;
     }
 
     return list, true;

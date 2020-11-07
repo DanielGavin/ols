@@ -232,6 +232,8 @@ document_close :: proc(uri_string: string) -> common.Error {
 
     document.client_owned = false;
 
+    delete(document.text);
+
     return .None;
 }
 

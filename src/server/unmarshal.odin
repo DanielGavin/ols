@@ -16,6 +16,10 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator
         return .None;
     }
 
+    if json_value.value == nil {
+        return .None;
+    }
+
     type_info := type_info_base(type_info_of(v.id));
 
     #partial

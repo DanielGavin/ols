@@ -38,16 +38,24 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, scope: [] s
 
     fuzzy_matcher := common.make_fuzzy_matcher(name);
 
+    top := 20;
+    i := 0;
+
     for _, symbol in index.collection.symbols {
+
+        if i >= top {
+            break;
+        }
 
         if !exists_in_scope(symbol.scope, scope) {
             continue;
         }
 
-        if common.fuzzy_match(fuzzy_matcher, symbol.name) > 0.5 {
+        if name == "" || common.fuzzy_match(fuzzy_matcher, symbol.name) > 0.5 {
             append(&symbols, symbol);
         }
 
+        i += 1;
     }
 
     return symbols[:], true;
