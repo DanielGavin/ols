@@ -171,46 +171,70 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     for change in changes {
 
-        absolute_range, ok := common.get_absolute_range(change.range, document.text[:document.used_text]);
+        //for some reason sublime doesn't seem to care even if i tell it to do incremental sync
+        if range, ok := change.range.(common.Range); ok {
 
-        if !ok {
-            return .ParseError;
-        }
+            absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text]);
 
-        //lower bound is before the change
-        lower := document.text[:absolute_range.start];
+            if !ok {
+                return .ParseError;
+            }
 
-        //new change between lower and upper
-        middle := change.text;
+            //lower bound is before the change
+            lower := document.text[:absolute_range.start];
 
-        //upper bound is after the change
-        upper := document.text[absolute_range.end:document.used_text];
+            //new change between lower and upper
+            middle := change.text;
 
-        //total new size needed
-        document.used_text = len(lower) + len(change.text) + len(upper);
+            //upper bound is after the change
+            upper := document.text[absolute_range.end:document.used_text];
 
-        //Reduce the amount of allocation by allocating more memory than needed
-        if document.used_text > len(document.text) {
-            new_text := make([]u8, document.used_text * 2);
+            //total new size needed
+            document.used_text = len(lower) + len(change.text) + len(upper);
 
-            //join the 3 splices into the text
-            copy(new_text, lower);
-            copy(new_text[len(lower):], middle);
-            copy(new_text[len(lower)+len(middle):], upper);
+            //Reduce the amount of allocation by allocating more memory than needed
+            if document.used_text > len(document.text) {
+                new_text := make([]u8, document.used_text * 2);
 
-            delete(document.text);
+                //join the 3 splices into the text
+                copy(new_text, lower);
+                copy(new_text[len(lower):], middle);
+                copy(new_text[len(lower)+len(middle):], upper);
 
-            document.text = new_text;
+                delete(document.text);
+
+                document.text = new_text;
+            }
+
+            else {
+                //order matters here, we need to make sure we swap the data already in the text before the middle
+                copy(document.text, lower);
+                copy(document.text[len(lower)+len(middle):], upper);
+                copy(document.text[len(lower):], middle);
+            }
+
         }
 
         else {
-            //order matters here, we need to make sure we swap the data already in the text before the middle
-            copy(document.text, lower);
-            copy(document.text[len(lower)+len(middle):], upper);
-            copy(document.text[len(lower):], middle);
+
+            document.used_text = len(change.text);
+
+            if document.used_text > len(document.text) {
+                new_text := make([]u8, document.used_text * 2);
+                copy(new_text, change.text);
+                delete(document.text);
+                document.text = new_text;
+            }
+
+            else {
+                 copy(document.text, change.text);
+            }
+
         }
 
+
     }
+
 
     return document_refresh(document, config, writer, true);
 }

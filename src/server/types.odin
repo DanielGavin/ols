@@ -77,7 +77,7 @@ MarkupKind :: enum {
 };
 
 ServerCapabilities :: struct {
-    textDocumentSync: int,
+    textDocumentSync: TextDocumentSyncOptions,
     definitionProvider: bool,
     completionProvider: CompletionOptions,
 };
@@ -105,8 +105,12 @@ ClientCapabilities :: struct {
     textDocument: TextDocumentClientCapabilities,
 };
 
+RangeOptional :: union {
+	common.Range,
+};
+
 TextDocumentContentChangeEvent :: struct {
-	range: common.Range,
+	range: RangeOptional,
 	text: string,
 };
 
@@ -202,3 +206,8 @@ CompletionList :: struct {
     isIncomplete: bool,
 	items: [] CompletionItem,
 };
+
+TextDocumentSyncOptions :: struct {
+	openClose: bool,
+	change: int,
+}

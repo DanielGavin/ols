@@ -231,7 +231,10 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     response := make_response_message(
         params = ResponseInitializeParams {
             capabilities = ServerCapabilities {
-                textDocumentSync = 2, //incremental
+                textDocumentSync = TextDocumentSyncOptions {
+                    openClose = true,
+                    change = 2, //incremental
+                },
                 definitionProvider = true,
                 completionProvider = CompletionOptions {
                     resolveProvider = false,
