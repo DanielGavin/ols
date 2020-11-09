@@ -392,6 +392,18 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
     parser.parse_file(&p, &document.ast);
 
     /*
+    fmt.println();
+    fmt.println();
+
+    for decl in document.ast.decls {
+        common.print_ast(decl, 0, document.ast.src);
+    }
+
+    fmt.println();
+    fmt.println();
+    */
+
+    /*
     if document.imports != nil {
         delete(document.imports);
         delete(document.package_name);
@@ -425,4 +437,9 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
     */
 
     return current_errors[:], true;
+}
+
+
+free_ast_node :: proc(file: ^ast.Node) {
+
 }

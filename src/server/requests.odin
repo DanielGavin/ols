@@ -168,7 +168,8 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
          "textDocument/didClose" = notification_did_close,
          "textDocument/didSave" = notification_did_save,
          "textDocument/definition" = request_definition,
-         "textDocument/completion" = request_completion};
+         "textDocument/completion" = request_completion,
+         "textDocument/signatureHelp" = request_signature_help};
 
     fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
     fn, ok = call_map[method];
@@ -226,7 +227,11 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
         }
     }
 
-    triggerCharacters := [] string { "." };
+    config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
+
+
+    completionTriggerCharacters := [] string { "." };
+    signatureTriggerCharacters := [] string { "(" };
 
     response := make_response_message(
         params = ResponseInitializeParams {
@@ -238,7 +243,10 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                 definitionProvider = true,
                 completionProvider = CompletionOptions {
                     resolveProvider = false,
-                    triggerCharacters = triggerCharacters,
+                    triggerCharacters = completionTriggerCharacters,
+                },
+                signatureHelpProvider = SignatureHelpOptions {
+                    triggerCharacters = signatureTriggerCharacters,
                 },
             },
         },
@@ -344,6 +352,57 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
     return .None;
 }
 
+request_signature_help :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    signature_params: SignatureHelpParams;
+
+    if unmarshal(params, signature_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+    document := document_get(signature_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    parameters := [] ParameterInformation {
+        {
+            label = {0, 4},
+        },
+    };
+
+
+    signatures := [] SignatureInformation {
+        {
+            label = "test",
+            parameters = parameters,
+        },
+    };
+
+    help := SignatureHelp {
+        activeSignature = 0,
+        activeParameter = 0,
+        signatures = signatures,
+    };
+
+    get_signature_information(document, signature_params.position);
+
+    response := make_response_message(
+        params = help,
+        id = id,
+    );
+
+    send_response(response, writer);
+
+    return .None;
+}
 
 notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
     config.running = false;

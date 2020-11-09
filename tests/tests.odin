@@ -306,6 +306,7 @@ exit_notification := `{
 "method":"exit"
 }`;
 
+sublime_initialize_request := `{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"clientInfo":{"version":"0.14.1","name":"Sublime Text LSP"},"rootUri":"file:///C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src","rootPath":"C:\\Users\\danie\\OneDrive\\Desktop\\Computer_Science\\ols\\tests\\test_project\\src","processId":17192,"workspaceFolders":[{"uri":"file:///C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src","name":"src"}],"capabilities":{"window":{"workDoneProgress":true,"showMessage":{"messageActionItem":{"additionalPropertiesSupport":true}}},"workspace":{"workspaceFolders":true,"configuration":true,"workspaceEdit":{"documentChanges":true,"failureHandling":"abort"},"applyEdit":true,"executeCommand":{},"didChangeConfiguration":{"dynamicRegistration":true},"symbol":{"dynamicRegistration":true,"symbolKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]}}},"textDocument":{"formatting":{"dynamicRegistration":true},"codeAction":{"codeActionLiteralSupport":{"codeActionKind":{"valueSet":[]}},"dynamicRegistration":true},"references":{"dynamicRegistration":true},"documentHighlight":{"dynamicRegistration":true},"synchronization":{"willSave":true,"willSaveWaitUntil":true,"didSave":true,"dynamicRegistration":true},"hover":{"contentFormat":["markdown","plaintext"],"dynamicRegistration":true},"signatureHelp":{"signatureInformation":{"documentationFormat":["markdown","plaintext"],"parameterInformation":{"labelOffsetSupport":true}},"dynamicRegistration":true},"rangeFormatting":{"dynamicRegistration":true},"typeDefinition":{"dynamicRegistration":true,"linkSupport":true},"completion":{"completionItemKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]},"completionItem":{"snippetSupport":true},"dynamicRegistration":true},"implementation":{"dynamicRegistration":true,"linkSupport":true},"documentSymbol":{"hierarchicalDocumentSymbolSupport":true,"dynamicRegistration":true,"symbolKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]}},"colorProvider":{"dynamicRegistration":true},"declaration":{"dynamicRegistration":true,"linkSupport":true},"rename":{"dynamicRegistration":true},"definition":{"dynamicRegistration":true,"linkSupport":true},"publishDiagnostics":{"relatedInformation":true}},"experimental":{}},"initializationOptions":{}}}`;
 
 TestReadBuffer :: struct {
     index: int,
@@ -432,21 +433,15 @@ test_open_and_change_notification :: proc() -> bool {
     }`;
 
 
-    /*
+
     buffer := TestReadBuffer {
         data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
                                                make_request(change_notification), make_request(change_notification_2), make_request(shutdown_request),
-                                               make_request(exit_notification)}, "", context.temp_allocator),
-    };
-    */
-
-
-
-    buffer := TestReadBuffer {
-        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
-                                               make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.allocator),
     };
+
+
+
 
 
     reader := server.make_reader(test_read, &buffer);
@@ -557,7 +552,67 @@ test_completion_request :: proc() -> bool {
 
 
     buffer := TestReadBuffer {
-        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification), make_request(completion_request),
+        data = transmute([]byte) strings.join({make_request(sublime_initialize_request), make_request(open_notification), make_request(completion_request),
+                                               make_request(shutdown_request),
+                                               make_request(exit_notification)}, "", context.allocator),
+    };
+
+
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
+
+    context.logger = server.create_lsp_logger(&writer);
+
+    src.run(&reader, &writer);
+
+    delete(buffer.data);
+
+    return true;
+}
+
+
+test_signature_request :: proc() -> bool {
+
+    open_notification := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didOpen",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+            "languageId": "odin",
+            "version": 1,
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(ad, ad);  \r\n\r\n}\r\n test :: proc() { pkg.access_it } \r\n\r\n"
+        }
+    }
+    }`;
+
+    signature_request := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/signatureHelp",
+    "params":   {
+        "textDocument": {
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
+    },
+    "position": {
+        "line": 5,
+        "character": 19
+    },
+    "context": {
+        "isRetrigger": false,
+        "triggerCharacter": "(",
+        "triggerKind": 2
+    }
+    }
+
+    }`;
+
+
+
+
+    buffer := TestReadBuffer {
+        data = transmute([]byte) strings.join({make_request(sublime_initialize_request), make_request(open_notification), make_request(signature_request),
                                                make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.allocator),
     };
@@ -578,7 +633,11 @@ test_completion_request :: proc() -> bool {
 
 main :: proc() {
 
-    context.logger = log.create_console_logger();
+
+
+
+
+    //context.logger = log.create_console_logger();
 
     //test_init_check_shutdown();
 
@@ -587,6 +646,8 @@ main :: proc() {
     //test_open_and_change_notification();
 
     test_completion_request();
+
+    //test_signature_request();
 
 }
 

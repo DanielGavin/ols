@@ -20,6 +20,7 @@ ResponseParams :: union {
     rawptr,
     common.Location,
     CompletionList,
+	SignatureHelp,
 };
 
 ResponseMessage :: struct {
@@ -80,6 +81,7 @@ ServerCapabilities :: struct {
     textDocumentSync: TextDocumentSyncOptions,
     definitionProvider: bool,
     completionProvider: CompletionOptions,
+	signatureHelpProvider: SignatureHelpOptions,
 };
 
 CompletionOptions  :: struct {
@@ -95,10 +97,30 @@ HoverClientCapabilities :: struct {
 TextDocumentClientCapabilities :: struct {
     completion: CompletionClientCapabilities,
     hover: HoverClientCapabilities,
+	signatureHelp: SignatureHelpClientCapabilities,
 };
 
 CompletionClientCapabilities :: struct {
 
+};
+
+ParameterInformationCapabilities :: struct {
+	labelOffsetSupport: bool,
+};
+
+SignatureInformationCapabilities :: struct {
+	parameterInformation: ParameterInformationCapabilities,
+};
+
+SignatureHelpClientCapabilities :: struct {
+	dynamicRegistration: bool,
+	signatureInformation: SignatureInformationCapabilities,
+	contextSupport: bool,
+};
+
+SignatureHelpOptions :: struct {
+	triggerCharacters: [] string,
+	retriggerCharacters: [] string,
 };
 
 ClientCapabilities :: struct {
@@ -164,6 +186,11 @@ TextDocumentPositionParams :: struct {
 	position: common.Position,
 };
 
+SignatureHelpParams :: struct {
+	textDocument: TextDocumentIdentifier,
+	position: common.Position,
+};
+
 CompletionParams :: struct {
     textDocument: TextDocumentIdentifier,
 	position: common.Position,
@@ -210,4 +237,19 @@ CompletionList :: struct {
 TextDocumentSyncOptions :: struct {
 	openClose: bool,
 	change: int,
-}
+};
+
+SignatureHelp :: struct {
+	signatures: [] SignatureInformation,
+	activeSignature: int,
+	activeParameter: int,
+};
+
+SignatureInformation :: struct {
+	label: string,
+	parameters: [] ParameterInformation,
+};
+
+ParameterInformation :: struct {
+	label: [2] int,
+};

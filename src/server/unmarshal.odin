@@ -8,6 +8,10 @@ import "core:fmt"
 
 //Note(Daniel, investigate if you can use some sort of attribute not to be forced to have the same variable name as the json name)
 
+/*
+    Right now union handling is type specific so you can only have one struct type, int type, etc.
+ */
+
 unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator) -> json.Marshal_Error  {
 
     using runtime;
@@ -33,6 +37,23 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator
                     return ret;
                 }
             }
+
+        case Type_Info_Union:
+
+            //Note(Daniel, THIS IS REALLY SCUFFED. Need to talk to gingerbill about unmarshalling unions)
+
+            //This only works for unions with one object - made to handle optionals
+            tag_ptr := uintptr(v.data) + variant.tag_offset;
+            tag_any := any{rawptr(tag_ptr), variant.tag_type.id};
+
+            not_optional := 1;
+
+            mem.copy(cast(rawptr)tag_ptr, &not_optional, size_of(variant.tag_type));
+
+            id := variant.variants[0].id;
+
+			unmarshal(json_value, any{v.data, id});
+
         }
     case json.Array:
         #partial switch variant in type_info.variant {
