@@ -268,7 +268,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.expr, position_context);
         get_document_position(n.args, position_context);
     case Selector_Expr:
-        if position_context.hint == .Completion {
+        if position_context.hint == .Completion || position_context.hint == .Definition {
             position_context.selector = n.expr;
             position_context.field = n.field;
         }
