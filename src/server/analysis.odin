@@ -145,7 +145,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
     }
 
     else {
-        return list, false;
+        return list, true;
     }
 
 
@@ -231,7 +231,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         return;
     }
 
-    if !(node.pos.offset <= position_context.position && position_context.position <= node.end.offset) {
+    if !position_in_node(node, position_context.position) {
         return;
     }
 
@@ -251,9 +251,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         if position_in_node(n.body, position_context.position) {
             position_context.function = node;
             get_document_position(n.body, position_context);
-            return;
         }
-
     case Comp_Lit:
         get_document_position(n.type, position_context);
         get_document_position(n.elems, position_context);
@@ -270,14 +268,14 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.expr, position_context);
         get_document_position(n.args, position_context);
     case Selector_Expr:
-        get_document_position(n.expr, position_context);
-        if position_in_node(n.field, position_context.position) {
+        if position_context.hint == .Completion {
             position_context.selector = n.expr;
             position_context.field = n.field;
-            get_document_position(n.field, position_context);
-            return;
         }
-
+        else {
+            get_document_position(n.expr, position_context);
+            get_document_position(n.field, position_context);
+        }
     case Index_Expr:
         get_document_position(n.expr, position_context);
         get_document_position(n.index, position_context);

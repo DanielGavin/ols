@@ -235,7 +235,6 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     }
 
-
     return document_refresh(document, config, writer, true);
 }
 

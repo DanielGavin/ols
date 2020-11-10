@@ -325,6 +325,7 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
     completition_params: CompletionParams;
 
     if unmarshal(params, completition_params, context.temp_allocator) != .None {
+        log.error("Failed to unmarshal completion request");
         return .ParseError;
     }
 
@@ -337,6 +338,10 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     list: CompletionList;
     list, ok = get_completion_list(document, completition_params.position);
+
+    list.isIncomplete = true;
+
+
 
     if !ok {
         return .InternalError;
