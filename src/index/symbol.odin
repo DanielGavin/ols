@@ -8,6 +8,21 @@ import "core:fmt"
 
 import "shared:common"
 
+/*
+    Note(Daniel, how concerned should we be about keeping the memory usage low for the symbol. You could hash some of strings.
+        Right now I have the unique string map in order to have strings reference the same string match.)
+
+ */
+
+SymbolStructValue :: struct {
+    names: [] string,
+    types: [] ^ast.Node,
+};
+
+SymbolValue :: union {
+    SymbolStructValue,
+};
+
 Symbol :: struct {
     id: u64,
     range: common.Range,
@@ -15,40 +30,31 @@ Symbol :: struct {
     scope: string,
     name: string,
     type: SymbolType,
+    value: SymbolValue,
 };
 
 SymbolType :: enum {
-    Text = 1,
-	Method = 2,
 	Function = 3,
-	Constructor = 4,
-	Field = 5,
-	Variable = 6,
-	Interface = 8,
-	Module = 9,
-	Property = 10,
-	Unit = 11,
-	Value = 12,
-	Enum = 13,
-	Keyword = 14,
-	Snippet = 15,
-	Color = 16,
-	File = 17,
-	Reference = 18,
-	Folder = 19,
-	EnumMember = 20,
-	Constant = 21,
 	Struct = 22,
-	Event = 23,
-	Operator = 24,
-	TypeParameter = 25,
+    Package = 9, //not used by the indexer itself but can be set when creating symbols from ast
 };
 
 SymbolCollection :: struct {
     allocator: mem.Allocator,
     symbols: map[u64] Symbol,
-    unique_strings: map[u64] string,
+    unique_strings: map[u64] string, //store all our strings as unique strings and reference them to save memory.
 };
+
+get_index_unique_string :: proc(collection: ^SymbolCollection, s: string) -> string {
+
+    id := hash.murmur64(transmute([]u8)s);
+
+    if _, ok := collection.unique_strings[id]; !ok {
+        collection.unique_strings[id] = strings.clone(s, collection.allocator);
+    }
+
+    return collection.unique_strings[id];
+}
 
 make_symbol_collection :: proc(allocator := context.allocator) -> SymbolCollection {
     return SymbolCollection {
@@ -56,6 +62,29 @@ make_symbol_collection :: proc(allocator := context.allocator) -> SymbolCollecti
         symbols = make(map[u64] Symbol, 16, allocator),
         unique_strings = make(map[u64] string, 16, allocator),
     };
+}
+
+collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_List, src: [] byte) -> SymbolStructValue {
+
+    names := make([dynamic] string, 0, collection.allocator);
+    types := make([dynamic] ^ast.Node, 0, collection.allocator);
+
+    for field in fields.list {
+
+        for n in field.names {
+            identifier := n.derived.(ast.Ident);
+            append(&names, get_index_unique_string(collection, identifier.name));
+            append(&types, ast.clone_expr(field.type));
+        }
+
+    }
+
+    value := SymbolStructValue {
+        names = names[:],
+        types = types[:],
+    };
+
+    return value;
 }
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
@@ -80,22 +109,16 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;
+                    collect_struct_fields(collection, v.fields, file.src);
                 case: // default
                     break;
                 }
 
                 symbol.range = common.get_token_range(token, file.src);
-                symbol.name = strings.clone(name);
-                symbol.scope = strings.clone(file.pkg_name); //have this use unique strings to save space
+                symbol.name = get_index_unique_string(collection, name);
+                symbol.scope = get_index_unique_string(collection, file.pkg_name);
                 symbol.type = token_type;
-
-                uri_id := hash.murmur64(transmute([]u8)uri);
-
-                if _, ok := collection.unique_strings[uri_id]; !ok {
-                    collection.unique_strings[uri_id] = strings.clone(uri);
-                }
-
-                symbol.uri = collection.unique_strings[uri_id];
+                symbol.uri = get_index_unique_string(collection, uri);
 
                 id := hash.murmur64(transmute([]u8)strings.concatenate({file.pkg_name, name}, context.temp_allocator));
 

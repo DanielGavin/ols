@@ -31,7 +31,7 @@ print_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, depth: int, src: []byte,
 }
 
 /*
-    Not fully printed out, feeling it in as needed.
+    Not fully printed out, filling it in as needed.
  */
 
 print_ast_node :: proc(node: ^ast.Node, depth: int, src: []byte, newline := false) {
@@ -224,6 +224,7 @@ print_ast_node :: proc(node: ^ast.Node, depth: int, src: []byte, newline := fals
     case Dynamic_Array_Type:
         print_ast(n.elem, depth + 1, src);
     case Struct_Type:
+        fmt.printf("struct");
         print_ast(n.poly_params, depth + 1, src);
         print_ast(n.align, depth + 1, src);
         print_ast(n.fields, depth + 1, src);

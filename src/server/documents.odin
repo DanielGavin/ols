@@ -437,8 +437,3 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     return current_errors[:], true;
 }
-
-
-free_ast_node :: proc(file: ^ast.Node) {
-
-}

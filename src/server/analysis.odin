@@ -22,60 +22,263 @@ DocumentPositionContextHint :: enum {
 DocumentPositionContext :: struct {
     position: common.AbsolutePosition,
     function: ^ast.Node, //used to help with type resolving in function scope
-    selector: ^ast.Node, //used for completion
+    selector: ^ast.Expr, //used for completion
     identifier: ^ast.Node,
-    field: ^ast.Node, //used for completion
-    call: ^ast.Node, //used for signature help
+    field: ^ast.Expr, //used for completion
+    call: ^ast.Expr, //used for signature help
     hint: DocumentPositionContextHint,
 };
 
+AstContext :: struct {
+    locals: map [string] ^ast.Expr, //locals all the way to the document position
+    globals: map [string] ^ast.Expr,
+    file: ast.File,
+    allocator: mem.Allocator,
+};
+
+make_ast_context :: proc(allocator := context.temp_allocator) -> AstContext {
+
+    ast_context := AstContext {
+        locals = make(map [string] ^ast.Expr, 0, allocator),
+        globals = make(map [string] ^ast.Expr, 0, allocator),
+    };
+
+    return ast_context;
+}
 
 tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
+resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
+
+    using ast;
+
+    switch v in node.derived {
+    case Ident:
+        return resolve_type_identifier(ast_context, v);
+    case Selector_Expr:
+        log.info("another selector");
+        //selector, ok := resolve_type_expression(ast_context, v.expr);
+
+        //switch s in selector.value {
+        //case:
+        //}
+
+
+    case:
+        //return "", false;
+    }
+
+    return index.Symbol {}, false;
+
+}
+
+/*
+    Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
+    have chained variable declarations. ie. a := foo { test =  2}; b := a; c := b;
+ */
+resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+
+    using ast;
+
+    if local, ok := ast_context.locals[node.name]; ok {
+
+        switch v in local.derived {
+        case Ident:
+            return resolve_type_identifier(ast_context, v);
+        case Struct_Type:
+            return make_symbol_struct_from_ast(ast_context, v), true;
+        case Proc_Lit:
+            return make_symbol_procedure_from_ast(ast_context, v), true;
+        case:
+            return index.Symbol {}, false;
+        }
+
+    }
+
+    if global, ok := ast_context.globals[node.name]; ok {
+
+        switch v in global.derived {
+        case Ident:
+            return resolve_type_identifier(ast_context, v);
+        case Struct_Type:
+            return make_symbol_struct_from_ast(ast_context, v), true;
+        case Proc_Lit:
+            return make_symbol_procedure_from_ast(ast_context, v), true;
+        case:
+            return index.Symbol {}, false;
+        }
+
+    }
+
+    return index.Symbol {}, false;
+}
+
+resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+
+    symbol: index.Symbol;
+
+    if local, ok := ast_context.locals[node.name]; ok {
+        symbol.range = common.get_token_range(local, ast_context.file.src);
+        return symbol, true;
+    }
+
+    else if global, ok := ast_context.globals[node.name]; ok {
+        symbol.range = common.get_token_range(global, ast_context.file.src);
+        return symbol, true;
+    }
+
+    return symbol, false;
+}
+
+make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Struct,
+    };
+
+    return symbol;
+}
+
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Struct,
+    };
+
+    return symbol;
+}
+
+make_symbol_package_from_ast :: proc(ast_context: ^AstContext, v: ast.Import_Decl) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Struct,
+    };
+
+    return symbol;
+}
+
+get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
+
+    for decl in file.decls {
+
+        if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
+
+            for name, i in value_decl.names {
+
+                str := common.get_ast_node_string(name, file.src);
+
+                if value_decl.type != nil {
+                    ast_context.globals[str] = value_decl.type;
+                }
+
+                else {
+                    ast_context.globals[str] = value_decl.values[i];
+                }
+
+            }
+
+        }
+    }
+}
+
+get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext) {
+
+    proc_lit, ok := function.derived.(ast.Proc_Lit);
+
+    if !ok || proc_lit.body == nil {
+        return;
+    }
+
+    block: ast.Block_Stmt;
+    block, ok = proc_lit.body.derived.(ast.Block_Stmt);
+
+    if !ok {
+        return;
+    }
+
+    for stmt in block.stmts {
+
+        if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
+
+            for name, i in value_decl.names {
+
+                str := common.get_ast_node_string(name, file.src);
+
+                if value_decl.type != nil {
+                    ast_context.locals[str] = value_decl.type;
+                }
+
+                else {
+                    ast_context.locals[str] = value_decl.values[i];
+                }
+
+            }
+
+        }
+
+    }
+
+}
 
 get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
 
     location: common.Location;
 
-    position_context, ok := get_document_position_context(document, position, .Definition);
 
-    if !ok {
-        return location, false;
-    }
+    ast_context := make_ast_context();
 
     symbol: index.Symbol;
 
-    if position_context.selector != nil && position_context.field != nil {
+    position_context, ok := get_document_position_context(document, position, .Definition);
 
-        selector: string;
+    if !ok {
+        log.info("Failed to get position context");
+        return location, false;
+    }
 
-        switch v in position_context.selector.derived {
-        case ast.Ident:
-            selector = v.name;
-        case:
-            return location, false;
+    get_globals(document.ast, &ast_context);
+
+    if position_context.function != nil {
+        get_locals(document.ast, position_context.function, &ast_context);
+    }
+
+    /*
+    fmt.println("");
+    fmt.println("locals");
+    fmt.println(ast_context.locals);
+
+    fmt.println("");
+    fmt.println("globals: ");
+    fmt.println(ast_context.globals);
+    */
+
+
+    if position_context.identifier != nil {
+
+        if resolved, ok := resolve_location_identifier(&ast_context, position_context.identifier.derived.(ast.Ident)); ok {
+            symbol = resolved;
         }
 
-        field: string;
-
-        switch v in position_context.field.derived {
-        case ast.Ident:
-            field = v.name;
-        case:
-            return location, false;
-        }
-
-        symbol, ok = index.lookup(strings.concatenate({selector, field}, context.temp_allocator));
-
-        if !ok {
+        else {
             return location, false;
         }
 
     }
 
-    else if position_context.identifier != nil {
+    else if position_context.selector != nil && position_context.field != nil {
+
+        selector: index.Symbol;
+
+        selector, ok = resolve_type_expression(&ast_context, position_context.selector);
+
+        if !ok {
+            return location, false;
+        }
 
         field: string;
 
@@ -86,12 +289,11 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
             return location, false;
         }
 
-        symbol, ok = index.lookup(strings.concatenate({document.ast.pkg_name, field}, context.temp_allocator));
+        //symbol, ok = index.lookup(strings.concatenate({selector, field}, context.temp_allocator));
 
         if !ok {
             return location, false;
         }
-
 
     }
 
@@ -99,9 +301,15 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
         return location, false;
     }
 
-
     location.range = symbol.range;
-    location.uri = symbol.uri;
+
+    if symbol.uri == "" {
+        location.uri = document.uri.uri;
+    }
+
+    else {
+        location.uri = symbol.uri;
+    }
 
 
     return location, true;
@@ -111,8 +319,16 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
+    ast_context := make_ast_context();
+
     position_context, ok := get_document_position_context(document, position, .Completion);
 
+    get_globals(document.ast, &ast_context);
+
+    if position_context.function != nil {
+        get_locals(document.ast, position_context.function, &ast_context);
+    }
+    /*
     symbols: [] index.Symbol;
 
     //if we have format "selector.access" with plain identifiers
@@ -120,11 +336,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         selector: string;
 
-        switch v in position_context.selector.derived {
-        case ast.Ident:
-            selector = v.name;
-        case:
-            return list, false;
+        selector, ok = resolve_type_expression(&ast_context, position_context.selector);
+
+        if !ok {
+            return list, true;
         }
 
         field: string;
@@ -133,7 +348,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         case ast.Ident:
             field = v.name;
         case:
-            return list, false;
+            return list, true;
         }
 
         symbols, ok = index.fuzzy_search(field, {selector});
@@ -155,6 +370,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         list.items[i].label = symbol.name;
         list.items[i].kind = cast(CompletionItemKind) symbol.type;
     }
+    */
 
     return list, true;
 }
@@ -162,6 +378,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
 
     signature_help: SignatureHelp;
+
+    ast_context := make_ast_context();
 
     position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 
