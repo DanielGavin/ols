@@ -341,8 +341,6 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     list.isIncomplete = true;
 
-
-
     if !ok {
         return .InternalError;
     }

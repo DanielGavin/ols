@@ -11,3 +11,7 @@ get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
 free_ast_node :: proc(file: ^ast.Node) {
 
 }
+
+free_ast_file :: proc(file: ast.File) {
+
+}

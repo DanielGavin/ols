@@ -257,6 +257,9 @@ document_close :: proc(uri_string: string) -> common.Error {
 
     delete(document.text);
 
+    common.free_ast_file(document.ast);
+
+
     return .None;
 }
 
@@ -387,6 +390,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
         fullpath = document.uri.path,
         src = document.text[:document.used_text],
     };
+
+    common.free_ast_file(document.ast);
 
     parser.parse_file(&p, &document.ast);
 

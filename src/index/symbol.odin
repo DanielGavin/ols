@@ -16,7 +16,7 @@ import "shared:common"
 
 SymbolStructValue :: struct {
     names: [] string,
-    types: [] ^ast.Node,
+    types: [] ^ast.Expr,
 };
 
 SymbolValue :: union {
@@ -35,8 +35,10 @@ Symbol :: struct {
 
 SymbolType :: enum {
 	Function = 3,
+    Field = 5,
+    Package = 9, //set by ast symbol
+    Keyword = 14, //set by ast symbol
 	Struct = 22,
-    Package = 9, //not used by the indexer itself but can be set when creating symbols from ast
 };
 
 SymbolCollection :: struct {
@@ -67,7 +69,7 @@ make_symbol_collection :: proc(allocator := context.allocator) -> SymbolCollecti
 collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_List, src: [] byte) -> SymbolStructValue {
 
     names := make([dynamic] string, 0, collection.allocator);
-    types := make([dynamic] ^ast.Node, 0, collection.allocator);
+    types := make([dynamic] ^ast.Expr, 0, collection.allocator);
 
     for field in fields.list {
 
