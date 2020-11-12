@@ -29,6 +29,7 @@ Symbol :: struct {
     uri: string,
     scope: string,
     name: string,
+    signature: string,
     type: SymbolType,
     value: SymbolValue,
 };

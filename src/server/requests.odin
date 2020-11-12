@@ -339,8 +339,6 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
     list: CompletionList;
     list, ok = get_completion_list(document, completition_params.position);
 
-    list.isIncomplete = true;
-
     if !ok {
         return .InternalError;
     }
@@ -375,6 +373,7 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
         return .InternalError;
     }
 
+    /*
     parameters := [] ParameterInformation {
         {
             label = {0, 4},
@@ -394,8 +393,10 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
         activeParameter = 0,
         signatures = signatures,
     };
+    */
 
-    get_signature_information(document, signature_params.position);
+    help: SignatureHelp;
+    help, ok = get_signature_information(document, signature_params.position);
 
     response := make_response_message(
         params = help,
@@ -403,6 +404,8 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
     );
 
     send_response(response, writer);
+
+    //log.info(help);
 
     return .None;
 }

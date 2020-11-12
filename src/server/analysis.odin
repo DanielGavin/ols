@@ -37,11 +37,12 @@ AstContext :: struct {
     allocator: mem.Allocator,
 };
 
-make_ast_context :: proc(allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
         globals = make(map [string] ^ast.Expr, 0, allocator),
+        file = file,
     };
 
     return ast_context;
@@ -51,13 +52,15 @@ tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
-resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
+resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expect_identifier := true) -> (index.Symbol, bool) {
 
     using ast;
 
     switch v in node.derived {
     case Ident:
-        return resolve_type_identifier(ast_context, v);
+        return resolve_type_identifier(ast_context, v, expect_identifier);
+    case Call_Expr:
+        return resolve_type_identifier(ast_context, v.expr.derived.(Ident));
     case Selector_Expr:
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -66,7 +69,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
             case index.SymbolStructValue:
                 for name, i in s.names {
                     if v.field != nil && strings.compare(name, v.field.name) == 0 {
-                        return resolve_type_expression(ast_context, s.types[i]);
+                        return resolve_type_expression(ast_context, s.types[i], false);
                     }
                 }
             }
@@ -86,7 +89,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
     have chained variable declarations. ie. a := foo { test =  2}; b := a; c := b;
  */
-resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expect_identifier := false) -> (index.Symbol, bool) {
 
     using ast;
 
@@ -96,9 +99,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Ident:
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
-            return make_symbol_struct_from_ast(ast_context, v), true;
+            return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
-            return make_symbol_procedure_from_ast(ast_context, v), true;
+            return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
         case:
             return index.Symbol {}, false;
         }
@@ -111,22 +114,36 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Ident:
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
-            return make_symbol_struct_from_ast(ast_context, v), true;
+            return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
-            return make_symbol_procedure_from_ast(ast_context, v), true;
+            return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
         case:
             return index.Symbol {}, false;
         }
 
     }
 
-    else if node.name == "int" {
+    //keywords
+    else if node.name == "int" || node.name == "string" {
 
         symbol := index.Symbol {
             type = .Keyword,
         };
 
-        return symbol, true;
+        return symbol, !expect_identifier;
+    }
+
+    //imports - probably have this higher to check imports befure everything else
+    else {
+
+        for imp in ast_context.file.imports {
+
+            log.info(imp);
+
+        }
+
+        //TODO(daniel, index can be used on identifiers if using is in the function scope)
+
     }
 
     return index.Symbol {}, false;
@@ -149,12 +166,15 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
     return symbol, false;
 }
 
-make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit) -> index.Symbol {
+make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
-        type = .Struct,
+        type = .Function,
     };
+
+    symbol.name = name;
+    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
 
     return symbol;
 }
@@ -265,7 +285,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     location: common.Location;
 
 
-    ast_context := make_ast_context();
+    ast_context := make_ast_context(document.ast);
 
     uri: string;
 
@@ -351,7 +371,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context();
+    ast_context := make_ast_context(document.ast);
 
     position_context, ok := get_document_position_context(document, position, .Completion);
 
@@ -363,7 +383,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     items := make([dynamic] CompletionItem, 0, context.temp_allocator);
 
-    //log.info(position_context);
 
     if position_context.selector != nil {
 
@@ -391,15 +410,19 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         case index.SymbolStructValue:
             for name, i in v.names {
 
-                if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+                if symbol, ok := resolve_type_expression(&ast_context, v.types[i], false); ok {
                     symbol.name = name;
                     symbol.type = .Field;
                     append(&symbols, symbol);
                 }
 
+                else {
+                    log.errorf("Failed to resolve field: %v", name);
+                }
+
             }
 
-            list.isIncomplete = true;
+            list.isIncomplete = false;
         }
 
         //symbols, ok = index.fuzzy_search(field, {selector});
@@ -430,9 +453,38 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
     signature_help: SignatureHelp;
 
-    ast_context := make_ast_context();
+    ast_context := make_ast_context(document.ast);
 
     position_context, ok := get_document_position_context(document, position, .SignatureHelp);
+
+    if !ok {
+        return signature_help, false;
+    }
+
+    if position_context.call == nil {
+        return signature_help, false;
+    }
+
+    get_globals(document.ast, &ast_context);
+
+    if position_context.function != nil {
+        get_locals(document.ast, position_context.function, &ast_context);
+    }
+
+    call: index.Symbol;
+    call, ok = resolve_type_expression(&ast_context, position_context.call);
+
+    //log.info(call);
+
+    signature_help.signatures = [] SignatureInformation {
+
+        SignatureInformation {
+            label = strings.concatenate({call.name, call.signature}, context.temp_allocator),
+        },
+
+    };
+
+
 
     return signature_help, true;
 }
@@ -563,6 +615,9 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Paren_Expr:
         get_document_position(n.expr, position_context);
     case Call_Expr:
+        if position_context.hint == .SignatureHelp  {
+            position_context.call = cast(^Expr)node;
+        }
         get_document_position(n.expr, position_context);
         get_document_position(n.args, position_context);
     case Selector_Expr:
