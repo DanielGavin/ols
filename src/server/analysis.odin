@@ -35,14 +35,17 @@ AstContext :: struct {
     globals: map [string] ^ast.Expr,
     file: ast.File,
     allocator: mem.Allocator,
+    imports: [] Package,
+    foreign_package: bool,
 };
 
-make_ast_context :: proc(file: ast.File, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: [] Package, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
         globals = make(map [string] ^ast.Expr, 0, allocator),
         file = file,
+        imports = imports,
     };
 
     return ast_context;
@@ -60,7 +63,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
     case Ident:
         return resolve_type_identifier(ast_context, v, expect_identifier);
     case Call_Expr:
-        return resolve_type_identifier(ast_context, v.expr.derived.(Ident));
+        return resolve_type_expression(ast_context, v.expr);
     case Selector_Expr:
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -72,6 +75,17 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
                         return resolve_type_expression(ast_context, s.types[i], false);
                     }
                 }
+            case index.SymbolPackageValue:
+                //TODO(Daniel, when we go into a package we are no longer in our project and cannot look at globals and locals)
+                if v.field != nil {
+                    //ast_context.foreign_package = true;
+                    return index.lookup(v.field.name, selector.scope);
+                }
+
+                else {
+                    return index.Symbol {}, false;
+                }
+
             }
 
         }
@@ -93,7 +107,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
     using ast;
 
-    if local, ok := ast_context.locals[node.name]; ok {
+    log.info(node.name);
+
+    if local, ok := ast_context.locals[node.name]; !ast_context.foreign_package && ok {
 
         switch v in local.derived {
         case Ident:
@@ -102,13 +118,25 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
             return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
-        case:
+        case Selector_Expr:
+
+            if ident, ok := v.expr.derived.(Ident); ok {
+
+                if selector, ok := resolve_type_identifier(ast_context, ident); ok {
+
+                    if value, ok := selector.value.(index.SymbolPackageValue); ok {
+                        return index.lookup(v.field.name, selector.scope);
+                    }
+
+                }
+
+            }
+
             return index.Symbol {}, false;
         }
-
     }
 
-    else if global, ok := ast_context.globals[node.name]; ok {
+    else if global, ok := ast_context.globals[node.name]; !ast_context.foreign_package && ok {
 
         switch v in global.derived {
         case Ident:
@@ -117,7 +145,19 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
             return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
-        case:
+        case Selector_Expr:
+            if ident, ok := v.expr.derived.(Ident); ok {
+
+                if selector, ok := resolve_type_identifier(ast_context, ident); ok {
+
+                    if value, ok := selector.value.(index.SymbolPackageValue); ok {
+                        return index.lookup(v.field.name, selector.scope);
+                    }
+
+                }
+
+            }
+
             return index.Symbol {}, false;
         }
 
@@ -130,20 +170,34 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             type = .Keyword,
         };
 
-        return symbol, !expect_identifier;
+        return symbol, true;
     }
 
     //imports - probably have this higher to check imports befure everything else
     else {
 
-        for imp in ast_context.file.imports {
+        for imp in ast_context.imports {
 
-            log.info(imp);
+            if strings.compare(imp.base, node.name) == 0 {
+
+                symbol := index.Symbol {
+                    type = .Package,
+                    scope = imp.name,
+                    value = index.SymbolPackageValue {
+                    }
+                };
+
+                return symbol, true;
+            }
 
         }
 
-        //TODO(daniel, index can be used on identifiers if using is in the function scope)
+        //last option is to check the index
 
+
+
+
+        //TODO(daniel, index can be used on identifiers if using is in the function scope)
     }
 
     return index.Symbol {}, false;
@@ -202,16 +256,6 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
     symbol.value = index.SymbolStructValue {
         names = names[:],
         types = types[:],
-    };
-
-    return symbol;
-}
-
-make_symbol_package_from_ast :: proc(ast_context: ^AstContext, v: ast.Import_Decl) -> index.Symbol {
-
-    symbol := index.Symbol {
-        range = common.get_token_range(v, ast_context.file.src),
-        type = .Struct,
     };
 
     return symbol;
@@ -285,7 +329,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     location: common.Location;
 
 
-    ast_context := make_ast_context(document.ast);
+    ast_context := make_ast_context(document.ast, document.imports);
 
     uri: string;
 
@@ -341,6 +385,15 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
                     location.range = common.get_token_range(v.types[i]^, document.ast.src);
                 }
             }
+        case index.SymbolPackageValue:
+            if symbol, ok := index.lookup(field, selector.scope); ok {
+                log.info(symbol);
+                location.range = symbol.range;
+                uri = symbol.uri;
+            }
+            else {
+                return location, false;
+            }
         }
 
         if !ok {
@@ -371,7 +424,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context(document.ast);
+    ast_context := make_ast_context(document.ast, document.imports);
 
     position_context, ok := get_document_position_context(document, position, .Completion);
 
@@ -395,16 +448,17 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             return list, true;
         }
 
-        /*
+
         field: string;
 
-        switch v in position_context.field.derived {
-        case ast.Ident:
-            field = v.name;
-        case:
-            return list, true;
+        if position_context.field != nil {
+
+            switch v in position_context.field.derived {
+            case ast.Ident:
+                field = v.name;
+            }
+
         }
-        */
 
         switch v in selector.value {
         case index.SymbolStructValue:
@@ -418,18 +472,32 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
                 else {
                     log.errorf("Failed to resolve field: %v", name);
+                    return list, true;
                 }
 
             }
 
             list.isIncomplete = false;
+        case index.SymbolPackageValue:
+
+            if field != "" {
+
+                if searched, ok := index.fuzzy_search(selector.name, {selector.scope}); ok {
+
+                    for search in searched {
+                        append(&symbols, search);
+                    }
+
+                }
+
+                else {
+                    return list, true;
+                }
+
+            }
+
+            list.isIncomplete = true;
         }
-
-        //symbols, ok = index.fuzzy_search(field, {selector});
-
-        //if !ok {
-        //    return list, false;
-        //}
 
     }
 
@@ -453,7 +521,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
     signature_help: SignatureHelp;
 
-    ast_context := make_ast_context(document.ast);
+    ast_context := make_ast_context(document.ast, document.imports);
 
     position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 
@@ -474,17 +542,13 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     call: index.Symbol;
     call, ok = resolve_type_expression(&ast_context, position_context.call);
 
-    //log.info(call);
+    log.info(call);
 
-    signature_help.signatures = [] SignatureInformation {
+    signature_information := make([] SignatureInformation, 1, context.temp_allocator);
 
-        SignatureInformation {
-            label = strings.concatenate({call.name, call.signature}, context.temp_allocator),
-        },
+    signature_information[0].label = strings.concatenate({call.name, call.signature}, context.temp_allocator);
 
-    };
-
-
+    signature_help.signatures = signature_information;
 
     return signature_help, true;
 }

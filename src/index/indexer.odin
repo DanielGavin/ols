@@ -43,8 +43,8 @@ Indexer :: struct {
 indexer: Indexer;
 
 
-lookup :: proc(id: string) -> (Symbol, bool) {
-    return memory_index_lookup(&indexer.static_index, id);
+lookup :: proc(name: string, scope: string) -> (Symbol, bool) {
+    return memory_index_lookup(&indexer.static_index, name, scope);
 }
 
 

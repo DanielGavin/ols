@@ -5,6 +5,8 @@ import "core:hash"
 import "core:strings"
 import "core:mem"
 import "core:fmt"
+import "core:path/filepath"
+import "core:path"
 
 import "shared:common"
 
@@ -19,12 +21,16 @@ SymbolStructValue :: struct {
     types: [] ^ast.Expr,
 };
 
+SymbolPackageValue :: struct {
+
+};
+
 SymbolValue :: union {
     SymbolStructValue,
+    SymbolPackageValue,
 };
 
 Symbol :: struct {
-    id: u64,
     range: common.Range,
     uri: string,
     scope: string,
@@ -92,6 +98,9 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
+    forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
+    directory := path.dir(forward, context.temp_allocator);
+
     for decl in file.decls {
 
         symbol: Symbol;
@@ -109,21 +118,27 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 case ast.Proc_Lit:
                     token = v;
                     token_type = .Function;
+
+                    if v.type.params != nil {
+                        symbol.signature = get_index_unique_string(collection,
+                            strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
+                            context.temp_allocator));
+                    }
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;
-                    collect_struct_fields(collection, v.fields, file.src);
+                    symbol.value = collect_struct_fields(collection, v.fields, file.src);
                 case: // default
                     break;
                 }
 
                 symbol.range = common.get_token_range(token, file.src);
                 symbol.name = get_index_unique_string(collection, name);
-                symbol.scope = get_index_unique_string(collection, file.pkg_name);
+                symbol.scope = get_index_unique_string(collection, directory);
                 symbol.type = token_type;
                 symbol.uri = get_index_unique_string(collection, uri);
 
-                id := hash.murmur64(transmute([]u8)strings.concatenate({file.pkg_name, name}, context.temp_allocator));
+                id := hash.murmur64(transmute([]u8)strings.concatenate({symbol.scope, name}, context.temp_allocator));
 
                 collection.symbols[id] = symbol;
             }

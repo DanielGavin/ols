@@ -25,9 +25,9 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 
 }
 
-memory_index_lookup :: proc(index: ^MemoryIndex, id: string) -> (Symbol, bool) {
+memory_index_lookup :: proc(index: ^MemoryIndex, name: string, scope: string) -> (Symbol, bool) {
 
-    hashed := hash.murmur64(transmute([]u8)id);
+    hashed := hash.murmur64(transmute([]u8)strings.concatenate({scope, name}, context.temp_allocator));
 
     return index.collection.symbols[hashed];
 }

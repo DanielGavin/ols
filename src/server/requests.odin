@@ -373,28 +373,6 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
         return .InternalError;
     }
 
-    /*
-    parameters := [] ParameterInformation {
-        {
-            label = {0, 4},
-        },
-    };
-
-
-    signatures := [] SignatureInformation {
-        {
-            label = "test",
-            parameters = parameters,
-        },
-    };
-
-    help := SignatureHelp {
-        activeSignature = 0,
-        activeParameter = 0,
-        signatures = signatures,
-    };
-    */
-
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
 
@@ -404,8 +382,6 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
     );
 
     send_response(response, writer);
-
-    //log.info(help);
 
     return .None;
 }

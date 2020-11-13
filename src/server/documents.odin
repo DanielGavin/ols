@@ -21,7 +21,8 @@ ParserError :: struct {
 
 
 Package :: struct {
-    documents: [dynamic]^Document,
+    name: string, //the entire absolute path to the directory
+    base: string,
 };
 
 Document :: struct {
@@ -31,13 +32,11 @@ Document :: struct {
     client_owned: bool,
     diagnosed_errors: bool,
     ast: ast.File,
-    package_name: string,
-    imports: [] string,
+    imports: [] Package,
 };
 
 DocumentStorage :: struct {
     documents: map [string] Document,
-    packages: map [string] Package,
 };
 
 document_storage: DocumentStorage;
@@ -59,32 +58,6 @@ document_get :: proc(uri_string: string) -> ^Document {
         You usually always need the documents that are loaded in core files, your own files, etc.)
  */
 
-/*
-    Server opens a new document with text from filesystem
-*/
-document_new :: proc(path: string, config: ^common.Config) -> common.Error {
-
-    text, ok := os.read_entire_file(path);
-
-    uri := common.create_uri(path);
-
-    if !ok {
-        log.error("Failed to parse uri");
-        return .ParseError;
-    }
-
-    document := Document {
-        uri = uri,
-        text = transmute([] u8)text,
-        client_owned = false,
-        used_text = len(text),
-    };
-
-
-    document_storage.documents[path] = document;
-
-    return .None;
-}
 
 /*
     Client opens a document with transferred text
@@ -106,14 +79,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
         if document.client_owned {
             log.errorf("Client called open on an already open document: %v ", document.uri.path);
             return .InvalidRequest;
-        }
-
-        if document.text != nil {
-            delete(document.text);
-        }
-
-        if len(document.uri.uri) > 0 {
-            common.delete_uri(document.uri);
         }
 
         document.uri = uri;
@@ -255,9 +220,13 @@ document_close :: proc(uri_string: string) -> common.Error {
 
     document.client_owned = false;
 
+    common.free_ast_file(document.ast);
+
+    common.delete_uri(document.uri);
+
     delete(document.text);
 
-    common.free_ast_file(document.ast);
+    document.used_text = 0;
 
 
     return .None;
@@ -337,34 +306,6 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
     return .None;
 }
 
-document_load_package :: proc(package_directory: string, config: ^common.Config) -> common.Error {
-
-    fd, err := os.open(package_directory);
-
-    if err != 0 {
-        return .ParseError;
-    }
-
-    files: []os.File_Info;
-    files, err = os.read_dir(fd, 100, context.temp_allocator);
-
-    for file in files {
-
-        //if we have never encountered the document
-        if _, ok := document_storage.documents[file.fullpath]; !ok {
-
-            if doc_err := document_new(file.fullpath, config); doc_err != .None {
-                return doc_err;
-            }
-
-        }
-
-    }
-
-    return .None;
-}
-
-
 current_errors: [dynamic] ParserError;
 
 parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
@@ -395,30 +336,23 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     parser.parse_file(&p, &document.ast);
 
-    /*
-    fmt.println();
-    fmt.println();
-
-    for decl in document.ast.decls {
-        common.print_ast(decl, 0, document.ast.src);
-    }
-
-    fmt.println();
-    fmt.println();
-    */
-
-    /*
     if document.imports != nil {
+
+        for p in document.imports {
+            delete(p.name);
+        }
+
         delete(document.imports);
-        delete(document.package_name);
     }
-    document.imports = make([]string, len(document.ast.imports));
-    document.package_name = document.ast.pkg_name;
+
+    document.imports = make([]Package, len(document.ast.imports));
 
     for imp, index in document.ast.imports {
 
         //collection specified
         if i := strings.index(imp.fullpath, ":"); i != -1 {
+
+            //Note(Daniel, assuming absolute path atm, but that will change)
 
             collection := imp.fullpath[1:i];
             p := imp.fullpath[i+1:len(imp.fullpath)-1];
@@ -429,7 +363,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
                 continue;
             }
 
-            document.imports[index] = path.join(dir, p);
+            document.imports[index].name = path.join(dir, p);
+            document.imports[index].base = path.base(document.imports[index].name, false);
 
         }
 
@@ -437,8 +372,10 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
         else {
 
         }
+
     }
-    */
+
+    //fmt.println(document.imports);
 
     return current_errors[:], true;
 }
