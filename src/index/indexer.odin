@@ -3,6 +3,7 @@ package index
 import "core:odin/ast"
 import "core:fmt"
 import "core:strings"
+import "core:log"
 
 
 /*
@@ -44,7 +45,9 @@ indexer: Indexer;
 
 
 lookup :: proc(name: string, scope: string) -> (Symbol, bool) {
-    return memory_index_lookup(&indexer.static_index, name, scope);
+    symbol, ok := memory_index_lookup(&indexer.static_index, name, scope);
+    //log.infof("lookup name: %v scope: %v, symbol %v", name, scope, symbol);
+    return symbol, ok;
 }
 
 

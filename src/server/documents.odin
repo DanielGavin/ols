@@ -33,6 +33,7 @@ Document :: struct {
     diagnosed_errors: bool,
     ast: ast.File,
     imports: [] Package,
+    package_name: string,
 };
 
 DocumentStorage :: struct {
@@ -346,6 +347,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
     }
 
     document.imports = make([]Package, len(document.ast.imports));
+    document.package_name = path.dir(document.uri.path, context.allocator); //todo(memory leak)
 
     for imp, index in document.ast.imports {
 

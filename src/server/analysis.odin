@@ -35,17 +35,24 @@ AstContext :: struct {
     globals: map [string] ^ast.Expr,
     file: ast.File,
     allocator: mem.Allocator,
-    imports: [] Package,
-    foreign_package: bool,
+    imports: [] Package, //imports for the current document
+    current_package: string,
+    document_package: string,
+    use_globals: bool,
+    use_locals: bool,
 };
 
-make_ast_context :: proc(file: ast.File, imports: [] Package, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
         globals = make(map [string] ^ast.Expr, 0, allocator),
         file = file,
         imports = imports,
+        use_locals = true,
+        use_globals = true,
+        document_package = package_name,
+        current_package = package_name,
     };
 
     return ast_context;
@@ -68,21 +75,30 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
 
+            ast_context.use_locals = false;
+
             switch s in selector.value {
             case index.SymbolStructValue:
+
+                if selector.uri != "" {
+                    ast_context.current_package = selector.scope;
+                }
+
                 for name, i in s.names {
                     if v.field != nil && strings.compare(name, v.field.name) == 0 {
                         return resolve_type_expression(ast_context, s.types[i], false);
                     }
                 }
             case index.SymbolPackageValue:
-                //TODO(Daniel, when we go into a package we are no longer in our project and cannot look at globals and locals)
+
+                ast_context.current_package = selector.scope;
+
                 if v.field != nil {
-                    //ast_context.foreign_package = true;
                     return index.lookup(v.field.name, selector.scope);
                 }
 
                 else {
+                    log.error("No field");
                     return index.Symbol {}, false;
                 }
 
@@ -107,9 +123,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
     using ast;
 
-    log.info(node.name);
-
-    if local, ok := ast_context.locals[node.name]; !ast_context.foreign_package && ok {
+    if local, ok := ast_context.locals[node.name]; ast_context.use_locals && ok {
 
         switch v in local.derived {
         case Ident:
@@ -136,7 +150,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         }
     }
 
-    else if global, ok := ast_context.globals[node.name]; !ast_context.foreign_package && ok {
+    else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
 
         switch v in global.derived {
         case Ident:
@@ -164,7 +178,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     }
 
     //keywords
-    else if node.name == "int" || node.name == "string" {
+    else if node.name == "int" || node.name == "string"
+        || node.name == "u64" || node.name == "f32"
+        || node.name == "i64" || node.name == "i32" {
 
         symbol := index.Symbol {
             type = .Keyword,
@@ -176,25 +192,43 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     //imports - probably have this higher to check imports befure everything else
     else {
 
-        for imp in ast_context.imports {
+        //right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
+        if strings.contains(node.name, "/") {
 
-            if strings.compare(imp.base, node.name) == 0 {
-
-                symbol := index.Symbol {
+            symbol := index.Symbol {
                     type = .Package,
-                    scope = imp.name,
+                    scope = node.name,
                     value = index.SymbolPackageValue {
                     }
                 };
 
-                return symbol, true;
+            return symbol, true;
+
+        }
+
+        else {
+
+            for imp in ast_context.imports {
+
+                if strings.compare(imp.base, node.name) == 0 {
+
+                    symbol := index.Symbol {
+                        type = .Package,
+                        scope = imp.name,
+                        value = index.SymbolPackageValue {
+                        }
+                    };
+
+                    return symbol, true;
+                }
+
             }
 
         }
 
         //last option is to check the index
 
-
+        return index.lookup(node.name, ast_context.current_package);
 
 
         //TODO(daniel, index can be used on identifiers if using is in the function scope)
@@ -329,7 +363,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     location: common.Location;
 
 
-    ast_context := make_ast_context(document.ast, document.imports);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
     uri: string;
 
@@ -387,7 +421,6 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
             }
         case index.SymbolPackageValue:
             if symbol, ok := index.lookup(field, selector.scope); ok {
-                log.info(symbol);
                 location.range = symbol.range;
                 uri = symbol.uri;
             }
@@ -424,7 +457,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context(document.ast, document.imports);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
     position_context, ok := get_document_position_context(document, position, .Completion);
 
@@ -448,6 +481,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             return list, true;
         }
 
+
+        if selector.uri != "" {
+            ast_context.current_package = selector.scope;
+        }
 
         field: string;
 
@@ -480,6 +517,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             list.isIncomplete = false;
         case index.SymbolPackageValue:
 
+            list.isIncomplete = true;
+
             if field != "" {
 
                 if searched, ok := index.fuzzy_search(selector.name, {selector.scope}); ok {
@@ -491,12 +530,11 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 }
 
                 else {
+                    log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.scope);
                     return list, true;
                 }
 
             }
-
-            list.isIncomplete = true;
         }
 
     }
@@ -512,8 +550,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         list.items[i].kind = cast(CompletionItemKind) symbol.type;
     }
 
-    log.info(list);
-
     return list, true;
 }
 
@@ -521,7 +557,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
     signature_help: SignatureHelp;
 
-    ast_context := make_ast_context(document.ast, document.imports);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
     position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 
@@ -541,8 +577,6 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
     call: index.Symbol;
     call, ok = resolve_type_expression(&ast_context, position_context.call);
-
-    log.info(call);
 
     signature_information := make([] SignatureInformation, 1, context.temp_allocator);
 
@@ -632,11 +666,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 
             //do we still have recursive dots?
             if strings.contains(string(str), ".") {
-                log.info(common.get_ast_node_string(node, position_context.file.src));
-                log.info(n.derived);
-
                 e := parser.parse_expr(&p, true); //MEMORY LEAK - need to modify parser to allow for temp allocator
-
                 position_context.selector = e;
             }
 
@@ -670,10 +700,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Tag_Expr:
         get_document_position(n.expr, position_context);
     case Unary_Expr:
-        log.info("%v", n.op.text);
         get_document_position(n.expr, position_context);
     case Binary_Expr:
-        log.info("%v", n.op.text);
         get_document_position(n.left, position_context);
         get_document_position(n.right, position_context);
     case Paren_Expr:

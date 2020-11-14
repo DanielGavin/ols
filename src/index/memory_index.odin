@@ -26,10 +26,8 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 }
 
 memory_index_lookup :: proc(index: ^MemoryIndex, name: string, scope: string) -> (Symbol, bool) {
-
-    hashed := hash.murmur64(transmute([]u8)strings.concatenate({scope, name}, context.temp_allocator));
-
-    return index.collection.symbols[hashed];
+    //hashed := hash.murmur64(transmute([]u8)strings.concatenate({scope, name}, context.temp_allocator));
+    return index.collection.symbols[strings.concatenate({scope, name}, context.temp_allocator)];
 }
 
 memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, scope: [] string) -> ([] Symbol, bool) {
