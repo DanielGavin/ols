@@ -31,9 +31,15 @@ SymbolPackageValue :: struct {
 
 };
 
+SymbolProcedureValue :: struct {
+    return_types: [] ^ast.Field,
+    arg_types: [] ^ast.Field,
+};
+
 SymbolValue :: union {
     SymbolStructValue,
     SymbolPackageValue,
+    SymbolProcedureValue,
 };
 
 Symbol :: struct {

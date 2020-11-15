@@ -77,7 +77,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
 
             ast_context.use_locals = false;
 
-            switch s in selector.value {
+            #partial switch s in selector.value {
             case index.SymbolStructValue:
 
                 if selector.uri != "" {
@@ -101,7 +101,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
                     log.error("No field");
                     return index.Symbol {}, false;
                 }
-
             }
 
         }
@@ -206,6 +205,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
         }
 
+        //part of the ast so we check the imports of the document
         else {
 
             for imp in ast_context.imports {
@@ -264,6 +264,30 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
     symbol.name = name;
     symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
 
+    return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
+    arg_types := make([dynamic]  ^ast.Field, context.temp_allocator);
+
+    if v.type.results != nil {
+
+        for ret in v.type.results.list {
+            append(&return_types, ret);
+        }
+
+    }
+
+    if v.type.params != nil {
+
+        for param in v.type.params.list {
+            append(&arg_types, param);
+        }
+
+    }
+
+    symbol.value = index.SymbolProcedureValue {
+        return_types = return_types[:],
+        arg_types = arg_types[:],
+    };
+
     return symbol;
 }
 
@@ -274,8 +298,8 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
         type = .Struct,
     };
 
-    names := make([dynamic] string, 0, context.temp_allocator);
-    types := make([dynamic] ^ast.Expr, 0, context.temp_allocator);
+    names := make([dynamic] string, context.temp_allocator);
+    types := make([dynamic] ^ast.Expr, context.temp_allocator);
 
     for field in v.fields.list {
 
@@ -319,6 +343,57 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
     }
 }
 
+get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
+
+    using ast;
+
+    if len(value_decl.names) == len(value_decl.values) {
+
+        for name, i in value_decl.names {
+
+            str := common.get_ast_node_string(name, file.src);
+
+            if value_decl.type != nil {
+                ast_context.locals[str] = value_decl.type;
+            }
+
+            else {
+                ast_context.locals[str] = value_decl.values[i];
+            }
+        }
+
+    }
+
+    else {
+
+        //if there is more names to be assigned then values, it could be procedure call, map gets
+
+        for value in value_decl.values {
+
+            switch v in value.derived {
+            case Call_Expr:
+                fmt.println();
+                fmt.println();
+                fmt.println(v);
+            }
+
+        }
+
+    }
+
+}
+
+get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext) {
+
+    using ast;
+
+    switch v in stmt.derived {
+    case Value_Decl:
+        get_locals_value_decl(file, v, ast_context);
+    }
+
+}
+
 get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext) {
 
     proc_lit, ok := function.derived.(ast.Proc_Lit);
@@ -335,25 +410,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
     }
 
     for stmt in block.stmts {
-
-        if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
-
-            for name, i in value_decl.names {
-
-                str := common.get_ast_node_string(name, file.src);
-
-                if value_decl.type != nil {
-                    ast_context.locals[str] = value_decl.type;
-                }
-
-                else {
-                    ast_context.locals[str] = value_decl.values[i];
-                }
-
-            }
-
-        }
-
+        get_locals_stmt(file, stmt, ast_context);
     }
 
 }
@@ -412,7 +469,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
             return location, false;
         }
 
-        switch v in selector.value {
+        #partial switch v in selector.value {
         case index.SymbolStructValue:
             for name, i in v.names {
                 if strings.compare(name, field) == 0 {
@@ -453,7 +510,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
 get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
 
-    symbols := make([dynamic] index.Symbol, 0, context.temp_allocator);
+    symbols := make([dynamic] index.Symbol, context.temp_allocator);
 
     list: CompletionList;
 
@@ -467,7 +524,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         get_locals(document.ast, position_context.function, &ast_context);
     }
 
-    items := make([dynamic] CompletionItem, 0, context.temp_allocator);
+    items := make([dynamic] CompletionItem, context.temp_allocator);
 
 
     if position_context.selector != nil {
@@ -497,7 +554,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         }
 
-        switch v in selector.value {
+        #partial switch v in selector.value {
         case index.SymbolStructValue:
             for name, i in v.names {
 
