@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:odin/tokenizer"
 import "core:odin/ast"
 import "core:strings"
+import "core:log"
 
 clone_type :: proc{
     clone_node,
@@ -165,7 +166,7 @@ clone_node :: proc(node: ^ast.Node, allocator := context.allocator) -> ^ast.Node
 		r := cast(^Typeid_Type)res;
 		r.specialization = clone_type(r.specialization, allocator);
     case:
-        fmt.panicf("Unhandled node kind: %T", n);
+        log.error("Unhandled node kind: %T", n);
     }
 
     return res;

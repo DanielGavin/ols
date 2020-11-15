@@ -40,6 +40,7 @@ AstContext :: struct {
     document_package: string,
     use_globals: bool,
     use_locals: bool,
+    call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
 };
 
 make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
@@ -62,6 +63,65 @@ tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
+resolve_poly_spec :: proc {
+    resolve_poly_spec_node,
+};
+
+resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node) {
+
+
+}
+
+
+/*
+    Figure out which function the call expression is using out of the list from proc group
+ */
+resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) ->  (index.Symbol, bool) {
+
+
+
+    return index.Symbol {}, false;
+}
+
+resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
+
+    using ast;
+
+    if proc_lit.type.params == nil {
+        return index.Symbol {}, false;
+    }
+
+
+    call_expr := ast_context.call.derived.(Call_Expr);
+    poly_map := make(map[string]^Expr, 0, context.temp_allocator);
+    i := 0;
+
+
+    for param in proc_lit.type.params.list {
+
+        for name in param.names {
+
+            if poly, ok := name.derived.(Poly_Type); ok {
+                poly_map[poly.type.name] = call_expr.args[i];
+            }
+
+            if poly, ok := param.type.derived.(Poly_Type); ok {
+
+                arr := poly.specialization.derived.(Array_Type);
+
+                log.info(arr.elem.derived);
+            }
+
+            i += 1;
+        }
+
+    }
+
+
+    return index.Symbol {}, false;
+}
+
+
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expect_identifier := true) -> (index.Symbol, bool) {
 
     using ast;
@@ -69,8 +129,23 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
     switch v in node.derived {
     case Ident:
         return resolve_type_identifier(ast_context, v, expect_identifier);
+    case Index_Expr:
+        indexed, ok := resolve_type_expression(ast_context, v.expr, false);
+
+        if generic, ok := indexed.value.(index.SymbolGenericValue); ok {
+
+            switch c in generic.expr.derived {
+            case Array_Type:
+                return resolve_type_expression(ast_context, c.elem, false);
+
+            }
+
+        }
+
+        return index.Symbol {}, false;
     case Call_Expr:
-        return resolve_type_expression(ast_context, v.expr);
+        ast_context.call = node;
+        return resolve_type_expression(ast_context, v.expr, false);
     case Selector_Expr:
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -108,11 +183,14 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
         else {
             return index.Symbol {}, false;
         }
+    case:
+        log.errorf("Unhandled node kind: %T", v);
     }
 
     return index.Symbol {}, false;
 
 }
+
 
 /*
     Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
@@ -122,6 +200,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
     using ast;
 
+    //note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
     if local, ok := ast_context.locals[node.name]; ast_context.use_locals && ok {
 
         switch v in local.derived {
@@ -130,7 +209,14 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
-            return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
+            if !v.type.generic {
+                return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
+            }
+            else {
+                return resolve_generic_function(ast_context, v);
+            }
+        case Proc_Group:
+            return resolve_function_overload(ast_context, v);
         case Selector_Expr:
 
             if ident, ok := v.expr.derived.(Ident); ok {
@@ -146,6 +232,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             }
 
             return index.Symbol {}, false;
+        case Array_Type:
+            return make_symbol_generic_from_ast(ast_context, local), true;
+        case Index_Expr:
+            return resolve_type_expression(ast_context, local, false);
+        case:
+            log.errorf("Unhandled node kind: %T", v);
         }
     }
 
@@ -157,7 +249,14 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
-            return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
+            if !v.type.generic {
+                return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
+            }
+            else {
+                return resolve_generic_function(ast_context, v);
+            }
+        case Proc_Group:
+            return resolve_function_overload(ast_context, v);
         case Selector_Expr:
             if ident, ok := v.expr.derived.(Ident); ok {
 
@@ -172,6 +271,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             }
 
             return index.Symbol {}, false;
+        case Array_Type:
+            return make_symbol_generic_from_ast(ast_context, global), true;
+        case Index_Expr:
+            return resolve_type_expression(ast_context, global, false);
+        case:
+            log.errorf("Unhandled node kind: %T", v);
         }
 
     }
@@ -291,6 +396,21 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
     return symbol;
 }
 
+make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(expr, ast_context.file.src),
+        type = .Variable,
+    };
+
+    symbol.value = index.SymbolGenericValue {
+        expr = expr,
+    };
+
+    return symbol;
+}
+
+
 make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
 
     symbol := index.Symbol {
@@ -329,11 +449,15 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
                 str := common.get_ast_node_string(name, file.src);
 
+
+
                 if value_decl.type != nil {
                     ast_context.globals[str] = value_decl.type;
+                    //log.infof("name: %v, %v", str, value_decl.type.derived);
                 }
 
                 else {
+                    //log.infof("name: %v, %v", str, value_decl.values[i].derived);
                     ast_context.globals[str] = value_decl.values[i];
                 }
 
@@ -377,6 +501,10 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
         case Comp_Lit:
             append(&results, v.type);
+        case Proc_Group:
+
+        case:
+            append(&results, value);
         }
 
     }
@@ -940,7 +1068,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.key, position_context);
         get_document_position(n.value, position_context);
     case:
-        fmt.panicf("Unhandled node kind: %T", n);
+        log.errorf("Unhandled node kind: %T", n);
     }
 
 }

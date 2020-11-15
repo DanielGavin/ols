@@ -27,6 +27,7 @@ SymbolStructValue :: struct {
     types: [] ^ast.Expr,
 };
 
+
 SymbolPackageValue :: struct {
 
 };
@@ -36,10 +37,18 @@ SymbolProcedureValue :: struct {
     arg_types: [] ^ast.Field,
 };
 
+/*
+    Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
+*/
+SymbolGenericValue :: struct {
+    expr: ^ast.Expr,
+};
+
 SymbolValue :: union {
     SymbolStructValue,
     SymbolPackageValue,
     SymbolProcedureValue,
+    SymbolGenericValue,
 };
 
 Symbol :: struct {
@@ -56,6 +65,7 @@ Symbol :: struct {
 SymbolType :: enum {
 	Function = 3,
     Field = 5,
+    Variable = 6,
     Package = 9, //set by ast symbol
     Keyword = 14, //set by ast symbol
 	Struct = 22,
