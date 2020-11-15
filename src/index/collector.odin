@@ -7,6 +7,7 @@ import "core:mem"
 import "core:fmt"
 import "core:path/filepath"
 import "core:path"
+import "core:log"
 
 import "shared:common"
 
@@ -296,7 +297,7 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
     case Typeid_Type:
 		replace_package_alias(n.specialization, package_map, collection);
     case:
-        fmt.panicf("Unhandled node kind: %T", n);
+        log.error("Unhandled node kind: %T", n);
     }
 
 }

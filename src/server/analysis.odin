@@ -63,24 +63,193 @@ tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
+/*
+    Walk through the type expression while both the call expression and specialization type are the same
+ */
+
 resolve_poly_spec :: proc {
     resolve_poly_spec_node,
+    resolve_poly_spec_array,
+    resolve_poly_spec_dynamic_array,
 };
 
-resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node) {
+resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
 
+    if len(call_array) != len(spec_array) {
+        return;
+    }
+
+    for elem, i in call_array {
+        resolve_poly_spec(ast_context, elem, spec_array[i], poly_map);
+    }
 
 }
 
+resolve_poly_spec_dynamic_array :: proc(ast_context: ^AstContext, call_array: $A/[dynamic]^$T, spec_array: $D/[dynamic]^$K, poly_map: ^map[string]^ast.Expr) {
 
-/*
-    Figure out which function the call expression is using out of the list from proc group
- */
-resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) ->  (index.Symbol, bool) {
+    if len(call_array) != len(spec_array) {
+        return;
+    }
 
+    for elem, i in call_array {
+        resolve_poly_spec(ast_context, elem, spec_array[i],  poly_map);
+    }
 
+}
 
-    return index.Symbol {}, false;
+get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
+
+    using ast;
+
+    switch v in node.derived {
+    case Ident:
+        return cast(^Expr)node;
+    case:
+        log.errorf("Unhandled poly to node kind %v", v);
+    }
+
+    return nil;
+}
+
+resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node, poly_map: ^map[string]^ast.Expr) {
+
+    /*
+        Note(Daniel, uncertain about the switch cases being enough or too little)
+     */
+
+    using ast;
+
+    if call_node == nil || spec_node == nil {
+        return;
+    }
+
+    switch m in spec_node.derived {
+    case Bad_Expr:
+    case Ident:
+    case Implicit:
+    case Undef:
+    case Basic_Lit:
+    case Poly_Type:
+        if expr := get_poly_node_to_expr(call_node); expr != nil {
+            poly_map[m.type.name] = expr;
+        }
+    case Ellipsis:
+        if n, ok := call_node.derived.(Ellipsis); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+        }
+    case Tag_Expr:
+        if n, ok := call_node.derived.(Tag_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+        }
+    case Unary_Expr:
+        if n, ok := call_node.derived.(Unary_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+        }
+    case Binary_Expr:
+        if n, ok := call_node.derived.(Binary_Expr); ok {
+            resolve_poly_spec(ast_context, n.left, m.left, poly_map);
+            resolve_poly_spec(ast_context, n.right, m.right, poly_map);
+        }
+    case Paren_Expr:
+        if n, ok := call_node.derived.(Paren_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+        }
+    case Selector_Expr:
+        if n, ok := call_node.derived.(Selector_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+            resolve_poly_spec(ast_context, n.field, m.field, poly_map);
+        }
+    case Slice_Expr:
+        if n, ok := call_node.derived.(Slice_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+            resolve_poly_spec(ast_context, n.low, m.low, poly_map);
+            resolve_poly_spec(ast_context, n.high, m.high, poly_map);
+        }
+    case Distinct_Type:
+        if n, ok := call_node.derived.(Distinct_Type); ok {
+            resolve_poly_spec(ast_context, n.type, m.type, poly_map);
+        }
+    case Opaque_Type:
+        if n, ok := call_node.derived.(Opaque_Type); ok {
+            resolve_poly_spec(ast_context, n.type, m.type, poly_map);
+        }
+    case Proc_Type:
+        if n, ok := call_node.derived.(Proc_Type); ok {
+            resolve_poly_spec(ast_context, n.params, m.params, poly_map);
+            resolve_poly_spec(ast_context, n.results, m.results, poly_map);
+        }
+    case Pointer_Type:
+        if n, ok := call_node.derived.(Pointer_Type); ok {
+            resolve_poly_spec(ast_context, n.elem, m.elem, poly_map);
+        }
+    case Array_Type:
+        if n, ok := call_node.derived.(Array_Type); ok {
+            resolve_poly_spec(ast_context, n.len, m.len, poly_map);
+            resolve_poly_spec(ast_context, n.elem, m.elem, poly_map);
+        }
+    case Dynamic_Array_Type:
+        if n, ok := call_node.derived.(Dynamic_Array_Type); ok {
+            resolve_poly_spec(ast_context, n.elem, m.elem, poly_map);
+        }
+    case Struct_Type:
+        if n, ok := call_node.derived.(Struct_Type); ok {
+            resolve_poly_spec(ast_context, n.poly_params, m.poly_params, poly_map);
+            resolve_poly_spec(ast_context, n.align, m.align, poly_map);
+            resolve_poly_spec(ast_context, n.fields, m.fields, poly_map);
+        }
+    case Field:
+        if n, ok := call_node.derived.(Field); ok {
+            resolve_poly_spec(ast_context, n.names, m.names, poly_map);
+            resolve_poly_spec(ast_context, n.type, m.type, poly_map);
+            resolve_poly_spec(ast_context, n.default_value, m.default_value, poly_map);
+        }
+	case Field_List:
+        if n, ok := call_node.derived.(Field_List); ok {
+            resolve_poly_spec(ast_context, n.list, m.list, poly_map);
+        }
+    case Field_Value:
+        if n, ok := call_node.derived.(Field_Value); ok {
+            resolve_poly_spec(ast_context, n.field, m.field, poly_map);
+            resolve_poly_spec(ast_context, n.value, m.value, poly_map);
+        }
+    case Union_Type:
+        if n, ok := call_node.derived.(Union_Type); ok {
+            resolve_poly_spec(ast_context, n.poly_params, m.poly_params, poly_map);
+            resolve_poly_spec(ast_context, n.align, m.align, poly_map);
+            resolve_poly_spec(ast_context, n.variants, m.variants, poly_map);
+        }
+    case Enum_Type:
+        if n, ok := call_node.derived.(Enum_Type); ok {
+            resolve_poly_spec(ast_context, n.base_type, m.base_type, poly_map);
+            resolve_poly_spec(ast_context, n.fields, m.fields, poly_map);
+        }
+    case Bit_Field_Type:
+        if n, ok := call_node.derived.(Bit_Field_Type); ok {
+            resolve_poly_spec(ast_context, n.fields, m.fields, poly_map);
+        }
+    case Bit_Set_Type:
+        if n, ok := call_node.derived.(Bit_Set_Type); ok {
+            resolve_poly_spec(ast_context, n.elem, m.elem, poly_map);
+            resolve_poly_spec(ast_context, n.underlying, m.underlying, poly_map);
+        }
+    case Map_Type:
+        if n, ok := call_node.derived.(Map_Type); ok {
+            resolve_poly_spec(ast_context, n.key, m.key, poly_map);
+            resolve_poly_spec(ast_context, n.value, m.value, poly_map);
+        }
+    case Call_Expr:
+        if n, ok := call_node.derived.(Call_Expr); ok {
+            resolve_poly_spec(ast_context, n.expr, m.expr, poly_map);
+            resolve_poly_spec(ast_context, n.args, m.args, poly_map);
+        }
+    case Typeid_Type:
+        if n, ok := call_node.derived.(Typeid_Type); ok {
+            resolve_poly_spec(ast_context, n.specialization, m.specialization, poly_map);
+        }
+    case:
+        log.error("Unhandled poly node kind: %T", m);
+    }
+
 }
 
 resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
@@ -91,6 +260,13 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
         return index.Symbol {}, false;
     }
 
+    if proc_lit.type.results == nil {
+        return index.Symbol {}, false;
+    }
+
+    if ast_context.call == nil {
+        return index.Symbol {}, false;
+    }
 
     call_expr := ast_context.call.derived.(Call_Expr);
     poly_map := make(map[string]^Expr, 0, context.temp_allocator);
@@ -107,9 +283,13 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
 
             if poly, ok := param.type.derived.(Poly_Type); ok {
 
-                arr := poly.specialization.derived.(Array_Type);
+                if arg_eval, ok := resolve_type_expression(ast_context, call_expr.args[i], false); ok {
 
-                log.info(arr.elem.derived);
+                    if value, ok := arg_eval.value.(index.SymbolGenericValue); ok {
+                        resolve_poly_spec_node(ast_context, value.expr, poly.specialization, &poly_map);
+                    }
+
+                }
             }
 
             i += 1;
@@ -117,10 +297,61 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
 
     }
 
+    ident, ok := call_expr.expr.derived.(Ident);
+
+    if !ok {
+        return index.Symbol {}, false;
+    }
+
+    location_symbol: index.Symbol;
+    location_symbol, ok = resolve_location_identifier(ast_context, ident);
+
+    symbol := index.Symbol {
+       range = location_symbol.range,
+       type = .Function,
+       name = ident.name,
+    };
+
+    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[proc_lit.type.params.pos.offset:proc_lit.type.params.end.offset]), ")"}, context.temp_allocator);
+
+    return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
+
+    for result in proc_lit.type.results.list {
+
+        if ident, ok := result.type.derived.(Ident); ok {
+            field := cast(^Field)index.clone_node(result, context.temp_allocator);
+
+            if m := &poly_map[ident.name]; m != nil {
+                field.type = poly_map[ident.name];
+                append(&return_types, field);
+            }
+
+            else{
+                return index.Symbol {}, false;
+            }
+
+        }
+
+    }
+
+    symbol.value = index.SymbolProcedureValue {
+        return_types = return_types[:],
+    };
+
+    log.info(poly_map);
+
+    return symbol, true;
+}
+
+/*
+    Figure out which function the call expression is using out of the list from proc group
+ */
+resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) ->  (index.Symbol, bool) {
+
+
 
     return index.Symbol {}, false;
 }
-
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expect_identifier := true) -> (index.Symbol, bool) {
 
@@ -486,6 +717,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
         switch v in value.derived {
         case Call_Expr:
+
+            ast_context.call = value;
 
             if symbol, ok := resolve_type_expression(ast_context, v.expr, false); ok {
 
