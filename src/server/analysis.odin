@@ -347,36 +347,45 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
     using ast;
 
-    if len(value_decl.names) == len(value_decl.values) {
+    if value_decl.type != nil {
+        str := common.get_ast_node_string(value_decl.names[0], file.src);
+        ast_context.locals[str] = value_decl.type;
+        return;
+    }
 
-        for name, i in value_decl.names {
+    ast_context.use_locals = true;
+    ast_context.use_globals = true;
 
-            str := common.get_ast_node_string(name, file.src);
+    results := make([dynamic]^Expr, context.temp_allocator);
 
-            if value_decl.type != nil {
-                ast_context.locals[str] = value_decl.type;
+    for value in value_decl.values {
+
+        switch v in value.derived {
+        case Call_Expr:
+
+            if symbol, ok := resolve_type_expression(ast_context, v.expr, false); ok {
+
+                if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
+
+                    for ret in procedure.return_types {
+                        append(&results, ret.type);
+                    }
+
+                }
+
             }
 
-            else {
-                ast_context.locals[str] = value_decl.values[i];
-            }
+        case Comp_Lit:
+            append(&results, v.type);
         }
 
     }
 
-    else {
+    if len(value_decl.names) == len(results) {
 
-        //if there is more names to be assigned then values, it could be procedure call, map gets
-
-        for value in value_decl.values {
-
-            switch v in value.derived {
-            case Call_Expr:
-                fmt.println();
-                fmt.println();
-                fmt.println(v);
-            }
-
+        for name, i in value_decl.names {
+            str := common.get_ast_node_string(name, file.src);
+            ast_context.locals[str] = results[i];
         }
 
     }

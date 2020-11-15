@@ -201,6 +201,8 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     }
 
+    //log.info(string(document.text[:document.used_text]));
+
     return document_refresh(document, config, writer, true);
 }
 
