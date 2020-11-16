@@ -7,6 +7,16 @@ import "core:odin/ast"
 import "core:strings"
 import "core:log"
 
+new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator := context.allocator) -> ^T {
+	n := mem.new(T);
+	n.pos = pos;
+	n.end = end;
+	n.derived = n^;
+	base: ^ast.Node = n; // dummy check
+	_ = base; // "Use" type to make -vet happy
+	return n;
+}
+
 clone_type :: proc{
     clone_node,
     clone_expr,
@@ -72,7 +82,6 @@ clone_node :: proc(node: ^ast.Node, allocator := context.allocator) -> ^ast.Node
     case Implicit:
     case Undef:
     case Basic_Lit:
-
     case Ellipsis:
         r := cast(^Ellipsis)res;
         r.expr = clone_type(r.expr, allocator);
@@ -165,6 +174,11 @@ clone_node :: proc(node: ^ast.Node, allocator := context.allocator) -> ^ast.Node
     case Typeid_Type:
 		r := cast(^Typeid_Type)res;
 		r.specialization = clone_type(r.specialization, allocator);
+    case Ternary_When_Expr:
+        r := cast(^Ternary_When_Expr)res;
+		r.x    = clone_type(r.x);
+		r.cond = clone_type(r.cond);
+		r.y    = clone_type(r.y);
     case:
         log.error("Unhandled node kind: %T", n);
     }

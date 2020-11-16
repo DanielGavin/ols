@@ -8,10 +8,15 @@ import "core:log"
 import "core:strings"
 import "core:path"
 import "core:mem"
+import "core:strconv"
 
 import "shared:common"
 import "shared:index"
 
+
+bool_lit := "bool";
+int_lit := "int";
+string_lit := "string";
 
 DocumentPositionContextHint :: enum {
     Completion,
@@ -115,7 +120,7 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 
     /*
         Note(Daniel, uncertain about the switch cases being enough or too little)
-     */
+    */
 
     using ast;
 
@@ -338,19 +343,100 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
         return_types = return_types[:],
     };
 
-    log.info(poly_map);
+    //log.info(poly_map);
 
     return symbol, true;
 }
+
 
 /*
     Figure out which function the call expression is using out of the list from proc group
  */
 resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) ->  (index.Symbol, bool) {
 
+    using ast;
+
+    if ast_context.call == nil {
+        return index.Symbol {}, false;
+    }
+
+    call_expr := ast_context.call.derived.(Call_Expr);
+
+    for arg_expr in group.args {
+
+        next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr, false); ok {
+
+            if procedure, ok := f.value.(index.SymbolProcedureValue); ok {
+
+                if len(procedure.arg_types) != len(call_expr.args) {
+                    continue;
+                }
+
+                for proc_args, i in procedure.arg_types {
+
+                    if eval_call_expr, ok := resolve_type_expression(ast_context, call_expr.args[i], false); ok {
+
+                        #partial switch v in eval_call_expr.value {
+                        case index.SymbolProcedureValue:
+                        case index.SymbolGenericValue:
+                            if !common.node_equal(proc_args.type, v.expr) {
+                                break next_fn;
+                            }
+                        case index.SymbolStructValue:
+                        }
+
+                    }
+
+                    else {
+                        return index.Symbol {}, false;
+                    }
+
+
+
+                }
+
+                return f, true;
+            }
+
+        }
+
+    }
 
 
     return index.Symbol {}, false;
+}
+
+resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
+
+    /*
+        This is temporary, since basic lit is untyped, but either way it's going to be an ident representing a keyword.
+
+        Could perhaps name them "$integer", "$float", etc.
+     */
+
+    ident := index.new_type(ast.Ident, basic_lit.pos, basic_lit.end, context.temp_allocator);
+
+    symbol := index.Symbol {
+        type = .Keyword,
+    };
+
+    if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
+        ident.name = bool_lit;
+    }
+
+    else if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+        ident.name = int_lit;
+    }
+
+    else {
+        ident.name = string_lit;
+    }
+
+    symbol.value = index.SymbolGenericValue {
+        expr = ident,
+    };
+
+    return symbol, true;
 }
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expect_identifier := true) -> (index.Symbol, bool) {
@@ -360,6 +446,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
     switch v in node.derived {
     case Ident:
         return resolve_type_identifier(ast_context, v, expect_identifier);
+    case Basic_Lit:
+        return resolve_basic_lit(ast_context, v);
     case Index_Expr:
         indexed, ok := resolve_type_expression(ast_context, v.expr, false);
 
@@ -415,7 +503,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
             return index.Symbol {}, false;
         }
     case:
-        log.errorf("Unhandled node kind: %T", v);
+        log.errorf("Unhandled node kind, resolve_type_expression: %T", v);
     }
 
     return index.Symbol {}, false;
@@ -519,6 +607,13 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
         symbol := index.Symbol {
             type = .Keyword,
+        };
+
+        ident := index.new_type(Ident, node.pos, node.end, context.temp_allocator);
+        ident.name = node.name;
+
+        symbol.value = index.SymbolGenericValue {
+            expr = ident,
         };
 
         return symbol, true;
@@ -734,8 +829,6 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
         case Comp_Lit:
             append(&results, v.type);
-        case Proc_Group:
-
         case:
             append(&results, value);
         }
@@ -797,7 +890,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     position_context, ok := get_document_position_context(document, position, .Definition);
 
     if !ok {
-        log.info("Failed to get position context");
+        log.error("Failed to get position context");
         return location, false;
     }
 

@@ -5,6 +5,7 @@ import "core:os"
 import "core:fmt"
 import "core:odin/parser"
 import "core:odin/ast"
+import "core:log"
 import "core:odin/tokenizer"
 
 import "shared:common"
@@ -35,7 +36,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
         }
 
         //bit worried about using temp allocator here since we might overwrite all our temp allocator budget
-        data, ok := os.read_entire_file(info.fullpath, context.allocator);
+        data, ok := os.read_entire_file(info.fullpath, context.temp_allocator);
 
         if !ok {
             return 1, false;
@@ -51,14 +52,13 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
             src = data,
         };
 
-        parser.parse_file(&p, &file);
+        ok = parser.parse_file(&p, &file);
 
         uri := common.create_uri(info.fullpath, context.temp_allocator);
 
         collect_symbols(&symbol_collection, file, uri.uri);
 
-        delete(data);
-
+        common.free_ast_file(file);
 
         return 0, false;
     };
