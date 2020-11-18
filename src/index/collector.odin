@@ -24,7 +24,8 @@ get_index_unique_string :: proc(collection: ^SymbolCollection, s: string) -> str
 
     //i'm hashing this string way to much
     if _, ok := collection.unique_strings[s]; !ok {
-        collection.unique_strings[s] = strings.clone(s, collection.allocator);
+        str := strings.clone(s, collection.allocator);
+        collection.unique_strings[str] = str; //yeah maybe I have to use some integer and hash it, tried that before but got name collisions.
     }
 
     return collection.unique_strings[s];
@@ -127,6 +128,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 symbol.uri = get_index_unique_string(collection, uri);
 
                 //id := hash.murmur64(transmute([]u8)strings.concatenate({symbol.scope, name}, context.temp_allocator));
+
+                if name == "Time" {
+                    fmt.println(name);
+                    fmt.println(symbol.scope);
+                }
 
                 collection.symbols[strings.concatenate({symbol.scope, name}, context.temp_allocator)] = symbol;
             }
