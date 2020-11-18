@@ -44,10 +44,11 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 free_symbol_collection :: proc(collection: SymbolCollection) {
 
     for k, v in collection.unique_strings {
-        delete(v);
+        delete(v, collection.allocator);
     }
 
     for k, v in collection.symbols {
+        delete(k, collection.allocator);
         free_symbol(v);
     }
 
@@ -129,12 +130,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
                 //id := hash.murmur64(transmute([]u8)strings.concatenate({symbol.scope, name}, context.temp_allocator));
 
-                if name == "Time" {
-                    fmt.println(name);
-                    fmt.println(symbol.scope);
-                }
-
-                collection.symbols[strings.concatenate({symbol.scope, name}, context.temp_allocator)] = symbol;
+                collection.symbols[strings.concatenate({symbol.scope, name}, collection.allocator)] = symbol;
             }
 
         }
