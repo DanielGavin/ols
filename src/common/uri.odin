@@ -14,7 +14,7 @@ Uri :: struct {
 
 //Note(Daniel, This is an extremely incomplete uri parser and for now ignores fragment and query and only handles file schema)
 
-parse_uri :: proc(value: string, allocator := context.allocator) -> (Uri, bool) {
+parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
     uri: Uri;
 
@@ -30,7 +30,7 @@ parse_uri :: proc(value: string, allocator := context.allocator) -> (Uri, bool) 
         return uri, false;
     }
 
-    uri.uri = strings.clone(value);
+    uri.uri = strings.clone(value, allocator);
     uri.decode_full = decoded;
     uri.path = decoded[len(starts):];
 
@@ -39,7 +39,7 @@ parse_uri :: proc(value: string, allocator := context.allocator) -> (Uri, bool) 
 
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
-create_uri :: proc(path: string, allocator := context.allocator) -> Uri {
+create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 
     builder := strings.make_builder(allocator);
 

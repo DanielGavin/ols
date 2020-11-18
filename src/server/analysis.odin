@@ -752,7 +752,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
         for n in field.names {
             identifier := n.derived.(ast.Ident);
             append(&names, identifier.name);
-            append(&types, ast.clone_expr(field.type));
+            append(&types, index.clone_type(field.type, context.temp_allocator));
         }
 
     }
@@ -973,8 +973,6 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
 get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
 
-    symbols := make([dynamic] index.Symbol, context.temp_allocator);
-
     list: CompletionList;
 
     ast_context := make_ast_context(document.ast, document.imports, document.package_name);
@@ -991,6 +989,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
 
     if position_context.selector != nil {
+
+        symbols := make([dynamic] index.Symbol, context.temp_allocator);
 
         selector: index.Symbol;
 
@@ -1057,18 +1057,71 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             }
         }
 
+        for symbol, i in symbols {
+            item := CompletionItem {
+                label = symbol.name,
+                kind = cast(CompletionItemKind) symbol.type,
+            };
+
+            append(&items, item);
+        }
+
+        //if there is no field we had to recover from bad expr and create a node (remove when parser can accept temp_allocator)
+        if position_context.field == nil {
+            common.free_ast(position_context.selector);
+        }
+
+        list.items = items[:];
     }
 
     else {
-        return list, true;
+
+        /*
+            Just show the local and global symbols of the document
+
+            TODO(Add fuzzy matching)
+        */
+
+        for k, v in ast_context.locals {
+
+            item := CompletionItem {
+                label = k,
+            };
+
+
+            append(&items, item);
+        }
+
+        for k, v in ast_context.globals {
+
+            item := CompletionItem {
+                label = k,
+            };
+
+            append(&items, item);
+        }
+
+        ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
+
+        for item, i in items {
+
+            ident.name = item.label;
+
+            if symbol, ok := resolve_type_identifier(&ast_context, ident^, true); ok {
+                items[i].kind = .Variable;
+            }
+
+            else if symbol, ok := resolve_type_identifier(&ast_context, ident^, false); ok {
+                items[i].kind = cast(CompletionItemKind)symbol.type;
+            }
+
+
+        }
+
+        list.items = items[:];
     }
 
-    list.items = make([] CompletionItem, len(symbols), context.temp_allocator);
 
-    for symbol, i in symbols {
-        list.items[i].label = symbol.name;
-        list.items[i].kind = cast(CompletionItemKind) symbol.type;
-    }
 
     return list, true;
 }
@@ -1176,6 +1229,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Bad_Expr:
         if position_context.hint == .Completion && position_context.file.src[max(0, node.end.offset-1)] == '.' {
 
+
             str := position_context.file.src[node.pos.offset:max(0, node.end.offset-1)];
 
             p := parser.default_parser();
@@ -1186,13 +1240,12 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 
             //do we still have recursive dots?
             if strings.contains(string(str), ".") {
-                e := parser.parse_expr(&p, true); //MEMORY LEAK - need to modify parser to allow for temp allocator
+                e := parser.parse_expr(&p, true);
                 position_context.selector = e;
             }
 
             else {
-                //this might not hold be enough in the future
-                e := parser.parse_ident(&p); //MEMORY LEAK - need to modify parser to allow for temp allocator
+                e := parser.parse_ident(&p);
                 position_context.selector = e;
             }
 

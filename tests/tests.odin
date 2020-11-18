@@ -376,6 +376,19 @@ test_open_and_change_notification :: proc() -> bool {
     }
     }`;
 
+    close_notification := `
+    {
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didClose",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+        }
+    }
+    }
+    `;
+
     change_notification := `{
     "jsonrpc":"2.0",
     "id":0,
@@ -436,7 +449,7 @@ test_open_and_change_notification :: proc() -> bool {
 
     buffer := TestReadBuffer {
         data = transmute([]byte) strings.join({make_request(initialize_request), make_request(open_notification),
-                                               make_request(change_notification), make_request(change_notification_2), make_request(shutdown_request),
+                                               make_request(change_notification), make_request(change_notification_2), make_request(close_notification), make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.allocator),
     };
 
@@ -468,7 +481,7 @@ test_definition_request :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(\"hello ols\");\r\n}\r\n"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nfoo :: proc() -> int {\r\n\treturn 0;\r\n}\r\n\r\nmain :: proc() {\r\n\r\n\r\n\ta := foo();\r\n\r\n}\r\n\r\n\r\n"
         }
     }
     }`;
@@ -479,11 +492,11 @@ test_definition_request :: proc() -> bool {
     "method": "textDocument/definition",
     "params":   {
         "textDocument": {
-            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
         },
         "position": {
-            "line": 5,
-            "character": 11
+            "line": 11,
+            "character": 8
         }
     }
 
@@ -523,10 +536,23 @@ test_completion_request :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(\"hello ols\");\r\n    fmt.p \r\n}\r\n"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\n\r\nfoo :: proc(a: int, b: int, c: int) -> int {\r\n\treturn a + b + c;\r\n}\r\n\r\nbar :: struct {\r\n\tgood: sup,\r\n};\r\n\r\nsup :: struct {\r\n\thello: int,\r\n\tthere: int,\r\n\tgreat: int,\r\n};\r\n\r\ninst: bar;\r\n\r\n\r\nto_values :: proc() -> (sup, bar) {\r\n\treturn 1,1;\r\n}\r\n\r\n\r\noverload_function :: proc {\r\n\toverload_function_1,\r\n\toverload_function_2,\r\n\toverload_function_2,\r\n};\r\n\r\noverload_function_1 :: proc(a: int) -> int {\r\n\treturn 1;\r\n}\r\n\r\noverload_function_2 :: proc(a: int, b: int) -> int {\r\n\treturn 1, 1;\r\n}\r\n\r\noverload_function_2 :: proc(a: int, b: int, c: int) -> int {\r\n\treturn 1, 1, 1;\r\n}\r\n\r\ncross_2d :: proc(a, b: $T/[2]$E) -> E\r\n    where intrinsics.type_is_numeric(E) {\r\n    return a.x*b.y - a.y*b.x;\r\n}\r\n\r\nmain :: proc() {\r\n\r\n\t//fmt.println();\r\n\r\n\t//test: time.Time;\r\n\r\n\t//a, b := to_values();\r\n\r\n\r\n\t//array_value: [] sup;\r\n\r\n\t//g := array_value[a.great];\r\n\r\n\r\n\r\n\r\n\ta := [2]int{1, 2};\r\n\tb := [2]int{5, -3};\r\n\r\n\tgeneric := cross_2d(a, b);\r\n\r\n\r\n\r\n\t//overload_function\r\n\r\n}\r\n\r\n\r\n"
         }
     }
     }`;
+
+    close_notification := `
+    {
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didClose",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+        }
+    }
+    }
+    `;
 
     completion_request := `{
     "jsonrpc":"2.0",
@@ -537,12 +563,11 @@ test_completion_request :: proc() -> bool {
         "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
     },
     "position": {
-        "line": 6,
-        "character": 9
+        "line": 73,
+        "character": 2
     },
     "context": {
-        "triggerKind": 2,
-        "triggerCharacter": "."
+        "triggerKind": 1
     }
     }
 
@@ -553,7 +578,7 @@ test_completion_request :: proc() -> bool {
 
     buffer := TestReadBuffer {
         data = transmute([]byte) strings.join({make_request(sublime_initialize_request), make_request(open_notification), make_request(completion_request),
-                                               make_request(shutdown_request),
+                                               make_request(close_notification), make_request(shutdown_request),
                                                make_request(exit_notification)}, "", context.allocator),
     };
 
@@ -582,7 +607,7 @@ test_signature_request :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nmain :: proc() {\r\n    fmt.println(ad, ad);  \r\n\r\n}\r\n test :: proc() { pkg.access_it } \r\n\r\n"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nfoo :: proc(a: int, b: int, c:int) -> int {\r\n\treturn a + b + c;\r\n}\r\n\r\nbar :: struct {\r\n\ta: sup,\r\n};\r\n\r\nsup :: struct {\r\n\ta1: int,\r\n\ta2: int,\r\n\ta3: int,\r\n};\r\n\r\nmain :: proc() {\r\n\r\n\r\n\r\n\tfoo()\r\n\r\n\r\n}\r\n\r\n\r\n"
         }
     }
     }`;
@@ -596,8 +621,8 @@ test_signature_request :: proc() -> bool {
         "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
     },
     "position": {
-        "line": 5,
-        "character": 19
+        "line": 22,
+        "character": 5
     },
     "context": {
         "isRetrigger": false,
@@ -630,12 +655,68 @@ test_signature_request :: proc() -> bool {
     return true;
 }
 
+test_multiple_returns :: proc() -> bool {
+
+    open_notification := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didOpen",
+    "params": {
+        "textDocument": {
+            "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+            "languageId": "odin",
+            "version": 1,
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\n\r\nfoo :: proc(a: int, b: int, c: int) -> int {\r\n\treturn a + b + c;\r\n}\r\n\r\nbar :: struct {\r\n\ta: sup,\r\n};\r\n\r\nsup :: struct {\r\n\ta1: int,\r\n\ta2: int,\r\n\ta3: int,\r\n};\r\n\r\ninst: bar;\r\n\r\n\r\nto_values :: proc() -> (int, int) {\r\n\treturn 1,1;\r\n}\r\n\r\nmain :: proc() {\r\n\r\nfmt.println();\r\n\r\n\r\ntest: time.Time;\r\n\r\n\r\na, b := to_values();\r\n\r\n\r\n\r\n}\r\n\r\n\r\n"
+        }
+    }
+    }`;
+
+
+    completion_request := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/completion",
+    "params":   {
+         "textDocument": {
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
+    },
+    "position": {
+        "line": 38,
+        "character": 1
+    },
+    "context": {
+        "triggerKind": 1
+    }
+    }
+
+    }`;
+
+
+
+    buffer := TestReadBuffer {
+        data = transmute([]byte) strings.join({make_request(sublime_initialize_request), make_request(open_notification),
+                                               make_request(completion_request), make_request(shutdown_request),
+                                               make_request(exit_notification)}, "", context.allocator),
+    };
+
+
+    reader := server.make_reader(test_read, &buffer);
+    writer := server.make_writer(src.os_write, cast(rawptr)os.stdout);
+
+    context.logger = server.create_lsp_logger(&writer);
+
+    src.run(&reader, &writer);
+
+    delete(buffer.data);
+
+    return true;
+}
+
+
 
 main :: proc() {
 
-
-
-
+    init_global_temporary_allocator(mem.megabytes(10));
 
     //context.logger = log.create_console_logger();
 
@@ -643,11 +724,20 @@ main :: proc() {
 
     //test_definition_request();
 
-    //test_open_and_change_notification();
+    test_open_and_change_notification();
 
-    test_completion_request();
+    //test_completion_request();
 
     //test_signature_request();
 
+    //test_multiple_returns();
+
+
+
+    fmt.println();
+    fmt.println();
+    fmt.println("End of Tests");
+    fmt.println();
+    fmt.println();
 }
 

@@ -65,14 +65,14 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
             break;
         }
 
-        index := strings.last_index_byte (message, ':');
+        index := strings.last_index_byte(message, ':');
 
         if index == -1 {
             log.error("Failed to find semicolon");
             return header, false;
         }
 
-        header_name := message[0 : index];
+        header_name := message[0:index];
         header_value := message[len(header_name) + 2 : len(message)-1];
 
         if strings.compare(header_name, "Content-Length") == 0 {
@@ -131,6 +131,19 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 }
 
 
+call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error =
+        {"initialize" = request_initialize,
+         "initialized" = request_initialized,
+         "shutdown" = request_shutdown,
+         "exit" = notification_exit,
+         "textDocument/didOpen" = notification_did_open,
+         "textDocument/didChange" = notification_did_change,
+         "textDocument/didClose" = notification_did_close,
+         "textDocument/didSave" = notification_did_save,
+         "textDocument/definition" = request_definition,
+         "textDocument/completion" = request_completion,
+         "textDocument/signatureHelp" = request_signature_help};
+
 handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
 
     root, ok := request.value.(json.Object);
@@ -158,19 +171,6 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
 
     method := root["method"].value.(json.String);
 
-    call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error =
-        {"initialize" = request_initialize,
-         "initialized" = request_initialized,
-         "shutdown" = request_shutdown,
-         "exit" = notification_exit,
-         "textDocument/didOpen" = notification_did_open,
-         "textDocument/didChange" = notification_did_change,
-         "textDocument/didClose" = notification_did_close,
-         "textDocument/didSave" = notification_did_save,
-         "textDocument/definition" = request_definition,
-         "textDocument/completion" = request_completion,
-         "textDocument/signatureHelp" = request_signature_help};
-
     fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
     fn, ok = call_map[method];
 
@@ -197,6 +197,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
             send_error(response, writer);
         }
     }
+
 
     return true;
 }
@@ -295,6 +296,8 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
         return .InternalError;
     }
 
+    document_refresh(document, config, writer);
+
     location, ok2 := get_definition_location(document, definition_params.position);
 
     if !ok2 {
@@ -324,17 +327,19 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     completition_params: CompletionParams;
 
+
     if unmarshal(params, completition_params, context.temp_allocator) != .None {
         log.error("Failed to unmarshal completion request");
         return .ParseError;
     }
-
 
     document := document_get(completition_params.textDocument.uri);
 
     if document == nil {
         return .InternalError;
     }
+
+    document_refresh(document, config, writer);
 
     list: CompletionList;
     list, ok = get_completion_list(document, completition_params.position);
@@ -372,6 +377,8 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
     if document == nil {
         return .InternalError;
     }
+
+    document_refresh(document, config, writer);
 
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
@@ -423,6 +430,7 @@ notification_did_change :: proc(params: json.Value, id: RequestId, config: ^comm
     if unmarshal(params, change_params, context.temp_allocator) != .None {
         return .ParseError;
     }
+
 
     document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer);
 

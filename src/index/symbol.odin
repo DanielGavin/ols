@@ -70,3 +70,18 @@ SymbolType :: enum {
     Keyword = 14, //set by ast symbol
 	Struct = 22,
 };
+
+free_symbol :: proc(symbol: Symbol) {
+
+    #partial switch v in symbol.value {
+    case SymbolProcedureValue:
+        common.free_ast(v.return_types);
+        common.free_ast(v.arg_types);
+    case SymbolStructValue:
+        common.free_ast(v.types);
+        delete(v.names);
+    case SymbolGenericValue:
+        common.free_ast(v.expr);
+    }
+
+}

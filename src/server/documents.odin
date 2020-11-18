@@ -8,6 +8,7 @@ import "core:odin/parser"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:path"
+import "core:mem"
 
 import "shared:common"
 
@@ -42,6 +43,9 @@ DocumentStorage :: struct {
 
 document_storage: DocumentStorage;
 
+document_storage_shutdown :: proc() {
+    delete(document_storage.documents);
+}
 
 document_get :: proc(uri_string: string) -> ^Document {
 
@@ -55,18 +59,12 @@ document_get :: proc(uri_string: string) -> ^Document {
 }
 
 /*
-    Note(Daniel, Should there be reference counting of documents or just clear everything on workspace change?
-        You usually always need the documents that are loaded in core files, your own files, etc.)
- */
-
-
-/*
     Client opens a document with transferred text
 */
 
 document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
 
-    uri, parsed_ok := common.parse_uri(uri_string);
+    uri, parsed_ok := common.parse_uri(uri_string, context.allocator);
 
     log.infof("document_open: %v", uri_string);
 
@@ -87,7 +85,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
 
-        if err := document_refresh(document, config, writer, true); err != .None {
+        if err := document_refresh(document, config, writer); err != .None {
             return err;
         }
 
@@ -102,7 +100,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
             used_text = len(text),
         };
 
-        if err := document_refresh(&document, config, writer, true); err != .None {
+        if err := document_refresh(&document, config, writer); err != .None {
             return err;
         }
 
@@ -203,10 +201,12 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic] TextDocume
 
     //log.info(string(document.text[:document.used_text]));
 
-    return document_refresh(document, config, writer, true);
+    return document_refresh(document, config, writer);
 }
 
 document_close :: proc(uri_string: string) -> common.Error {
+
+    log.infof("document_close: %v", uri_string);
 
     uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
@@ -223,21 +223,18 @@ document_close :: proc(uri_string: string) -> common.Error {
 
     document.client_owned = false;
 
-    common.free_ast_file(document.ast);
-
     common.delete_uri(document.uri);
 
     delete(document.text);
 
     document.used_text = 0;
 
-
     return .None;
 }
 
 
 
-document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer, parse_imports: bool) -> common.Error {
+document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
 
     errors, ok := parse_document(document, config);
 
@@ -323,6 +320,8 @@ parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] ParserError, bool) {
 
+    context.allocator = context.temp_allocator;
+
     p := parser.Parser {
 		err  = parser_error_handler,
 		warn = parser_warning_handler,
@@ -335,21 +334,10 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
         src = document.text[:document.used_text],
     };
 
-    common.free_ast_file(document.ast);
-
     parser.parse_file(&p, &document.ast);
 
-    if document.imports != nil {
-
-        for p in document.imports {
-            delete(p.name);
-        }
-
-        delete(document.imports);
-    }
-
     document.imports = make([]Package, len(document.ast.imports));
-    document.package_name = path.dir(document.uri.path, context.allocator); //todo(memory leak)
+    document.package_name = path.dir(document.uri.path, context.temp_allocator);
 
     for imp, index in document.ast.imports {
 
@@ -367,9 +355,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
                 continue;
             }
 
-            document.imports[index].name = path.join(dir, p);
+            document.imports[index].name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
             document.imports[index].base = path.base(document.imports[index].name, false);
-
         }
 
         //relative
@@ -378,8 +365,6 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
         }
 
     }
-
-    //fmt.println(document.imports);
 
     return current_errors[:], true;
 }

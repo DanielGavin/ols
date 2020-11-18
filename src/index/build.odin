@@ -7,6 +7,7 @@ import "core:odin/parser"
 import "core:odin/ast"
 import "core:log"
 import "core:odin/tokenizer"
+import "core:strings"
 
 import "shared:common"
 
@@ -20,26 +21,38 @@ import "shared:common"
 
 symbol_collection: SymbolCollection;
 
+files: [dynamic] string;
+
+walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
+
+    if info.is_dir {
+        return 0, false;
+    }
+
+    append(&files, strings.clone(info.fullpath, context.allocator));
+
+    return 0, false;
+};
 
 build_static_index :: proc(allocator := context.allocator, config: ^common.Config) {
 
     //right now just collect the symbols from core
-
     core_path := config.collections["core"];
 
     symbol_collection = make_symbol_collection(allocator, config);
 
-    walk_static_index_build := proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
+    files = make([dynamic] string, context.allocator);
 
-        if info.is_dir {
-            return 0, false;
-        }
+    filepath.walk(core_path, walk_static_index_build);
 
-        //bit worried about using temp allocator here since we might overwrite all our temp allocator budget
-        data, ok := os.read_entire_file(info.fullpath, context.temp_allocator);
+    context.allocator = context.temp_allocator;
+
+    for fullpath in files {
+
+        data, ok := os.read_entire_file(fullpath, context.temp_allocator);
 
         if !ok {
-            return 1, false;
+            continue;
         }
 
         p := parser.Parser {
@@ -48,24 +61,28 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
         };
 
         file := ast.File {
-            fullpath = info.fullpath,
+            fullpath = fullpath,
             src = data,
         };
 
         ok = parser.parse_file(&p, &file);
 
-        uri := common.create_uri(info.fullpath, context.temp_allocator);
+        uri := common.create_uri(fullpath, context.temp_allocator);
 
         collect_symbols(&symbol_collection, file, uri.uri);
 
-        common.free_ast_file(file);
+        free_all(context.temp_allocator);
 
-        return 0, false;
-    };
+        delete(fullpath, allocator);
+    }
 
-    filepath.walk(core_path, walk_static_index_build);
+    delete(files);
 
     indexer.static_index = make_memory_index(symbol_collection);
+}
+
+free_static_index :: proc() {
+    free_symbol_collection(symbol_collection);
 }
 
 

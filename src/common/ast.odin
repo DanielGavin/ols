@@ -3,6 +3,7 @@ package common
 import "core:odin/ast"
 import "core:log"
 import "core:mem"
+import "core:fmt"
 
 get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
     return string(src[node.pos.offset:node.end.offset]);
@@ -11,19 +12,35 @@ get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
 free_ast :: proc{
 	free_ast_node,
     free_ast_array,
-    free_ast_dynamic_array
+    free_ast_dynamic_array,
+    free_ast_comment,
 };
+
+free_ast_comment :: proc(a: ^ast.Comment_Group) {
+    if a == nil {
+        return;
+    }
+
+    if len(a.list) > 0 {
+        delete(a.list);
+    }
+
+    free(a);
+}
 
 free_ast_array :: proc(array: $A/[]^$T) {
 	for elem, i in array {
 		free_ast(elem);
 	}
+    delete(array);
 }
 
 free_ast_dynamic_array :: proc(array: $A/[dynamic]^$T) {
 	for elem, i in array {
 		free_ast(elem);
 	}
+
+    delete(array);
 }
 
 free_ast_node :: proc(node: ^ast.Node) {
@@ -46,6 +63,7 @@ free_ast_node :: proc(node: ^ast.Node) {
     case Proc_Lit:
         free_ast(n.type);
         free_ast(n.body);
+        free_ast(n.where_clauses);
     case Comp_Lit:
         free_ast(n.type);
         free_ast(n.elems);
@@ -160,14 +178,21 @@ free_ast_node :: proc(node: ^ast.Node) {
         free_ast(n.names);
         free_ast(n.type);
         free_ast(n.values);
+        //free_ast(n.docs);
+        //free_ast(n.comment);
     case Package_Decl:
+        //free_ast(n.docs);
+        //free_ast(n.comment);
     case Import_Decl:
+        //free_ast(n.docs);
+        //free_ast(n.comment);
     case Foreign_Block_Decl:
         free_ast(n.attributes);
         free_ast(n.foreign_library);
         free_ast(n.body);
     case Foreign_Import_Decl:
         free_ast(n.name);
+        free_ast(n.attributes);
     case Proc_Group:
         free_ast(n.args);
     case Attribute:
@@ -176,6 +201,8 @@ free_ast_node :: proc(node: ^ast.Node) {
         free_ast(n.names);
         free_ast(n.type);
         free_ast(n.default_value);
+        //free_ast(n.docs);
+        //free_ast(n.comment);
     case Field_List:
         free_ast(n.list);
     case Typeid_Type:
@@ -197,21 +224,26 @@ free_ast_node :: proc(node: ^ast.Node) {
     case Array_Type:
         free_ast(n.len);
         free_ast(n.elem);
+        free_ast(n.tag);
     case Dynamic_Array_Type:
         free_ast(n.elem);
+        free_ast(n.tag);
     case Struct_Type:
         free_ast(n.poly_params);
         free_ast(n.align);
         free_ast(n.fields);
+        free_ast(n.where_clauses);
     case Union_Type:
         free_ast(n.poly_params);
         free_ast(n.align);
         free_ast(n.variants);
+        free_ast(n.where_clauses);
     case Enum_Type:
         free_ast(n.base_type);
         free_ast(n.fields);
     case Bit_Field_Type:
         free_ast(n.fields);
+        free_ast(n.align);
     case Bit_Set_Type:
         free_ast(n.elem);
         free_ast(n.underlying);
@@ -233,6 +265,15 @@ free_ast_file :: proc(file: ast.File) {
         free_ast(decl);
     }
 
+    free_ast(file.pkg_decl);
+
+    for comment in file.comments {
+        free_ast(comment);
+    }
+
+    delete(file.comments);
+    delete(file.imports);
+    delete(file.decls);
 }
 
 
@@ -439,5 +480,4 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
     }
 
     return false;
-
 }

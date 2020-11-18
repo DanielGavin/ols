@@ -8,7 +8,7 @@ import "core:strings"
 import "core:log"
 
 new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator := context.allocator) -> ^T {
-	n := mem.new(T);
+	n := mem.new(T, allocator);
 	n.pos = pos;
 	n.end = end;
 	n.derived = n^;
@@ -24,7 +24,7 @@ clone_type :: proc{
     clone_dynamic_array,
 };
 
-clone_array :: proc(array: $A/[]^$T, allocator := context.allocator) -> A {
+clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator) -> A {
     if len(array) == 0 {
         return nil;
     }
@@ -35,7 +35,7 @@ clone_array :: proc(array: $A/[]^$T, allocator := context.allocator) -> A {
     return res;
 }
 
-clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator := context.allocator) -> A {
+clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator) -> A {
     if len(array) == 0 {
         return nil;
     }
@@ -46,11 +46,11 @@ clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator := context.allocat
     return res;
 }
 
-clone_expr :: proc(node: ^ast.Expr, allocator := context.allocator) -> ^ast.Expr {
+clone_expr :: proc(node: ^ast.Expr, allocator: mem.Allocator) -> ^ast.Expr {
     return cast(^ast.Expr)clone_node(node, allocator);
 }
 
-clone_node :: proc(node: ^ast.Node, allocator := context.allocator) -> ^ast.Node {
+clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
 
     using ast;
 
@@ -176,9 +176,9 @@ clone_node :: proc(node: ^ast.Node, allocator := context.allocator) -> ^ast.Node
 		r.specialization = clone_type(r.specialization, allocator);
     case Ternary_When_Expr:
         r := cast(^Ternary_When_Expr)res;
-		r.x    = clone_type(r.x);
-		r.cond = clone_type(r.cond);
-		r.y    = clone_type(r.y);
+		r.x    = clone_type(r.x, allocator);
+		r.cond = clone_type(r.cond, allocator);
+		r.y    = clone_type(r.y, allocator);
     case:
         log.error("Unhandled node kind: %T", n);
     }

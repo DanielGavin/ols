@@ -12,7 +12,7 @@ import "core:fmt"
     Right now union handling is type specific so you can only have one struct type, int type, etc.
  */
 
-unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator) -> json.Marshal_Error  {
+unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> json.Marshal_Error  {
 
     using runtime;
 
@@ -52,7 +52,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator := context.allocator
 
             id := variant.variants[0].id;
 
-			unmarshal(json_value, any{v.data, id});
+			unmarshal(json_value, any{v.data, id}, allocator);
 
         }
     case json.Array:

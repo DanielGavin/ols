@@ -40,6 +40,20 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
     };
 }
 
+free_symbol_collection :: proc(collection: SymbolCollection) {
+
+    for k, v in collection.unique_strings {
+        delete(v);
+    }
+
+    for k, v in collection.symbols {
+        free_symbol(v);
+    }
+
+    delete(collection.symbols);
+    delete(collection.unique_strings);
+}
+
 collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_List, package_map: map [string] string) -> SymbolStructValue {
 
     names := make([dynamic] string, 0, collection.allocator);
