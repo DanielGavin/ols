@@ -302,7 +302,6 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     if !ok2 {
         log.error("Failed to get definition location");
-        return .InternalError;
     }
 
     response := make_response_message(

@@ -495,6 +495,37 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
                     log.error("No field");
                     return index.Symbol {}, false;
                 }
+            case index.SymbolGenericValue:
+
+                /*
+                    Slighty awkward, but you could have a pointer to struct, so have to check, i don't want to remove the pointer info by storing into the struct symbol value,
+                    since it can be used for signature infering.
+                */
+
+                if ptr, ok := s.expr.derived.(Pointer_Type); ok {
+
+                    log.info(ptr);
+
+                    if symbol, ok := resolve_type_expression(ast_context, ptr.elem, false); ok {
+
+                        #partial switch s2 in symbol.value {
+                        case index.SymbolStructValue:
+
+                            if selector.uri != "" {
+                                ast_context.current_package = symbol.scope;
+                            }
+
+                            for name, i in s2.names {
+                                if v.field != nil && strings.compare(name, v.field.name) == 0 {
+                                    return resolve_type_expression(ast_context, s2.types[i], false);
+                                }
+                            }
+
+                        }
+                    }
+
+                }
+
             }
 
         }
@@ -503,7 +534,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
             return index.Symbol {}, false;
         }
     case:
-        log.errorf("Unhandled node kind, resolve_type_expression: %T", v);
+        log.debugf("default node kind, resolve_type_expression: %T", v);
+        return make_symbol_generic_from_ast(ast_context, node), true;
     }
 
     return index.Symbol {}, false;
@@ -556,7 +588,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Index_Expr:
             return resolve_type_expression(ast_context, local, false);
         case:
-            log.errorf("Unhandled node kind: %T", v);
+            log.errorf("default type node kind: %T", v);
+            return make_symbol_generic_from_ast(ast_context, local), true;
         }
     }
 
@@ -595,7 +628,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Index_Expr:
             return resolve_type_expression(ast_context, global, false);
         case:
-            log.errorf("Unhandled node kind: %T", v);
+            log.errorf("default type node kind: %T", v);
+            return make_symbol_generic_from_ast(ast_context, global), true;
         }
 
     }
@@ -603,7 +637,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     //keywords
     else if node.name == "int" || node.name == "string"
         || node.name == "u64" || node.name == "f32"
-        || node.name == "i64" || node.name == "i32" {
+        || node.name == "i64" || node.name == "i32"
+        || node.name == "bool" || node.name == "rawptr" {
 
         symbol := index.Symbol {
             type = .Keyword,
@@ -695,8 +730,8 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
     symbol.name = name;
     symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
 
-    return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
-    arg_types := make([dynamic]  ^ast.Field, context.temp_allocator);
+    return_types := make([dynamic] ^ast.Field, context.temp_allocator);
+    arg_types := make([dynamic] ^ast.Field, context.temp_allocator);
 
     if v.type.results != nil {
 
@@ -1019,6 +1054,9 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         #partial switch v in selector.value {
         case index.SymbolStructValue:
+
+            list.isIncomplete = false;
+
             for name, i in v.names {
 
                 if symbol, ok := resolve_type_expression(&ast_context, v.types[i], false); ok {
@@ -1034,7 +1072,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             }
 
-            list.isIncomplete = false;
+
         case index.SymbolPackageValue:
 
             list.isIncomplete = true;
@@ -1055,6 +1093,36 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 }
 
             }
+        case index.SymbolGenericValue:
+
+            list.isIncomplete = false;
+
+            if ptr, ok := v.expr.derived.(ast.Pointer_Type); ok {
+
+                log.info(ptr);
+
+                if symbol, ok := resolve_type_expression(&ast_context, ptr.elem, false); ok {
+
+                    #partial switch s in symbol.value {
+                    case index.SymbolStructValue:
+                        for name, i in s.names {
+
+                            if symbol, ok := resolve_type_expression(&ast_context, s.types[i], false); ok {
+                                symbol.name = name;
+                                symbol.type = .Field;
+                                append(&symbols, symbol);
+                            }
+
+                            else {
+                                log.errorf("Failed to resolve field: %v", name);
+                                return list, true;
+                            }
+                        }
+                    }
+                }
+
+            }
+
         }
 
         for symbol, i in symbols {

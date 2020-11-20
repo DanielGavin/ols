@@ -1,0 +1,4 @@
+
+analysis.odin.
+
+completion for ast. shows the globals and locals.

@@ -36,14 +36,13 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
 
 build_static_index :: proc(allocator := context.allocator, config: ^common.Config) {
 
-    //right now just collect the symbols from core
-    core_path := config.collections["core"];
-
     symbol_collection = make_symbol_collection(allocator, config);
 
     files = make([dynamic] string, context.allocator);
 
-    filepath.walk(core_path, walk_static_index_build);
+    for k, v in config.collections {
+        filepath.walk(v, walk_static_index_build);
+    }
 
     context.allocator = context.temp_allocator;
 
@@ -82,7 +81,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 }
 
 free_static_index :: proc() {
-    free_symbol_collection(symbol_collection);
+    delete_symbol_collection(symbol_collection);
 }
 
 

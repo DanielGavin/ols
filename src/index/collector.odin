@@ -41,7 +41,7 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
     };
 }
 
-free_symbol_collection :: proc(collection: SymbolCollection) {
+delete_symbol_collection :: proc(collection: SymbolCollection) {
 
     for k, v in collection.unique_strings {
         delete(v, collection.allocator);
