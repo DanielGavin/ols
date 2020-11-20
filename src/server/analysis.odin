@@ -638,7 +638,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     else if node.name == "int" || node.name == "string"
         || node.name == "u64" || node.name == "f32"
         || node.name == "i64" || node.name == "i32"
-        || node.name == "bool" || node.name == "rawptr" {
+        || node.name == "bool" || node.name == "rawptr"
+        || node.name == "any" {
 
         symbol := index.Symbol {
             type = .Keyword,
@@ -865,6 +866,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
         case Comp_Lit:
             append(&results, v.type);
         case:
+            log.debugf("default node get_locals_value_decl %v", v);
             append(&results, value);
         }
 
@@ -888,7 +890,15 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
     switch v in stmt.derived {
     case Value_Decl:
         get_locals_value_decl(file, v, ast_context);
+    case Type_Switch_Stmt:
+        get_locals_type_switch_stmt(file, v, ast_context);
+    case:
+        log.debugf("default node local stmt %v", v);
     }
+
+}
+
+get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext) {
 
 }
 
@@ -898,6 +908,21 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 
     if !ok || proc_lit.body == nil {
         return;
+    }
+
+    if proc_lit.type != nil && proc_lit.type.params != nil {
+
+        for arg in proc_lit.type.params.list {
+
+            for name in arg.names {
+                if arg.type != nil {
+                    str := common.get_ast_node_string(name, file.src);
+                    ast_context.locals[str] = arg.type;
+                }
+            }
+
+        }
+
     }
 
     block: ast.Block_Stmt;
