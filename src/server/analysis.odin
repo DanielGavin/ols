@@ -1668,8 +1668,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Expr_Stmt:
         get_document_position(n.expr, position_context);
     case Tag_Stmt:
-        r := cast(^Expr_Stmt)node;
-        get_document_position(r.expr, position_context);
+        r := cast(^Tag_Stmt)node;
+        get_document_position(r.stmt, position_context);
     case Assign_Stmt:
         get_document_position(n.lhs, position_context);
         get_document_position(n.rhs, position_context);
