@@ -114,6 +114,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                             strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
                             context.temp_allocator));
                     }
+                case ast.Proc_Group:
+                    token = v;
+                    token_type = .Function;
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;

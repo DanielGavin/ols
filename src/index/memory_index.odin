@@ -3,6 +3,7 @@ package index
 import "core:hash"
 import "core:strings"
 import "core:fmt"
+import "core:log"
 
 import "shared:common"
 
@@ -51,9 +52,10 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, scope: [] s
 
         if name == "" || common.fuzzy_match(fuzzy_matcher, symbol.name) > 0.5 {
             append(&symbols, symbol);
+             i += 1;
         }
 
-        i += 1;
+
     }
 
     return symbols[:], true;

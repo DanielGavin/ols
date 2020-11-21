@@ -38,6 +38,7 @@ DocumentPositionContext :: struct {
 AstContext :: struct {
     locals: map [string] ^ast.Expr, //locals all the way to the document position
     globals: map [string] ^ast.Expr,
+    usings: [dynamic] string,
     file: ast.File,
     allocator: mem.Allocator,
     imports: [] Package, //imports for the current document
@@ -53,6 +54,7 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
         globals = make(map [string] ^ast.Expr, 0, allocator),
+        usings = make([dynamic] string, allocator),
         file = file,
         imports = imports,
         use_locals = true,
@@ -257,15 +259,19 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 
 }
 
-resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
+resolve_generic_function :: proc {
+    resolve_generic_function_ast,
+    resolve_generic_function_symbol,
+};
 
+resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: ^ast.Field_List, results: ^ast.Field_List) -> (index.Symbol, bool) {
     using ast;
 
-    if proc_lit.type.params == nil {
+    if params == nil {
         return index.Symbol {}, false;
     }
 
-    if proc_lit.type.results == nil {
+    if results == nil {
         return index.Symbol {}, false;
     }
 
@@ -277,8 +283,7 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
     poly_map := make(map[string]^Expr, 0, context.temp_allocator);
     i := 0;
 
-
-    for param in proc_lit.type.params.list {
+    for param in params.list {
 
         for name in param.names {
 
@@ -317,11 +322,11 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
        name = ident.name,
     };
 
-    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[proc_lit.type.params.pos.offset:proc_lit.type.params.end.offset]), ")"}, context.temp_allocator);
+    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params.pos.offset:params.end.offset]), ")"}, context.temp_allocator);
 
     return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
 
-    for result in proc_lit.type.results.list {
+    for result in results.list {
 
         if ident, ok := result.type.derived.(Ident); ok {
             field := cast(^Field)index.clone_node(result, context.temp_allocator);
@@ -343,9 +348,27 @@ resolve_generic_function :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Li
         return_types = return_types[:],
     };
 
-    //log.info(poly_map);
-
     return symbol, true;
+
+}
+
+resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
+
+    using ast;
+
+    if proc_lit.type.params == nil {
+        return index.Symbol {}, false;
+    }
+
+    if proc_lit.type.results == nil {
+        return index.Symbol {}, false;
+    }
+
+    if ast_context.call == nil {
+        return index.Symbol {}, false;
+    }
+
+    return resolve_generic_function_symbol(ast_context, proc_lit.type.params, proc_lit.type.results);
 }
 
 
@@ -695,8 +718,24 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
         //last option is to check the index
 
-        return index.lookup(node.name, ast_context.current_package);
+        if symbol, ok := index.lookup(node.name, ast_context.current_package); ok {
+            return symbol, ok;
+        }
 
+        for u in ast_context.usings {
+
+            //TODO(Daniel, make into a map, not really required for performance but looks nicer)
+            for imp in ast_context.imports {
+
+                if strings.compare(imp.base, u) == 0 {
+
+                    if symbol, ok := index.lookup(node.name, imp.name); ok {
+                        return symbol, ok;
+                    }
+                }
+
+            }
+        }
 
         //TODO(daniel, index can be used on identifiers if using is in the function scope)
     }
@@ -819,14 +858,67 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
                 }
 
                 else {
-                    //log.infof("name: %v, %v", str, value_decl.values[i].derived);
-                    ast_context.globals[str] = value_decl.values[i];
+                    if len(value_decl.values) > i {
+                        ast_context.globals[str] = value_decl.values[i];
+                    }
                 }
 
             }
 
         }
     }
+}
+
+get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^AstContext, results: ^[dynamic]^ast.Expr) {
+
+    using ast;
+
+    ast_context.use_locals = true;
+    ast_context.use_globals = true;
+
+    switch v in value.derived {
+    case Call_Expr:
+
+        ast_context.call = value;
+
+        if symbol, ok := resolve_type_expression(ast_context, v.expr, false); ok {
+
+            if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
+
+                for ret in procedure.return_types {
+                    append(results, ret.type);
+                }
+
+            }
+
+        }
+
+    case Comp_Lit:
+        if v.type != nil {
+            append(results, v.type);
+        }
+    case Array_Type:
+        if v.elem != nil {
+            append(results, v.elem);
+        }
+    case Selector_Expr:
+        if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
+
+            #partial switch s in selector.value {
+            case index.SymbolStructValue:
+                for name, i in s.names {
+                    if v.field != nil && strings.compare(name, v.field.name) == 0 {
+                        get_generic_assignment(file, s.types[i], ast_context, results);
+                    }
+                }
+            }
+
+        }
+    case:
+        log.debugf("default node get_locals_value_decl %v", v);
+        append(results, value);
+    }
+
 }
 
 get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
@@ -839,37 +931,10 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
         return;
     }
 
-    ast_context.use_locals = true;
-    ast_context.use_globals = true;
-
     results := make([dynamic]^Expr, context.temp_allocator);
 
     for value in value_decl.values {
-
-        switch v in value.derived {
-        case Call_Expr:
-
-            ast_context.call = value;
-
-            if symbol, ok := resolve_type_expression(ast_context, v.expr, false); ok {
-
-                if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
-
-                    for ret in procedure.return_types {
-                        append(&results, ret.type);
-                    }
-
-                }
-
-            }
-
-        case Comp_Lit:
-            append(&results, v.type);
-        case:
-            log.debugf("default node get_locals_value_decl %v", v);
-            append(&results, value);
-        }
-
+        get_generic_assignment(file, value, ast_context, &results);
     }
 
     if len(value_decl.names) == len(results) {
@@ -883,7 +948,10 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 }
 
-get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext) {
+get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    ast_context.use_locals = true;
+    ast_context.use_globals = true;
 
     using ast;
 
@@ -891,18 +959,174 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
     case Value_Decl:
         get_locals_value_decl(file, v, ast_context);
     case Type_Switch_Stmt:
-        get_locals_type_switch_stmt(file, v, ast_context);
+        get_locals_type_switch_stmt(file, v, ast_context, document_position);
+   // case Switch_Stmt:
+   //     get_locals_switch_stmt(file, v, ast_context, document_position);
+   // case For_Stmt:
+   //     get_locals_for_stmt(file, v, ast_context, document_position);
+    case Range_Stmt:
+        get_locals_for_range_stmt(file, v, ast_context, document_position);
+    case If_Stmt:
+        get_locals_if_stmt(file, v, ast_context, document_position);
+    case Block_Stmt:
+        for stmt in v.stmts {
+            get_locals_stmt(file, stmt, ast_context, document_position);
+        }
+    case Assign_Stmt:
+        get_locals_assign_stmt(file, v, ast_context);
+    case Using_Stmt:
+        get_locals_using_stmt(file, v, ast_context);
     case:
         log.debugf("default node local stmt %v", v);
     }
 
-}
 
-get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext) {
 
 }
 
-get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext) {
+get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context: ^AstContext) {
+
+    for u in stmt.list {
+
+        if ident, ok := u.derived.(ast.Ident); ok {
+            append(&ast_context.usings, ident.name);
+        }
+
+    }
+
+}
+
+get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
+
+    using ast;
+
+    if stmt.lhs == nil || stmt.rhs == nil {
+        return;
+    }
+
+    results := make([dynamic]^Expr, context.temp_allocator);
+
+    for rhs in stmt.rhs {
+        get_generic_assignment(file, rhs, ast_context, &results);
+    }
+
+
+    if len(stmt.lhs) != len(results) {
+        return;
+    }
+
+    for lhs, i in stmt.lhs {
+
+        if ident, ok := lhs.derived.(ast.Ident); ok {
+            ast_context.locals[ident.name] = results[i];
+        }
+    }
+
+}
+
+get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+        return;
+    }
+
+    if stmt.init != nil {
+        get_locals_stmt(file, stmt.init, ast_context, document_position);
+    }
+
+    get_locals_stmt(file, stmt.body, ast_context, document_position);
+}
+
+
+get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    using ast;
+
+    if !(stmt.body.pos.offset <= document_position.position && document_position.position <= stmt.body.end.offset) {
+        return;
+    }
+
+    results := make([dynamic]^Expr, context.temp_allocator);
+
+    get_generic_assignment(file, stmt.expr, ast_context, &results);
+
+    if len(results) > 0 && stmt.val0 != nil {
+
+        if ident, ok := stmt.val0.derived.(Ident); ok {
+            log.infof("result %v", results[0].derived);
+            ast_context.locals[ident.name] = results[0];
+        }
+
+    }
+
+    else if len(results) > 1 && stmt.val0 != nil && stmt.val1 != nil {
+
+        if ident, ok := stmt.val1.derived.(Ident); ok {
+            //ast_context.locals[ident.name] = ident;
+        }
+
+    }
+
+
+    get_locals_stmt(file, stmt.body, ast_context, document_position);
+}
+
+get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+        return;
+    }
+
+    get_locals_stmt(file, stmt.body, ast_context, document_position);
+}
+
+get_locals_switch_stmt :: proc(file: ast.File, stmt: ast.Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+        return;
+    }
+
+    get_locals_stmt(file, stmt.body, ast_context, document_position);
+}
+
+get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+    using ast;
+
+    if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+        return;
+    }
+
+    if stmt.body == nil {
+        return;
+    }
+
+    if block, ok := stmt.body.derived.(Block_Stmt); ok {
+
+        for block_stmt in block.stmts {
+
+            if cause, ok := block_stmt.derived.(Case_Clause); ok && cause.pos.offset <= document_position.position && document_position.position <= cause.end.offset {
+
+                for b in cause.body {
+                    get_locals_stmt(file, b, ast_context, document_position);
+                }
+
+                tag := stmt.tag.derived.(Assign_Stmt);
+
+                if len(tag.lhs) == 1 && len(cause.list) == 1 {
+                    ident := tag.lhs[0].derived.(Ident);
+                    ast_context.locals[ident.name] = cause.list[0];
+                }
+
+            }
+
+        }
+
+    }
+
+}
+
+get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
     proc_lit, ok := function.derived.(ast.Proc_Lit);
 
@@ -933,7 +1157,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
     }
 
     for stmt in block.stmts {
-        get_locals_stmt(file, stmt, ast_context);
+        get_locals_stmt(file, stmt, ast_context, document_position);
     }
 
 }
@@ -957,7 +1181,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     get_globals(document.ast, &ast_context);
 
     if position_context.function != nil {
-        get_locals(document.ast, position_context.function, &ast_context);
+        get_locals(document.ast, position_context.function, &ast_context, &position_context);
     }
 
     if position_context.identifier != nil {
@@ -1042,11 +1266,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
     get_globals(document.ast, &ast_context);
 
     if position_context.function != nil {
-        get_locals(document.ast, position_context.function, &ast_context);
+        get_locals(document.ast, position_context.function, &ast_context, &position_context);
     }
 
     items := make([dynamic] CompletionItem, context.temp_allocator);
-
 
     if position_context.selector != nil {
 
@@ -1057,7 +1280,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
 
         if !ok {
-            log.error("Failed to resolve type selector");
+            log.info(position_context.selector.derived);
+            log.error("Failed to resolve type selector in completion list");
             return list, true;
         }
 
@@ -1102,29 +1326,27 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             list.isIncomplete = true;
 
-            if field != "" {
+            log.infof("search field %v, scope %v", field, selector.scope);
 
-                if searched, ok := index.fuzzy_search(selector.name, {selector.scope}); ok {
+            if searched, ok := index.fuzzy_search(field, {selector.scope}); ok {
 
-                    for search in searched {
-                        append(&symbols, search);
-                    }
-
-                }
-
-                else {
-                    log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.scope);
-                    return list, true;
+                for search in searched {
+                    append(&symbols, search);
                 }
 
             }
+
+            else {
+                log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.scope);
+                return list, true;
+            }
+
+
         case index.SymbolGenericValue:
 
             list.isIncomplete = false;
 
             if ptr, ok := v.expr.derived.(ast.Pointer_Type); ok {
-
-                log.info(ptr);
 
                 if symbol, ok := resolve_type_expression(&ast_context, ptr.elem, false); ok {
 
@@ -1238,7 +1460,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     get_globals(document.ast, &ast_context);
 
     if position_context.function != nil {
-        get_locals(document.ast, position_context.function, &ast_context);
+        get_locals(document.ast, position_context.function, &ast_context, &position_context);
     }
 
     call: index.Symbol;
