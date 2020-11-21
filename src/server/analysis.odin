@@ -264,7 +264,7 @@ resolve_generic_function :: proc {
     resolve_generic_function_symbol,
 };
 
-resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: ^ast.Field_List, results: ^ast.Field_List) -> (index.Symbol, bool) {
+resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast.Field, results: []^ast.Field) -> (index.Symbol, bool) {
     using ast;
 
     if params == nil {
@@ -283,7 +283,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: ^ast.F
     poly_map := make(map[string]^Expr, 0, context.temp_allocator);
     i := 0;
 
-    for param in params.list {
+    for param in params {
 
         for name in param.names {
 
@@ -322,11 +322,11 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: ^ast.F
        name = ident.name,
     };
 
-    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params.pos.offset:params.end.offset]), ")"}, context.temp_allocator);
+    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params[0].pos.offset:params[len(params)-1].end.offset]), ")"}, context.temp_allocator);
 
     return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
 
-    for result in results.list {
+    for result in results {
 
         if ident, ok := result.type.derived.(Ident); ok {
             field := cast(^Field)index.clone_node(result, context.temp_allocator);
@@ -368,7 +368,7 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
         return index.Symbol {}, false;
     }
 
-    return resolve_generic_function_symbol(ast_context, proc_lit.type.params, proc_lit.type.results);
+    return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list);
 }
 
 
@@ -719,7 +719,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         //last option is to check the index
 
         if symbol, ok := index.lookup(node.name, ast_context.current_package); ok {
-            return symbol, ok;
+            return resolve_symbol_return(ast_context, symbol);
         }
 
         for u in ast_context.usings {
@@ -730,7 +730,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
                 if strings.compare(imp.base, u) == 0 {
 
                     if symbol, ok := index.lookup(node.name, imp.name); ok {
-                        return symbol, ok;
+                        return resolve_symbol_return(ast_context, symbol);
                     }
                 }
 
@@ -741,6 +741,28 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     }
 
     return index.Symbol {}, false;
+}
+
+resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> (index.Symbol, bool) {
+
+    #partial switch v in symbol.value {
+    case index.SymbolProcedureGroupValue:
+        if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
+            return resolve_symbol_return(ast_context, symbol);
+        }
+        else {
+            return symbol, false;
+        }
+    case index.SymbolProcedureValue:
+        if v.generic {
+            return resolve_generic_function_symbol(ast_context, v.arg_types, v.return_types);
+        }
+        else {
+            return symbol, true;
+        }
+    }
+
+    return symbol, true;
 }
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {

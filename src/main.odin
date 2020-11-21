@@ -31,12 +31,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     config: common.Config;
 
-    /*
-    tracking_allocator: mem.Tracking_Allocator;
-    default_allocator := context.allocator;
-    mem.tracking_allocator_init(&tracking_allocator, default_allocator);
-    context.allocator = mem.tracking_allocator(&tracking_allocator);
-    */
+    //tracking_allocator := common.memleak_allocator(true);
+    //context.allocator = tracking_allocator;
 
     //temporary collections being set manually, need to get client configuration set up.
     config.collections = make(map [string] string);
@@ -86,15 +82,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
     server.document_storage_shutdown();
 
     index.free_static_index();
-
-    /*
-    for k, v in tracking_allocator.allocation_map {
-        fmt.println(v);
-    }
-
-
-    fmt.println(len(tracking_allocator.allocation_map));
-    */
 }
 
 end :: proc() {

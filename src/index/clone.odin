@@ -7,7 +7,7 @@ import "core:odin/ast"
 import "core:strings"
 import "core:log"
 
-new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator := context.allocator) -> ^T {
+new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n := mem.new(T, allocator);
 	n.pos = pos;
 	n.end = end;
@@ -28,7 +28,7 @@ clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator) -> A {
     if len(array) == 0 {
         return nil;
     }
-    res := make(A, len(array));
+    res := make(A, len(array), allocator);
     for elem, i in array {
         res[i] = auto_cast clone_type(elem, allocator);
     }
@@ -39,7 +39,7 @@ clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator) ->
     if len(array) == 0 {
         return nil;
     }
-    res := make(A, len(array));
+    res := make(A, len(array), allocator);
     for elem, i in array {
         res[i] = auto_cast clone_type(elem, allocator);
     }
@@ -73,6 +73,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
     }
     mem.copy(res, src, size);
     res.derived.data = rawptr(res);
+
+    res.pos.file = "";
+    res.end.file = "";
 
     switch n in node.derived {
     case Bad_Expr:
@@ -127,14 +130,17 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
         r := cast(^Array_Type)res;
         r.len  = clone_type(r.len, allocator);
         r.elem = clone_type(r.elem, allocator);
+        r.tag = clone_type(r.tag, allocator);
     case Dynamic_Array_Type:
         r := cast(^Dynamic_Array_Type)res;
         r.elem = clone_type(r.elem, allocator);
+        r.tag = clone_type(r.tag, allocator);
     case Struct_Type:
         r := cast(^Struct_Type)res;
         r.poly_params = auto_cast clone_type(r.poly_params, allocator);
         r.align = clone_type(r.align, allocator);
         r.fields = auto_cast clone_type(r.fields, allocator);
+        r.where_clauses = clone_type(r.where_clauses, allocator);
     case Field:
 		r := cast(^Field)res;
 		r.names         = clone_type(r.names, allocator);
@@ -152,6 +158,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
         r.poly_params = auto_cast clone_type(r.poly_params, allocator);
         r.align = clone_type(r.align, allocator);
         r.variants = clone_type(r.variants, allocator);
+        r.where_clauses = clone_type(r.where_clauses, allocator);
     case Enum_Type:
         r := cast(^Enum_Type)res;
         r.base_type = clone_type(r.base_type, allocator);
@@ -159,6 +166,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
     case Bit_Field_Type:
         r := cast(^Bit_Field_Type)res;
         r.fields = clone_type(r.fields, allocator);
+        r.align = clone_type(r.align, allocator);
     case Bit_Set_Type:
         r := cast(^Bit_Set_Type)res;
         r.elem = clone_type(r.elem, allocator);

@@ -35,6 +35,11 @@ SymbolPackageValue :: struct {
 SymbolProcedureValue :: struct {
     return_types: [] ^ast.Field,
     arg_types: [] ^ast.Field,
+    generic: bool,
+};
+
+SymbolProcedureGroupValue :: struct {
+    group: ^ast.Expr,
 };
 
 /*
@@ -49,6 +54,7 @@ SymbolValue :: union {
     SymbolPackageValue,
     SymbolProcedureValue,
     SymbolGenericValue,
+    SymbolProcedureGroupValue,
 };
 
 Symbol :: struct {
@@ -79,7 +85,6 @@ free_symbol :: proc(symbol: Symbol) {
         common.free_ast(v.arg_types);
     case SymbolStructValue:
         common.free_ast(v.types);
-        delete(v.names);
     case SymbolGenericValue:
         common.free_ast(v.expr);
     }

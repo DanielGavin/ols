@@ -43,14 +43,15 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
 
+    for k, v in collection.symbols {
+        free_symbol(v);
+        delete(k, collection.allocator);
+    }
+
     for k, v in collection.unique_strings {
         delete(v, collection.allocator);
     }
 
-    for k, v in collection.symbols {
-        delete(k, collection.allocator);
-        free_symbol(v);
-    }
 
     delete(collection.symbols);
     delete(collection.unique_strings);
@@ -114,9 +115,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                             strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
                             context.temp_allocator));
                     }
-                case ast.Proc_Group:
-                    token = v;
-                    token_type = .Function;
+                //case ast.Proc_Group:
+                //    token = v;
+                //    token_type = .Function;
+                //    symbol.value = SymbolProcedureGroupValue {
+                //        group = clone_type(value_decl.values[0], collection.allocator),
+                //    };
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;
