@@ -85,6 +85,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
     case Implicit:
     case Undef:
     case Basic_Lit:
+    case Basic_Directive:
     case Ellipsis:
         r := cast(^Ellipsis)res;
         r.expr = clone_type(r.expr, allocator);
@@ -104,6 +105,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
     case Selector_Expr:
         r := cast(^Selector_Expr)res;
         r.expr = clone_type(r.expr, allocator);
+        r.field = auto_cast clone_type(r.field, allocator);
+    case Implicit_Selector_Expr:
+        r := cast(^Implicit_Selector_Expr)res;
         r.field = auto_cast clone_type(r.field, allocator);
     case Slice_Expr:
         r := cast(^Slice_Expr)res;
@@ -187,8 +191,19 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator) -> ^ast.Node {
 		r.x    = clone_type(r.x, allocator);
 		r.cond = clone_type(r.cond, allocator);
 		r.y    = clone_type(r.y, allocator);
+    case Poly_Type:
+        r := cast(^Poly_Type)res;
+        r.type = auto_cast clone_type(r.type, allocator);
+        r.specialization = clone_type(r.specialization, allocator);
+    case Proc_Group:
+        r := cast(^Proc_Group)res;
+        r.args = clone_type(r.args, allocator);
+    case Comp_Lit:
+        r := cast(^Comp_Lit)res;
+        r.type = clone_type(r.type, allocator);
+        r.elems = clone_type(r.elems, allocator);
     case:
-        log.error("Unhandled node kind: %T", n);
+        log.error("Clone type Unhandled node kind: %T", n);
     }
 
     return res;

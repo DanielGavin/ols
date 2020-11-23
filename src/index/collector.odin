@@ -57,6 +57,32 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
     delete(collection.unique_strings);
 }
 
+collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.Proc_Type, arg_list: ^ast.Field_List, return_list: ^ast.Field_List, package_map: map [string] string) -> SymbolProcedureValue {
+
+    returns := make([dynamic] ^ast.Field, 0, collection.allocator);
+    args := make([dynamic] ^ast.Field, 0, collection.allocator);
+
+    for ret in return_list.list {
+        cloned := cast(^ast.Field)clone_type(ret, collection.allocator);
+        replace_package_alias(cloned, package_map, collection);
+        append(&returns, cloned);
+    }
+
+    for arg in arg_list.list {
+        cloned := cast(^ast.Field)clone_type(arg, collection.allocator);
+        replace_package_alias(cloned, package_map, collection);
+        append(&args, cloned);
+    }
+
+    value := SymbolProcedureValue {
+        return_types = returns[:],
+        arg_types = args[:],
+        generic = proc_type.generic,
+    };
+
+    return value;
+}
+
 collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_List, package_map: map [string] string) -> SymbolStructValue {
 
     names := make([dynamic] string, 0, collection.allocator);
@@ -67,14 +93,14 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_
         for n in field.names {
             identifier := n.derived.(ast.Ident);
             append(&names, get_index_unique_string(collection, identifier.name));
-            append(&types, clone_type(field.type, collection.allocator));
+
+            cloned := clone_type(field.type, collection.allocator);
+            replace_package_alias(cloned, package_map, collection);
+            append(&types, cloned);
         }
 
     }
 
-    for t in types {
-        replace_package_alias(t, package_map, collection);
-    }
 
     value := SymbolStructValue {
         names = names[:],
@@ -115,12 +141,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                             strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
                             context.temp_allocator));
                     }
-                //case ast.Proc_Group:
-                //    token = v;
-                //    token_type = .Function;
-                //    symbol.value = SymbolProcedureGroupValue {
-                //        group = clone_type(value_decl.values[0], collection.allocator),
-                //    };
+                    if v.type.params != nil && v.type.results != nil && v.type != nil {
+                        symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
+                    }
+                case ast.Proc_Group:
+                    token = v;
+                    token_type = .Function;
+                    symbol.value = SymbolProcedureGroupValue {
+                        group = clone_type(value_decl.values[0], collection.allocator),
+                    };
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;
@@ -241,6 +270,7 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
     case Implicit:
     case Undef:
     case Basic_Lit:
+    case Basic_Directive:
     case Ellipsis:
         replace_package_alias(n.expr, package_map, collection);
     case Tag_Expr:
@@ -254,7 +284,9 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
         replace_package_alias(n.expr, package_map, collection);
     case Selector_Expr:
 
-        if ident := &n.expr.derived.(Ident); ident != nil {
+        if _, ok := n.expr.derived.(Ident); ok {
+
+            ident := &n.expr.derived.(Ident);
 
             if package_name, ok := package_map[ident.name]; ok {
                 ident.name = get_index_unique_string(collection, package_name);
@@ -266,6 +298,8 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
             replace_package_alias(n.expr, package_map, collection);
             replace_package_alias(n.field, package_map, collection);
         }
+    case Implicit_Selector_Expr:
+        replace_package_alias(n.field, package_map, collection);
     case Slice_Expr:
         replace_package_alias(n.expr, package_map, collection);
         replace_package_alias(n.low, package_map, collection);
@@ -319,8 +353,16 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
         replace_package_alias(n.args, package_map, collection);
     case Typeid_Type:
 		replace_package_alias(n.specialization, package_map, collection);
+    case Poly_Type:
+        replace_package_alias(n.type, package_map, collection);
+        replace_package_alias(n.specialization, package_map, collection);
+    case Proc_Group:
+        replace_package_alias(n.args, package_map, collection);
+    case Comp_Lit:
+        replace_package_alias(n.type, package_map, collection);
+        replace_package_alias(n.elems, package_map, collection);
     case:
-        log.error("Unhandled node kind: %T", n);
+        log.error("Replace Unhandled node kind: %T", n);
     }
 
 }

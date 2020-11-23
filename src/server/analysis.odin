@@ -283,12 +283,17 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
     poly_map := make(map[string]^Expr, 0, context.temp_allocator);
     i := 0;
 
+
     for param in params {
 
         for name in param.names {
 
             if poly, ok := name.derived.(Poly_Type); ok {
                 poly_map[poly.type.name] = call_expr.args[i];
+            }
+
+            if param.type == nil {
+                continue;
             }
 
             if poly, ok := param.type.derived.(Poly_Type); ok {
@@ -307,26 +312,39 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
     }
 
-    ident, ok := call_expr.expr.derived.(Ident);
+    function_name := "";
+    function_range: common.Range;
 
-    if !ok {
+    if ident, ok := call_expr.expr.derived.(Ident); ok {
+        function_name = ident.name;
+        function_range = common.get_token_range(ident, ast_context.file.src);
+    }
+
+    else if selector, ok := call_expr.expr.derived.(Selector_Expr); ok {
+        function_name = selector.field.name;
+        function_range = common.get_token_range(selector, ast_context.file.src);
+    }
+
+    else {
+        log.debug("call expr expr could not be derived correctly");
         return index.Symbol {}, false;
     }
 
-    location_symbol: index.Symbol;
-    location_symbol, ok = resolve_location_identifier(ast_context, ident);
-
     symbol := index.Symbol {
-       range = location_symbol.range,
+       range = function_range,
        type = .Function,
-       name = ident.name,
+       name = function_name,
     };
 
-    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params[0].pos.offset:params[len(params)-1].end.offset]), ")"}, context.temp_allocator);
+    //symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params[0].pos.offset:params[len(params)-1].end.offset]), ")"}, context.temp_allocator);
 
-    return_types := make([dynamic]  ^ast.Field, context.temp_allocator);
+    return_types := make([dynamic] ^ast.Field, context.temp_allocator);
 
     for result in results {
+
+        if result.type == nil {
+            continue;
+        }
 
         if ident, ok := result.type.derived.(Ident); ok {
             field := cast(^Field)index.clone_node(result, context.temp_allocator);
@@ -344,12 +362,16 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
     }
 
+
     symbol.value = index.SymbolProcedureValue {
         return_types = return_types[:],
+        arg_types = params,
     };
 
-    return symbol, true;
 
+    //log.infof("return %v", poly_map);
+
+    return symbol, true;
 }
 
 resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
@@ -379,7 +401,10 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
     using ast;
 
+    log.info("overload");
+
     if ast_context.call == nil {
+        log.info("no call");
         return index.Symbol {}, false;
     }
 
@@ -391,18 +416,19 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
             if procedure, ok := f.value.(index.SymbolProcedureValue); ok {
 
-                if len(procedure.arg_types) != len(call_expr.args) {
+                if len(procedure.arg_types) < len(call_expr.args) {
+                    log.infof("bigger than %v, %v", len(procedure.arg_types), len(call_expr.args));
                     continue;
                 }
 
-                for proc_args, i in procedure.arg_types {
+                for arg, i in call_expr.args {
 
-                    if eval_call_expr, ok := resolve_type_expression(ast_context, call_expr.args[i], false); ok {
+                    if eval_call_expr, ok := resolve_type_expression(ast_context, arg, false); ok {
 
                         #partial switch v in eval_call_expr.value {
                         case index.SymbolProcedureValue:
                         case index.SymbolGenericValue:
-                            if !common.node_equal(proc_args.type, v.expr) {
+                            if !common.node_equal(v.expr, procedure.arg_types[i].type) {
                                 break next_fn;
                             }
                         case index.SymbolStructValue:
@@ -411,13 +437,37 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
                     }
 
                     else {
+                        log.debug("Failed to resolve call expr");
+                        return index.Symbol {}, false;
+                    }
+                }
+
+                /*
+                for proc_args, i in call_expr.args {
+
+                    if eval_call_expr, ok := resolve_type_expression(ast_context, call_expr.args[i], false); ok {
+
+                        #partial switch v in eval_call_expr.value {
+                        case index.SymbolProcedureValue:
+                        case index.SymbolGenericValue:
+                            if !common.node_equal(v.expr, proc_args.type) {
+                                break next_fn;
+                            }
+                        case index.SymbolStructValue:
+                        }
+
+                    }
+
+                    else {
+                        log.debug("Failed to resolve call expr");
                         return index.Symbol {}, false;
                     }
 
-
-
                 }
+                 */
 
+
+                log.debugf("return overload %v", f);
                 return f, true;
             }
 
@@ -479,6 +529,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
             switch c in generic.expr.derived {
             case Array_Type:
                 return resolve_type_expression(ast_context, c.elem, false);
+            case Dynamic_Array_Type:
+                return resolve_type_expression(ast_context, c.elem, false);
 
             }
 
@@ -511,7 +563,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
                 ast_context.current_package = selector.scope;
 
                 if v.field != nil {
-                    return index.lookup(v.field.name, selector.scope);
+                    return resolve_symbol_return(ast_context, index.lookup(v.field.name, selector.scope));
                 }
 
                 else {
@@ -598,7 +650,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
                 if selector, ok := resolve_type_identifier(ast_context, ident); ok {
 
                     if value, ok := selector.value.(index.SymbolPackageValue); ok {
-                        return index.lookup(v.field.name, selector.scope);
+                        return resolve_symbol_return(ast_context, index.lookup(v.field.name, selector.scope));
                     }
 
                 }
@@ -607,6 +659,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
             return index.Symbol {}, false;
         case Array_Type:
+            return make_symbol_generic_from_ast(ast_context, local), true;
+        case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, local), true;
         case Index_Expr:
             return resolve_type_expression(ast_context, local, false);
@@ -638,7 +692,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
                 if selector, ok := resolve_type_identifier(ast_context, ident); ok {
 
                     if value, ok := selector.value.(index.SymbolPackageValue); ok {
-                        return index.lookup(v.field.name, selector.scope);
+                        return resolve_symbol_return(ast_context, index.lookup(v.field.name, selector.scope));
                     }
 
                 }
@@ -647,6 +701,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
 
             return index.Symbol {}, false;
         case Array_Type:
+            return make_symbol_generic_from_ast(ast_context, global), true;
+        case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
         case Index_Expr:
             return resolve_type_expression(ast_context, global, false);
@@ -658,11 +714,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     }
 
     //keywords
-    else if node.name == "int" || node.name == "string"
-        || node.name == "u64" || node.name == "f32"
-        || node.name == "i64" || node.name == "i32"
-        || node.name == "bool" || node.name == "rawptr"
-        || node.name == "any" {
+    else if v, ok := common.keyword_map[node.name]; ok {
 
         symbol := index.Symbol {
             type = .Keyword,
@@ -678,7 +730,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         return symbol, true;
     }
 
-    //imports - probably have this higher to check imports befure everything else
     else {
 
         //right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
@@ -743,12 +794,17 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
     return index.Symbol {}, false;
 }
 
-resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> (index.Symbol, bool) {
+resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok := true) -> (index.Symbol, bool) {
+
+    if !ok {
+        return symbol, ok;
+    }
 
     #partial switch v in symbol.value {
     case index.SymbolProcedureGroupValue:
         if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
-            return resolve_symbol_return(ast_context, symbol);
+            //return resolve_symbol_return(ast_context, symbol);
+            return symbol, true;
         }
         else {
             return symbol, false;
@@ -923,6 +979,10 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
         if v.elem != nil {
             append(results, v.elem);
         }
+    case Dynamic_Array_Type:
+        if v.elem != nil {
+            append(results, v.elem);
+        }
     case Selector_Expr:
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
 
@@ -937,7 +997,7 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 
         }
     case:
-        log.debugf("default node get_locals_value_decl %v", v);
+        log.debugf("default node get_generic_assignment %v", v);
         append(results, value);
     }
 
@@ -1074,9 +1134,12 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 
     if len(results) > 0 && stmt.val0 != nil {
 
+        //treating the for range as indexed, there by returning the indexed type
+        indexed := index.new_type(ast.Index_Expr, results[0].pos, results[0].end, context.temp_allocator);
+
         if ident, ok := stmt.val0.derived.(Ident); ok {
-            log.infof("result %v", results[0].derived);
-            ast_context.locals[ident.name] = results[0];
+            indexed.expr = results[0];
+            ast_context.locals[ident.name] = indexed;
         }
 
     }

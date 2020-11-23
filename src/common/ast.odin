@@ -5,6 +5,17 @@ import "core:log"
 import "core:mem"
 import "core:fmt"
 
+keyword_map : map [string] bool =
+        {"int" = true,
+         "string" = true,
+         "u64" = true,
+         "f32" = true,
+         "i64" = true,
+         "i32" = true,
+         "bool" = true,
+         "rawptr" = true,
+         "any" = true};
+
 get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
     return string(src[node.pos.offset:node.end.offset]);
 }
@@ -329,7 +340,8 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
         }
     case Ident:
         if n, ok := a.derived.(Ident); ok {
-            return n.name == m.name;
+            return true;
+            //return n.name == m.name;
         }
     case Implicit:
         if n, ok := a.derived.(Implicit); ok {
@@ -344,11 +356,13 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
             return true;
         }
     case Poly_Type:
-        if n, ok := a.derived.(Poly_Type); ok {
-            ret := node_equal(n.type, m.type);
-            ret &= node_equal(n.specialization, m.specialization);
-            return ret;
-        }
+        return true;
+        //return node_equal(n.sp)
+        //if n, ok := a.derived.(Poly_Type); ok {
+        //    ret := node_equal(n.type, m.type);
+        //    ret &= node_equal(n.specialization, m.specialization);
+        //    return ret;
+        //}
     case Ellipsis:
         if n, ok := a.derived.(Ellipsis); ok {
             return node_equal(n.expr, m.expr);
@@ -472,9 +486,10 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
             return ret;
         }
     case Typeid_Type:
-        if n, ok := a.derived.(Typeid_Type); ok {
-            return node_equal(n.specialization, m.specialization);
-        }
+        return true;
+        //if n, ok := a.derived.(Typeid_Type); ok {
+        //    return node_equal(n.specialization, m.specialization);
+        //}
     case:
         log.error("Unhandled poly node kind: %T", m);
     }
