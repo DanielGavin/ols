@@ -1034,17 +1034,8 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
             append(results, v.elem);
         }
     case Selector_Expr:
-        if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
-
-            #partial switch s in selector.value {
-            case index.SymbolStructValue:
-                for name, i in s.names {
-                    if v.field != nil && strings.compare(name, v.field.name) == 0 {
-                        get_generic_assignment(file, s.types[i], ast_context, results);
-                    }
-                }
-            }
-
+        if v.expr != nil {
+            append(results, value);
         }
     case:
         log.debugf("default node get_generic_assignment %v", v);
