@@ -42,6 +42,14 @@ SymbolProcedureGroupValue :: struct {
     group: ^ast.Expr,
 };
 
+SymbolEnumValue :: struct {
+    names: [] string,
+};
+
+SymbolUnionValue :: struct {
+    names: [] string,
+};
+
 /*
     Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
 */
@@ -55,6 +63,8 @@ SymbolValue :: union {
     SymbolProcedureValue,
     SymbolGenericValue,
     SymbolProcedureGroupValue,
+    SymbolUnionValue,
+    SymbolEnumValue,
 };
 
 Symbol :: struct {
@@ -73,7 +83,9 @@ SymbolType :: enum {
     Field = 5,
     Variable = 6,
     Package = 9, //set by ast symbol
+    Enum = 13,
     Keyword = 14, //set by ast symbol
+    EnumMember = 20,
 	Struct = 22,
 };
 

@@ -337,7 +337,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
     parser.parse_file(&p, &document.ast);
 
     document.imports = make([]Package, len(document.ast.imports), context.temp_allocator);
-    document.package_name = path.dir(document.uri.path, context.temp_allocator);
+    document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator), context.temp_allocator);
 
     for imp, index in document.ast.imports {
 

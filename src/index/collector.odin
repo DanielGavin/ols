@@ -115,7 +115,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
     forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
-    directory := path.dir(forward, context.temp_allocator);
+    directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
     package_map := get_package_mapping(file, collection.config);
 
     for decl in file.decls {
@@ -209,7 +209,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config) -> map [stri
                 name = path.base(full, false, context.temp_allocator);
             }
 
-            package_map[name] = full;
+            package_map[name] = strings.to_lower(full, context.temp_allocator);
 
         }
 

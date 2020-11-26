@@ -32,6 +32,7 @@ DocumentPositionContext :: struct {
     identifier: ^ast.Node,
     field: ^ast.Expr, //used for completion
     call: ^ast.Expr, //used for signature help
+    returns: ^ast.Expr, //used for completion
     hint: DocumentPositionContextHint,
 };
 
@@ -401,10 +402,10 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
     using ast;
 
-    log.info("overload");
+    //log.info("overload");
 
     if ast_context.call == nil {
-        log.info("no call");
+        //log.info("no call");
         return index.Symbol {}, false;
     }
 
@@ -417,7 +418,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
             if procedure, ok := f.value.(index.SymbolProcedureValue); ok {
 
                 if len(procedure.arg_types) < len(call_expr.args) {
-                    log.infof("bigger than %v, %v", len(procedure.arg_types), len(call_expr.args));
                     continue;
                 }
 
@@ -437,37 +437,12 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
                     }
 
                     else {
-                        log.debug("Failed to resolve call expr");
+                        //log.debug("Failed to resolve call expr");
                         return index.Symbol {}, false;
                     }
                 }
 
-                /*
-                for proc_args, i in call_expr.args {
-
-                    if eval_call_expr, ok := resolve_type_expression(ast_context, call_expr.args[i], false); ok {
-
-                        #partial switch v in eval_call_expr.value {
-                        case index.SymbolProcedureValue:
-                        case index.SymbolGenericValue:
-                            if !common.node_equal(v.expr, proc_args.type) {
-                                break next_fn;
-                            }
-                        case index.SymbolStructValue:
-                        }
-
-                    }
-
-                    else {
-                        log.debug("Failed to resolve call expr");
-                        return index.Symbol {}, false;
-                    }
-
-                }
-                 */
-
-
-                log.debugf("return overload %v", f);
+                //log.debugf("return overload %v", f);
                 return f, true;
             }
 
@@ -521,6 +496,15 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
         return resolve_type_identifier(ast_context, v, expect_identifier);
     case Basic_Lit:
         return resolve_basic_lit(ast_context, v);
+    case Pointer_Type:
+        if v2, ok := v.elem.derived.(ast.Pointer_Type); !ok {
+            return resolve_type_expression(ast_context, v.elem, false);
+        }
+
+        else {
+            return resolve_type_expression(ast_context, node, false);
+        }
+
     case Index_Expr:
         indexed, ok := resolve_type_expression(ast_context, v.expr, false);
 
@@ -540,6 +524,9 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
     case Call_Expr:
         ast_context.call = node;
         return resolve_type_expression(ast_context, v.expr, false);
+    case Implicit_Selector_Expr:
+        log.info(v);
+        return index.Symbol {}, false;
     case Selector_Expr:
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -551,6 +538,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
 
                 if selector.uri != "" {
                     ast_context.current_package = selector.scope;
+                }
+
+                else {
+                    ast_context.current_package = ast_context.document_package;
                 }
 
                 for name, i in s.names {
@@ -588,6 +579,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, expec
 
                             if selector.uri != "" {
                                 ast_context.current_package = symbol.scope;
+                            }
+
+                            else {
+                                ast_context.current_package = ast_context.document_package;
                             }
 
                             for name, i in s2.names {
@@ -632,6 +627,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         switch v in local.derived {
         case Ident:
             return resolve_type_identifier(ast_context, v);
+        case Union_Type:
+            return make_symbol_union_from_ast(ast_context, v), !expect_identifier;
+        case Enum_Type:
+            return make_symbol_enum_from_ast(ast_context, v), !expect_identifier;
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
@@ -677,6 +676,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v), !expect_identifier;
+        case Union_Type:
+            return make_symbol_union_from_ast(ast_context, v), !expect_identifier;
+        case Enum_Type:
+            return make_symbol_enum_from_ast(ast_context, v), !expect_identifier;
         case Proc_Lit:
             if !v.type.generic {
                 return make_symbol_procedure_from_ast(ast_context, v, node.name), !expect_identifier;
@@ -803,7 +806,6 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
     #partial switch v in symbol.value {
     case index.SymbolProcedureGroupValue:
         if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
-            //return resolve_symbol_return(ast_context, symbol);
             return symbol, true;
         }
         else {
@@ -889,6 +891,53 @@ make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) 
     return symbol;
 }
 
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Enum,
+    };
+
+    names := make([dynamic] string, context.temp_allocator);
+
+    for variant in v.variants {
+
+        if ident, ok := variant.derived.(ast.Ident); ok {
+            append(&names, ident.name);
+        }
+
+    }
+
+    symbol.value = index.SymbolUnionValue {
+        names = names[:],
+    };
+
+    return symbol;
+}
+
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Enum,
+    };
+
+    names := make([dynamic] string, context.temp_allocator);
+
+    for field in v.fields {
+
+        if ident, ok := field.derived.(ast.Ident); ok {
+            append(&names, ident.name);
+        }
+
+    }
+
+    symbol.value = index.SymbolEnumValue {
+        names = names[:],
+    };
+
+    return symbol;
+}
 
 make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
 
@@ -903,9 +952,10 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
     for field in v.fields.list {
 
         for n in field.names {
-            identifier := n.derived.(ast.Ident);
-            append(&names, identifier.name);
-            append(&types, index.clone_type(field.type, context.temp_allocator));
+            if identifier, ok := n.derived.(ast.Ident); ok {
+                append(&names, identifier.name);
+                append(&types, index.clone_type(field.type, context.temp_allocator));
+            }
         }
 
     }
@@ -1238,12 +1288,15 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
     block, ok = proc_lit.body.derived.(ast.Block_Stmt);
 
     if !ok {
+        log.error("Proc_List body not block");
         return;
     }
 
     for stmt in block.stmts {
         get_locals_stmt(file, stmt, ast_context, document_position);
     }
+
+    log.info(ast_context.locals);
 
 }
 
@@ -1257,6 +1310,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     uri: string;
 
     position_context, ok := get_document_position_context(document, position, .Definition);
+
 
     if !ok {
         log.error("Failed to get position context");
@@ -1282,9 +1336,12 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
     }
 
-    else if position_context.selector != nil && position_context.field != nil {
+    else if position_context.selector != nil {
 
         selector: index.Symbol;
+
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
 
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
 
@@ -1294,14 +1351,18 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
         field: string;
 
-        switch v in position_context.field.derived {
-        case ast.Ident:
-            field = v.name;
-        case:
-            return location, false;
+        if position_context.field != nil {
+
+            switch v in position_context.field.derived {
+            case ast.Ident:
+                field = v.name;
+            }
+
         }
 
         #partial switch v in selector.value {
+        case index.SymbolEnumValue:
+             location.range = selector.range;
         case index.SymbolStructValue:
             for name, i in v.names {
                 if strings.compare(name, field) == 0 {
@@ -1362,6 +1423,9 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         selector: index.Symbol;
 
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
+
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
 
         if !ok {
@@ -1373,6 +1437,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         if selector.uri != "" {
             ast_context.current_package = selector.scope;
+        }
+
+        else {
+            ast_context.current_package = ast_context.document_package;
         }
 
         field: string;
@@ -1387,11 +1455,31 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         }
 
         #partial switch v in selector.value {
+        case index.SymbolEnumValue:
+            list.isIncomplete = false;
+
+            log.info("enum value");
+
+            for name in v.names {
+                symbol: index.Symbol;
+                symbol.name = name;
+                symbol.type = .EnumMember;
+                append(&symbols, symbol);
+            }
+
         case index.SymbolStructValue:
 
             list.isIncomplete = false;
 
             for name, i in v.names {
+
+                if selector.uri != "" {
+                    ast_context.current_package = selector.scope;
+                }
+
+                else {
+                    ast_context.current_package = ast_context.document_package;
+                }
 
                 if symbol, ok := resolve_type_expression(&ast_context, v.types[i], false); ok {
                     symbol.name = name;
@@ -1439,6 +1527,14 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                     case index.SymbolStructValue:
                         for name, i in s.names {
 
+                            if selector.uri != "" {
+                                ast_context.current_package = selector.scope;
+                            }
+
+                            else {
+                                ast_context.current_package = ast_context.document_package;
+                            }
+
                             if symbol, ok := resolve_type_expression(&ast_context, s.types[i], false); ok {
                                 symbol.name = name;
                                 symbol.type = .Field;
@@ -1475,6 +1571,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
     }
 
     else {
+
+        log.infof("label %v", position_context.identifier);
 
         /*
             Just show the local and global symbols of the document
@@ -1627,6 +1725,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 
     switch n in node.derived {
     case Bad_Expr:
+
         if position_context.hint == .Completion && position_context.file.src[max(0, node.end.offset-1)] == '.' {
 
 
