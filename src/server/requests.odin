@@ -8,9 +8,11 @@ import "core:strings"
 import "core:slice"
 import "core:strconv"
 import "core:encoding/json"
+import "core:path"
+
 
 import "shared:common"
-
+import "shared:index"
 
 Header :: struct {
     content_length: int,
@@ -219,7 +221,32 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     config.workspace_folders = make([dynamic]common.WorkspaceFolder);
 
     for s in initialize_params.workspaceFolders {
-        append_elem(&config.workspace_folders, s);
+        append(&config.workspace_folders, s);
+    }
+
+    //right now just look at the first workspace - TODO(daniel, add multiple workspace support)
+    if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+
+        ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
+
+        if data, ok := os.read_entire_file(ols_config_path, context.temp_allocator); ok {
+
+            if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
+
+                ols_config: OlsConfig;
+
+                if unmarshal(value, ols_config, context.temp_allocator) == .None {
+
+                    for p in ols_config.collections {
+                        config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
+                    }
+
+                }
+
+            }
+
+        }
+
     }
 
     for format in initialize_params.capabilities.textDocument.hover.contentFormat {
@@ -253,6 +280,14 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
         },
         id = id,
     );
+
+    /*
+        Temp index here, but should be some background thread that starts the indexing
+    */
+
+    index.build_static_index(context.allocator, config);
+
+    log.info("Finished indexing");
 
     send_response(response, writer);
 

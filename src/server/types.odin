@@ -253,3 +253,12 @@ SignatureInformation :: struct {
 ParameterInformation :: struct {
 	label: [2] int,
 };
+
+OlsConfig :: struct {
+	collections: [dynamic] OlsConfigCollection,
+};
+
+OlsConfigCollection :: struct {
+	name: string,
+	path: string,
+};
