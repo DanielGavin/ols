@@ -1,4 +1,4 @@
 {
-	"collections": [{ "name": "core", "path": "c:/Users/danie/OneDrive/Desktop/Computer_Science/Odin/core" },
-					{ "name": "shared", "path": "c:/Users/danie/OneDrive/Desktop/Computer_Science/ols/src" }]
+    "collections": [{ "name": "core", "path": "c:/Users/danie/OneDrive/Desktop/Computer_Science/Odin/core" },
+                    { "name": "shared", "path": "c:/Users/danie/OneDrive/Desktop/Computer_Science/ols/src" }]
 }
