@@ -9,6 +9,7 @@ import "core:slice"
 import "core:strconv"
 import "core:encoding/json"
 import "core:path"
+import "core:runtime"
 
 
 import "shared:common"
@@ -144,7 +145,9 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
          "textDocument/didSave" = notification_did_save,
          "textDocument/definition" = request_definition,
          "textDocument/completion" = request_completion,
-         "textDocument/signatureHelp" = request_signature_help};
+         "textDocument/signatureHelp" = request_signature_help,
+         "textDocument/semanticTokens/full" = request_semantic_token_full,
+         "textDocument/semanticTokens/range" = request_semantic_token_range};
 
 handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
 
@@ -261,6 +264,22 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     completionTriggerCharacters := [] string { "." };
     signatureTriggerCharacters := [] string { "(" };
 
+
+
+    token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
+    token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
+
+    token_types := make([] string, len(token_type.names));
+    token_modifiers := make([] string, len(token_modifier.names));
+
+    for name, i in token_type.names {
+        token_types[i] = strings.to_lower(name, context.temp_allocator);
+    }
+
+    for name, i in token_modifier.names {
+        token_modifiers[i] = strings.to_lower(name, context.temp_allocator);
+    }
+
     response := make_response_message(
         params = ResponseInitializeParams {
             capabilities = ServerCapabilities {
@@ -276,10 +295,19 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                 signatureHelpProvider = SignatureHelpOptions {
                     triggerCharacters = signatureTriggerCharacters,
                 },
+                semanticTokensProvider = SemanticTokensOptions {
+                    //range = true,
+                    legend = SemanticTokensLegend {
+                        tokenTypes = token_types,
+                        tokenModifiers = token_modifiers,
+                    },
+                },
             },
         },
         id = id,
     );
+
+    send_response(response, writer);
 
     /*
         Temp index here, but should be some background thread that starts the indexing
@@ -288,8 +316,6 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     index.build_static_index(context.allocator, config);
 
     log.info("Finished indexing");
-
-    send_response(response, writer);
 
     return .None;
 }
@@ -495,3 +521,26 @@ notification_did_save :: proc(params: json.Value, id: RequestId, config: ^common
     return .None;
 }
 
+request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+    response := make_response_message(
+        params = nil,
+        id = id,
+    );
+
+    send_response(response, writer);
+
+    return .None;
+}
+
+request_semantic_token_range :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+    response := make_response_message(
+        params = nil,
+        id = id,
+    );
+
+    send_response(response, writer);
+
+    return .None;
+}

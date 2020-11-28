@@ -82,6 +82,7 @@ ServerCapabilities :: struct {
     definitionProvider: bool,
     completionProvider: CompletionOptions,
 	signatureHelpProvider: SignatureHelpOptions,
+	semanticTokensProvider: SemanticTokensOptions,
 };
 
 CompletionOptions  :: struct {

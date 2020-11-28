@@ -933,7 +933,13 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
         for n in field.names {
             if identifier, ok := n.derived.(ast.Ident); ok {
                 append(&names, identifier.name);
-                append(&types, index.clone_type(field.type, context.temp_allocator));
+
+                if .Using in field.flags {
+
+                }
+                else {
+                    append(&types, index.clone_type(field.type, context.temp_allocator));
+                }
             }
         }
 
