@@ -643,25 +643,14 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Proc_Group:
             return resolve_function_overload(ast_context, v);
         case Selector_Expr:
-
-            if ident, ok := v.expr.derived.(Ident); ok {
-
-                if selector, ok := resolve_type_identifier(ast_context, ident); ok {
-
-                    if value, ok := selector.value.(index.SymbolPackageValue); ok {
-                        return resolve_symbol_return(ast_context, index.lookup(v.field.name, selector.scope));
-                    }
-
-                }
-
-            }
-
-            return index.Symbol {}, false;
+            return resolve_type_expression(ast_context, local, false);
         case Array_Type:
             return make_symbol_generic_from_ast(ast_context, local), true;
         case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, local), true;
         case Index_Expr:
+            return resolve_type_expression(ast_context, local, false);
+        case Pointer_Type:
             return resolve_type_expression(ast_context, local, false);
         case:
             log.errorf("default type node kind: %T", v);
@@ -690,25 +679,15 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, expec
         case Proc_Group:
             return resolve_function_overload(ast_context, v);
         case Selector_Expr:
-            if ident, ok := v.expr.derived.(Ident); ok {
-
-                if selector, ok := resolve_type_identifier(ast_context, ident); ok {
-
-                    if value, ok := selector.value.(index.SymbolPackageValue); ok {
-                        return resolve_symbol_return(ast_context, index.lookup(v.field.name, selector.scope));
-                    }
-
-                }
-
-            }
-
-            return index.Symbol {}, false;
+            return resolve_type_expression(ast_context, local, false);
         case Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
         case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
         case Index_Expr:
             return resolve_type_expression(ast_context, global, false);
+        case Pointer_Type:
+            return resolve_type_expression(ast_context, local, false);
         case:
             log.errorf("default type node kind: %T", v);
             return make_symbol_generic_from_ast(ast_context, global), true;
@@ -1111,9 +1090,27 @@ get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context:
 
     for u in stmt.list {
 
-        if ident, ok := u.derived.(ast.Ident); ok {
-            append(&ast_context.usings, ident.name);
+        if symbol, ok := resolve_type_expression(ast_context, u, false); ok {
+
+            #partial switch v in symbol.value {
+            case index.SymbolPackageValue:
+                if ident, ok := u.derived.(ast.Ident); ok {
+                    append(&ast_context.usings, ident.name);
+                }
+            case index.SymbolStructValue:
+                for name, i in v.names {
+                    selector := index.new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, context.temp_allocator);
+                    selector.expr = u;
+                    selector.field = index.new_type(ast.Ident, v.types[i].pos, v.types[i].end, context.temp_allocator);
+                    selector.field.name = name;
+                    ast_context.locals[name] = selector;
+                }
+
+            }
+
+
         }
+
 
     }
 
