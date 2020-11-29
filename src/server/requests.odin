@@ -358,7 +358,7 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
         return .InternalError;
     }
 
-    document_refresh(document, config, writer);
+    document_refresh(document, config, nil);
 
     location, ok2 := get_definition_location(document, definition_params.position);
 
@@ -400,7 +400,7 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
         return .InternalError;
     }
 
-    document_refresh(document, config, writer);
+    document_refresh(document, config, nil);
 
     list: CompletionList;
     list, ok = get_completion_list(document, completition_params.position);
@@ -439,7 +439,7 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
         return .InternalError;
     }
 
-    document_refresh(document, config, writer);
+    document_refresh(document, config, nil);
 
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
@@ -567,7 +567,7 @@ request_document_symbols :: proc(params: json.Value, id: RequestId, config: ^com
         return .InternalError;
     }
 
-    document_refresh(document, config, writer);
+    document_refresh(document, config, nil);
 
     symbols := get_document_symbols(document);
 

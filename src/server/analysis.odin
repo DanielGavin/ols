@@ -1662,6 +1662,10 @@ get_document_symbols :: proc(document: ^Document) -> [] DocumentSymbol {
 
     package_symbol: DocumentSymbol;
 
+    if len(document.ast.decls) == 0 {
+        return {};
+    }
+
     package_symbol.kind = .Package;
     package_symbol.name = document.package_name;
     package_symbol.range = {
@@ -1786,6 +1790,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
             tokenizer.init(&p.tok, str, position_context.file.fullpath);
 
             parser.advance_token(&p);
+
+            context.allocator = context.temp_allocator;
 
             //do we still have recursive dots?
             if strings.contains(string(str), ".") {

@@ -221,6 +221,10 @@ document_close :: proc(uri_string: string) -> common.Error {
         return .InvalidRequest;
     }
 
+    //free_imports(document);
+
+    //common.free_ast_file(document.ast);
+
     document.client_owned = false;
 
     common.delete_uri(document.uri);
@@ -318,6 +322,20 @@ parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
+free_imports :: proc(document: ^Document) {
+    if document.imports != nil {
+
+        for imp in document.imports {
+            delete(imp.name);
+        }
+
+        delete(document.imports);
+        delete(document.package_name);
+
+        document.imports = nil;
+    }
+}
+
 parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] ParserError, bool) {
 
     context.allocator = context.temp_allocator;
@@ -329,12 +347,16 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     current_errors = make([dynamic] ParserError, context.temp_allocator);
 
+    //common.free_ast_file(document.ast);
+
     document.ast = ast.File {
         fullpath = document.uri.path,
         src = document.text[:document.used_text],
     };
 
     parser.parse_file(&p, &document.ast);
+
+    //free_imports(document);
 
     document.imports = make([]Package, len(document.ast.imports), context.temp_allocator);
     document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator), context.temp_allocator);
