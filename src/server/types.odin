@@ -21,6 +21,7 @@ ResponseParams :: union {
     common.Location,
     CompletionList,
 	SignatureHelp,
+	[] DocumentSymbol,
 };
 
 ResponseMessage :: struct {
@@ -83,6 +84,7 @@ ServerCapabilities :: struct {
     completionProvider: CompletionOptions,
 	signatureHelpProvider: SignatureHelpOptions,
 	semanticTokensProvider: SemanticTokensOptions,
+	documentSymbolProvider: bool,
 };
 
 CompletionOptions  :: struct {
@@ -95,10 +97,20 @@ HoverClientCapabilities :: struct {
     contentFormat: [dynamic] MarkupKind,
 };
 
+DocumentSymbolClientCapabilities :: struct {
+
+	symbolKind: struct {
+		valueSet: [dynamic] SymbolKind,
+	},
+
+	hierarchicalDocumentSymbolSupport: bool,
+};
+
 TextDocumentClientCapabilities :: struct {
     completion: CompletionClientCapabilities,
     hover: HoverClientCapabilities,
 	signatureHelp: SignatureHelpClientCapabilities,
+	documentSymbol: DocumentSymbolClientCapabilities,
 };
 
 CompletionClientCapabilities :: struct {
@@ -172,6 +184,10 @@ Diagnostic :: struct {
 DidOpenTextDocumentParams :: struct {
     textDocument: TextDocumentItem,
 };
+
+DocumentSymbolParams :: struct  {
+	textDocument: TextDocumentIdentifier,
+}
 
 DidChangeTextDocumentParams :: struct {
 	textDocument: VersionedTextDocumentIdentifier,
@@ -262,4 +278,42 @@ OlsConfig :: struct {
 OlsConfigCollection :: struct {
 	name: string,
 	path: string,
+};
+
+SymbolKind :: enum {
+	File = 1,
+	Module = 2,
+	Namespace = 3,
+	Package = 4,
+	Class = 5,
+	Method = 6,
+	Property = 7,
+	Field = 8,
+	Constructor = 9,
+	Enum = 10,
+	Interface = 11,
+	Function = 12,
+	Variable = 13,
+	Constant = 14,
+	String = 15,
+	Number = 16,
+	Boolean = 17,
+	Array = 18,
+	Object = 19,
+	Key = 20,
+	Null = 21,
+	EnumMember = 22,
+	Struct = 23,
+	Event = 24,
+	Operator = 25,
+	TypeParameter = 26,
+};
+
+DocumentSymbol :: struct {
+	name: string,
+	//detail?: string,
+	kind: SymbolKind,
+	range: common.Range,
+	selectionRange: common.Range,
+	children: [] DocumentSymbol,
 };

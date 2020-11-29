@@ -146,6 +146,7 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
          "textDocument/definition" = request_definition,
          "textDocument/completion" = request_completion,
          "textDocument/signatureHelp" = request_signature_help,
+         "textDocument/documentSymbol" = request_document_symbols,
          "textDocument/semanticTokens/full" = request_semantic_token_full,
          "textDocument/semanticTokens/range" = request_semantic_token_range};
 
@@ -302,6 +303,7 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                         tokenModifiers = token_modifiers,
                     },
                 },
+                documentSymbolProvider = true,
             },
         },
         id = id,
@@ -536,6 +538,42 @@ request_semantic_token_range :: proc(params: json.Value, id: RequestId, config: 
 
     response := make_response_message(
         params = nil,
+        id = id,
+    );
+
+    send_response(response, writer);
+
+    return .None;
+}
+
+request_document_symbols :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    symbol_params: DocumentSymbolParams;
+
+    if unmarshal(params, symbol_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+    document := document_get(symbol_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    document_refresh(document, config, writer);
+
+    symbols := get_document_symbols(document);
+
+
+    response := make_response_message(
+        params = symbols,
         id = id,
     );
 

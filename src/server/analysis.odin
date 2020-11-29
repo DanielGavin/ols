@@ -816,7 +816,8 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
         return symbol, true;
     }
 
-    return symbol, false;
+
+    return index.lookup(node.name, ast_context.document_package);
 }
 
 make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
@@ -963,11 +964,8 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
                 str := common.get_ast_node_string(name, file.src);
 
-
-
                 if value_decl.type != nil {
                     ast_context.globals[str] = value_decl.type;
-                    //log.infof("name: %v, %v", str, value_decl.type.derived);
                 }
 
                 else {
@@ -1321,7 +1319,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
         if resolved, ok := resolve_location_identifier(&ast_context, position_context.identifier.derived.(ast.Ident)); ok {
             location.range = resolved.range;
-            location.uri = resolved.uri;
+            uri = resolved.uri;
         }
 
         else {
@@ -1353,6 +1351,8 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
             }
 
         }
+
+        uri = selector.uri;
 
         #partial switch v in selector.value {
         case index.SymbolEnumValue:
@@ -1652,6 +1652,58 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     return signature_help, true;
 }
 
+get_document_symbols :: proc(document: ^Document) -> [] DocumentSymbol {
+
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+
+    get_globals(document.ast, &ast_context);
+
+    symbols := make([dynamic] DocumentSymbol, context.temp_allocator);
+
+    package_symbol: DocumentSymbol;
+
+    package_symbol.kind = .Package;
+    package_symbol.name = document.package_name;
+    package_symbol.range = {
+        start = {
+            line = document.ast.decls[0].end.line,
+        },
+        end = {
+            line = document.ast.decls[len(document.ast.decls)-1].pos.line,
+        },
+    };
+    package_symbol.selectionRange = package_symbol.range;
+
+    children_symbols := make([dynamic] DocumentSymbol, context.temp_allocator);
+
+    for k, expr in ast_context.globals {
+
+        symbol: DocumentSymbol;
+
+        symbol.range = common.get_token_range(expr, ast_context.file.src);
+        symbol.selectionRange = symbol.range;
+        symbol.name = k;
+
+        switch v in expr.derived {
+        case ast.Struct_Type:
+            symbol.kind = .Struct;
+        case ast.Proc_Lit, ast.Proc_Group:
+            symbol.kind = .Function;
+        case ast.Enum_Type, ast.Union_Type:
+            symbol.kind = .Enum;
+        case:
+            symbol.kind = .Variable;
+        }
+
+        append(&children_symbols, symbol);
+    }
+
+    package_symbol.children = children_symbols[:];
+
+    append(&symbols, package_symbol);
+
+    return symbols[:];
+}
 
 /*
     Figure out what exactly is at the given position and whether it is in a function, struct, etc.
