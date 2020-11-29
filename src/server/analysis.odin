@@ -1667,13 +1667,13 @@ get_document_symbols :: proc(document: ^Document) -> [] DocumentSymbol {
     }
 
     package_symbol.kind = .Package;
-    package_symbol.name = document.package_name;
+    package_symbol.name = path.base(document.package_name, false, context.temp_allocator);
     package_symbol.range = {
         start = {
-            line = document.ast.decls[0].end.line,
+            line = document.ast.decls[0].pos.line,
         },
         end = {
-            line = document.ast.decls[len(document.ast.decls)-1].pos.line,
+            line = document.ast.decls[len(document.ast.decls)-1].end.line,
         },
     };
     package_symbol.selectionRange = package_symbol.range;
