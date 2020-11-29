@@ -348,7 +348,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
         }
 
         if ident, ok := result.type.derived.(Ident); ok {
-            field := cast(^Field)index.clone_node(result, context.temp_allocator);
+            field := cast(^Field)index.clone_node(result, context.temp_allocator, nil);
 
             if m := &poly_map[ident.name]; m != nil {
                 field.type = poly_map[ident.name];
@@ -938,7 +938,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
                 }
                 else {
-                    append(&types, index.clone_type(field.type, context.temp_allocator));
+                    append(&types, index.clone_type(field.type, context.temp_allocator, nil));
                 }
             }
         }
@@ -1558,7 +1558,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         //if there is no field we had to recover from bad expr and create a node (remove when parser can accept temp_allocator)
         if position_context.field == nil {
-            common.free_ast(position_context.selector);
+            common.free_ast(position_context.selector, context.allocator);
         }
 
         list.items = items[:];
@@ -1725,7 +1725,11 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 
             str := position_context.file.src[node.pos.offset:max(0, node.end.offset-1)];
 
-            p := parser.default_parser();
+            p := parser.Parser {
+		        err  = parser_warning_handler, //empty
+		        warn = parser_warning_handler, //empty
+                file = &position_context.file,
+	        };
 
             tokenizer.init(&p.tok, str, position_context.file.fullpath);
 

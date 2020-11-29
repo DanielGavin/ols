@@ -50,7 +50,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
             return;
         }
 
-
         value: json.Value;
         value, success = server.read_and_parse_body(reader, header);
 
@@ -69,12 +68,21 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
         free_all(context.temp_allocator);
     }
 
+    for k, v in config.collections {
+        delete(k);
+        delete(v);
+    }
+
     delete(config.collections);
     delete(config.workspace_folders);
 
     server.document_storage_shutdown();
 
     index.free_static_index();
+
+    //common.memleak_dump(tracking_allocator, common.log_dump, nil);
+
+
 }
 
 end :: proc() {

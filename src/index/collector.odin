@@ -15,28 +15,34 @@ import "shared:common"
 SymbolCollection :: struct {
     allocator: mem.Allocator,
     config: ^common.Config,
-    symbols: map[string] Symbol,
+    symbols: map[uint] Symbol,
     unique_strings: map[string] string, //store all our strings as unique strings and reference them to save memory.
 };
 
+get_index_unique_string :: proc {
+    get_index_unique_string_collection,
+    get_index_unique_string_collection_raw,
+};
 
-get_index_unique_string :: proc(collection: ^SymbolCollection, s: string) -> string {
-
-    //i'm hashing this string way to much
-    if _, ok := collection.unique_strings[s]; !ok {
-        str := strings.clone(s, collection.allocator);
-        collection.unique_strings[str] = str; //yeah maybe I have to use some integer and hash it, tried that before but got name collisions.
-    }
-
-    return collection.unique_strings[s];
+get_index_unique_string_collection :: proc(collection: ^SymbolCollection, s: string) -> string {
+    return get_index_unique_string_collection_raw(&collection.unique_strings, collection.allocator, s);
 }
 
+get_index_unique_string_collection_raw :: proc(unique_strings: ^map[string] string, allocator: mem.Allocator, s: string) -> string {
+    //i'm hashing this string way to much
+    if _, ok := unique_strings[s]; !ok {
+        str := strings.clone(s, allocator);
+        unique_strings[str] = str; //yeah maybe I have to use some integer and hash it, tried that before but got name collisions.
+    }
+
+    return unique_strings[s];
+}
 
 make_symbol_collection :: proc(allocator := context.allocator, config: ^common.Config) -> SymbolCollection {
     return SymbolCollection {
         allocator = allocator,
         config = config,
-        symbols = make(map[string] Symbol, 16, allocator),
+        symbols = make(map[uint] Symbol, 16, allocator),
         unique_strings = make(map[string] string, 16, allocator),
     };
 }
@@ -44,8 +50,7 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 delete_symbol_collection :: proc(collection: SymbolCollection) {
 
     for k, v in collection.symbols {
-        free_symbol(v);
-        delete(k, collection.allocator);
+        free_symbol(v, collection.allocator);
     }
 
     for k, v in collection.unique_strings {
@@ -63,13 +68,13 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
     args := make([dynamic] ^ast.Field, 0, collection.allocator);
 
     for ret in return_list.list {
-        cloned := cast(^ast.Field)clone_type(ret, collection.allocator);
+        cloned := cast(^ast.Field)clone_type(ret, collection.allocator, &collection.unique_strings);
         replace_package_alias(cloned, package_map, collection);
         append(&returns, cloned);
     }
 
     for arg in arg_list.list {
-        cloned := cast(^ast.Field)clone_type(arg, collection.allocator);
+        cloned := cast(^ast.Field)clone_type(arg, collection.allocator, &collection.unique_strings);
         replace_package_alias(cloned, package_map, collection);
         append(&args, cloned);
     }
@@ -94,7 +99,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_
             identifier := n.derived.(ast.Ident);
             append(&names, get_index_unique_string(collection, identifier.name));
 
-            cloned := clone_type(field.type, collection.allocator);
+            cloned := clone_type(field.type, collection.allocator, &collection.unique_strings);
             replace_package_alias(cloned, package_map, collection);
             append(&types, cloned);
         }
@@ -148,7 +153,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                     token = v;
                     token_type = .Function;
                     symbol.value = SymbolProcedureGroupValue {
-                        group = clone_type(value_decl.values[0], collection.allocator),
+                        group = clone_type(value_decl.values[0], collection.allocator, &collection.unique_strings),
                     };
                 case ast.Struct_Type:
                     token = v;
@@ -164,9 +169,20 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 symbol.type = token_type;
                 symbol.uri = get_index_unique_string(collection, uri);
 
-                //id := hash.murmur64(transmute([]u8)strings.concatenate({symbol.scope, name}, context.temp_allocator));
+                cat := strings.concatenate({symbol.scope, name}, context.temp_allocator);
 
-                collection.symbols[strings.concatenate({symbol.scope, name}, collection.allocator)] = symbol;
+                id := get_symbol_id(cat);
+
+                //right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
+                if v, ok := collection.symbols[id]; !ok {
+                    collection.symbols[id] = symbol;
+                    //fmt.printf("FAILED COLLOSION! %v  %v \n", id, cat);
+                }
+
+                else {
+                    free_symbol(symbol, collection.allocator);
+                }
+
             }
 
         }

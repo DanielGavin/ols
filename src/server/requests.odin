@@ -269,8 +269,8 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
     token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
 
-    token_types := make([] string, len(token_type.names));
-    token_modifiers := make([] string, len(token_modifier.names));
+    token_types := make([] string, len(token_type.names), context.temp_allocator);
+    token_modifiers := make([] string, len(token_modifier.names), context.temp_allocator);
 
     for name, i in token_type.names {
         token_types[i] = strings.to_lower(name, context.temp_allocator);
@@ -349,7 +349,6 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
     if unmarshal(params, definition_params, context.temp_allocator) != .None {
         return .ParseError;
     }
-
 
     document := document_get(definition_params.textDocument.uri);
 

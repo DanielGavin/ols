@@ -7,6 +7,7 @@ import "core:mem"
 import "core:fmt"
 import "core:path/filepath"
 import "core:path"
+import "core:slice"
 
 import "shared:common"
 
@@ -89,16 +90,29 @@ SymbolType :: enum {
 	Struct = 22,
 };
 
-free_symbol :: proc(symbol: Symbol) {
+free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
     #partial switch v in symbol.value {
     case SymbolProcedureValue:
-        common.free_ast(v.return_types);
-        common.free_ast(v.arg_types);
+        common.free_ast(v.return_types, allocator);
+        common.free_ast(v.arg_types, allocator);
     case SymbolStructValue:
-        common.free_ast(v.types);
+        delete(v.names, allocator);
+        common.free_ast(v.types, allocator);
     case SymbolGenericValue:
-        common.free_ast(v.expr);
+        common.free_ast(v.expr, allocator);
+    case SymbolProcedureGroupValue:
+        common.free_ast(v.group, allocator);
+    case SymbolEnumValue:
+        delete(v.names, allocator);
+    case SymbolUnionValue:
+        delete(v.names, allocator);
     }
 
+}
+
+get_symbol_id :: proc(str: string) -> uint {
+    ret := common.sha1_hash(transmute([]byte)str);
+    r := cast(^uint)slice.first_ptr(ret[:]);
+    return r^;
 }

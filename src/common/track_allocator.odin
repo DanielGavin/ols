@@ -8,6 +8,7 @@ import "core:mem"
 import "core:fmt"
 import "core:runtime"
 import "core:sync"
+import "core:log"
 
 // ----------------------------------------------------------------------------------------------------
 
@@ -189,3 +190,7 @@ memleak_dump :: proc( memleak_alloc : mem.Allocator, dump_proc : proc(message:st
 }
 
 // ----------------------------------------------------------------------------------------------------
+
+log_dump :: proc(message:string, user_data:rawptr) {
+	log.info(message);
+}
