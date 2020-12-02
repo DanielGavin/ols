@@ -22,6 +22,7 @@ ResponseParams :: union {
     CompletionList,
 	SignatureHelp,
 	[] DocumentSymbol,
+	SemanticTokens,
 };
 
 ResponseMessage :: struct {
@@ -187,7 +188,7 @@ DidOpenTextDocumentParams :: struct {
 
 DocumentSymbolParams :: struct  {
 	textDocument: TextDocumentIdentifier,
-}
+};
 
 DidChangeTextDocumentParams :: struct {
 	textDocument: VersionedTextDocumentIdentifier,

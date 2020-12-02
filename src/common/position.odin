@@ -7,7 +7,9 @@ import "core:odin/ast"
 
 /*
     This file handles the conversion between utf-16 and utf-8 offsets in the text document
- */
+*/
+
+//TODO(Optimize by calculating all the newlines at parse instead of calculating them)
 
 Position :: struct {
 	line: int,
@@ -51,6 +53,42 @@ get_absolute_position :: proc(position: Position, document_text: [] u8) -> (Abso
     absolute = index + get_character_offset_u16_to_u8(position.character, document_text[index:]);
 
     return absolute, true;
+}
+
+get_relative_token_position :: proc(offset: int, document_text: [] u8, current_start: int) -> Position {
+
+    start_index := current_start;
+
+    data := document_text[start_index:];
+
+    i: int;
+
+    position: Position;
+
+    for i + start_index < offset {
+
+        r, w := utf8.decode_rune(data[i:]);
+
+        if r == '\n' { //\r?
+            position.character = 0;
+            position.line += 1;
+            i += 1;
+        }
+
+        else {
+            if r < 0x10000 {
+                position.character += 1;
+            }
+
+            else {
+                position.character += 2;
+            }
+
+            i += w;
+        }
+    }
+
+    return position;
 }
 
 /*

@@ -261,11 +261,8 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
-
     completionTriggerCharacters := [] string { "." };
     signatureTriggerCharacters := [] string { "(" };
-
-
 
     token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
     token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
@@ -298,6 +295,7 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                 },
                 semanticTokensProvider = SemanticTokensOptions {
                     //range = true,
+                    full = true,
                     legend = SemanticTokensLegend {
                         tokenTypes = token_types,
                         tokenModifiers = token_modifiers,
@@ -524,8 +522,30 @@ notification_did_save :: proc(params: json.Value, id: RequestId, config: ^common
 
 request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    semantic_params: SemanticTokensParams;
+
+    if unmarshal(params, semantic_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+    document := document_get(semantic_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    document_refresh(document, config, nil);
+
+    symbols := get_semantic_tokens(document);
+
     response := make_response_message(
-        params = nil,
+        params = symbols,
         id = id,
     );
 
