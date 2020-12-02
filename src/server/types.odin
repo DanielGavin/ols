@@ -20,9 +20,9 @@ ResponseParams :: union {
     rawptr,
     common.Location,
     CompletionList,
-	SignatureHelp,
-	[] DocumentSymbol,
-	SemanticTokens,
+    SignatureHelp,
+    [] DocumentSymbol,
+    SemanticTokens,
 };
 
 ResponseMessage :: struct {
@@ -38,8 +38,8 @@ ResponseMessageError :: struct {
 };
 
 ResponseError :: struct {
- 	code: common.Error,
-	message: string,
+     code: common.Error,
+    message: string,
 };
 
 NotificationLoggingParams :: struct {
@@ -48,8 +48,8 @@ NotificationLoggingParams :: struct {
 };
 
 NotificationPublishDiagnosticsParams :: struct {
-	uri: string,
-	diagnostics: [] Diagnostic,
+    uri: string,
+    diagnostics: [] Diagnostic,
 };
 
 NotificationParams :: union {
@@ -83,14 +83,14 @@ ServerCapabilities :: struct {
     textDocumentSync: TextDocumentSyncOptions,
     definitionProvider: bool,
     completionProvider: CompletionOptions,
-	signatureHelpProvider: SignatureHelpOptions,
-	semanticTokensProvider: SemanticTokensOptions,
-	documentSymbolProvider: bool,
+    signatureHelpProvider: SignatureHelpOptions,
+    semanticTokensProvider: SemanticTokensOptions,
+    documentSymbolProvider: bool,
 };
 
 CompletionOptions  :: struct {
     resolveProvider: bool,
-	triggerCharacters: [] string,
+    triggerCharacters: [] string,
 };
 
 HoverClientCapabilities :: struct {
@@ -100,18 +100,18 @@ HoverClientCapabilities :: struct {
 
 DocumentSymbolClientCapabilities :: struct {
 
-	symbolKind: struct {
-		valueSet: [dynamic] SymbolKind,
-	},
+    symbolKind: struct {
+        valueSet: [dynamic] SymbolKind,
+    },
 
-	hierarchicalDocumentSymbolSupport: bool,
+    hierarchicalDocumentSymbolSupport: bool,
 };
 
 TextDocumentClientCapabilities :: struct {
     completion: CompletionClientCapabilities,
     hover: HoverClientCapabilities,
-	signatureHelp: SignatureHelpClientCapabilities,
-	documentSymbol: DocumentSymbolClientCapabilities,
+    signatureHelp: SignatureHelpClientCapabilities,
+    documentSymbol: DocumentSymbolClientCapabilities,
 };
 
 CompletionClientCapabilities :: struct {
@@ -119,22 +119,22 @@ CompletionClientCapabilities :: struct {
 };
 
 ParameterInformationCapabilities :: struct {
-	labelOffsetSupport: bool,
+    labelOffsetSupport: bool,
 };
 
 SignatureInformationCapabilities :: struct {
-	parameterInformation: ParameterInformationCapabilities,
+    parameterInformation: ParameterInformationCapabilities,
 };
 
 SignatureHelpClientCapabilities :: struct {
-	dynamicRegistration: bool,
-	signatureInformation: SignatureInformationCapabilities,
-	contextSupport: bool,
+    dynamicRegistration: bool,
+    signatureInformation: SignatureInformationCapabilities,
+    contextSupport: bool,
 };
 
 SignatureHelpOptions :: struct {
-	triggerCharacters: [] string,
-	retriggerCharacters: [] string,
+    triggerCharacters: [] string,
+    retriggerCharacters: [] string,
 };
 
 ClientCapabilities :: struct {
@@ -142,12 +142,12 @@ ClientCapabilities :: struct {
 };
 
 RangeOptional :: union {
-	common.Range,
+    common.Range,
 };
 
 TextDocumentContentChangeEvent :: struct {
-	range: RangeOptional,
-	text: string,
+    range: RangeOptional,
+    text: string,
 };
 
 Version :: union {
@@ -160,26 +160,26 @@ VersionedTextDocumentIdentifier :: struct  {
 };
 
 TextDocumentIdentifier :: struct {
-	uri: string,
+    uri: string,
 };
 
 TextDocumentItem :: struct {
-	uri: string,
-	text: string,
+    uri: string,
+    text: string,
 };
 
 DiagnosticSeverity :: enum {
     Error = 1,
     Warning = 2,
-	Information = 3,
-	Hint = 4,
+    Information = 3,
+    Hint = 4,
 };
 
 Diagnostic :: struct {
-	range: common.Range,
-	severity: DiagnosticSeverity,
-	code: string,
-	message: string,
+    range: common.Range,
+    severity: DiagnosticSeverity,
+    code: string,
+    message: string,
 };
 
 DidOpenTextDocumentParams :: struct {
@@ -187,12 +187,12 @@ DidOpenTextDocumentParams :: struct {
 };
 
 DocumentSymbolParams :: struct  {
-	textDocument: TextDocumentIdentifier,
+    textDocument: TextDocumentIdentifier,
 };
 
 DidChangeTextDocumentParams :: struct {
-	textDocument: VersionedTextDocumentIdentifier,
-	contentChanges: [dynamic] TextDocumentContentChangeEvent,
+    textDocument: VersionedTextDocumentIdentifier,
+    contentChanges: [dynamic] TextDocumentContentChangeEvent,
 };
 
 DidCloseTextDocumentParams :: struct {
@@ -200,121 +200,121 @@ DidCloseTextDocumentParams :: struct {
 };
 
 TextDocumentPositionParams :: struct {
-	textDocument: TextDocumentIdentifier,
-	position: common.Position,
+    textDocument: TextDocumentIdentifier,
+    position: common.Position,
 };
 
 SignatureHelpParams :: struct {
-	textDocument: TextDocumentIdentifier,
-	position: common.Position,
+    textDocument: TextDocumentIdentifier,
+    position: common.Position,
 };
 
 CompletionParams :: struct {
     textDocument: TextDocumentIdentifier,
-	position: common.Position,
+    position: common.Position,
 };
 
 CompletionItemKind :: enum {
-	Text = 1,
-	Method = 2,
-	Function = 3,
-	Constructor = 4,
-	Field = 5,
-	Variable = 6,
-	Class = 7,
-	Interface = 8,
-	Module = 9,
-	Property = 10,
-	Unit = 11,
-	Value = 12,
-	Enum = 13,
-	Keyword = 14,
-	Snippet = 15,
-	Color = 16,
-	File = 17,
-	Reference = 18,
-	Folder = 19,
-	EnumMember = 20,
-	Constant = 21,
-	Struct = 22,
-	Event = 23,
-	Operator = 24,
-	TypeParameter = 25,
+    Text = 1,
+    Method = 2,
+    Function = 3,
+    Constructor = 4,
+    Field = 5,
+    Variable = 6,
+    Class = 7,
+    Interface = 8,
+    Module = 9,
+    Property = 10,
+    Unit = 11,
+    Value = 12,
+    Enum = 13,
+    Keyword = 14,
+    Snippet = 15,
+    Color = 16,
+    File = 17,
+    Reference = 18,
+    Folder = 19,
+    EnumMember = 20,
+    Constant = 21,
+    Struct = 22,
+    Event = 23,
+    Operator = 24,
+    TypeParameter = 25,
 };
 
 CompletionItem :: struct {
-	label: string,
-	kind: CompletionItemKind,
+    label: string,
+    kind: CompletionItemKind,
 };
 
 CompletionList :: struct {
     isIncomplete: bool,
-	items: [] CompletionItem,
+    items: [] CompletionItem,
 };
 
 TextDocumentSyncOptions :: struct {
-	openClose: bool,
-	change: int,
+    openClose: bool,
+    change: int,
 };
 
 SignatureHelp :: struct {
-	signatures: [] SignatureInformation,
-	activeSignature: int,
-	activeParameter: int,
+    signatures: [] SignatureInformation,
+    activeSignature: int,
+    activeParameter: int,
 };
 
 SignatureInformation :: struct {
-	label: string,
-	parameters: [] ParameterInformation,
+    label: string,
+    parameters: [] ParameterInformation,
 };
 
 ParameterInformation :: struct {
-	label: [2] int,
+    label: [2] int,
 };
 
 OlsConfig :: struct {
-	collections: [dynamic] OlsConfigCollection,
+    collections: [dynamic] OlsConfigCollection,
 };
 
 OlsConfigCollection :: struct {
-	name: string,
-	path: string,
+    name: string,
+    path: string,
 };
 
 SymbolKind :: enum {
-	File = 1,
-	Module = 2,
-	Namespace = 3,
-	Package = 4,
-	Class = 5,
-	Method = 6,
-	Property = 7,
-	Field = 8,
-	Constructor = 9,
-	Enum = 10,
-	Interface = 11,
-	Function = 12,
-	Variable = 13,
-	Constant = 14,
-	String = 15,
-	Number = 16,
-	Boolean = 17,
-	Array = 18,
-	Object = 19,
-	Key = 20,
-	Null = 21,
-	EnumMember = 22,
-	Struct = 23,
-	Event = 24,
-	Operator = 25,
-	TypeParameter = 26,
+    File = 1,
+    Module = 2,
+    Namespace = 3,
+    Package = 4,
+    Class = 5,
+    Method = 6,
+    Property = 7,
+    Field = 8,
+    Constructor = 9,
+    Enum = 10,
+    Interface = 11,
+    Function = 12,
+    Variable = 13,
+    Constant = 14,
+    String = 15,
+    Number = 16,
+    Boolean = 17,
+    Array = 18,
+    Object = 19,
+    Key = 20,
+    Null = 21,
+    EnumMember = 22,
+    Struct = 23,
+    Event = 24,
+    Operator = 25,
+    TypeParameter = 26,
 };
 
 DocumentSymbol :: struct {
-	name: string,
-	//detail?: string,
-	kind: SymbolKind,
-	range: common.Range,
-	selectionRange: common.Range,
-	children: [] DocumentSymbol,
+    name: string,
+    //detail?: string,
+    kind: SymbolKind,
+    range: common.Range,
+    selectionRange: common.Range,
+    children: [] DocumentSymbol,
 };

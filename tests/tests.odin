@@ -481,7 +481,7 @@ test_definition_request :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\n\r\nfoo :: proc() -> int {\r\n\treturn 0;\r\n}\r\n\r\nmain :: proc() {\r\n\r\n\r\n\ta := foo();\r\n\r\n}\r\n\r\n\r\n"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\nimport \"core:runtime\"\r\n\r\ntest_enum :: enum {\r\n    one,\r\n    two,\r\n    three,\r\n};\r\n\r\ntest_struct :: struct {\r\n    a: test_enum,\r\n};\r\n\r\n\r\nmain :: proc() {\r\n\r\n    //files := runtime.make([] ast.File, 2);\r\n\r\n\r\n    inst := test_struct {\r\n\r\n    };\r\n\r\n    c := 2;\r\n\r\n    b := inst.a.three;\r\n\r\n\r\n\r\n\r\n    /*\r\n    for file in files {\r\n        //file.pkg.\r\n\r\n    }\r\n    */\r\n\r\n\r\n\r\n\r\n\r\n}\r\n\r\n\r\n"
         }
     }
     }`;
@@ -493,11 +493,11 @@ test_definition_request :: proc() -> bool {
     "params":   {
         "textDocument": {
         "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
-        },
-        "position": {
-            "line": 11,
-            "character": 8
-        }
+    },
+    "position": {
+        "line": 30,
+        "character": 17
+    }
     }
 
     }`;
@@ -536,8 +536,36 @@ test_completion_request :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\n\r\nfoo :: proc(a: int, b: int, c: int) -> int {\r\n\treturn a + b + c;\r\n}\r\n\r\nbar :: struct {\r\n\tgood: sup,\r\n};\r\n\r\nsup :: struct {\r\n\thello: int,\r\n\tthere: int,\r\n\tgreat: int,\r\n};\r\n\r\ninst: bar;\r\n\r\n\r\nto_values :: proc() -> (sup, bar) {\r\n\treturn 1,1;\r\n}\r\n\r\n\r\noverload_function :: proc {\r\n\toverload_function_1,\r\n\toverload_function_2,\r\n\toverload_function_2,\r\n};\r\n\r\noverload_function_1 :: proc(a: int) -> int {\r\n\treturn 1;\r\n}\r\n\r\noverload_function_2 :: proc(a: int, b: int) -> int {\r\n\treturn 1, 1;\r\n}\r\n\r\noverload_function_2 :: proc(a: int, b: int, c: int) -> int {\r\n\treturn 1, 1, 1;\r\n}\r\n\r\ncross_2d :: proc(a, b: $T/[2]$E) -> E\r\n    where intrinsics.type_is_numeric(E) {\r\n    return a.x*b.y - a.y*b.x;\r\n}\r\n\r\nmain :: proc() {\r\n\r\n\t//fmt.println();\r\n\r\n\t//test: time.Time;\r\n\r\n\t//a, b := to_values();\r\n\r\n\r\n\t//array_value: [] sup;\r\n\r\n\t//g := array_value[a.great];\r\n\r\n\r\n\r\n\r\n\ta := [2]int{1, 2};\r\n\tb := [2]int{5, -3};\r\n\r\n\tgeneric := cross_2d(a, b);\r\n\r\n\r\n\r\n\t//overload_function\r\n\r\n}\r\n\r\n\r\n"
+            "text":  "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\nimport \"core:runtime\"\r\n\r\n\r\n/*\r\nTest :: struct {\r\n    one: int,\r\n    two: int,\r\n    three: int,\r\n}\r\n\r\nPosition :: struct {\r\n    x: f32,\r\n    y: f32,\r\n    test: Test,\r\n}\r\n\r\nEntity :: struct {\r\n    pos: Position,\r\n}\r\n\r\ntransform_entity :: proc(entity: ^Entity) {\r\n    using entity.pos;\r\n    x += 1.0;\r\n    y += 1.0;\r\n}\r\n\r\n*/\r\n\r\nVector3 :: struct{x, y, z: f32};\r\n\r\nEntity :: struct {\r\n    using position: Vector3,\r\n}\r\n\r\nmain :: proc() {\r\n\r\n    entity: Entity;\r\n\r\n    context.\r\n\r\n}\r\n\r\n\r\n"
         }
+    }
+    }`;
+
+    change_notification := `{
+    "jsonrpc":"2.0",
+    "id":0,
+    "method": "textDocument/didChange",
+    "params":  {
+        "textDocument": {
+        "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
+        "version": 3
+        },
+        "contentChanges": [
+        {
+            "range": {
+                "start": {
+                    "line": 15,
+                    "character": 4
+                },
+                "end": {
+                    "line": 15,
+                    "character": 4
+                }
+            },
+            "rangeLength": 0,
+            "text": "#p"
+        }
+        ]
     }
     }`;
 
@@ -563,11 +591,12 @@ test_completion_request :: proc() -> bool {
         "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin"
     },
     "position": {
-        "line": 73,
-        "character": 2
+        "line": 44,
+        "character": 12
     },
     "context": {
-        "triggerKind": 1
+        "triggerKind": 2,
+        "triggerCharacter": "."
     }
     }
 
@@ -666,7 +695,7 @@ test_multiple_returns :: proc() -> bool {
             "uri": "file:///c%3A/Users/danie/OneDrive/Desktop/Computer_Science/ols/tests/test_project/src/main.odin",
             "languageId": "odin",
             "version": 1,
-            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\n\r\nfoo :: proc(a: int, b: int, c: int) -> int {\r\n\treturn a + b + c;\r\n}\r\n\r\nbar :: struct {\r\n\ta: sup,\r\n};\r\n\r\nsup :: struct {\r\n\ta1: int,\r\n\ta2: int,\r\n\ta3: int,\r\n};\r\n\r\ninst: bar;\r\n\r\n\r\nto_values :: proc() -> (int, int) {\r\n\treturn 1,1;\r\n}\r\n\r\nmain :: proc() {\r\n\r\nfmt.println();\r\n\r\n\r\ntest: time.Time;\r\n\r\n\r\na, b := to_values();\r\n\r\n\r\n\r\n}\r\n\r\n\r\n"
+            "text": "package main\r\n\r\nimport \"core:fmt\"\r\nimport \"core:strings\"\r\nimport \"core:odin/ast\"\r\nimport \"core:time\"\r\nimport \"core:runtime\"\r\n\r\n\r\n\r\n\r\nmain :: proc() {\r\n\r\n    files := runtime.make([dynamic] ast.File);\r\n\r\n    \r\n    for file in files {\r\n\r\n        //file.\r\n        //file.\r\n\r\n    }\r\n\r\n\r\n\r\n\r\n\r\n}\r\n\r\n\r\n"
         }
     }
     }`;
@@ -724,9 +753,9 @@ main :: proc() {
 
     //test_definition_request();
 
-    test_open_and_change_notification();
+    //test_open_and_change_notification();
 
-    //test_completion_request();
+    test_completion_request();
 
     //test_signature_request();
 
