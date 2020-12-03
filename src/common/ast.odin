@@ -17,7 +17,8 @@ keyword_map : map [string] bool =
          "any" = true,
          "u32" = true,
          "true" = true,
-         "false" = true};
+         "false" = true,
+         "nil" = true};
 
 get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
     return string(src[node.pos.offset:node.end.offset]);

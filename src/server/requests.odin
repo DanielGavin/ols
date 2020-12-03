@@ -294,8 +294,8 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                     triggerCharacters = signatureTriggerCharacters,
                 },
                 semanticTokensProvider = SemanticTokensOptions {
-                    //range = true,
-                    full = true,
+                    range = true,
+                    full = false,
                     legend = SemanticTokensLegend {
                         tokenTypes = token_types,
                         tokenModifiers = token_modifiers,
@@ -542,7 +542,18 @@ request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^
 
     document_refresh(document, config, nil);
 
-    symbols := get_semantic_tokens(document);
+    range := common.Range {
+        start = common.Position {
+            line = 0,
+        },
+
+        end = common.Position {
+            line = 9000000, //should be enough
+        }
+    };
+
+    //symbols: SemanticTokens;
+    symbols := get_semantic_tokens(document, range);
 
     response := make_response_message(
         params = symbols,
@@ -556,8 +567,31 @@ request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^
 
 request_semantic_token_range :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        return .ParseError;
+    }
+
+    semantic_params: SemanticTokensRangeParams;
+
+    if unmarshal(params, semantic_params, context.temp_allocator) != .None {
+        return .ParseError;
+    }
+
+    document := document_get(semantic_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+    document_refresh(document, config, nil);
+
+    //symbols: SemanticTokens;
+    symbols := get_semantic_tokens(document, semantic_params.range);
+
     response := make_response_message(
-        params = nil,
+        params = symbols,
         id = id,
     );
 

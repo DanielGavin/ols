@@ -44,9 +44,9 @@ Indexer :: struct {
 indexer: Indexer;
 
 
-lookup :: proc(name: string, scope: string) -> (Symbol, bool) {
+lookup :: proc(name: string, scope: string, loc := #caller_location) -> (Symbol, bool) {
     symbol, ok := memory_index_lookup(&indexer.static_index, name, scope);
-    //log.infof("lookup name: %v scope: %v, symbol %v", name, scope, symbol);
+    log.infof("lookup name: %v scope: %v, symbol %v location %v", name, scope, symbol, loc);
     return symbol, ok;
 }
 

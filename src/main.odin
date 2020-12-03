@@ -95,12 +95,12 @@ main :: proc() {
     reader := server.make_reader(os_read, cast(rawptr)os.stdin);
     writer := server.make_writer(os_write, cast(rawptr)os.stdout);
 
-    init_global_temporary_allocator(mem.megabytes(10));
+    init_global_temporary_allocator(mem.megabytes(200));
 
     //fd, err := os.open("C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/log.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC );
     //context.logger = log.create_file_logger(fd);
 
-    context.logger = server.create_lsp_logger(&writer);
+    //context.logger = server.create_lsp_logger(&writer);
 
     run(&reader, &writer);
 }

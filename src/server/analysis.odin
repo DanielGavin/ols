@@ -40,12 +40,14 @@ AstContext :: struct {
     locals: map [string] ^ast.Expr, //locals all the way to the document position
     globals: map [string] ^ast.Expr,
     variables: map [string] bool,
+    parameters: map [string] bool,
     usings: [dynamic] string,
     file: ast.File,
     allocator: mem.Allocator,
     imports: [] Package, //imports for the current document
     current_package: string,
     document_package: string,
+    use_package: bool,
     use_globals: bool,
     use_locals: bool,
     call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
@@ -58,6 +60,7 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
         globals = make(map [string] ^ast.Expr, 0, allocator),
         variables = make(map [string] bool, 0, allocator),
         usings = make([dynamic] string, allocator),
+        parameters = make(map [string] bool, 0, allocator),
         file = file,
         imports = imports,
         use_locals = true,
@@ -501,18 +504,23 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
     using ast;
 
+    v2, ok := node.derived.(ast.Pointer_Type);
+
     switch v in node.derived {
     case Ident:
         return resolve_type_identifier(ast_context, v);
     case Basic_Lit:
         return resolve_basic_lit(ast_context, v);
+    case Type_Assertion:
+        resolve_type_expression(ast_context, v.type);
     case Pointer_Type:
+
         if v2, ok := v.elem.derived.(ast.Pointer_Type); !ok {
             return resolve_type_expression(ast_context, v.elem);
         }
 
         else {
-            return resolve_type_expression(ast_context, node);
+            return make_symbol_generic_from_ast(ast_context, node), true;
         }
 
     case Index_Expr:
@@ -639,11 +647,35 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
     using ast;
 
+    if _, ok := ast_context.parameters[node.name]; ok {
+        for imp in ast_context.imports {
+
+            if strings.compare(imp.base, node.name) == 0 {
+
+                symbol := index.Symbol {
+                    type = .Package,
+                    scope = imp.name,
+                    value = index.SymbolPackageValue {
+                    }
+                };
+
+                return symbol, true;
+            }
+
+        }
+    }
+
+
     //note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
     if local, ok := ast_context.locals[node.name]; ast_context.use_locals && ok {
 
         switch v in local.derived {
         case Ident:
+
+            if node.name == v.name {
+                break;
+            }
+
             return resolve_type_identifier(ast_context, v);
         case Union_Type:
             return make_symbol_union_from_ast(ast_context, v), true;
@@ -680,6 +712,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
         switch v in global.derived {
         case Ident:
+
+            if node.name == v.name {
+                break;
+            }
+
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v), true;
@@ -740,7 +777,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
                     scope = node.name,
                     value = index.SymbolPackageValue {
                     }
-                };
+            };
 
             return symbol, true;
 
@@ -805,10 +842,18 @@ resolve_ident_is_variable ::  proc(ast_context: ^AstContext, node: ast.Ident) ->
 
 resolve_ident_is_package ::  proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
 
-    for imp in ast_context.imports {
+    if strings.contains(node.name, "/") {
+        return true;
+    }
 
-        if strings.compare(imp.base, node.name) == 0 {
-            return true;
+    else {
+
+        for imp in ast_context.imports {
+
+            if strings.compare(imp.base, node.name) == 0 {
+                return true;
+            }
+
         }
 
     }
@@ -859,6 +904,24 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 
 
     return index.lookup(node.name, ast_context.document_package);
+}
+
+make_bool_ast :: proc() -> ^ast.Ident {
+
+    ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
+
+    ident.name = bool_lit;
+
+    return ident;
+}
+
+make_int_ast :: proc() -> ^ast.Ident {
+
+    ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
+
+    ident.name = int_lit;
+
+    return ident;
 }
 
 make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
@@ -1061,6 +1124,11 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
         if v.expr != nil {
             append(results, value);
         }
+    case Type_Assertion:
+        if v.type != nil {
+            append(results, v.type);
+            append(results, make_bool_ast());
+        }
     case:
         log.debugf("default node get_generic_assignment %v", v);
         append(results, value);
@@ -1071,6 +1139,11 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
 
     using ast;
+
+    if len(value_decl.names) <= 0 {
+        return;
+    }
+
 
     if value_decl.type != nil {
         str := common.get_ast_node_string(value_decl.names[0], file.src);
@@ -1085,15 +1158,16 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
         get_generic_assignment(file, value, ast_context, &results);
     }
 
-    if len(value_decl.names) == len(results) {
 
-        for name, i in value_decl.names {
+    for name, i in value_decl.names {
+        if i < len(results) {
             str := common.get_ast_node_string(name, file.src);
             ast_context.locals[str] = results[i];
             ast_context.variables[str] = value_decl.is_mutable;
         }
-
     }
+
+
 
 }
 
@@ -1104,15 +1178,19 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 
     using ast;
 
+    if stmt == nil {
+        return;
+    }
+
     switch v in stmt.derived {
     case Value_Decl:
         get_locals_value_decl(file, v, ast_context);
     case Type_Switch_Stmt:
         get_locals_type_switch_stmt(file, v, ast_context, document_position);
-   // case Switch_Stmt:
-   //     get_locals_switch_stmt(file, v, ast_context, document_position);
-   // case For_Stmt:
-   //     get_locals_for_stmt(file, v, ast_context, document_position);
+    case Switch_Stmt:
+        get_locals_switch_stmt(file, v, ast_context, document_position);
+    case For_Stmt:
+        get_locals_for_stmt(file, v, ast_context, document_position);
     case Range_Stmt:
         get_locals_for_range_stmt(file, v, ast_context, document_position);
     case If_Stmt:
@@ -1183,9 +1261,9 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
     }
 
     for lhs, i in stmt.lhs {
-
         if ident, ok := lhs.derived.(ast.Ident); ok {
             ast_context.locals[ident.name] = results[i];
+            ast_context.variables[ident.name] = true;
         }
     }
 
@@ -1197,11 +1275,9 @@ get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstC
         return;
     }
 
-    if stmt.init != nil {
-        get_locals_stmt(file, stmt.init, ast_context, document_position);
-    }
-
+    get_locals_stmt(file, stmt.init, ast_context, document_position);
     get_locals_stmt(file, stmt.body, ast_context, document_position);
+    get_locals_stmt(file, stmt.else_stmt, ast_context, document_position);
 }
 
 
@@ -1225,6 +1301,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
         if ident, ok := stmt.val0.derived.(Ident); ok {
             indexed.expr = results[0];
             ast_context.locals[ident.name] = indexed;
+            ast_context.variables[ident.name] = true;
         }
 
     }
@@ -1232,7 +1309,8 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
     else if len(results) > 1 && stmt.val0 != nil && stmt.val1 != nil {
 
         if ident, ok := stmt.val1.derived.(Ident); ok {
-            //ast_context.locals[ident.name] = ident;
+            ast_context.locals[ident.name] = make_int_ast();
+            ast_context.variables[ident.name] = true;
         }
 
     }
@@ -1247,6 +1325,7 @@ get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^As
         return;
     }
 
+    get_locals_stmt(file, stmt.init, ast_context, document_position);
     get_locals_stmt(file, stmt.body, ast_context, document_position);
 }
 
@@ -1286,6 +1365,7 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
                 if len(tag.lhs) == 1 && len(cause.list) == 1 {
                     ident := tag.lhs[0].derived.(Ident);
                     ast_context.locals[ident.name] = cause.list[0];
+                    ast_context.variables[ident.name] = true;
                 }
 
             }
@@ -1313,6 +1393,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
                     str := common.get_ast_node_string(name, file.src);
                     ast_context.locals[str] = arg.type;
                     ast_context.variables[str] = true;
+                    ast_context.parameters[str] = true;
                 }
             }
 
@@ -1336,6 +1417,9 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 
 clear_locals :: proc(ast_context: ^AstContext) {
     clear(&ast_context.locals);
+    clear(&ast_context.parameters);
+    clear(&ast_context.variables);
+    clear(&ast_context.usings);
 }
 
 get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
@@ -1508,7 +1592,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             }
 
         case index.SymbolStructValue:
-
             list.isIncomplete = false;
 
             for name, i in v.names {
