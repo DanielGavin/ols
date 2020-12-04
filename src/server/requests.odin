@@ -10,7 +10,7 @@ import "core:strconv"
 import "core:encoding/json"
 import "core:path"
 import "core:runtime"
-
+import "core:thread"
 
 import "shared:common"
 import "shared:index"
@@ -19,6 +19,9 @@ Header :: struct {
     content_length: int,
     content_type: string,
 };
+
+pool: thread.Pool;
+
 
 make_response_message :: proc(id: RequestId, params: ResponseParams) -> ResponseMessage {
 

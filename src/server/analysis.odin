@@ -47,7 +47,6 @@ AstContext :: struct {
     imports: [] Package, //imports for the current document
     current_package: string,
     document_package: string,
-    use_package: bool,
     use_globals: bool,
     use_locals: bool,
     call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
@@ -1179,6 +1178,10 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
     using ast;
 
     if stmt == nil {
+        return;
+    }
+
+    if stmt.pos.offset > document_position.position {
         return;
     }
 

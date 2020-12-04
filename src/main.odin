@@ -7,6 +7,7 @@ import "core:os"
 import "core:strings"
 import "core:slice"
 import "core:strconv"
+import "core:thread"
 import "core:encoding/json"
 
 import "intrinsics"
@@ -38,6 +39,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
     config.collections = make(map [string] string);
 
     log.info("Starting Odin Language Server");
+
+    thread.pool_init(&server.pool, config.thread_pool_count);
 
     config.running = true;
 
@@ -80,6 +83,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     index.free_static_index();
 
+    thread.pool_destroy(&server.pool);
+
     //common.memleak_dump(tracking_allocator, common.log_dump, nil);
 
 
@@ -100,7 +105,7 @@ main :: proc() {
     //fd, err := os.open("C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/log.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC );
     //context.logger = log.create_file_logger(fd);
 
-    //context.logger = server.create_lsp_logger(&writer);
+    context.logger = server.create_lsp_logger(&writer);
 
     run(&reader, &writer);
 }
