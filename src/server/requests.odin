@@ -20,8 +20,38 @@ Header :: struct {
     content_type: string,
 };
 
+RequestType :: enum {
+    Initialize,
+    Initialized,
+    Shutdown,
+    Exit,
+    DidOpen,
+    DidChange,
+    DidClose,
+    DidSave,
+    Definition,
+    Completion,
+    SignatureHelp,
+    DocumentSymbol,
+    SemanticTokensFull,
+    SemanticTokensRange,
+};
+
+RequestInfo :: struct {
+    params: json.Value,
+    id: RequestId,
+    config: ^common.Config,
+    writer: ^Writer,
+    result: common.Error,
+};
+
+
 pool: thread.Pool;
 
+
+get_request_info :: proc(task: ^thread.Task) -> ^RequestInfo {
+    return cast(^RequestInfo)task.data;
+}
 
 make_response_message :: proc(id: RequestId, params: ResponseParams) -> ResponseMessage {
 
@@ -136,22 +166,35 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
     return value, true;
 }
 
+request_map : map [string] RequestType =
+        {"initialize" = .Initialize,
+         "initialized" = .Initialized,
+         "shutdown" = .Shutdown,
+         "exit" = .Exit,
+         "textDocument/didOpen" = .DidOpen,
+         "textDocument/didChange" = .DidChange,
+         "textDocument/didClose" = .DidClose,
+         "textDocument/didSave" = .DidSave,
+         "textDocument/definition" = .Definition,
+         "textDocument/completion" = .Completion,
+         "textDocument/signatureHelp" = .SignatureHelp,
+         "textDocument/documentSymbol" = .DocumentSymbol,
+         "textDocument/semanticTokens/full" = .SemanticTokensFull,
+         "textDocument/semanticTokens/range" = .SemanticTokensRange};
 
-call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error =
-        {"initialize" = request_initialize,
-         "initialized" = request_initialized,
-         "shutdown" = request_shutdown,
-         "exit" = notification_exit,
-         "textDocument/didOpen" = notification_did_open,
-         "textDocument/didChange" = notification_did_change,
-         "textDocument/didClose" = notification_did_close,
-         "textDocument/didSave" = notification_did_save,
-         "textDocument/definition" = request_definition,
-         "textDocument/completion" = request_completion,
-         "textDocument/signatureHelp" = request_signature_help,
-         "textDocument/documentSymbol" = request_document_symbols,
-         "textDocument/semanticTokens/full" = request_semantic_token_full,
-         "textDocument/semanticTokens/range" = request_semantic_token_range};
+handle_error :: proc(err: common.Error, id: RequestId, writer: ^Writer) {
+
+    if err != .None {
+
+        response := make_response_message_error(
+            id = id,
+            error = ResponseError {code = err, message = ""}
+        );
+
+        send_error(response, writer);
+    }
+
+}
 
 handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
 
@@ -180,8 +223,8 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
 
     method := root["method"].value.(json.String);
 
-    fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
-    fn, ok = call_map[method];
+    request_type: RequestType;
+    request_type, ok = request_map[method];
 
 
     if !ok {
@@ -194,35 +237,78 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
     }
 
     else {
-        err := fn(root["params"], id, config, writer);
 
-        if err != .None {
+        info := new(RequestInfo);
 
-            response := make_response_message_error(
-                id = id,
-                error = ResponseError {code = err, message = ""}
-            );
+        info.params = root["params"];
+        info.id = id;
+        info.config = config;
+        info.writer = writer;
 
-            send_error(response, writer);
+        task_proc: thread.Task_Proc;
+
+        switch request_type {
+        case .Initialize:
+            task_proc = request_initialize;
+        case .Initialized:
+            task_proc = request_initialized;
+        case .Shutdown:
+            task_proc = request_shutdown;
+        case .Exit:
+            task_proc = notification_exit;
+        case .DidOpen:
+            task_proc = notification_did_open;
+        case .DidChange:
+            task_proc = notification_did_change;
+        case .DidClose:
+            task_proc = notification_did_close;
+        case .DidSave:
+            task_proc = notification_did_save;
+        case .Definition:
+            task_proc = request_definition;
+        case .Completion:
+            task_proc = request_completion;
+        case .SignatureHelp:
+            task_proc = request_signature_help;
+        case .DocumentSymbol:
+            task_proc = request_document_symbols;
+        case .SemanticTokensFull:
+            task_proc = request_semantic_token_full;
+        case .SemanticTokensRange:
+            task_proc = request_semantic_token_range;
         }
+
+        task := thread.Task {
+            data = info,
+            procedure = task_proc,
+        };
+
+        task_proc(&task);
+
     }
 
 
     return true;
 }
 
-request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_initialize :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     initialize_params: RequestInitializeParams;
 
     if unmarshal(params, initialize_params, context.temp_allocator) != .None {
-        return  .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     config.workspace_folders = make([dynamic]common.WorkspaceFolder);
@@ -298,7 +384,7 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
                 },
                 semanticTokensProvider = SemanticTokensOptions {
                     range = true,
-                    full = false,
+                    full = true,
                     legend = SemanticTokensLegend {
                         tokenTypes = token_types,
                         tokenModifiers = token_modifiers,
@@ -319,15 +405,17 @@ request_initialize :: proc(params: json.Value, id: RequestId, config: ^common.Co
     index.build_static_index(context.allocator, config);
 
     log.info("Finished indexing");
-
-    return .None;
 }
 
-request_initialized :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
-    return .None;
+request_initialized :: proc(task: ^thread.Task) {
+
 }
 
-request_shutdown :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_shutdown :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     response := make_response_message(
         params = nil,
@@ -335,31 +423,34 @@ request_shutdown :: proc(params: json.Value, id: RequestId, config: ^common.Conf
     );
 
     send_response(response, writer);
-
-    return .None;
 }
 
-request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_definition :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     definition_params: TextDocumentPositionParams;
 
     if unmarshal(params, definition_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(definition_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
-
-    document_refresh(document, config, nil);
 
     location, ok2 := get_definition_location(document, definition_params.position);
 
@@ -373,18 +464,20 @@ request_definition :: proc(params: json.Value, id: RequestId, config: ^common.Co
     );
 
     send_response(response, writer);
-
-
-    return .None;
 }
 
 
-request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_completion :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     completition_params: CompletionParams;
@@ -392,22 +485,23 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
 
     if unmarshal(params, completition_params, context.temp_allocator) != .None {
         log.error("Failed to unmarshal completion request");
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(completition_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
-
-    document_refresh(document, config, nil);
 
     list: CompletionList;
     list, ok = get_completion_list(document, completition_params.position);
 
     if !ok {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
 
     response := make_response_message(
@@ -416,31 +510,34 @@ request_completion :: proc(params: json.Value, id: RequestId, config: ^common.Co
     );
 
     send_response(response, writer);
-
-    return .None;
 }
 
-request_signature_help :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_signature_help :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     signature_params: SignatureHelpParams;
 
     if unmarshal(params, signature_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(signature_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
-
-    document_refresh(document, config, nil);
 
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
@@ -451,99 +548,122 @@ request_signature_help :: proc(params: json.Value, id: RequestId, config: ^commo
     );
 
     send_response(response, writer);
-
-    return .None;
 }
 
-notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_exit :: proc(task: ^thread.Task) {
+    info := get_request_info(task);
+    using info;
     config.running = false;
-    return .None;
 }
 
-notification_did_open :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_did_open :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
         log.error("Failed to parse open document notification");
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     open_params: DidOpenTextDocumentParams;
 
     if unmarshal(params, open_params, context.allocator) != .None {
         log.error("Failed to parse open document notification");
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
-    return document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer);
+    if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
+        handle_error(n, id, writer);
+    }
 }
 
-notification_did_change :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_did_change :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     change_params: DidChangeTextDocumentParams;
 
     if unmarshal(params, change_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
 
     document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer);
-
-    return .None;
 }
 
-notification_did_close :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_did_close :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     close_params: DidCloseTextDocumentParams;
 
     if unmarshal(params, close_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
-    return document_close(close_params.textDocument.uri);
+    if n := document_close(close_params.textDocument.uri); n != .None {
+        handle_error(n, id, writer);
+        return;
+    }
 }
 
-notification_did_save :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_did_save :: proc(task: ^thread.Task) {
 
 
-
-    return .None;
 }
 
-request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_semantic_token_full :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     semantic_params: SemanticTokensParams;
 
     if unmarshal(params, semantic_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(semantic_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
-
-    document_refresh(document, config, nil);
 
     range := common.Range {
         start = common.Position {
@@ -564,31 +684,34 @@ request_semantic_token_full :: proc(params: json.Value, id: RequestId, config: ^
     );
 
     send_response(response, writer);
-
-    return .None;
 }
 
-request_semantic_token_range :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_semantic_token_range :: proc(task: ^thread.Task) {
+
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     semantic_params: SemanticTokensRangeParams;
 
     if unmarshal(params, semantic_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(semantic_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
-
-    document_refresh(document, config, nil);
 
     //symbols: SemanticTokens;
     symbols := get_semantic_tokens(document, semantic_params.range);
@@ -599,35 +722,36 @@ request_semantic_token_range :: proc(params: json.Value, id: RequestId, config: 
     );
 
     send_response(response, writer);
-
-    return .None;
 }
 
-request_document_symbols :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_document_symbols :: proc(task: ^thread.Task) {
 
+    info := get_request_info(task);
+
+    using info;
 
     params_object, ok := params.value.(json.Object);
 
     if !ok {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     symbol_params: DocumentSymbolParams;
 
     if unmarshal(params, symbol_params, context.temp_allocator) != .None {
-        return .ParseError;
+        handle_error(.ParseError, id, writer);
+        return;
     }
 
     document := document_get(symbol_params.textDocument.uri);
 
     if document == nil {
-        return .InternalError;
+        handle_error(.InternalError, id, writer);
+        return;
     }
 
-    document_refresh(document, config, nil);
-
     symbols := get_document_symbols(document);
-
 
     response := make_response_message(
         params = symbols,
@@ -635,6 +759,4 @@ request_document_symbols :: proc(params: json.Value, id: RequestId, config: ^com
     );
 
     send_response(response, writer);
-
-    return .None;
 }

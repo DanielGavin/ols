@@ -35,16 +35,36 @@ Document :: struct {
     ast: ast.File,
     imports: [] Package,
     package_name: string,
+    allocator: ^common.Scratch_Allocator, //because does not support freeing I use arena allocators for each document
 };
 
 DocumentStorage :: struct {
     documents: map [string] Document,
+    free_allocators: [dynamic] ^common.Scratch_Allocator,
 };
 
 document_storage: DocumentStorage;
 
 document_storage_shutdown :: proc() {
     delete(document_storage.documents);
+}
+
+document_get_allocator :: proc() -> ^common.Scratch_Allocator  {
+
+    if len(document_storage.free_allocators) > 0 {
+        return pop(&document_storage.free_allocators);
+    }
+
+    else {
+        allocator := new(common.Scratch_Allocator);
+        common.scratch_allocator_init(allocator, mem.megabytes(1));
+        return allocator;
+    }
+
+}
+
+document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
+    append(&document_storage.free_allocators, allocator);
 }
 
 document_get :: proc(uri_string: string) -> ^Document {
@@ -84,6 +104,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
         document.client_owned = true;
         document.text = transmute([] u8)text;
         document.used_text = len(document.text);
+        document.allocator = document_get_allocator();
 
         if err := document_refresh(document, config, writer); err != .None {
             return err;
@@ -98,6 +119,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
             text = transmute([] u8)text,
             client_owned = true,
             used_text = len(text),
+            allocator = document_get_allocator(),
         };
 
         if err := document_refresh(&document, config, writer); err != .None {
@@ -221,9 +243,9 @@ document_close :: proc(uri_string: string) -> common.Error {
         return .InvalidRequest;
     }
 
-    //free_imports(document);
-
-    //common.free_ast_file(document.ast);
+    free_all(common.scratch_allocator(document.allocator));
+    document_free_allocator(document.allocator);
+    document.allocator = nil;
 
     document.client_owned = false;
 
@@ -246,7 +268,6 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
         return .ParseError;
     }
 
-    //right now we don't allow to writer errors out from files read from the file directory, core files, etc.
     if writer != nil && len(errors) > 0 {
         document.diagnosed_errors = true;
 
@@ -322,23 +343,7 @@ parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 
 }
 
-free_imports :: proc(document: ^Document) {
-    if document.imports != nil {
-
-        for imp in document.imports {
-            delete(imp.name);
-        }
-
-        delete(document.imports);
-        delete(document.package_name);
-
-        document.imports = nil;
-    }
-}
-
 parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] ParserError, bool) {
-
-    context.allocator = context.temp_allocator;
 
     p := parser.Parser {
 		err  = parser_error_handler,
@@ -347,7 +352,9 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     current_errors = make([dynamic] ParserError, context.temp_allocator);
 
-    //common.free_ast_file(document.ast);
+    free_all(common.scratch_allocator(document.allocator));
+
+    context.allocator = common.scratch_allocator(document.allocator);
 
     document.ast = ast.File {
         fullpath = document.uri.path,
@@ -356,10 +363,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     parser.parse_file(&p, &document.ast);
 
-    //free_imports(document);
-
-    document.imports = make([]Package, len(document.ast.imports), context.temp_allocator);
-    document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator), context.temp_allocator);
+    document.imports = make([]Package, len(document.ast.imports));
+    document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
 
     for imp, index in document.ast.imports {
 

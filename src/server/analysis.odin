@@ -67,7 +67,6 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
         document_package = package_name,
         current_package = package_name,
     };
-
     return ast_context;
 }
 
