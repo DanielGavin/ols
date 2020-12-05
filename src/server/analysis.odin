@@ -663,7 +663,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         }
     }
 
-
     //note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
     if local, ok := ast_context.locals[node.name]; ast_context.use_locals && ok {
 

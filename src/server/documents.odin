@@ -10,6 +10,8 @@ import "core:odin/tokenizer"
 import "core:path"
 import "core:mem"
 
+import "intrinsics"
+
 import "shared:common"
 
 ParserError :: struct {
@@ -36,6 +38,7 @@ Document :: struct {
     imports: [] Package,
     package_name: string,
     allocator: ^common.Scratch_Allocator, //because does not support freeing I use arena allocators for each document
+    operating_on: int, //atomic
 };
 
 DocumentStorage :: struct {
@@ -75,7 +78,23 @@ document_get :: proc(uri_string: string) -> ^Document {
         return nil;
     }
 
-    return &document_storage.documents[uri.path];
+    document := &document_storage.documents[uri.path];
+
+    if document == nil {
+        return nil;
+    }
+
+    intrinsics.atomic_add(&document.operating_on, 1);
+
+    return document;
+}
+
+document_release :: proc(document: ^Document) {
+
+    if document != nil {
+        intrinsics.atomic_sub(&document.operating_on, 1);
+    }
+
 }
 
 /*
@@ -126,7 +145,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
             return err;
         }
 
-        document_storage.documents[uri.path] = document;
+        document_storage.documents[strings.clone(uri.path)] = document;
     }
 
 

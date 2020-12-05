@@ -18,12 +18,14 @@ import "shared:common"
 
 os_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
 {
-    return os.read(cast(os.Handle)handle, data);
+    a, b := os.read(cast(os.Handle)handle, data);
+    return a, cast(int)b;
 }
 
 os_write :: proc(handle: rawptr, data: [] byte) -> (int, int)
 {
-    return os.write(cast(os.Handle)handle, data);
+    a, b := os.write(cast(os.Handle)handle, data);
+    return a, cast(int)b;
 }
 
 //Note(Daniel, Should look into handling errors without crashing from parsing)
@@ -40,7 +42,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     log.info("Starting Odin Language Server");
 
-    thread.pool_init(&server.pool, config.thread_pool_count);
 
     config.running = true;
 
@@ -83,7 +84,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     index.free_static_index();
 
-    thread.pool_destroy(&server.pool);
+    common.pool_wait_and_process(&server.pool);
+    common.pool_destroy(&server.pool);
 
     //common.memleak_dump(tracking_allocator, common.log_dump, nil);
 
@@ -102,10 +104,14 @@ main :: proc() {
 
     init_global_temporary_allocator(mem.megabytes(200));
 
+    context.logger = log.Logger{nil, nil, log.Level.Debug, nil}; //have to set the procedure to nil to avoid calling tprintf...
+
     //fd, err := os.open("C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/log.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC );
     //context.logger = log.create_file_logger(fd);
 
-    context.logger = server.create_lsp_logger(&writer);
+    //useless now with multithreading because the tprintf is called before passing the string to proc.....................
+    //probably make my own logging system.
+    //context.logger = server.create_lsp_logger(&writer);
 
     run(&reader, &writer);
 }

@@ -11,6 +11,8 @@ import "core:encoding/json"
 import "core:path"
 import "core:runtime"
 import "core:thread"
+import "core:sync"
+import "intrinsics"
 
 import "shared:common"
 import "shared:index"
@@ -39,6 +41,7 @@ RequestType :: enum {
 
 RequestInfo :: struct {
     params: json.Value,
+    document: ^Document,
     id: RequestId,
     config: ^common.Config,
     writer: ^Writer,
@@ -46,10 +49,10 @@ RequestInfo :: struct {
 };
 
 
-pool: thread.Pool;
+pool: common.Pool;
 
 
-get_request_info :: proc(task: ^thread.Task) -> ^RequestInfo {
+get_request_info :: proc(task: ^common.Task) -> ^RequestInfo {
     return cast(^RequestInfo)task.data;
 }
 
@@ -156,7 +159,7 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 
     err: json.Error;
 
-    value, err = json.parse(data = data, allocator = context.temp_allocator, parse_integers = true);
+    value, err = json.parse(data = data, allocator = context.allocator, parse_integers = true);
 
     if(err != json.Error.None) {
         log.error("Failed to parse body");
@@ -245,7 +248,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
         info.config = config;
         info.writer = writer;
 
-        task_proc: thread.Task_Proc;
+        task_proc: common.Task_Proc;
 
         switch request_type {
         case .Initialize:
@@ -278,12 +281,67 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
             task_proc = request_semantic_token_range;
         }
 
-        task := thread.Task {
+        task := common.Task {
             data = info,
             procedure = task_proc,
         };
 
-        task_proc(&task);
+        #partial switch request_type {
+        case .Initialize, .Initialized:
+            task_proc(&task);
+        case .Completion, .Definition:
+
+            uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+
+            document := document_get(uri);
+
+            if document == nil {
+                handle_error(.InternalError, id, writer);
+                return false;
+            }
+
+            info.document = document;
+
+            task_proc(&task);
+
+        case .DidClose, .DidChange, .DidOpen:
+
+            uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+
+            document := document_get(uri);
+
+            if document != nil {
+
+                for intrinsics.atomic_load(&document.operating_on) > 1 {
+                    if task, ok := common.pool_try_and_pop_task(&pool); ok {
+                        common.pool_do_work(&pool, &task);
+                    }
+                }
+
+            }
+
+            task_proc(&task);
+
+            document_release(document);
+        case .Shutdown, .Exit:
+            task_proc(&task);
+        case .SignatureHelp, .SemanticTokensFull, .SemanticTokensRange, .DocumentSymbol:
+
+            uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+
+            document := document_get(uri);
+
+            if document == nil {
+                handle_error(.InternalError, id, writer);
+                return false;
+            }
+
+            info.document = document;
+
+            common.pool_add_task(&pool, task_proc, info);
+        case:
+            common.pool_add_task(&pool, task_proc, info);
+        }
 
     }
 
@@ -291,11 +349,13 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
     return true;
 }
 
-request_initialize :: proc(task: ^thread.Task) {
-
+request_initialize :: proc(task: ^common.Task) {
     info := get_request_info(task);
 
     using info;
+
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -317,6 +377,8 @@ request_initialize :: proc(task: ^thread.Task) {
         append(&config.workspace_folders, s);
     }
 
+    thread_count := 2;
+
     //right now just look at the first workspace - TODO(daniel, add multiple workspace support)
     if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 
@@ -330,6 +392,8 @@ request_initialize :: proc(task: ^thread.Task) {
 
                 if unmarshal(value, ols_config, context.temp_allocator) == .None {
 
+                    thread_count = ols_config.thread_pool_count;
+
                     for p in ols_config.collections {
                         config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
                     }
@@ -341,6 +405,9 @@ request_initialize :: proc(task: ^thread.Task) {
         }
 
     }
+
+    common.pool_init(&pool, thread_count);
+    common.pool_start(&pool);
 
     for format in initialize_params.capabilities.textDocument.hover.contentFormat {
         if format == .Markdown {
@@ -407,15 +474,19 @@ request_initialize :: proc(task: ^thread.Task) {
     log.info("Finished indexing");
 }
 
-request_initialized :: proc(task: ^thread.Task) {
-
+request_initialized :: proc(task: ^common.Task) {
+    info := get_request_info(task);
+    free(info);
 }
 
-request_shutdown :: proc(task: ^thread.Task) {
+request_shutdown :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer json.destroy_value(params);
+    defer free(info);
 
     response := make_response_message(
         params = nil,
@@ -423,13 +494,19 @@ request_shutdown :: proc(task: ^thread.Task) {
     );
 
     send_response(response, writer);
+
+
 }
 
-request_definition :: proc(task: ^thread.Task) {
+request_definition :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer document_release(document);
+    defer free(info);
+    defer json.destroy_value(params);
 
     params_object, ok := params.value.(json.Object);
 
@@ -442,13 +519,6 @@ request_definition :: proc(task: ^thread.Task) {
 
     if unmarshal(params, definition_params, context.temp_allocator) != .None {
         handle_error(.ParseError, id, writer);
-        return;
-    }
-
-    document := document_get(definition_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
         return;
     }
 
@@ -467,11 +537,15 @@ request_definition :: proc(task: ^thread.Task) {
 }
 
 
-request_completion :: proc(task: ^thread.Task) {
+request_completion :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer document_release(document);
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -486,13 +560,6 @@ request_completion :: proc(task: ^thread.Task) {
     if unmarshal(params, completition_params, context.temp_allocator) != .None {
         log.error("Failed to unmarshal completion request");
         handle_error(.ParseError, id, writer);
-        return;
-    }
-
-    document := document_get(completition_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
         return;
     }
 
@@ -512,11 +579,15 @@ request_completion :: proc(task: ^thread.Task) {
     send_response(response, writer);
 }
 
-request_signature_help :: proc(task: ^thread.Task) {
+request_signature_help :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer document_release(document);
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -532,13 +603,6 @@ request_signature_help :: proc(task: ^thread.Task) {
         return;
     }
 
-    document := document_get(signature_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
-        return;
-    }
-
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
 
@@ -550,17 +614,20 @@ request_signature_help :: proc(task: ^thread.Task) {
     send_response(response, writer);
 }
 
-notification_exit :: proc(task: ^thread.Task) {
+notification_exit :: proc(task: ^common.Task) {
     info := get_request_info(task);
     using info;
     config.running = false;
 }
 
-notification_did_open :: proc(task: ^thread.Task) {
+notification_did_open :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -583,11 +650,14 @@ notification_did_open :: proc(task: ^thread.Task) {
     }
 }
 
-notification_did_change :: proc(task: ^thread.Task) {
+notification_did_change :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -607,11 +677,14 @@ notification_did_change :: proc(task: ^thread.Task) {
     document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer);
 }
 
-notification_did_close :: proc(task: ^thread.Task) {
+notification_did_close :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -633,16 +706,24 @@ notification_did_close :: proc(task: ^thread.Task) {
     }
 }
 
-notification_did_save :: proc(task: ^thread.Task) {
+notification_did_save :: proc(task: ^common.Task) {
+    info := get_request_info(task);
 
+    using info;
 
+    json.destroy_value(params);
+    free(info);
 }
 
-request_semantic_token_full :: proc(task: ^thread.Task) {
+request_semantic_token_full :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer document_release(document);
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -655,13 +736,6 @@ request_semantic_token_full :: proc(task: ^thread.Task) {
 
     if unmarshal(params, semantic_params, context.temp_allocator) != .None {
         handle_error(.ParseError, id, writer);
-        return;
-    }
-
-    document := document_get(semantic_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
         return;
     }
 
@@ -686,13 +760,17 @@ request_semantic_token_full :: proc(task: ^thread.Task) {
     send_response(response, writer);
 }
 
-request_semantic_token_range :: proc(task: ^thread.Task) {
+request_semantic_token_range :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
 
     params_object, ok := params.value.(json.Object);
+
+    defer document_release(document);
+    defer json.destroy_value(params);
+    defer free(info);
 
     if !ok {
         handle_error(.ParseError, id, writer);
@@ -703,13 +781,6 @@ request_semantic_token_range :: proc(task: ^thread.Task) {
 
     if unmarshal(params, semantic_params, context.temp_allocator) != .None {
         handle_error(.ParseError, id, writer);
-        return;
-    }
-
-    document := document_get(semantic_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
         return;
     }
 
@@ -724,11 +795,15 @@ request_semantic_token_range :: proc(task: ^thread.Task) {
     send_response(response, writer);
 }
 
-request_document_symbols :: proc(task: ^thread.Task) {
+request_document_symbols :: proc(task: ^common.Task) {
 
     info := get_request_info(task);
 
     using info;
+
+    defer document_release(document);
+    defer json.destroy_value(params);
+    defer free(info);
 
     params_object, ok := params.value.(json.Object);
 
@@ -741,13 +816,6 @@ request_document_symbols :: proc(task: ^thread.Task) {
 
     if unmarshal(params, symbol_params, context.temp_allocator) != .None {
         handle_error(.ParseError, id, writer);
-        return;
-    }
-
-    document := document_get(symbol_params.textDocument.uri);
-
-    if document == nil {
-        handle_error(.InternalError, id, writer);
         return;
     }
 

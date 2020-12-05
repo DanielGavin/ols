@@ -6,7 +6,6 @@ Config :: struct {
     hover_support_md: bool,
     signature_offset_support: bool,
     collections: map [string] string,
-    thread_pool_count: int,
     running: bool,
 };
 

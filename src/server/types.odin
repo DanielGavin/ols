@@ -274,6 +274,7 @@ ParameterInformation :: struct {
 
 OlsConfig :: struct {
     collections: [dynamic] OlsConfigCollection,
+    thread_pool_count: int,
 };
 
 OlsConfigCollection :: struct {

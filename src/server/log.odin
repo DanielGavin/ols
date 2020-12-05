@@ -5,6 +5,7 @@ import "core:strings";
 import "core:os";
 import "core:time";
 import "core:log";
+import "core:sync"
 
 
 Default_Console_Logger_Opts :: log.Options{
@@ -31,6 +32,7 @@ destroy_lsp_logger :: proc(log: ^log.Logger) {
 }
 
 lsp_logger_proc :: proc(logger_data: rawptr, level: log.Level, text: string, options: log.Options, location := #caller_location) {
+
     data := cast(^Lsp_Logger_Data)logger_data;
 
     backing: [1024]byte; //NOTE(Hoej): 1024 might be too much for a header backing, unless somebody has really long paths.
