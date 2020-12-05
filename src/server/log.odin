@@ -19,11 +19,13 @@ Default_Console_Logger_Opts :: log.Options{
 
 Lsp_Logger_Data :: struct {
     writer:  ^Writer,
+    mutex: sync.Mutex,
 }
 
 create_lsp_logger :: proc(writer: ^Writer, lowest := log.Level.Debug, opt := Default_Console_Logger_Opts) -> log.Logger {
     data := new(Lsp_Logger_Data);
     data.writer = writer;
+    sync.mutex_init(&data.mutex);
     return log.Logger{lsp_logger_proc, data, lowest, opt};
 }
 
@@ -34,6 +36,8 @@ destroy_lsp_logger :: proc(log: ^log.Logger) {
 lsp_logger_proc :: proc(logger_data: rawptr, level: log.Level, text: string, options: log.Options, location := #caller_location) {
 
     data := cast(^Lsp_Logger_Data)logger_data;
+    sync.mutex_lock(&data.mutex);
+    defer sync.mutex_unlock(&data.mutex);
 
     backing: [1024]byte; //NOTE(Hoej): 1024 might be too much for a header backing, unless somebody has really long paths.
     buf := strings.builder_from_slice(backing[:]);

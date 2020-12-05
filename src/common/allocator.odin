@@ -75,12 +75,6 @@ scratch_allocator_proc :: proc(allocator_data: rawptr, mode: mem.Allocator_Mode,
 		}
 		append(&s.leaked_allocations, ptr);
 
-		if logger := context.logger; logger.lowest_level <= .Warning {
-			if logger.procedure != nil {
-				logger.procedure(logger.data, .Warning, "mem.Scratch_Allocator resorted to backup_allocator" , logger.options, loc);
-			}
-		}
-
 		return ptr;
 
 	case .Free:

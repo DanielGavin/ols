@@ -104,14 +104,12 @@ main :: proc() {
 
     init_global_temporary_allocator(mem.megabytes(200));
 
-    context.logger = log.Logger{nil, nil, log.Level.Debug, nil}; //have to set the procedure to nil to avoid calling tprintf...
+    //context.logger = log.Logger{nil, nil, log.Level.Debug, nil}; //have to set the procedure to nil to avoid calling tprintf...
 
     //fd, err := os.open("C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/log.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC );
     //context.logger = log.create_file_logger(fd);
 
-    //useless now with multithreading because the tprintf is called before passing the string to proc.....................
-    //probably make my own logging system.
-    //context.logger = server.create_lsp_logger(&writer);
+    context.logger = server.create_lsp_logger(&writer);
 
     run(&reader, &writer);
 }
