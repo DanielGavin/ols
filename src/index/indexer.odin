@@ -44,14 +44,14 @@ Indexer :: struct {
 indexer: Indexer;
 
 
-lookup :: proc(name: string, scope: string, loc := #caller_location) -> (Symbol, bool) {
-    symbol, ok := memory_index_lookup(&indexer.static_index, name, scope);
-    log.infof("lookup name: %v scope: %v, symbol %v location %v", name, scope, symbol, loc);
+lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
+    symbol, ok := memory_index_lookup(&indexer.static_index, name, pkg);
+    log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
     return symbol, ok;
 }
 
 
-fuzzy_search :: proc(name: string, scope: [] string) -> ([] Symbol, bool) {
-    return memory_index_fuzzy_search(&indexer.static_index, name, scope);
+fuzzy_search :: proc(name: string, pkgs: [] string) -> ([] Symbol, bool) {
+    return memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
 }
 

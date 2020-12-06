@@ -229,7 +229,6 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
     request_type: RequestType;
     request_type, ok = request_map[method];
 
-
     if !ok {
         response := make_response_message_error(
                 id = id,
@@ -338,9 +337,22 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
 
             info.document = document;
 
-            common.pool_add_task(&pool, task_proc, info);
+            if !config.debug_single_thread {
+                common.pool_add_task(&pool, task_proc, info);
+            }
+
+            else{
+                task_proc(&task);
+            }
         case:
-            common.pool_add_task(&pool, task_proc, info);
+
+            if !config.debug_single_thread {
+                common.pool_add_task(&pool, task_proc, info);
+            }
+
+            else {
+                task_proc(&task);
+            }
         }
 
     }
@@ -409,11 +421,20 @@ request_initialize :: proc(task: ^common.Task) {
     common.pool_init(&pool, thread_count);
     common.pool_start(&pool);
 
+    //ERROR can't go to defintion
     for format in initialize_params.capabilities.textDocument.hover.contentFormat {
         if format == .Markdown {
             config.hover_support_md = true;
         }
     }
+
+
+    for format in initialize_params.capabilities.textDocument.completion.documentationFormat {
+        if format == .Markdown {
+            config.completion_support_md = true;
+        }
+    }
+
 
     config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
@@ -749,8 +770,8 @@ request_semantic_token_full :: proc(task: ^common.Task) {
         }
     };
 
-    //symbols: SemanticTokens;
-    symbols := get_semantic_tokens(document, range);
+    symbols: SemanticTokens;
+    //symbols := get_semantic_tokens(document, range);
 
     response := make_response_message(
         params = symbols,
@@ -784,8 +805,8 @@ request_semantic_token_range :: proc(task: ^common.Task) {
         return;
     }
 
-    //symbols: SemanticTokens;
-    symbols := get_semantic_tokens(document, semantic_params.range);
+    symbols: SemanticTokens;
+    //symbols := get_semantic_tokens(document, semantic_params.range);
 
     response := make_response_message(
         params = symbols,

@@ -17,12 +17,6 @@ import "shared:common"
 
  */
 
-
-SymbolFile :: struct {
-    imports: [] string,
-};
-
-
 SymbolStructValue :: struct {
     names: [] string,
     types: [] ^ast.Expr,
@@ -71,12 +65,12 @@ SymbolValue :: union {
 Symbol :: struct {
     range: common.Range,
     uri: string,
-    scope: string,
+    pkg: string,
     name: string,
+    doc: string,
     signature: string,
     type: SymbolType,
     value: SymbolValue,
-    file: ^SymbolFile,
 };
 
 SymbolType :: enum {

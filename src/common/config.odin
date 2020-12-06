@@ -7,5 +7,6 @@ Config :: struct {
     signature_offset_support: bool,
     collections: map [string] string,
     running: bool,
+    debug_single_thread: bool,
 };
 

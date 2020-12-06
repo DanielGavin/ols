@@ -73,10 +73,14 @@ RequestInitializeParams :: struct {
     capabilities: ClientCapabilities,
 };
 
-//Can't really follow the uppercase style for enums when i need to represent it as text as well
 MarkupKind :: enum {
     Plaintext,
     Markdown,
+};
+
+MarkupContent :: struct {
+	kind: MarkupKind,
+	value: string,
 };
 
 ServerCapabilities :: struct {
@@ -115,7 +119,7 @@ TextDocumentClientCapabilities :: struct {
 };
 
 CompletionClientCapabilities :: struct {
-
+    documentationFormat: [dynamic] MarkupKind,
 };
 
 ParameterInformationCapabilities :: struct {
@@ -245,6 +249,8 @@ CompletionItemKind :: enum {
 CompletionItem :: struct {
     label: string,
     kind: CompletionItemKind,
+    detail: string,
+    documentation: string,
 };
 
 CompletionList :: struct {
@@ -265,6 +271,7 @@ SignatureHelp :: struct {
 
 SignatureInformation :: struct {
     label: string,
+    documentation: string,
     parameters: [] ParameterInformation,
 };
 
@@ -313,7 +320,6 @@ SymbolKind :: enum {
 
 DocumentSymbol :: struct {
     name: string,
-    //detail?: string,
     kind: SymbolKind,
     range: common.Range,
     selectionRange: common.Range,

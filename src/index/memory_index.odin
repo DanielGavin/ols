@@ -26,14 +26,12 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 
 }
 
-memory_index_lookup :: proc(index: ^MemoryIndex, name: string, scope: string) -> (Symbol, bool) {
-    //hashed := hash.murmur64(transmute([]u8)strings.concatenate({scope, name}, context.temp_allocator));
-
-    id := get_symbol_id(strings.concatenate({scope, name}, context.temp_allocator));
+memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
+    id := get_symbol_id(strings.concatenate({pkg, name}, context.temp_allocator));
     return index.collection.symbols[id];
 }
 
-memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, scope: [] string) -> ([] Symbol, bool) {
+memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] string) -> ([] Symbol, bool) {
 
     symbols := make([dynamic] Symbol, 0, context.temp_allocator);
 
@@ -48,7 +46,7 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, scope: [] s
             break;
         }
 
-        if !exists_in_scope(symbol.scope, scope) {
+        if !exists_in_scope(symbol.pkg, pkgs) {
             continue;
         }
 

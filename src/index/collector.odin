@@ -88,16 +88,16 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
     return value;
 }
 
-collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_List, package_map: map [string] string) -> SymbolStructValue {
+collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map [string] string) -> SymbolStructValue {
 
     names := make([dynamic] string, 0, collection.allocator);
     types := make([dynamic] ^ast.Expr, 0, collection.allocator);
 
-    for field in fields.list {
+    for field in struct_type.fields.list {
 
         for n in field.names {
-            identifier := n.derived.(ast.Ident);
-            append(&names, get_index_unique_string(collection, identifier.name));
+            ident := n.derived.(ast.Ident);
+            append(&names, get_index_unique_string(collection, ident.name));
 
             cloned := clone_type(field.type, collection.allocator, &collection.unique_strings);
             replace_package_alias(cloned, package_map, collection);
@@ -115,7 +115,45 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, fields: ^ast.Field_
     return value;
 }
 
+collect_enum_fields :: proc(collection: ^SymbolCollection, fields: [] ^ast.Expr, package_map: map [string] string) -> SymbolEnumValue {
 
+    names := make([dynamic] string, 0, collection.allocator);
+
+    for n in fields {
+
+        if ident, ok := n.derived.(ast.Ident); ok {
+            append(&names, get_index_unique_string(collection, ident.name));
+        }
+
+    }
+
+    value := SymbolEnumValue {
+        names = names[:],
+    };
+
+
+    return value;
+}
+
+collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map [string] string) -> SymbolUnionValue {
+
+    names := make([dynamic] string, 0, collection.allocator);
+
+
+    for variant in union_type.variants {
+
+        if ident, ok := variant.derived.(ast.Ident); ok {
+            append(&names, get_index_unique_string(collection, ident.name));
+        }
+
+    }
+
+    value := SymbolUnionValue {
+        names = names[:],
+    };
+
+    return value;
+}
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
@@ -158,18 +196,42 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 case ast.Struct_Type:
                     token = v;
                     token_type = .Struct;
-                    symbol.value = collect_struct_fields(collection, v.fields, package_map);
+                    symbol.value = collect_struct_fields(collection, v, package_map);
+                case ast.Enum_Type:
+                    token = v;
+                    token_type = .Enum;
+                    symbol.value = collect_enum_fields(collection, v.fields, package_map);
+                case ast.Union_Type:
+                    token = v;
+                    token_type = .Enum;
+                    symbol.value = collect_union_fields(collection, v, package_map);
                 case: // default
                     break;
                 }
 
                 symbol.range = common.get_token_range(token, file.src);
                 symbol.name = get_index_unique_string(collection, name);
-                symbol.scope = get_index_unique_string(collection, directory);
+                symbol.pkg = get_index_unique_string(collection, directory);
                 symbol.type = token_type;
                 symbol.uri = get_index_unique_string(collection, uri);
 
-                cat := strings.concatenate({symbol.scope, name}, context.temp_allocator);
+
+                if value_decl.docs != nil {
+
+                    tmp: string;
+
+                    for doc in value_decl.docs.list {
+                        tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator);
+                    }
+
+                    if tmp != "" {
+                        replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator);
+                        symbol.doc = strings.clone(replaced, collection.allocator);
+                    }
+
+                }
+
+                cat := strings.concatenate({symbol.pkg, name}, context.temp_allocator);
 
                 id := get_symbol_id(cat);
 
