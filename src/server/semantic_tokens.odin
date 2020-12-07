@@ -98,7 +98,7 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 
 get_semantic_tokens :: proc(document: ^Document, range: common.Range) -> SemanticTokens {
 
-    ast_context := make_ast_context(document.ast, document.imports, document.package_name, context.temp_allocator);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name, false, context.temp_allocator);
     builder := make_token_builder();
 
     get_globals(document.ast, &ast_context);

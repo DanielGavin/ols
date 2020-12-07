@@ -180,10 +180,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                     token_type = .Function;
 
                     if v.type.params != nil {
-                        symbol.signature = get_index_unique_string(collection,
-                            strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
-                            context.temp_allocator));
+                        symbol.signature = strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
+                            collection.allocator);
                     }
+
+                    if v.type.results != nil {
+                        symbol.returns = strings.concatenate( {"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
+                            collection.allocator);
+                    }
+
                     if v.type.params != nil && v.type.results != nil && v.type != nil {
                         symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
                     }

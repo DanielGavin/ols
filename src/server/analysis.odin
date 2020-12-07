@@ -50,10 +50,11 @@ AstContext :: struct {
     document_package: string,
     use_globals: bool,
     use_locals: bool,
+    use_selection: bool,
     call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
 };
 
-make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, selection := false, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
@@ -65,6 +66,7 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
         imports = imports,
         use_locals = true,
         use_globals = true,
+        use_selection = selection,
         document_package = package_name,
         current_package = package_name,
     };
@@ -688,7 +690,17 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_struct_from_ast(ast_context, v), true;
         case Proc_Lit:
             if !v.type.generic {
-                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                if ast_context.use_selection {
+                    if v.type.results != nil {
+                        if len(v.type.results.list) == 1 {
+                            //ERROR v.type.results.list[0].
+                            return resolve_type_expression(ast_context, v.type.results.list[0].type);
+                        }
+                    }
+                }
+                else {
+                    return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                }
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -729,7 +741,16 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_enum_from_ast(ast_context, v), true;
         case Proc_Lit:
             if !v.type.generic {
-                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                if ast_context.use_selection {
+                    if v.type.results != nil {
+                        if len(v.type.results.list) == 1 {
+                            return resolve_type_expression(ast_context, v.type.results.list[0].type);
+                        }
+                    }
+                }
+                else {
+                    return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                }
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -937,7 +958,6 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
     };
 
     symbol.name = name;
-    symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
 
     return_types := make([dynamic] ^ast.Field, context.temp_allocator);
     arg_types := make([dynamic] ^ast.Field, context.temp_allocator);
@@ -948,6 +968,8 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
             append(&return_types, ret);
         }
 
+        symbol.returns = strings.concatenate( {"(", string(ast_context.file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"}, context.temp_allocator);
+
     }
 
     if v.type.params != nil {
@@ -956,6 +978,7 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
             append(&arg_types, param);
         }
 
+        symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
     }
 
     symbol.value = index.SymbolProcedureValue {
@@ -1487,25 +1510,12 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
 
     if symbol.type == .Function {
 
-        if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
+        if symbol.returns != "" {
+            return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature, " -> ", symbol.returns}, context.temp_allocator);
+        }
 
-            if len(value.return_types) > 0 {
-
-                tmp: string;
-
-                for ret in value.return_types {
-                    if ret.type != nil {
-                        tmp = strings.concatenate({tmp, common.get_ast_node_string(ret.type, ast_context.file.src)}, context.temp_allocator);
-                    }
-                }
-
-                return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature, " -> ", "(", tmp, ")"}, context.temp_allocator);
-            }
-
-            else {
-                return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature}, context.temp_allocator);
-            }
-
+        else {
+            return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature}, context.temp_allocator);
         }
 
     }
@@ -1629,7 +1639,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name, true);
 
     position_context, ok := get_document_position_context(document, position, .Completion);
 
@@ -2002,7 +2012,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
         c := position_context.file.src[i];
 
-        if c == '(' && (paren_count == 0 || paren_count == -1) {
+        if c == '(' && paren_count == 0 {
             start = i+1;
             break;
         }
@@ -2023,7 +2033,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         i -= 1;
     }
 
-    str := position_context.file.src[max(0, start):max(start, end)];
+    str := position_context.file.src[max(0, start):min(max(start, end), len(position_context.file.src))];
 
     log.infof("parser string %v", string(str));
 
@@ -2100,7 +2110,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
         return;
     }
 
-    str := position_context.file.src[max(0, start):max(start, end)];
+    str := position_context.file.src[max(0, start):min(max(start, end), len(position_context.file.src))];
 
     p := parser.Parser {
 		err  = parser_warning_handler, //empty

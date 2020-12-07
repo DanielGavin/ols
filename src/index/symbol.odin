@@ -69,6 +69,7 @@ Symbol :: struct {
     name: string,
     doc: string,
     signature: string,
+    returns: string,
     type: SymbolType,
     value: SymbolValue,
 };
@@ -85,6 +86,9 @@ SymbolType :: enum {
 };
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
+
+    delete(symbol.signature);
+    delete(symbol.returns);
 
     #partial switch v in symbol.value {
     case SymbolProcedureValue:

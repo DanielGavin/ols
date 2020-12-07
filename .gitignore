@@ -2,3 +2,7 @@
 *.pdb
 *.rdbg
 *.obj
+*.bc
+*.ll
+*.sublime-project
+*.sublime-workspace
