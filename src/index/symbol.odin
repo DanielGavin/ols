@@ -87,8 +87,13 @@ SymbolType :: enum {
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
-    delete(symbol.signature);
-    delete(symbol.returns);
+    if symbol.signature != "" {
+        delete(symbol.signature, allocator);
+    }
+
+    if symbol.returns != "" {
+        delete(symbol.returns, allocator);
+    }
 
     #partial switch v in symbol.value {
     case SymbolProcedureValue:

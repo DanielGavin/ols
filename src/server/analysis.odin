@@ -50,11 +50,10 @@ AstContext :: struct {
     document_package: string,
     use_globals: bool,
     use_locals: bool,
-    use_selection: bool,
     call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
 };
 
-make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, selection := false, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
         locals = make(map [string] ^ast.Expr, 0, allocator),
@@ -66,7 +65,6 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
         imports = imports,
         use_locals = true,
         use_globals = true,
-        use_selection = selection,
         document_package = package_name,
         current_package = package_name,
     };
@@ -512,6 +510,12 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_basic_lit(ast_context, v);
     case Type_Assertion:
         resolve_type_expression(ast_context, v.type);
+    case Proc_Lit:
+        if v.type.results != nil {
+            if len(v.type.results.list) == 1 {
+                return resolve_type_expression(ast_context, v.type.results.list[0].type);
+            }
+        }
     case Pointer_Type:
 
         if v2, ok := v.elem.derived.(ast.Pointer_Type); !ok {
@@ -560,6 +564,15 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
             ast_context.use_locals = false;
 
             #partial switch s in selector.value {
+            case index.SymbolProcedureValue:
+
+                if len(s.return_types) == 1 {
+                    //ERROR wierd signature help index.new_type() (maybe generics problem)
+                    selector_expr := index.new_type(ast.Selector_Expr, {}, {}, context.temp_allocator);
+                    selector_expr.expr = s.return_types[0].type;
+                    selector_expr.field = v.field;
+                    return resolve_type_expression(ast_context, selector_expr);
+                }
             case index.SymbolStructValue:
                 if selector.uri != "" {
                     ast_context.current_package = selector.pkg;
@@ -690,17 +703,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_struct_from_ast(ast_context, v), true;
         case Proc_Lit:
             if !v.type.generic {
-                if ast_context.use_selection {
-                    if v.type.results != nil {
-                        if len(v.type.results.list) == 1 {
-                            //ERROR v.type.results.list[0].
-                            return resolve_type_expression(ast_context, v.type.results.list[0].type);
-                        }
-                    }
-                }
-                else {
-                    return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
-                }
+                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -741,16 +744,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_enum_from_ast(ast_context, v), true;
         case Proc_Lit:
             if !v.type.generic {
-                if ast_context.use_selection {
-                    if v.type.results != nil {
-                        if len(v.type.results.list) == 1 {
-                            return resolve_type_expression(ast_context, v.type.results.list[0].type);
-                        }
-                    }
-                }
-                else {
-                    return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
-                }
+                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -1639,7 +1633,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context(document.ast, document.imports, document.package_name, true);
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
     position_context, ok := get_document_position_context(document, position, .Completion);
 
@@ -1688,6 +1682,16 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             }
 
         }
+
+
+        if s, ok := selector.value.(index.SymbolProcedureValue); ok {
+            if len(s.return_types) == 1 {
+                if selector, ok = resolve_type_expression(&ast_context, s.return_types[0].type); !ok {
+                    return list, true;
+                }
+            }
+        }
+
 
         #partial switch v in selector.value {
         case index.SymbolEnumValue:
@@ -1992,19 +1996,32 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     //log.info("FALLBACK TIME");
 
-    //log.infof("position character %c", position_context.file.src[position_context.position]);
+    log.infof("position character %c", position_context.file.src[position_context.position]);
 
     paren_count: int;
+    bracket_count: int;
     end: int;
     start: int;
     empty_dot: bool;
     i := position_context.position;
 
-    if position_context.file.src[max(0, position_context.position-1)] == '.' {
+    //trim whitespaces
+    for i >= 0 {
+
+        c := position_context.file.src[i];
+
+        if c != ' ' && c != '\r' && c != '\n' {
+            break;
+        }
+
         i -= 1;
-        empty_dot = true;
     }
 
+    if position_context.file.src[i] == ')' ||
+       position_context.file.src[i] == '}' ||
+       position_context.file.src[i] == '{' {
+        i -= 1;
+    }
 
     end = i;
 
@@ -2017,6 +2034,11 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             break;
         }
 
+        else if c == '[' && bracket_count == 0 {
+            start = i+1;
+            break;
+        }
+
         else if c == ')' {
             paren_count -= 1;
         }
@@ -2025,7 +2047,15 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             paren_count += 1;
         }
 
-        if c == ' ' || c == '[' || c == '{' || c == ',' || c == '}' {
+        else if c == '[' {
+            bracket_count += 1;
+        }
+
+        else if c == ']' {
+            bracket_count -= 1;
+        }
+
+        if c == ' ' || c == '{' || c == ',' || c == '}' {
             start = i+1;
             break;
         }
@@ -2033,7 +2063,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         i -= 1;
     }
 
-    str := position_context.file.src[max(0, start):min(max(start, end), len(position_context.file.src))];
+    if position_context.file.src[end] == '.' {
+        empty_dot = true;
+        end -= 1;
+    }
+
+    str := position_context.file.src[max(0, start):max(start, end+1)];
 
     log.infof("parser string %v", string(str));
 
@@ -2110,7 +2145,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
         return;
     }
 
-    str := position_context.file.src[max(0, start):min(max(start, end), len(position_context.file.src))];
+    str := position_context.file.src[max(0, start):max(start, end)];
 
     p := parser.Parser {
 		err  = parser_warning_handler, //empty
