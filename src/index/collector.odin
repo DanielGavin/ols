@@ -159,7 +159,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
     forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
     directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
-    package_map := get_package_mapping(file, collection.config);
+    package_map := get_package_mapping(file, collection.config, uri);
 
     for decl in file.decls {
 
@@ -262,7 +262,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 /*
     Gets the map from import alias to absolute package directory
 */
-get_package_mapping :: proc(file: ast.File, config: ^common.Config) -> map [string] string {
+get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string) -> map [string] string {
 
     package_map := make(map [string] string, 0, context.temp_allocator);
 
@@ -298,6 +298,23 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config) -> map [stri
 
         else {
 
+            name: string;
+
+            base := path.base(uri);
+
+            full := path.join(elems = {base, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
+
+            full = path.clean(full, context.temp_allocator);
+
+            if imp.name.text != "" {
+                name = imp.name.text;
+            }
+
+            else {
+                name = path.base(full, false, context.temp_allocator);
+            }
+
+            package_map[name] = strings.to_lower(full, context.temp_allocator);
         }
 
     }

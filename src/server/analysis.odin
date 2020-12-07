@@ -1889,6 +1889,12 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     call: index.Symbol;
     call, ok = resolve_type_expression(&ast_context, position_context.call);
 
+    if symbol, ok := call.value.(index.SymbolProcedureValue); !ok {
+        return signature_help, true;
+    }
+
+
+
     signature_information := make([] SignatureInformation, 1, context.temp_allocator);
 
     signature_information[0].label = concatenate_symbols_information(&ast_context, call);
@@ -1996,36 +2002,16 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     //log.info("FALLBACK TIME");
 
-    log.infof("position character %c", position_context.file.src[position_context.position]);
-
     paren_count: int;
     bracket_count: int;
     end: int;
     start: int;
     empty_dot: bool;
-    i := position_context.position;
-
-    //trim whitespaces
-    for i >= 0 {
-
-        c := position_context.file.src[i];
-
-        if c != ' ' && c != '\r' && c != '\n' {
-            break;
-        }
-
-        i -= 1;
-    }
-
-    if position_context.file.src[i] == ')' ||
-       position_context.file.src[i] == '}' ||
-       position_context.file.src[i] == '{' {
-        i -= 1;
-    }
+    i := position_context.position-1;
 
     end = i;
 
-    for i >= 0 {
+    for i > 0 {
 
         c := position_context.file.src[i];
 
@@ -2055,7 +2041,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             bracket_count -= 1;
         }
 
-        if c == ' ' || c == '{' || c == ',' || c == '}' {
+        if c == ' ' || c == '{' || c == ',' || c == '}' || c == '\n' || c == '\r' {
             start = i+1;
             break;
         }
@@ -2111,7 +2097,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
     first_paren: bool;
     i := position_context.position;
 
-    for i >= 0 {
+    for i > 0 {
 
         c := position_context.file.src[i];
 

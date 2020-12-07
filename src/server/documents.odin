@@ -387,6 +387,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     for imp, index in document.ast.imports {
 
+        //ERROR no completion on imp!
+
         //collection specified
         if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 {
 
@@ -402,12 +404,34 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
             }
 
             document.imports[index].name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
-            document.imports[index].base = path.base(document.imports[index].name, false);
+
+            if imp.name.text != "" {
+                document.imports[index].base = imp.name.text;
+            }
+
+            else {
+                document.imports[index].base = path.base(document.imports[index].name, false);
+            }
+
         }
 
         //relative
         else {
 
+            document.imports[index].name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
+
+            document.imports[index].name = path.clean(document.imports[index].name);
+
+            if imp.name.text != "" {
+                document.imports[index].base = imp.name.text;
+            }
+
+            else {
+                document.imports[index].base = path.base(document.imports[index].name, false);
+            }
+
+            //ERROR not showing signature
+            //log.info()
         }
 
     }
