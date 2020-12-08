@@ -300,7 +300,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
             name: string;
 
-            base := path.base(uri);
+            base := path.base(uri, false, context.temp_allocator);
 
             full := path.join(elems = {base, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
 

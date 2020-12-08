@@ -9,6 +9,7 @@ import "core:strings"
 import "core:path"
 import "core:mem"
 import "core:strconv"
+import "core:path/filepath"
 
 import "shared:common"
 import "shared:index"
@@ -42,6 +43,7 @@ AstContext :: struct {
     globals: map [string] ^ast.Expr,
     variables: map [string] bool,
     parameters: map [string] bool,
+    in_package: map[string] string, //sometimes you have to extract types from arrays/maps and you lose package information
     usings: [dynamic] string,
     file: ast.File,
     allocator: mem.Allocator,
@@ -61,6 +63,7 @@ make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: stri
         variables = make(map [string] bool, 0, allocator),
         usings = make([dynamic] string, allocator),
         parameters = make(map [string] bool, 0, allocator),
+        in_package = make(map[string] string, 0, allocator),
         file = file,
         imports = imports,
         use_locals = true,
@@ -568,13 +571,13 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
                 if len(s.return_types) == 1 {
                     //ERROR wierd signature help index.new_type() (maybe generics problem)
-                    selector_expr := index.new_type(ast.Selector_Expr, {}, {}, context.temp_allocator);
+                    selector_expr := index.new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, context.temp_allocator);
                     selector_expr.expr = s.return_types[0].type;
                     selector_expr.field = v.field;
                     return resolve_type_expression(ast_context, selector_expr);
                 }
             case index.SymbolStructValue:
-                if selector.uri != "" {
+                if selector.pkg != "" {
                     ast_context.current_package = selector.pkg;
                 }
 
@@ -622,7 +625,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                         #partial switch s2 in symbol.value {
                         case index.SymbolStructValue:
 
-                            if selector.uri != "" {
+                            if selector.pkg != "" {
                                 ast_context.current_package = symbol.pkg;
                             }
 
@@ -654,7 +657,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     }
 
     return index.Symbol {}, false;
-
 }
 
 
@@ -665,6 +667,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
 
     using ast;
+
+    if pkg, ok := ast_context.in_package[node.name]; ok {
+        ast_context.current_package = pkg;
+    }
 
     if _, ok := ast_context.parameters[node.name]; ok {
         for imp in ast_context.imports {
@@ -943,12 +949,18 @@ make_int_ast :: proc() -> ^ast.Ident {
     return ident;
 }
 
+get_package_from_node :: proc(node: ast.Node) -> string {
+    slashed, _ := filepath.to_slash(node.pos.file, context.temp_allocator);
+    ret := strings.to_lower(path.dir(slashed, context.temp_allocator));
+    return ret;
+}
+
 make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Function,
-        pkg = ast_context.current_package,
+        pkg = get_package_from_node(v.node),
     };
 
     symbol.name = name;
@@ -988,7 +1000,7 @@ make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) 
     symbol := index.Symbol {
         range = common.get_token_range(expr, ast_context.file.src),
         type = .Variable,
-        pkg = ast_context.current_package,
+        pkg = get_package_from_node(expr^),
         signature = common.get_ast_node_string(expr, ast_context.file.src),
     };
 
@@ -1004,7 +1016,7 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Enum,
-        pkg = ast_context.current_package,
+        pkg = get_package_from_node(v.node),
     };
 
     names := make([dynamic] string, context.temp_allocator);
@@ -1029,7 +1041,7 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) ->
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Enum,
-        pkg = ast_context.current_package,
+        pkg = get_package_from_node(v.node),
     };
 
     names := make([dynamic] string, context.temp_allocator);
@@ -1054,7 +1066,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Struct,
-        pkg = ast_context.current_package,
+        pkg = get_package_from_node(v.node),
     };
 
     names := make([dynamic] string, context.temp_allocator);
@@ -1234,6 +1246,9 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
         get_locals_assign_stmt(file, v, ast_context);
     case Using_Stmt:
         get_locals_using_stmt(file, v, ast_context);
+    case When_Stmt:
+        get_locals_stmt(file, v.else_stmt, ast_context, document_position);
+        get_locals_stmt(file, v.body, ast_context, document_position);
     case:
         //log.debugf("default node local stmt %v", v);
     }
@@ -1311,7 +1326,6 @@ get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstC
     get_locals_stmt(file, stmt.else_stmt, ast_context, document_position);
 }
 
-
 get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
     using ast;
@@ -1338,6 +1352,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val0.derived.(Ident); ok {
                         ast_context.locals[ident.name] = v.key;
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1347,6 +1362,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val1.derived.(Ident); ok {
                         ast_context.locals[ident.name] = v.value;
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1356,6 +1372,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val0.derived.(Ident); ok {
                         ast_context.locals[ident.name] = v.elem;
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1365,6 +1382,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val1.derived.(Ident); ok {
                         ast_context.locals[ident.name] = make_int_ast();
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1374,6 +1392,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val0.derived.(Ident); ok {
                         ast_context.locals[ident.name] = v.elem;
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1383,6 +1402,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                     if ident, ok := stmt.val1.derived.(Ident); ok {
                         ast_context.locals[ident.name] = make_int_ast();
                         ast_context.variables[ident.name] = true;
+                        ast_context.in_package[ident.name] = symbol.pkg;
                     }
 
                 }
@@ -1664,7 +1684,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             return list, true;
         }
 
-        if selector.uri != "" {
+        if selector.pkg != "" {
             ast_context.current_package = selector.pkg;
         }
 
@@ -1709,7 +1729,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             for name, i in v.names {
 
-                if selector.uri != "" {
+                if selector.pkg != "" {
                     ast_context.current_package = selector.pkg;
                 }
 
@@ -1741,7 +1761,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
 
                 for search in searched {
-                    append(&symbols, search);
+                    append(&symbols, search.symbol);
                 }
 
             }
@@ -1764,7 +1784,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                     case index.SymbolStructValue:
                         for name, i in s.names {
 
-                            if selector.uri != "" {
+                            if selector.pkg != "" {
                                 ast_context.current_package = selector.pkg;
                             }
 
@@ -2041,7 +2061,9 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             bracket_count -= 1;
         }
 
-        if c == ' ' || c == '{' || c == ',' || c == '}' || c == '\n' || c == '\r' {
+        if c == ' ' || c == '{' || c == ',' ||
+           c == '}' || c == '^' ||
+           c == '\n' || c == '\r' {
             start = i+1;
             break;
         }

@@ -74,8 +74,22 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
     mem.copy(res, src, size);
     res.derived.data = rawptr(res);
 
-    res.pos.file = "";
-    res.end.file = "";
+    if unique_strings != nil && node.pos.file != "" {
+        res.pos.file = get_index_unique_string(unique_strings, allocator, node.pos.file);
+    }
+
+    else {
+        res.pos.file = node.pos.file;
+    }
+
+    if unique_strings != nil && node.end.file != "" {
+        res.end.file = get_index_unique_string(unique_strings, allocator, node.end.file);
+    }
+
+    else {
+        res.end.file = node.end.file;
+    }
+
 
     switch n in node.derived {
     case Bad_Expr:

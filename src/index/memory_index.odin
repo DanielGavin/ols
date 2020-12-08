@@ -31,9 +31,9 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
     return index.collection.symbols[id];
 }
 
-memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] string) -> ([] Symbol, bool) {
+memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] string) -> ([] FuzzyResult, bool) {
 
-    symbols := make([dynamic] Symbol, 0, context.temp_allocator);
+    symbols := make([dynamic] FuzzyResult, 0, context.temp_allocator);
 
     fuzzy_matcher := common.make_fuzzy_matcher(name);
 
@@ -51,8 +51,9 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] st
         }
 
         if name == "" || common.fuzzy_match(fuzzy_matcher, symbol.name) > 0.5 {
-            append(&symbols, symbol);
-             i += 1;
+            result := FuzzyResult {symbol = symbol};
+            append(&symbols, result);
+            i += 1;
         }
 
 
