@@ -418,6 +418,10 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
         //relative
         else {
 
+            if len(imp.fullpath) < 2 {
+                continue;
+            }
+
             document.imports[index].name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
 
             document.imports[index].name = path.clean(document.imports[index].name);

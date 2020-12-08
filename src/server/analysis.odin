@@ -1740,7 +1740,9 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
                     symbol.name = name;
                     symbol.type = .Field;
-                    symbol.signature = common.get_ast_node_string(v.types[i], ast_context.file.src);
+                    symbol.signature = index.node_to_string(v.types[i]);
+
+
                     append(&symbols, symbol);
                 }
 
@@ -1795,7 +1797,9 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                             if symbol, ok := resolve_type_expression(&ast_context, s.types[i]); ok {
                                 symbol.name = name;
                                 symbol.type = .Field;
-                                symbol.signature = common.get_ast_node_string(s.types[i], ast_context.file.src);
+                                symbol.signature = index.node_to_string(s.types[i]);
+
+
                                 append(&symbols, symbol);
                             }
 
@@ -1859,6 +1863,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         for item, i in items {
 
             ident.name = item.label;
+
+            ast_context.use_locals = true;
+            ast_context.use_globals = true;
+            ast_context.current_package = ast_context.document_package;
 
             if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
 
