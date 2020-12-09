@@ -1,0 +1,3 @@
+Go to definition on chained selector expressions, ie. (foo.bar.a), will always to the last value defintion.
+Completions work in comments.
+Generic procedures have issues with showing the parameter information.
