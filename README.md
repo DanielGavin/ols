@@ -44,8 +44,8 @@ Example of ols.json:
   
 ## Clients
   
-  ### VS Code
-    [Extension](https://github.com/DanielGavin/ols-vscode.com)
+### VS Code
+  [Extension](https://github.com/DanielGavin/ols-vscode.com)
   
 ## Issues
-  All the current known issues are found [here]https://github.com/DanielGavin/ols/blob/master/know_issues.txt
+  All the current known issues are found [here](https://github.com/DanielGavin/ols/blob/master/know_issues.txt)
