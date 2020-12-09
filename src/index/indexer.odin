@@ -4,6 +4,7 @@ import "core:odin/ast"
 import "core:fmt"
 import "core:strings"
 import "core:log"
+import "core:sort"
 
 
 /*
@@ -45,7 +46,7 @@ indexer: Indexer;
 
 FuzzyResult :: struct {
     symbol: Symbol,
-    weight: f32,
+    score: f32,
 };
 
 
@@ -71,3 +72,21 @@ fuzzy_search :: proc(name: string, pkgs: [] string) -> ([] FuzzyResult, bool) {
     return memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
 }
 
+
+fuzzy_sort_interface :: proc(s: ^[dynamic] FuzzyResult) -> sort.Interface {
+	return sort.Interface{
+		collection = rawptr(s),
+		len = proc(it: sort.Interface) -> int {
+			s := (^[dynamic] FuzzyResult)(it.collection);
+			return len(s^);
+		},
+		less = proc(it: sort.Interface, i, j: int) -> bool {
+			s := (^[dynamic] FuzzyResult)(it.collection);
+			return s[i].score > s[j].score;
+		},
+		swap = proc(it: sort.Interface, i, j: int) {
+			s := (^[dynamic] FuzzyResult)(it.collection);
+			s[i], s[j] = s[j], s[i];
+		},
+	};
+}

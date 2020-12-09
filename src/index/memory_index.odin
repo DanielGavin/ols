@@ -4,6 +4,7 @@ import "core:hash"
 import "core:strings"
 import "core:fmt"
 import "core:log"
+import "core:sort"
 
 import "shared:common"
 
@@ -38,28 +39,35 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] st
     fuzzy_matcher := common.make_fuzzy_matcher(name);
 
     top := 20;
-    i := 0;
 
     for _, symbol in index.collection.symbols {
-
-        if i >= top {
-            break;
-        }
 
         if !exists_in_scope(symbol.pkg, pkgs) {
             continue;
         }
 
-        if name == "" || common.fuzzy_match(fuzzy_matcher, symbol.name) > 0.5 {
-            result := FuzzyResult {symbol = symbol};
-            append(&symbols, result);
-            i += 1;
-        }
+        score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name);
 
+        result := FuzzyResult {
+            symbol = symbol,
+            score = score,
+        };
+
+        append(&symbols, result);
 
     }
 
-    return symbols[:], true;
+    //strings.builder
+    sort.sort(fuzzy_sort_interface(&symbols));
+
+    //sort. ERROR CRASH
+
+    for s in symbols {
+        log.infof("score %v", s.score);
+    }
+
+
+    return symbols[:top], true;
 }
 
 exists_in_scope :: proc(symbol_scope: string, scope: [] string) -> bool {

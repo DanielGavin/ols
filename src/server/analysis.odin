@@ -553,15 +553,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return index.Symbol {}, false;
     case Selector_Expr:
 
-        if ident, ok := v.expr.derived.(Ident); ok {
-
-            if !resolve_ident_is_variable(ast_context, ident) && !resolve_ident_is_package(ast_context, ident) {
-                log.debugf("not a variable or package %v", ident.name);
-                return {}, false;
-            }
-
-        }
-
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
 
             ast_context.use_locals = false;
@@ -610,15 +601,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                 */
 
                 if ptr, ok := s.expr.derived.(Pointer_Type); ok {
-
-                    if ident, ok := v.expr.derived.(Ident); ok {
-
-                        if !resolve_ident_is_variable(ast_context, ident) && !resolve_ident_is_package(ast_context, ident) {
-                            log.debugf("not a variable or package %v", ident.name);
-                            return {}, false;
-                        }
-
-                    }
 
                     if symbol, ok := resolve_type_expression(ast_context, ptr.elem); ok {
 
@@ -1234,6 +1216,8 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
         get_locals_switch_stmt(file, v, ast_context, document_position);
     case For_Stmt:
         get_locals_for_stmt(file, v, ast_context, document_position);
+    case Inline_Range_Stmt:
+        get_locals_stmt(file, v.body, ast_context, document_position);
     case Range_Stmt:
         get_locals_for_range_stmt(file, v, ast_context, document_position);
     case If_Stmt:
@@ -1275,6 +1259,7 @@ get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context:
                     selector.field = index.new_type(ast.Ident, v.types[i].pos, v.types[i].end, context.temp_allocator);
                     selector.field.name = name;
                     ast_context.locals[name] = selector;
+                    ast_context.variables[name] = true;
                 }
 
             }
@@ -1665,8 +1650,15 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     items := make([dynamic] CompletionItem, context.temp_allocator);
 
-    //log.infof("ident %v", position_context.identifier);
     if position_context.selector != nil {
+
+        if ident, ok := position_context.selector.derived.(ast.Ident); ok {
+
+            if !resolve_ident_is_variable(&ast_context, ident) && !resolve_ident_is_package(&ast_context, ident) {
+                return list, true;
+            }
+
+        }
 
         symbols := make([dynamic] index.Symbol, context.temp_allocator);
 
@@ -2070,7 +2062,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         }
 
         if c == ' ' || c == '{' || c == ',' ||
-           c == '}' || c == '^' ||
+           c == '}' || c == '^' || c == ':' ||
            c == '\n' || c == '\r' {
             start = i+1;
             break;

@@ -58,6 +58,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
     case Implicit:
     case Undef:
     case Basic_Lit:
+        //strings.write_string(builder, n.tok.text);
     case Ellipsis:
         build_string(n.expr, builder);
     case Proc_Lit:
@@ -151,7 +152,10 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.elem, builder);
         build_string(n.underlying, builder);
     case Map_Type:
+        strings.write_string(builder, "map");
+        strings.write_string(builder, "[");
         build_string(n.key, builder);
+        strings.write_string(builder, "]");
         build_string(n.value, builder);
     }
 
