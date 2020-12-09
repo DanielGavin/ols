@@ -10,10 +10,14 @@ import "core:path"
 import "core:mem"
 import "core:strconv"
 import "core:path/filepath"
+import "core:sort"
 
 import "shared:common"
 import "shared:index"
 
+/*
+    TODO(replace all of the possible ast walking with the new odin visitor function)
+*/
 
 bool_lit := "bool";
 int_lit := "int";
@@ -348,8 +352,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
        name = function_name,
     };
 
-    //symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[params[0].pos.offset:params[len(params)-1].end.offset]), ")"}, context.temp_allocator);
-
     return_types := make([dynamic] ^ast.Field, context.temp_allocator);
 
     for result in results {
@@ -511,6 +513,18 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_type_identifier(ast_context, v);
     case Basic_Lit:
         return resolve_basic_lit(ast_context, v);
+    case Type_Cast:
+        return resolve_type_expression(ast_context, v.expr);
+    case Unary_Expr:
+        return resolve_type_expression(ast_context, v.expr);
+    case Deref_Expr:
+        return resolve_type_expression(ast_context, v.expr);
+    case Paren_Expr:
+        return resolve_type_expression(ast_context, v.expr);
+    case Slice_Expr:
+        return resolve_type_expression(ast_context, v.expr);
+    case Tag_Expr:
+        return resolve_type_expression(ast_context, v.expr);
     case Type_Assertion:
         resolve_type_expression(ast_context, v.type);
     case Proc_Lit:
@@ -549,7 +563,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         ast_context.call = node;
         return resolve_type_expression(ast_context, v.expr);
     case Implicit_Selector_Expr:
-        log.info(v);
         return index.Symbol {}, false;
     case Selector_Expr:
 
@@ -561,7 +574,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
             case index.SymbolProcedureValue:
 
                 if len(s.return_types) == 1 {
-                    //ERROR wierd signature help index.new_type() (maybe generics problem)
                     selector_expr := index.new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, context.temp_allocator);
                     selector_expr.expr = s.return_types[0].type;
                     selector_expr.field = v.field;
@@ -937,6 +949,30 @@ get_package_from_node :: proc(node: ast.Node) -> string {
     return ret;
 }
 
+get_using_packages :: proc(ast_context: ^AstContext) -> [] string {
+
+    usings := make([] string, len(ast_context.usings), context.temp_allocator);
+
+    if len(ast_context.usings) == 0 {
+        return usings;
+    }
+
+    //probably map instead
+    for u, i in ast_context.usings {
+
+        for imp in ast_context.imports {
+
+            if strings.compare(imp.base, u) == 0 {
+                usings[i] = imp.name;
+            }
+
+        }
+
+    }
+
+    return usings;
+}
+
 make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
 
     symbol := index.Symbol {
@@ -983,7 +1019,6 @@ make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) 
         range = common.get_token_range(expr, ast_context.file.src),
         type = .Variable,
         pkg = get_package_from_node(expr^),
-        signature = common.get_ast_node_string(expr, ast_context.file.src),
     };
 
     symbol.value = index.SymbolGenericValue {
@@ -1824,62 +1859,119 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     else {
 
-        log.infof("label %v", position_context.identifier);
+        list.isIncomplete = true;
 
-        /*
-            Just show the local and global symbols of the document
+        CombinedResult :: struct {
+            score: f32,
+            symbol: index.Symbol,
+            variable: ^ast.Ident,
+        };
 
-            TODO(Add fuzzy matching)
-        */
+        combined_sort_interface :: proc(s: ^[dynamic] CombinedResult) -> sort.Interface {
+            return sort.Interface{
+                collection = rawptr(s),
+                len = proc(it: sort.Interface) -> int {
+                    s := (^[dynamic] CombinedResult)(it.collection);
+                    return len(s^);
+                },
+                less = proc(it: sort.Interface, i, j: int) -> bool {
+                    s := (^[dynamic] CombinedResult)(it.collection);
+                    return s[i].score > s[j].score;
+                },
+                swap = proc(it: sort.Interface, i, j: int) {
+                    s := (^[dynamic] CombinedResult)(it.collection);
+                    s[i], s[j] = s[j], s[i];
+                },
+            };
+        }
+
+        combined := make([dynamic] CombinedResult);
+
+        lookup := "";
+
+        if ident, ok := position_context.identifier.derived.(ast.Ident); ok {
+            lookup = ident.name;
+        }
+
+
+        pkgs := make([dynamic] string, context.temp_allocator);
+
+        usings := get_using_packages(&ast_context);
+
+        for u in usings {
+            append(&pkgs, u);
+        }
+
+        append(&pkgs, ast_context.document_package);
+
+        if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
+
+            for r in results {
+                append(&combined, CombinedResult { score = r.score, symbol = r.symbol});
+            }
+
+        }
+
+        matcher := common.make_fuzzy_matcher(lookup);
 
         for k, v in ast_context.locals {
-
-            item := CompletionItem {
-                label = k,
-            };
-
-            append(&items, item);
-        }
-
-        for k, v in ast_context.globals {
-
-            item := CompletionItem {
-                label = k,
-            };
-
-            append(&items, item);
-        }
-
-        ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
-
-        for item, i in items {
-
-            ident.name = item.label;
 
             ast_context.use_locals = true;
             ast_context.use_globals = true;
             ast_context.current_package = ast_context.document_package;
 
-            if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
+            ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
+            ident.name = k;
 
+            if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
                 symbol.name = ident.name;
 
-                if ok := resolve_ident_is_variable(&ast_context, ident^); ok {
-                    items[i].kind = .Variable;
+                if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+                    append(&combined, CombinedResult { score = score * 1.1, symbol = symbol, variable = ident });
+                }
+
+            }
+        }
+
+        sort.sort(combined_sort_interface(&combined));
+
+        //hard code for now
+        top_results := combined[0:(min(20, len(combined)))];
+
+        log.info(top_results);
+
+        for result in top_results {
+
+            item := CompletionItem {
+                label = result.symbol.name,
+                detail = concatenate_symbols_information(&ast_context, result.symbol),
+            };
+
+            if result.variable != nil {
+
+                if ok := resolve_ident_is_variable(&ast_context, result.variable^); ok {
+                    item.kind = .Variable;
                 }
 
                 else {
-                    items[i].kind = cast(CompletionItemKind)symbol.type;
+                    item.kind = cast(CompletionItemKind)result.symbol.type;
                 }
 
-                items[i].detail = concatenate_symbols_information(&ast_context, symbol);
             }
 
-            //ERROR items[i].
+            else {
+                item.kind = cast(CompletionItemKind)result.symbol.type;
+            }
+
+            append(&items, item);
         }
+
 
         list.items = items[:];
     }
+
+
+
 
     return list, true;
 }
@@ -2027,6 +2119,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
     end: int;
     start: int;
     empty_dot: bool;
+    last_dot: bool;
     i := position_context.position-1;
 
     end = i;
@@ -2041,6 +2134,11 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         }
 
         else if c == '[' && bracket_count == 0 {
+            start = i+1;
+            break;
+        }
+
+        else if c == ']' && !last_dot {
             start = i+1;
             break;
         }
@@ -2061,12 +2159,23 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             bracket_count -= 1;
         }
 
+        else if c == '.' {
+            last_dot = true;
+            i -= 1;
+            continue;
+        }
+
+        //yeah..
         if c == ' ' || c == '{' || c == ',' ||
            c == '}' || c == '^' || c == ':' ||
-           c == '\n' || c == '\r' {
+           c == '\n' || c == '\r' || c == '=' ||
+           c == '<' || c == '>' || c == '-' ||
+           c == '+' {
             start = i+1;
             break;
         }
+
+        last_dot = false;
 
         i -= 1;
     }
@@ -2217,7 +2326,6 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Bad_Expr:
     case Ident:
         position_context.identifier = node;
-        return;
     case Implicit:
     case Undef:
     case Basic_Lit:
@@ -2249,12 +2357,20 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.expr, position_context);
         get_document_position(n.args, position_context);
     case Selector_Expr:
-        if position_context.hint == .Completion || position_context.hint == .Definition  {
+        if position_context.hint == .Completion  {
             if n.field != nil && n.field.pos.line == position_context.line {
                 position_context.selector = n.expr;
                 position_context.field = n.field;
             }
         }
+
+        else if position_context.hint == .Definition && n.field != nil {
+            position_context.selector = n.expr;
+            position_context.field = n.field;
+            get_document_position(n.expr, position_context);
+            get_document_position(n.field, position_context);
+        }
+
         else {
             get_document_position(n.expr, position_context);
             get_document_position(n.field, position_context);
@@ -2411,6 +2527,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Map_Type:
         get_document_position(n.key, position_context);
         get_document_position(n.value, position_context);
+    case Implicit_Selector_Expr:
+        get_document_position(n.field, position_context);
     case:
         log.errorf("Unhandled node kind: %T", n);
     }

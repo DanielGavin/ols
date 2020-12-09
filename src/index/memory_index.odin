@@ -46,28 +46,20 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: [] st
             continue;
         }
 
-        score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name);
+        if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok {
+            result := FuzzyResult {
+                symbol = symbol,
+                score = score,
+            };
 
-        result := FuzzyResult {
-            symbol = symbol,
-            score = score,
-        };
-
-        append(&symbols, result);
+            append(&symbols, result);
+        }
 
     }
 
-    //strings.builder
     sort.sort(fuzzy_sort_interface(&symbols));
 
-    //sort. ERROR CRASH
-
-    for s in symbols {
-        log.infof("score %v", s.score);
-    }
-
-
-    return symbols[:top], true;
+    return symbols[:min(top, len(symbols))], true;
 }
 
 exists_in_scope :: proc(symbol_scope: string, scope: [] string) -> bool {

@@ -3,6 +3,10 @@ package common
 import "core:strings"
 import "core:fmt"
 
+/*
+    Ported from https://github.com/llvm/llvm-project/blob/master/clang-tools-extra/clangd/FuzzyMatch.cpp
+*/
+
 max_pattern :: 63;
 max_word :: 127;
 
@@ -121,6 +125,39 @@ make_fuzzy_matcher :: proc (pattern: string, allocator := context.temp_allocator
     return matcher;
 }
 
+fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
+
+    builder := strings.make_builder(context.temp_allocator);
+
+    if len(word) <= 1 {
+        return "", false;
+    }
+
+    i := 1;
+    last_char := word[0];
+
+    strings.write_byte(&builder, last_char);
+
+    for i < len(word) {
+
+        if last_char == '_' {
+            strings.write_byte(&builder, word[i]);
+        }
+
+        last_char = word[i];
+
+        i += 1;
+    }
+
+    str := strings.to_string(builder);
+
+    if len(str) <= 1 {
+        return "", false;
+    }
+
+    return str, true;
+}
+
 fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 
     if !fuzzy_init(matcher, word) {
@@ -128,8 +165,13 @@ fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
     }
 
     if matcher.pattern_count <= 0 {
-        //fmt.println("return");
         return 1, true;
+    }
+
+    if acronym, ok := fuzzy_to_acronym(word); ok {
+        if acronym == matcher.pattern {
+            return 20, true;
+        }
     }
 
     fuzzy_build_graph(matcher);
@@ -137,10 +179,7 @@ fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
     best := max(cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score,
                 cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score);
 
-    //fmt.println("best ", best);
-
     if fuzzy_is_awful(best) {
-        //fmt.println("awful");
         return 0.0, false;
     }
 
