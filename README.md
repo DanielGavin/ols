@@ -3,7 +3,7 @@ Language server for Odin. This project is still in early development.
 
 ## Table Of Contents
 - [Installation](#installation)
-  - [Configurations](#configurations)
+  - [Configuration](#Configuration)
 - [Features](#features)
 - [Clients](#clients)
   
@@ -26,7 +26,7 @@ Example of ols.json:
 {
   "collections": [{ "name": "core", "path": "c:/path/to/Odin/core" },
                   { "name": "shared", "path": "c:/path/to/MyProject/src" }],
-	"thread_pool_count": 4,
+  "thread_pool_count": 4,
   "enable_semantic_tokens": false,
   "enable_document_symbols": false,
 }
@@ -40,8 +40,8 @@ Example of ols.json:
   - Semantic tokens
   - Document symbols
   
-## Client
+## Clients
   
   ### VS Code
-    [Extension](https://github.com/DanielGavin/ols-vscode)
+    [Extension] (https://github.com/DanielGavin/ols-vscode)
   
