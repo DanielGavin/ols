@@ -11,12 +11,14 @@ import "core:mem"
 import "core:strconv"
 import "core:path/filepath"
 import "core:sort"
+import "core:slice"
 
 import "shared:common"
 import "shared:index"
 
 /*
     TODO(replace all of the possible ast walking with the new odin visitor function)
+    TODO(improve the current_package logic, kinda confusing switching between different packages with selectors)
 */
 
 bool_lit := "bool";
@@ -300,7 +302,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
         for name in param.names {
 
-            if len(call_expr.args) >= i {
+            if len(call_expr.args) <= i {
                 break;
             }
 
@@ -515,6 +517,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_basic_lit(ast_context, v);
     case Type_Cast:
         return resolve_type_expression(ast_context, v.expr);
+    case Auto_Cast:
+        return resolve_type_expression(ast_context, v.expr);
     case Unary_Expr:
         return resolve_type_expression(ast_context, v.expr);
     case Deref_Expr:
@@ -525,6 +529,12 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_type_expression(ast_context, v.expr);
     case Tag_Expr:
         return resolve_type_expression(ast_context, v.expr);
+    case Ellipsis:
+        return resolve_type_expression(ast_context, v.expr);
+    case Implicit:
+        ident := index.new_type(Ident, v.node.pos, v.node.end, context.temp_allocator);
+        ident.name = v.tok.text;
+        return resolve_type_identifier(ast_context, ident^);
     case Type_Assertion:
         resolve_type_expression(ast_context, v.type);
     case Proc_Lit:
@@ -768,6 +778,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
     }
 
+    //if there are more of these variables that hard builtin, move them to the indexer
+    else if node.name == "context" {
+        log.info("found context");
+        return index.lookup("Context", ast_context.current_package);
+    }
     //keywords
     else if v, ok := common.keyword_map[node.name]; ok {
 
@@ -1214,10 +1229,10 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
         get_generic_assignment(file, value, ast_context, &results);
     }
 
-
     for name, i in value_decl.names {
         if i < len(results) {
             str := common.get_ast_node_string(name, file.src);
+            ast_context.in_package[str] = get_package_from_node(results[i]);
             ast_context.locals[str] = results[i];
             ast_context.variables[str] = value_decl.is_mutable;
         }
@@ -1261,6 +1276,8 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
         for stmt in v.stmts {
             get_locals_stmt(file, stmt, ast_context, document_position);
         }
+    case Proc_Lit:
+        get_locals_stmt(file, v.body, ast_context, document_position);
     case Assign_Stmt:
         get_locals_assign_stmt(file, v, ast_context);
     case Using_Stmt:
@@ -1554,6 +1571,10 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
 
     }
 
+    else if symbol.type == .Package {
+        return symbol.name;
+    }
+
     else {
         if symbol.signature != "" {
             return strings.concatenate({pkg, "::", symbol.name, ": ", symbol.signature}, context.temp_allocator);
@@ -1774,8 +1795,11 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 }
 
                 else {
-                    log.errorf("Failed to resolve field: %v", name);
-                    return list, true;
+                    //just give some generic symbol with name.
+                    symbol: index.Symbol;
+                    symbol.name = name;
+                    symbol.type = .Field;
+                    append(&symbols, symbol);
                 }
 
             }
@@ -1831,8 +1855,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                             }
 
                             else {
-                                log.errorf("Failed to resolve field: %v", name);
-                                return list, true;
+                                symbol: index.Symbol;
+                                symbol.name = name;
+                                symbol.type = .Field;
+                                append(&symbols, symbol);
                             }
                         }
                     }
@@ -1893,7 +1919,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             lookup = ident.name;
         }
 
-
         pkgs := make([dynamic] string, context.temp_allocator);
 
         usings := get_using_packages(&ast_context);
@@ -1914,6 +1939,32 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         matcher := common.make_fuzzy_matcher(lookup);
 
+        global: for k, v in ast_context.globals {
+
+            //combined is sorted and should do binary search instead.
+            for result in combined {
+                if result.symbol.name == k {
+                    continue global;
+                }
+            }
+
+            ast_context.use_locals = true;
+            ast_context.use_globals = true;
+            ast_context.current_package = ast_context.document_package;
+
+            ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
+            ident.name = k;
+
+            if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
+                symbol.name = ident.name;
+
+                if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+                    append(&combined, CombinedResult { score = score * 1.1, symbol = symbol, variable = ident });
+                }
+
+            }
+        }
+
         for k, v in ast_context.locals {
 
             ast_context.use_locals = true;
@@ -1933,6 +1984,21 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             }
         }
 
+
+        for pkg in ast_context.imports {
+
+            symbol: index.Symbol;
+
+            symbol.name = pkg.base;
+            symbol.type = .Package;
+
+            if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+                append(&combined,  CombinedResult { score = score * 1.1, symbol = symbol });
+            }
+        }
+
+
+
         sort.sort(combined_sort_interface(&combined));
 
         //hard code for now
@@ -1948,7 +2014,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             };
 
             if result.variable != nil {
-
+                //ERROR crash on definition
                 if ok := resolve_ident_is_variable(&ast_context, result.variable^); ok {
                     item.kind = .Variable;
                 }

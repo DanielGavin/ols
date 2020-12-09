@@ -39,6 +39,7 @@ import "core:sort"
 
 
 Indexer :: struct {
+    built_in_packages: [dynamic] string,
     static_index: MemoryIndex,
 };
 
@@ -57,11 +58,14 @@ lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, b
         return symbol, true;
     }
 
-    if symbol, ok := memory_index_lookup(&indexer.static_index, name, "builtin"); ok {
-        log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
-        return symbol, true;
-    }
+    for built in indexer.built_in_packages {
 
+        if symbol, ok := memory_index_lookup(&indexer.static_index, name, built); ok {
+            log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
+            return symbol, true;
+        }
+
+    }
 
     log.infof("lookup failed name: %v pkg: %v location %v", name, pkg, loc);
     return {}, false;

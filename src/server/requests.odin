@@ -112,7 +112,7 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
         }
 
         header_name := message[0:index];
-        header_value := message[len(header_name) + 2 : len(message)-1];
+        header_value := message[len(header_name) + 2 : len(message)-2];
 
         if strings.compare(header_name, "Content-Length") == 0 {
 
@@ -491,6 +491,15 @@ request_initialize :: proc(task: ^common.Task) {
     */
 
     index.build_static_index(context.allocator, config);
+
+    /*
+        Add the builtin and runtime package
+    */
+
+    if core, ok := config.collections["core"]; ok {
+        append(&index.indexer.built_in_packages, path.join(core, "builtin"));
+        append(&index.indexer.built_in_packages, path.join(core, "runtime"));
+    }
 
     log.info("Finished indexing");
 }
