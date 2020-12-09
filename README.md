@@ -6,6 +6,7 @@ Language server for Odin. This project is still in early development.
   - [Configuration](#Configuration)
 - [Features](#features)
 - [Clients](#clients)
+- [Known issues](#issues)
   
 ## Installation
 
@@ -39,9 +40,12 @@ Example of ols.json:
   - Go to definition
   - Semantic tokens
   - Document symbols
+  - Signature help
   
 ## Clients
   
   ### VS Code
-    [Extension] (https://github.com/DanielGavin/ols-vscode)
+    [Extension](https://github.com/DanielGavin/ols-vscode.com)
   
+## Issues
+  All the current known issues are found [here]https://github.com/DanielGavin/ols/blob/master/know_issues.txt
