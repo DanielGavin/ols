@@ -7,7 +7,7 @@ Language server for Odin. This project is still in early development.
 - [Features](#features)
 - [Clients](#clients)
 - [Known issues](#issues)
-- [Missing features](#missiing-features)
+- [Missing features](#missing-features)
   
 ## Installation
 
