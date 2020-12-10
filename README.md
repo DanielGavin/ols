@@ -48,8 +48,9 @@ Example of ols.json:
 ## Clients
   
 ### VS Code
-  https://github.com/DanielGavin/ols-vscode
+Install the extension https://github.com/DanielGavin/ols-vscode
 ### Sublime
+Install the package https://github.com/sublimelsp/LSP
 ```
 {
 	"clients":
