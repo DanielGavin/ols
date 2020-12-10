@@ -393,23 +393,27 @@ request_initialize :: proc(task: ^common.Task) {
 
     thread_count := 2;
 
-    //right now just look at the first workspace - TODO(daniel, add multiple workspace support)
-    if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+    if len(config.workspace_folders) > 0 {
 
-        ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
+        //right now just look at the first workspace - TODO(daniel, add multiple workspace support)
+        if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 
-        if data, ok := os.read_entire_file(ols_config_path, context.temp_allocator); ok {
+            ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
 
-            if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
+            if data, ok := os.read_entire_file(ols_config_path, context.temp_allocator); ok {
 
-                ols_config: OlsConfig;
+                if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
 
-                if unmarshal(value, ols_config, context.temp_allocator) == .None {
+                    ols_config: OlsConfig;
 
-                    thread_count = ols_config.thread_pool_count;
+                    if unmarshal(value, ols_config, context.temp_allocator) == .None {
 
-                    for p in ols_config.collections {
-                        config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
+                        thread_count = ols_config.thread_pool_count;
+
+                        for p in ols_config.collections {
+                            config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
+                        }
+
                     }
 
                 }
