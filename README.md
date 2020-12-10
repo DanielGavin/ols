@@ -71,9 +71,8 @@ Configuration of the LSP:
 			],
 			"syntaxes":
 			[
-				"Packages/odin/Odin.sublime-syntax"
-			],
-			"initializationOptions": { "test": true }
+				"Packages/Odin/Odin.sublime-syntax"
+			]
 		}
 	},
 	"only_show_lsp_completions": true,
