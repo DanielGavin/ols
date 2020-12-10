@@ -51,6 +51,8 @@ Example of ols.json:
 Install the extension https://github.com/DanielGavin/ols-vscode
 ### Sublime
 Install the package https://github.com/sublimelsp/LSP
+
+Configuration of the LSP:
 ```
 {
 	"clients":
