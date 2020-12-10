@@ -40,6 +40,7 @@ RequestType :: enum {
 };
 
 RequestInfo :: struct {
+    root: json.Value,
     params: json.Value,
     document: ^Document,
     id: RequestId,
@@ -242,6 +243,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
 
         info := new(RequestInfo);
 
+        info.root = request;
         info.params = root["params"];
         info.id = id;
         info.config = config;
@@ -366,7 +368,7 @@ request_initialize :: proc(task: ^common.Task) {
 
     using info;
 
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -506,6 +508,10 @@ request_initialize :: proc(task: ^common.Task) {
 
 request_initialized :: proc(task: ^common.Task) {
     info := get_request_info(task);
+
+    using info;
+
+    json.destroy_value(root);
     free(info);
 }
 
@@ -515,7 +521,7 @@ request_shutdown :: proc(task: ^common.Task) {
 
     using info;
 
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     response := make_response_message(
@@ -536,7 +542,7 @@ request_definition :: proc(task: ^common.Task) {
 
     defer document_release(document);
     defer free(info);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
 
     params_object, ok := params.value.(json.Object);
 
@@ -574,7 +580,7 @@ request_completion :: proc(task: ^common.Task) {
     using info;
 
     defer document_release(document);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -616,7 +622,7 @@ request_signature_help :: proc(task: ^common.Task) {
     using info;
 
     defer document_release(document);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -647,6 +653,10 @@ request_signature_help :: proc(task: ^common.Task) {
 notification_exit :: proc(task: ^common.Task) {
     info := get_request_info(task);
     using info;
+
+    defer json.destroy_value(root);
+    defer free(info);
+
     config.running = false;
 }
 
@@ -656,7 +666,7 @@ notification_did_open :: proc(task: ^common.Task) {
 
     using info;
 
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -686,7 +696,7 @@ notification_did_change :: proc(task: ^common.Task) {
 
     using info;
 
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -713,7 +723,7 @@ notification_did_close :: proc(task: ^common.Task) {
 
     using info;
 
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -741,7 +751,7 @@ notification_did_save :: proc(task: ^common.Task) {
 
     using info;
 
-    json.destroy_value(params);
+    json.destroy_value(root);
     free(info);
 }
 
@@ -752,7 +762,7 @@ request_semantic_token_full :: proc(task: ^common.Task) {
     using info;
 
     defer document_release(document);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);
@@ -799,7 +809,7 @@ request_semantic_token_range :: proc(task: ^common.Task) {
     params_object, ok := params.value.(json.Object);
 
     defer document_release(document);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     if !ok {
@@ -832,7 +842,7 @@ request_document_symbols :: proc(task: ^common.Task) {
     using info;
 
     defer document_release(document);
-    defer json.destroy_value(params);
+    defer json.destroy_value(root);
     defer free(info);
 
     params_object, ok := params.value.(json.Object);

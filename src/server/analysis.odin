@@ -960,7 +960,7 @@ make_int_ast :: proc() -> ^ast.Ident {
 
 get_package_from_node :: proc(node: ast.Node) -> string {
     slashed, _ := filepath.to_slash(node.pos.file, context.temp_allocator);
-    ret := strings.to_lower(path.dir(slashed, context.temp_allocator));
+    ret := strings.to_lower(path.dir(slashed, context.temp_allocator), context.temp_allocator);
     return ret;
 }
 

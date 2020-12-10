@@ -49,6 +49,17 @@ DocumentStorage :: struct {
 document_storage: DocumentStorage;
 
 document_storage_shutdown :: proc() {
+
+    for k, v in document_storage.documents {
+        delete(k);
+    }
+
+    for alloc in document_storage.free_allocators {
+        common.scratch_allocator_destroy(alloc);
+        free(alloc);
+    }
+
+    delete(document_storage.free_allocators);
     delete(document_storage.documents);
 }
 
@@ -387,12 +398,12 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     for imp, index in document.ast.imports {
 
-        //ERROR no completion on imp!
-
         //collection specified
         if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 {
 
-            //Note(Daniel, assuming absolute path atm, but that will change)
+            if len(imp.fullpath) < 2 {
+                continue;
+            }
 
             collection := imp.fullpath[1:i];
             p := imp.fullpath[i+1:len(imp.fullpath)-1];

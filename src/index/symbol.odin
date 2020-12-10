@@ -95,6 +95,10 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
         delete(symbol.returns, allocator);
     }
 
+    if symbol.doc != "" {
+        delete(symbol.doc, allocator);
+    }
+
     #partial switch v in symbol.value {
     case SymbolProcedureValue:
         common.free_ast(v.return_types, allocator);

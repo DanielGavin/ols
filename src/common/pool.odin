@@ -42,7 +42,7 @@ pool_init :: proc(pool: ^Pool, thread_count: int, allocator := context.allocator
 
         temp_allocator: Scratch_Allocator;
 
-        scratch_allocator_init(&temp_allocator, mem.megabytes(1));
+        scratch_allocator_init(&temp_allocator, mem.megabytes(6));
 
         context.temp_allocator = scratch_allocator(&temp_allocator);
 
