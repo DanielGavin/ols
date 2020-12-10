@@ -867,8 +867,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 resolve_ident_is_variable ::  proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
 
-    if v, ok := ast_context.variables[node.name]; ok {
-        return v;
+    if v, ok := ast_context.variables[node.name]; ok && v {
+        return true;
+    }
+
+    if symbol, ok := index.lookup(node.name, ast_context.current_package); ok {
+        return symbol.type == .Variable;
     }
 
     return false;
@@ -917,6 +921,8 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
         else {
             return symbol, true;
         }
+    case index.SymbolGenericValue:
+        return resolve_type_expression(ast_context, v.expr);
     }
 
     return symbol, true;
@@ -1708,6 +1714,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     if position_context.selector != nil {
 
+        ast_context.current_package = ast_context.document_package;
+
         if ident, ok := position_context.selector.derived.(ast.Ident); ok {
 
             if !resolve_ident_is_variable(&ast_context, ident) && !resolve_ident_is_package(&ast_context, ident) {
@@ -1722,7 +1730,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         ast_context.use_locals = true;
         ast_context.use_globals = true;
-        ast_context.current_package = ast_context.document_package;
 
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
 
@@ -1998,7 +2005,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         }
 
 
-
         sort.sort(combined_sort_interface(&combined));
 
         //hard code for now
@@ -2035,9 +2041,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         list.items = items[:];
     }
-
-
-
 
     return list, true;
 }

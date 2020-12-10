@@ -155,6 +155,19 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
     return value;
 }
 
+collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map [string] string) -> SymbolGenericValue {
+
+    cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
+    replace_package_alias(cloned, package_map, collection);
+
+    value := SymbolGenericValue {
+        expr = cloned,
+    };
+
+    return value;
+}
+
+
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
     forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
@@ -243,7 +256,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                 //right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
                 if v, ok := collection.symbols[id]; !ok {
                     collection.symbols[id] = symbol;
-                    //fmt.printf("FAILED COLLOSION! %v  %v \n", id, cat);
                 }
 
                 else {
@@ -252,6 +264,42 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
             }
 
+            else {
+
+                for name, i in value_decl.names {
+
+                    str := common.get_ast_node_string(name, file.src);
+
+                    symbol: Symbol;
+                    symbol.range = common.get_token_range(name, file.src);
+                    symbol.name = get_index_unique_string(collection, str);
+                    symbol.pkg = get_index_unique_string(collection, directory);
+                    symbol.uri = get_index_unique_string(collection, uri);
+                    symbol.type = .Variable;
+
+                    if value_decl.type != nil {
+                        symbol.value = collect_generic(collection, value_decl.type, package_map);
+                    }
+
+                    else {
+                        if len(value_decl.values) > i {
+                            symbol.value = collect_generic(collection, value_decl.values[i], package_map);
+                        }
+                    }
+
+                    cat := strings.concatenate({symbol.pkg, str}, context.temp_allocator);
+
+                    id := get_symbol_id(cat);
+
+                    if v, ok := collection.symbols[id]; !ok {
+                        collection.symbols[id] = symbol;
+                    }
+
+                    else {
+                        free_symbol(symbol, collection.allocator);
+                    }
+               }
+            }
         }
     }
 
