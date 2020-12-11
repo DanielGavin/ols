@@ -80,8 +80,5 @@ Configuration of the LSP:
 
 ```
   
-## Issues
-  All the current known issues are found [here](https://github.com/DanielGavin/ols/blob/master/know_issues.txt)
-  
 ## Missing-features
   Background indexer to complement the static indexer.
