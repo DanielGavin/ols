@@ -23,6 +23,7 @@ ResponseParams :: union {
     SignatureHelp,
     [] DocumentSymbol,
     SemanticTokens,
+    Hover,
 };
 
 ResponseMessage :: struct {
@@ -38,7 +39,7 @@ ResponseMessageError :: struct {
 };
 
 ResponseError :: struct {
-     code: common.Error,
+    code: common.Error,
     message: string,
 };
 
@@ -73,13 +74,8 @@ RequestInitializeParams :: struct {
     capabilities: ClientCapabilities,
 };
 
-MarkupKind :: enum {
-    Plaintext,
-    Markdown,
-};
-
 MarkupContent :: struct {
-	kind: MarkupKind,
+	kind: string,
 	value: string,
 };
 
@@ -90,6 +86,7 @@ ServerCapabilities :: struct {
     signatureHelpProvider: SignatureHelpOptions,
     semanticTokensProvider: SemanticTokensOptions,
     documentSymbolProvider: bool,
+    hoverProvider: bool,
 };
 
 CompletionOptions  :: struct {
@@ -99,7 +96,7 @@ CompletionOptions  :: struct {
 
 HoverClientCapabilities :: struct {
     dynamicRegistration: bool,
-    contentFormat: [dynamic] MarkupKind,
+    contentFormat: [dynamic] string,
 };
 
 DocumentSymbolClientCapabilities :: struct {
@@ -119,7 +116,7 @@ TextDocumentClientCapabilities :: struct {
 };
 
 CompletionClientCapabilities :: struct {
-    documentationFormat: [dynamic] MarkupKind,
+    documentationFormat: [dynamic] string,
 };
 
 ParameterInformationCapabilities :: struct {
@@ -282,6 +279,9 @@ ParameterInformation :: struct {
 OlsConfig :: struct {
     collections: [dynamic] OlsConfigCollection,
     thread_pool_count: int,
+    enable_semantic_tokens: bool,
+    enable_document_symbols: bool,
+    enable_hover: bool,
 };
 
 OlsConfigCollection :: struct {
@@ -324,4 +324,14 @@ DocumentSymbol :: struct {
     range: common.Range,
     selectionRange: common.Range,
     children: [] DocumentSymbol,
+};
+
+HoverParams :: struct {
+    textDocument: TextDocumentIdentifier,
+    position: common.Position,
+};
+
+Hover :: struct {
+    contents: MarkupContent,
+    range: common.Range,
 };

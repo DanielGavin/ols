@@ -102,7 +102,7 @@ get_token_range :: proc(node: ast.Node, document_text: [] u8) -> Range {
 
         index := offset;
 
-        for index > 0  && (document_text[index] != '\n' || document_text[index] != '\r') {
+        for index > 0  && document_text[index] != '\n' && document_text[index] != '\r' {
             index -= 1;
         }
 
@@ -243,7 +243,7 @@ get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: [] 
     utf8_idx := 0;
     utf16_idx := 0;
 
-    for utf16_idx < character_offset {
+    for utf8_idx < character_offset {
 
         r, w := utf8.decode_rune(document_text[utf8_idx:]);
 

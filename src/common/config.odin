@@ -8,5 +8,6 @@ Config :: struct {
     collections: map [string] string,
     running: bool,
     debug_single_thread: bool,
+    enable_semantic_tokens: bool, //This will be removed when vscode client stops sending me semantic tokens after disabling it in requests initialize.
 };
 

@@ -29,6 +29,7 @@ DocumentPositionContextHint :: enum {
     Completion,
     SignatureHelp,
     Definition,
+    Hover,
 };
 
 DocumentPositionContext :: struct {
@@ -1568,11 +1569,11 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
     if symbol.type == .Function {
 
         if symbol.returns != "" {
-            return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature, " -> ", symbol.returns}, context.temp_allocator);
+            return strings.concatenate({pkg, ".", symbol.name, ": proc", symbol.signature, " -> ", symbol.returns}, context.temp_allocator);
         }
 
         else {
-            return strings.concatenate({pkg, "::", symbol.name, "::", symbol.signature}, context.temp_allocator);
+            return strings.concatenate({pkg, ".", symbol.name, ": proc", symbol.signature}, context.temp_allocator);
         }
 
     }
@@ -1615,6 +1616,37 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     }
 
     if position_context.selector != nil {
+
+        //if the base selector is the client wants to go to.
+        if base, ok := position_context.selector.derived.(ast.Ident); ok && position_context.identifier != nil {
+
+            ident := position_context.identifier.derived.(ast.Ident);
+
+            if ident.name == base.name {
+
+                if resolved, ok := resolve_location_identifier(&ast_context, ident); ok {
+                    location.range = resolved.range;
+
+                    if resolved.uri == "" {
+                        location.uri = document.uri.uri;
+                    }
+
+                    else {
+                        location.uri = resolved.uri;
+                    }
+
+                    return location, true;
+                }
+
+                else {
+                    return location, false;
+                }
+
+            }
+
+        }
+
+        //otherwise it's the field the client wants to go to.
 
         selector: index.Symbol;
 
@@ -1693,6 +1725,117 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     }
 
     return location, true;
+}
+
+write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
+    content: MarkupContent;
+
+    cat := concatenate_symbols_information(ast_context, symbol);
+
+    if cat != "" {
+        content.kind = "markdown";
+        content.value = fmt.tprintf("```odin\n %v\n```\n%v", cat, symbol.doc);
+    }
+
+    else {
+        content.kind = "plaintext";
+    }
+
+    return content;
+}
+
+get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
+
+    hover: Hover;
+
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+
+    position_context, ok := get_document_position_context(document, position, .Hover);
+
+    get_globals(document.ast, &ast_context);
+
+    if position_context.function != nil {
+        get_locals(document.ast, position_context.function, &ast_context, &position_context);
+    }
+
+    if position_context.selector != nil && position_context.identifier != nil {
+
+        //if the base selector is the client wants to go to.
+        if base, ok := position_context.selector.derived.(ast.Ident); ok && position_context.identifier != nil {
+
+            ident := position_context.identifier.derived.(ast.Ident);
+
+            if ident.name == base.name {
+
+                if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
+                    hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
+                    hover.contents = write_hover_content(&ast_context, resolved);
+                    return hover, true;
+                }
+
+            }
+
+        }
+
+
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
+        ast_context.current_package = ast_context.document_package;
+
+        selector: index.Symbol;
+        selector, ok = resolve_type_expression(&ast_context, position_context.selector);
+
+        if !ok {
+            return {}, true;
+        }
+
+        field: string;
+
+        if position_context.field != nil {
+
+            switch v in position_context.field.derived {
+            case ast.Ident:
+                field = v.name;
+            }
+
+        }
+
+        hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
+
+        log.info(hover);
+
+        #partial switch v in selector.value {
+        case index.SymbolStructValue:
+            for name, i in v.names {
+                if strings.compare(name, field) == 0 {
+                    if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+                        hover.contents = write_hover_content(&ast_context, symbol);
+                        return hover, true;
+                    }
+                }
+            }
+        case index.SymbolPackageValue:
+            if symbol, ok := index.lookup(field, selector.pkg); ok {
+                hover.contents = write_hover_content(&ast_context, symbol);
+                return hover, true;
+            }
+        }
+
+    }
+
+    else if position_context.identifier != nil {
+
+        if resolved, ok := resolve_type_identifier(&ast_context, position_context.identifier.derived.(ast.Ident)); ok {
+            log.info(position_context.identifier^);
+            hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
+            log.info(hover.range);
+            hover.contents = write_hover_content(&ast_context, resolved);
+            return hover, true;
+        }
+
+    }
+
+    return {}, true;
 }
 
 //ERROR can't got to common.Position
@@ -2433,7 +2576,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
             }
         }
 
-        else if position_context.hint == .Definition && n.field != nil {
+        else if (position_context.hint == .Definition || position_context.hint == .Hover) && n.field != nil {
             position_context.selector = n.expr;
             position_context.field = n.field;
             get_document_position(n.expr, position_context);

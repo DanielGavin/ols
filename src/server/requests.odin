@@ -37,6 +37,7 @@ RequestType :: enum {
     DocumentSymbol,
     SemanticTokensFull,
     SemanticTokensRange,
+    Hover,
 };
 
 RequestInfo :: struct {
@@ -184,7 +185,8 @@ request_map : map [string] RequestType =
          "textDocument/signatureHelp" = .SignatureHelp,
          "textDocument/documentSymbol" = .DocumentSymbol,
          "textDocument/semanticTokens/full" = .SemanticTokensFull,
-         "textDocument/semanticTokens/range" = .SemanticTokensRange};
+         "textDocument/semanticTokens/range" = .SemanticTokensRange,
+         "textDocument/hover" = .Hover};
 
 handle_error :: proc(err: common.Error, id: RequestId, writer: ^Writer) {
 
@@ -280,6 +282,8 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
             task_proc = request_semantic_token_full;
         case .SemanticTokensRange:
             task_proc = request_semantic_token_range;
+        case .Hover:
+            task_proc = request_hover;
         }
 
         task := common.Task {
@@ -290,7 +294,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
         #partial switch request_type {
         case .Initialize, .Initialized:
             task_proc(&task);
-        case .Completion, .Definition:
+        case .Completion, .Definition, .Hover:
 
             uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
 
@@ -393,6 +397,9 @@ request_initialize :: proc(task: ^common.Task) {
 
     thread_count := 2;
 
+    enable_document_symbols: bool;
+    enable_hover: bool;
+
     if len(config.workspace_folders) > 0 {
 
         //right now just look at the first workspace - TODO(daniel, add multiple workspace support)
@@ -409,6 +416,9 @@ request_initialize :: proc(task: ^common.Task) {
                     if unmarshal(value, ols_config, context.temp_allocator) == .None {
 
                         thread_count = ols_config.thread_pool_count;
+                        enable_document_symbols = ols_config.enable_document_symbols;
+                        enable_hover = ols_config.enable_hover;
+                        //config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
 
                         for p in ols_config.collections {
                             config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
@@ -429,14 +439,14 @@ request_initialize :: proc(task: ^common.Task) {
 
     //ERROR can't go to defintion
     for format in initialize_params.capabilities.textDocument.hover.contentFormat {
-        if format == .Markdown {
+        if format == "markdown" {
             config.hover_support_md = true;
         }
     }
 
 
     for format in initialize_params.capabilities.textDocument.completion.documentationFormat {
-        if format == .Markdown {
+        if format == "markdown" {
             config.completion_support_md = true;
         }
     }
@@ -477,14 +487,15 @@ request_initialize :: proc(task: ^common.Task) {
                     triggerCharacters = signatureTriggerCharacters,
                 },
                 semanticTokensProvider = SemanticTokensOptions {
-                    range = true,
-                    full = true,
+                    range = config.enable_semantic_tokens,
+                    full = config.enable_semantic_tokens,
                     legend = SemanticTokensLegend {
                         tokenTypes = token_types,
                         tokenModifiers = token_modifiers,
                     },
                 },
-                documentSymbolProvider = true,
+                documentSymbolProvider = enable_document_symbols,
+                hoverProvider = enable_hover,
             },
         },
         id = id,
@@ -794,7 +805,10 @@ request_semantic_token_full :: proc(task: ^common.Task) {
     };
 
     symbols: SemanticTokens;
-    //symbols := get_semantic_tokens(document, range);
+
+    if config.enable_semantic_tokens {
+        symbols = get_semantic_tokens(document, range);
+    }
 
     response := make_response_message(
         params = symbols,
@@ -829,7 +843,10 @@ request_semantic_token_range :: proc(task: ^common.Task) {
     }
 
     symbols: SemanticTokens;
-    //symbols := get_semantic_tokens(document, semantic_params.range);
+
+    if config.enable_semantic_tokens {
+        symbols = get_semantic_tokens(document, semantic_params.range);
+    }
 
     response := make_response_message(
         params = symbols,
@@ -867,6 +884,46 @@ request_document_symbols :: proc(task: ^common.Task) {
 
     response := make_response_message(
         params = symbols,
+        id = id,
+    );
+
+    send_response(response, writer);
+}
+
+request_hover :: proc(task: ^common.Task) {
+
+    info := get_request_info(task);
+
+    using info;
+
+    defer document_release(document);
+    defer json.destroy_value(root);
+    defer free(info);
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    hover_params: HoverParams;
+
+    if unmarshal(params, hover_params, context.temp_allocator) != .None {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    hover: Hover;
+    hover, ok = get_hover_information(document, hover_params.position);
+
+    if !ok {
+        handle_error(.InternalError, id, writer);
+        return;
+    }
+
+    response := make_response_message(
+        params = hover,
         id = id,
     );
 
