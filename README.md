@@ -8,7 +8,6 @@ Language server for Odin. This project is still in early development.
 - [Clients](#clients)
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
-- [Known issues](#issues)
 - [Missing features](#missing-features)
   
 ## Installation
