@@ -8,7 +8,6 @@ Language server for Odin. This project is still in early development.
 - [Clients](#clients)
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
-- [Known issues](#issues)
 - [Missing features](#missing-features)
   
 ## Installation
@@ -79,9 +78,6 @@ Configuration of the LSP:
 }
 
 ```
-  
-## Issues
-  All the current known issues are found [here](https://github.com/DanielGavin/ols/blob/master/know_issues.txt)
   
 ## Missing-features
   Background indexer to complement the static indexer.
