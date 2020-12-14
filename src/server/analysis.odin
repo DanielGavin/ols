@@ -564,7 +564,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                 return resolve_type_expression(ast_context, c.elem);
             case Dynamic_Array_Type:
                 return resolve_type_expression(ast_context, c.elem);
-
+            case Map_Type:
+                return resolve_type_expression(ast_context, c.value);
             }
 
         }
