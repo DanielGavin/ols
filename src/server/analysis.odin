@@ -42,6 +42,7 @@ DocumentPositionContext :: struct {
     field: ^ast.Expr, //used for completion
     call: ^ast.Expr, //used for signature help
     returns: ^ast.Expr, //used for completion
+    comp_lit: ^ast.Comp_Lit, //used for completion
     hint: DocumentPositionContextHint,
 };
 
@@ -2445,7 +2446,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
            c == '}' || c == '^' || c == ':' ||
            c == '\n' || c == '\r' || c == '=' ||
            c == '<' || c == '>' || c == '-' ||
-           c == '+' {
+           c == '+' || c == '&' {
             start = i+1;
             break;
         }
@@ -2614,6 +2615,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
             get_document_position(n.body, position_context);
         }
     case Comp_Lit:
+        position_context.comp_lit = cast(^Comp_Lit)node;
         get_document_position(n.type, position_context);
         get_document_position(n.elems, position_context);
     case Tag_Expr:
