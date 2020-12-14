@@ -707,11 +707,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
             return resolve_type_identifier(ast_context, v);
         case Union_Type:
-            return make_symbol_union_from_ast(ast_context, v), true;
+            return make_symbol_union_from_ast(ast_context, v, node), true;
         case Enum_Type:
-            return make_symbol_enum_from_ast(ast_context, v), true;
+            return make_symbol_enum_from_ast(ast_context, v, node), true;
         case Struct_Type:
-            return make_symbol_struct_from_ast(ast_context, v), true;
+            return make_symbol_struct_from_ast(ast_context, v, node), true;
         case Proc_Lit:
             if !v.type.generic {
                 return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
@@ -748,11 +748,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
-            return make_symbol_struct_from_ast(ast_context, v), true;
+            return make_symbol_struct_from_ast(ast_context, v, node), true;
         case Union_Type:
-            return make_symbol_union_from_ast(ast_context, v), true;
+            return make_symbol_union_from_ast(ast_context, v, node), true;
         case Enum_Type:
-            return make_symbol_enum_from_ast(ast_context, v), true;
+            return make_symbol_enum_from_ast(ast_context, v, node), true;
         case Proc_Lit:
             if !v.type.generic {
                 return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
@@ -763,7 +763,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Proc_Group:
             return resolve_function_overload(ast_context, v);
         case Selector_Expr:
-            return resolve_type_expression(ast_context, local);
+            return resolve_type_expression(ast_context, global);
         case Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
         case Dynamic_Array_Type:
@@ -771,7 +771,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Index_Expr:
             return resolve_type_expression(ast_context, global);
         case Pointer_Type:
-            return resolve_type_expression(ast_context, local);
+            return resolve_type_expression(ast_context, global);
         case:
             log.errorf("default type node kind: %T", v);
             return make_symbol_generic_from_ast(ast_context, global), true;
@@ -1040,6 +1040,7 @@ make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) 
     symbol := index.Symbol {
         range = common.get_token_range(expr, ast_context.file.src),
         type = .Variable,
+        signature = index.node_to_string(expr),
         pkg = get_package_from_node(expr^),
     };
 
@@ -1050,11 +1051,12 @@ make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) 
     return symbol;
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) -> index.Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident) -> index.Symbol {
 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Enum,
+        name = ident.name,
         pkg = get_package_from_node(v.node),
     };
 
@@ -1075,11 +1077,12 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) 
     return symbol;
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) -> index.Symbol {
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident) -> index.Symbol {
 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Enum,
+        name = ident.name,
         pkg = get_package_from_node(v.node),
     };
 
@@ -1100,11 +1103,12 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) ->
     return symbol;
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident) -> index.Symbol {
 
     symbol := index.Symbol {
         range = common.get_token_range(v, ast_context.file.src),
         type = .Struct,
+        name = ident.name,
         pkg = get_package_from_node(v.node),
     };
 
@@ -1524,6 +1528,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
         return;
     }
 
+
     if proc_lit.type != nil && proc_lit.type.params != nil {
 
         for arg in proc_lit.type.params.list {
@@ -1534,10 +1539,21 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
                     ast_context.locals[str] = arg.type;
                     ast_context.variables[str] = true;
                     ast_context.parameters[str] = true;
+
+                    log.info(arg.flags);
+
+                    if .Using in arg.flags {
+                        log.info("in using");
+                        using_stmt: ast.Using_Stmt;
+                        using_stmt.list = make([] ^ ast.Expr, 1, context.temp_allocator);
+                        using_stmt.list[0] = arg.type;
+                        get_locals_using_stmt(file, using_stmt, ast_context);
+                    }
                 }
             }
 
         }
+
 
     }
 
@@ -1569,11 +1585,11 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
     if symbol.type == .Function {
 
         if symbol.returns != "" {
-            return strings.concatenate({pkg, ".", symbol.name, ": proc", symbol.signature, " -> ", symbol.returns}, context.temp_allocator);
+            return fmt.tprintf("%v.%v: proc %v -> %v", pkg, symbol.name, symbol.signature, symbol.returns);
         }
 
         else {
-            return strings.concatenate({pkg, ".", symbol.name, ": proc", symbol.signature}, context.temp_allocator);
+            return fmt.tprintf("%v.%v: proc%v", pkg, symbol.name, symbol.signature);
         }
 
     }
@@ -1583,12 +1599,15 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
     }
 
     else {
+
         if symbol.signature != "" {
-            return strings.concatenate({pkg, "::", symbol.name, ": ", symbol.signature}, context.temp_allocator);
+            return fmt.tprintf("%v.%v: %v", pkg, symbol.name, symbol.signature);
         }
+
         else {
-            return strings.concatenate({pkg, "::", symbol.name}, context.temp_allocator);
+            return fmt.tprintf("%v.%v", pkg, symbol.name);
         }
+
     }
 
     return ""; //weird bug requires this
@@ -1744,6 +1763,40 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> M
     return content;
 }
 
+get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol) -> string {
+
+    if symbol.type == .Function {
+        return symbol.signature;
+    }
+
+    if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
+
+        if local, ok := ast_context.locals[ident.name]; ok {
+
+            if i, ok := local.derived.(ast.Ident); ok {
+                return get_signature(ast_context, i, symbol);
+            }
+
+            else {
+                return index.node_to_string(local);
+            }
+        }
+
+        if global, ok := ast_context.globals[ident.name]; ok {
+            if i, ok := global.derived.(ast.Ident); ok {
+                return get_signature(ast_context, i, symbol);
+            }
+
+            else {
+                return index.node_to_string(global);
+            }
+        }
+
+    }
+
+    return ident.name;
+}
+
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
 
     hover: Hover;
@@ -1758,6 +1811,16 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
         get_locals(document.ast, position_context.function, &ast_context, &position_context);
     }
 
+    if position_context.identifier != nil {
+        if ident, ok := position_context.identifier.derived.(ast.Ident); ok {
+            if _, ok := common.keyword_map[ident.name]; ok {
+                hover.contents.kind = "plaintext";
+                hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src);
+                return hover, true;
+            }
+        }
+    }
+
     if position_context.selector != nil && position_context.identifier != nil {
 
         //if the base selector is the client wants to go to.
@@ -1768,6 +1831,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
             if ident.name == base.name {
 
                 if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
+                    resolved.name = ident.name;
+                    resolved.signature = get_signature(&ast_context, ident, resolved);
                     hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
                     hover.contents = write_hover_content(&ast_context, resolved);
                     return hover, true;
@@ -1802,13 +1867,14 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
         hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
 
-        log.info(hover);
-
         #partial switch v in selector.value {
         case index.SymbolStructValue:
             for name, i in v.names {
                 if strings.compare(name, field) == 0 {
                     if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+                        symbol.name = name;
+                        symbol.pkg = selector.name;
+                        symbol.signature = index.node_to_string(v.types[i]);
                         hover.contents = write_hover_content(&ast_context, symbol);
                         return hover, true;
                     }
@@ -1825,10 +1891,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
     else if position_context.identifier != nil {
 
-        if resolved, ok := resolve_type_identifier(&ast_context, position_context.identifier.derived.(ast.Ident)); ok {
-            log.info(position_context.identifier^);
+        ident := position_context.identifier.derived.(ast.Ident);
+
+        if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
+            resolved.name =  ident.name;
+            resolved.signature = get_signature(&ast_context, ident, resolved);
             hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
-            log.info(hover.range);
             hover.contents = write_hover_content(&ast_context, resolved);
             return hover, true;
         }
@@ -1938,9 +2006,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
                     symbol.name = name;
                     symbol.type = .Field;
+                    symbol.pkg = selector.name;
                     symbol.signature = index.node_to_string(v.types[i]);
-
-
                     append(&symbols, symbol);
                 }
 
@@ -1998,9 +2065,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                             if symbol, ok := resolve_type_expression(&ast_context, s.types[i]); ok {
                                 symbol.name = name;
                                 symbol.type = .Field;
+                                symbol.pkg =  symbol.name;
                                 symbol.signature = index.node_to_string(s.types[i]);
-
-
                                 append(&symbols, symbol);
                             }
 
@@ -2107,6 +2173,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
                 symbol.name = ident.name;
+                symbol.signature = get_signature(&ast_context, ident^, symbol);
 
                 if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
                     append(&combined, CombinedResult { score = score * 1.1, symbol = symbol, variable = ident });
@@ -2126,6 +2193,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
                 symbol.name = ident.name;
+                symbol.signature = get_signature(&ast_context, ident^, symbol);
 
                 if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
                     append(&combined, CombinedResult { score = score * 1.1, symbol = symbol, variable = ident });
@@ -2133,7 +2201,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             }
         }
-
 
         for pkg in ast_context.imports {
 
@@ -2147,13 +2214,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             }
         }
 
-
         sort.sort(combined_sort_interface(&combined));
 
         //hard code for now
         top_results := combined[0:(min(20, len(combined)))];
-
-        log.info(top_results);
 
         for result in top_results {
 
@@ -2163,7 +2227,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             };
 
             if result.variable != nil {
-                //ERROR crash on definition
                 if ok := resolve_ident_is_variable(&ast_context, result.variable^); ok {
                     item.kind = .Variable;
                 }
@@ -2171,7 +2234,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                 else {
                     item.kind = cast(CompletionItemKind)result.symbol.type;
                 }
-
             }
 
             else {

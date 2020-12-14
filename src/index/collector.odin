@@ -215,14 +215,17 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                     token = v;
                     token_type = .Struct;
                     symbol.value = collect_struct_fields(collection, v, package_map);
+                    symbol.signature = "struct";
                 case ast.Enum_Type:
                     token = v;
                     token_type = .Enum;
                     symbol.value = collect_enum_fields(collection, v.fields, package_map);
+                    symbol.signature = "enum";
                 case ast.Union_Type:
                     token = v;
                     token_type = .Enum;
                     symbol.value = collect_union_fields(collection, v, package_map);
+                    symbol.signature = "union";
                 case: // default
                     break;
                 }
