@@ -2135,7 +2135,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         }
 
         //If the implicit is in the binary expression, then we have to infer from the lhs
-        if position_context.binary != nil && position_context.binary.op.text == "==" {
+        if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
             if position_in_node(position_context.binary.right, position_context.position) {
 
