@@ -1,6 +1,8 @@
 # ols
 Language server for Odin. This project is still in early development.
 
+![Procedure example](images/completion.gif)
+
 ## Table Of Contents
 - [Installation](#installation)
   - [Configuration](#Configuration)
@@ -9,7 +11,7 @@ Language server for Odin. This project is still in early development.
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
 - [Missing features](#missing-features)
-  
+
 ## Installation
 
  ```
@@ -43,9 +45,9 @@ Example of ols.json:
   - Semantic tokens
   - Document symbols
   - Signature help
-  
+
 ## Clients
-  
+
 ### VS Code
 Install the extension https://github.com/DanielGavin/ols-vscode
 ### Sublime
@@ -78,6 +80,6 @@ Configuration of the LSP:
 }
 
 ```
-  
+
 ## Missing-features
   Background indexer to complement the static indexer.
