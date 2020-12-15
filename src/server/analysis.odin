@@ -1767,7 +1767,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> M
     return content;
 }
 
-get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol) -> string {
+get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
 
     if symbol.type == .Function {
         return symbol.signature;
@@ -1778,7 +1778,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
         if local, ok := ast_context.locals[ident.name]; ok {
 
             if i, ok := local.derived.(ast.Ident); ok {
-                return get_signature(ast_context, i, symbol);
+                return get_signature(ast_context, i, symbol, true);
             }
 
             else {
@@ -1788,7 +1788,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 
         if global, ok := ast_context.globals[ident.name]; ok {
             if i, ok := global.derived.(ast.Ident); ok {
-                return get_signature(ast_context, i, symbol);
+                return get_signature(ast_context, i, symbol, true);
             }
 
             else {
@@ -1796,6 +1796,17 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
             }
         }
 
+    }
+
+    if !was_variable {
+        #partial switch v in symbol.value {
+        case index.SymbolStructValue:
+            return "struct";
+        case index.SymbolUnionValue:
+            return "union";
+        case index.SymbolEnumValue:
+            return "enum";
+        }
     }
 
     return ident.name;
@@ -2155,6 +2166,20 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
             }
 
+
+
+        }
+
+        else if position_context.returns != nil && position_context.function != nil {
+
+            //function := position_context.function.derived.(ast.Call_Expr);
+
+
+
+
+
+
+            //if len(position_context.returns.results) == position_context.function.
 
 
         }
