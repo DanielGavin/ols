@@ -41,8 +41,10 @@ DocumentPositionContext :: struct {
     identifier: ^ast.Node,
     field: ^ast.Expr, //used for completion
     call: ^ast.Expr, //used for signature help
-    returns: ^ast.Expr, //used for completion
+    returns: ^ast.Return_Stmt, //used for completion
     comp_lit: ^ast.Comp_Lit, //used for completion
+    implicit: bool, //used for completion
+    binary: ^ast.Binary_Expr, //used for completion
     hint: DocumentPositionContextHint,
 };
 
@@ -2055,6 +2057,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
                     #partial switch s in symbol.value {
                     case index.SymbolStructValue:
                         for name, i in s.names {
+                            //ERROR no completion on name
 
                             if selector.pkg != "" {
                                 ast_context.current_package = selector.pkg;
@@ -2099,6 +2102,68 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         }
 
         list.items = items[:];
+    }
+
+    else if position_context.implicit {
+
+        list.isIncomplete = false;
+
+        symbols := make([dynamic] index.Symbol, context.temp_allocator);
+
+        selector: index.Symbol;
+
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
+
+        if selector.pkg != "" {
+            ast_context.current_package = selector.pkg;
+        }
+
+        else {
+            ast_context.current_package = ast_context.document_package;
+        }
+
+        //If the implicit is in the binary expression, then we have to infer from the lhs
+        if position_context.binary != nil && position_context.binary.op.text == "==" {
+
+            if position_in_node(position_context.binary.right, position_context.position) {
+
+                if lhs, ok := resolve_type_expression(&ast_context, position_context.binary.left); ok {
+
+                    #partial switch v in lhs.value {
+                    case index.SymbolEnumValue:
+                        for name in v.names {
+
+                            item := CompletionItem {
+                                label = name,
+                                kind = .EnumMember,
+                                detail = name,
+                            };
+
+                            append(&items, item);
+
+                        }
+
+
+                    }
+
+
+
+                }
+
+
+
+            }
+
+
+
+        }
+
+        list.items = items[:];
+
+
+
+
     }
 
     else {
@@ -2419,6 +2484,11 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             break;
         }
 
+        else if c == ')' && !last_dot {
+            start = i+1;
+            break;
+        }
+
         else if c == ')' {
             paren_count -= 1;
         }
@@ -2463,6 +2533,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     str := position_context.file.src[max(0, start):max(start, end+1)];
 
+    if empty_dot && len(str) == 0 {
+        position_context.implicit = true;
+        log.info("implicit");
+        return;
+    }
+
     log.infof("parser string %v", string(str));
 
     p := parser.Parser {
@@ -2488,6 +2564,11 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
     else if s, ok := e.derived.(ast.Selector_Expr); ok {
         position_context.selector = s.expr;
         position_context.field = s.field;
+    }
+
+    else if s, ok := e.derived.(ast.Implicit_Selector_Expr); ok {
+        position_context.implicit = true;
+        log.info("IMPLICIT");
     }
 
     else {
@@ -2623,6 +2704,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
     case Unary_Expr:
         get_document_position(n.expr, position_context);
     case Binary_Expr:
+        position_context.binary = cast(^Binary_Expr)node;
         get_document_position(n.left, position_context);
         get_document_position(n.right, position_context);
     case Paren_Expr:
@@ -2708,6 +2790,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.body, position_context);
         get_document_position(n.else_stmt, position_context);
     case Return_Stmt:
+        position_context.returns = cast(^Return_Stmt)node;
         get_document_position(n.results, position_context);
     case Defer_Stmt:
         get_document_position(n.stmt, position_context);
@@ -2805,6 +2888,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.key, position_context);
         get_document_position(n.value, position_context);
     case Implicit_Selector_Expr:
+        position_context.implicit = true;
         get_document_position(n.field, position_context);
     case:
         log.errorf("Unhandled node kind: %T", n);
