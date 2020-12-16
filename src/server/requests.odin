@@ -38,6 +38,7 @@ RequestType :: enum {
     SemanticTokensFull,
     SemanticTokensRange,
     Hover,
+    CancelRequest,
 };
 
 RequestInfo :: struct {
@@ -186,7 +187,8 @@ request_map : map [string] RequestType =
          "textDocument/documentSymbol" = .DocumentSymbol,
          "textDocument/semanticTokens/full" = .SemanticTokensFull,
          "textDocument/semanticTokens/range" = .SemanticTokensRange,
-         "textDocument/hover" = .Hover};
+         "textDocument/hover" = .Hover,
+         "$/cancelRequest" = .CancelRequest };
 
 handle_error :: proc(err: common.Error, id: RequestId, writer: ^Writer) {
 
@@ -284,6 +286,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
             task_proc = request_semantic_token_range;
         case .Hover:
             task_proc = request_hover;
+        case .CancelRequest:
         }
 
         task := common.Task {
@@ -292,6 +295,17 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
         };
 
         #partial switch request_type {
+        case .CancelRequest:
+            //for some reason the lsp sometimes has all the threads sleeping and a cancel request gets sent(need to figure out why, but this should fix the problems for now)
+            for {
+                if task, ok := common.pool_try_and_pop_task(&pool); ok {
+                    common.pool_do_work(&pool, &task);
+                }
+
+                else {
+                    break;
+                }
+            }
         case .Initialize, .Initialized:
             task_proc(&task);
         case .Completion, .Definition, .Hover:

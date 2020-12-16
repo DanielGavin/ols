@@ -2119,8 +2119,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
         list.isIncomplete = false;
 
-        symbols := make([dynamic] index.Symbol, context.temp_allocator);
-
         selector: index.Symbol;
 
         ast_context.use_locals = true;
@@ -2134,12 +2132,24 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
             ast_context.current_package = ast_context.document_package;
         }
 
-        //If the implicit is in the binary expression, then we have to infer from the lhs
         if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
-            if position_in_node(position_context.binary.right, position_context.position) {
+            context_node: ^ast.Expr;
+            enum_node: ^ast.Expr;
 
-                if lhs, ok := resolve_type_expression(&ast_context, position_context.binary.left); ok {
+            if position_in_node(position_context.binary.right, position_context.position) {
+                context_node = position_context.binary.right;
+                enum_node = position_context.binary.left;
+            }
+
+            else if position_in_node(position_context.binary.left, position_context.position) {
+                context_node = position_context.binary.left;
+                enum_node = position_context.binary.right;
+            }
+
+            if context_node != nil && enum_node != nil {
+
+                if lhs, ok := resolve_type_expression(&ast_context, enum_node); ok {
 
                     #partial switch v in lhs.value {
                     case index.SymbolEnumValue:
@@ -2370,8 +2380,6 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     if symbol, ok := call.value.(index.SymbolProcedureValue); !ok {
         return signature_help, true;
     }
-
-
 
     signature_information := make([] SignatureInformation, 1, context.temp_allocator);
 
