@@ -75,6 +75,10 @@ get_relative_token_position :: proc(offset: int, document_text: [] u8, current_s
             i += 1;
         }
 
+        else if w == 0 {
+            return position;
+        }
+
         else {
             if r < 0x10000 {
                 position.character += 1;
@@ -223,6 +227,10 @@ get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: [] 
             return utf8_idx;
         }
 
+        else if w == 0 {
+            return utf8_idx;
+        }
+
         else if r < 0x10000 {
             utf16_idx += 1;
         }
@@ -251,6 +259,10 @@ get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: [] 
             return utf16_idx;
         }
 
+        else if w == 0 {
+            return utf16_idx;
+        }
+
         else if r < 0x10000 {
             utf16_idx += 1;
         }
@@ -276,6 +288,10 @@ get_end_line_u16 :: proc(document_text: [] u8) -> int {
         r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
         if r == '\n' {
+            return utf16_idx;
+        }
+
+        else if w == 0 {
             return utf16_idx;
         }
 
