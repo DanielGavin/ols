@@ -386,9 +386,15 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     context.allocator = common.scratch_allocator(document.allocator);
 
+    //have to cheat the parser since it really wants to parse an entire package with the new changes...
+    pkg := new(ast.Package);
+    pkg.kind = .Normal;
+    pkg.fullpath = document.uri.path;
+
     document.ast = ast.File {
         fullpath = document.uri.path,
         src = document.text[:document.used_text],
+        pkg = pkg,
     };
 
     parser.parse_file(&p, &document.ast);

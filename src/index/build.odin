@@ -59,9 +59,15 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
             warn = no_warning_handler,
         };
 
+        //have to cheat the parser since it really wants to parse an entire package with the new changes...
+        pkg := new(ast.Package);
+        pkg.kind = .Normal;
+        pkg.fullpath = fullpath;
+
         file := ast.File {
             fullpath = fullpath,
             src = data,
+            pkg = pkg,
         };
 
         ok = parser.parse_file(&p, &file);

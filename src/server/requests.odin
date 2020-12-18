@@ -857,7 +857,7 @@ request_semantic_token_range :: proc(task: ^common.Task) {
 
     symbols: SemanticTokens;
 
-    if config.enable_semantic_tokens {
+    if false && config.enable_semantic_tokens {
         symbols = get_semantic_tokens(document, semantic_params.range);
     }
 
