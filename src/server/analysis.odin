@@ -1126,7 +1126,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
                 append(&names, identifier.name);
 
                 if .Using in field.flags {
-
+                    append(&types, index.clone_type(field.type, context.temp_allocator, nil));
                 }
                 else {
                     append(&types, index.clone_type(field.type, context.temp_allocator, nil));
