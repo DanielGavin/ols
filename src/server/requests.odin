@@ -500,8 +500,8 @@ request_initialize :: proc(task: ^common.Task) {
                     triggerCharacters = signatureTriggerCharacters,
                 },
                 semanticTokensProvider = SemanticTokensOptions {
-                    range = config.enable_semantic_tokens,
-                    full = false,
+                    range = false,
+                    full = config.enable_semantic_tokens,
                     legend = SemanticTokensLegend {
                         tokenTypes = token_types,
                         tokenModifiers = token_modifiers,
@@ -819,7 +819,7 @@ request_semantic_token_full :: proc(task: ^common.Task) {
 
     symbols: SemanticTokens;
 
-    if false && config.enable_semantic_tokens {
+    if config.enable_semantic_tokens {
         symbols = get_semantic_tokens(document, range);
     }
 
@@ -857,7 +857,7 @@ request_semantic_token_range :: proc(task: ^common.Task) {
 
     symbols: SemanticTokens;
 
-    if false && config.enable_semantic_tokens {
+    if config.enable_semantic_tokens {
         symbols = get_semantic_tokens(document, semantic_params.range);
     }
 

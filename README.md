@@ -42,7 +42,7 @@ Example of ols.json:
   Support Language server features:
   - Completion
   - Go to definition
-  - Semantic tokens
+  - Semantic tokens(really unstable and unfinished)
   - Document symbols
   - Signature help
 
