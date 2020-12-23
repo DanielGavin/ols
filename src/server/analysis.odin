@@ -1118,18 +1118,20 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
     names := make([dynamic] string, context.temp_allocator);
     types := make([dynamic] ^ast.Expr, context.temp_allocator);
+    usings := make([dynamic] bool, context.temp_allocator);
 
     for field in v.fields.list {
 
         for n in field.names {
             if identifier, ok := n.derived.(ast.Ident); ok {
                 append(&names, identifier.name);
+                append(&types, index.clone_type(field.type, context.temp_allocator, nil));
 
                 if .Using in field.flags {
-                    append(&types, index.clone_type(field.type, context.temp_allocator, nil));
+                    append(&usings, true);
                 }
                 else {
-                    append(&types, index.clone_type(field.type, context.temp_allocator, nil));
+                    append(&usings, false);
                 }
             }
         }
@@ -1139,6 +1141,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
     symbol.value = index.SymbolStructValue {
         names = names[:],
         types = types[:],
+        usings = usings[:],
     };
 
     return symbol;
@@ -1547,7 +1550,6 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
                     log.info(arg.flags);
 
                     if .Using in arg.flags {
-                        log.info("in using");
                         using_stmt: ast.Using_Stmt;
                         using_stmt.list = make([] ^ ast.Expr, 1, context.temp_allocator);
                         using_stmt.list[0] = arg.type;
@@ -1848,6 +1850,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
                 if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
                     resolved.name = ident.name;
                     resolved.signature = get_signature(&ast_context, ident, resolved);
+
+                    if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
+                        resolved.pkg = ast_context.document_package;
+                    }
+
                     hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
                     hover.contents = write_hover_content(&ast_context, resolved);
                     return hover, true;
@@ -1911,6 +1918,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
         if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
             resolved.name =  ident.name;
             resolved.signature = get_signature(&ast_context, ident, resolved);
+
+            if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
+                resolved.pkg = ast_context.document_package;
+            }
+
             hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
             hover.contents = write_hover_content(&ast_context, resolved);
             return hover, true;
