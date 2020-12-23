@@ -67,16 +67,24 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
     returns := make([dynamic] ^ast.Field, 0, collection.allocator);
     args := make([dynamic] ^ast.Field, 0, collection.allocator);
 
-    for ret in return_list.list {
-        cloned := cast(^ast.Field)clone_type(ret, collection.allocator, &collection.unique_strings);
-        replace_package_alias(cloned, package_map, collection);
-        append(&returns, cloned);
+    if return_list != nil {
+
+        for ret in return_list.list {
+            cloned := cast(^ast.Field)clone_type(ret, collection.allocator, &collection.unique_strings);
+            replace_package_alias(cloned, package_map, collection);
+            append(&returns, cloned);
+        }
+
     }
 
-    for arg in arg_list.list {
-        cloned := cast(^ast.Field)clone_type(arg, collection.allocator, &collection.unique_strings);
-        replace_package_alias(cloned, package_map, collection);
-        append(&args, cloned);
+    if arg_list != nil {
+
+        for arg in arg_list.list {
+            cloned := cast(^ast.Field)clone_type(arg, collection.allocator, &collection.unique_strings);
+            replace_package_alias(cloned, package_map, collection);
+            append(&args, cloned);
+        }
+
     }
 
     value := SymbolProcedureValue {
@@ -212,7 +220,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                             collection.allocator);
                     }
 
-                    if v.type.params != nil && v.type.results != nil && v.type != nil {
+                    if v.type != nil {
                         symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
                     }
                 case ast.Proc_Group:
