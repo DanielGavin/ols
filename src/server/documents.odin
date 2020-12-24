@@ -451,8 +451,6 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
                 document.imports[index].base = path.base(document.imports[index].name, false);
             }
 
-            //ERROR not showing signature
-            //log.info()
         }
 
     }

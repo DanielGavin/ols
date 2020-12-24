@@ -32,9 +32,6 @@ import "core:sort"
     us to rebuild parts of the index without too much of a performance hit.
 
     This index is first searched and if nothing is found look in the static index.
-
-    TODO(Daniel, Look into data structure for fuzzy searching)
-
  */
 
 

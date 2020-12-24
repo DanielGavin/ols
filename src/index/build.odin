@@ -51,18 +51,27 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
         data, ok := os.read_entire_file(fullpath, context.temp_allocator);
 
         if !ok {
+            log.errorf("failed to read entire file for indexing %v", fullpath);
             continue;
         }
 
         p := parser.Parser {
-            err  = no_error_handler,
-            warn = no_warning_handler,
+            err  = log_error_handler,
+            warn = log_warning_handler,
         };
 
         //have to cheat the parser since it really wants to parse an entire package with the new changes...
+
+        dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
+
         pkg := new(ast.Package);
         pkg.kind = .Normal;
         pkg.fullpath = fullpath;
+        pkg.name = dir;
+
+        if dir == "runtime" {
+            pkg.kind = .Runtime;
+        }
 
         file := ast.File {
             fullpath = fullpath,
@@ -72,8 +81,14 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
         ok = parser.parse_file(&p, &file);
 
+        if !ok {
+            log.info(pkg);
+            log.errorf("error in parse file for indexing %v", fullpath);
+        }
+
         uri := common.create_uri(fullpath, context.temp_allocator);
 
+        //ERROR hover on uri does not show string
         collect_symbols(&symbol_collection, file, uri.uri);
 
         free_all(context.temp_allocator);
@@ -91,12 +106,12 @@ free_static_index :: proc() {
 }
 
 
-no_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
-
+log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
+    log.errorf("%v %v %v", pos, msg, args);
 }
 
-no_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
-
+log_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
+    log.warnf("%v %v %v", pos, msg, args);
 }
 
 

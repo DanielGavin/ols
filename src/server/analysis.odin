@@ -785,7 +785,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
     //if there are more of these variables that hard builtin, move them to the indexer
     else if node.name == "context" {
-        log.info("found context");
         return index.lookup("Context", ast_context.current_package);
     }
     //keywords
@@ -1149,6 +1148,8 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
+    ast_context.variables["context"] = true;
+
     for decl in file.decls {
 
         if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
@@ -1159,6 +1160,7 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
                 if value_decl.type != nil {
                     ast_context.globals[str] = value_decl.type;
+                    ast_context.variables[str] = value_decl.is_mutable;
                 }
 
                 else {
@@ -1933,7 +1935,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
     return {}, true;
 }
 
-//ERROR can't got to common.Position
 get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
 
     list: CompletionList;

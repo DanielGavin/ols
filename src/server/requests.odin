@@ -450,7 +450,6 @@ request_initialize :: proc(task: ^common.Task) {
     common.pool_init(&pool, thread_count);
     common.pool_start(&pool);
 
-    //ERROR can't go to defintion
     for format in initialize_params.capabilities.textDocument.hover.contentFormat {
         if format == "markdown" {
             config.hover_support_md = true;
