@@ -1818,7 +1818,11 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
 
-    hover: Hover;
+    hover := Hover {
+        contents = {
+            kind = "plaintext",
+        }
+    };
 
     ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
@@ -1842,6 +1846,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
     if position_context.selector != nil && position_context.identifier != nil {
 
+        hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src);
+
         //if the base selector is the client wants to go to.
         if base, ok := position_context.selector.derived.(ast.Ident); ok && position_context.identifier != nil {
 
@@ -1857,7 +1863,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
                         resolved.pkg = ast_context.document_package;
                     }
 
-                    hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
                     hover.contents = write_hover_content(&ast_context, resolved);
                     return hover, true;
                 }
@@ -1917,6 +1922,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
         ident := position_context.identifier.derived.(ast.Ident);
 
+        hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
+
         if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
             resolved.name =  ident.name;
             resolved.signature = get_signature(&ast_context, ident, resolved);
@@ -1925,14 +1932,13 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
                 resolved.pkg = ast_context.document_package;
             }
 
-            hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
             hover.contents = write_hover_content(&ast_context, resolved);
             return hover, true;
         }
 
     }
 
-    return {}, true;
+    return hover, true;
 }
 
 get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
