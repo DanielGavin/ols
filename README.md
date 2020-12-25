@@ -33,7 +33,8 @@ Example of ols.json:
                   { "name": "shared", "path": "c:/path/to/MyProject/src" }],
   "thread_pool_count": 4,
   "enable_semantic_tokens": false,
-  "enable_document_symbols": false,
+  "enable_document_symbols": true,
+  "enable_hover": true
 }
 
 ```
@@ -45,6 +46,7 @@ Example of ols.json:
   - Semantic tokens(really unstable and unfinished)
   - Document symbols
   - Signature help
+  - Hover
 
 ## Clients
 
