@@ -7,6 +7,7 @@ import "core:fmt"
 
 keyword_map : map [string] bool =
         {"int" = true,
+         "uint" = true,
          "string" = true,
          "u64" = true,
          "f32" = true,
@@ -20,7 +21,8 @@ keyword_map : map [string] bool =
          "false" = true,
          "nil" = true,
          "byte" = true,
-         "u8" = true};
+         "u8" = true,
+         "i8" = true};
 
 get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
     return string(src[node.pos.offset:node.end.offset]);
