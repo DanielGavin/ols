@@ -1880,7 +1880,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
 
         if !ok {
-            return {}, true;
+            return hover, true;
         }
 
         field: string;
