@@ -43,6 +43,7 @@ DocumentPositionContext :: struct {
     call: ^ast.Expr, //used for signature help
     returns: ^ast.Return_Stmt, //used for completion
     comp_lit: ^ast.Comp_Lit, //used for completion
+    parent_comp_lit: ^ast.Comp_Lit, //used for completion
     implicit: bool, //used for completion
     binary: ^ast.Binary_Expr, //used for completion
     hint: DocumentPositionContextHint,
@@ -275,6 +276,47 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
         log.error("Unhandled poly node kind: %T", m);
     }
 
+}
+
+resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: index.Symbol, current_comp_lit: ^ast.Comp_Lit) -> (index.Symbol, bool) {
+
+    if position_context.comp_lit == current_comp_lit {
+        return current_symbol, true;
+    }
+
+    for elem in current_comp_lit.elems {
+
+        if position_in_node(elem, position_context.position) {
+
+            if field_value, ok := elem.derived.(ast.Field_Value); ok {
+
+                if comp_lit, ok := field_value.value.derived.(ast.Comp_Lit); ok {
+
+                    if s, ok := current_symbol.value.(index.SymbolStructValue); ok {
+
+                        for name, i in s.names {
+
+                            if name == field_value.field.derived.(ast.Ident).name {
+
+                                if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+                                    return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value);
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+    return current_symbol, true;
 }
 
 resolve_generic_function :: proc {
@@ -1266,6 +1308,7 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 
     ast_context.use_locals = true;
     ast_context.use_globals = true;
+    ast_context.current_package = ast_context.document_package;
 
     using ast;
 
@@ -1392,7 +1435,6 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
     }
 
     results := make([dynamic]^Expr, context.temp_allocator);
-
 
     if stmt.expr == nil {
         return;
@@ -1848,6 +1890,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
         hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src);
 
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
+        ast_context.current_package = ast_context.document_package;
+
         //if the base selector is the client wants to go to.
         if base, ok := position_context.selector.derived.(ast.Ident); ok && position_context.identifier != nil {
 
@@ -1870,11 +1916,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
             }
 
         }
-
-
-        ast_context.use_locals = true;
-        ast_context.use_globals = true;
-        ast_context.current_package = ast_context.document_package;
 
         selector: index.Symbol;
         selector, ok = resolve_type_expression(&ast_context, position_context.selector);
@@ -1919,6 +1960,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
     }
 
     else if position_context.identifier != nil {
+
+        ast_context.use_locals = true;
+        ast_context.use_globals = true;
+        ast_context.current_package = ast_context.document_package;
 
         ident := position_context.identifier.derived.(ast.Ident);
 
@@ -2318,7 +2363,13 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
             get_document_position(n.body, position_context);
         }
     case Comp_Lit:
+        //only set this for the parent comp literal, since we will need to walk through it to infer types.
+        if position_context.parent_comp_lit == nil {
+            position_context.parent_comp_lit = cast(^Comp_Lit)node;
+        }
+
         position_context.comp_lit = cast(^Comp_Lit)node;
+
         get_document_position(n.type, position_context);
         get_document_position(n.elems, position_context);
     case Tag_Expr:
