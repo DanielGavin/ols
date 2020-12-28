@@ -36,7 +36,7 @@ DocumentPositionContext :: struct {
     file: ast.File,
     position: common.AbsolutePosition,
     line: int,
-    function: ^ast.Node, //used to help with type resolving in function scope
+    function: ^ast.Proc_Lit, //used to help with type resolving in function scope
     selector: ^ast.Expr, //used for completion
     identifier: ^ast.Node,
     field: ^ast.Expr, //used for completion
@@ -2359,7 +2359,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.type, position_context);
 
         if position_in_node(n.body, position_context.position) {
-            position_context.function = node;
+            position_context.function = cast(^Proc_Lit)node;
             get_document_position(n.body, position_context);
         }
     case Comp_Lit:

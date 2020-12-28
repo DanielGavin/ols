@@ -399,8 +399,57 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
     }
 
     else if position_context.returns != nil && position_context.function != nil {
-        //function := position_context.function.derived.(ast.Call_Expr);
-        //if len(position_context.returns.results) == position_context.function.
+
+        return_index: int;
+
+        if position_context.returns.results == nil {
+            return;
+        }
+
+        for result, i in position_context.returns.results {
+
+            if position_in_node(result, position_context.position) {
+                return_index = i;
+                break;
+            }
+
+        }
+
+        if position_context.function.type == nil {
+            return;
+        }
+
+        if position_context.function.type.results == nil {
+            return;
+        }
+
+        if len(position_context.function.type.results.list) > return_index {
+
+            if return_symbol, ok := resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type); ok {
+
+                #partial switch v in return_symbol.value {
+                case index.SymbolEnumValue:
+                    for name in v.names {
+
+                        item := CompletionItem {
+                            label = name,
+                            kind = .EnumMember,
+                            detail = name,
+                        };
+
+                        append(&items, item);
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+
+
     }
 
 
