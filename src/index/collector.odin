@@ -137,6 +137,7 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: [] ^ast.Expr,
 
     names := make([dynamic] string, 0, collection.allocator);
 
+    //ERROR no hover on n in the for, but elsewhere is fine
     for n in fields {
 
         if ident, ok := n.derived.(ast.Ident); ok {
@@ -197,7 +198,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
         symbol: Symbol;
 
         if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-
+            //ERROR name is not completed or can be hovered
             name := string(file.src[value_decl.names[0].pos.offset:value_decl.names[0].end.offset]);
 
             if len(value_decl.values) == 1 {
@@ -244,7 +245,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
                     token_type = .Enum;
                     symbol.value = collect_union_fields(collection, v, package_map);
                     symbol.signature = "union";
+                case ast.Basic_Lit:
+                    token = v;
+                    symbol.value = collect_generic(collection, value_decl.values[0], package_map);
+                case ast.Ident:
+                    token = v;
+                    token_type = .Keyword;
+                    symbol.value = collect_generic(collection, value_decl.values[0], package_map);
                 case: // default
+                    //log.infof("default %v", value_decl.values[0].derived);
                     break;
                 }
 
@@ -340,6 +349,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
         //collection specified
         if i := strings.index(imp.fullpath, ":"); i != -1 {
 
+            //ERROR hover on collection should show string
             collection := imp.fullpath[1:i];
             p := imp.fullpath[i+1:len(imp.fullpath)-1];
 
@@ -377,6 +387,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
             if imp.name.text != "" {
                 name = imp.name.text;
+                //ERROR hover is wrong on name
             }
 
             else {

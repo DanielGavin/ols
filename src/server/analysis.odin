@@ -46,6 +46,7 @@ DocumentPositionContext :: struct {
     parent_comp_lit: ^ast.Comp_Lit, //used for completion
     implicit: bool, //used for completion
     binary: ^ast.Binary_Expr, //used for completion
+    assign: ^ast.Assign_Stmt, //used for completion
     hint: DocumentPositionContextHint,
 };
 
@@ -1304,7 +1305,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 }
 
-get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext, save_assign := false) {
 
     ast_context.use_locals = true;
     ast_context.use_globals = true;
@@ -1342,7 +1343,9 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
     case Proc_Lit:
         get_locals_stmt(file, v.body, ast_context, document_position);
     case Assign_Stmt:
-        get_locals_assign_stmt(file, v, ast_context);
+        if save_assign {
+            get_locals_assign_stmt(file, v, ast_context);
+        }
     case Using_Stmt:
         get_locals_using_stmt(file, v, ast_context);
     case When_Stmt:
@@ -1421,7 +1424,7 @@ get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstC
         return;
     }
 
-    get_locals_stmt(file, stmt.init, ast_context, document_position);
+    get_locals_stmt(file, stmt.init, ast_context, document_position, true);
     get_locals_stmt(file, stmt.body, ast_context, document_position);
     get_locals_stmt(file, stmt.else_stmt, ast_context, document_position);
 }
@@ -1520,7 +1523,7 @@ get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^As
         return;
     }
 
-    get_locals_stmt(file, stmt.init, ast_context, document_position);
+    get_locals_stmt(file, stmt.init, ast_context, document_position, true);
     get_locals_stmt(file, stmt.body, ast_context, document_position);
 }
 
@@ -2319,6 +2322,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         r := cast(^Tag_Stmt)node;
         get_document_position(r.stmt, position_context);
     case Assign_Stmt:
+        position_context.assign = cast(^Assign_Stmt)node;
         get_document_position(n.lhs, position_context);
         get_document_position(n.rhs, position_context);
     case Block_Stmt:

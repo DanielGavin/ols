@@ -398,6 +398,70 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
     }
 
+    else if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
+
+        rhs_index: int;
+
+        for elem in position_context.assign.rhs {
+
+            if position_in_node(elem, position_context.position) {
+                break;
+            }
+
+            else {
+
+                //procedures are the only types that can return more than one value
+                if symbol, ok := resolve_type_expression(ast_context, elem); ok {
+
+                    if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
+
+                        if procedure.return_types == nil {
+                            return;
+                        }
+
+                        rhs_index += len(procedure.return_types);
+                    }
+
+                    else {
+                        rhs_index += 1;
+                    }
+
+                }
+
+            }
+
+        }
+
+        if len(position_context.assign.lhs) > rhs_index {
+
+            log.info("in lhs %v", position_context.assign.lhs[rhs_index].derived);
+
+            if lhs, ok := resolve_type_expression(ast_context, position_context.assign.lhs[rhs_index]); ok {
+
+                log.infof("lhs %v", lhs);
+
+                #partial switch v in lhs.value {
+                case index.SymbolEnumValue:
+                    for name in v.names {
+
+                        item := CompletionItem {
+                            label = name,
+                            kind = .EnumMember,
+                            detail = name,
+                        };
+
+                        append(&items, item);
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
     else if position_context.returns != nil && position_context.function != nil {
 
         return_index: int;
