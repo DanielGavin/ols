@@ -144,6 +144,10 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: [] ^ast.Expr,
             append(&names, get_index_unique_string(collection, ident.name));
         }
 
+        else if field, ok := n.derived.(ast.Field_Value); ok {
+            append(&names, get_index_unique_string(collection, field.field.derived.(ast.Ident).name));
+        }
+
     }
 
     value := SymbolEnumValue {

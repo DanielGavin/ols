@@ -112,50 +112,94 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
     return false;
 }
 
+get_directive_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+
+    list.isIncomplete = false;
+
+    items := make([dynamic] CompletionItem, context.temp_allocator);
+
+    /*
+        Right now just return all the possible completions, but later on I should give the context specific ones
+    */
+
+    directive_list := [] string {
+        "file",
+        "line",
+        "packed",
+        "raw_union",
+        "align",
+        "no_nil",
+        "complete",
+        "no_alias",
+        "caller_location",
+        "require_results",
+        "type",
+        "bounds_check",
+        "no_bounds_check",
+        "assert",
+        "defined",
+        "procedure",
+        "load",
+        "partial",
+    };
+
+    for elem in directive_list {
+
+        item := CompletionItem {
+            detail = elem,
+        };
+
+        append(&items, item);
+
+    }
+
+
+}
+
 get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
     items := make([dynamic] CompletionItem, context.temp_allocator);
 
-    if position_context.parent_comp_lit.type != nil {
+    if position_context.parent_comp_lit.type == nil {
+        return;
+    }
 
-        if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+    if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 
-            if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+        if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 
-                #partial switch v in comp_symbol.value {
-                case index.SymbolStructValue:
-                    for name, i in v.names {
+            #partial switch v in comp_symbol.value {
+            case index.SymbolStructValue:
+                for name, i in v.names {
 
-                        //ERROR no completion on name and hover
-                        if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+                    //ERROR no completion on name and hover
+                    if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 
-                            if field_exists_in_comp_lit(position_context.comp_lit, name) {
-                                continue;
-                            }
-
-                            resolved.signature = index.node_to_string(v.types[i]);
-                            resolved.pkg = comp_symbol.name;
-                            resolved.name = name;
-                            resolved.type = .Field;
-
-                            item := CompletionItem {
-                                label = resolved.name,
-                                kind = cast(CompletionItemKind) resolved.type,
-                                detail = concatenate_symbols_information(ast_context, resolved),
-                                documentation = resolved.doc,
-                            };
-
-                            append(&items, item);
+                        if field_exists_in_comp_lit(position_context.comp_lit, name) {
+                            continue;
                         }
+
+                        resolved.signature = index.node_to_string(v.types[i]);
+                        resolved.pkg = comp_symbol.name;
+                        resolved.name = name;
+                        resolved.type = .Field;
+
+                        item := CompletionItem {
+                            label = resolved.name,
+                            kind = cast(CompletionItemKind) resolved.type,
+                            detail = concatenate_symbols_information(ast_context, resolved),
+                            documentation = resolved.doc,
+                        };
+
+                        append(&items, item);
                     }
                 }
             }
         }
     }
 
-    list.items = items[:];
 
-    log.info("comp lit completion!");
+    list.items = items[:];
 }
 
 get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
@@ -357,7 +401,65 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
         ast_context.current_package = ast_context.document_package;
     }
 
-    if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
+    if position_context.comp_lit != nil {
+
+        if position_context.parent_comp_lit.type == nil {
+            return;
+        }
+
+        field_name: string;
+
+        for elem in position_context.comp_lit.elems {
+
+            if position_in_node(elem, position_context.position) {
+
+                if field, ok := elem.derived.(ast.Field_Value); ok {
+                    field_name = field.field.derived.(ast.Ident).name;
+                }
+
+            }
+
+        }
+
+        if field_name == "" {
+            return;
+        }
+
+        if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+
+            if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+
+                if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
+
+                    for name, i in s.names {
+
+                        if name != field_name {
+                            continue;
+                        }
+
+                        if enum_symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+
+                            if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
+
+                                for enum_name in enum_value.names {
+
+                                    item := CompletionItem {
+                                        label = enum_name,
+                                        kind = .EnumMember,
+                                        detail = enum_name,
+                                    };
+
+                                    append(&items, item);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    else if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
         context_node: ^ast.Expr;
         enum_node: ^ast.Expr;
@@ -389,13 +491,9 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
                         append(&items, item);
 
                     }
-
                 }
-
             }
-
         }
-
     }
 
     else if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
@@ -434,11 +532,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         if len(position_context.assign.lhs) > rhs_index {
 
-            log.info("in lhs %v", position_context.assign.lhs[rhs_index].derived);
-
             if lhs, ok := resolve_type_expression(ast_context, position_context.assign.lhs[rhs_index]); ok {
-
-                log.infof("lhs %v", lhs);
 
                 #partial switch v in lhs.value {
                 case index.SymbolEnumValue:

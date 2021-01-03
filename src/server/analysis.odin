@@ -287,22 +287,22 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 
     for elem in current_comp_lit.elems {
 
-        if position_in_node(elem, position_context.position) {
+        if !position_in_node(elem, position_context.position) {
+            continue;
+        }
 
-            if field_value, ok := elem.derived.(ast.Field_Value); ok {
+        if field_value, ok := elem.derived.(ast.Field_Value); ok {
 
-                if comp_lit, ok := field_value.value.derived.(ast.Comp_Lit); ok {
+            if comp_lit, ok := field_value.value.derived.(ast.Comp_Lit); ok {
 
-                    if s, ok := current_symbol.value.(index.SymbolStructValue); ok {
+                if s, ok := current_symbol.value.(index.SymbolStructValue); ok {
 
-                        for name, i in s.names {
+                    for name, i in s.names {
 
-                            if name == field_value.field.derived.(ast.Ident).name {
+                        if name == field_value.field.derived.(ast.Ident).name {
 
-                                if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
-                                    return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value);
-                                }
-
+                            if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+                                return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value);
                             }
 
                         }
@@ -1134,10 +1134,14 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 
     names := make([dynamic] string, context.temp_allocator);
 
-    for field in v.fields {
+    for n in v.fields {
 
-        if ident, ok := field.derived.(ast.Ident); ok {
+        if ident, ok := n.derived.(ast.Ident); ok {
             append(&names, ident.name);
+        }
+
+        else if field, ok := n.derived.(ast.Field_Value); ok {
+            append(&names,  field.field.derived.(ast.Ident).name);
         }
 
     }
