@@ -10,6 +10,7 @@ Language server for Odin. This project is still in early development.
 - [Clients](#clients)
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
+  - [Vim](#vim)
 - [Missing features](#missing-features)
 
 ## Installation
@@ -81,6 +82,23 @@ Configuration of the LSP:
 	"only_show_lsp_completions": true,
 }
 
+```
+
+### Vim
+Install [Coc](https://github.com/neoclide/coc.nvim).
+
+Configuration of the LSP:
+```
+{
+  "languageserver": {
+    "odin": {
+      "command": "ols",
+      "filetypes": ["odin"],
+      "rootPatterns": ["ols.json"],
+      "trace.server": "verbose"
+    }
+  }
+}
 ```
 
 ## Missing-features
