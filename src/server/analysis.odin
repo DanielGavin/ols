@@ -946,6 +946,54 @@ resolve_ident_is_package ::  proc(ast_context: ^AstContext, node: ast.Ident) -> 
     return false;
 }
 
+expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, value: index.SymbolStructValue) -> index.SymbolStructValue {
+
+    names := slice.to_dynamic(value.names, context.temp_allocator);
+    types := slice.to_dynamic(value.types, context.temp_allocator);
+
+    //ERROR no hover on k and v(completion works)
+    for k, v in value.usings {
+
+        ast_context.current_package = symbol.pkg;
+
+        field_expr: ^ast.Expr;
+
+        for name, i in value.names {
+
+            if name == k && v {
+                field_expr = value.types[i];
+            }
+
+        }
+
+        if field_expr == nil {
+            continue;
+        }
+
+        if s, ok := resolve_type_expression(ast_context, field_expr); ok {
+
+            if struct_value, ok := s.value.(index.SymbolStructValue); ok {
+
+                for name in struct_value.names {
+                    append(&names, name);
+                }
+
+                for type in struct_value.types {
+                    append(&types, type);
+                }
+
+            }
+
+        }
+
+    }
+
+    return {
+        names = names[:],
+        types = types[:],
+    };
+
+}
 
 resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok := true) -> (index.Symbol, bool) {
 
@@ -968,6 +1016,12 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
         else {
             return symbol, true;
         }
+    case index.SymbolStructValue:
+        //expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
+        expanded := symbol;
+        expanded.value = expand_struct_usings(ast_context, symbol, v);
+        return expanded, true;
+
     case index.SymbolGenericValue:
         return resolve_type_expression(ast_context, v.expr);
     }
@@ -994,20 +1048,20 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 }
 
 make_bool_ast :: proc() -> ^ast.Ident {
-
     ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
-
     ident.name = bool_lit;
-
     return ident;
 }
 
 make_int_ast :: proc() -> ^ast.Ident {
-
     ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
-
     ident.name = int_lit;
+    return ident;
+}
 
+make_ident_ast :: proc(name: string) -> ^ast.Ident {
+    ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
+    ident.name = name;
     return ident;
 }
 
@@ -1164,7 +1218,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
     names := make([dynamic] string, context.temp_allocator);
     types := make([dynamic] ^ast.Expr, context.temp_allocator);
-    usings := make([dynamic] bool, context.temp_allocator);
+    usings := make(map [string] bool, 0, context.temp_allocator);
 
     for field in v.fields.list {
 
@@ -1174,11 +1228,9 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
                 append(&types, index.clone_type(field.type, context.temp_allocator, nil));
 
                 if .Using in field.flags {
-                    append(&usings, true);
+                    usings[identifier.name] = true;
                 }
-                else {
-                    append(&usings, false);
-                }
+
             }
         }
 
@@ -1187,7 +1239,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
     symbol.value = index.SymbolStructValue {
         names = names[:],
         types = types[:],
-        usings = usings[:],
+        usings = usings,
     };
 
     return symbol;

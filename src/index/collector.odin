@@ -100,7 +100,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 
     names := make([dynamic] string, 0, collection.allocator);
     types := make([dynamic] ^ast.Expr, 0, collection.allocator);
-    usings := make([dynamic] bool, 0, collection.allocator);
+    usings := make(map [string] bool, 0, collection.allocator);
 
     for field in struct_type.fields.list {
 
@@ -113,11 +113,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
             append(&types, cloned);
 
             if .Using in field.flags {
-                append(&usings, true);
-            }
-
-            else {
-                append(&usings, false);
+                usings[names[len(names)-1]] = true;
             }
 
         }
@@ -127,7 +123,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
     value := SymbolStructValue {
         names = names[:],
         types = types[:],
-        usings = usings[:],
+        usings = usings,
     };
 
     return value;

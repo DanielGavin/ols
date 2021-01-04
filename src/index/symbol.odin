@@ -20,7 +20,7 @@ import "shared:common"
 SymbolStructValue :: struct {
     names: [] string,
     types: [] ^ast.Expr,
-    usings: [] bool, //not memory efficient
+    usings: map [string] bool,
 };
 
 

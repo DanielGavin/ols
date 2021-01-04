@@ -147,6 +147,8 @@ get_directive_completion :: proc(ast_context: ^AstContext, postition_context: ^D
 
         item := CompletionItem {
             detail = elem,
+            label = elem,
+            kind = .EnumMember,
         };
 
         append(&items, item);
