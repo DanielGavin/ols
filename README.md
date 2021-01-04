@@ -94,8 +94,7 @@ Configuration of the LSP:
     "odin": {
       "command": "ols",
       "filetypes": ["odin"],
-      "rootPatterns": ["ols.json"],
-      "trace.server": "verbose"
+      "rootPatterns": ["ols.json"]
     }
   }
 }
