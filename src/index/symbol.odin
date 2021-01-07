@@ -21,6 +21,7 @@ SymbolStructValue :: struct {
     names: [] string,
     types: [] ^ast.Expr,
     usings: map [string] bool,
+    generic: bool,
 };
 
 

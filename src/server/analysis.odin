@@ -64,7 +64,7 @@ AstContext :: struct {
     document_package: string,
     use_globals: bool,
     use_locals: bool,
-    call: ^ast.Expr, //used to determene the types for generics and the correct function for overloaded functions
+    call: ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
 };
 
 make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
@@ -340,7 +340,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
         return index.Symbol {}, false;
     }
 
-    call_expr := ast_context.call.derived.(Call_Expr);
+    call_expr := ast_context.call;
     poly_map := make(map[string]^Expr, 0, context.temp_allocator);
     i := 0;
 
@@ -471,7 +471,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
         return index.Symbol {}, false;
     }
 
-    call_expr := ast_context.call.derived.(Call_Expr);
+    call_expr := ast_context.call;
 
     for arg_expr in group.args {
 
@@ -567,7 +567,13 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     case Auto_Cast:
         return resolve_type_expression(ast_context, v.expr);
     case Unary_Expr:
-        return resolve_type_expression(ast_context, v.expr);
+        if v.op.kind == .And {
+            return resolve_type_expression(ast_context, make_pointer_ast(v.expr));
+        }
+
+        else {
+            return resolve_type_expression(ast_context, v.expr);
+        }
     case Deref_Expr:
         return resolve_type_expression(ast_context, v.expr);
     case Paren_Expr:
@@ -583,7 +589,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         ident.name = v.tok.text;
         return resolve_type_identifier(ast_context, ident^);
     case Type_Assertion:
-        resolve_type_expression(ast_context, v.type);
+        return resolve_type_expression(ast_context, v.type);
     case Proc_Lit:
         if v.type.results != nil {
             if len(v.type.results.list) == 1 {
@@ -592,7 +598,15 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         }
     case Pointer_Type:
 
+        /*
+            Add flag to not pull out a type from a pointer for function overloading.
+        */
+
         if v2, ok := v.elem.derived.(ast.Pointer_Type); !ok {
+            return resolve_type_expression(ast_context, v.elem);
+        }
+
+        else if v2, ok := v.elem.derived.(ast.Type_Assertion); !ok {
             return resolve_type_expression(ast_context, v.elem);
         }
 
@@ -618,7 +632,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
         return index.Symbol {}, false;
     case Call_Expr:
-        ast_context.call = node;
+        ast_context.call = cast(^Call_Expr)node;
         return resolve_type_expression(ast_context, v.expr);
     case Implicit_Selector_Expr:
         return index.Symbol {}, false;
@@ -704,7 +718,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
             return index.Symbol {}, false;
         }
     case:
-        //log.debugf("default node kind, resolve_type_expression: %T", v);
+        log.debugf("default node kind, resolve_type_expression: %T", v);
         return make_symbol_generic_from_ast(ast_context, node), true;
     }
 
@@ -768,19 +782,16 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             }
         case Proc_Group:
             return resolve_function_overload(ast_context, v);
-        case Selector_Expr:
-            return resolve_type_expression(ast_context, local);
         case Array_Type:
             return make_symbol_generic_from_ast(ast_context, local), true;
         case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, local), true;
-        case Index_Expr:
-            return resolve_type_expression(ast_context, local);
-        case Pointer_Type:
+        case Call_Expr:
             return resolve_type_expression(ast_context, local);
         case:
             log.errorf("default type node kind: %T", v);
-            return make_symbol_generic_from_ast(ast_context, local), true;
+            return resolve_type_expression(ast_context, local);
+            //return make_symbol_generic_from_ast(ast_context, local), true;
         }
     }
 
@@ -809,19 +820,16 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             }
         case Proc_Group:
             return resolve_function_overload(ast_context, v);
-        case Selector_Expr:
-            return resolve_type_expression(ast_context, global);
         case Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
         case Dynamic_Array_Type:
             return make_symbol_generic_from_ast(ast_context, global), true;
-        case Index_Expr:
-            return resolve_type_expression(ast_context, global);
-        case Pointer_Type:
+        case Call_Expr:
             return resolve_type_expression(ast_context, global);
         case:
             log.errorf("default type node kind: %T", v);
-            return make_symbol_generic_from_ast(ast_context, global), true;
+            return resolve_type_expression(ast_context, global);
+            //return make_symbol_generic_from_ast(ast_context, global), true;
         }
 
     }
@@ -948,6 +956,7 @@ resolve_ident_is_package ::  proc(ast_context: ^AstContext, node: ast.Ident) -> 
 
 expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, value: index.SymbolStructValue) -> index.SymbolStructValue {
 
+    //ERROR no completion or over on names and types - generic resolve error
     names := slice.to_dynamic(value.names, context.temp_allocator);
     types := slice.to_dynamic(value.types, context.temp_allocator);
 
@@ -1017,10 +1026,16 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
             return symbol, true;
         }
     case index.SymbolStructValue:
+
         //expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
-        expanded := symbol;
-        expanded.value = expand_struct_usings(ast_context, symbol, v);
-        return expanded, true;
+        if len(v.usings) > 0 {
+            expanded := symbol;
+            expanded.value = expand_struct_usings(ast_context, symbol, v);
+            return expanded, true;
+        }
+        else {
+            return symbol, true;
+        }
 
     case index.SymbolGenericValue:
         return resolve_type_expression(ast_context, v.expr);
@@ -1045,6 +1060,12 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 
 
     return index.lookup(node.name, ast_context.document_package);
+}
+
+make_pointer_ast :: proc(elem: ^ast.Expr) -> ^ast.Pointer_Type {
+    pointer := index.new_type(ast.Pointer_Type, elem.pos, elem.end, context.temp_allocator);
+    pointer.elem = elem;
+    return pointer;
 }
 
 make_bool_ast :: proc() -> ^ast.Ident {
@@ -1242,7 +1263,98 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
         usings = usings,
     };
 
+    log.infof("poly %v", v);
+
+    if v.poly_params != nil {
+        resolve_poly_struct(ast_context, v, &symbol);
+    }
+
+    //TODO change the expand to not double copy the array, but just pass the dynamic arrays
+    if len(usings) > 0 {
+        symbol.value = expand_struct_usings(ast_context, symbol, symbol.value.(index.SymbolStructValue));
+    }
+
     return symbol;
+}
+
+resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol: ^index.Symbol) {
+
+    if ast_context.call == nil {
+        log.infof("no call");
+        return;
+    }
+
+    symbol_value := &symbol.value.(index.SymbolStructValue);
+
+    if symbol_value == nil {
+        log.infof("no value");
+        return;
+    }
+
+    i := 0;
+
+    poly_map := make(map [string] ^ast.Expr, 0, context.temp_allocator);
+
+    for param in v.poly_params.list {
+
+        for name in param.names {
+
+            if len(ast_context.call.args) <= i {
+                break;
+            }
+
+            if param.type == nil {
+                continue;
+            }
+
+            if poly, ok := param.type.derived.(ast.Typeid_Type); ok {
+
+                if ident, ok := name.derived.(ast.Ident); ok {
+                    poly_map[ident.name] = ast_context.call.args[i];
+                }
+
+            }
+
+
+            i += 1;
+        }
+
+
+    }
+
+    for type, i in symbol_value.types {
+
+        if ident, ok := type.derived.(ast.Ident); ok {
+
+            if expr, ok := poly_map[ident.name]; ok {
+                symbol_value.types[i] = expr;
+            }
+
+        }
+
+        else if call_expr, ok := type.derived.(ast.Call_Expr); ok {
+
+            if call_expr.args == nil {
+                continue;
+            }
+
+            for arg, i in call_expr.args {
+
+                if ident, ok := arg.derived.(ast.Ident); ok {
+
+                    if expr, ok := poly_map[ident.name]; ok {
+                        call_expr.args[i] = expr;
+                    }
+
+                }
+
+
+            }
+
+        }
+
+    }
+
 }
 
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
@@ -1284,7 +1396,7 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
     switch v in value.derived {
     case Call_Expr:
 
-        ast_context.call = value;
+        ast_context.call = cast(^ast.Call_Expr)value;
 
         if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 
