@@ -12,6 +12,7 @@ import "core:path"
 import "core:runtime"
 import "core:thread"
 import "core:sync"
+import "core:path/filepath"
 import "intrinsics"
 
 import "shared:common"
@@ -434,7 +435,17 @@ request_initialize :: proc(task: ^common.Task) {
                         config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
 
                         for p in ols_config.collections {
-                            config.collections[strings.clone(p.name)] = strings.clone(strings.to_lower(p.path, context.temp_allocator));
+
+                            forward_path, _ := filepath.to_slash(p.path, context.temp_allocator);
+
+                            if filepath.is_abs(p.path) {
+                                config.collections[strings.clone(p.name)] = strings.to_lower(forward_path);
+                            }
+
+                            else {
+                                config.collections[strings.clone(p.name)] = strings.to_lower(path.join(elems = {uri.path, forward_path}, allocator = context.temp_allocator));
+                            }
+
                         }
 
                     }
