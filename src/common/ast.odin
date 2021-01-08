@@ -24,6 +24,76 @@ keyword_map : map [string] bool =
          "u8" = true,
          "i8" = true};
 
+
+GlobalExpr :: struct {
+    name: string,
+    expr: ^ast.Expr,
+    mutable: bool,
+    docs: ^ast.Comment_Group,
+};
+
+collect_globals :: proc(file: ast.File) -> [] GlobalExpr {
+
+    exprs := make([dynamic] GlobalExpr, context.temp_allocator);
+
+    for decl in file.decls {
+
+        if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
+
+            for name, i in value_decl.names {
+
+                str := get_ast_node_string(name, file.src);
+
+                if value_decl.type != nil {
+                    append(&exprs, GlobalExpr { name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs });
+                }
+
+                else {
+                    if len(value_decl.values) > i {
+                        append(&exprs, GlobalExpr { name = str, expr = value_decl.values[i], docs = value_decl.docs });
+                    }
+                }
+
+            }
+
+        }
+
+        else if foreign_decl, ok := decl.derived.(ast.Foreign_Block_Decl); ok {
+
+            if foreign_decl.body == nil {
+                continue;
+            }
+
+            if block, ok := foreign_decl.body.derived.(ast.Block_Stmt); ok {
+
+                for stmt in block.stmts {
+
+                    if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
+
+                        for name, i in value_decl.names {
+
+                            str := get_ast_node_string(name, file.src);
+
+                            if value_decl.type != nil {
+                                append(&exprs, GlobalExpr { name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs });
+                            }
+
+                            else {
+                                if len(value_decl.values) > i {
+                                    append(&exprs, GlobalExpr { name = str, expr = value_decl.values[i], docs = value_decl.docs });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return exprs[:];
+}
+
+
 get_ast_node_string :: proc(node: ^ast.Node, src: [] byte) -> string {
     return string(src[node.pos.offset:node.end.offset]);
 }

@@ -1361,28 +1361,11 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
     ast_context.variables["context"] = true;
 
-    for decl in file.decls {
+    exprs := common.collect_globals(file);
 
-        if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-
-            for name, i in value_decl.names {
-
-                str := common.get_ast_node_string(name, file.src);
-
-                if value_decl.type != nil {
-                    ast_context.globals[str] = value_decl.type;
-                    ast_context.variables[str] = value_decl.is_mutable;
-                }
-
-                else {
-                    if len(value_decl.values) > i {
-                        ast_context.globals[str] = value_decl.values[i];
-                    }
-                }
-
-            }
-
-        }
+    for expr in exprs {
+        ast_context.globals[expr.name] = expr.expr;
+        ast_context.variables[expr.name] = expr.mutable;
     }
 }
 

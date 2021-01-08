@@ -193,144 +193,103 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
     directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
     package_map := get_package_mapping(file, collection.config, uri);
 
-    for decl in file.decls {
+    exprs := common.collect_globals(file);
+
+    for expr in exprs {
 
         symbol: Symbol;
 
-        if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-            //ERROR name is not completed or can be hovered
-            name := string(file.src[value_decl.names[0].pos.offset:value_decl.names[0].end.offset]);
+        token: ast.Node;
+        token_type: SymbolType;
 
-            if len(value_decl.values) == 1 {
+        name := expr.name;
 
-                token: ast.Node;
-                token_type: SymbolType;
+        switch v in expr.expr.derived {
+        case ast.Proc_Lit:
+            token = v;
+            token_type = .Function;
 
-                switch v in value_decl.values[0].derived {
-                case ast.Proc_Lit:
-                    token = v;
-                    token_type = .Function;
-
-                    if v.type.params != nil {
-                        symbol.signature = strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
-                            collection.allocator);
-                    }
-
-                    if v.type.results != nil {
-                        symbol.returns = strings.concatenate( {"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
-                            collection.allocator);
-                    }
-
-                    if v.type != nil {
-                        symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
-                    }
-                case ast.Proc_Group:
-                    token = v;
-                    token_type = .Function;
-                    symbol.value = SymbolProcedureGroupValue {
-                        group = clone_type(value_decl.values[0], collection.allocator, &collection.unique_strings),
-                    };
-                case ast.Struct_Type:
-                    token = v;
-                    token_type = .Struct;
-                    symbol.value = collect_struct_fields(collection, v, package_map);
-                    symbol.signature = "struct";
-                case ast.Enum_Type:
-                    token = v;
-                    token_type = .Enum;
-                    symbol.value = collect_enum_fields(collection, v.fields, package_map);
-                    symbol.signature = "enum";
-                case ast.Union_Type:
-                    token = v;
-                    token_type = .Enum;
-                    symbol.value = collect_union_fields(collection, v, package_map);
-                    symbol.signature = "union";
-                case ast.Basic_Lit:
-                    token = v;
-                    symbol.value = collect_generic(collection, value_decl.values[0], package_map);
-                case ast.Ident:
-                    token = v;
-                    token_type = .Keyword;
-                    symbol.value = collect_generic(collection, value_decl.values[0], package_map);
-                case: // default
-                    //log.infof("default %v", value_decl.values[0].derived);
-                    break;
-                }
-
-                symbol.range = common.get_token_range(token, file.src);
-                symbol.name = get_index_unique_string(collection, name);
-                symbol.pkg = get_index_unique_string(collection, directory);
-                symbol.type = token_type;
-                symbol.uri = get_index_unique_string(collection, uri);
-
-
-                if value_decl.docs != nil {
-
-                    tmp: string;
-
-                    for doc in value_decl.docs.list {
-                        tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator);
-                    }
-
-                    if tmp != "" {
-                        replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator);
-                        symbol.doc = strings.clone(replaced, collection.allocator);
-                    }
-
-                }
-
-                cat := strings.concatenate({symbol.pkg, name}, context.temp_allocator);
-
-                id := get_symbol_id(cat);
-
-                //right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
-                if v, ok := collection.symbols[id]; !ok {
-                    collection.symbols[id] = symbol;
-                }
-
-                else {
-                    free_symbol(symbol, collection.allocator);
-                }
-
+            if v.type.params != nil {
+                symbol.signature = strings.concatenate( {"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
+                    collection.allocator);
             }
 
-            else {
-
-                for name, i in value_decl.names {
-
-                    str := common.get_ast_node_string(name, file.src);
-
-                    symbol: Symbol;
-                    symbol.range = common.get_token_range(name, file.src);
-                    symbol.name = get_index_unique_string(collection, str);
-                    symbol.pkg = get_index_unique_string(collection, directory);
-                    symbol.uri = get_index_unique_string(collection, uri);
-                    symbol.type = .Variable;
-
-                    if value_decl.type != nil {
-                        symbol.value = collect_generic(collection, value_decl.type, package_map);
-                    }
-
-                    else {
-                        if len(value_decl.values) > i {
-                            symbol.value = collect_generic(collection, value_decl.values[i], package_map);
-                        }
-                    }
-
-                    cat := strings.concatenate({symbol.pkg, str}, context.temp_allocator);
-
-                    id := get_symbol_id(cat);
-
-                    if v, ok := collection.symbols[id]; !ok {
-                        collection.symbols[id] = symbol;
-                    }
-
-                    else {
-                        free_symbol(symbol, collection.allocator);
-                    }
-               }
+            if v.type.results != nil {
+                symbol.returns = strings.concatenate( {"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
+                    collection.allocator);
             }
+
+            if v.type != nil {
+                symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
+            }
+        case ast.Proc_Group:
+            token = v;
+            token_type = .Function;
+            symbol.value = SymbolProcedureGroupValue {
+                group = clone_type(expr.expr, collection.allocator, &collection.unique_strings),
+            };
+        case ast.Struct_Type:
+            token = v;
+            token_type = .Struct;
+            symbol.value = collect_struct_fields(collection, v, package_map);
+            symbol.signature = "struct";
+        case ast.Enum_Type:
+            token = v;
+            token_type = .Enum;
+            symbol.value = collect_enum_fields(collection, v.fields, package_map);
+            symbol.signature = "enum";
+        case ast.Union_Type:
+            token = v;
+            token_type = .Enum;
+            symbol.value = collect_union_fields(collection, v, package_map);
+            symbol.signature = "union";
+        case ast.Basic_Lit:
+            token = v;
+            symbol.value = collect_generic(collection, expr.expr, package_map);
+        case ast.Ident:
+            token = v;
+            token_type = .Keyword;
+            symbol.value = collect_generic(collection, expr.expr, package_map);
+        case: // default
+            //log.infof("default %v", value_decl.values[0].derived);
+            break;
         }
+
+        symbol.range = common.get_token_range(token, file.src);
+        symbol.name = get_index_unique_string(collection, name);
+        symbol.pkg = get_index_unique_string(collection, directory);
+        symbol.type = token_type;
+        symbol.uri = get_index_unique_string(collection, uri);
+
+
+        if expr.docs != nil {
+
+            tmp: string;
+
+            for doc in expr.docs.list {
+                tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator);
+            }
+
+            if tmp != "" {
+                replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator);
+                symbol.doc = strings.clone(replaced, collection.allocator);
+            }
+
+        }
+
+        cat := strings.concatenate({symbol.pkg, name}, context.temp_allocator);
+
+        id := get_symbol_id(cat);
+
+        //right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
+        if v, ok := collection.symbols[id]; !ok {
+            collection.symbols[id] = symbol;
+        }
+
+        else {
+            free_symbol(symbol, collection.allocator);
+        }
+
     }
 
     return .None;
