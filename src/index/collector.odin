@@ -251,7 +251,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             token_type = .Keyword;
             symbol.value = collect_generic(collection, expr.expr, package_map);
         case: // default
-            //log.infof("default %v", value_decl.values[0].derived);
+            symbol.value = collect_generic(collection, expr.expr, package_map);
+            token = expr.expr;
             break;
         }
 
