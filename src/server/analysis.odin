@@ -719,6 +719,11 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         }
     case:
         log.debugf("default node kind, resolve_type_expression: %T", v);
+
+        if v == nil {
+            return {}, false;
+        }
+
         return make_symbol_generic_from_ast(ast_context, node), true;
     }
 
