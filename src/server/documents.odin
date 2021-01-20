@@ -405,7 +405,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
     for imp, index in document.ast.imports {
 
         //collection specified
-        if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 {
+        if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) {
 
             if len(imp.fullpath) < 2 {
                 continue;
