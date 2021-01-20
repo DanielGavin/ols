@@ -28,7 +28,7 @@ write_sized :: proc(writer: ^Writer, data: []byte) -> bool {
 
     written, err := writer.writer_fn(writer.writer_context, data);
 
-    if(err != 0 || written != len(data)) {
+    if(err != 0) {
         return false;
     }
 

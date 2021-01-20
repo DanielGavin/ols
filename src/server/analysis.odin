@@ -2151,8 +2151,6 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 fallback_position_context_completion :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 
-    //log.info("FALLBACK TIME");
-
     paren_count: int;
     bracket_count: int;
     end: int;
@@ -2233,7 +2231,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     if empty_dot && len(str) == 0 {
         position_context.implicit = true;
-        log.info("implicit");
         return;
     }
 
@@ -2245,7 +2242,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         file = &position_context.file,
 	};
 
-    tokenizer.init(&p.tok, str, position_context.file.fullpath);
+    tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
 
     p.tok.line_count = position.line;
 
@@ -2266,7 +2263,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     else if s, ok := e.derived.(ast.Implicit_Selector_Expr); ok {
         position_context.implicit = true;
-        log.info("IMPLICIT");
     }
 
     else {
@@ -2325,7 +2321,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
         file = &position_context.file,
 	};
 
-    tokenizer.init(&p.tok, str, position_context.file.fullpath);
+    tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
 
     p.tok.line_count = position.line;
 

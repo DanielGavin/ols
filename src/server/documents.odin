@@ -399,10 +399,14 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
 
     parser.parse_file(&p, &document.ast);
 
-    document.imports = make([]Package, len(document.ast.imports));
+    imports := make([dynamic]Package);
     document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
 
     for imp, index in document.ast.imports {
+
+        if i := strings.index(imp.fullpath, "\""); i == -1 {
+            continue;
+        }
 
         //collection specified
         if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
@@ -420,16 +424,18 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
                 continue;
             }
 
-            document.imports[index].name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
+            import_: Package;
+            import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
 
             if imp.name.text != "" {
-                document.imports[index].base = imp.name.text;
+                import_.base = imp.name.text;
             }
 
             else {
-                document.imports[index].base = path.base(document.imports[index].name, false);
+                import_.base = path.base(import_.name, false);
             }
 
+            append(&imports, import_);
         }
 
         //relative
@@ -439,21 +445,24 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
                 continue;
             }
 
-            document.imports[index].name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
-
-            document.imports[index].name = path.clean(document.imports[index].name);
+            import_: Package;
+            import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath)-1]}, allocator = context.temp_allocator);
+            import_.name = path.clean(import_.name);
 
             if imp.name.text != "" {
-                document.imports[index].base = imp.name.text;
+                import_.base = imp.name.text;
             }
 
             else {
-                document.imports[index].base = path.base(document.imports[index].name, false);
+                import_.base = path.base(import_.name, false);
             }
 
+            append(&imports, import_);
         }
 
     }
+
+    document.imports = imports[:];
 
     return current_errors[:], true;
 }
