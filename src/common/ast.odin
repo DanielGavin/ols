@@ -11,6 +11,7 @@ keyword_map : map [string] bool =
          "string" = true,
          "u64" = true,
          "f32" = true,
+         "f64" = true,
          "i64" = true,
          "i32" = true,
          "bool" = true,
