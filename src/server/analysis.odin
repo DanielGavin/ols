@@ -563,7 +563,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     case Basic_Lit:
         return resolve_basic_lit(ast_context, v);
     case Type_Cast:
-        return resolve_type_expression(ast_context, v.expr);
+        return resolve_type_expression(ast_context, v.type);
     case Auto_Cast:
         return resolve_type_expression(ast_context, v.expr);
     case Unary_Expr:
