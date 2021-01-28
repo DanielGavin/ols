@@ -282,6 +282,7 @@ OlsConfig :: struct {
     enable_semantic_tokens: bool,
     enable_document_symbols: bool,
     enable_hover: bool,
+    verbose: bool,
 };
 
 OlsConfigCollection :: struct {

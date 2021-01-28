@@ -9,6 +9,7 @@ import "core:slice"
 import "core:strconv"
 import "core:thread"
 import "core:encoding/json"
+import "core:reflect"
 
 import "intrinsics"
 
@@ -18,6 +19,7 @@ import "shared:common"
 
 os_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
 {
+    //ERROR can't go to os.Handle
     a, b := os.read(cast(os.Handle)handle, data);
     return a, cast(int)b;
 }
@@ -30,14 +32,13 @@ os_write :: proc(handle: rawptr, data: [] byte) -> (int, int)
 
 //Note(Daniel, Should look into handling errors without crashing from parsing)
 
+
+verbose_logger: log.Logger;
+
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     config: common.Config;
     config.debug_single_thread = false;
-    //tracking_allocator := common.memleak_allocator(true);
-    //context.allocator = tracking_allocator;
-
-    //temporary collections being set manually, need to get client configuration set up.
     config.collections = make(map [string] string);
 
     log.info("Starting Odin Language Server");
@@ -46,6 +47,14 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
     config.running = true;
 
     for config.running {
+
+        if config.verbose {
+            context.logger = verbose_logger;
+        }
+
+        else {
+            context.logger = log.Logger{nil, nil, log.Level.Debug, nil};
+        }
 
         header, success := server.read_and_parse_header(reader);
 
@@ -86,10 +95,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     common.pool_wait_and_process(&server.pool);
     common.pool_destroy(&server.pool);
-
-    //common.memleak_dump(tracking_allocator, common.log_dump, nil);
-
-
 }
 
 end :: proc() {
@@ -102,14 +107,11 @@ main :: proc() {
     reader := server.make_reader(os_read, cast(rawptr)os.stdin);
     writer := server.make_writer(os_write, cast(rawptr)os.stdout);
 
-    init_global_temporary_allocator(mem.megabytes(200));
+    verbose_logger := server.create_lsp_logger(&writer, log.Level.Error);
 
-    context.logger = log.Logger{nil, nil, log.Level.Debug, nil}; //have to set the procedure to nil to avoid calling tprintf...
+    context.logger = verbose_logger;
 
-    //fd, err := os.open("C:/Users/danie/OneDrive/Desktop/Computer_Science/ols/log.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC );
-    //context.logger = log.create_file_logger(fd);
-
-    //context.logger = server.create_lsp_logger(&writer);
+    init_global_temporary_allocator(mem.megabytes(100));
 
     run(&reader, &writer);
 }

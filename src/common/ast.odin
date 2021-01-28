@@ -341,7 +341,7 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
         free_ast(n.key, allocator);
         free_ast(n.value, allocator);
     case:
-        log.errorf("free Unhandled node kind: %T", n);
+        log.warnf("free Unhandled node kind: %T", n);
     }
 
     mem.free(node, allocator);
@@ -570,7 +570,7 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
         //    return node_equal(n.specialization, m.specialization);
         //}
     case:
-        log.error("Unhandled poly node kind: %T", m);
+        log.warn("Unhandled poly node kind: %T", m);
     }
 
     return false;

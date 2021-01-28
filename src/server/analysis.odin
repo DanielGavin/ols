@@ -132,7 +132,7 @@ get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
     case Ident:
         return cast(^Expr)node;
     case:
-        log.errorf("Unhandled poly to node kind %v", v);
+        log.warnf("Unhandled poly to node kind %v", v);
     }
 
     return nil;
@@ -674,7 +674,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                 }
 
                 else {
-                    log.error("No field");
                     return index.Symbol {}, false;
                 }
             case index.SymbolGenericValue:
@@ -794,7 +793,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Call_Expr:
             return resolve_type_expression(ast_context, local);
         case:
-            log.errorf("default type node kind: %T", v);
+            log.warnf("default type node kind: %T", v);
             return resolve_type_expression(ast_context, local);
             //return make_symbol_generic_from_ast(ast_context, local), true;
         }
@@ -832,7 +831,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case Call_Expr:
             return resolve_type_expression(ast_context, global);
         case:
-            log.errorf("default type node kind: %T", v);
+            log.warnf("default type node kind: %T", v);
             return resolve_type_expression(ast_context, global);
             //return make_symbol_generic_from_ast(ast_context, global), true;
         }
@@ -1833,7 +1832,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
     position_context, ok := get_document_position_context(document, position, .Definition);
 
     if !ok {
-        log.error("Failed to get position context");
+        log.warn("Failed to get position context");
         return location, false;
     }
 

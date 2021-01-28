@@ -433,6 +433,7 @@ request_initialize :: proc(task: ^common.Task) {
                         enable_document_symbols = ols_config.enable_document_symbols;
                         enable_hover = ols_config.enable_hover;
                         config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
+                        config.verbose = ols_config.verbose;
 
                         for p in ols_config.collections {
 
@@ -599,7 +600,7 @@ request_definition :: proc(task: ^common.Task) {
     location, ok2 := get_definition_location(document, definition_params.position);
 
     if !ok2 {
-        log.error("Failed to get definition location");
+        log.warn("Failed to get definition location");
     }
 
     response := make_response_message(

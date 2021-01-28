@@ -222,7 +222,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
         r.type = clone_type(r.type, allocator, unique_strings);
         r.elems = clone_type(r.elems, allocator, unique_strings);
     case:
-        log.error("Clone type Unhandled node kind: %T", n);
+        log.warn("Clone type Unhandled node kind: %T", n);
     }
 
     return res;

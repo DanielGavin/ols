@@ -107,7 +107,7 @@ free_static_index :: proc() {
 
 
 log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
-    log.errorf("%v %v %v", pos, msg, args);
+    log.warnf("%v %v %v", pos, msg, args);
 }
 
 log_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {

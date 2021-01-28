@@ -38,6 +38,7 @@ import "core:sort"
 Indexer :: struct {
     built_in_packages: [dynamic] string,
     static_index: MemoryIndex,
+    dynamic_index: MemoryIndex,
 };
 
 indexer: Indexer;
@@ -49,6 +50,11 @@ FuzzyResult :: struct {
 
 
 lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
+
+    if symbol, ok := memory_index_lookup(&indexer.dynamic_index, name, pkg); ok {
+        log.infof("lookup dynamic name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
+        return symbol, true;
+    }
 
     if symbol, ok := memory_index_lookup(&indexer.static_index, name, pkg); ok {
         log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);

@@ -502,7 +502,7 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
         replace_package_alias(n.type, package_map, collection);
         replace_package_alias(n.elems, package_map, collection);
     case:
-        log.error("Replace Unhandled node kind: %T", n);
+        log.warnf("Replace Unhandled node kind: %T", n);
     }
 
 }
