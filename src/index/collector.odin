@@ -248,10 +248,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             symbol.value = collect_generic(collection, expr.expr, package_map);
         case ast.Ident:
             token = v;
-            token_type = .Keyword;
+            token_type = .Variable;
             symbol.value = collect_generic(collection, expr.expr, package_map);
         case: // default
             symbol.value = collect_generic(collection, expr.expr, package_map);
+            token_type = .Variable;
             token = expr.expr;
             break;
         }
