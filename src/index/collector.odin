@@ -284,7 +284,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
         id := get_symbol_id(cat);
 
         //right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
-        if v, ok := collection.symbols[id]; !ok {
+        if v, ok := collection.symbols[id]; !ok || v.name == "" {
             collection.symbols[id] = symbol;
         }
 
