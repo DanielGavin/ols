@@ -11,7 +11,6 @@ Language server for Odin. This project is still in early development.
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
   - [Vim](#vim)
-- [Missing features](#missing-features)
 
 ## Installation
 
@@ -99,6 +98,3 @@ Configuration of the LSP:
   }
 }
 ```
-
-## Missing-features
-  Background indexer to complement the static indexer.
