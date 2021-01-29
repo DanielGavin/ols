@@ -94,6 +94,10 @@ CompletionOptions  :: struct {
     triggerCharacters: [] string,
 };
 
+SaveOptions :: struct {
+	includeText: bool,
+}
+
 HoverClientCapabilities :: struct {
     dynamicRegistration: bool,
     contentFormat: [dynamic] string,
@@ -200,6 +204,11 @@ DidCloseTextDocumentParams :: struct {
     textDocument: TextDocumentIdentifier,
 };
 
+DidSaveTextDocumentParams :: struct {
+    textDocument: TextDocumentIdentifier,
+    text: string,
+};
+
 TextDocumentPositionParams :: struct {
     textDocument: TextDocumentIdentifier,
     position: common.Position,
@@ -258,6 +267,7 @@ CompletionList :: struct {
 TextDocumentSyncOptions :: struct {
     openClose: bool,
     change: int,
+    save: SaveOptions,
 };
 
 SignatureHelp :: struct {

@@ -14,6 +14,8 @@ import "core:thread"
 import "core:sync"
 import "core:path/filepath"
 import "intrinsics"
+import "core:odin/ast"
+import "core:odin/parser"
 
 import "shared:common"
 import "shared:index"
@@ -323,7 +325,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
 
             task_proc(&task);
 
-        case .DidClose, .DidChange, .DidOpen:
+        case .DidClose, .DidChange, .DidOpen, .DidSave:
 
             uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
 
@@ -501,6 +503,9 @@ request_initialize :: proc(task: ^common.Task) {
                 textDocumentSync = TextDocumentSyncOptions {
                     openClose = true,
                     change = 2, //incremental
+                    save = {
+                        includeText = true,
+                    }
                 },
                 definitionProvider = true,
                 completionProvider = CompletionOptions {
@@ -530,6 +535,8 @@ request_initialize :: proc(task: ^common.Task) {
     /*
         Temp index here, but should be some background thread that starts the indexing
     */
+
+    index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, config));
 
     index.build_static_index(context.allocator, config);
 
@@ -790,8 +797,78 @@ notification_did_save :: proc(task: ^common.Task) {
 
     using info;
 
-    json.destroy_value(root);
-    free(info);
+
+    defer json.destroy_value(root);
+    defer free(info);
+
+    //this is temporary, but will provide dynamic indexing and is syncronized
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    save_params: DidSaveTextDocumentParams;
+
+    if unmarshal(params, save_params, context.temp_allocator) != .None {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    uri: common.Uri;
+
+    if uri, ok = common.parse_uri(save_params.textDocument.uri, context.temp_allocator); !ok {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    fullpath := uri.path;
+
+    p := parser.Parser {
+        err  = index.log_error_handler,
+        warn = index.log_warning_handler,
+    };
+
+    //have to cheat the parser since it really wants to parse an entire package with the new changes...
+    dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
+
+    pkg := new(ast.Package);
+    pkg.kind = .Normal;
+    pkg.fullpath = fullpath;
+    pkg.name = dir;
+
+    if dir == "runtime" {
+        pkg.kind = .Runtime;
+    }
+
+    file := ast.File {
+        fullpath = fullpath,
+        src = transmute([]u8)save_params.text,
+        pkg = pkg,
+    };
+
+    ok = parser.parse_file(&p, &file);
+
+    if !ok {
+        log.errorf("error in parse file for indexing %v", fullpath);
+    }
+
+    for key, value in index.indexer.dynamic_index.collection.symbols {
+
+        if value.uri == save_params.textDocument.uri {
+            index.free_symbol(value, context.allocator);
+            index.indexer.dynamic_index.collection.symbols[key] = {};
+        }
+
+    }
+
+    if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+        log.errorf("failed to collect symbols on save %v", ret);
+    }
+
+    //log.error(index.indexer.dynamic_index.collection.symbols);
 }
 
 request_semantic_token_full :: proc(task: ^common.Task) {
