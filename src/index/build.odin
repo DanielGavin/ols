@@ -29,6 +29,10 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
         return 0, false;
     }
 
+    if filepath.ext(info.name) != ".odin" {
+        return 0, false;
+    }
+
     append(&files, strings.clone(info.fullpath, context.allocator));
 
     return 0, false;
