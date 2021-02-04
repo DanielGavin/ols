@@ -868,7 +868,6 @@ notification_did_save :: proc(task: ^common.Task) {
         log.errorf("failed to collect symbols on save %v", ret);
     }
 
-    //log.error(index.indexer.dynamic_index.collection.symbols);
 }
 
 request_semantic_token_full :: proc(task: ^common.Task) {

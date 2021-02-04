@@ -79,32 +79,25 @@ fuzzy_search :: proc(name: string, pkgs: [] string) -> ([] FuzzyResult, bool) {
     dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs);
     index_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
     result := make([dynamic] FuzzyResult, context.temp_allocator);
+    files := make(map [string] bool, 0, context.temp_allocator);
 
     if !dynamic_ok || !static_ok {
         return {}, false;
     }
 
     for r in dynamic_results {
+        files[r.symbol.uri] = true;
         append(&result, r);
     }
 
     for r in index_results {
-        append(&result, r);
+
+        if r.symbol.uri in files {
+            append(&result, r);
+        }
     }
 
     sort.sort(fuzzy_sort_interface(&result));
-
-    name := "";
-    pkg := "";
-
-    for r, i in result {
-        if name == r.symbol.name && pkg == r.symbol.pkg {
-            ordered_remove(&result, i);
-        }
-
-        name = r.symbol.name;
-        pkg = r.symbol.pkg;
-    }
 
     return result[:], true;
 }
