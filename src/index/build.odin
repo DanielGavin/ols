@@ -33,7 +33,9 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
         return 0, false;
     }
 
-    append(&files, strings.clone(info.fullpath, context.allocator));
+    forward, _ := filepath.to_slash(info.fullpath, context.temp_allocator);
+
+    append(&files, strings.clone(forward, context.allocator));
 
     return 0, false;
 };

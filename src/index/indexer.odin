@@ -77,7 +77,7 @@ lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, b
 
 fuzzy_search :: proc(name: string, pkgs: [] string) -> ([] FuzzyResult, bool) {
     dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs);
-    index_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
+    static_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
     result := make([dynamic] FuzzyResult, context.temp_allocator);
     files := make(map [string] bool, 0, context.temp_allocator);
 
@@ -90,11 +90,13 @@ fuzzy_search :: proc(name: string, pkgs: [] string) -> ([] FuzzyResult, bool) {
         append(&result, r);
     }
 
-    for r in index_results {
+    for r in static_results {
 
         if r.symbol.uri in files {
-            append(&result, r);
+            continue;
         }
+
+        append(&result, r);
     }
 
     sort.sort(fuzzy_sort_interface(&result));

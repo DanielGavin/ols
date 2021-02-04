@@ -5,6 +5,7 @@ import "core:strings"
 import "core:strconv"
 import "core:fmt"
 import "core:unicode/utf8"
+import "core:path/filepath"
 
 Uri :: struct {
     uri: string,
@@ -41,15 +42,17 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 
+    path_forward, _ := filepath.to_slash(path, context.temp_allocator);
+
     builder := strings.make_builder(allocator);
 
     strings.write_string(&builder, "file:///");
-    strings.write_string(&builder, encode_percent(path, context.temp_allocator));
+    strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator));
 
     uri: Uri;
 
     uri.uri = strings.to_string(builder);
-    uri.decode_full = strings.clone(path, allocator);
+    uri.decode_full = strings.clone(path_forward, allocator);
     uri.path = uri.decode_full;
 
     return uri;
