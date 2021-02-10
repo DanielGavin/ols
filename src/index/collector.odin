@@ -204,7 +204,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
         name := expr.name;
 
-        switch v in expr.expr.derived {
+        col_expr := expr.expr;
+
+        if helper, ok := col_expr.derived.(ast.Helper_Type); ok {
+            if helper.type != nil {
+                col_expr = helper.type;
+            }
+        }
+
+        switch v in col_expr.derived {
         case ast.Proc_Lit:
             token = v;
             token_type = .Function;
@@ -222,11 +230,26 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             if v.type != nil {
                 symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
             }
+        case ast.Proc_Type:
+            token = v;
+            token_type = .Function;
+
+            if v.params != nil {
+                symbol.signature = strings.concatenate( {"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"},
+                    collection.allocator);
+            }
+
+            if v.results != nil {
+                symbol.returns = strings.concatenate( {"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"},
+                    collection.allocator);
+            }
+
+            symbol.value = collect_procedure_fields(collection, cast(^ast.Proc_Type)col_expr, v.params, v.results, package_map);
         case ast.Proc_Group:
             token = v;
             token_type = .Function;
             symbol.value = SymbolProcedureGroupValue {
-                group = clone_type(expr.expr, collection.allocator, &collection.unique_strings),
+                group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
             };
         case ast.Struct_Type:
             token = v;
@@ -245,13 +268,13 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             symbol.signature = "union";
         case ast.Basic_Lit:
             token = v;
-            symbol.value = collect_generic(collection, expr.expr, package_map);
+            symbol.value = collect_generic(collection, col_expr, package_map);
         case ast.Ident:
             token = v;
             token_type = .Variable;
-            symbol.value = collect_generic(collection, expr.expr, package_map);
+            symbol.value = collect_generic(collection, col_expr, package_map);
         case: // default
-            symbol.value = collect_generic(collection, expr.expr, package_map);
+            symbol.value = collect_generic(collection, col_expr, package_map);
             token_type = .Variable;
             token = expr.expr;
             break;

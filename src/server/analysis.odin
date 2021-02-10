@@ -582,6 +582,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_type_expression(ast_context, v.expr);
     case Tag_Expr:
         return resolve_type_expression(ast_context, v.expr);
+    case Helper_Type:
+        return resolve_type_expression(ast_context, v.type);
     case Ellipsis:
         return resolve_type_expression(ast_context, v.expr);
     case Implicit:

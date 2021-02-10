@@ -33,6 +33,7 @@ GlobalExpr :: struct {
     docs: ^ast.Comment_Group,
 };
 
+//TODO(add a sub procedure to avoid repeating the value decl work)
 collect_globals :: proc(file: ast.File) -> [] GlobalExpr {
 
     exprs := make([dynamic] GlobalExpr, context.temp_allocator);
@@ -56,6 +57,78 @@ collect_globals :: proc(file: ast.File) -> [] GlobalExpr {
                 }
 
             }
+
+        }
+
+        else if when_decl, ok := decl.derived.(ast.When_Stmt); ok {
+
+            if when_decl.cond == nil {
+                continue;
+            }
+
+            if when_decl.body == nil {
+                continue;
+            }
+
+            if binary, ok := when_decl.cond.derived.(ast.Binary_Expr); ok {
+
+                if binary.left == nil || binary.right == nil {
+                    continue;
+                }
+
+                ident: ^ast.Ident;
+                basic_lit: ^ast.Basic_Lit;
+
+                if t, ok := binary.left.derived.(ast.Ident); ok {
+                    ident = cast(^ast.Ident)binary.left;
+                }
+
+                else if t, ok := binary.left.derived.(ast.Basic_Lit); ok {
+                    basic_lit = cast(^ast.Basic_Lit)binary.left;
+                }
+
+                if t, ok := binary.right.derived.(ast.Ident); ok {
+                    ident = cast(^ast.Ident)binary.right;
+                }
+
+                else if t, ok := binary.right.derived.(ast.Basic_Lit); ok {
+                    basic_lit = cast(^ast.Basic_Lit)binary.right;
+                }
+
+                if ident != nil && basic_lit != nil {
+
+                    //hardcode for windows for now
+                    if ident.name == "ODIN_OS" && basic_lit.tok.text == "\"windows\"" {
+
+                        log.errorf("when %v %v", ident, basic_lit);
+
+                        if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
+
+                            for stmt in block.stmts {
+
+                                if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
+
+                                    for name, i in value_decl.names {
+
+                                        str := get_ast_node_string(name, file.src);
+
+                                        if value_decl.type != nil {
+                                            append(&exprs, GlobalExpr { name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs });
+                                        }
+
+                                        else {
+                                            if len(value_decl.values) > i {
+                                                append(&exprs, GlobalExpr { name = str, expr = value_decl.values[i], docs = value_decl.docs });
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            //YUPPI - what a fun slide
 
         }
 
