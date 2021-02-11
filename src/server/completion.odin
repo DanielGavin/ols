@@ -20,13 +20,14 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
     list: CompletionList;
 
-    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
-
     position_context, ok := get_document_position_context(document, position, .Completion);
+
+    ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
     get_globals(document.ast, &ast_context);
 
     ast_context.current_package = ast_context.document_package;
+    ast_context.value_decl = position_context.value_decl;
 
     if position_context.function != nil {
         get_locals(document.ast, position_context.function, &ast_context, &position_context);
@@ -212,7 +213,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
     if ident, ok := position_context.selector.derived.(ast.Ident); ok {
 
-        if !resolve_ident_is_variable(ast_context, ident) && !resolve_ident_is_package(ast_context, ident) {
+        if !resolve_ident_is_variable(ast_context, ident) && !resolve_ident_is_package(ast_context, ident) && ident.name != "" {
             return;
         }
 
@@ -688,7 +689,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
         ast_context.use_globals = true;
         ast_context.current_package = ast_context.document_package;
 
-        ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
+        ident := index.new_type(ast.Ident, v.pos, v.end, context.temp_allocator);
         ident.name = k;
 
         if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
@@ -702,13 +703,17 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
         }
     }
 
+
+
     for k, v in ast_context.locals {
 
         ast_context.use_locals = true;
         ast_context.use_globals = true;
         ast_context.current_package = ast_context.document_package;
 
-        ident := index.new_type(ast.Ident, tokenizer.Pos {}, tokenizer.Pos {}, context.temp_allocator);
+        last_local := v[len(v)-1];
+
+        ident := index.new_type(ast.Ident, last_local.expr.pos, last_local.expr.end, context.temp_allocator);
         ident.name = k;
 
         if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {

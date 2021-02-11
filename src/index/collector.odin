@@ -266,6 +266,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             token_type = .Enum;
             symbol.value = collect_union_fields(collection, v, package_map);
             symbol.signature = "union";
+        case ast.Bit_Set_Type:
+
+        case ast.Bit_Field_Type:
+
         case ast.Basic_Lit:
             token = v;
             symbol.value = collect_generic(collection, col_expr, package_map);

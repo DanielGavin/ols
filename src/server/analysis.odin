@@ -12,6 +12,7 @@ import "core:strconv"
 import "core:path/filepath"
 import "core:sort"
 import "core:slice"
+import "core:unicode/utf8"
 
 import "shared:common"
 import "shared:index"
@@ -47,11 +48,17 @@ DocumentPositionContext :: struct {
     implicit: bool, //used for completion
     binary: ^ast.Binary_Expr, //used for completion
     assign: ^ast.Assign_Stmt, //used for completion
+    value_decl: ^ast.Value_Decl,
     hint: DocumentPositionContextHint,
 };
 
+DocumentLocal :: struct {
+    expr: ^ast.Expr,
+    offset: int,
+}
+
 AstContext :: struct {
-    locals: map [string] ^ast.Expr, //locals all the way to the document position
+    locals: map [string] [dynamic] DocumentLocal, //locals all the way to the document position
     globals: map [string] ^ast.Expr,
     variables: map [string] bool,
     parameters: map [string] bool,
@@ -65,12 +72,14 @@ AstContext :: struct {
     use_globals: bool,
     use_locals: bool,
     call: ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
+    position: common.AbsolutePosition,
+    value_decl: ^ast.Value_Decl,
 };
 
 make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
 
     ast_context := AstContext {
-        locals = make(map [string] ^ast.Expr, 0, allocator),
+        locals = make(map [string] [dynamic] DocumentLocal, 0, allocator),
         globals = make(map [string] ^ast.Expr, 0, allocator),
         variables = make(map [string] bool, 0, allocator),
         usings = make([dynamic] string, allocator),
@@ -731,6 +740,54 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     return index.Symbol {}, false;
 }
 
+store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string) {
+
+    local_stack := &ast_context.locals[name];
+
+    if local_stack == nil {
+        ast_context.locals[name] = make([dynamic] DocumentLocal, context.temp_allocator);
+        local_stack = &ast_context.locals[name];
+    }
+
+    append(local_stack, DocumentLocal { expr = expr, offset = offset });
+}
+
+get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
+
+    previous := 0;
+
+    //is the local we are getting being declared?
+    if ast_context.value_decl != nil {
+
+        for value_decl_name in ast_context.value_decl.names {
+
+            if ident, ok := value_decl_name.derived.(ast.Ident); ok {
+
+                if ident.name == name {
+                    previous = 1;
+                    break;
+                }
+            }
+
+        }
+
+
+    }
+
+    if local_stack, ok := ast_context.locals[name]; ok {
+
+        for i := len(local_stack)-1; i >= 0; i -= 1 {
+
+            if local_stack[i].offset <= offset {
+                return local_stack[max(0, i - previous)].expr;
+            }
+
+        }
+
+    }
+
+    return nil;
+}
 
 /*
     Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
@@ -763,7 +820,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
     }
 
     //note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
-    if local, ok := ast_context.locals[node.name]; ast_context.use_locals && ok {
+    if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
 
         switch v in local.derived {
         case Ident:
@@ -1054,8 +1111,8 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 
     symbol: index.Symbol;
 
-    if local, ok := ast_context.locals[node.name]; ok {
-        symbol.range = common.get_token_range(local, ast_context.file.src);
+    if local := get_local(ast_context, node.pos.offset, node.name); local != nil {
+        symbol.range = common.get_token_range(get_local(ast_context, node.pos.offset, node.name), ast_context.file.src);
         return symbol, true;
     }
 
@@ -1083,12 +1140,6 @@ make_bool_ast :: proc() -> ^ast.Ident {
 make_int_ast :: proc() -> ^ast.Ident {
     ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
     ident.name = int_lit;
-    return ident;
-}
-
-make_ident_ast :: proc(name: string) -> ^ast.Ident {
-    ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
-    ident.name = name;
     return ident;
 }
 
@@ -1439,7 +1490,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
     if value_decl.type != nil {
         str := common.get_ast_node_string(value_decl.names[0], file.src);
         ast_context.variables[str] = value_decl.is_mutable;
-        ast_context.locals[str] = value_decl.type;
+        store_local(ast_context, value_decl.type, value_decl.pos.offset, str);
         return;
     }
 
@@ -1453,7 +1504,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
         if i < len(results) {
             str := common.get_ast_node_string(name, file.src);
             ast_context.in_package[str] = get_package_from_node(results[i]);
-            ast_context.locals[str] = results[i];
+            store_local(ast_context, results[i], name.pos.offset, str);
             ast_context.variables[str] = value_decl.is_mutable;
         }
     }
@@ -1533,7 +1584,7 @@ get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context:
                     selector.expr = u;
                     selector.field = index.new_type(ast.Ident, v.types[i].pos, v.types[i].end, context.temp_allocator);
                     selector.field.name = name;
-                    ast_context.locals[name] = selector;
+                    store_local(ast_context, selector, 0, name);
                     ast_context.variables[name] = true;
                 }
 
@@ -1568,7 +1619,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 
     for lhs, i in stmt.lhs {
         if ident, ok := lhs.derived.(ast.Ident); ok {
-            ast_context.locals[ident.name] = results[i];
+            store_local(ast_context, results[i], ident.pos.offset, ident.name);
             ast_context.variables[ident.name] = true;
         }
     }
@@ -1609,7 +1660,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val0 != nil {
 
                     if ident, ok := stmt.val0.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = v.key;
+                        store_local(ast_context, v.key, ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1619,7 +1670,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val1 != nil {
 
                     if ident, ok := stmt.val1.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = v.value;
+                        store_local(ast_context, v.value, ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1629,7 +1680,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val0 != nil {
 
                     if ident, ok := stmt.val0.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = v.elem;
+                        store_local(ast_context, v.elem, ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1639,7 +1690,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val1 != nil {
 
                     if ident, ok := stmt.val1.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = make_int_ast();
+                        store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1649,7 +1700,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val0 != nil {
 
                     if ident, ok := stmt.val0.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = v.elem;
+                        store_local(ast_context, v.elem, ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1659,7 +1710,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
                 if stmt.val1 != nil {
 
                     if ident, ok := stmt.val1.derived.(Ident); ok {
-                        ast_context.locals[ident.name] = make_int_ast();
+                        store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
                         ast_context.variables[ident.name] = true;
                         ast_context.in_package[ident.name] = symbol.pkg;
                     }
@@ -1719,7 +1770,7 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 
                 if len(tag.lhs) == 1 && len(cause.list) == 1 {
                     ident := tag.lhs[0].derived.(Ident);
-                    ast_context.locals[ident.name] = cause.list[0];
+                    store_local(ast_context, cause.list[0], ident.pos.offset, ident.name);
                     ast_context.variables[ident.name] = true;
                 }
 
@@ -1747,7 +1798,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
             for name in arg.names {
                 if arg.type != nil {
                     str := common.get_ast_node_string(name, file.src);
-                    ast_context.locals[str] = arg.type;
+                    store_local(ast_context, arg.type, name.pos.offset, str);
                     ast_context.variables[str] = true;
                     ast_context.parameters[str] = true;
 
@@ -1981,7 +2032,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 
     if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
 
-        if local, ok := ast_context.locals[ident.name]; ok {
+        if local := get_local(ast_context, ident.pos.offset, ident.name); local != nil {
 
             if i, ok := local.derived.(ast.Ident); ok {
                 return get_signature(ast_context, i, symbol, true);
@@ -2115,6 +2166,10 @@ get_document_symbols :: proc(document: ^Document) -> [] DocumentSymbol {
 }
 
 /*
+    All these fallback functions are differently not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
+*/
+
+/*
     Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
 get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
@@ -2228,9 +2283,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         end -= 1;
     }
 
-    str := position_context.file.src[max(0, start):max(start, end+1)];
+    begin_offset := max(0, start);
+    end_offset := max(start, end+1);
 
-    if empty_dot && len(str) == 0 {
+    str := position_context.file.src[0:end_offset];
+
+    if empty_dot && end_offset - begin_offset == 0 {
         position_context.implicit = true;
         return;
     }
@@ -2245,7 +2303,16 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
 
+    p.tok.ch = ' ';
     p.tok.line_count = position.line;
+    p.tok.offset = begin_offset;
+    p.tok.read_offset = begin_offset;
+
+    tokenizer.advance_rune(&p.tok);
+
+	if p.tok.ch == utf8.RUNE_BOM {
+		tokenizer.advance_rune(&p.tok);
+	}
 
     parser.advance_token(&p);
 
@@ -2314,7 +2381,10 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
         return;
     }
 
-    str := position_context.file.src[max(0, start):max(start, end)];
+    begin_offset := max(0, start);
+    end_offset := max(start, end+1);
+
+    str := position_context.file.src[0:end_offset];
 
     p := parser.Parser {
 		err  = parser_warning_handler, //empty
@@ -2324,7 +2394,16 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
     tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
 
+    p.tok.ch = ' ';
     p.tok.line_count = position.line;
+    p.tok.offset = begin_offset;
+    p.tok.read_offset = begin_offset;
+
+    tokenizer.advance_rune(&p.tok);
+
+	if p.tok.ch == utf8.RUNE_BOM {
+		tokenizer.advance_rune(&p.tok);
+	}
 
     parser.advance_token(&p);
 
@@ -2527,6 +2606,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.list, position_context);
     case Bad_Decl:
     case Value_Decl:
+        position_context.value_decl = cast(^Value_Decl)node;
         get_document_position(n.attributes, position_context);
         get_document_position(n.names, position_context);
         get_document_position(n.type, position_context);
