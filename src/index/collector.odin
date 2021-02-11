@@ -8,6 +8,7 @@ import "core:fmt"
 import "core:path/filepath"
 import "core:path"
 import "core:log"
+import "core:strconv"
 
 import "shared:common"
 
@@ -174,6 +175,48 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
     return value;
 }
 
+collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map [string] string) -> SymbolBitSetValue {
+
+    value := SymbolBitSetValue {
+        expr = clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings),
+    };
+
+    return value;
+}
+
+collect_bit_fields :: proc(collection: ^SymbolCollection, bitfield_type: ast.Bit_Field_Type, package_map: map [string] string) -> SymbolBitFieldValue {
+
+    names := make([dynamic] string, 0, collection.allocator);
+    bits := make([dynamic] int, 0, collection.allocator);
+
+    for n in bitfield_type.fields {
+
+        if ident, ok := n.field.derived.(ast.Ident); ok {
+            append(&names, get_index_unique_string(collection, ident.name));
+        }
+
+        if basic_lit, ok := n.value.derived.(ast.Basic_Lit); ok {
+
+            if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+                append(&bits, v);
+            }
+
+            else {
+                append(&bits, 0);
+            }
+
+        }
+
+    }
+
+    value := SymbolBitFieldValue {
+        bits = bits[:],
+        names = names[:],
+    };
+
+    return value;
+}
+
 collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map [string] string) -> SymbolGenericValue {
 
     cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
@@ -209,6 +252,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
         if helper, ok := col_expr.derived.(ast.Helper_Type); ok {
             if helper.type != nil {
                 col_expr = helper.type;
+            }
+        }
+
+        if dist, ok := col_expr.derived.(ast.Distinct_Type); ok {
+            if dist.type != nil {
+                col_expr = dist.type;
             }
         }
 
@@ -267,9 +316,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             symbol.value = collect_union_fields(collection, v, package_map);
             symbol.signature = "union";
         case ast.Bit_Set_Type:
-
+            token = v;
+            token_type = .Enum;
+            symbol.value = collect_bitset_field(collection, v, package_map);
+            symbol.signature = "bitset";
         case ast.Bit_Field_Type:
-
+            token = v;
+            token_type = .Enum;
+            symbol.value = collect_bit_fields(collection, v, package_map);
+            symbol.signature = "bitfield";
         case ast.Basic_Lit:
             token = v;
             symbol.value = collect_generic(collection, col_expr, package_map);

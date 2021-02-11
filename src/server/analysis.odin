@@ -836,6 +836,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_enum_from_ast(ast_context, v, node), true;
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v, node), true;
+        case Bit_Field_Type:
+            return make_symbol_bitfield_from_ast(ast_context, v, node), true;
+        case Bit_Set_Type:
+            return make_symbol_bitset_from_ast(ast_context, v, node), true;
         case Proc_Lit:
             if !v.type.generic {
                 return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
@@ -870,6 +874,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v, node), true;
+        case Bit_Field_Type:
+            return make_symbol_bitfield_from_ast(ast_context, v, node), true;
+        case Bit_Set_Type:
+            return make_symbol_bitset_from_ast(ast_context, v, node), true;
         case Union_Type:
             return make_symbol_union_from_ast(ast_context, v, node), true;
         case Enum_Type:
@@ -1285,6 +1293,62 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
     return symbol;
 }
 
+make_symbol_bitfield_from_ast :: proc(ast_context: ^AstContext, bitfield_type: ast.Bit_Field_Type, ident: ast.Ident) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(bitfield_type, ast_context.file.src),
+        type = .Enum,
+        name = ident.name,
+        pkg = get_package_from_node(bitfield_type.node),
+    };
+
+    names := make([dynamic] string, 0, context.temp_allocator);
+    bits := make([dynamic] int, 0, context.temp_allocator);
+
+    for n in bitfield_type.fields {
+
+        if ident, ok := n.field.derived.(ast.Ident); ok {
+            append(&names, ident.name);
+        }
+
+        if basic_lit, ok := n.value.derived.(ast.Basic_Lit); ok {
+
+            if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+                append(&bits, v);
+            }
+
+            else {
+                append(&bits, 0);
+            }
+
+        }
+
+    }
+
+    symbol.value = index.SymbolBitFieldValue {
+        bits = bits[:],
+        names = names[:],
+    };
+
+    return symbol;
+}
+
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident) -> index.Symbol {
+
+    symbol := index.Symbol {
+        range = common.get_token_range(v, ast_context.file.src),
+        type = .Enum,
+        name = ident.name,
+        pkg = get_package_from_node(v.node),
+    };
+
+    symbol.value = index.SymbolBitSetValue {
+        expr = v.elem,
+    };
+
+    return symbol;
+}
+
 make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident) -> index.Symbol {
 
     symbol := index.Symbol {
@@ -1319,8 +1383,6 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
         types = types[:],
         usings = usings,
     };
-
-    log.infof("poly %v", v);
 
     if v.poly_params != nil {
         resolve_poly_struct(ast_context, v, &symbol);

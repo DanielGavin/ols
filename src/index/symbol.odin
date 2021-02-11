@@ -100,7 +100,9 @@ SymbolType :: enum {
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
-    if symbol.signature != "" && symbol.signature != "struct" && symbol.signature != "union" && symbol.signature != "enum" {
+    if symbol.signature != "" && symbol.signature != "struct" &&
+       symbol.signature != "union" && symbol.signature != "enum" &&
+       symbol.signature != "bitset" && symbol.signature != "bitfield" {
         delete(symbol.signature, allocator);
     }
 
