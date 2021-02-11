@@ -418,6 +418,27 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
     list.items = items[:];
 }
 
+unwrap_enum_or_bitset :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+
+    if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
+
+        if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
+            return enum_value, true;
+        }
+
+        else if bitset_value, ok := enum_symbol.value.(index.SymbolBitSetValue); ok {
+
+            if resolve, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
+                if enum_value, ok := resolve.value.(index.SymbolEnumValue); ok {
+                    return enum_value, ok;
+                }
+            }
+        }
+    }
+
+    return {}, false;
+}
+
 get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
     items := make([dynamic] CompletionItem, context.temp_allocator);
@@ -473,20 +494,15 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
                             continue;
                         }
 
-                        if enum_symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+                        if enum_value, ok := unwrap_enum_or_bitset(ast_context, s.types[i]); ok {
+                            for enum_name in enum_value.names {
+                                item := CompletionItem {
+                                    label = enum_name,
+                                    kind = .EnumMember,
+                                    detail = enum_name,
+                                };
 
-                            if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
-
-                                for enum_name in enum_value.names {
-
-                                    item := CompletionItem {
-                                        label = enum_name,
-                                        kind = .EnumMember,
-                                        detail = enum_name,
-                                    };
-
-                                    append(&items, item);
-                                }
+                                append(&items, item);
                             }
                         }
                     }
@@ -512,22 +528,20 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         if context_node != nil && enum_node != nil {
 
-            if lhs, ok := resolve_type_expression(ast_context, enum_node); ok {
+            if enum_value, ok := unwrap_enum_or_bitset(ast_context, enum_node); ok {
 
-                #partial switch v in lhs.value {
-                case index.SymbolEnumValue:
-                    for name in v.names {
+                for name in enum_value.names {
 
-                        item := CompletionItem {
-                            label = name,
-                            kind = .EnumMember,
-                            detail = name,
-                        };
+                    item := CompletionItem {
+                        label = name,
+                        kind = .EnumMember,
+                        detail = name,
+                    };
 
-                        append(&items, item);
+                    append(&items, item);
 
-                    }
                 }
+
             }
         }
     }
@@ -568,21 +582,17 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         if len(position_context.assign.lhs) > rhs_index {
 
-            if lhs, ok := resolve_type_expression(ast_context, position_context.assign.lhs[rhs_index]); ok {
+            if enum_value, ok := unwrap_enum_or_bitset(ast_context, position_context.assign.lhs[rhs_index]); ok {
 
-                #partial switch v in lhs.value {
-                case index.SymbolEnumValue:
-                    for name in v.names {
+                for name in enum_value.names {
 
-                        item := CompletionItem {
-                            label = name,
-                            kind = .EnumMember,
-                            detail = name,
-                        };
+                    item := CompletionItem {
+                        label = name,
+                        kind = .EnumMember,
+                        detail = name,
+                    };
 
-                        append(&items, item);
-
-                    }
+                    append(&items, item);
 
                 }
 
