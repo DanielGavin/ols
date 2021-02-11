@@ -33,16 +33,16 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         get_locals(document.ast, position_context.function, &ast_context, &position_context);
     }
 
-    if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
+    if position_context.implicit {
+        get_implicit_completion(&ast_context, &position_context, &list);
+    }
+
+    else if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
         get_comp_lit_completion(&ast_context, &position_context, &list);
     }
 
     else if position_context.selector != nil {
         get_selector_completion(&ast_context, &position_context, &list);
-    }
-
-    else if position_context.implicit {
-        get_implicit_completion(&ast_context, &position_context, &list);
     }
 
     else {
@@ -265,6 +265,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 
     #partial switch v in selector.value {
+    /*
     case index.SymbolBitSetValue:
         list.isIncomplete = false;
 
@@ -283,7 +284,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
             }
 
         }
-
+    */
 
     case index.SymbolBitFieldValue:
         list.isIncomplete = false;
@@ -418,7 +419,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
     list.items = items[:];
 }
 
-unwrap_enum_or_bitset :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
 
     if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 
@@ -426,14 +427,26 @@ unwrap_enum_or_bitset :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (ind
             return enum_value, true;
         }
 
-        else if bitset_value, ok := enum_symbol.value.(index.SymbolBitSetValue); ok {
+    }
 
-            if resolve, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
-                if enum_value, ok := resolve.value.(index.SymbolEnumValue); ok {
-                    return enum_value, ok;
+    return {}, false;
+}
+
+unwrap_bitset :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+
+    if bitset_symbol, ok := resolve_type_expression(ast_context, node); ok {
+
+        if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
+
+            if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
+
+                if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
+                    return enum_value, true;
                 }
             }
+
         }
+
     }
 
     return {}, false;
@@ -458,7 +471,46 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
         ast_context.current_package = ast_context.document_package;
     }
 
-    if position_context.comp_lit != nil {
+    //bitsets
+    if position_context.comp_lit != nil && position_context.binary != nil && (position_context.binary.op.text == "&" ) {
+
+        context_node: ^ast.Expr;
+        bitset_node: ^ast.Expr;
+
+        if position_in_node(position_context.binary.right, position_context.position) {
+            context_node = position_context.binary.right;
+            bitset_node = position_context.binary.left;
+        }
+
+        else if position_in_node(position_context.binary.left, position_context.position) {
+            context_node = position_context.binary.left;
+            bitset_node = position_context.binary.right;
+        }
+
+        if context_node != nil && bitset_node != nil {
+
+            if _, ok := context_node.derived.(ast.Comp_Lit); ok {
+
+                log.error(bitset_node.derived);
+
+                if value, ok := unwrap_bitset(ast_context, bitset_node); ok {
+
+                    for name in value.names {
+
+                        item := CompletionItem {
+                            label = name,
+                            kind = .EnumMember,
+                            detail = name,
+                        };
+
+                        append(&items, item);
+                    }
+                }
+            }
+        }
+    }
+
+    else if position_context.comp_lit != nil {
 
         if position_context.parent_comp_lit.type == nil {
             return;
@@ -494,7 +546,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
                             continue;
                         }
 
-                        if enum_value, ok := unwrap_enum_or_bitset(ast_context, s.types[i]); ok {
+                        if enum_value, ok := unwrap_enum(ast_context, s.types[i]); ok {
                             for enum_name in enum_value.names {
                                 item := CompletionItem {
                                     label = enum_name,
@@ -528,7 +580,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         if context_node != nil && enum_node != nil {
 
-            if enum_value, ok := unwrap_enum_or_bitset(ast_context, enum_node); ok {
+            if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
 
                 for name in enum_value.names {
 
@@ -539,9 +591,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
                     };
 
                     append(&items, item);
-
                 }
-
             }
         }
     }
@@ -582,7 +632,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         if len(position_context.assign.lhs) > rhs_index {
 
-            if enum_value, ok := unwrap_enum_or_bitset(ast_context, position_context.assign.lhs[rhs_index]); ok {
+            if enum_value, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
 
                 for name in enum_value.names {
 
