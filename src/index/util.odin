@@ -89,7 +89,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.field, builder);
     case Index_Expr:
         build_string(n.expr, builder);
+        strings.write_string(builder, "[");
         build_string(n.index, builder);
+        strings.write_string(builder, "]");
     case Deref_Expr:
         build_string(n.expr, builder);
     case Slice_Expr:
