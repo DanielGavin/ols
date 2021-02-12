@@ -39,7 +39,7 @@ verbose_logger: log.Logger;
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
     config: common.Config;
-    config.debug_single_thread = false;
+    config.debug_single_thread = true;
     config.collections = make(map [string] string);
 
     log.info("Starting Odin Language Server");
