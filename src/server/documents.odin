@@ -425,7 +425,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([] Parse
             }
 
             import_: Package;
-            import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
+            import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator));
 
             if imp.name.text != "" {
                 import_.base = imp.name.text;

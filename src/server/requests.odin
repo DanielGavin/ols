@@ -439,14 +439,14 @@ request_initialize :: proc(task: ^common.Task) {
 
                         for p in ols_config.collections {
 
-                            forward_path, _ := filepath.to_slash(p.path, context.temp_allocator);
+                            forward_path, _ :=  filepath.to_slash(p.path, context.temp_allocator);
 
                             if filepath.is_abs(p.path) {
-                                config.collections[strings.clone(p.name)] = strings.to_lower(forward_path);
+                                config.collections[strings.clone(p.name)] = strings.clone(forward_path);
                             }
 
                             else {
-                                config.collections[strings.clone(p.name)] = strings.to_lower(path.join(elems = {uri.path, forward_path}, allocator = context.temp_allocator));
+                                config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
                             }
 
                         }

@@ -404,7 +404,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
             name: string;
 
-            full := path.join(elems = {dir, p}, allocator = context.temp_allocator);
+            full := path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator);
 
             if imp.name.text != "" {
                 name = imp.name.text;

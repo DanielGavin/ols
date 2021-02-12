@@ -27,13 +27,19 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
     starts := "file:///";
 
+    start_index := len(starts);
+
     if !starts_with(decoded, starts) {
         return uri, false;
     }
 
+    when ODIN_OS != "windows" {
+        start_index -= 1;
+    }
+
     uri.uri = strings.clone(value, allocator);
     uri.decode_full = decoded;
-    uri.path = decoded[len(starts):];
+    uri.path = decoded[start_index:];
 
     return uri, true;
 }
@@ -41,12 +47,18 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
-
     path_forward, _ := filepath.to_slash(path, context.temp_allocator);
 
     builder := strings.make_builder(allocator);
 
-    strings.write_string(&builder, "file:///");
+    //bad
+    when ODIN_OS == "windows" {
+        strings.write_string(&builder, "file:///");
+    }
+    else {
+        strings.write_string(&builder, "file://");
+    }
+
     strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator));
 
     uri: Uri;

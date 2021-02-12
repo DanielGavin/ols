@@ -19,14 +19,15 @@ import "shared:common"
 
 os_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
 {
-    //ERROR can't go to os.Handle
-    a, b := os.read(cast(os.Handle)handle, data);
+    ptr := cast(^os.Handle)handle;
+    a, b := os.read(ptr^, data);
     return a, cast(int)b;
 }
 
 os_write :: proc(handle: rawptr, data: [] byte) -> (int, int)
 {
-    a, b := os.write(cast(os.Handle)handle, data);
+    ptr := cast(^os.Handle)handle;
+    a, b := os.write(ptr^, data);
     return a, cast(int)b;
 }
 
@@ -104,8 +105,8 @@ end :: proc() {
 
 main :: proc() {
 
-    reader := server.make_reader(os_read, cast(rawptr)os.stdin);
-    writer := server.make_writer(os_write, cast(rawptr)os.stdout);
+    reader := server.make_reader(os_read, cast(rawptr)&os.stdin);
+    writer := server.make_writer(os_write, cast(rawptr)&os.stdout);
 
     verbose_logger := server.create_lsp_logger(&writer, log.Level.Error);
 

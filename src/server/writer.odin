@@ -25,7 +25,6 @@ write_sized :: proc(writer: ^Writer, data: []byte) -> bool {
     sync.mutex_lock(&writer.writer_mutex);
     defer sync.mutex_unlock(&writer.writer_mutex);
 
-
     written, err := writer.writer_fn(writer.writer_context, data);
 
     if(err != 0) {
