@@ -23,6 +23,14 @@ symbol_collection: SymbolCollection;
 
 files: [dynamic] string;
 
+platform_os : map [string] bool = {
+    "windows" = true,
+    "linux" = true,
+    "essence" = true,
+    "js" = true,
+    "freebsd" = true,
+};
+
 walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
 
     if info.is_dir {
@@ -31,6 +39,24 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
 
     if filepath.ext(info.name) != ".odin" {
         return 0, false;
+    }
+
+
+    last_underscore_index := strings.last_index(info.name, "_");
+    last_dot_index := strings.last_index(info.name, ".");
+
+    if last_underscore_index+1 < last_dot_index {
+
+        name_between := info.name[last_underscore_index+1:last_dot_index];
+
+        if _, ok := platform_os[name_between]; ok {
+
+            if name_between != ODIN_OS {
+                return 0, false;
+            }
+
+        }
+
     }
 
     forward, _ := filepath.to_slash(info.fullpath, context.temp_allocator);
