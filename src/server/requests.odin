@@ -545,8 +545,8 @@ request_initialize :: proc(task: ^common.Task) {
     */
 
     if core, ok := config.collections["core"]; ok {
-        append(&index.indexer.built_in_packages, path.join(core, "builtin"));
-        append(&index.indexer.built_in_packages, path.join(core, "runtime"));
+        append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "builtin"));
+        append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
     }
 
     log.info("Finished indexing");
