@@ -2340,7 +2340,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         i -= 1;
     }
 
-    if position_context.file.src[end] == '.' {
+    if i >= 0 && position_context.file.src[end] == '.' {
         empty_dot = true;
         end -= 1;
     }
