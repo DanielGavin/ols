@@ -219,8 +219,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
     }
 
-    //else if selector, ok := position_context.selector.
-
     symbols := make([dynamic] index.Symbol, context.temp_allocator);
 
     selector: index.Symbol;

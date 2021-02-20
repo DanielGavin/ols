@@ -100,6 +100,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.high, builder);
     case Field_Value:
         build_string(n.field, builder);
+        strings.write_string(builder, ": ");
         build_string(n.value, builder);
     case Type_Cast:
         build_string(n.type, builder);
@@ -110,10 +111,18 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.elems, builder);
     case Field:
         build_string(n.names, builder);
+        if len(n.names) > 0 {
+            strings.write_string(builder, ": ");
+        }
         build_string(n.type, builder);
         build_string(n.default_value, builder);
     case Field_List:
-        build_string(n.list, builder);
+        for field, i in n.list {
+            build_string(field, builder);
+            if len(n.list) - 1 != i {
+                strings.write_string(builder, ",");
+            }
+        }
     case Typeid_Type:
         build_string(n.specialization, builder);
     case Helper_Type:
@@ -126,7 +135,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.type, builder);
         build_string(n.specialization, builder);
     case Proc_Type:
+        strings.write_string(builder, "proc(");
         build_string(n.params, builder);
+        strings.write_string(builder, ") -> ");
         build_string(n.results, builder);
     case Pointer_Type:
         strings.write_string(builder, "^");
