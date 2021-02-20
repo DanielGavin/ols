@@ -219,6 +219,8 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
     }
 
+    //else if selector, ok := position_context.selector.
+
     symbols := make([dynamic] index.Symbol, context.temp_allocator);
 
     selector: index.Symbol;
@@ -230,8 +232,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
     selector, ok = resolve_type_expression(ast_context, position_context.selector);
 
     if !ok {
-        log.info(position_context.selector.derived);
-        log.error("Failed to resolve type selector in completion list");
         return;
     }
 
@@ -265,27 +265,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 
     #partial switch v in selector.value {
-    /*
-    case index.SymbolBitSetValue:
-        list.isIncomplete = false;
-
-        if elem, ok := resolve_type_expression(ast_context, v.expr); ok {
-
-            if enum_value, ok := elem.value.(index.SymbolEnumValue); ok {
-
-                for name in enum_value.names {
-                    symbol: index.Symbol;
-                    symbol.name = name;
-                    symbol.pkg = selector.name;
-                    symbol.type = .EnumMember;
-                    append(&symbols, symbol);
-                }
-
-            }
-
-        }
-    */
-
     case index.SymbolBitFieldValue:
         list.isIncomplete = false;
 
@@ -323,6 +302,19 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
             }
 
             if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+
+                if expr, ok := position_context.selector.derived.(ast.Selector_Expr); ok {
+
+                    if expr.op.text == "->" && symbol.type != .Function {
+                        continue;
+                    }
+
+                }
+
+                if position_context.arrow && symbol.type != .Function {
+                    continue;
+                }
+
                 symbol.name = name;
                 symbol.type = .Field;
                 symbol.pkg = selector.name;
@@ -345,8 +337,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
         list.isIncomplete = true;
 
-        log.infof("search field %v, pkg %v", field, selector.pkg);
-
         if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
 
             for search in searched {
@@ -358,48 +348,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
         else {
             log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg);
             return;
-        }
-
-
-    case index.SymbolGenericValue:
-
-        list.isIncomplete = false;
-
-        if ptr, ok := v.expr.derived.(ast.Pointer_Type); ok {
-
-            if symbol, ok := resolve_type_expression(ast_context, ptr.elem); ok {
-
-                #partial switch s in symbol.value {
-                case index.SymbolStructValue:
-                    for name, i in s.names {
-                        //ERROR no completion on name
-
-                        if selector.pkg != "" {
-                            ast_context.current_package = selector.pkg;
-                        }
-
-                        else {
-                            ast_context.current_package = ast_context.document_package;
-                        }
-
-                        if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
-                            symbol.name = name;
-                            symbol.type = .Field;
-                            symbol.pkg =  symbol.name;
-                            symbol.signature = index.node_to_string(s.types[i]);
-                            append(&symbols, symbol);
-                        }
-
-                        else {
-                            symbol: index.Symbol;
-                            symbol.name = name;
-                            symbol.type = .Field;
-                            append(&symbols, symbol);
-                        }
-                    }
-                }
-            }
-
         }
 
     }
@@ -804,9 +752,8 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
         ast_context.use_globals = true;
         ast_context.current_package = ast_context.document_package;
 
-        last_local := v[len(v)-1];
 
-        ident := index.new_type(ast.Ident, last_local.expr.pos, last_local.expr.end, context.temp_allocator);
+        ident := index.new_type(ast.Ident, { offset = position_context.position }, { offset = position_context.position }, context.temp_allocator);
         ident.name = k;
 
         if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
@@ -864,3 +811,9 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
     list.items = items[:];
 }
 
+get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+
+
+
+
+}

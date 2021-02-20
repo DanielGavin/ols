@@ -46,6 +46,7 @@ DocumentPositionContext :: struct {
     comp_lit: ^ast.Comp_Lit, //used for completion
     parent_comp_lit: ^ast.Comp_Lit, //used for completion
     implicit: bool, //used for completion
+    arrow: bool,
     binary: ^ast.Binary_Expr, //used for completion
     assign: ^ast.Assign_Stmt, //used for completion
     value_decl: ^ast.Value_Decl,
@@ -74,6 +75,7 @@ AstContext :: struct {
     call: ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
     position: common.AbsolutePosition,
     value_decl: ^ast.Value_Decl,
+    field_name: string,
 };
 
 make_ast_context :: proc(file: ast.File, imports: [] Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
@@ -567,6 +569,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
     using ast;
 
     switch v in node.derived {
+    case Proc_Type:
+        return make_symbol_procedure_from_ast(ast_context, node, v, ast_context.field_name), true;
     case Ident:
         return resolve_type_identifier(ast_context, v);
     case Basic_Lit:
@@ -647,6 +651,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
         return resolve_type_expression(ast_context, v.expr);
     case Implicit_Selector_Expr:
         return index.Symbol {}, false;
+    case Selector_Call_Expr:
+        return resolve_type_expression(ast_context, v.expr);
     case Selector_Expr:
 
         if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -672,7 +678,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                 }
 
                 for name, i in s.names {
-                    if v.field != nil && strings.compare(name, v.field.name) == 0 {
+                    if v.field != nil && name == v.field.name {
+                        ast_context.field_name = v.field.name;
                         return resolve_type_expression(ast_context, s.types[i]);
                     }
                 }
@@ -687,48 +694,14 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
                 else {
                     return index.Symbol {}, false;
                 }
-            case index.SymbolGenericValue:
-
-                /*
-                    Slighty awkward, but you could have a pointer to struct, so have to check, i don't want to remove the pointer info by storing into the struct symbol value,
-                    since it can be used for signature infering.
-                */
-
-                if ptr, ok := s.expr.derived.(Pointer_Type); ok {
-
-                    if symbol, ok := resolve_type_expression(ast_context, ptr.elem); ok {
-
-                        #partial switch s2 in symbol.value {
-                        case index.SymbolStructValue:
-
-                            if selector.pkg != "" {
-                                ast_context.current_package = symbol.pkg;
-                            }
-
-                            else {
-                                ast_context.current_package = ast_context.document_package;
-                            }
-
-                            for name, i in s2.names {
-                                if v.field != nil && strings.compare(name, v.field.name) == 0 {
-                                    return resolve_type_expression(ast_context, s2.types[i]);
-                                }
-                            }
-
-                        }
-                    }
-
-                }
-
             }
-
         }
 
         else {
             return index.Symbol {}, false;
         }
     case:
-        log.debugf("default node kind, resolve_type_expression: %T", v);
+        log.errorf("default node kind, resolve_type_expression: %T", v);
 
         if v == nil {
             return {}, false;
@@ -779,7 +752,12 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
         for i := len(local_stack)-1; i >= 0; i -= 1 {
 
             if local_stack[i].offset <= offset {
+                log.errorf(" found %v %v", local_stack[i].offset, offset);
                 return local_stack[max(0, i - previous)].expr;
+            }
+
+            else {
+                log.errorf("not found %v %v", local_stack[i].offset, offset);
             }
 
         }
@@ -842,7 +820,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_bitset_from_ast(ast_context, v, node), true;
         case Proc_Lit:
             if !v.type.generic {
-                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                return make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true;
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -884,7 +862,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_enum_from_ast(ast_context, v, node), true;
         case Proc_Lit:
             if !v.type.generic {
-                return make_symbol_procedure_from_ast(ast_context, v, node.name), true;
+                return make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
             }
             else {
                 return resolve_generic_function(ast_context, v);
@@ -900,7 +878,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
         case:
             log.warnf("default type node kind: %T", v);
             return resolve_type_expression(ast_context, global);
-            //return make_symbol_generic_from_ast(ast_context, global), true;
         }
 
     }
@@ -1014,7 +991,7 @@ resolve_ident_is_package ::  proc(ast_context: ^AstContext, node: ast.Ident) -> 
 
         for imp in ast_context.imports {
 
-            if strings.compare(imp.base, node.name) == 0 {
+            if imp.base == node.name {
                 return true;
             }
 
@@ -1181,12 +1158,12 @@ get_using_packages :: proc(ast_context: ^AstContext) -> [] string {
     return usings;
 }
 
-make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit, name: string) -> index.Symbol {
+make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: string) -> index.Symbol {
 
     symbol := index.Symbol {
-        range = common.get_token_range(v, ast_context.file.src),
+        range = common.get_token_range(n^, ast_context.file.src),
         type = .Function,
-        pkg = get_package_from_node(v.node),
+        pkg = get_package_from_node(n^),
     };
 
     symbol.name = name;
@@ -1194,23 +1171,23 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, v: ast.Proc_Lit
     return_types := make([dynamic] ^ast.Field, context.temp_allocator);
     arg_types := make([dynamic] ^ast.Field, context.temp_allocator);
 
-    if v.type.results != nil {
+    if v.results != nil {
 
-        for ret in v.type.results.list {
+        for ret in v.results.list {
             append(&return_types, ret);
         }
 
-        symbol.returns = strings.concatenate( {"(", string(ast_context.file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"}, context.temp_allocator);
+        symbol.returns = strings.concatenate( {"(", string(ast_context.file.src[v.results.pos.offset:v.results.end.offset]), ")"}, context.temp_allocator);
 
     }
 
-    if v.type.params != nil {
+    if v.params != nil {
 
-        for param in v.type.params.list {
+        for param in v.params.list {
             append(&arg_types, param);
         }
 
-        symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, context.temp_allocator);
+        symbol.signature = strings.concatenate( {"(", string(ast_context.file.src[v.params.pos.offset:v.params.end.offset]), ")"}, context.temp_allocator);
     }
 
     symbol.value = index.SymbolProcedureValue {
@@ -1568,10 +1545,9 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
             ast_context.in_package[str] = get_package_from_node(results[i]);
             store_local(ast_context, results[i], name.pos.offset, str);
             ast_context.variables[str] = value_decl.is_mutable;
+            log.error(name);
         }
     }
-
-
 
 }
 
@@ -1683,6 +1659,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
         if ident, ok := lhs.derived.(ast.Ident); ok {
             store_local(ast_context, results[i], ident.pos.offset, ident.name);
             ast_context.variables[ident.name] = true;
+            log.errorf("store %v ", ident.name);
         }
     }
 
@@ -2228,7 +2205,7 @@ get_document_symbols :: proc(document: ^Document) -> [] DocumentSymbol {
 }
 
 /*
-    All these fallback functions are differently not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
+    All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
 */
 
 /*
@@ -2274,7 +2251,10 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
     end: int;
     start: int;
     empty_dot: bool;
+    empty_arrow: bool;
     last_dot: bool;
+    last_arrow: bool;
+
     i := position_context.position-1;
 
     end = i;
@@ -2325,6 +2305,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
             continue;
         }
 
+        else if position_context.file.src[max(0, i-1)] == '-' && c == '>' {
+            last_arrow = true;
+            i -= 2;
+            continue;
+        }
+
         //yeah..
         if c == ' ' || c == '{' || c == ',' ||
            c == '}' || c == '^' || c == ':' ||
@@ -2336,6 +2322,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         }
 
         last_dot = false;
+        last_arrow = false;
 
         i -= 1;
     }
@@ -2343,6 +2330,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
     if i >= 0 && position_context.file.src[end] == '.' {
         empty_dot = true;
         end -= 1;
+    }
+
+    else if i >= 0 && position_context.file.src[max(0, end-1)] == '-' && position_context.file.src[end] == '>' {
+        empty_arrow = true;
+        end -= 2;
+        position_context.arrow = true;
     }
 
     begin_offset := max(0, start);
@@ -2355,7 +2348,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         return;
     }
 
-    log.infof("parser string %v", string(str));
+    //log.errorf("parser string %v", string( position_context.file.src[begin_offset:end_offset]));
 
     p := parser.Parser {
 		err  = parser_warning_handler, //empty
@@ -2382,7 +2375,9 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     e := parser.parse_expr(&p, true);
 
-    if empty_dot {
+    //log.error(e.derived);
+
+    if empty_dot || empty_arrow {
         position_context.selector = e;
     }
 
