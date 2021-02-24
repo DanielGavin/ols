@@ -343,7 +343,13 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
         symbol.name = get_index_unique_string(collection, name);
         symbol.pkg = get_index_unique_string(collection, directory);
         symbol.type = token_type;
-        symbol.uri = get_index_unique_string(collection, uri);
+
+        when ODIN_OS == "windows" {
+            symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));
+        }
+        else {
+            symbol.uri = get_index_unique_string(collection, uri);
+        }
 
 
         if expr.docs != nil {
