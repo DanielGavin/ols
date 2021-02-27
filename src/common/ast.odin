@@ -374,8 +374,6 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
         free_ast(n.type, allocator);
     case Distinct_Type:
         free_ast(n.type, allocator);
-    case Opaque_Type:
-        free_ast(n.type, allocator);
     case Poly_Type:
         free_ast(n.type, allocator);
         free_ast(n.specialization, allocator);
@@ -404,9 +402,6 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
     case Enum_Type:
         free_ast(n.base_type, allocator);
         free_ast(n.fields, allocator);
-    case Bit_Field_Type:
-        free_ast(n.fields, allocator);
-        free_ast(n.align, allocator);
     case Bit_Set_Type:
         free_ast(n.elem, allocator);
         free_ast(n.underlying, allocator);
@@ -554,10 +549,6 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
         if n, ok := a.derived.(Distinct_Type); ok {
             return node_equal(n.type, m.type);
         }
-    case Opaque_Type:
-        if n, ok := a.derived.(Opaque_Type); ok {
-            return node_equal(n.type, m.type);
-        }
     case Proc_Type:
         if n, ok := a.derived.(Proc_Type); ok {
             ret := node_equal(n.params, m.params);
@@ -614,10 +605,6 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
             ret := node_equal(n.base_type, m.base_type);
             ret &= node_equal(n.fields, m.fields);
             return ret;
-        }
-    case Bit_Field_Type:
-        if n, ok := a.derived.(Bit_Field_Type); ok {
-            return node_equal(n.fields, m.fields);
         }
     case Bit_Set_Type:
         if n, ok := a.derived.(Bit_Set_Type); ok {

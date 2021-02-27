@@ -208,8 +208,6 @@ print_ast_node :: proc(node: ^ast.Node, depth: int, src: []byte, newline := fals
         print_ast(n.type, depth + 1, src);
     case Distinct_Type:
         print_ast(n.type, depth + 1, src);
-    case Opaque_Type:
-        print_ast(n.type, depth + 1, src);
     case Poly_Type:
         print_ast(n.type, depth + 1, src);
         print_ast(n.specialization, depth + 1, src);
@@ -234,8 +232,6 @@ print_ast_node :: proc(node: ^ast.Node, depth: int, src: []byte, newline := fals
         print_ast(n.variants, depth + 1, src);
     case Enum_Type:
         print_ast(n.base_type, depth + 1, src);
-        print_ast(n.fields, depth + 1, src);
-    case Bit_Field_Type:
         print_ast(n.fields, depth + 1, src);
     case Bit_Set_Type:
         print_ast(n.elem, depth + 1, src);

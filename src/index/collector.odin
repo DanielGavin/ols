@@ -184,39 +184,6 @@ collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit
     return value;
 }
 
-collect_bit_fields :: proc(collection: ^SymbolCollection, bitfield_type: ast.Bit_Field_Type, package_map: map [string] string) -> SymbolBitFieldValue {
-
-    names := make([dynamic] string, 0, collection.allocator);
-    bits := make([dynamic] int, 0, collection.allocator);
-
-    for n in bitfield_type.fields {
-
-        if ident, ok := n.field.derived.(ast.Ident); ok {
-            append(&names, get_index_unique_string(collection, ident.name));
-        }
-
-        if basic_lit, ok := n.value.derived.(ast.Basic_Lit); ok {
-
-            if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
-                append(&bits, v);
-            }
-
-            else {
-                append(&bits, 0);
-            }
-
-        }
-
-    }
-
-    value := SymbolBitFieldValue {
-        bits = bits[:],
-        names = names[:],
-    };
-
-    return value;
-}
-
 collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map [string] string) -> SymbolGenericValue {
 
     cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
@@ -320,11 +287,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
             token_type = .Enum;
             symbol.value = collect_bitset_field(collection, v, package_map);
             symbol.signature = "bitset";
-        case ast.Bit_Field_Type:
-            token = v;
-            token_type = .Enum;
-            symbol.value = collect_bit_fields(collection, v, package_map);
-            symbol.signature = "bitfield";
         case ast.Basic_Lit:
             token = v;
             symbol.value = collect_generic(collection, col_expr, package_map);
@@ -537,8 +499,6 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
         replace_package_alias(n.elems, package_map, collection);
     case Distinct_Type:
         replace_package_alias(n.type, package_map, collection);
-    case Opaque_Type:
-        replace_package_alias(n.type, package_map, collection);
     case Proc_Type:
         replace_package_alias(n.params, package_map, collection);
         replace_package_alias(n.results, package_map, collection);
@@ -568,8 +528,6 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map [string] st
         replace_package_alias(n.variants, package_map, collection);
     case Enum_Type:
         replace_package_alias(n.base_type, package_map, collection);
-        replace_package_alias(n.fields, package_map, collection);
-    case Bit_Field_Type:
         replace_package_alias(n.fields, package_map, collection);
     case Bit_Set_Type:
         replace_package_alias(n.elem, package_map, collection);

@@ -129,8 +129,6 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.type, builder);
     case Distinct_Type:
         build_string(n.type, builder);
-    case Opaque_Type:
-        build_string(n.type, builder);
     case Poly_Type:
         build_string(n.type, builder);
         build_string(n.specialization, builder);
@@ -160,8 +158,6 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
         build_string(n.variants, builder);
     case Enum_Type:
         build_string(n.base_type, builder);
-        build_string(n.fields, builder);
-    case Bit_Field_Type:
         build_string(n.fields, builder);
     case Bit_Set_Type:
         build_string(n.elem, builder);

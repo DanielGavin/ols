@@ -51,11 +51,6 @@ SymbolBitSetValue :: struct {
     expr: ^ast.Expr,
 };
 
-SymbolBitFieldValue :: struct {
-    names: [] string,
-    bits: [] int,
-};
-
 /*
     Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
 */
@@ -72,7 +67,6 @@ SymbolValue :: union {
     SymbolUnionValue,
     SymbolEnumValue,
     SymbolBitSetValue,
-    SymbolBitFieldValue
 };
 
 Symbol :: struct {
@@ -129,9 +123,6 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
         delete(v.names, allocator);
     case SymbolUnionValue:
         delete(v.names, allocator);
-    case SymbolBitFieldValue:
-        delete(v.names, allocator);
-        delete(v.bits, allocator);
     case SymbolBitSetValue:
         common.free_ast(v.expr, allocator);
     }

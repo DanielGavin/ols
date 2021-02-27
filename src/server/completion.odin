@@ -263,18 +263,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 
     #partial switch v in selector.value {
-    case index.SymbolBitFieldValue:
-        list.isIncomplete = false;
-
-        for name, i in v.names {
-            symbol: index.Symbol;
-            symbol.name = name;
-            symbol.type = .EnumMember;
-            symbol.signature = fmt.aprint(v.bits[i]);
-            symbol.pkg = selector.name;
-            append(&symbols, symbol);
-        }
-
     case index.SymbolEnumValue:
         list.isIncomplete = false;
 

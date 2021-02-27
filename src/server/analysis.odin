@@ -207,10 +207,6 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
         if n, ok := call_node.derived.(Distinct_Type); ok {
             resolve_poly_spec(ast_context, n.type, m.type, poly_map);
         }
-    case Opaque_Type:
-        if n, ok := call_node.derived.(Opaque_Type); ok {
-            resolve_poly_spec(ast_context, n.type, m.type, poly_map);
-        }
     case Proc_Type:
         if n, ok := call_node.derived.(Proc_Type); ok {
             resolve_poly_spec(ast_context, n.params, m.params, poly_map);
@@ -259,10 +255,6 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
     case Enum_Type:
         if n, ok := call_node.derived.(Enum_Type); ok {
             resolve_poly_spec(ast_context, n.base_type, m.base_type, poly_map);
-            resolve_poly_spec(ast_context, n.fields, m.fields, poly_map);
-        }
-    case Bit_Field_Type:
-        if n, ok := call_node.derived.(Bit_Field_Type); ok {
             resolve_poly_spec(ast_context, n.fields, m.fields, poly_map);
         }
     case Bit_Set_Type:
@@ -814,8 +806,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return make_symbol_enum_from_ast(ast_context, v, node), true;
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v, node), true;
-        case Bit_Field_Type:
-            return make_symbol_bitfield_from_ast(ast_context, v, node), true;
         case Bit_Set_Type:
             return make_symbol_bitset_from_ast(ast_context, v, node), true;
         case Proc_Lit:
@@ -852,8 +842,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
             return resolve_type_identifier(ast_context, v);
         case Struct_Type:
             return make_symbol_struct_from_ast(ast_context, v, node), true;
-        case Bit_Field_Type:
-            return make_symbol_bitfield_from_ast(ast_context, v, node), true;
         case Bit_Set_Type:
             return make_symbol_bitset_from_ast(ast_context, v, node), true;
         case Union_Type:
@@ -1264,46 +1252,6 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
     }
 
     symbol.value = index.SymbolEnumValue {
-        names = names[:],
-    };
-
-    return symbol;
-}
-
-make_symbol_bitfield_from_ast :: proc(ast_context: ^AstContext, bitfield_type: ast.Bit_Field_Type, ident: ast.Ident) -> index.Symbol {
-
-    symbol := index.Symbol {
-        range = common.get_token_range(bitfield_type, ast_context.file.src),
-        type = .Enum,
-        name = ident.name,
-        pkg = get_package_from_node(bitfield_type.node),
-    };
-
-    names := make([dynamic] string, 0, context.temp_allocator);
-    bits := make([dynamic] int, 0, context.temp_allocator);
-
-    for n in bitfield_type.fields {
-
-        if ident, ok := n.field.derived.(ast.Ident); ok {
-            append(&names, ident.name);
-        }
-
-        if basic_lit, ok := n.value.derived.(ast.Basic_Lit); ok {
-
-            if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
-                append(&bits, v);
-            }
-
-            else {
-                append(&bits, 0);
-            }
-
-        }
-
-    }
-
-    symbol.value = index.SymbolBitFieldValue {
-        bits = bits[:],
         names = names[:],
     };
 
@@ -2692,8 +2640,6 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.type, position_context);
     case Distinct_Type:
         get_document_position(n.type, position_context);
-    case Opaque_Type:
-        get_document_position(n.type, position_context);
     case Poly_Type:
         get_document_position(n.type, position_context);
         get_document_position(n.specialization, position_context);
@@ -2717,8 +2663,6 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.variants, position_context);
     case Enum_Type:
         get_document_position(n.base_type, position_context);
-        get_document_position(n.fields, position_context);
-    case Bit_Field_Type:
         get_document_position(n.fields, position_context);
     case Bit_Set_Type:
         get_document_position(n.elem, position_context);

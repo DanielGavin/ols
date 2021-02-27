@@ -139,9 +139,6 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
     case Distinct_Type:
         r := cast(^Distinct_Type)res;
         r.type = clone_type(r.type, allocator, unique_strings);
-    case Opaque_Type:
-        r := cast(^Opaque_Type)res;
-        r.type = clone_type(r.type, allocator, unique_strings);
     case Proc_Type:
         r := cast(^Proc_Type)res;
         r.params  = auto_cast clone_type(r.params, allocator, unique_strings);
@@ -186,10 +183,6 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
         r := cast(^Enum_Type)res;
         r.base_type = clone_type(r.base_type, allocator, unique_strings);
         r.fields = clone_type(r.fields, allocator, unique_strings);
-    case Bit_Field_Type:
-        r := cast(^Bit_Field_Type)res;
-        r.fields = clone_type(r.fields, allocator, unique_strings);
-        r.align = clone_type(r.align, allocator, unique_strings);
     case Bit_Set_Type:
         r := cast(^Bit_Set_Type)res;
         r.elem = clone_type(r.elem, allocator, unique_strings);
