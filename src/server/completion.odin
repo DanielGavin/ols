@@ -263,6 +263,17 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 
     #partial switch v in selector.value {
+    case index.SymbolUnionValue:
+        list.isIncomplete = false;
+
+        for name in v.names {
+            symbol: index.Symbol;
+            symbol.name = fmt.aprintf("(%v)", name);
+            symbol.pkg = selector.name;
+            symbol.type = .EnumMember;
+            append(&symbols, symbol);
+        }
+
     case index.SymbolEnumValue:
         list.isIncomplete = false;
 

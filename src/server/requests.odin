@@ -40,6 +40,7 @@ RequestType :: enum {
     DocumentSymbol,
     SemanticTokensFull,
     SemanticTokensRange,
+    FormatDocument,
     Hover,
     CancelRequest,
 };
@@ -191,7 +192,8 @@ request_map : map [string] RequestType =
          "textDocument/semanticTokens/full" = .SemanticTokensFull,
          "textDocument/semanticTokens/range" = .SemanticTokensRange,
          "textDocument/hover" = .Hover,
-         "$/cancelRequest" = .CancelRequest };
+         "$/cancelRequest" = .CancelRequest,
+         "textDocument/formatting" = .FormatDocument };
 
 handle_error :: proc(err: common.Error, id: RequestId, writer: ^Writer) {
 
@@ -290,6 +292,8 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
         case .Hover:
             task_proc = request_hover;
         case .CancelRequest:
+        case .FormatDocument:
+            task_proc = request_format_document;
         }
 
         task := common.Task {
@@ -310,7 +314,7 @@ handle_request :: proc(request: json.Value, config: ^common.Config, writer: ^Wri
             }
         case .Initialize, .Initialized:
             task_proc(&task);
-        case .Completion, .Definition, .Hover:
+        case .Completion, .Definition, .Hover, .FormatDocument:
 
             uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
 
@@ -415,6 +419,7 @@ request_initialize :: proc(task: ^common.Task) {
 
     enable_document_symbols: bool;
     enable_hover: bool;
+    enable_format: bool;
 
     if len(config.workspace_folders) > 0 {
 
@@ -434,6 +439,7 @@ request_initialize :: proc(task: ^common.Task) {
                         thread_count = ols_config.thread_pool_count;
                         enable_document_symbols = ols_config.enable_document_symbols;
                         enable_hover = ols_config.enable_hover;
+                        enable_format = ols_config.enable_format;
                         config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
                         config.verbose = ols_config.verbose;
 
@@ -525,6 +531,7 @@ request_initialize :: proc(task: ^common.Task) {
                 },
                 documentSymbolProvider = enable_document_symbols,
                 hoverProvider = enable_hover,
+                documentFormattingProvider = enable_format,
             },
         },
         id = id,
@@ -688,12 +695,58 @@ request_signature_help :: proc(task: ^common.Task) {
     help: SignatureHelp;
     help, ok = get_signature_information(document, signature_params.position);
 
+    if !ok {
+        handle_error(.InternalError, id, writer);
+        return;
+    }
+
     response := make_response_message(
         params = help,
         id = id,
     );
 
     send_response(response, writer);
+}
+
+request_format_document :: proc(task: ^common.Task) {
+
+    info := get_request_info(task);
+
+    using info;
+
+    defer document_release(document);
+    defer json.destroy_value(root);
+    defer free(info);
+
+    params_object, ok := params.value.(json.Object);
+
+    if !ok {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    format_params: DocumentFormattingParams;
+
+    if unmarshal(params, format_params, context.temp_allocator) != .None {
+        handle_error(.ParseError, id, writer);
+        return;
+    }
+
+    edit: [] TextEdit;
+    edit, ok = get_complete_format(document);
+
+    if !ok {
+        handle_error(.InternalError, id, writer);
+        return;
+    }
+
+    response := make_response_message(
+        params = edit,
+        id = id,
+    );
+
+    send_response(response, writer);
+
 }
 
 notification_exit :: proc(task: ^common.Task) {

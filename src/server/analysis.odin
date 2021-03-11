@@ -744,12 +744,7 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
         for i := len(local_stack)-1; i >= 0; i -= 1 {
 
             if local_stack[i].offset <= offset {
-                log.errorf(" found %v %v", local_stack[i].offset, offset);
                 return local_stack[max(0, i - previous)].expr;
-            }
-
-            else {
-                log.errorf("not found %v %v", local_stack[i].offset, offset);
             }
 
         }
@@ -1607,7 +1602,6 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
         if ident, ok := lhs.derived.(ast.Ident); ok {
             store_local(ast_context, results[i], ident.pos.offset, ident.name);
             ast_context.variables[ident.name] = true;
-            log.errorf("store %v ", ident.name);
         }
     }
 
@@ -2065,11 +2059,11 @@ get_signature_information :: proc(document: ^Document, position: common.Position
     position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 
     if !ok {
-        return signature_help, false;
+        return signature_help, true;
     }
 
     if position_context.call == nil {
-        return signature_help, false;
+        return signature_help, true;
     }
 
     get_globals(document.ast, &ast_context);
@@ -2350,7 +2344,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
     end: int;
     start: int;
     first_paren: bool;
-    i := position_context.position;
+    i := position_context.position-1;
 
     for i > 0 {
 

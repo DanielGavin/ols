@@ -24,6 +24,7 @@ ResponseParams :: union {
     [] DocumentSymbol,
     SemanticTokens,
     Hover,
+    [] TextEdit,
 };
 
 ResponseMessage :: struct {
@@ -87,6 +88,7 @@ ServerCapabilities :: struct {
     semanticTokensProvider: SemanticTokensOptions,
     documentSymbolProvider: bool,
     hoverProvider: bool,
+    documentFormattingProvider: bool,
 };
 
 CompletionOptions  :: struct {
@@ -292,6 +294,7 @@ OlsConfig :: struct {
     enable_semantic_tokens: bool,
     enable_document_symbols: bool,
     enable_hover: bool,
+    enable_format: bool,
     verbose: bool,
 };
 
