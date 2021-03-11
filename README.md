@@ -11,6 +11,7 @@ Language server for Odin. This project is still in early development.
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
   - [Vim](#vim)
+  - [Emacs](#emacs)
 
 ## Installation
 
@@ -97,4 +98,17 @@ Configuration of the LSP:
     }
   }
 }
+```
+
+### Emacs
+```
+;; With odin-mode (https://github.com/mattt-b/odin-mode) and lsp-mode already added to your init.el of course!.
+(setq-default lsp-auto-guess-root t) ;; if you work with Projectile/project.el this will help find the ols.json file.
+(defvar lsp-language-id-configuration '((odin-mode . "odin")))
+(lsp-register-client
+ (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable")
+                  :major-modes '(odin-mode)
+                  :server-id 'ols
+                  :multi-root t)) ;; This is just so lsp-mode sends the "workspaceFolders" param to the server.
+(add-hook 'odin-mode-hook #'lsp)
 ```
