@@ -2290,8 +2290,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         return;
     }
 
-    //log.errorf("parser string %v", string( position_context.file.src[begin_offset:end_offset]));
-
     p := parser.Parser {
 		err  = parser_warning_handler, //empty
 		warn = parser_warning_handler, //empty
@@ -2317,8 +2315,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     e := parser.parse_expr(&p, true);
 
-    //log.error(e.derived);
-
     if empty_dot || empty_arrow {
         position_context.selector = e;
     }
@@ -2330,6 +2326,46 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
     else if s, ok := e.derived.(ast.Implicit_Selector_Expr); ok {
         position_context.implicit = true;
+    }
+
+    else if bad_expr, ok := e.derived.(ast.Bad_Expr); ok {
+        //this is most likely because of use of 'in', 'context', etc.
+        //try to go back one dot.
+        log.error(bad_expr);
+
+        src_with_dot := string(position_context.file.src[0:end_offset+1]);
+        last_dot := strings.last_index(src_with_dot, ".");
+
+        if last_dot == -1 {
+            return;
+        }
+
+        tokenizer.init(&p.tok, position_context.file.src[0:last_dot], position_context.file.fullpath, parser_warning_handler);
+
+        p.tok.ch = ' ';
+        p.tok.line_count = position.line;
+        p.tok.offset = begin_offset;
+        p.tok.read_offset = begin_offset;
+
+        tokenizer.advance_rune(&p.tok);
+
+        if p.tok.ch == utf8.RUNE_BOM {
+            tokenizer.advance_rune(&p.tok);
+        }
+
+        parser.advance_token(&p);
+
+        e := parser.parse_expr(&p, true);
+
+        position_context.selector = e;
+
+        ident := index.new_type(ast.Ident, e.pos, e.end, context.temp_allocator);
+        ident.name = string(position_context.file.src[last_dot+1:end_offset]);
+
+        if ident.name != "" {
+            position_context.field = ident;
+        }
+
     }
 
     else {
