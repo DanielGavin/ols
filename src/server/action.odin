@@ -1,22 +1,16 @@
 package server
 
-CodeActionKind :: struct {
-
-};
+CodeActionKind :: struct {}
 
 CodeActionClientCapabilities :: struct {
-
 	codeActionLiteralSupport: struct {
-
 		codeActionKind: struct {
-			valueSet: [] CodeActionKind,
+			valueSet: []CodeActionKind,
 		},
 	},
-
-};
+}
 
 CodeActionOptions :: struct {
-	codeActionKinds: [] CodeActionKind,
+	codeActionKinds: []CodeActionKind,
 	resolveProvider: bool,
-};
-
+}

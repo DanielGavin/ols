@@ -12,17 +12,16 @@ Task_Status :: enum i32 {
 	Term,
 }
 
-Task_Proc :: #type proc(task: ^Task);
+Task_Proc :: proc (task: ^Task);
 
 Task :: struct {
-	procedure: Task_Proc,
-	data: rawptr,
+	procedure:  Task_Proc,
+	data:       rawptr,
 	user_index: int,
 }
 
-Task_Id :: distinct i32;
+Task_Id         :: distinct i32;
 INVALID_TASK_ID :: Task_Id(-1);
-
 
 Pool :: struct {
 	allocator:             mem.Allocator,
@@ -30,21 +29,19 @@ Pool :: struct {
 	sem_available:         sync.Semaphore,
 	processing_task_count: int, // atomic
 	is_running:            bool,
-
-	threads: []^thread.Thread,
-
-	tasks: [dynamic]Task,
+	threads:               []^thread.Thread,
+	tasks:                 [dynamic]Task,
 }
 
-pool_init :: proc(pool: ^Pool, thread_count: int, allocator := context.allocator) {
-	worker_thread_internal :: proc(t: ^thread.Thread) {
+pool_init :: proc (pool: ^Pool, thread_count: int, allocator := context.allocator) {
+	worker_thread_internal :: proc (t: ^thread.Thread) {
 		pool := (^Pool)(t.data);
 
-        temp_allocator: Scratch_Allocator;
+		temp_allocator: Scratch_Allocator;
 
-        scratch_allocator_init(&temp_allocator, mem.megabytes(6));
+		scratch_allocator_init(&temp_allocator, mem.megabytes(6));
 
-        context.temp_allocator = scratch_allocator(&temp_allocator);
+		context.temp_allocator = scratch_allocator(&temp_allocator);
 
 		for pool.is_running {
 			sync.semaphore_wait_for(&pool.sem_available);
@@ -53,19 +50,18 @@ pool_init :: proc(pool: ^Pool, thread_count: int, allocator := context.allocator
 				pool_do_work(pool, &task);
 			}
 
-            free_all(context.temp_allocator);
+			free_all(context.temp_allocator);
 		}
 
-        scratch_allocator_destroy(&temp_allocator);
+		scratch_allocator_destroy(&temp_allocator);
 
 		sync.semaphore_post(&pool.sem_available, 1);
-	}
-
+	};
 
 	context.allocator = allocator;
-	pool.allocator = allocator;
-	pool.tasks = make([dynamic]Task);
-	pool.threads = make([]^thread.Thread, thread_count);
+	pool.allocator    = allocator;
+	pool.tasks        = make([dynamic]Task);
+	pool.threads      = make([]^thread.Thread, thread_count);
 
 	sync.mutex_init(&pool.mutex);
 	sync.semaphore_init(&pool.sem_available);
@@ -73,13 +69,13 @@ pool_init :: proc(pool: ^Pool, thread_count: int, allocator := context.allocator
 
 	for _, i in pool.threads {
 		t := thread.create(worker_thread_internal);
-		t.user_index = i;
-		t.data = pool;
+		t.user_index    = i;
+		t.data          = pool;
 		pool.threads[i] = t;
 	}
 }
 
-pool_destroy :: proc(pool: ^Pool) {
+pool_destroy :: proc (pool: ^Pool) {
 	delete(pool.tasks);
 
 	for t in &pool.threads {
@@ -92,13 +88,13 @@ pool_destroy :: proc(pool: ^Pool) {
 	sync.semaphore_destroy(&pool.sem_available);
 }
 
-pool_start :: proc(pool: ^Pool) {
+pool_start :: proc (pool: ^Pool) {
 	for t in pool.threads {
 		thread.start(t);
 	}
 }
 
-pool_join :: proc(pool: ^Pool) {
+pool_join :: proc (pool: ^Pool) {
 	pool.is_running = false;
 
 	sync.semaphore_post(&pool.sem_available, len(pool.threads));
@@ -110,24 +106,24 @@ pool_join :: proc(pool: ^Pool) {
 	}
 }
 
-pool_add_task :: proc(pool: ^Pool, procedure: Task_Proc, data: rawptr, user_index: int = 0) {
+pool_add_task :: proc (pool: ^Pool, procedure: Task_Proc, data: rawptr, user_index: int = 0) {
 	sync.mutex_lock(&pool.mutex);
 	defer sync.mutex_unlock(&pool.mutex);
 
 	task: Task;
-	task.procedure = procedure;
-	task.data = data;
+	task.procedure  = procedure;
+	task.data       = data;
 	task.user_index = user_index;
 
 	append(&pool.tasks, task);
 	sync.semaphore_post(&pool.sem_available, 1);
 }
 
-pool_try_and_pop_task :: proc(pool: ^Pool) -> (task: Task, got_task: bool = false) {
+pool_try_and_pop_task :: proc (pool: ^Pool) -> (task: Task, got_task: bool = false) {
 	if sync.mutex_try_lock(&pool.mutex) {
 		if len(pool.tasks) != 0 {
 			intrinsics.atomic_add(&pool.processing_task_count, 1);
-			task = pop_front(&pool.tasks);
+			task     = pop_front(&pool.tasks);
 			got_task = true;
 		}
 		sync.mutex_unlock(&pool.mutex);
@@ -135,14 +131,12 @@ pool_try_and_pop_task :: proc(pool: ^Pool) -> (task: Task, got_task: bool = fals
 	return;
 }
 
-
-pool_do_work :: proc(pool: ^Pool, task: ^Task) {
+pool_do_work :: proc (pool: ^Pool, task: ^Task) {
 	task.procedure(task);
 	intrinsics.atomic_sub(&pool.processing_task_count, 1);
 }
 
-
-pool_wait_and_process :: proc(pool: ^Pool) {
+pool_wait_and_process :: proc (pool: ^Pool) {
 	for len(pool.tasks) != 0 || intrinsics.atomic_load(&pool.processing_task_count) != 0 {
 		if task, ok := pool_try_and_pop_task(pool); ok {
 			pool_do_work(pool, &task);

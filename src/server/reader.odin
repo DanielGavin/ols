@@ -4,61 +4,57 @@ import "core:os"
 import "core:mem"
 import "core:strings"
 
-ReaderFn :: proc(rawptr, [] byte) -> (int, int);
+ReaderFn :: proc (_: rawptr, _: []byte) -> (int, int);
 
 Reader :: struct {
-    reader_fn: ReaderFn,
-    reader_context: rawptr,
-};
-
-make_reader :: proc(reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
-    return Reader { reader_context = reader_context, reader_fn = reader_fn };
+	reader_fn:      ReaderFn,
+	reader_context: rawptr,
 }
 
-
-read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
-
-    value : [1] byte;
-
-    read, err := reader.reader_fn(reader.reader_context, value[:]);
-
-    if(err != 0 || read != 1) {
-        return 0, false;
-    }
-
-    return value[0], true;
+make_reader :: proc (reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
+	return Reader {reader_context = reader_context, reader_fn = reader_fn};
 }
 
-read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
+read_u8 :: proc (reader: ^Reader) -> (u8, bool) {
 
-    for true {
+	value: [1]byte;
 
-        value, success := read_u8(reader);
+	read, err := reader.reader_fn(reader.reader_context, value[:]);
 
-        if(!success) {
-            return false;
-        }
+	if (err != 0 || read != 1) {
+		return 0, false;
+	}
 
-        strings.write_byte(builder, value);
-
-        if(value == delimiter) {
-            break;
-        }
-    }
-
-    return true;
+	return value[0], true;
 }
 
-read_sized :: proc(reader: ^Reader, data: []u8) -> bool {
+read_until_delimiter :: proc (reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
 
-    read, err := reader.reader_fn(reader.reader_context, data);
+	for true {
 
-    if(err != 0 || read != len(data)) {
-        return false;
-    }
+		value, success := read_u8(reader);
 
-    return true;
+		if (!success) {
+			return false;
+		}
+
+		strings.write_byte(builder, value);
+
+		if (value == delimiter) {
+			break;
+		}
+	}
+
+	return true;
 }
 
+read_sized :: proc (reader: ^Reader, data: []u8) -> bool {
 
+	read, err := reader.reader_fn(reader.reader_context, data);
 
+	if (err != 0 || read != len(data)) {
+		return false;
+	}
+
+	return true;
+}

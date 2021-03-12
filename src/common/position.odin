@@ -6,306 +6,269 @@ import "core:fmt"
 import "core:odin/ast"
 
 /*
-    This file handles the conversion between utf-16 and utf-8 offsets in the text document
+	This file handles the conversion between utf-16 and utf-8 offsets in the text document
 */
 
 //TODO(Optimize by calculating all the newlines at parse instead of calculating them)
 
 Position :: struct {
-	line: int,
+	line:      int,
 	character: int,
-};
+}
 
 Range :: struct {
 	start: Position,
-	end: Position,
-};
+	end:   Position,
+}
 
 Location :: struct {
-	uri: string,
+	uri:   string,
 	range: Range,
-};
-
+}
 
 AbsoluteRange :: struct {
-    start: int,
-    end: int,
-};
+	start: int,
+	end:   int,
+}
 
 AbsolutePosition :: int;
 
-get_absolute_position :: proc(position: Position, document_text: [] u8) -> (AbsolutePosition, bool) {
-    absolute: AbsolutePosition;
+get_absolute_position :: proc (position: Position, document_text: []u8) -> (AbsolutePosition, bool) {
+	absolute: AbsolutePosition;
 
-    if len(document_text) == 0 {
-        absolute = 0;
-        return absolute, true;
-    }
+	if len(document_text) == 0 {
+		absolute = 0;
+		return absolute, true;
+	}
 
-    line_count := 0;
-    index := 1;
-    last := document_text[0];
+	line_count := 0;
+	index      := 1;
+	last       := document_text[0];
 
-    if !get_index_at_line(&index, &line_count, &last, document_text, position.line) {
-        return absolute, false;
-    }
+	if !get_index_at_line(&index, &line_count, &last, document_text, position.line) {
+		return absolute, false;
+	}
 
-    absolute = index + get_character_offset_u16_to_u8(position.character, document_text[index:]);
+	absolute = index + get_character_offset_u16_to_u8(position.character, document_text[index:]);
 
-    return absolute, true;
+	return absolute, true;
 }
 
-get_relative_token_position :: proc(offset: int, document_text: [] u8, current_start: int) -> Position {
+get_relative_token_position :: proc (offset: int, document_text: []u8, current_start: int) -> Position {
 
-    start_index := current_start;
+	start_index := current_start;
 
-    data := document_text[start_index:];
+	data := document_text[start_index:];
 
-    i: int;
+	i: int;
 
-    position: Position;
+	position: Position;
 
-    for i + start_index < offset {
+	for i + start_index < offset {
 
-        r, w := utf8.decode_rune(data[i:]);
+		r, w := utf8.decode_rune(data[i:]);
 
-        if r == '\n' { //\r?
-            position.character = 0;
-            position.line += 1;
-            i += 1;
-        }
+		if r == '\n' { //\r?
+			position.character = 0;
+			position.line += 1;
+			i             += 1;
+		} else if w == 0 {
+			return position;
+		} else {
+			if r < 0x10000 {
+				position.character += 1;
+			} else {
+				position.character += 2;
+			}
 
-        else if w == 0 {
-            return position;
-        }
+			i += w;
+		}
+	}
 
-        else {
-            if r < 0x10000 {
-                position.character += 1;
-            }
-
-            else {
-                position.character += 2;
-            }
-
-            i += w;
-        }
-    }
-
-    return position;
+	return position;
 }
 
 /*
-    Get the range of a token in utf16 space
- */
-get_token_range :: proc(node: ast.Node, document_text: [] u8) -> Range {
-    range: Range;
+	Get the range of a token in utf16 space
+*/
+get_token_range :: proc (node: ast.Node, document_text: []u8) -> Range {
+	range: Range;
 
+	go_backwards_to_endline :: proc (offset: int, document_text: []u8) -> int {
 
-    go_backwards_to_endline :: proc(offset: int, document_text: [] u8) -> int {
+		index := offset;
 
-        index := offset;
+		for index > 0 && document_text[index] != '\n' && document_text[index] != '\r' {
+			index -= 1;
+		}
 
-        for index > 0  && document_text[index] != '\n' && document_text[index] != '\r' {
-            index -= 1;
-        }
+		if index == 0 {
+			return 0;
+		}
 
-        if index == 0 {
-            return 0;
-        }
+		return index + 1;
+	};
 
-        return index+1;
-    }
+	pos_offset := min(len(document_text) - 1, node.pos.offset);
+	end_offset := min(len(document_text) - 1, node.end.offset);
 
-    pos_offset := min(len(document_text)-1, node.pos.offset);
-    end_offset := min(len(document_text)-1, node.end.offset);
+	offset := go_backwards_to_endline(pos_offset, document_text);
 
-    offset := go_backwards_to_endline(pos_offset, document_text);
+	range.start.line      = node.pos.line - 1;
+	range.start.character = get_character_offset_u8_to_u16(node.pos.column - 1, document_text[offset:]);
 
-    range.start.line = node.pos.line-1;
-    range.start.character = get_character_offset_u8_to_u16(node.pos.column-1, document_text[offset:]);
+	offset = go_backwards_to_endline(end_offset, document_text);
 
-    offset = go_backwards_to_endline(end_offset, document_text);
+	range.end.line      = node.end.line - 1;
+	range.end.character = get_character_offset_u8_to_u16(node.end.column - 1, document_text[offset:]);
 
-    range.end.line = node.end.line-1;
-    range.end.character = get_character_offset_u8_to_u16(node.end.column-1, document_text[offset:]);
-
-    return range;
+	return range;
 }
 
-get_absolute_range :: proc(range: Range, document_text: [] u8) -> (AbsoluteRange, bool) {
+get_absolute_range :: proc (range: Range, document_text: []u8) -> (AbsoluteRange, bool) {
 
-    absolute: AbsoluteRange;
+	absolute: AbsoluteRange;
 
-    if len(document_text) == 0 {
-        absolute.start = 0;
-        absolute.end = 0;
-        return absolute, true;
-    }
+	if len(document_text) == 0 {
+		absolute.start = 0;
+		absolute.end   = 0;
+		return absolute, true;
+	}
 
-    line_count := 0;
-    index := 1;
-    last := document_text[0];
+	line_count := 0;
+	index      := 1;
+	last       := document_text[0];
 
-    if !get_index_at_line(&index, &line_count, &last, document_text, range.start.line) {
-        return absolute, false;
-    }
+	if !get_index_at_line(&index, &line_count, &last, document_text, range.start.line) {
+		return absolute, false;
+	}
 
-    absolute.start = index + get_character_offset_u16_to_u8(range.start.character, document_text[index:]);
+	absolute.start = index + get_character_offset_u16_to_u8(range.start.character, document_text[index:]);
 
-    //if the last line was indexed at zero we have to move it back to index 1.
-    //This happens when line = 0
-    if index == 0 {
-        index = 1;
-    }
+	//if the last line was indexed at zero we have to move it back to index 1.
+	//This happens when line = 0
+	if index == 0 {
+		index = 1;
+	}
 
-    if !get_index_at_line(&index, &line_count, &last, document_text, range.end.line) {
-        return absolute, false;
-    }
+	if !get_index_at_line(&index, &line_count, &last, document_text, range.end.line) {
+		return absolute, false;
+	}
 
-    absolute.end = index + get_character_offset_u16_to_u8(range.end.character, document_text[index:]);
+	absolute.end = index + get_character_offset_u16_to_u8(range.end.character, document_text[index:]);
 
-    return absolute, true;
+	return absolute, true;
 }
 
+get_index_at_line :: proc (current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
 
-get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
+	if end_line == 0 {
+		current_index^ = 0;
+		return true;
+	}
 
-    if end_line == 0 {
-        current_index^ = 0;
-        return true;
-    }
+	if current_line^ == end_line {
+		return true;
+	}
 
-    if current_line^ == end_line {
-        return true;
-    }
+	for ; current_index^ < len(document_text); current_index^ += 1 {
 
+		current := document_text[current_index^];
 
-    for ; current_index^ < len(document_text); current_index^ += 1 {
+		if last^ == '\r' {
+			current_line^ += 1;
 
-        current := document_text[current_index^];
+			if current_line^ == end_line {
+				last^ = current;
+				current_index^ += 1;
+				return true;
+			}
+		} else if current == '\n' {
+			current_line^ += 1;
 
-        if last^ == '\r' {
-            current_line^ += 1;
+			if current_line^ == end_line {
+				last^ = current;
+				current_index^ += 1;
+				return true;
+			}
+		}
 
-            if current_line^ == end_line {
-                last^ = current;
-                current_index^ += 1;
-                return true;
-            }
+		last^ = document_text[current_index^];
+	}
 
-        }
-
-        else if current == '\n' {
-            current_line^ += 1;
-
-            if current_line^ == end_line {
-                last^ = current;
-                current_index^ += 1;
-                return true;
-            }
-
-        }
-
-        last^ = document_text[current_index^];
-    }
-
-    return false;
-
+	return false;
 }
 
-get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: [] u8) -> int {
+get_character_offset_u16_to_u8 :: proc (character_offset: int, document_text: []u8) -> int {
 
-    utf8_idx := 0;
-    utf16_idx := 0;
+	utf8_idx  := 0;
+	utf16_idx := 0;
 
-    for utf16_idx < character_offset {
+	for utf16_idx < character_offset {
 
-        r, w := utf8.decode_rune(document_text[utf8_idx:]);
+		r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
-        if r == '\n' {
-            return utf8_idx;
-        }
+		if r == '\n' {
+			return utf8_idx;
+		} else if w == 0 {
+			return utf8_idx;
+		} else if r < 0x10000 {
+			utf16_idx += 1;
+		} else {
+			utf16_idx += 2;
+		}
 
-        else if w == 0 {
-            return utf8_idx;
-        }
+		utf8_idx += w;
+	}
 
-        else if r < 0x10000 {
-            utf16_idx += 1;
-        }
-
-        else {
-            utf16_idx += 2;
-        }
-
-        utf8_idx += w;
-
-    }
-
-    return utf8_idx;
+	return utf8_idx;
 }
 
-get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: [] u8) -> int {
+get_character_offset_u8_to_u16 :: proc (character_offset: int, document_text: []u8) -> int {
 
-    utf8_idx := 0;
-    utf16_idx := 0;
+	utf8_idx  := 0;
+	utf16_idx := 0;
 
-    for utf8_idx < character_offset {
+	for utf8_idx < character_offset {
 
-        r, w := utf8.decode_rune(document_text[utf8_idx:]);
+		r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
-        if r == '\n' {
-            return utf16_idx;
-        }
+		if r == '\n' {
+			return utf16_idx;
+		} else if w == 0 {
+			return utf16_idx;
+		} else if r < 0x10000 {
+			utf16_idx += 1;
+		} else {
+			utf16_idx += 2;
+		}
 
-        else if w == 0 {
-            return utf16_idx;
-        }
+		utf8_idx += w;
+	}
 
-        else if r < 0x10000 {
-            utf16_idx += 1;
-        }
-
-        else {
-            utf16_idx += 2;
-        }
-
-        utf8_idx += w;
-
-    }
-
-    return utf16_idx;
-
+	return utf16_idx;
 }
 
-get_end_line_u16 :: proc(document_text: [] u8) -> int {
+get_end_line_u16 :: proc (document_text: []u8) -> int {
 
-    utf8_idx := 0;
-    utf16_idx := 0;
+	utf8_idx  := 0;
+	utf16_idx := 0;
 
-    for utf8_idx < len(document_text) {
-        r, w := utf8.decode_rune(document_text[utf8_idx:]);
+	for utf8_idx < len(document_text) {
+		r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
-        if r == '\n' {
-            return utf16_idx;
-        }
+		if r == '\n' {
+			return utf16_idx;
+		} else if w == 0 {
+			return utf16_idx;
+		} else if r < 0x10000 {
+			utf16_idx += 1;
+		} else {
+			utf16_idx += 2;
+		}
 
-        else if w == 0 {
-            return utf16_idx;
-        }
+		utf8_idx += w;
+	}
 
-        else if r < 0x10000 {
-            utf16_idx += 1;
-        }
-
-        else {
-            utf16_idx += 2;
-        }
-
-        utf8_idx += w;
-
-    }
-
-    return utf16_idx;
+	return utf16_idx;
 }

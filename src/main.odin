@@ -17,103 +17,96 @@ import "shared:index"
 import "shared:server"
 import "shared:common"
 
-os_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
+os_read :: proc (handle: rawptr, data: []byte) -> (int, int) 
 {
-    ptr := cast(^os.Handle)handle;
-    a, b := os.read(ptr^, data);
-    return a, cast(int)b;
+	ptr  := cast(^os.Handle)handle;
+	a, b := os.read(ptr^, data);
+	return a, cast(int)b;
 }
 
-os_write :: proc(handle: rawptr, data: [] byte) -> (int, int)
+os_write :: proc (handle: rawptr, data: []byte) -> (int, int) 
 {
-    ptr := cast(^os.Handle)handle;
-    a, b := os.write(ptr^, data);
-    return a, cast(int)b;
+	ptr  := cast(^os.Handle)handle;
+	a, b := os.write(ptr^, data);
+	return a, cast(int)b;
 }
 
 //Note(Daniel, Should look into handling errors without crashing from parsing)
 
-
 verbose_logger: log.Logger;
 
-run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
+run :: proc (reader: ^server.Reader, writer: ^server.Writer) {
 
-    config: common.Config;
-    config.debug_single_thread = true;
-    config.collections = make(map [string] string);
+	config: common.Config;
+	config.debug_single_thread = true;
+	config.collections         = make(map[string]string);
 
-    log.info("Starting Odin Language Server");
+	log.info("Starting Odin Language Server");
 
+	config.running = true;
 
-    config.running = true;
+	for config.running {
 
-    for config.running {
+		if config.verbose {
+			context.logger = verbose_logger;
+		} else {
+			context.logger = log.Logger {nil, nil, log.Level.Debug, nil};
+		}
 
-        if config.verbose {
-            context.logger = verbose_logger;
-        }
+		header, success := server.read_and_parse_header(reader);
 
-        else {
-            context.logger = log.Logger{nil, nil, log.Level.Debug, nil};
-        }
+		if (!success) {
+			log.error("Failed to read and parse header");
+			return;
+		}
 
-        header, success := server.read_and_parse_header(reader);
+		value: json.Value;
+		value, success = server.read_and_parse_body(reader, header);
 
-        if(!success) {
-            log.error("Failed to read and parse header");
-            return;
-        }
+		if (!success) {
+			log.error("Failed to read and parse body");
+			return;
+		}
 
-        value: json.Value;
-        value, success = server.read_and_parse_body(reader, header);
+		success = server.handle_request(value, &config, writer);
 
-        if(!success) {
-            log.error("Failed to read and parse body");
-            return;
-        }
+		if (!success) {
+			log.error("Unrecoverable handle request");
+			return;
+		}
 
-        success = server.handle_request(value, &config, writer);
+		free_all(context.temp_allocator);
+	}
 
-        if(!success) {
-            log.error("Unrecoverable handle request");
-            return;
-        }
+	for k, v in config.collections {
+		delete(k);
+		delete(v);
+	}
 
-        free_all(context.temp_allocator);
-    }
+	delete(config.collections);
+	delete(config.workspace_folders);
 
-    for k, v in config.collections {
-        delete(k);
-        delete(v);
-    }
+	server.document_storage_shutdown();
 
-    delete(config.collections);
-    delete(config.workspace_folders);
+	index.free_static_index();
 
-    server.document_storage_shutdown();
-
-    index.free_static_index();
-
-    common.pool_wait_and_process(&server.pool);
-    common.pool_destroy(&server.pool);
+	common.pool_wait_and_process(&server.pool);
+	common.pool_destroy(&server.pool);
 }
 
-end :: proc() {
-
+end :: proc () {
 }
 
+main :: proc () {
 
-main :: proc() {
+	reader := server.make_reader(os_read, cast(rawptr)&os.stdin);
+	writer := server.make_writer(os_write, cast(rawptr)&os.stdout);
 
-    reader := server.make_reader(os_read, cast(rawptr)&os.stdin);
-    writer := server.make_writer(os_write, cast(rawptr)&os.stdout);
+	verbose_logger := server.create_lsp_logger(&writer, log.Level.Error);
 
-    verbose_logger := server.create_lsp_logger(&writer, log.Level.Error);
+	context.logger = verbose_logger;
 
-    context.logger = verbose_logger;
+	init_global_temporary_allocator(mem.megabytes(100));
 
-    init_global_temporary_allocator(mem.megabytes(100));
-
-    run(&reader, &writer);
+	run(&reader, &writer);
 }
-
