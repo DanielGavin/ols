@@ -27,6 +27,7 @@ FuzzyCharRole :: enum (u8)
 // Stray control characters or impossible states.
 // Part of a word segment, but not the first character.
 // The first character of a word segment.
+
 {
 	Unknown   = 0,
 	Tail      = 1,
@@ -38,6 +39,7 @@ FuzzyCharType :: enum (u8)
 // Before-the-start and after-the-end (and control chars).
 // Lowercase letters, digits, and non-ASCII bytes.
 // Uppercase letters.
+
 {
 	Empty       = 0,
 	Lower       = 1,
@@ -63,7 +65,9 @@ FuzzyMatcher :: struct {
 char_roles: []u8 = 
 // clang-format off
 //         Curr= Empty Lower Upper Separ
-/*Prev=Empty */{
+/*Prev=Empty */
+
+{
 	0x00,0xaa,0xaa,0xff, // At start, Lower|Upper->Head
 	/*Prev=Lower */0x00,0x55,0xaa,0xff, // In word, Upper->Head;Lower->Tail
 	/*Prev=Upper */0x00,0x55,0x59,0xff, // Ditto, but U(U)U->Tail
