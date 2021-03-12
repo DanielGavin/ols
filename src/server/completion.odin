@@ -37,6 +37,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         get_implicit_completion(&ast_context, &position_context, &list);
     }
 
+    else if position_context.switch_type_stmt != nil && position_context.case_clause != nil && position_context.identifier != nil {
+        get_type_switch_Completion(&ast_context, &position_context, &list);
+    }
+
     else if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
         get_comp_lit_completion(&ast_context, &position_context, &list);
     }
@@ -377,6 +381,20 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolE
     return {}, false;
 }
 
+unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
+
+    if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
+
+        if union_value, ok := union_symbol.value.(index.SymbolUnionValue); ok {
+            return union_value, true;
+        }
+
+    }
+
+    return {}, false;
+
+}
+
 unwrap_bitset :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
 
     if bitset_symbol, ok := resolve_type_expression(ast_context, node); ok {
@@ -693,7 +711,6 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 
     list.items = items[:];
-
 }
 
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
@@ -853,4 +870,30 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 
 
 
+}
+
+get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+
+
+    items := make([dynamic] CompletionItem, context.temp_allocator);
+    list.isIncomplete = false;
+
+    if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
+
+        if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
+
+            for name in union_value.names {
+
+                item := CompletionItem {
+                    label = name,
+                    kind = .EnumMember,
+                    detail = name,
+                };
+
+                append(&items, item);
+            }
+        }
+    }
+
+    list.items = items[:];
 }
