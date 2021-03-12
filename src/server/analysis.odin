@@ -108,8 +108,8 @@ tokenizer_error_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
 */
 
 resolve_poly_spec :: proc {
-resolve_poly_spec_node, 
-resolve_poly_spec_array, 
+resolve_poly_spec_node,
+resolve_poly_spec_array,
 resolve_poly_spec_dynamic_array};
 
 resolve_poly_spec_array :: proc (ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
@@ -316,7 +316,7 @@ resolve_type_comp_literal :: proc (ast_context: ^AstContext, position_context: ^
 }
 
 resolve_generic_function :: proc {
-resolve_generic_function_ast, 
+resolve_generic_function_ast,
 resolve_generic_function_symbol};
 
 resolve_generic_function_symbol :: proc (ast_context: ^AstContext, params: []^ast.Field, results: []^ast.Field) -> (index.Symbol, bool) {
@@ -805,12 +805,12 @@ resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (
 			log.warnf("default type node kind: %T", v);
 			return resolve_type_expression(ast_context, global);
 		}
-	} else 
+	} else
 
 	//if there are more of these variables that hard builtin, move them to the indexer
 	if node.name == "context" {
 		return index.lookup("Context", ast_context.current_package);
-	} else 
+	} else
 	//keywords
 	if v, ok := common.keyword_map[node.name]; ok {
 
@@ -839,11 +839,9 @@ resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (
 			};
 
 			return symbol, true;
-		} else 
+		} else {
 
-		//part of the ast so we check the imports of the document
-		{
-
+			//part of the ast so we check the imports of the document
 			for imp in ast_context.imports {
 
 				if strings.compare(imp.base, node.name) == 0 {
@@ -2021,6 +2019,7 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 	empty_arrow:   bool;
 	last_dot:      bool;
 	last_arrow:    bool;
+	dots_seen: 	   int;
 
 	i := position_context.position - 1;
 
@@ -2051,6 +2050,7 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 		} else if c == ']' {
 			bracket_count -= 1;
 		} else if c == '.' {
+			dots_seen += 1;
 			last_dot = true;
 			i -= 1;
 			continue;
@@ -2061,10 +2061,10 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 		}
 
 		//yeah..
-		if c == ' ' || c == '{' || c == ',' || 
-		c == '}' || c == '^' || c == ':' || 
-		c == '\n' || c == '\r' || c == '=' || 
-		c == '<' || c == '>' || c == '-' || 
+		if c == ' ' || c == '{' || c == ',' ||
+		c == '}' || c == '^' || c == ':' ||
+		c == '\n' || c == '\r' || c == '=' ||
+		c == '<' || c == '>' || c == '-' ||
 		c == '+' || c == '&' {
 			start = i + 1;
 			break;
@@ -2159,6 +2159,10 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 			return;
 		}
 
+		else if e, ok := e.derived.(ast.Bad_Expr); ok {
+			return;
+		}
+
 		position_context.selector = e;
 
 		ident := index.new_type(ast.Ident, e.pos, e.end, context.temp_allocator);
@@ -2194,7 +2198,7 @@ fallback_position_context_signature :: proc (document: ^Document, position: comm
 		} else if c == ' ' && end != 0 {
 			start = i + 1;
 			break;
-		} else 
+		} else
 		//not good enough if you want multi function signature help
 		if c == '\n' || c == '\r' {
 			start = i + 1;
@@ -2242,8 +2246,8 @@ fallback_position_context_signature :: proc (document: ^Document, position: comm
 }
 
 get_document_position :: proc {
-get_document_position_array, 
-get_document_position_dynamic_array, 
+get_document_position_array,
+get_document_position_dynamic_array,
 get_document_position_node};
 
 get_document_position_array :: proc (array: $A/[]^$T, position_context: ^DocumentPositionContext) {

@@ -1,12 +1,6 @@
 package common
 
-Error :: enum 
-
-// Defined by JSON RPC
-
-// Defined by the protocol.
-
-{
+Error :: enum {
 	None                 = 0,
 	ParseError           = -32700,
 	InvalidRequest       = -32600,

@@ -35,13 +35,13 @@ get_completion_list :: proc (document: ^Document, position: common.Position) -> 
 
 	if position_context.implicit {
 		get_implicit_completion(&ast_context, &position_context, &list);
-	} else if position_context.switch_type_stmt != nil && position_context.case_clause != nil && position_context.identifier != nil {
+	} else if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
 		get_type_switch_Completion(&ast_context, &position_context, &list);
 	} else if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
 		get_comp_lit_completion(&ast_context, &position_context, &list);
 	} else if position_context.selector != nil {
 		get_selector_completion(&ast_context, &position_context, &list);
-	} else if position_context.identifier != nil {
+	} else {
 		get_identifier_completion(&ast_context, &position_context, &list);
 	}
 
@@ -58,8 +58,6 @@ is_lhs_comp_lit :: proc (position_context: ^DocumentPositionContext) -> bool {
 
 		if position_in_node(elem, position_context.position) {
 
-			log.infof("in %v", elem.derived);
-
 			if ident, ok := elem.derived.(ast.Ident); ok {
 				return true;
 			} else if field, ok := elem.derived.(ast.Field_Value); ok {
@@ -68,8 +66,6 @@ is_lhs_comp_lit :: proc (position_context: ^DocumentPositionContext) -> bool {
 					return false;
 				}
 			}
-		} else {
-			log.infof("not in %v", elem.derived);
 		}
 	}
 
@@ -659,8 +655,10 @@ get_identifier_completion :: proc (ast_context: ^AstContext, position_context: ^
 
 	lookup := "";
 
-	if ident, ok := position_context.identifier.derived.(ast.Ident); ok {
-		lookup = ident.name;
+	if position_context.identifier != nil {
+		if ident, ok := position_context.identifier.derived.(ast.Ident); ok {
+			lookup = ident.name;
+		}
 	}
 
 	pkgs := make([dynamic]string, context.temp_allocator);
@@ -775,11 +773,33 @@ get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 	list.isIncomplete = false;
 
+	used_unions := make(map[string]bool, 5, context.temp_allocator);
+
+	if block, ok := position_context.switch_type_stmt.body.derived.(ast.Block_Stmt); ok {
+
+		for stmt in block.stmts {
+
+			if case_clause, ok := stmt.derived.(ast.Case_Clause); ok {
+
+				for name in case_clause.list {
+
+					if ident, ok := name.derived.(ast.Ident); ok {
+						used_unions[ident.name] = true;
+					}
+				}
+			}
+		}
+	}
+
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
 
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 
 			for name in union_value.names {
+
+				if name in used_unions {
+					continue;
+				}
 
 				item := CompletionItem {
 					label = name,
