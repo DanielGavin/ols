@@ -49,7 +49,10 @@ DocumentPositionContext :: struct {
     arrow: bool,
     binary: ^ast.Binary_Expr, //used for completion
     assign: ^ast.Assign_Stmt, //used for completion
-    value_decl: ^ast.Value_Decl,
+    switch_stmt: ^ast.Switch_Stmt, //used for completion
+    switch_type_stmt: ^ast.Type_Switch_Stmt, //used for completion
+    case_clause: ^ast.Case_Clause, //used for completion
+    value_decl: ^ast.Value_Decl, //used for completion
     hint: DocumentPositionContextHint,
 };
 
@@ -693,7 +696,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
             return index.Symbol {}, false;
         }
     case:
-        log.errorf("default node kind, resolve_type_expression: %T", v);
+        log.warnf("default node kind, resolve_type_expression: %T", v);
 
         if v == nil {
             return {}, false;
@@ -1488,7 +1491,6 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
             ast_context.in_package[str] = get_package_from_node(results[i]);
             store_local(ast_context, results[i], name.pos.offset, str);
             ast_context.variables[str] = value_decl.is_mutable;
-            log.error(name);
         }
     }
 
@@ -2331,7 +2333,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
     else if bad_expr, ok := e.derived.(ast.Bad_Expr); ok {
         //this is most likely because of use of 'in', 'context', etc.
         //try to go back one dot.
-        log.error(bad_expr);
 
         src_with_dot := string(position_context.file.src[0:end_offset+1]);
         last_dot := strings.last_index(src_with_dot, ".");
@@ -2356,6 +2357,10 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
         parser.advance_token(&p);
 
         e := parser.parse_expr(&p, true);
+
+        if e == nil {
+            return;
+        }
 
         position_context.selector = e;
 
@@ -2623,14 +2628,17 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
         get_document_position(n.expr, position_context);
         get_document_position(n.body, position_context);
     case Case_Clause:
+        position_context.case_clause = cast(^Case_Clause)node;
         get_document_position(n.list, position_context);
         get_document_position(n.body, position_context);
     case Switch_Stmt:
+        position_context.switch_stmt = cast(^Switch_Stmt)node;
         get_document_position(n.label, position_context);
         get_document_position(n.init, position_context);
         get_document_position(n.cond, position_context);
         get_document_position(n.body, position_context);
     case Type_Switch_Stmt:
+        position_context.switch_type_stmt = cast(^Type_Switch_Stmt)node;
         get_document_position(n.label, position_context);
         get_document_position(n.tag, position_context);
         get_document_position(n.expr, position_context);

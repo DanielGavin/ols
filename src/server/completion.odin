@@ -45,7 +45,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
         get_selector_completion(&ast_context, &position_context, &list);
     }
 
-    else {
+    else if position_context.identifier != nil {
         get_identifier_completion(&ast_context, &position_context, &list);
     }
 
@@ -416,9 +416,51 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
         ast_context.current_package = ast_context.document_package;
     }
 
-    //bitsets
-    if position_context.comp_lit != nil && position_context.binary != nil && (position_context.binary.op.text == "&" ) {
+    //enum switch infer
+    if position_context.switch_stmt != nil && position_context.case_clause != nil && position_context.switch_stmt.cond != nil {
 
+        used_enums := make(map [string]bool, 5, context.temp_allocator);
+
+        if block, ok := position_context.switch_stmt.body.derived.(ast.Block_Stmt); ok {
+
+            for stmt in block.stmts {
+
+                if case_clause, ok := stmt.derived.(ast.Case_Clause); ok {
+
+                    for name in case_clause.list {
+
+                        if implicit, ok := name.derived.(ast.Implicit_Selector_Expr); ok {
+                            used_enums[implicit.field.name] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if enum_value, ok := unwrap_enum(ast_context, position_context.switch_stmt.cond); ok {
+
+            for name in enum_value.names {
+
+                if name in used_enums {
+                    continue;
+                }
+
+                item := CompletionItem {
+                    label = name,
+                    kind = .EnumMember,
+                    detail = name,
+                };
+
+                append(&items, item);
+
+            }
+
+        }
+
+    }
+
+    else if position_context.comp_lit != nil && position_context.binary != nil && (position_context.binary.op.text == "&" ) {
+        //bitsets
         context_node: ^ast.Expr;
         bitset_node: ^ast.Expr;
 
@@ -435,8 +477,6 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
         if context_node != nil && bitset_node != nil {
 
             if _, ok := context_node.derived.(ast.Comp_Lit); ok {
-
-                log.error(bitset_node.derived);
 
                 if value, ok := unwrap_bitset(ast_context, bitset_node); ok {
 
