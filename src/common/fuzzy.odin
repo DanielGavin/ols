@@ -23,27 +23,17 @@ FuzzyScoreInfo :: struct {
 	prev:  int,
 }
 
-FuzzyCharRole :: enum (u8) 
-// Stray control characters or impossible states.
-// Part of a word segment, but not the first character.
-// The first character of a word segment.
-
-{
-	Unknown   = 0,
-	Tail      = 1,
-	Head      = 2,
+FuzzyCharRole :: enum (u8) {
+	Unknown   = 0, // Stray control characters or impossible states.
+	Tail      = 1, // Part of a word segment, but not the first character.
+	Head      = 2, // The first character of a word segment.
 	Separator = 3, // Punctuation characters that separate word segments.
 }
 
-FuzzyCharType :: enum (u8) 
-// Before-the-start and after-the-end (and control chars).
-// Lowercase letters, digits, and non-ASCII bytes.
-// Uppercase letters.
-
-{
-	Empty       = 0,
-	Lower       = 1,
-	Upper       = 2,
+FuzzyCharType :: enum (u8) {
+	Empty       = 0, // Before-the-start and after-the-end (and control chars).
+	Lower       = 1, // Lowercase letters, digits, and non-ASCII bytes.
+	Upper       = 2, // Uppercase letters.
 	Punctuation = 3, // ASCII punctuation (including Space)
 }
 
@@ -62,13 +52,10 @@ FuzzyMatcher :: struct {
 	word_role:        [max_word]FuzzyCharRole,
 }
 
-char_roles: []u8 = 
-// clang-format off
-//         Curr= Empty Lower Upper Separ
-/*Prev=Empty */
-
-{
-	0x00,0xaa,0xaa,0xff, // At start, Lower|Upper->Head
+char_roles: []u8 = {
+	// clang-format off
+	//         Curr= Empty Lower Upper Separ
+	/*Prev=Empty */0x00,0xaa,0xaa,0xff, // At start, Lower|Upper->Head
 	/*Prev=Lower */0x00,0x55,0xaa,0xff, // In word, Upper->Head;Lower->Tail
 	/*Prev=Upper */0x00,0x55,0x59,0xff, // Ditto, but U(U)U->Tail
 	/*Prev=Separ */0x00,0xaa,0xaa,0xff, // After separator, like at start
@@ -180,7 +167,7 @@ fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 
 	fuzzy_build_graph(matcher);
 
-	best := max(cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score, 
+	best := max(cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score,
 	cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score);
 
 	if fuzzy_is_awful(best) {
@@ -365,8 +352,8 @@ fuzzy_match_bonus :: proc (matcher: ^FuzzyMatcher, p: int, w: int, last: int) ->
 	// Bonus: case matches, or a Head in the pattern aligns with one in the word.
 	// Single-case patterns lack segmentation signals and we assume any character
 	// can be a head of a segment.
-	if matcher.pattern[p] == matcher.word[w] || 
-	(matcher.word_role[w] == FuzzyCharRole.Head && 
+	if matcher.pattern[p] == matcher.word[w] ||
+	(matcher.word_role[w] == FuzzyCharRole.Head &&
 	(is_pattern_single_case || matcher.pattern_role[p] == FuzzyCharRole.Head)) {
 		s += 1;
 		//fmt.println("match 1");
@@ -410,7 +397,7 @@ fuzzy_allow_match :: proc (matcher: ^FuzzyMatcher, p: int, w: int, last: int) ->
 
 	if last == miss {
 
-		if matcher.word_role[w] == FuzzyCharRole.Tail && (matcher.word[w] == matcher.lower_word[w] || 
+		if matcher.word_role[w] == FuzzyCharRole.Tail && (matcher.word[w] == matcher.lower_word[w] ||
 		0 >= (cast(uint)matcher.word_type_set & 1 << cast(uint)FuzzyCharType.Lower)) {
 			return false;
 		}
