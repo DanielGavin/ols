@@ -2019,7 +2019,7 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 	empty_arrow:   bool;
 	last_dot:      bool;
 	last_arrow:    bool;
-	dots_seen: 	   int;
+	dots_seen:     int;
 
 	i := position_context.position - 1;
 
@@ -2157,9 +2157,7 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 
 		if e == nil {
 			return;
-		}
-
-		else if e, ok := e.derived.(ast.Bad_Expr); ok {
+		} else if e, ok := e.derived.(ast.Bad_Expr); ok {
 			return;
 		}
 
@@ -2411,7 +2409,14 @@ get_document_position_node :: proc (node: ^ast.Node, position_context: ^Document
 		get_document_position(n.expr, position_context);
 		get_document_position(n.body, position_context);
 	case Case_Clause:
-		position_context.case_clause = cast(^Case_Clause)node;
+
+		for elem in n.list {
+			if position_in_node(elem, position_context.position) {
+				position_context.case_clause = cast(^Case_Clause)node;
+				break;
+			}
+		}
+
 		get_document_position(n.list, position_context);
 		get_document_position(n.body, position_context);
 	case Switch_Stmt:
