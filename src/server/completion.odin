@@ -815,27 +815,6 @@ get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: 
 	list.items = items[:];
 }
 
-keyword_map: map[string]bool = {
-	"int" = true,
-	"uint" = true,
-	"string" = true,
-	"u64" = true,
-	"f32" = true,
-	"f64" = true,
-	"i64" = true,
-	"i32" = true,
-	"bool" = true,
-	"rawptr" = true,
-	"any" = true,
-	"u32" = true,
-	"true" = true,
-	"false" = true,
-	"nil" = true,
-	"byte" = true,
-	"u8" = true,
-	"i8" = true,
-};
-
 bitset_operators: map[string]bool  = {
 	"|"  = true,
 	"&"  = true,
