@@ -48,6 +48,7 @@ DocumentPositionContext :: struct {
 	implicit:         bool, //used for completion
 	arrow:            bool,
 	binary:           ^ast.Binary_Expr, //used for completion
+	parent_binary:    ^ast.Binary_Expr, //used for completion
 	assign:           ^ast.Assign_Stmt, //used for completion
 	switch_stmt:      ^ast.Switch_Stmt, //used for completion
 	switch_type_stmt: ^ast.Type_Switch_Stmt, //used for completion
@@ -1008,6 +1009,43 @@ resolve_location_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) 
 	}
 
 	return index.lookup(node.name, ast_context.document_package);
+}
+
+resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (index.Symbol, bool) {
+
+	//Fairly simple function to find the earliest identifier symbol in binary expression.
+
+	if binary.left != nil && binary.left.derived != nil {
+
+		if ident, ok := binary.left.derived.(ast.Ident); ok {
+			if s, ok := resolve_type_identifier(ast_context, ident); ok {
+				return s, ok;
+			}
+		}
+
+		else if _, ok := binary.left.derived.(ast.Binary_Expr); ok {
+			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.left); ok {
+				return s, ok;
+			}
+		}
+
+	}
+
+	if binary.right != nil && binary.right.derived != nil {
+		if ident, ok := binary.right.derived.(ast.Ident); ok {
+			if s, ok := resolve_type_identifier(ast_context, ident); ok {
+				return s, ok;
+			}
+		}
+
+		else if _, ok := binary.right.derived.(ast.Binary_Expr); ok {
+			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.right); ok {
+				return s, ok;
+			}
+		}
+	}
+
+	return {}, false;
 }
 
 make_pointer_ast :: proc (elem: ^ast.Expr) -> ^ast.Pointer_Type {
@@ -2309,6 +2347,9 @@ get_document_position_node :: proc (node: ^ast.Node, position_context: ^Document
 	case Unary_Expr:
 		get_document_position(n.expr, position_context);
 	case Binary_Expr:
+		if position_context.parent_binary == nil {
+			position_context.parent_binary = cast(^Binary_Expr)node;
+		}
 		position_context.binary = cast(^Binary_Expr)node;
 		get_document_position(n.left, position_context);
 		get_document_position(n.right, position_context);

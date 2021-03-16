@@ -93,6 +93,10 @@ field_exists_in_comp_lit :: proc (comp_lit: ^ast.Comp_Lit, name: string) -> bool
 	return false;
 }
 
+get_attribute_completion :: proc (ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+
+}
+
 get_directive_completion :: proc (ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false;
@@ -129,11 +133,13 @@ get_directive_completion :: proc (ast_context: ^AstContext, postition_context: ^
 		item := CompletionItem {
 			detail = elem,
 			label = elem,
-			kind = .EnumMember,
+			kind = .Constant,
 		};
 
 		append(&items, item);
 	}
+
+	list.items = items[:];
 }
 
 get_comp_lit_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
@@ -347,17 +353,12 @@ unwrap_union :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbo
 	return {}, false;
 }
 
-unwrap_bitset :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+unwrap_bitset :: proc (ast_context: ^AstContext, bitset_symbol: index.Symbol) -> (index.SymbolEnumValue, bool) {
 
-	if bitset_symbol, ok := resolve_type_expression(ast_context, node); ok {
-
-		if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
-
-			if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
-
-				if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
-					return enum_value, true;
-				}
+	if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
+		if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
+			if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
+				return enum_value, true;
 			}
 		}
 	}
@@ -420,35 +421,21 @@ get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 				append(&items, item);
 			}
 		}
-	} else if position_context.comp_lit != nil && position_context.binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
+	} else if position_context.comp_lit != nil && position_context.parent_binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
 		//bitsets
-		context_node: ^ast.Expr;
-		bitset_node:  ^ast.Expr;
+		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
 
-		if position_in_node(position_context.binary.right, position_context.position) {
-			context_node = position_context.binary.right;
-			bitset_node  = position_context.binary.left;
-		} else if position_in_node(position_context.binary.left, position_context.position) {
-			context_node = position_context.binary.left;
-			bitset_node  = position_context.binary.right;
-		}
+			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 
-		if context_node != nil && bitset_node != nil {
+				for name in value.names {
 
-			if _, ok := context_node.derived.(ast.Comp_Lit); ok {
+					item := CompletionItem {
+						label = name,
+						kind = .EnumMember,
+						detail = name,
+					};
 
-				if value, ok := unwrap_bitset(ast_context, bitset_node); ok {
-
-					for name in value.names {
-
-						item := CompletionItem {
-							label = name,
-							kind = .EnumMember,
-							detail = name,
-						};
-
-						append(&items, item);
-					}
+					append(&items, item);
 				}
 			}
 		}
@@ -815,19 +802,14 @@ get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: 
 	list.items = items[:];
 }
 
-bitset_operators: map[string]bool  = {
-	"|"  = true,
-	"&"  = true,
-	"&~" = true,
-	"~"  = true,
-	"==" = true,
-	"!=" = true,
-	"<=" = true,
-	"<"  = true,
-	">=" = true,
-	">"  = true,
+bitset_operators: map[string]bool = {
+	"|" = true,
+	"&" = true,
+	"~" = true,
+	"<" = true,
+	">" = true,
 };
 
-is_bitset_binary_operator :: proc(op: string) -> bool {
+is_bitset_binary_operator :: proc (op: string) -> bool {
 	return op in bitset_operators;
 }
