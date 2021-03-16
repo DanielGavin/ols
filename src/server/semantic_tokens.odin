@@ -28,6 +28,7 @@ SemanticTokenTypes :: enum {
 	Number,
 	Operator,
 	Property,
+	Method,
 }
 
 SemanticTokenModifiers :: enum {
@@ -177,10 +178,11 @@ resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder
 }
 
 write_semantic_tokens :: proc {
-write_semantic_tokens_node, 
-write_semantic_tokens_dynamic_array, 
-write_semantic_tokens_array, 
-write_semantic_tokens_stmt};
+	write_semantic_tokens_node,
+	write_semantic_tokens_dynamic_array,
+	write_semantic_tokens_array,
+	write_semantic_tokens_stmt,
+};
 
 write_semantic_tokens_array :: proc (array: $A/[]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
@@ -421,7 +423,10 @@ write_semantic_tokens_value_decl :: proc (value_decl: ast.Value_Decl, builder: ^
 			write_semantic_tokens(v.body, builder, ast_context);
 			builder.current_function = last_function;
 		case:
-			write_semantic_node(builder, value_decl.names[0], ast_context.file.src, .Variable, .None);
+			for name in value_decl.names {
+				write_semantic_node(builder, name, ast_context.file.src, .Variable, .None);
+			}
+
 			write_semantic_tokens(value_decl.values[0], builder, ast_context);
 		}
 	} else {
