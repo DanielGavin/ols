@@ -157,11 +157,11 @@ collect_union_fields :: proc (collection: ^SymbolCollection, union_type: ast.Uni
 		} else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
 
 			if ident, ok := selector.field.derived.(ast.Ident); ok {
-				append(&names, ident.name);
+				append(&names, get_index_unique_string(collection, ident.name));
 			}
 		}
 
-		append(&types, variant);
+		append(&types, clone_type(variant, collection.allocator, &collection.unique_strings));
 	}
 
 	value := SymbolUnionValue {

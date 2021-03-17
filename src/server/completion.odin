@@ -16,6 +16,14 @@ import "core:slice"
 import "shared:common"
 import "shared:index"
 
+Completion_Type :: enum {
+	Implicit,
+	Selector,
+	Switch_Type,
+	Identifier,
+	Comp_Lit,
+}
+
 get_completion_list :: proc (document: ^Document, position: common.Position) -> (CompletionList, bool) {
 
 	list: CompletionList;
@@ -33,16 +41,47 @@ get_completion_list :: proc (document: ^Document, position: common.Position) -> 
 		get_locals(document.ast, position_context.function, &ast_context, &position_context);
 	}
 
+	completion_type: Completion_Type = .Identifier;
+
 	if position_context.implicit {
-		get_implicit_completion(&ast_context, &position_context, &list);
-	} else if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
-		get_type_switch_Completion(&ast_context, &position_context, &list);
-	} else if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
+		completion_type = .Implicit;
+	}
+
+	if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
+		completion_type = .Comp_Lit;
+	}
+
+	if position_context.selector != nil {
+		completion_type = .Selector;
+	}
+
+	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
+
+		if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
+
+			if symbol, ok := resolve_type_expression(&ast_context, assign.rhs[0]); ok {
+
+				if union_value, ok := symbol.value.(index.SymbolUnionValue); ok {
+					completion_type = .Switch_Type;
+				}
+
+			}
+
+		}
+
+	}
+
+	switch completion_type {
+	case .Comp_Lit:
 		get_comp_lit_completion(&ast_context, &position_context, &list);
-	} else if position_context.selector != nil {
-		get_selector_completion(&ast_context, &position_context, &list);
-	} else {
+	case .Identifier:
 		get_identifier_completion(&ast_context, &position_context, &list);
+	case .Implicit:
+		get_implicit_completion(&ast_context, &position_context, &list);
+	case .Selector:
+		get_selector_completion(&ast_context, &position_context, &list);
+	case .Switch_Type:
+		get_type_switch_Completion(&ast_context, &position_context, &list);
 	}
 
 	return list, true;
@@ -813,19 +852,30 @@ get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: 
 
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 
-			for name in union_value.names {
+			for name, i in union_value.names {
 
 				if name in used_unions {
 					continue;
 				}
 
-				item := CompletionItem {
-					label = name,
-					kind = .EnumMember,
-					detail = name,
-				};
+				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
 
-				append(&items, item);
+					item := CompletionItem {
+						kind = .EnumMember,
+					};
+
+					if symbol.pkg == ast_context.document_package {
+						item.label = fmt.aprintf("%v", name);
+						item.detail = item.label;
+					}
+
+					else {
+						item.label = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name);
+						item.detail = item.label;
+					}
+
+					append(&items, item);
+				}
 			}
 		}
 	}
