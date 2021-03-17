@@ -439,6 +439,27 @@ get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 				}
 			}
 		}
+	} else if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text)  {
+
+		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
+
+			if value, ok := unwrap_bitset(ast_context, symbol); ok {
+
+				for name in value.names {
+
+					item := CompletionItem {
+						label = name,
+						kind = .EnumMember,
+						detail = name,
+					};
+
+					append(&items, item);
+				}
+			}
+
+		}
+
+
 	} else if position_context.comp_lit != nil {
 
 		if position_context.parent_comp_lit.type == nil {
@@ -810,6 +831,19 @@ bitset_operators: map[string]bool = {
 	">" = true,
 };
 
+bitset_assignment_operators: map[string]bool = {
+	"|=" = true,
+	"&=" = true,
+	"~=" = true,
+	"<=" = true,
+	">=" = true,
+	"=" = true,
+};
+
 is_bitset_binary_operator :: proc (op: string) -> bool {
 	return op in bitset_operators;
+}
+
+is_bitset_assignment_operator :: proc (op: string) -> bool {
+	return op in bitset_assignment_operators;
 }

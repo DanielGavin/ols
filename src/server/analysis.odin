@@ -826,7 +826,6 @@ resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (
 				expr = ident
 			},
 		};
-
 		return symbol, true;
 	} else {
 
@@ -1015,7 +1014,7 @@ resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, b
 
 	//Fairly simple function to find the earliest identifier symbol in binary expression.
 
-	if binary.left != nil && binary.left.derived != nil {
+	if binary.left != nil {
 
 		if ident, ok := binary.left.derived.(ast.Ident); ok {
 			if s, ok := resolve_type_identifier(ast_context, ident); ok {
@@ -1031,7 +1030,7 @@ resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, b
 
 	}
 
-	if binary.right != nil && binary.right.derived != nil {
+	if binary.right != nil {
 		if ident, ok := binary.right.derived.(ast.Ident); ok {
 			if s, ok := resolve_type_identifier(ast_context, ident); ok {
 				return s, ok;
@@ -2038,6 +2037,26 @@ get_document_position_context :: proc (document: ^Document, position: common.Pos
 		get_document_position(decl, &position_context);
 	}
 
+	if !position_in_node(position_context.comp_lit, position_context.position) {
+		position_context.comp_lit = nil;
+	}
+
+	if !position_in_node(position_context.parent_comp_lit, position_context.position) {
+		position_context.parent_comp_lit = nil;
+	}
+
+	if !position_in_node(position_context.assign, position_context.position) {
+		position_context.assign = nil;
+	}
+
+	if !position_in_node(position_context.binary, position_context.position) {
+		position_context.binary = nil;
+	}
+
+	if !position_in_node(position_context.parent_binary, position_context.position) {
+		position_context.parent_binary = nil;
+	}
+
 	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
 		fallback_position_context_completion(document, position, &position_context);
 	} else if hint == .SignatureHelp && position_context.call == nil {
@@ -2114,6 +2133,8 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 		i -= 1;
 	}
 
+	//log.error(u8(position_context.file.src[end]));
+
 	if i >= 0 && position_context.file.src[end] == '.' {
 		empty_dot = true;
 		end -= 1;
@@ -2140,6 +2161,8 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 	};
 
 	tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
+
+	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 
 	p.tok.ch          = ' ';
 	p.tok.line_count  = position.line;
