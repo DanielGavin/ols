@@ -354,8 +354,8 @@ write_semantic_tokens_node :: proc (node: ^ast.Node, builder: ^SemanticTokenBuil
 		write_semantic_token_pos(builder, n.pos, "using", ast_context.file.src, .Keyword, .None);
 		write_semantic_tokens(n.list, builder, ast_context);
 	case Map_Type:
+		write_semantic_token_pos(builder, n.tok_pos, "map", ast_context.file.src, .Keyword, .None);
 		write_semantic_tokens(n.key, builder, ast_context);
-		//write_semantic_token_pos(builder, n.tok_pos, "map", ast_context.file.src, .Keyword, .None);
 		write_semantic_tokens(n.value, builder, ast_context);
 	case:
 		log.infof("unhandled write node %v", n);
