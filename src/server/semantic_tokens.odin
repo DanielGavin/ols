@@ -217,6 +217,9 @@ write_semantic_tokens_node :: proc (node: ^ast.Node, builder: ^SemanticTokenBuil
 	}
 
 	switch n in node.derived {
+	case Ellipsis:
+		write_semantic_token_pos(builder, node.pos, "..", ast_context.file.src, .Operator, .None);
+		write_semantic_tokens(n.expr, builder, ast_context);
 	case Ident:
 		/*EXPENSIVE!! But alas i can't just get locals per scope, but have to the exact position, because you can do shit like this:
 			log.println("hello"); //log is namespace
