@@ -20,8 +20,9 @@ SymbolCollection :: struct {
 }
 
 get_index_unique_string :: proc {
-get_index_unique_string_collection, 
-get_index_unique_string_collection_raw};
+	get_index_unique_string_collection,
+	get_index_unique_string_collection_raw,
+};
 
 get_index_unique_string_collection :: proc (collection: ^SymbolCollection, s: string) -> string {
 	return get_index_unique_string_collection_raw(&collection.unique_strings, collection.allocator, s);
@@ -147,16 +148,25 @@ collect_enum_fields :: proc (collection: ^SymbolCollection, fields: []^ast.Expr,
 collect_union_fields :: proc (collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string) -> SymbolUnionValue {
 
 	names := make([dynamic]string, 0, collection.allocator);
+	types := make([dynamic]^ast.Expr, 0, collection.allocator);
 
 	for variant in union_type.variants {
 
 		if ident, ok := variant.derived.(ast.Ident); ok {
 			append(&names, get_index_unique_string(collection, ident.name));
+		} else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
+
+			if ident, ok := selector.field.derived.(ast.Ident); ok {
+				append(&names, ident.name);
+			}
 		}
+
+		append(&types, variant);
 	}
 
 	value := SymbolUnionValue {
-		names = names[:]
+		names = names[:],
+		types = types[:],
 	};
 
 	return value;
@@ -216,16 +226,16 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 
 		switch v in col_expr.derived {
 		case ast.Proc_Lit:
-			token = v;
+			token      = v;
 			token_type = .Function;
 
 			if v.type.params != nil {
-				symbol.signature = strings.concatenate({"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"}, 
+				symbol.signature = strings.concatenate({"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
 					collection.allocator);
 			}
 
 			if v.type.results != nil {
-				symbol.returns = strings.concatenate({"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"}, 
+				symbol.returns = strings.concatenate({"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
 					collection.allocator);
 			}
 
@@ -233,57 +243,57 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 				symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
 			}
 		case ast.Proc_Type:
-			token = v;
+			token      = v;
 			token_type = .Function;
 
 			if v.params != nil {
-				symbol.signature = strings.concatenate({"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"}, 
+				symbol.signature = strings.concatenate({"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"},
 					collection.allocator);
 			}
 
 			if v.results != nil {
-				symbol.returns = strings.concatenate({"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"}, 
+				symbol.returns = strings.concatenate({"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"},
 					collection.allocator);
 			}
 
 			symbol.value = collect_procedure_fields(collection, cast(^ast.Proc_Type)col_expr, v.params, v.results, package_map);
 		case ast.Proc_Group:
-			token = v;
-			token_type = .Function;
+			token        = v;
+			token_type   = .Function;
 			symbol.value = SymbolProcedureGroupValue {
 					group = clone_type(col_expr, collection.allocator, &collection.unique_strings)
 				};
 		case ast.Struct_Type:
-			token = v;
-			token_type = .Struct;
-			symbol.value = collect_struct_fields(collection, v, package_map);
+			token            = v;
+			token_type       = .Struct;
+			symbol.value     = collect_struct_fields(collection, v, package_map);
 			symbol.signature = "struct";
 		case ast.Enum_Type:
-			token = v;
-			token_type = .Enum;
-			symbol.value = collect_enum_fields(collection, v.fields, package_map);
+			token            = v;
+			token_type       = .Enum;
+			symbol.value     = collect_enum_fields(collection, v.fields, package_map);
 			symbol.signature = "enum";
 		case ast.Union_Type:
-			token = v;
-			token_type = .Enum;
-			symbol.value = collect_union_fields(collection, v, package_map);
+			token            = v;
+			token_type       = .Enum;
+			symbol.value     = collect_union_fields(collection, v, package_map);
 			symbol.signature = "union";
 		case ast.Bit_Set_Type:
-			token = v;
-			token_type = .Enum;
-			symbol.value = collect_bitset_field(collection, v, package_map);
+			token            = v;
+			token_type       = .Enum;
+			symbol.value     = collect_bitset_field(collection, v, package_map);
 			symbol.signature = "bitset";
 		case ast.Basic_Lit:
-			token = v;
+			token        = v;
 			symbol.value = collect_generic(collection, col_expr, package_map);
 		case ast.Ident:
-			token = v;
-			token_type = .Variable;
+			token        = v;
+			token_type   = .Variable;
 			symbol.value = collect_generic(collection, col_expr, package_map);
 		case: // default
 			symbol.value = collect_generic(collection, col_expr, package_map);
-			token_type = .Variable;
-			token = expr.expr;
+			token_type   = .Variable;
+			token        = expr.expr;
 			break;
 		}
 
@@ -294,8 +304,7 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 
 		when ODIN_OS == "windows" {
 			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));
-		} else 
-		{
+		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
 		}
 
@@ -391,10 +400,11 @@ get_package_mapping :: proc (file: ast.File, config: ^common.Config, uri: string
 */
 
 replace_package_alias :: proc {
-replace_package_alias_node, 
-replace_package_alias_expr, 
-replace_package_alias_array, 
-replace_package_alias_dynamic_array};
+	replace_package_alias_node,
+	replace_package_alias_expr,
+	replace_package_alias_array,
+	replace_package_alias_dynamic_array,
+};
 
 replace_package_alias_array :: proc (array: $A/[]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
 

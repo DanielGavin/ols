@@ -1164,11 +1164,19 @@ make_symbol_union_from_ast :: proc (ast_context: ^AstContext, v: ast.Union_Type,
 		if ident, ok := variant.derived.(ast.Ident); ok {
 			append(&names, ident.name);
 		}
+
+		else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
+
+			if ident, ok := selector.field.derived.(ast.Ident); ok {
+				append(&names, ident.name);
+			}
+		}
 	}
 
 	symbol.value = index.SymbolUnionValue {
-			names = names[:]
-		};
+			names = names[:],
+			types = v.variants,
+	};
 
 	return symbol;
 }

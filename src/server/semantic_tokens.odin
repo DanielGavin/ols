@@ -139,10 +139,11 @@ write_semantic_token_pos :: proc (builder: ^SemanticTokenBuilder, pos: tokenizer
 	builder.current_start = pos.offset;
 }
 
-resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) -> (is_member: bool, is_package: bool) {
+resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) -> (is_member: bool, is_package: bool, package_name: string) {
 
 	n := node.derived.(ast.Ident);
 
+	package_name = ast_context.document_package;
 	ast_context.current_package = ast_context.document_package;
 	ast_context.use_globals     = true;
 	ast_context.use_locals      = true;
@@ -151,11 +152,11 @@ resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder
 		write_semantic_node(builder, node, ast_context.file.src, .Variable, .None);
 		is_member = true;
 	} else if symbol, ok := resolve_type_identifier(ast_context, n); ok {
-
 		#partial switch v in symbol.value {
 		case index.SymbolPackageValue:
 			write_semantic_node(builder, node, ast_context.file.src, .Namespace, .None);
 			is_package = true;
+			package_name = symbol.pkg;
 		case index.SymbolStructValue:
 			write_semantic_node(builder, node, ast_context.file.src, .Struct, .None);
 		case index.SymbolEnumValue:
@@ -531,7 +532,7 @@ write_semantic_selector :: proc (selector: ^ast.Selector_Expr, builder: ^Semanti
 
 	if ident, ok := selector.expr.derived.(Ident); ok {
 		get_locals_at(builder.current_function, selector.expr, ast_context);
-		builder.selector_member, builder.selector_package = resolve_and_write_ident(selector.expr, builder, ast_context); //base
+		builder.selector_member, builder.selector_package, ast_context.current_package = resolve_and_write_ident(selector.expr, builder, ast_context); //base
 
 		if builder.selector_package && selector.field != nil && resolve_ident_is_variable(ast_context, selector.field^) {
 			builder.selector_member = true;

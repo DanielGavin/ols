@@ -42,6 +42,7 @@ SymbolEnumValue :: struct {
 
 SymbolUnionValue :: struct {
 	names: []string,
+	types: []^ast.Expr,
 }
 
 SymbolBitSetValue :: struct {
@@ -78,7 +79,7 @@ Symbol :: struct {
 	value:     SymbolValue,
 }
 
-SymbolType :: enum 
+SymbolType :: enum
 
 //set by ast symbol
 
@@ -97,8 +98,8 @@ SymbolType :: enum
 
 free_symbol :: proc (symbol: Symbol, allocator: mem.Allocator) {
 
-	if symbol.signature != "" && symbol.signature != "struct" && 
-	symbol.signature != "union" && symbol.signature != "enum" && 
+	if symbol.signature != "" && symbol.signature != "struct" &&
+	symbol.signature != "union" && symbol.signature != "enum" &&
 	symbol.signature != "bitset" && symbol.signature != "bitfield" {
 		delete(symbol.signature, allocator);
 	}
@@ -126,6 +127,7 @@ free_symbol :: proc (symbol: Symbol, allocator: mem.Allocator) {
 		delete(v.names, allocator);
 	case SymbolUnionValue:
 		delete(v.names, allocator);
+		common.free_ast(v.types, allocator);
 	case SymbolBitSetValue:
 		common.free_ast(v.expr, allocator);
 	}

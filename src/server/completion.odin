@@ -242,12 +242,22 @@ get_selector_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 	case index.SymbolUnionValue:
 		list.isIncomplete = false;
 
-		for name in v.names {
-			symbol: index.Symbol;
-			symbol.name = fmt.aprintf("(%v)", name);
-			symbol.pkg  = selector.name;
-			symbol.type = .EnumMember;
-			append(&symbols, symbol);
+		for name, i in v.names {
+
+			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+
+				if symbol.pkg == ast_context.document_package {
+					symbol.name = fmt.aprintf("(%v)", name);
+				}
+
+				else {
+					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), name);
+				}
+
+				symbol.pkg  = selector.name;
+				symbol.type = .EnumMember;
+				append(&symbols, symbol);
+			}
 		}
 
 	case index.SymbolEnumValue:
