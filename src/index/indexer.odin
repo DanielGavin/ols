@@ -46,7 +46,7 @@ FuzzyResult :: struct {
 	score:  f32,
 }
 
-lookup :: proc (name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
+lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
 
 	if symbol, ok := memory_index_lookup(&indexer.dynamic_index, name, pkg); ok {
 		log.infof("lookup dynamic name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
@@ -70,7 +70,7 @@ lookup :: proc (name: string, pkg: string, loc := #caller_location) -> (Symbol, 
 	return {}, false;
 }
 
-fuzzy_search :: proc (name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
+fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs);
 	static_results, static_ok   := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
 	result                      := make([dynamic]FuzzyResult, context.temp_allocator);
@@ -99,18 +99,18 @@ fuzzy_search :: proc (name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	return result[:], true;
 }
 
-fuzzy_sort_interface :: proc (s: ^[dynamic]FuzzyResult) -> sort.Interface {
+fuzzy_sort_interface :: proc(s: ^[dynamic]FuzzyResult) -> sort.Interface {
 	return sort.Interface {
 		collection = rawptr(s),
-		len = proc (it: sort.Interface) -> int {
+		len = proc(it: sort.Interface) -> int {
 			s := (^[dynamic]FuzzyResult)(it.collection);
 			return len(s^);
 		},
-		less = proc (it: sort.Interface, i, j: int) -> bool {
+		less = proc(it: sort.Interface, i, j: int) -> bool {
 			s := (^[dynamic]FuzzyResult)(it.collection);
 			return s[i].score > s[j].score;
 		},
-		swap = proc (it: sort.Interface, i, j: int) {
+		swap = proc(it: sort.Interface, i, j: int) {
 			s := (^[dynamic]FuzzyResult)(it.collection);
 			s[i], s[j] = s[j], s[i];
 		},

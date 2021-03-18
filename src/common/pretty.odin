@@ -7,19 +7,20 @@ import "core:fmt"
 	Ast visualization to help in debugging and development
 */
 
-print_ast :: proc {
-print_ast_array, 
-print_ast_dynamic_array, 
-print_ast_node};
+print_ast :: proc{
+	print_ast_array,
+	print_ast_dynamic_array,
+	print_ast_node,
+};
 
-print_ast_array :: proc (array: $A/[]^$T, depth: int, src: []byte, newline := false) {
+print_ast_array :: proc(array: $A/[]^$T, depth: int, src: []byte, newline := false) {
 
 	for elem, i in array {
 		print_ast(elem, depth, src);
 	}
 }
 
-print_ast_dynamic_array :: proc (array: $A/[dynamic]^$T, depth: int, src: []byte, newline := false) {
+print_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, depth: int, src: []byte, newline := false) {
 
 	for elem, i in array {
 		print_ast(elem, depth, src);
@@ -30,7 +31,7 @@ print_ast_dynamic_array :: proc (array: $A/[dynamic]^$T, depth: int, src: []byte
 	Not fully printed out, filling it in as needed.
 */
 
-print_ast_node :: proc (node: ^ast.Node, depth: int, src: []byte, newline := false) {
+print_ast_node :: proc(node: ^ast.Node, depth: int, src: []byte, newline := false) {
 
 	using ast;
 

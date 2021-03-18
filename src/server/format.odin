@@ -3,7 +3,7 @@ package server
 import "shared:common"
 
 
-//import "core:odin/printer"
+import "core:odin/printer"
 
 FormattingOptions :: struct {
 	tabSize:                uint,
@@ -25,7 +25,6 @@ TextEdit :: struct {
 
 get_complete_format :: proc (document: ^Document) -> ([]TextEdit, bool) {
 
-	/*
 	prnt := printer.make_printer(printer.default_style, context.temp_allocator);
 
 	printer.print_file(&prnt, &document.ast);
@@ -51,6 +50,4 @@ get_complete_format :: proc (document: ^Document) -> ([]TextEdit, bool) {
 	append(&edits, edit);
 
 	return edits[:], true;
-	*/
-	return {}, true;
 }

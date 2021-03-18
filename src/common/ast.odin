@@ -34,7 +34,7 @@ GlobalExpr :: struct {
 }
 
 //TODO(add a sub procedure to avoid repeating the value decl work)
-collect_globals :: proc (file: ast.File) -> []GlobalExpr {
+collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator);
 
@@ -151,17 +151,18 @@ collect_globals :: proc (file: ast.File) -> []GlobalExpr {
 	return exprs[:];
 }
 
-get_ast_node_string :: proc (node: ^ast.Node, src: []byte) -> string {
+get_ast_node_string :: proc(node: ^ast.Node, src: []byte) -> string {
 	return string(src[node.pos.offset:node.end.offset]);
 }
 
-free_ast :: proc {
-free_ast_node, 
-free_ast_array, 
-free_ast_dynamic_array, 
-free_ast_comment};
+free_ast :: proc{
+	free_ast_node,
+	free_ast_array,
+	free_ast_dynamic_array,
+	free_ast_comment,
+};
 
-free_ast_comment :: proc (a: ^ast.Comment_Group, allocator: mem.Allocator) {
+free_ast_comment :: proc(a: ^ast.Comment_Group, allocator: mem.Allocator) {
 	if a == nil {
 		return;
 	}
@@ -173,14 +174,14 @@ free_ast_comment :: proc (a: ^ast.Comment_Group, allocator: mem.Allocator) {
 	free(a, allocator);
 }
 
-free_ast_array :: proc (array: $A/[]^$T, allocator: mem.Allocator) {
+free_ast_array :: proc(array: $A/[]^$T, allocator: mem.Allocator) {
 	for elem, i in array {
 		free_ast(elem, allocator);
 	}
 	delete(array, allocator);
 }
 
-free_ast_dynamic_array :: proc (array: $A/[dynamic]^$T, allocator: mem.Allocator) {
+free_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator) {
 	for elem, i in array {
 		free_ast(elem, allocator);
 	}
@@ -188,7 +189,7 @@ free_ast_dynamic_array :: proc (array: $A/[dynamic]^$T, allocator: mem.Allocator
 	delete(array);
 }
 
-free_ast_node :: proc (node: ^ast.Node, allocator: mem.Allocator) {
+free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 
 	using ast;
 
@@ -397,7 +398,7 @@ free_ast_node :: proc (node: ^ast.Node, allocator: mem.Allocator) {
 	mem.free(node, allocator);
 }
 
-free_ast_file :: proc (file: ast.File, allocator := context.allocator) {
+free_ast_file :: proc(file: ast.File, allocator := context.allocator) {
 
 	for decl in file.decls {
 		free_ast(decl, allocator);
@@ -414,27 +415,13 @@ free_ast_file :: proc (file: ast.File, allocator := context.allocator) {
 	delete(file.decls);
 }
 
-node_equal :: proc {
-node_equal_node, 
-node_equal_array, 
-node_equal_dynamic_array};
+node_equal :: proc{
+	node_equal_node,
+	node_equal_array,
+	node_equal_dynamic_array,
+};
 
-node_equal_array :: proc (a, b: $A/[]^$T) -> bool {
-
-	ret := true;
-
-	if len(a) != len(b) {
-		return false;
-	}
-
-	for elem, i in a {
-		ret &= node_equal(elem, b[i]);
-	}
-
-	return ret;
-}
-
-node_equal_dynamic_array :: proc (a, b: $A/[dynamic]^$T) -> bool {
+node_equal_array :: proc(a, b: $A/[]^$T) -> bool {
 
 	ret := true;
 
@@ -449,7 +436,22 @@ node_equal_dynamic_array :: proc (a, b: $A/[dynamic]^$T) -> bool {
 	return ret;
 }
 
-node_equal_node :: proc (a, b: ^ast.Node) -> bool {
+node_equal_dynamic_array :: proc(a, b: $A/[dynamic]^$T) -> bool {
+
+	ret := true;
+
+	if len(a) != len(b) {
+		return false;
+	}
+
+	for elem, i in a {
+		ret &= node_equal(elem, b[i]);
+	}
+
+	return ret;
+}
+
+node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 
 	using ast;
 

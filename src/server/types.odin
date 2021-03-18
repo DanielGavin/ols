@@ -147,7 +147,7 @@ ClientCapabilities :: struct {
 }
 
 RangeOptional :: union {
-	common.Range
+	common.Range,
 }
 
 TextDocumentContentChangeEvent :: struct {

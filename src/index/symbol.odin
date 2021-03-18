@@ -79,13 +79,7 @@ Symbol :: struct {
 	value:     SymbolValue,
 }
 
-SymbolType :: enum
-
-//set by ast symbol
-
-//set by ast symbol
-
-{
+SymbolType :: enum {
 	Function   = 3,
 	Field      = 5,
 	Variable   = 6,
@@ -96,7 +90,7 @@ SymbolType :: enum
 	Struct     = 22,
 }
 
-free_symbol :: proc (symbol: Symbol, allocator: mem.Allocator) {
+free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
 	if symbol.signature != "" && symbol.signature != "struct" &&
 	symbol.signature != "union" && symbol.signature != "enum" &&
@@ -133,7 +127,7 @@ free_symbol :: proc (symbol: Symbol, allocator: mem.Allocator) {
 	}
 }
 
-get_symbol_id :: proc (str: string) -> uint {
+get_symbol_id :: proc(str: string) -> uint {
 	ret := common.sha1_hash(transmute([]byte)str);
 	r   := cast(^uint)slice.first_ptr(ret[:]);
 	return r^;

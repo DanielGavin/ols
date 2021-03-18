@@ -81,20 +81,20 @@ SemanticTokenBuilder :: struct {
 	tokens:           [dynamic]u32,
 }
 
-make_token_builder :: proc (allocator := context.temp_allocator) -> SemanticTokenBuilder {
+make_token_builder :: proc(allocator := context.temp_allocator) -> SemanticTokenBuilder {
 
 	return {
-		tokens = make([dynamic]u32, context.temp_allocator)
+		tokens = make([dynamic]u32, context.temp_allocator),
 	};
 }
 
-get_tokens :: proc (builder: SemanticTokenBuilder) -> SemanticTokens {
+get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 	return {
-		data = builder.tokens[:]
+		data = builder.tokens[:],
 	};
 }
 
-get_semantic_tokens :: proc (document: ^Document, range: common.Range) -> SemanticTokens {
+get_semantic_tokens :: proc(document: ^Document, range: common.Range) -> SemanticTokens {
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, context.temp_allocator);
 	builder     := make_token_builder();
@@ -110,7 +110,7 @@ get_semantic_tokens :: proc (document: ^Document, range: common.Range) -> Semant
 	return get_tokens(builder);
 }
 
-write_semantic_node :: proc (builder: ^SemanticTokenBuilder, node: ^ast.Node, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_node :: proc(builder: ^SemanticTokenBuilder, node: ^ast.Node, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
 	position := common.get_relative_token_position(node.pos.offset, src, builder.current_start);
 
@@ -121,7 +121,7 @@ write_semantic_node :: proc (builder: ^SemanticTokenBuilder, node: ^ast.Node, sr
 	builder.current_start = node.pos.offset;
 }
 
-write_semantic_token :: proc (builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_token :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
 	position := common.get_relative_token_position(token.pos.offset, src, builder.current_start);
 
@@ -130,7 +130,7 @@ write_semantic_token :: proc (builder: ^SemanticTokenBuilder, token: tokenizer.T
 	builder.current_start = token.pos.offset;
 }
 
-write_semantic_token_pos :: proc (builder: ^SemanticTokenBuilder, pos: tokenizer.Pos, name: string, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_token_pos :: proc(builder: ^SemanticTokenBuilder, pos: tokenizer.Pos, name: string, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
 	position := common.get_relative_token_position(pos.offset, src, builder.current_start);
 
@@ -139,11 +139,11 @@ write_semantic_token_pos :: proc (builder: ^SemanticTokenBuilder, pos: tokenizer
 	builder.current_start = pos.offset;
 }
 
-resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) -> (is_member: bool, is_package: bool, package_name: string) {
+resolve_and_write_ident :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) -> (is_member: bool, is_package: bool, package_name: string) {
 
 	n := node.derived.(ast.Ident);
 
-	package_name = ast_context.document_package;
+	package_name                = ast_context.document_package;
 	ast_context.current_package = ast_context.document_package;
 	ast_context.use_globals     = true;
 	ast_context.use_locals      = true;
@@ -155,7 +155,7 @@ resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder
 		#partial switch v in symbol.value {
 		case index.SymbolPackageValue:
 			write_semantic_node(builder, node, ast_context.file.src, .Namespace, .None);
-			is_package = true;
+			is_package   = true;
 			package_name = symbol.pkg;
 		case index.SymbolStructValue:
 			write_semantic_node(builder, node, ast_context.file.src, .Struct, .None);
@@ -178,28 +178,28 @@ resolve_and_write_ident :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder
 	return;
 }
 
-write_semantic_tokens :: proc {
+write_semantic_tokens :: proc{
 	write_semantic_tokens_node,
 	write_semantic_tokens_dynamic_array,
 	write_semantic_tokens_array,
 	write_semantic_tokens_stmt,
 };
 
-write_semantic_tokens_array :: proc (array: $A/[]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_tokens_array :: proc(array: $A/[]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	for elem, i in array {
 		write_semantic_tokens(elem, builder, ast_context);
 	}
 }
 
-write_semantic_tokens_dynamic_array :: proc (array: $A/[dynamic]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_tokens_dynamic_array :: proc(array: $A/[dynamic]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	for elem, i in array {
 		write_semantic_tokens(elem, builder, ast_context);
 	}
 }
 
-write_semantic_tokens_stmt :: proc (node: ^ast.Stmt, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_tokens_stmt :: proc(node: ^ast.Stmt, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	ast_context.current_package = ast_context.document_package;
 	ast_context.use_globals     = true;
 	ast_context.use_locals      = true;
@@ -208,7 +208,7 @@ write_semantic_tokens_stmt :: proc (node: ^ast.Stmt, builder: ^SemanticTokenBuil
 	write_semantic_tokens_node(node, builder, ast_context);
 }
 
-write_semantic_tokens_node :: proc (node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_tokens_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -365,7 +365,7 @@ write_semantic_tokens_node :: proc (node: ^ast.Node, builder: ^SemanticTokenBuil
 	}
 }
 
-write_semantic_token_basic_lit :: proc (basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_token_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	if symbol, ok := resolve_basic_lit(ast_context, basic_lit); ok {
 
@@ -383,7 +383,7 @@ write_semantic_token_basic_lit :: proc (basic_lit: ast.Basic_Lit, builder: ^Sema
 	}
 }
 
-write_semantic_tokens_value_decl :: proc (value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_tokens_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -445,7 +445,7 @@ write_semantic_tokens_value_decl :: proc (value_decl: ast.Value_Decl, builder: ^
 	}
 }
 
-write_semantic_token_op :: proc (builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte) {
+write_semantic_token_op :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte) {
 
 	if token.text == "=" {
 		write_semantic_token_pos(builder, token.pos, token.text, src, .Operator, .None);
@@ -454,7 +454,7 @@ write_semantic_token_op :: proc (builder: ^SemanticTokenBuilder, token: tokenize
 	}
 }
 
-write_semantic_proc_type :: proc (node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -493,7 +493,7 @@ write_semantic_proc_type :: proc (node: ^ast.Proc_Type, builder: ^SemanticTokenB
 	}
 }
 
-write_semantic_enum_fields :: proc (node: ast.Enum_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -509,7 +509,7 @@ write_semantic_enum_fields :: proc (node: ast.Enum_Type, builder: ^SemanticToken
 	}
 }
 
-write_semantic_struct_fields :: proc (node: ast.Struct_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -529,7 +529,7 @@ write_semantic_struct_fields :: proc (node: ast.Struct_Type, builder: ^SemanticT
 	}
 }
 
-write_semantic_selector :: proc (selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
+write_semantic_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -568,7 +568,7 @@ write_semantic_selector :: proc (selector: ^ast.Selector_Expr, builder: ^Semanti
 	}
 }
 
-get_locals_at :: proc (function: ^ast.Node, position: ^ast.Node, ast_context: ^AstContext) {
+get_locals_at :: proc(function: ^ast.Node, position: ^ast.Node, ast_context: ^AstContext) {
 
 	clear_locals(ast_context);
 
@@ -581,7 +581,7 @@ get_locals_at :: proc (function: ^ast.Node, position: ^ast.Node, ast_context: ^A
 	}
 
 	document_position := DocumentPositionContext {
-		position = position.end.offset
+		position = position.end.offset,
 	};
 
 	get_locals(ast_context.file, function, ast_context, &document_position);

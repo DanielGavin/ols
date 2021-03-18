@@ -18,17 +18,17 @@ Lsp_Logger_Data :: struct {
 	writer: ^Writer,
 }
 
-create_lsp_logger :: proc (writer: ^Writer, lowest := log.Level.Debug, opt := Default_Console_Logger_Opts) -> log.Logger {
+create_lsp_logger :: proc(writer: ^Writer, lowest := log.Level.Debug, opt := Default_Console_Logger_Opts) -> log.Logger {
 	data := new(Lsp_Logger_Data);
 	data.writer = writer;
 	return log.Logger {lsp_logger_proc, data, lowest, opt};
 }
 
-destroy_lsp_logger :: proc (log: ^log.Logger) {
+destroy_lsp_logger :: proc(log: ^log.Logger) {
 	free(log.data);
 }
 
-lsp_logger_proc :: proc (logger_data: rawptr, level: log.Level, text: string, options: log.Options, location := #caller_location) {
+lsp_logger_proc :: proc(logger_data: rawptr, level: log.Level, text: string, options: log.Options, location := #caller_location) {
 
 	data := cast(^Lsp_Logger_Data)logger_data;
 

@@ -30,15 +30,15 @@ scratch_allocator_destroy :: proc (s: ^Scratch_Allocator) {
 	s^ = {};
 }
 
-scratch_allocator_proc :: proc (allocator_data: rawptr, mode: mem.Allocator_Mode, 
-size, alignment: int, 
+scratch_allocator_proc :: proc (allocator_data: rawptr, mode: mem.Allocator_Mode,
+size, alignment: int,
 old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> rawptr {
 
 	s := (^Scratch_Allocator)(allocator_data);
 
 	if s.data == nil {
 		DEFAULT_BACKING_SIZE :: 1 << 22;
-		if !(context.allocator.procedure != scratch_allocator_proc && 
+		if !(context.allocator.procedure != scratch_allocator_proc &&
 		context.allocator.data != allocator_data) {
 			panic("cyclic initialization of the scratch allocator with itself");
 		}
@@ -54,7 +54,7 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 		switch  {
 		case s.curr_offset + size <= len(s.data):
 			start := uintptr(raw_data(s.data));
-			ptr := start + uintptr(s.curr_offset);
+			ptr   := start + uintptr(s.curr_offset);
 			ptr = mem.align_forward_uintptr(ptr, uintptr(alignment));
 			mem.zero(rawptr(ptr), size);
 
@@ -79,7 +79,7 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 
 	case .Free:
 	case .Free_All:
-		s.curr_offset = 0;
+		s.curr_offset     = 0;
 		s.prev_allocation = nil;
 		for ptr in s.leaked_allocations {
 			free(ptr, s.backup_allocator);
@@ -87,8 +87,8 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 		clear(&s.leaked_allocations);
 
 	case .Resize:
-		begin := uintptr(raw_data(s.data));
-		end := begin + uintptr(len(s.data));
+		begin   := uintptr(raw_data(s.data));
+		end     := begin + uintptr(len(s.data));
 		old_ptr := uintptr(old_memory);
 		//if begin <= old_ptr && old_ptr < end && old_ptr+uintptr(size) < end {
 		//	s.curr_offset = int(old_ptr-begin)+size;

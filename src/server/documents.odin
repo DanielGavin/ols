@@ -47,7 +47,7 @@ DocumentStorage :: struct {
 
 document_storage: DocumentStorage;
 
-document_storage_shutdown :: proc () {
+document_storage_shutdown :: proc() {
 
 	for k, v in document_storage.documents {
 		delete(k);
@@ -62,7 +62,7 @@ document_storage_shutdown :: proc () {
 	delete(document_storage.documents);
 }
 
-document_get_allocator :: proc () -> ^common.Scratch_Allocator {
+document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators);
@@ -73,11 +73,11 @@ document_get_allocator :: proc () -> ^common.Scratch_Allocator {
 	}
 }
 
-document_free_allocator :: proc (allocator: ^common.Scratch_Allocator) {
+document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
 	append(&document_storage.free_allocators, allocator);
 }
 
-document_get :: proc (uri_string: string) -> ^Document {
+document_get :: proc(uri_string: string) -> ^Document {
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
@@ -96,7 +96,7 @@ document_get :: proc (uri_string: string) -> ^Document {
 	return document;
 }
 
-document_release :: proc (document: ^Document) {
+document_release :: proc(document: ^Document) {
 
 	if document != nil {
 		intrinsics.atomic_sub(&document.operating_on, 1);
@@ -107,7 +107,7 @@ document_release :: proc (document: ^Document) {
 	Client opens a document with transferred text
 */
 
-document_open :: proc (uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.allocator);
 
@@ -160,7 +160,7 @@ document_open :: proc (uri_string: string, text: string, config: ^common.Config,
 /*
 	Function that applies changes to the given document through incremental syncronization
 */
-document_apply_changes :: proc (uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
@@ -236,7 +236,7 @@ document_apply_changes :: proc (uri_string: string, changes: [dynamic]TextDocume
 	return document_refresh(document, config, writer);
 }
 
-document_close :: proc (uri_string: string) -> common.Error {
+document_close :: proc(uri_string: string) -> common.Error {
 
 	log.infof("document_close: %v", uri_string);
 
@@ -268,7 +268,7 @@ document_close :: proc (uri_string: string) -> common.Error {
 	return .None;
 }
 
-document_refresh :: proc (document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
 
 	errors, ok := parse_document(document, config);
 
@@ -287,20 +287,20 @@ document_refresh :: proc (document: ^Document, config: ^common.Config, writer: ^
 		for error, i in errors {
 
 			params.diagnostics[i] = Diagnostic {
-					range = common.Range {
-						start = common.Position {
-							line = error.line - 1,
-							character = 0,
-						},
-						end = common.Position {
-							line = error.line,
-							character = 0,
-						},
+				range = common.Range {
+					start = common.Position {
+						line = error.line - 1,
+						character = 0,
 					},
-					severity = DiagnosticSeverity.Error,
-					code = "test",
-					message = error.message,
-				};
+					end = common.Position {
+						line = error.line,
+						character = 0,
+					},
+				},
+				severity = DiagnosticSeverity.Error,
+				code = "test",
+				message = error.message,
+			};
 		}
 
 		notifaction := Notification {
@@ -337,7 +337,7 @@ document_refresh :: proc (document: ^Document, config: ^common.Config, writer: ^
 
 current_errors: [dynamic]ParserError;
 
-parser_error_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
+parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	error := ParserError {
 		line = pos.line,column = pos.column,file = pos.file,
 		offset = pos.offset,message = fmt.tprintf(msg, ..args),
@@ -345,10 +345,10 @@ parser_error_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
 	append(&current_errors, error);
 }
 
-parser_warning_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
+parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }
 
-parse_document :: proc (document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
+parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
 
 	p := parser.Parser {
 		err = parser_error_handler,
@@ -367,10 +367,10 @@ parse_document :: proc (document: ^Document, config: ^common.Config) -> ([]Parse
 	pkg.fullpath = document.uri.path;
 
 	document.ast = ast.File {
-			fullpath = document.uri.path,
-			src = document.text[:document.used_text],
-			pkg = pkg,
-		};
+		fullpath = document.uri.path,
+		src = document.text[:document.used_text],
+		pkg = pkg,
+	};
 
 	parser.parse_file(&p, &document.ast);
 
@@ -409,7 +409,7 @@ parse_document :: proc (document: ^Document, config: ^common.Config) -> ([]Parse
 			}
 
 			append(&imports, import_);
-		} else 
+		} else
 
 		//relative
 		{

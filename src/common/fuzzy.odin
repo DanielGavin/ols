@@ -77,7 +77,7 @@ char_types: []u8 = {
 	0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
 };
 
-make_fuzzy_matcher :: proc (pattern: string, allocator := context.temp_allocator) -> ^FuzzyMatcher {
+make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator) -> ^FuzzyMatcher {
 
 	matcher := new(FuzzyMatcher, allocator);
 
@@ -116,7 +116,7 @@ make_fuzzy_matcher :: proc (pattern: string, allocator := context.temp_allocator
 	return matcher;
 }
 
-fuzzy_to_acronym :: proc (word: string) -> (string, bool) {
+fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
 
 	builder := strings.make_builder(context.temp_allocator);
 
@@ -149,7 +149,7 @@ fuzzy_to_acronym :: proc (word: string) -> (string, bool) {
 	return str, true;
 }
 
-fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
+fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 
 	if !fuzzy_init(matcher, word) {
 		return 0, false;
@@ -168,7 +168,7 @@ fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 	fuzzy_build_graph(matcher);
 
 	best := max(cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score,
-	cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score);
+	   cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score);
 
 	if fuzzy_is_awful(best) {
 		return 0.0, false;
@@ -183,11 +183,11 @@ fuzzy_match :: proc (matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 	return score, true;
 }
 
-fuzzy_is_awful :: proc (s: int) -> bool {
+fuzzy_is_awful :: proc(s: int) -> bool {
 	return s < awful_score / 2;
 }
 
-fuzzy_calculate_roles :: proc (text: string, roles: ^[]FuzzyCharRole) -> FuzzyCharTypeSet {
+fuzzy_calculate_roles :: proc(text: string, roles: ^[]FuzzyCharRole) -> FuzzyCharTypeSet {
 
 	assert(len(text) == len(roles));
 
@@ -217,15 +217,15 @@ fuzzy_calculate_roles :: proc (text: string, roles: ^[]FuzzyCharRole) -> FuzzyCh
 	return type_set;
 }
 
-fuzzy_rotate :: proc (t: FuzzyCharType, types: ^FuzzyCharType) {
+fuzzy_rotate :: proc(t: FuzzyCharType, types: ^FuzzyCharType) {
 	types^ = cast(FuzzyCharType)(((cast(uint)types^ << 2) | cast(uint)t) & 0x3f);
 }
 
-fuzzy_packed_lookup :: proc (data: $A/[]$T, i: uint) -> T {
+fuzzy_packed_lookup :: proc(data: $A/[]$T, i: uint) -> T {
 	return (data[i >> 2] >> ((i & 3) * 2)) & 3;
 }
 
-fuzzy_init :: proc (matcher: ^FuzzyMatcher, word: string) -> bool {
+fuzzy_init :: proc(matcher: ^FuzzyMatcher, word: string) -> bool {
 
 	matcher.word       = word;
 	matcher.word_count = min(max_word, len(matcher.word));
@@ -259,7 +259,7 @@ fuzzy_init :: proc (matcher: ^FuzzyMatcher, word: string) -> bool {
 	return true;
 }
 
-fuzzy_skip_penalty :: proc (matcher: ^FuzzyMatcher, w: int) -> int {
+fuzzy_skip_penalty :: proc(matcher: ^FuzzyMatcher, w: int) -> int {
 
 	if w == 0 { // Skipping the first character.
 		return 3;
@@ -272,7 +272,7 @@ fuzzy_skip_penalty :: proc (matcher: ^FuzzyMatcher, w: int) -> int {
 	return 0;
 }
 
-fuzzy_build_graph :: proc (matcher: ^FuzzyMatcher) {
+fuzzy_build_graph :: proc(matcher: ^FuzzyMatcher) {
 
 	for w := 0; w < matcher.word_count; w += 1 {
 
@@ -340,7 +340,7 @@ fuzzy_build_graph :: proc (matcher: ^FuzzyMatcher) {
 	}
 }
 
-fuzzy_match_bonus :: proc (matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> int {
+fuzzy_match_bonus :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> int {
 
 	assert(matcher.lower_pattern[p] == matcher.lower_word[w]);
 
@@ -389,7 +389,7 @@ fuzzy_match_bonus :: proc (matcher: ^FuzzyMatcher, p: int, w: int, last: int) ->
 	return s;
 }
 
-fuzzy_allow_match :: proc (matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> bool {
+fuzzy_allow_match :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> bool {
 
 	if matcher.lower_pattern[p] != matcher.lower_word[w] {
 		return false;

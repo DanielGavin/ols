@@ -6,5 +6,5 @@ package server
 
 import "shared:index"
 
-background_main :: proc () {
+background_main :: proc() {
 }

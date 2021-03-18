@@ -16,12 +16,12 @@ import "core:slice"
 import "shared:common"
 import "shared:index"
 
-get_hover_information :: proc (document: ^Document, position: common.Position) -> (Hover, bool) {
+get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
 
 	hover := Hover {
 		contents = {
-			kind = "plaintext"
-		}
+			kind = "plaintext",
+		},
 	};
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name);

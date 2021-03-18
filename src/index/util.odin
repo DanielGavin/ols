@@ -7,7 +7,7 @@ import "core:path"
 /*
 	Returns the string representation of a type. This allows us to print the signature without storing it in the indexer as a string(saving memory).
 */
-node_to_string :: proc (node: ^ast.Node) -> string {
+node_to_string :: proc(node: ^ast.Node) -> string {
 
 	builder := strings.make_builder(context.temp_allocator);
 
@@ -16,26 +16,27 @@ node_to_string :: proc (node: ^ast.Node) -> string {
 	return strings.to_string(builder);
 }
 
-build_string :: proc {
-build_string_ast_array, 
-build_string_dynamic_array, 
-build_string_node};
+build_string :: proc{
+	build_string_ast_array,
+	build_string_dynamic_array,
+	build_string_node,
+};
 
-build_string_dynamic_array :: proc (array: $A/[]^$T, builder: ^strings.Builder) {
-
-	for elem, i in array {
-		build_string(elem, builder);
-	}
-}
-
-build_string_ast_array :: proc (array: $A/[dynamic]^$T, builder: ^strings.Builder) {
+build_string_dynamic_array :: proc(array: $A/[]^$T, builder: ^strings.Builder) {
 
 	for elem, i in array {
 		build_string(elem, builder);
 	}
 }
 
-build_string_node :: proc (node: ^ast.Node, builder: ^strings.Builder) {
+build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder) {
+
+	for elem, i in array {
+		build_string(elem, builder);
+	}
+}
+
+build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 
 	using ast;
 

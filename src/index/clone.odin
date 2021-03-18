@@ -7,7 +7,7 @@ import "core:odin/ast"
 import "core:strings"
 import "core:log"
 
-new_type :: proc ($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
+new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n := mem.new(T, allocator);
 	n.pos     = pos;
 	n.end     = end;
@@ -17,13 +17,14 @@ new_type :: proc ($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator)
 	return n;
 }
 
-clone_type :: proc {
-clone_node, 
-clone_expr, 
-clone_array, 
-clone_dynamic_array};
+clone_type :: proc{
+	clone_node,
+	clone_expr,
+	clone_array,
+	clone_dynamic_array,
+};
 
-clone_array :: proc (array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
+clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
 	if len(array) == 0 {
 		return nil;
 	}
@@ -34,7 +35,7 @@ clone_array :: proc (array: $A/[]^$T, allocator: mem.Allocator, unique_strings: 
 	return res;
 }
 
-clone_dynamic_array :: proc (array: $A/[dynamic]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
+clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
 	if len(array) == 0 {
 		return nil;
 	}
@@ -45,11 +46,11 @@ clone_dynamic_array :: proc (array: $A/[dynamic]^$T, allocator: mem.Allocator, u
 	return res;
 }
 
-clone_expr :: proc (node: ^ast.Expr, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Expr {
+clone_expr :: proc(node: ^ast.Expr, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Expr {
 	return cast(^ast.Expr)clone_node(node, allocator, unique_strings);
 }
 
-clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Node {
+clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Node {
 
 	using ast;
 
@@ -109,14 +110,14 @@ clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^
 		r.expr = clone_type(r.expr, allocator, unique_strings);
 	case Binary_Expr:
 		r := cast(^Binary_Expr)res;
-		r.left = clone_type(r.left, allocator, unique_strings);
+		r.left  = clone_type(r.left, allocator, unique_strings);
 		r.right = clone_type(r.right, allocator, unique_strings);
 	case Paren_Expr:
 		r := cast(^Paren_Expr)res;
 		r.expr = clone_type(r.expr, allocator, unique_strings);
 	case Selector_Expr:
 		r := cast(^Selector_Expr)res;
-		r.expr = clone_type(r.expr, allocator, unique_strings);
+		r.expr  = clone_type(r.expr, allocator, unique_strings);
 		r.field = auto_cast clone_type(r.field, allocator, unique_strings);
 	case Implicit_Selector_Expr:
 		r := cast(^Implicit_Selector_Expr)res;
@@ -124,7 +125,7 @@ clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^
 	case Slice_Expr:
 		r := cast(^Slice_Expr)res;
 		r.expr = clone_type(r.expr, allocator, unique_strings);
-		r.low = clone_type(r.low, allocator, unique_strings);
+		r.low  = clone_type(r.low, allocator, unique_strings);
 		r.high = clone_type(r.high, allocator, unique_strings);
 	case Attribute:
 		r := cast(^Attribute)res;
@@ -134,30 +135,30 @@ clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^
 		r.type = clone_type(r.type, allocator, unique_strings);
 	case Proc_Type:
 		r := cast(^Proc_Type)res;
-		r.params = auto_cast clone_type(r.params, allocator, unique_strings);
+		r.params  = auto_cast clone_type(r.params, allocator, unique_strings);
 		r.results = auto_cast clone_type(r.results, allocator, unique_strings);
 	case Pointer_Type:
 		r := cast(^Pointer_Type)res;
 		r.elem = clone_type(r.elem, allocator, unique_strings);
 	case Array_Type:
 		r := cast(^Array_Type)res;
-		r.len = clone_type(r.len, allocator, unique_strings);
+		r.len  = clone_type(r.len, allocator, unique_strings);
 		r.elem = clone_type(r.elem, allocator, unique_strings);
-		r.tag = clone_type(r.tag, allocator, unique_strings);
+		r.tag  = clone_type(r.tag, allocator, unique_strings);
 	case Dynamic_Array_Type:
 		r := cast(^Dynamic_Array_Type)res;
 		r.elem = clone_type(r.elem, allocator, unique_strings);
-		r.tag = clone_type(r.tag, allocator, unique_strings);
+		r.tag  = clone_type(r.tag, allocator, unique_strings);
 	case Struct_Type:
 		r := cast(^Struct_Type)res;
-		r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings);
-		r.align = clone_type(r.align, allocator, unique_strings);
-		r.fields = auto_cast clone_type(r.fields, allocator, unique_strings);
+		r.poly_params   = auto_cast clone_type(r.poly_params, allocator, unique_strings);
+		r.align         = clone_type(r.align, allocator, unique_strings);
+		r.fields        = auto_cast clone_type(r.fields, allocator, unique_strings);
 		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings);
 	case Field:
 		r := cast(^Field)res;
-		r.names = clone_type(r.names, allocator, unique_strings);
-		r.type = clone_type(r.type, allocator, unique_strings);
+		r.names         = clone_type(r.names, allocator, unique_strings);
+		r.type          = clone_type(r.type, allocator, unique_strings);
 		r.default_value = clone_type(r.default_value, allocator, unique_strings);
 	case Field_List:
 		r := cast(^Field_List)res;
@@ -168,21 +169,21 @@ clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^
 		r.value = clone_type(r.value, allocator, unique_strings);
 	case Union_Type:
 		r := cast(^Union_Type)res;
-		r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings);
-		r.align = clone_type(r.align, allocator, unique_strings);
-		r.variants = clone_type(r.variants, allocator, unique_strings);
+		r.poly_params   = auto_cast clone_type(r.poly_params, allocator, unique_strings);
+		r.align         = clone_type(r.align, allocator, unique_strings);
+		r.variants      = clone_type(r.variants, allocator, unique_strings);
 		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings);
 	case Enum_Type:
 		r := cast(^Enum_Type)res;
 		r.base_type = clone_type(r.base_type, allocator, unique_strings);
-		r.fields = clone_type(r.fields, allocator, unique_strings);
+		r.fields    = clone_type(r.fields, allocator, unique_strings);
 	case Bit_Set_Type:
 		r := cast(^Bit_Set_Type)res;
-		r.elem = clone_type(r.elem, allocator, unique_strings);
+		r.elem       = clone_type(r.elem, allocator, unique_strings);
 		r.underlying = clone_type(r.underlying, allocator, unique_strings);
 	case Map_Type:
 		r := cast(^Map_Type)res;
-		r.key = clone_type(r.key, allocator, unique_strings);
+		r.key   = clone_type(r.key, allocator, unique_strings);
 		r.value = clone_type(r.value, allocator, unique_strings);
 	case Call_Expr:
 		r := cast(^Call_Expr)res;
@@ -193,19 +194,19 @@ clone_node :: proc (node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^
 		r.specialization = clone_type(r.specialization, allocator, unique_strings);
 	case Ternary_When_Expr:
 		r := cast(^Ternary_When_Expr)res;
-		r.x = clone_type(r.x, allocator, unique_strings);
+		r.x    = clone_type(r.x, allocator, unique_strings);
 		r.cond = clone_type(r.cond, allocator, unique_strings);
-		r.y = clone_type(r.y, allocator, unique_strings);
+		r.y    = clone_type(r.y, allocator, unique_strings);
 	case Poly_Type:
 		r := cast(^Poly_Type)res;
-		r.type = auto_cast clone_type(r.type, allocator, unique_strings);
+		r.type           = auto_cast clone_type(r.type, allocator, unique_strings);
 		r.specialization = clone_type(r.specialization, allocator, unique_strings);
 	case Proc_Group:
 		r := cast(^Proc_Group)res;
 		r.args = clone_type(r.args, allocator, unique_strings);
 	case Comp_Lit:
 		r := cast(^Comp_Lit)res;
-		r.type = clone_type(r.type, allocator, unique_strings);
+		r.type  = clone_type(r.type, allocator, unique_strings);
 		r.elems = clone_type(r.elems, allocator, unique_strings);
 	case:
 		log.warn("Clone type Unhandled node kind: %T", n);

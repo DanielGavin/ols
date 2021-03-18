@@ -4,18 +4,18 @@ import "core:os"
 import "core:mem"
 import "core:strings"
 
-ReaderFn :: proc (_: rawptr, _: []byte) -> (int, int);
+ReaderFn :: proc(_: rawptr, _: []byte) -> (int, int);
 
 Reader :: struct {
 	reader_fn:      ReaderFn,
 	reader_context: rawptr,
 }
 
-make_reader :: proc (reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
+make_reader :: proc(reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
 	return Reader {reader_context = reader_context, reader_fn = reader_fn};
 }
 
-read_u8 :: proc (reader: ^Reader) -> (u8, bool) {
+read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
 
 	value: [1]byte;
 
@@ -28,7 +28,7 @@ read_u8 :: proc (reader: ^Reader) -> (u8, bool) {
 	return value[0], true;
 }
 
-read_until_delimiter :: proc (reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
+read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
 
 	for true {
 
@@ -48,7 +48,7 @@ read_until_delimiter :: proc (reader: ^Reader, delimiter: u8, builder: ^strings.
 	return true;
 }
 
-read_sized :: proc (reader: ^Reader, data: []u8) -> bool {
+read_sized :: proc(reader: ^Reader, data: []u8) -> bool {
 
 	read, err := reader.reader_fn(reader.reader_context, data);
 

@@ -30,7 +30,7 @@ platform_os: map[string]bool = {
 	"freebsd" = true,
 };
 
-walk_static_index_build :: proc (info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
+walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
 
 	if info.is_dir {
 		return 0, false;
@@ -62,7 +62,7 @@ walk_static_index_build :: proc (info: os.File_Info, in_err: os.Errno) -> (err: 
 	return 0, false;
 }
 
-build_static_index :: proc (allocator := context.allocator, config: ^common.Config) {
+build_static_index :: proc(allocator := context.allocator, config: ^common.Config) {
 
 	symbol_collection = make_symbol_collection(allocator, config);
 
@@ -129,14 +129,14 @@ build_static_index :: proc (allocator := context.allocator, config: ^common.Conf
 	indexer.static_index = make_memory_index(symbol_collection);
 }
 
-free_static_index :: proc () {
+free_static_index :: proc() {
 	delete_symbol_collection(symbol_collection);
 }
 
-log_error_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
+log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	log.warnf("%v %v %v", pos, msg, args);
 }
 
-log_warning_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
+log_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	log.warnf("%v %v %v", pos, msg, args);
 }

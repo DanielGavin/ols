@@ -24,7 +24,7 @@ Completion_Type :: enum {
 	Comp_Lit,
 }
 
-get_completion_list :: proc (document: ^Document, position: common.Position) -> (CompletionList, bool) {
+get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
 
 	list: CompletionList;
 
@@ -64,11 +64,8 @@ get_completion_list :: proc (document: ^Document, position: common.Position) -> 
 				if union_value, ok := symbol.value.(index.SymbolUnionValue); ok {
 					completion_type = .Switch_Type;
 				}
-
 			}
-
 		}
-
 	}
 
 	switch completion_type {
@@ -87,7 +84,7 @@ get_completion_list :: proc (document: ^Document, position: common.Position) -> 
 	return list, true;
 }
 
-is_lhs_comp_lit :: proc (position_context: ^DocumentPositionContext) -> bool {
+is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 
 	if len(position_context.comp_lit.elems) == 0 {
 		return true;
@@ -111,7 +108,7 @@ is_lhs_comp_lit :: proc (position_context: ^DocumentPositionContext) -> bool {
 	return true;
 }
 
-field_exists_in_comp_lit :: proc (comp_lit: ^ast.Comp_Lit, name: string) -> bool {
+field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool {
 
 	for elem in comp_lit.elems {
 
@@ -132,11 +129,10 @@ field_exists_in_comp_lit :: proc (comp_lit: ^ast.Comp_Lit, name: string) -> bool
 	return false;
 }
 
-get_attribute_completion :: proc (ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
-
+get_attribute_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
 }
 
-get_directive_completion :: proc (ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false;
 
@@ -181,7 +177,7 @@ get_directive_completion :: proc (ast_context: ^AstContext, postition_context: ^
 	list.items = items[:];
 }
 
-get_comp_lit_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -196,7 +192,6 @@ get_comp_lit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
 				for name, i in v.names {
-
 					//ERROR no completion on name and hover
 					if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 
@@ -226,7 +221,7 @@ get_comp_lit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 	list.items = items[:];
 }
 
-get_selector_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -287,9 +282,7 @@ get_selector_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 
 				if symbol.pkg == ast_context.document_package {
 					symbol.name = fmt.aprintf("(%v)", name);
-				}
-
-				else {
+				} else {
 					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), name);
 				}
 
@@ -378,7 +371,7 @@ get_selector_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 	list.items = items[:];
 }
 
-unwrap_enum :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
 
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 
@@ -390,7 +383,7 @@ unwrap_enum :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol
 	return {}, false;
 }
 
-unwrap_union :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
+unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
 
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
 
@@ -402,7 +395,7 @@ unwrap_union :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbo
 	return {}, false;
 }
 
-unwrap_bitset :: proc (ast_context: ^AstContext, bitset_symbol: index.Symbol) -> (index.SymbolEnumValue, bool) {
+unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: index.Symbol) -> (index.SymbolEnumValue, bool) {
 
 	if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
 		if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
@@ -415,7 +408,7 @@ unwrap_bitset :: proc (ast_context: ^AstContext, bitset_symbol: index.Symbol) ->
 	return {}, false;
 }
 
-get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -488,7 +481,7 @@ get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 				}
 			}
 		}
-	} else if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text)  {
+	} else if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
 
 		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
 
@@ -505,10 +498,7 @@ get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 					append(&items, item);
 				}
 			}
-
 		}
-
-
 	} else if position_context.comp_lit != nil {
 
 		if position_context.parent_comp_lit.type == nil {
@@ -678,7 +668,7 @@ get_implicit_completion :: proc (ast_context: ^AstContext, position_context: ^Do
 	list.items = items[:];
 }
 
-get_identifier_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -690,18 +680,18 @@ get_identifier_completion :: proc (ast_context: ^AstContext, position_context: ^
 		variable: ^ast.Ident,
 	};
 
-	combined_sort_interface :: proc (s: ^[dynamic]CombinedResult) -> sort.Interface {
+	combined_sort_interface :: proc(s: ^[dynamic]CombinedResult) -> sort.Interface {
 		return sort.Interface {
 			collection = rawptr(s),
-			len = proc (it: sort.Interface) -> int {
+			len = proc(it: sort.Interface) -> int {
 				s := (^[dynamic]CombinedResult)(it.collection);
 				return len(s^);
 			},
-			less = proc (it: sort.Interface, i, j: int) -> bool {
+			less = proc(it: sort.Interface, i, j: int) -> bool {
 				s := (^[dynamic]CombinedResult)(it.collection);
 				return s[i].score > s[j].score;
 			},
-			swap = proc (it: sort.Interface, i, j: int) {
+			swap = proc(it: sort.Interface, i, j: int) {
 				s := (^[dynamic]CombinedResult)(it.collection);
 				s[i], s[j] = s[j], s[i];
 			},
@@ -822,10 +812,10 @@ get_identifier_completion :: proc (ast_context: ^AstContext, position_context: ^
 	list.items = items[:];
 }
 
-get_package_completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 }
 
-get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 	list.isIncomplete = false;
@@ -865,12 +855,10 @@ get_type_switch_Completion :: proc (ast_context: ^AstContext, position_context: 
 					};
 
 					if symbol.pkg == ast_context.document_package {
-						item.label = fmt.aprintf("%v", name);
+						item.label  = fmt.aprintf("%v", name);
 						item.detail = item.label;
-					}
-
-					else {
-						item.label = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name);
+					} else {
+						item.label  = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name);
 						item.detail = item.label;
 					}
 
@@ -900,10 +888,10 @@ bitset_assignment_operators: map[string]bool = {
 	"=" = true,
 };
 
-is_bitset_binary_operator :: proc (op: string) -> bool {
+is_bitset_binary_operator :: proc(op: string) -> bool {
 	return op in bitset_operators;
 }
 
-is_bitset_assignment_operator :: proc (op: string) -> bool {
+is_bitset_assignment_operator :: proc(op: string) -> bool {
 	return op in bitset_assignment_operators;
 }

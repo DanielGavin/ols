@@ -13,7 +13,7 @@ blk0 :: proc (buf: []u32, i: int) -> u32 {
 }
 
 blk :: proc (buf: []u32, i: int) -> u32 {
-	buf[i & 15] = rol(buf[(i + 13) & 15] ~ buf[(i + 8) & 15] ~ buf[(i + 2) & 15] ~ 
+	buf[i & 15] = rol(buf[(i + 13) & 15] ~ buf[(i + 8) & 15] ~ buf[(i + 2) & 15] ~
 		buf[i & 15], 1);
 
 	return buf[i & 15];
@@ -181,7 +181,7 @@ sha1_add_uncounted :: proc (state_context: ^Sha1context, data: byte) {
 
 	when ODIN_ENDIAN == "big" {
 		state_context.buf.c[state_context.buf_offset] = data;
-	} else 
+	} else
 
 	{
 		state_context.buf.c[state_context.buf_offset ~ 3] = data;
@@ -225,9 +225,9 @@ sha1_update :: proc (state_context: ^Sha1context, data: []byte) {
 		for i := 0; i < BLOCK_LENGTH_32; i += 1 {
 			n := (transmute([]u32)current_data)[i];
 
-			state_context.buf.l[i] = (((n & 0xFF) << 24) | 
-				((n & 0xFF00) << 8) | 
-				((n & 0xFF0000) >> 8) | 
+			state_context.buf.l[i] = (((n & 0xFF) << 24) |
+				((n & 0xFF00) << 8) |
+				((n & 0xFF0000) >> 8) |
 				((n & 0xFF000000) >> 24));
 		}
 
@@ -267,13 +267,13 @@ sha1_final :: proc (state_context: ^Sha1context, result: ^[5]u32) {
 		for i := 0; i < 5; i += 1 {
 			result[i] = state_context.state[i];
 		}
-	} else 
+	} else
 
 	{
 		for i := 0; i < 5; i += 1 {
-			result[i] = (((state_context.state[i]) << 24) & 0xff000000) | 
-				(((state_context.state[i]) << 8) & 0x00ff0000) | 
-				(((state_context.state[i]) >> 8) & 0x0000ff00) | 
+			result[i] = (((state_context.state[i]) << 24) & 0xff000000) |
+				(((state_context.state[i]) << 8) & 0x00ff0000) |
+				(((state_context.state[i]) >> 8) & 0x0000ff00) |
 				(((state_context.state[i]) >> 24) & 0x000000ff);
 		}
 	}

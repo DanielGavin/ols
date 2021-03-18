@@ -82,7 +82,7 @@ AstContext :: struct {
 	field_name:       string,
 }
 
-make_ast_context :: proc (file: ast.File, imports: []Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
 
 	ast_context := AstContext {
 		locals = make(map[string][dynamic]DocumentLocal, 0, allocator),
@@ -101,30 +101,20 @@ make_ast_context :: proc (file: ast.File, imports: []Package, package_name: stri
 	return ast_context;
 }
 
-tokenizer_error_handler :: proc (pos: tokenizer.Pos, msg: string, args: ..any) {
+tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }
 
 /*
 	Walk through the type expression while both the call expression and specialization type are the same
 */
 
-resolve_poly_spec :: proc {
-resolve_poly_spec_node,
-resolve_poly_spec_array,
-resolve_poly_spec_dynamic_array};
+resolve_poly_spec :: proc{
+	resolve_poly_spec_node,
+	resolve_poly_spec_array,
+	resolve_poly_spec_dynamic_array,
+};
 
-resolve_poly_spec_array :: proc (ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
-
-	if len(call_array) != len(spec_array) {
-		return;
-	}
-
-	for elem, i in call_array {
-		resolve_poly_spec(ast_context, elem, spec_array[i], poly_map);
-	}
-}
-
-resolve_poly_spec_dynamic_array :: proc (ast_context: ^AstContext, call_array: $A/[dynamic]^$T, spec_array: $D/[dynamic]^$K, poly_map: ^map[string]^ast.Expr) {
+resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
 
 	if len(call_array) != len(spec_array) {
 		return;
@@ -135,7 +125,18 @@ resolve_poly_spec_dynamic_array :: proc (ast_context: ^AstContext, call_array: $
 	}
 }
 
-get_poly_node_to_expr :: proc (node: ^ast.Node) -> ^ast.Expr {
+resolve_poly_spec_dynamic_array :: proc(ast_context: ^AstContext, call_array: $A/[dynamic]^$T, spec_array: $D/[dynamic]^$K, poly_map: ^map[string]^ast.Expr) {
+
+	if len(call_array) != len(spec_array) {
+		return;
+	}
+
+	for elem, i in call_array {
+		resolve_poly_spec(ast_context, elem, spec_array[i], poly_map);
+	}
+}
+
+get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
 
 	using ast;
 
@@ -149,7 +150,7 @@ get_poly_node_to_expr :: proc (node: ^ast.Node) -> ^ast.Expr {
 	return nil;
 }
 
-resolve_poly_spec_node :: proc (ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node, poly_map: ^map[string]^ast.Expr) {
+resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node, poly_map: ^map[string]^ast.Expr) {
 
 	/*
 		Note(Daniel, uncertain about the switch cases being enough or too little)
@@ -281,7 +282,7 @@ resolve_poly_spec_node :: proc (ast_context: ^AstContext, call_node: ^ast.Node, 
 	}
 }
 
-resolve_type_comp_literal :: proc (ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: index.Symbol, current_comp_lit: ^ast.Comp_Lit) -> (index.Symbol, bool) {
+resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: index.Symbol, current_comp_lit: ^ast.Comp_Lit) -> (index.Symbol, bool) {
 
 	if position_context.comp_lit == current_comp_lit {
 		return current_symbol, true;
@@ -316,11 +317,12 @@ resolve_type_comp_literal :: proc (ast_context: ^AstContext, position_context: ^
 	return current_symbol, true;
 }
 
-resolve_generic_function :: proc {
-resolve_generic_function_ast,
-resolve_generic_function_symbol};
+resolve_generic_function :: proc{
+	resolve_generic_function_ast,
+	resolve_generic_function_symbol,
+};
 
-resolve_generic_function_symbol :: proc (ast_context: ^AstContext, params: []^ast.Field, results: []^ast.Field) -> (index.Symbol, bool) {
+resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast.Field, results: []^ast.Field) -> (index.Symbol, bool) {
 	using ast;
 
 	if params == nil {
@@ -410,16 +412,16 @@ resolve_generic_function_symbol :: proc (ast_context: ^AstContext, params: []^as
 	}
 
 	symbol.value = index.SymbolProcedureValue {
-			return_types = return_types[:],
-			arg_types = params,
-		};
+		return_types = return_types[:],
+		arg_types = params,
+	};
 
 	//log.infof("return %v", poly_map);
 
 	return symbol, true;
 }
 
-resolve_generic_function_ast :: proc (ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
+resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (index.Symbol, bool) {
 
 	using ast;
 
@@ -441,7 +443,7 @@ resolve_generic_function_ast :: proc (ast_context: ^AstContext, proc_lit: ast.Pr
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
-resolve_function_overload :: proc (ast_context: ^AstContext, group: ast.Proc_Group) -> (index.Symbol, bool) {
+resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (index.Symbol, bool) {
 
 	using ast;
 
@@ -491,7 +493,7 @@ resolve_function_overload :: proc (ast_context: ^AstContext, group: ast.Proc_Gro
 	return index.Symbol {}, false;
 }
 
-resolve_basic_lit :: proc (ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
+resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
 
 	/*
 		This is temporary, since basic lit is untyped, but either way it's going to be an ident representing a keyword.
@@ -502,7 +504,7 @@ resolve_basic_lit :: proc (ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -
 	ident := index.new_type(ast.Ident, basic_lit.pos, basic_lit.end, context.temp_allocator);
 
 	symbol := index.Symbol {
-		type = .Keyword
+		type = .Keyword,
 	};
 
 	if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
@@ -514,13 +516,13 @@ resolve_basic_lit :: proc (ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -
 	}
 
 	symbol.value = index.SymbolGenericValue {
-			expr = ident
-		};
+		expr = ident,
+	};
 
 	return symbol, true;
 }
 
-resolve_type_expression :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
+resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
 
 	if node == nil {
 		return {}, false;
@@ -660,7 +662,7 @@ resolve_type_expression :: proc (ast_context: ^AstContext, node: ^ast.Expr) -> (
 	return index.Symbol {}, false;
 }
 
-store_local :: proc (ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string) {
+store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string) {
 
 	local_stack := &ast_context.locals[name];
 
@@ -672,7 +674,7 @@ store_local :: proc (ast_context: ^AstContext, expr: ^ast.Expr, offset: int, nam
 	append(local_stack, DocumentLocal {expr = expr, offset = offset});
 }
 
-get_local :: proc (ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
+get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
 
 	previous := 0;
 
@@ -708,7 +710,7 @@ get_local :: proc (ast_context: ^AstContext, offset: int, name: string) -> ^ast.
 	Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
 	have chained variable declarations. ie. a := foo { test =  2}; b := a; c := b;
 */
-resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
 
 	using ast;
 
@@ -823,7 +825,7 @@ resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (
 			signature = node.name,
 			pkg = ast_context.current_package,
 			value = index.SymbolGenericValue {
-				expr = ident
+				expr = ident,
 			},
 		};
 		return symbol, true;
@@ -883,7 +885,7 @@ resolve_type_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (
 	return index.Symbol {}, false;
 }
 
-resolve_ident_is_variable :: proc (ast_context: ^AstContext, node: ast.Ident) -> bool {
+resolve_ident_is_variable :: proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
 
 	if v, ok := ast_context.variables[node.name]; ok && v {
 		return true;
@@ -896,7 +898,7 @@ resolve_ident_is_variable :: proc (ast_context: ^AstContext, node: ast.Ident) ->
 	return false;
 }
 
-resolve_ident_is_package :: proc (ast_context: ^AstContext, node: ast.Ident) -> bool {
+resolve_ident_is_package :: proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
 
 	if strings.contains(node.name, "/") {
 		return true;
@@ -913,7 +915,7 @@ resolve_ident_is_package :: proc (ast_context: ^AstContext, node: ast.Ident) -> 
 	return false;
 }
 
-expand_struct_usings :: proc (ast_context: ^AstContext, symbol: index.Symbol, value: index.SymbolStructValue) -> index.SymbolStructValue {
+expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, value: index.SymbolStructValue) -> index.SymbolStructValue {
 
 	//ERROR no completion or over on names and types - generic resolve error
 	names := slice.to_dynamic(value.names, context.temp_allocator);
@@ -958,7 +960,7 @@ expand_struct_usings :: proc (ast_context: ^AstContext, symbol: index.Symbol, va
 	};
 }
 
-resolve_symbol_return :: proc (ast_context: ^AstContext, symbol: index.Symbol, ok := true) -> (index.Symbol, bool) {
+resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok := true) -> (index.Symbol, bool) {
 
 	if !ok {
 		return symbol, ok;
@@ -995,7 +997,7 @@ resolve_symbol_return :: proc (ast_context: ^AstContext, symbol: index.Symbol, o
 	return symbol, true;
 }
 
-resolve_location_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
 
 	symbol: index.Symbol;
 
@@ -1010,7 +1012,7 @@ resolve_location_identifier :: proc (ast_context: ^AstContext, node: ast.Ident) 
 	return index.lookup(node.name, ast_context.document_package);
 }
 
-resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (index.Symbol, bool) {
+resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (index.Symbol, bool) {
 
 	//Fairly simple function to find the earliest identifier symbol in binary expression.
 
@@ -1020,14 +1022,11 @@ resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, b
 			if s, ok := resolve_type_identifier(ast_context, ident); ok {
 				return s, ok;
 			}
-		}
-
-		else if _, ok := binary.left.derived.(ast.Binary_Expr); ok {
+		} else if _, ok := binary.left.derived.(ast.Binary_Expr); ok {
 			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.left); ok {
 				return s, ok;
 			}
 		}
-
 	}
 
 	if binary.right != nil {
@@ -1035,9 +1034,7 @@ resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, b
 			if s, ok := resolve_type_identifier(ast_context, ident); ok {
 				return s, ok;
 			}
-		}
-
-		else if _, ok := binary.right.derived.(ast.Binary_Expr); ok {
+		} else if _, ok := binary.right.derived.(ast.Binary_Expr); ok {
 			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.right); ok {
 				return s, ok;
 			}
@@ -1047,31 +1044,31 @@ resolve_first_symbol_from_binary_expression :: proc (ast_context: ^AstContext, b
 	return {}, false;
 }
 
-make_pointer_ast :: proc (elem: ^ast.Expr) -> ^ast.Pointer_Type {
+make_pointer_ast :: proc(elem: ^ast.Expr) -> ^ast.Pointer_Type {
 	pointer := index.new_type(ast.Pointer_Type, elem.pos, elem.end, context.temp_allocator);
 	pointer.elem = elem;
 	return pointer;
 }
 
-make_bool_ast :: proc () -> ^ast.Ident {
+make_bool_ast :: proc() -> ^ast.Ident {
 	ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
 	ident.name = bool_lit;
 	return ident;
 }
 
-make_int_ast :: proc () -> ^ast.Ident {
+make_int_ast :: proc() -> ^ast.Ident {
 	ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
 	ident.name = int_lit;
 	return ident;
 }
 
-get_package_from_node :: proc (node: ast.Node) -> string {
+get_package_from_node :: proc(node: ast.Node) -> string {
 	slashed, _ := filepath.to_slash(node.pos.file, context.temp_allocator);
 	ret        := strings.to_lower(path.dir(slashed, context.temp_allocator), context.temp_allocator);
 	return ret;
 }
 
-get_using_packages :: proc (ast_context: ^AstContext) -> []string {
+get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 
 	usings := make([]string, len(ast_context.usings), context.temp_allocator);
 
@@ -1093,7 +1090,7 @@ get_using_packages :: proc (ast_context: ^AstContext) -> []string {
 	return usings;
 }
 
-make_symbol_procedure_from_ast :: proc (ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: string) -> index.Symbol {
+make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: string) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
@@ -1125,14 +1122,14 @@ make_symbol_procedure_from_ast :: proc (ast_context: ^AstContext, n: ^ast.Node, 
 	}
 
 	symbol.value = index.SymbolProcedureValue {
-			return_types = return_types[:],
-			arg_types = arg_types[:],
-		};
+		return_types = return_types[:],
+		arg_types = arg_types[:],
+	};
 
 	return symbol;
 }
 
-make_symbol_generic_from_ast :: proc (ast_context: ^AstContext, expr: ^ast.Expr) -> index.Symbol {
+make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(expr, ast_context.file.src),
@@ -1142,13 +1139,13 @@ make_symbol_generic_from_ast :: proc (ast_context: ^AstContext, expr: ^ast.Expr)
 	};
 
 	symbol.value = index.SymbolGenericValue {
-			expr = expr
-		};
+		expr = expr,
+	};
 
 	return symbol;
 }
 
-make_symbol_union_from_ast :: proc (ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1163,9 +1160,7 @@ make_symbol_union_from_ast :: proc (ast_context: ^AstContext, v: ast.Union_Type,
 
 		if ident, ok := variant.derived.(ast.Ident); ok {
 			append(&names, ident.name);
-		}
-
-		else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
+		} else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
 
 			if ident, ok := selector.field.derived.(ast.Ident); ok {
 				append(&names, ident.name);
@@ -1174,14 +1169,14 @@ make_symbol_union_from_ast :: proc (ast_context: ^AstContext, v: ast.Union_Type,
 	}
 
 	symbol.value = index.SymbolUnionValue {
-			names = names[:],
-			types = v.variants,
+		names = names[:],
+		types = v.variants,
 	};
 
 	return symbol;
 }
 
-make_symbol_enum_from_ast :: proc (ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1202,13 +1197,13 @@ make_symbol_enum_from_ast :: proc (ast_context: ^AstContext, v: ast.Enum_Type, i
 	}
 
 	symbol.value = index.SymbolEnumValue {
-			names = names[:]
-		};
+		names = names[:],
+	};
 
 	return symbol;
 }
 
-make_symbol_bitset_from_ast :: proc (ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1218,13 +1213,13 @@ make_symbol_bitset_from_ast :: proc (ast_context: ^AstContext, v: ast.Bit_Set_Ty
 	};
 
 	symbol.value = index.SymbolBitSetValue {
-			expr = v.elem
-		};
+		expr = v.elem,
+	};
 
 	return symbol;
 }
 
-make_symbol_struct_from_ast :: proc (ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1252,10 +1247,10 @@ make_symbol_struct_from_ast :: proc (ast_context: ^AstContext, v: ast.Struct_Typ
 	}
 
 	symbol.value = index.SymbolStructValue {
-			names = names[:],
-			types = types[:],
-			usings = usings,
-		};
+		names = names[:],
+		types = types[:],
+		usings = usings,
+	};
 
 	if v.poly_params != nil {
 		resolve_poly_struct(ast_context, v, &symbol);
@@ -1269,7 +1264,7 @@ make_symbol_struct_from_ast :: proc (ast_context: ^AstContext, v: ast.Struct_Typ
 	return symbol;
 }
 
-resolve_poly_struct :: proc (ast_context: ^AstContext, v: ast.Struct_Type, symbol: ^index.Symbol) {
+resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol: ^index.Symbol) {
 
 	if ast_context.call == nil {
 		log.infof("no call");
@@ -1336,7 +1331,7 @@ resolve_poly_struct :: proc (ast_context: ^AstContext, v: ast.Struct_Type, symbo
 	}
 }
 
-get_globals :: proc (file: ast.File, ast_context: ^AstContext) {
+get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 
 	ast_context.variables["context"] = true;
 
@@ -1348,7 +1343,7 @@ get_globals :: proc (file: ast.File, ast_context: ^AstContext) {
 	}
 }
 
-get_generic_assignment :: proc (file: ast.File, value: ^ast.Expr, ast_context: ^AstContext, results: ^[dynamic]^ast.Expr) {
+get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^AstContext, results: ^[dynamic]^ast.Expr) {
 
 	using ast;
 
@@ -1397,7 +1392,7 @@ get_generic_assignment :: proc (file: ast.File, value: ^ast.Expr, ast_context: ^
 	}
 }
 
-get_locals_value_decl :: proc (file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
+get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -1428,7 +1423,7 @@ get_locals_value_decl :: proc (file: ast.File, value_decl: ast.Value_Decl, ast_c
 	}
 }
 
-get_locals_stmt :: proc (file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext, save_assign := false) {
+get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext, save_assign := false) {
 
 	ast_context.use_locals      = true;
 	ast_context.use_globals     = true;
@@ -1479,7 +1474,7 @@ get_locals_stmt :: proc (file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstConte
 	}
 }
 
-get_locals_using_stmt :: proc (file: ast.File, stmt: ast.Using_Stmt, ast_context: ^AstContext) {
+get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 
 	for u in stmt.list {
 
@@ -1504,7 +1499,7 @@ get_locals_using_stmt :: proc (file: ast.File, stmt: ast.Using_Stmt, ast_context
 	}
 }
 
-get_locals_assign_stmt :: proc (file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
+get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
 
 	using ast;
 
@@ -1530,7 +1525,7 @@ get_locals_assign_stmt :: proc (file: ast.File, stmt: ast.Assign_Stmt, ast_conte
 	}
 }
 
-get_locals_if_stmt :: proc (file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return;
@@ -1541,7 +1536,7 @@ get_locals_if_stmt :: proc (file: ast.File, stmt: ast.If_Stmt, ast_context: ^Ast
 	get_locals_stmt(file, stmt.else_stmt, ast_context, document_position);
 }
 
-get_locals_for_range_stmt :: proc (file: ast.File, stmt: ast.Range_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	using ast;
 
@@ -1621,7 +1616,7 @@ get_locals_for_range_stmt :: proc (file: ast.File, stmt: ast.Range_Stmt, ast_con
 	get_locals_stmt(file, stmt.body, ast_context, document_position);
 }
 
-get_locals_for_stmt :: proc (file: ast.File, stmt: ast.For_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return;
@@ -1631,7 +1626,7 @@ get_locals_for_stmt :: proc (file: ast.File, stmt: ast.For_Stmt, ast_context: ^A
 	get_locals_stmt(file, stmt.body, ast_context, document_position);
 }
 
-get_locals_switch_stmt :: proc (file: ast.File, stmt: ast.Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_switch_stmt :: proc(file: ast.File, stmt: ast.Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return;
@@ -1640,7 +1635,7 @@ get_locals_switch_stmt :: proc (file: ast.File, stmt: ast.Switch_Stmt, ast_conte
 	get_locals_stmt(file, stmt.body, ast_context, document_position);
 }
 
-get_locals_type_switch_stmt :: proc (file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	using ast;
 
@@ -1674,7 +1669,7 @@ get_locals_type_switch_stmt :: proc (file: ast.File, stmt: ast.Type_Switch_Stmt,
 	}
 }
 
-get_locals :: proc (file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 
 	proc_lit, ok := function.derived.(ast.Proc_Lit);
 
@@ -1719,14 +1714,14 @@ get_locals :: proc (file: ast.File, function: ^ast.Node, ast_context: ^AstContex
 	}
 }
 
-clear_locals :: proc (ast_context: ^AstContext) {
+clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.locals);
 	clear(&ast_context.parameters);
 	clear(&ast_context.variables);
 	clear(&ast_context.usings);
 }
 
-concatenate_symbols_information :: proc (ast_context: ^AstContext, symbol: index.Symbol) -> string {
+concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> string {
 
 	pkg := path.base(symbol.pkg, false, context.temp_allocator);
 
@@ -1751,7 +1746,7 @@ concatenate_symbols_information :: proc (ast_context: ^AstContext, symbol: index
 	return ""; //weird bug requires this
 }
 
-get_definition_location :: proc (document: ^Document, position: common.Position) -> (common.Location, bool) {
+get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
 
 	location: common.Location;
 
@@ -1866,7 +1861,7 @@ get_definition_location :: proc (document: ^Document, position: common.Position)
 	return location, true;
 }
 
-write_hover_content :: proc (ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
+write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
 	content: MarkupContent;
 
 	cat := concatenate_symbols_information(ast_context, symbol);
@@ -1881,7 +1876,7 @@ write_hover_content :: proc (ast_context: ^AstContext, symbol: index.Symbol) -> 
 	return content;
 }
 
-get_signature :: proc (ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
+get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
 
 	if symbol.type == .Function {
 		return symbol.signature;
@@ -1921,7 +1916,7 @@ get_signature :: proc (ast_context: ^AstContext, ident: ast.Ident, symbol: index
 	return ident.name;
 }
 
-get_signature_information :: proc (document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
+get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
 
 	signature_help: SignatureHelp;
 
@@ -1960,7 +1955,7 @@ get_signature_information :: proc (document: ^Document, position: common.Positio
 	return signature_help, true;
 }
 
-get_document_symbols :: proc (document: ^Document) -> []DocumentSymbol {
+get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
@@ -1977,13 +1972,13 @@ get_document_symbols :: proc (document: ^Document) -> []DocumentSymbol {
 	package_symbol.kind  = .Package;
 	package_symbol.name  = path.base(document.package_name, false, context.temp_allocator);
 	package_symbol.range = {
-			start = {
-				line = document.ast.decls[0].pos.line
-			},
-			end = {
-				line = document.ast.decls[len(document.ast.decls) - 1].end.line
-			},
-		};
+		start = {
+			line = document.ast.decls[0].pos.line,
+		},
+		end = {
+			line = document.ast.decls[len(document.ast.decls) - 1].end.line,
+		},
+	};
 	package_symbol.selectionRange = package_symbol.range;
 
 	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator);
@@ -2024,7 +2019,7 @@ get_document_symbols :: proc (document: ^Document) -> []DocumentSymbol {
 /*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
-get_document_position_context :: proc (document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
+get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
 
 	position_context: DocumentPositionContext;
 
@@ -2074,7 +2069,7 @@ get_document_position_context :: proc (document: ^Document, position: common.Pos
 	return position_context, true;
 }
 
-fallback_position_context_completion :: proc (document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
+fallback_position_context_completion :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 
 	paren_count:   int;
 	bracket_count: int;
@@ -2243,7 +2238,7 @@ fallback_position_context_completion :: proc (document: ^Document, position: com
 	}
 }
 
-fallback_position_context_signature :: proc (document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
+fallback_position_context_signature :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 
 	paren_count: int;
 	end:         int;
@@ -2312,30 +2307,31 @@ fallback_position_context_signature :: proc (document: ^Document, position: comm
 	position_context.call = e;
 }
 
-get_document_position :: proc {
-get_document_position_array,
-get_document_position_dynamic_array,
-get_document_position_node};
+get_document_position :: proc{
+	get_document_position_array,
+	get_document_position_dynamic_array,
+	get_document_position_node,
+};
 
-get_document_position_array :: proc (array: $A/[]^$T, position_context: ^DocumentPositionContext) {
-
-	for elem, i in array {
-		get_document_position(elem, position_context);
-	}
-}
-
-get_document_position_dynamic_array :: proc (array: $A/[dynamic]^$T, position_context: ^DocumentPositionContext) {
+get_document_position_array :: proc(array: $A/[]^$T, position_context: ^DocumentPositionContext) {
 
 	for elem, i in array {
 		get_document_position(elem, position_context);
 	}
 }
 
-position_in_node :: proc (node: ^ast.Node, position: common.AbsolutePosition) -> bool {
+get_document_position_dynamic_array :: proc(array: $A/[dynamic]^$T, position_context: ^DocumentPositionContext) {
+
+	for elem, i in array {
+		get_document_position(elem, position_context);
+	}
+}
+
+position_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> bool {
 	return node != nil && node.pos.offset <= position && position <= node.end.offset;
 }
 
-get_document_position_node :: proc (node: ^ast.Node, position_context: ^DocumentPositionContext) {
+get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentPositionContext) {
 
 	using ast;
 

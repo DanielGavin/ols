@@ -193,7 +193,7 @@ handle_error :: proc (err: common.Error, id: RequestId, writer: ^Writer) {
 	if err != .None {
 
 		response := make_response_message_error(
-		id = id, 
+		id = id,
 		error = ResponseError {code = err, message = ""});
 
 		send_error(response, writer);
@@ -232,7 +232,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 	if !ok {
 		response := make_response_message_error(
-		id = id, 
+		id = id,
 		error = ResponseError {code = .MethodNotFound, message = ""});
 
 		send_error(response, writer);
@@ -502,7 +502,7 @@ request_initialize :: proc (task: ^common.Task) {
 			hoverProvider = enable_hover,
 			documentFormattingProvider = enable_format,
 		}
-	}, 
+	},
 	id = id);
 
 	send_response(response, writer);
@@ -546,7 +546,7 @@ request_shutdown :: proc (task: ^common.Task) {
 	defer free(info);
 
 	response := make_response_message(
-	params = nil, 
+	params = nil,
 	id = id);
 
 	send_response(response, writer);
@@ -583,7 +583,7 @@ request_definition :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = location, 
+	params = location,
 	id = id);
 
 	send_response(response, writer);
@@ -623,7 +623,7 @@ request_completion :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = list, 
+	params = list,
 	id = id);
 
 	send_response(response, writer);
@@ -662,7 +662,7 @@ request_signature_help :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = help, 
+	params = help,
 	id = id);
 
 	send_response(response, writer);
@@ -701,7 +701,7 @@ request_format_document :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = edit, 
+	params = edit,
 	id = id);
 
 	send_response(response, writer);
@@ -917,7 +917,7 @@ request_semantic_token_full :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = symbols, 
+	params = symbols,
 	id = id);
 
 	send_response(response, writer);
@@ -954,7 +954,7 @@ request_semantic_token_range :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = symbols, 
+	params = symbols,
 	id = id);
 
 	send_response(response, writer);
@@ -987,7 +987,7 @@ request_document_symbols :: proc (task: ^common.Task) {
 	symbols := get_document_symbols(document);
 
 	response := make_response_message(
-	params = symbols, 
+	params = symbols,
 	id = id);
 
 	send_response(response, writer);
@@ -1026,7 +1026,7 @@ request_hover :: proc (task: ^common.Task) {
 	}
 
 	response := make_response_message(
-	params = hover, 
+	params = hover,
 	id = id);
 
 	send_response(response, writer);

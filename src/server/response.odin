@@ -13,11 +13,11 @@ send_notification :: proc (notification: Notification, writer: ^Writer) -> bool 
 		return false;
 	}
 
-	if (!write_sized(writer, transmute([]u8)header)) {
+	if !write_sized(writer, transmute([]u8)header) {
 		return false;
 	}
 
-	if (!write_sized(writer, data)) {
+	if !write_sized(writer, data) {
 		return false;
 	}
 
@@ -34,11 +34,11 @@ send_response :: proc (response: ResponseMessage, writer: ^Writer) -> bool {
 		return false;
 	}
 
-	if (!write_sized(writer, transmute([]u8)header)) {
+	if !write_sized(writer, transmute([]u8)header) {
 		return false;
 	}
 
-	if (!write_sized(writer, data)) {
+	if !write_sized(writer, data) {
 		return false;
 	}
 
@@ -55,11 +55,11 @@ send_error :: proc (response: ResponseMessageError, writer: ^Writer) -> bool {
 		return false;
 	}
 
-	if (!write_sized(writer, transmute([]u8)header)) {
+	if !write_sized(writer, transmute([]u8)header) {
 		return false;
 	}
 
-	if (!write_sized(writer, data)) {
+	if !write_sized(writer, data) {
 		return false;
 	}
 

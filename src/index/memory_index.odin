@@ -18,19 +18,19 @@ MemoryIndex :: struct {
 	collection: SymbolCollection,
 }
 
-make_memory_index :: proc (collection: SymbolCollection) -> MemoryIndex {
+make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 
 	return MemoryIndex {
-		collection = collection
+		collection = collection,
 	};
 }
 
-memory_index_lookup :: proc (index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
+memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
 	id := get_symbol_id(strings.concatenate({pkg, name}, context.temp_allocator));
 	return index.collection.symbols[id];
 }
 
-memory_index_fuzzy_search :: proc (index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
+memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator);
 
@@ -59,7 +59,7 @@ memory_index_fuzzy_search :: proc (index: ^MemoryIndex, name: string, pkgs: []st
 	return symbols[:min(top, len(symbols))], true;
 }
 
-exists_in_scope :: proc (symbol_scope: string, scope: []string) -> bool {
+exists_in_scope :: proc(symbol_scope: string, scope: []string) -> bool {
 
 	for s in scope {
 		if strings.compare(symbol_scope, s) == 0 {

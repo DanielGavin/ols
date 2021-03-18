@@ -15,7 +15,7 @@ Uri :: struct {
 
 //Note(Daniel, This is an extremely incomplete uri parser and for now ignores fragment and query and only handles file schema)
 
-parse_uri :: proc (value: string, allocator: mem.Allocator) -> (Uri, bool) {
+parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
 	uri: Uri;
 
@@ -45,7 +45,7 @@ parse_uri :: proc (value: string, allocator: mem.Allocator) -> (Uri, bool) {
 }
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
-create_uri :: proc (path: string, allocator: mem.Allocator) -> Uri {
+create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 	path_forward, _ := filepath.to_slash(path, context.temp_allocator);
 
 	builder := strings.make_builder(allocator);
@@ -53,8 +53,7 @@ create_uri :: proc (path: string, allocator: mem.Allocator) -> Uri {
 	//bad
 	when ODIN_OS == "windows" {
 		strings.write_string(&builder, "file:///");
-	} else 
-	{
+	} else {
 		strings.write_string(&builder, "file://");
 	}
 
@@ -69,7 +68,7 @@ create_uri :: proc (path: string, allocator: mem.Allocator) -> Uri {
 	return uri;
 }
 
-delete_uri :: proc (uri: Uri) {
+delete_uri :: proc(uri: Uri) {
 
 	if uri.uri != "" {
 		delete(uri.uri);
@@ -80,7 +79,7 @@ delete_uri :: proc (uri: Uri) {
 	}
 }
 
-encode_percent :: proc (value: string, allocator: mem.Allocator) -> string {
+encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
 
 	builder := strings.make_builder(allocator);
 
@@ -94,8 +93,8 @@ encode_percent :: proc (value: string, allocator: mem.Allocator) -> string {
 		if r > 127 || r == ':' {
 
 			for i := 0; i < w; i += 1 {
-				strings.write_string(&builder, strings.concatenate({"%", fmt.tprintf("%X", data[index + i])}, 
-				context.temp_allocator));
+				strings.write_string(&builder, strings.concatenate({"%", fmt.tprintf("%X", data[index + i])},
+				                   context.temp_allocator));
 			}
 		} else {
 			strings.write_byte(&builder, data[index]);
@@ -108,7 +107,7 @@ encode_percent :: proc (value: string, allocator: mem.Allocator) -> string {
 }
 
 @(private)
-starts_with :: proc (value: string, starts_with: string) -> bool {
+starts_with :: proc(value: string, starts_with: string) -> bool {
 
 	if len(value) < len(starts_with) {
 		return false;
@@ -125,7 +124,7 @@ starts_with :: proc (value: string, starts_with: string) -> bool {
 }
 
 @(private)
-decode_percent :: proc (value: string, allocator: mem.Allocator) -> (string, bool) {
+decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
 
 	builder := strings.make_builder(allocator);
 

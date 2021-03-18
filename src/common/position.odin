@@ -33,7 +33,7 @@ AbsoluteRange :: struct {
 
 AbsolutePosition :: int;
 
-get_absolute_position :: proc (position: Position, document_text: []u8) -> (AbsolutePosition, bool) {
+get_absolute_position :: proc(position: Position, document_text: []u8) -> (AbsolutePosition, bool) {
 	absolute: AbsolutePosition;
 
 	if len(document_text) == 0 {
@@ -54,7 +54,7 @@ get_absolute_position :: proc (position: Position, document_text: []u8) -> (Abso
 	return absolute, true;
 }
 
-get_relative_token_position :: proc (offset: int, document_text: []u8, current_start: int) -> Position {
+get_relative_token_position :: proc(offset: int, document_text: []u8, current_start: int) -> Position {
 
 	start_index := current_start;
 
@@ -91,10 +91,10 @@ get_relative_token_position :: proc (offset: int, document_text: []u8, current_s
 /*
 	Get the range of a token in utf16 space
 */
-get_token_range :: proc (node: ast.Node, document_text: []u8) -> Range {
+get_token_range :: proc(node: ast.Node, document_text: []u8) -> Range {
 	range: Range;
 
-	go_backwards_to_endline :: proc (offset: int, document_text: []u8) -> int {
+	go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
 
 		index := offset;
 
@@ -125,7 +125,7 @@ get_token_range :: proc (node: ast.Node, document_text: []u8) -> Range {
 	return range;
 }
 
-get_absolute_range :: proc (range: Range, document_text: []u8) -> (AbsoluteRange, bool) {
+get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange, bool) {
 
 	absolute: AbsoluteRange;
 
@@ -160,7 +160,7 @@ get_absolute_range :: proc (range: Range, document_text: []u8) -> (AbsoluteRange
 	return absolute, true;
 }
 
-get_index_at_line :: proc (current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
+get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
 
 	if end_line == 0 {
 		current_index^ = 0;
@@ -199,7 +199,7 @@ get_index_at_line :: proc (current_index: ^int, current_line: ^int, last: ^u8, d
 	return false;
 }
 
-get_character_offset_u16_to_u8 :: proc (character_offset: int, document_text: []u8) -> int {
+get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: []u8) -> int {
 
 	utf8_idx  := 0;
 	utf16_idx := 0;
@@ -224,7 +224,7 @@ get_character_offset_u16_to_u8 :: proc (character_offset: int, document_text: []
 	return utf8_idx;
 }
 
-get_character_offset_u8_to_u16 :: proc (character_offset: int, document_text: []u8) -> int {
+get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: []u8) -> int {
 
 	utf8_idx  := 0;
 	utf16_idx := 0;
@@ -249,7 +249,7 @@ get_character_offset_u8_to_u16 :: proc (character_offset: int, document_text: []
 	return utf16_idx;
 }
 
-get_end_line_u16 :: proc (document_text: []u8) -> int {
+get_end_line_u16 :: proc(document_text: []u8) -> int {
 
 	utf8_idx  := 0;
 	utf16_idx := 0;

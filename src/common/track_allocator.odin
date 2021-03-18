@@ -19,7 +19,7 @@ ThreadSafe_Allocator_Data :: struct {
 
 // ----------------------------------------------------------------------------------------------------
 
-threadsafe_allocator :: proc (allocator: mem.Allocator) -> mem.Allocator {
+threadsafe_allocator :: proc(allocator: mem.Allocator) -> mem.Allocator {
 	data := new(ThreadSafe_Allocator_Data);
 	data.actual_allocator = allocator;
 	sync.mutex_init(&data.mutex);
@@ -29,7 +29,7 @@ threadsafe_allocator :: proc (allocator: mem.Allocator) -> mem.Allocator {
 
 // ----------------------------------------------------------------------------------------------------
 
-threadsafe_allocator_proc :: proc (allocator_data: rawptr, mode: mem.Allocator_Mode, size, alignment: int, 
+threadsafe_allocator_proc :: proc(allocator_data: rawptr, mode: mem.Allocator_Mode, size, alignment: int,
 old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> rawptr {
 
 	data := cast(^ThreadSafe_Allocator_Data)allocator_data;
@@ -62,7 +62,7 @@ Memleak_Entry :: struct {
 
 // ----------------------------------------------------------------------------------------------------
 
-memleak_allocator_proc :: proc (allocator_data: rawptr, mode: mem.Allocator_Mode, size, alignment: int, 
+memleak_allocator_proc :: proc(allocator_data: rawptr, mode: mem.Allocator_Mode, size, alignment: int,
 old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> rawptr {
 
 	memleak := cast(^Memleak_Allocator_Data)allocator_data;
@@ -91,10 +91,10 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 
 			if memleak.track_frees {
 				memleak.frees[old_memory] = Memleak_Entry {
-						location = loc,
-						size = size,
-						index = 0,
-					};
+					location = loc,
+					size = size,
+					index = 0,
+				};
 			}
 		}
 	}
@@ -110,10 +110,10 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 		// can be very useful for inspecting the stack trace of a particular allocation
 
 		memleak.allocations[result] = Memleak_Entry {
-				location = loc,
-				size = size,
-				index = memleak.allocation_count,
-			};
+			location = loc,
+			size = size,
+			index = memleak.allocation_count,
+		};
 
 		memleak.allocation_count += 1;
 
@@ -129,7 +129,7 @@ old_memory: rawptr, old_size: int, flags: u64 = 0, loc := #caller_location) -> r
 
 // ----------------------------------------------------------------------------------------------------
 
-memleak_allocator :: proc (track_frees: bool) -> mem.Allocator {
+memleak_allocator :: proc(track_frees: bool) -> mem.Allocator {
 
 	make([]byte, 1, context.temp_allocator); // so the temp allocation doesn't clutter our results
 
@@ -149,7 +149,7 @@ memleak_allocator :: proc (track_frees: bool) -> mem.Allocator {
 
 // ----------------------------------------------------------------------------------------------------
 
-memleak_detected_leaks :: proc () -> bool {
+memleak_detected_leaks :: proc() -> bool {
 	if context.allocator.procedure == memleak_allocator_proc {
 		memleak := cast(^Memleak_Allocator_Data)context.allocator.data;
 		return len(memleak.allocations) > 0;
@@ -160,7 +160,7 @@ memleak_detected_leaks :: proc () -> bool {
 
 // ----------------------------------------------------------------------------------------------------
 
-memleak_dump :: proc (memleak_alloc: mem.Allocator, dump_proc: proc (message: string, user_data: rawptr), user_data: rawptr) {
+memleak_dump :: proc(memleak_alloc: mem.Allocator, dump_proc: proc(message: string, user_data: rawptr), user_data: rawptr) {
 	memleak := cast(^Memleak_Allocator_Data)memleak_alloc.data;
 
 	context.allocator = memleak.actual_allocator;
@@ -187,6 +187,6 @@ memleak_dump :: proc (memleak_alloc: mem.Allocator, dump_proc: proc (message: st
 
 // ----------------------------------------------------------------------------------------------------
 
-log_dump :: proc (message: string, user_data: rawptr) {
+log_dump :: proc(message: string, user_data: rawptr) {
 	log.info(message);
 }

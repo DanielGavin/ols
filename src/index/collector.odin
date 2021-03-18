@@ -19,16 +19,16 @@ SymbolCollection :: struct {
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
-get_index_unique_string :: proc {
+get_index_unique_string :: proc{
 	get_index_unique_string_collection,
 	get_index_unique_string_collection_raw,
 };
 
-get_index_unique_string_collection :: proc (collection: ^SymbolCollection, s: string) -> string {
+get_index_unique_string_collection :: proc(collection: ^SymbolCollection, s: string) -> string {
 	return get_index_unique_string_collection_raw(&collection.unique_strings, collection.allocator, s);
 }
 
-get_index_unique_string_collection_raw :: proc (unique_strings: ^map[string]string, allocator: mem.Allocator, s: string) -> string {
+get_index_unique_string_collection_raw :: proc(unique_strings: ^map[string]string, allocator: mem.Allocator, s: string) -> string {
 	//i'm hashing this string way to much
 	if _, ok := unique_strings[s]; !ok {
 		str := strings.clone(s, allocator);
@@ -38,7 +38,7 @@ get_index_unique_string_collection_raw :: proc (unique_strings: ^map[string]stri
 	return unique_strings[s];
 }
 
-make_symbol_collection :: proc (allocator := context.allocator, config: ^common.Config) -> SymbolCollection {
+make_symbol_collection :: proc(allocator := context.allocator, config: ^common.Config) -> SymbolCollection {
 	return SymbolCollection {
 		allocator = allocator,
 		config = config,
@@ -47,7 +47,7 @@ make_symbol_collection :: proc (allocator := context.allocator, config: ^common.
 	};
 }
 
-delete_symbol_collection :: proc (collection: SymbolCollection) {
+delete_symbol_collection :: proc(collection: SymbolCollection) {
 
 	for k, v in collection.symbols {
 		free_symbol(v, collection.allocator);
@@ -61,7 +61,7 @@ delete_symbol_collection :: proc (collection: SymbolCollection) {
 	delete(collection.unique_strings);
 }
 
-collect_procedure_fields :: proc (collection: ^SymbolCollection, proc_type: ^ast.Proc_Type, arg_list: ^ast.Field_List, return_list: ^ast.Field_List, package_map: map[string]string) -> SymbolProcedureValue {
+collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.Proc_Type, arg_list: ^ast.Field_List, return_list: ^ast.Field_List, package_map: map[string]string) -> SymbolProcedureValue {
 
 	returns := make([dynamic]^ast.Field, 0, collection.allocator);
 	args    := make([dynamic]^ast.Field, 0, collection.allocator);
@@ -93,7 +93,7 @@ collect_procedure_fields :: proc (collection: ^SymbolCollection, proc_type: ^ast
 	return value;
 }
 
-collect_struct_fields :: proc (collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
+collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
 
 	names  := make([dynamic]string, 0, collection.allocator);
 	types  := make([dynamic]^ast.Expr, 0, collection.allocator);
@@ -124,7 +124,7 @@ collect_struct_fields :: proc (collection: ^SymbolCollection, struct_type: ast.S
 	return value;
 }
 
-collect_enum_fields :: proc (collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string) -> SymbolEnumValue {
+collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string) -> SymbolEnumValue {
 
 	names := make([dynamic]string, 0, collection.allocator);
 
@@ -139,13 +139,13 @@ collect_enum_fields :: proc (collection: ^SymbolCollection, fields: []^ast.Expr,
 	}
 
 	value := SymbolEnumValue {
-		names = names[:]
+		names = names[:],
 	};
 
 	return value;
 }
 
-collect_union_fields :: proc (collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string) -> SymbolUnionValue {
+collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string) -> SymbolUnionValue {
 
 	names := make([dynamic]string, 0, collection.allocator);
 	types := make([dynamic]^ast.Expr, 0, collection.allocator);
@@ -172,28 +172,28 @@ collect_union_fields :: proc (collection: ^SymbolCollection, union_type: ast.Uni
 	return value;
 }
 
-collect_bitset_field :: proc (collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
+collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
 
 	value := SymbolBitSetValue {
-		expr = clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings)
+		expr = clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings),
 	};
 
 	return value;
 }
 
-collect_generic :: proc (collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string) -> SymbolGenericValue {
+collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string) -> SymbolGenericValue {
 
 	cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
 	value := SymbolGenericValue {
-		expr = cloned
+		expr = cloned,
 	};
 
 	return value;
 }
 
-collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
+collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
 	forward, _  := filepath.to_slash(file.fullpath, context.temp_allocator);
 	directory   := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
@@ -231,12 +231,12 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 
 			if v.type.params != nil {
 				symbol.signature = strings.concatenate({"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
-					collection.allocator);
+				                   collection.allocator);
 			}
 
 			if v.type.results != nil {
 				symbol.returns = strings.concatenate({"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
-					collection.allocator);
+				                   collection.allocator);
 			}
 
 			if v.type != nil {
@@ -248,12 +248,12 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 
 			if v.params != nil {
 				symbol.signature = strings.concatenate({"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"},
-					collection.allocator);
+				                   collection.allocator);
 			}
 
 			if v.results != nil {
 				symbol.returns = strings.concatenate({"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"},
-					collection.allocator);
+				                   collection.allocator);
 			}
 
 			symbol.value = collect_procedure_fields(collection, cast(^ast.Proc_Type)col_expr, v.params, v.results, package_map);
@@ -261,8 +261,8 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 			token        = v;
 			token_type   = .Function;
 			symbol.value = SymbolProcedureGroupValue {
-					group = clone_type(col_expr, collection.allocator, &collection.unique_strings)
-				};
+				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
+			};
 		case ast.Struct_Type:
 			token            = v;
 			token_type       = .Struct;
@@ -340,7 +340,7 @@ collect_symbols :: proc (collection: ^SymbolCollection, file: ast.File, uri: str
 /*
 	Gets the map from import alias to absolute package directory
 */
-get_package_mapping :: proc (file: ast.File, config: ^common.Config, uri: string) -> map[string]string {
+get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string) -> map[string]string {
 
 	package_map := make(map[string]string, 0, context.temp_allocator);
 
@@ -399,32 +399,32 @@ get_package_mapping :: proc (file: ast.File, config: ^common.Config, uri: string
 	package name(absolute directory path)
 */
 
-replace_package_alias :: proc {
+replace_package_alias :: proc{
 	replace_package_alias_node,
 	replace_package_alias_expr,
 	replace_package_alias_array,
 	replace_package_alias_dynamic_array,
 };
 
-replace_package_alias_array :: proc (array: $A/[]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
+replace_package_alias_array :: proc(array: $A/[]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
 
 	for elem, i in array {
 		replace_package_alias(elem, package_map, collection);
 	}
 }
 
-replace_package_alias_dynamic_array :: proc (array: $A/[dynamic]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
+replace_package_alias_dynamic_array :: proc(array: $A/[dynamic]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
 
 	for elem, i in array {
 		replace_package_alias(elem, package_map, collection);
 	}
 }
 
-replace_package_alias_expr :: proc (node: ^ast.Expr, package_map: map[string]string, collection: ^SymbolCollection) {
+replace_package_alias_expr :: proc(node: ^ast.Expr, package_map: map[string]string, collection: ^SymbolCollection) {
 	replace_package_alias_node(node, package_map, collection);
 }
 
-replace_package_alias_node :: proc (node: ^ast.Node, package_map: map[string]string, collection: ^SymbolCollection) {
+replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]string, collection: ^SymbolCollection) {
 
 	using ast;
 
