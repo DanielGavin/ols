@@ -90,8 +90,6 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 					//hardcode for windows for now
 					if ident.name == "ODIN_OS" && basic_lit.tok.text == "\"windows\"" {
 
-						log.errorf("when %v %v", ident, basic_lit);
-
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 
 							for stmt in block.stmts {

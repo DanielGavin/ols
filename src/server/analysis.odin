@@ -808,15 +808,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			log.warnf("default type node kind: %T", v);
 			return resolve_type_expression(ast_context, global);
 		}
-	} else
-
-	//if there are more of these variables that hard builtin, move them to the indexer
-	if node.name == "context" {
+	} else if node.name == "context" {
+		//if there are more of these variables that hard builtin, move them to the indexer
 		return index.lookup("Context", ast_context.current_package);
-	} else
-	//keywords
-	if v, ok := common.keyword_map[node.name]; ok {
-
+	} else if v, ok := common.keyword_map[node.name]; ok {
+		//keywords
 		ident := index.new_type(Ident, node.pos, node.end, context.temp_allocator);
 		ident.name = node.name;
 

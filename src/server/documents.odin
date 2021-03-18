@@ -409,11 +409,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 			}
 
 			append(&imports, import_);
-		} else
-
-		//relative
-		{
-
+		} else {
+			//relative
 			if len(imp.fullpath) < 2 {
 				continue;
 			}
