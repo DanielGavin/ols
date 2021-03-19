@@ -106,7 +106,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		case index.SymbolPackageValue:
-			if symbol, ok := index.lookup(field, selector.pkg); ok {
+			if position_context.field != nil {
+				if ident, ok := position_context.field.derived.(ast.Ident); ok {
+					ast_context.current_package = selector.pkg;
+					if symbol, ok := resolve_type_identifier(&ast_context, ident); ok {
+						hover.contents = write_hover_content(&ast_context, symbol);
+						return hover, true;
+					}
+				}
+			} else if symbol, ok := index.lookup(field, selector.pkg); ok {
 				hover.contents = write_hover_content(&ast_context, symbol);
 				return hover, true;
 			}

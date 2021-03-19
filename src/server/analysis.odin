@@ -20,6 +20,7 @@ import "shared:index"
 /*
 	TODO(replace all of the possible ast walking with the new odin visitor function)
 	TODO(improve the current_package logic, kinda confusing switching between different packages with selectors)
+	TODO(try to flatten some of the nested branches if possible)
 */
 
 bool_lit   := "bool";
@@ -1461,7 +1462,7 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 			get_locals_assign_stmt(file, v, ast_context);
 		}
 	case Using_Stmt:
-		get_locals_using_stmt(file, v, ast_context);
+		get_locals_using_stmt(v, ast_context);
 	case When_Stmt:
 		get_locals_stmt(file, v.else_stmt, ast_context, document_position);
 		get_locals_stmt(file, v.body, ast_context, document_position);
@@ -1470,7 +1471,7 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 	}
 }
 
-get_locals_using_stmt :: proc(file: ast.File, stmt: ast.Using_Stmt, ast_context: ^AstContext) {
+get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 
 	for u in stmt.list {
 
@@ -1690,7 +1691,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 						using_stmt: ast.Using_Stmt;
 						using_stmt.list    = make([]^ast.Expr, 1, context.temp_allocator);
 						using_stmt.list[0] = arg.type;
-						get_locals_using_stmt(file, using_stmt, ast_context);
+						get_locals_using_stmt(using_stmt, ast_context);
 					}
 				}
 			}
@@ -2009,10 +2010,6 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 }
 
 /*
-	All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
-*/
-
-/*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
 get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
@@ -2302,6 +2299,10 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	position_context.call = e;
 }
+
+/*
+	All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
+*/
 
 get_document_position :: proc{
 	get_document_position_array,
