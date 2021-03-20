@@ -1,6 +1,8 @@
 # ols
 Language server for Odin. This project is still in early development.
 
+NOTE(Linux and MacOS is not supported until the compiler catches up on those platforms)
+
 ![Procedure example](images/completion.gif)
 
 ## Table Of Contents
