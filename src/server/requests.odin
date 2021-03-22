@@ -432,8 +432,14 @@ request_initialize :: proc (task: ^common.Task) {
 								config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
 							}
 						}
+					} else {
+						log.errorf("Failed to unmarshal %v", ols_config_path);
 					}
+				} else {
+					log.errorf("Failed to parse json %v", ols_config_path);
 				}
+			} else {
+				log.errorf("Failed to read/find %v", ols_config_path);
 			}
 		}
 	}
