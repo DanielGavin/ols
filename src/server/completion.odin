@@ -31,6 +31,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
 	position_context, ok := get_document_position_context(document, position, .Completion);
 
+	if !ok || position_context.abort_completion {
+		return list, true;
+	}
+
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
 
 	get_globals(document.ast, &ast_context);

@@ -56,6 +56,7 @@ DocumentPositionContext :: struct {
 	switch_type_stmt: ^ast.Type_Switch_Stmt, //used for completion
 	case_clause:      ^ast.Case_Clause, //used for completion
 	value_decl:       ^ast.Value_Decl, //used for completion
+	abort_completion: bool,
 	hint:             DocumentPositionContextHint,
 }
 
@@ -2216,8 +2217,10 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		e := parser.parse_expr(&p, true);
 
 		if e == nil {
+			position_context.abort_completion = true;
 			return;
 		} else if e, ok := e.derived.(ast.Bad_Expr); ok {
+			position_context.abort_completion = true;
 			return;
 		}
 
