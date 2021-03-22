@@ -1,6 +1,7 @@
 package index
 
 import "core:path/filepath"
+import "core:path"
 import "core:os"
 import "core:fmt"
 import "core:odin/parser"
@@ -71,6 +72,13 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 	for k, v in config.collections {
 		filepath.walk(v, walk_static_index_build);
 	}
+
+	slashed, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator), context.temp_allocator);
+	builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.temp_allocator);
+
+	append(&indexer.built_in_packages, strings.to_lower(builtin_package));
+
+	filepath.walk(builtin_package, walk_static_index_build);
 
 	context.allocator = context.temp_allocator;
 

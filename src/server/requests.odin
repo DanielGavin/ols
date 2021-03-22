@@ -516,11 +516,10 @@ request_initialize :: proc (task: ^common.Task) {
 	index.build_static_index(context.allocator, config);
 
 	/*
-		Add the builtin and runtime package
+		Add runtime package
 	*/
 
 	if core, ok := config.collections["core"]; ok {
-		append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "builtin"));
 		append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
 	}
 
