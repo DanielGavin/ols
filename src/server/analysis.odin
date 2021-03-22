@@ -41,6 +41,7 @@ DocumentPositionContext :: struct {
 	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
 	selector:         ^ast.Expr, //used for completion
 	identifier:       ^ast.Node,
+	tag:              ^ast.Node,
 	field:            ^ast.Expr, //used for completion
 	call:             ^ast.Expr, //used for signature help
 	returns:          ^ast.Return_Stmt, //used for completion
@@ -2184,6 +2185,8 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		position_context.field    = s.field;
 	} else if s, ok := e.derived.(ast.Implicit_Selector_Expr); ok {
 		position_context.implicit = true;
+	} else if s, ok := e.derived.(ast.Tag_Expr); ok {
+		position_context.tag = s.expr;
 	} else if bad_expr, ok := e.derived.(ast.Bad_Expr); ok {
 		//this is most likely because of use of 'in', 'context', etc.
 		//try to go back one dot.

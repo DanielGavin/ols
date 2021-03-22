@@ -22,6 +22,7 @@ Completion_Type :: enum {
 	Switch_Type,
 	Identifier,
 	Comp_Lit,
+	Directive,
 }
 
 get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
@@ -55,6 +56,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 		completion_type = .Selector;
 	}
 
+	if position_context.tag != nil {
+		completion_type = .Directive;
+	}
+
 	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
 
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
@@ -79,6 +84,8 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 		get_selector_completion(&ast_context, &position_context, &list);
 	case .Switch_Type:
 		get_type_switch_Completion(&ast_context, &position_context, &list);
+	case .Directive:
+		get_directive_completion(&ast_context, &position_context, &list);
 	}
 
 	return list, true;
