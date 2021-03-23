@@ -48,9 +48,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
 	completion_type: Completion_Type = .Identifier;
 
-	if position_context.implicit {
-		completion_type = .Implicit;
-	}
 
 	if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
 		completion_type = .Comp_Lit;
@@ -62,6 +59,10 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
 	if position_context.tag != nil {
 		completion_type = .Directive;
+	}
+
+	if position_context.implicit {
+		completion_type = .Implicit;
 	}
 
 	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
@@ -473,8 +474,36 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 				append(&items, item);
 			}
+
+			list.items = items[:];
+			return;
 		}
-	} else if position_context.comp_lit != nil && position_context.parent_binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
+	}
+
+	if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
+		//bitsets
+		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
+
+			if value, ok := unwrap_bitset(ast_context, symbol); ok {
+
+				for name in value.names {
+
+					item := CompletionItem {
+						label = name,
+						kind = .EnumMember,
+						detail = name,
+					};
+
+					append(&items, item);
+				}
+
+				list.items = items[:];
+				return;
+			}
+		}
+	}
+
+	if position_context.comp_lit != nil && position_context.parent_binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
 		//bitsets
 		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
 
@@ -490,27 +519,14 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 					append(&items, item);
 				}
+
+				list.items = items[:];
+				return;
 			}
 		}
-	} else if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
+	}
 
-		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
-
-			if value, ok := unwrap_bitset(ast_context, symbol); ok {
-
-				for name in value.names {
-
-					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
-						detail = name,
-					};
-
-					append(&items, item);
-				}
-			}
-		}
-	} else if position_context.comp_lit != nil {
+	if position_context.comp_lit != nil {
 
 		if position_context.parent_comp_lit.type == nil {
 			return;
@@ -554,12 +570,17 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 								append(&items, item);
 							}
+
+							list.items = items[:];
+							return;
 						}
 					}
 				}
 			}
 		}
-	} else if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
+	}
+
+	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
 		context_node: ^ast.Expr;
 		enum_node:    ^ast.Expr;
@@ -586,9 +607,14 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 					append(&items, item);
 				}
+
+				list.items = items[:];
+				return;
 			}
 		}
-	} else if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
+	}
+
+	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
 
 		rhs_index: int;
 
@@ -629,9 +655,14 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 					append(&items, item);
 				}
+
+				list.items = items[:];
+				return;
 			}
 		}
-	} else if position_context.returns != nil && position_context.function != nil {
+	}
+
+	if position_context.returns != nil && position_context.function != nil {
 
 		return_index: int;
 
@@ -671,12 +702,14 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 						append(&items, item);
 					}
+
+					list.items = items[:];
+					return;
 				}
 			}
 		}
 	}
 
-	list.items = items[:];
 }
 
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
@@ -888,6 +921,7 @@ bitset_operators: map[string]bool = {
 	"~" = true,
 	"<" = true,
 	">" = true,
+	"==" = true,
 };
 
 bitset_assignment_operators: map[string]bool = {
