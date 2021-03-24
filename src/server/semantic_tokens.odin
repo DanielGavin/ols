@@ -241,17 +241,11 @@ write_semantic_tokens_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuild
 	case Expr_Stmt:
 		write_semantic_tokens(n.expr, builder, ast_context);
 	case Range_Stmt:
-
 		write_semantic_token_pos(builder, n.for_pos, "for", ast_context.file.src, .Keyword, .None);
-		if n.val0 != nil {
-			if ident, ok := n.val0.derived.(Ident); ok {
-				write_semantic_node(builder, n.val0, ast_context.file.src, .Variable, .None);
-			}
-		}
 
-		if n.val1 != nil {
-			if ident, ok := n.val1.derived.(Ident); ok {
-				write_semantic_node(builder, n.val1, ast_context.file.src, .Variable, .None);
+		for val in n.vals {
+			if ident, ok := val.derived.(Ident); ok {
+				write_semantic_node(builder, val, ast_context.file.src, .Variable, .None);
 			}
 		}
 

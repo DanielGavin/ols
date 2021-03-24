@@ -295,8 +295,7 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.body, allocator);
 	case Range_Stmt:
 		free_ast(n.label, allocator);
-		free_ast(n.val0, allocator);
-		free_ast(n.val1, allocator);
+		free_ast(n.vals, allocator);
 		free_ast(n.expr, allocator);
 		free_ast(n.body, allocator);
 	case Case_Clause:
