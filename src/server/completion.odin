@@ -385,6 +385,10 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
 
+	if node == nil {
+		return {}, false;
+	}
+
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 
 		if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
@@ -688,28 +692,59 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 		if len(position_context.function.type.results.list) > return_index {
 
-			if return_symbol, ok := resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type); ok {
+			if enum_value, ok := unwrap_enum(ast_context, position_context.function.type.results.list[return_index].type); ok {
 
-				#partial switch v in return_symbol.value {
-				case index.SymbolEnumValue:
-					for name in v.names {
+				for name in enum_value.names {
 
-						item := CompletionItem {
-							label = name,
-							kind = .EnumMember,
-							detail = name,
-						};
+					item := CompletionItem {
+						label = name,
+						kind = .EnumMember,
+						detail = name,
+					};
 
-						append(&items, item);
-					}
-
-					list.items = items[:];
-					return;
+					append(&items, item);
 				}
+
+				list.items = items[:];
+				return;
 			}
 		}
 	}
 
+	if position_context.call != nil {
+
+		if call, ok := position_context.call.derived.(ast.Call_Expr); ok {
+
+			parameter_index, parameter_ok := find_position_in_call_param(ast_context, call);
+
+			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
+
+				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
+
+					log.error("procedure symbol");
+
+					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
+
+						log.error("unwrap");
+
+						for name in enum_value.names {
+							item := CompletionItem {
+								label = name,
+								kind = .EnumMember,
+								detail = name,
+							};
+
+							append(&items, item);
+						}
+
+
+						list.items = items[:];
+						return;
+					}
+				}
+			}
+		}
+	}
 }
 
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {

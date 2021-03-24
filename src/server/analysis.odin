@@ -1043,6 +1043,21 @@ resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, bi
 	return {}, false;
 }
 
+find_position_in_call_param :: proc(ast_context: ^AstContext, call: ast.Call_Expr) -> (int, bool) {
+
+	if call.args == nil {
+		return 0, false;
+	}
+
+	for arg, i in call.args {
+		if position_in_node(arg, ast_context.position) {
+			return i, true;
+		}
+	}
+
+	return len(call.args) - 1, true;
+}
+
 make_pointer_ast :: proc(elem: ^ast.Expr) -> ^ast.Pointer_Type {
 	pointer := index.new_type(ast.Pointer_Type, elem.pos, elem.end, context.temp_allocator);
 	pointer.elem = elem;
@@ -1675,14 +1690,27 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 					ast_context.variables[str]  = true;
 					ast_context.parameters[str] = true;
 
-					log.info(arg.flags);
-
 					if .Using in arg.flags {
 						using_stmt: ast.Using_Stmt;
 						using_stmt.list    = make([]^ast.Expr, 1, context.temp_allocator);
 						using_stmt.list[0] = arg.type;
 						get_locals_using_stmt(using_stmt, ast_context);
 					}
+				}
+			}
+		}
+	}
+
+	if proc_lit.type != nil && proc_lit.type.results != nil {
+
+		for result in proc_lit.type.results.list {
+
+			for name in result.names {
+				if result.type != nil {
+					str := common.get_ast_node_string(name, file.src);
+					store_local(ast_context, result.type, name.pos.offset, str);
+					ast_context.variables[str]  = true;
+					ast_context.parameters[str] = true;
 				}
 			}
 		}
@@ -2045,7 +2073,9 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
 		fallback_position_context_completion(document, position, &position_context);
-	} else if hint == .SignatureHelp && position_context.call == nil {
+	}
+
+	if (hint == .SignatureHelp || hint == .Completion) && position_context.call == nil {
 		fallback_position_context_signature(document, position, &position_context);
 	}
 
@@ -2291,6 +2321,8 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	e := parser.parse_expr(&p, true);
 
+	//log.error(string(position_context.file.src[begin_offset:end_offset]));
+
 	position_context.call = e;
 }
 
@@ -2374,7 +2406,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case Paren_Expr:
 		get_document_position(n.expr, position_context);
 	case Call_Expr:
-		if position_context.hint == .SignatureHelp {
+		if position_context.hint == .SignatureHelp || position_context.hint == .Completion {
 			position_context.call = cast(^Expr)node;
 		}
 		get_document_position(n.expr, position_context);
