@@ -1965,7 +1965,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_information[0].documentation = call.doc;
 
 	signature_help.signatures = signature_information;
-	signature_help.activeSignature = 1;
+	signature_help.activeSignature = 0;
 	signature_help.activeParameter = 0;
 
 	return signature_help, true;
