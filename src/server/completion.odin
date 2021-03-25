@@ -219,7 +219,7 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 						item := CompletionItem {
 							label = resolved.name,
 							kind = cast(CompletionItemKind)resolved.type,
-							detail = concatenate_symbols_information(ast_context, resolved),
+							detail = concatenate_symbols_information(ast_context, resolved, true),
 							documentation = resolved.doc,
 						};
 
@@ -373,7 +373,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		item := CompletionItem {
 			label = symbol.name,
 			kind = cast(CompletionItemKind)symbol.type,
-			detail = concatenate_symbols_information(ast_context, symbol),
+			detail = concatenate_symbols_information(ast_context, symbol, true),
 			documentation = symbol.doc,
 		};
 
@@ -863,7 +863,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 	}
 
-	
+
 	for keyword, _ in common.keyword_map {
 
 		symbol := index.Symbol {
@@ -885,7 +885,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 		item := CompletionItem {
 			label = result.symbol.name,
-			detail = concatenate_symbols_information(ast_context, result.symbol),
+			detail = concatenate_symbols_information(ast_context, result.symbol, true),
 		};
 
 		if result.variable != nil {

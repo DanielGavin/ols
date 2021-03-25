@@ -1736,7 +1736,7 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
-concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> string {
+concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
 
 	pkg := path.base(symbol.pkg, false, context.temp_allocator);
 
@@ -1749,7 +1749,7 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
 		}
 	} else if symbol.type == .Package {
 		return symbol.name;
-	} else if symbol.type == .Keyword {
+	} else if symbol.type == .Keyword && is_completion {
 		return symbol.name;
 	} else {
 		if symbol.signature != "" {
@@ -1878,7 +1878,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
 	content: MarkupContent;
 
-	cat := concatenate_symbols_information(ast_context, symbol);
+	cat := concatenate_symbols_information(ast_context, symbol, false);
 
 	if cat != "" {
 		content.kind  = "markdown";
@@ -1961,7 +1961,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
 	signature_information := make([]SignatureInformation, 1, context.temp_allocator);
 
-	signature_information[0].label         = concatenate_symbols_information(&ast_context, call);
+	signature_information[0].label         = concatenate_symbols_information(&ast_context, call, false);
 	signature_information[0].documentation = call.doc;
 
 	signature_help.signatures = signature_information;
