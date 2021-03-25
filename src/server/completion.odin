@@ -853,12 +853,25 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	for pkg in ast_context.imports {
 
-		symbol: index.Symbol;
-
-		symbol.name = pkg.base;
-		symbol.type = .Package;
+		symbol := index.Symbol {
+			name = pkg.base,
+			type = .Package,
+		};
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+		}
+	}
+
+	
+	for keyword, _ in common.keyword_map {
+
+		symbol := index.Symbol {
+			name = keyword,
+			type = .Keyword,
+		};
+
+		if score, ok := common.fuzzy_match(matcher, keyword); ok {
 			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
 		}
 	}

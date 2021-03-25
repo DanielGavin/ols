@@ -1749,16 +1749,15 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
 		}
 	} else if symbol.type == .Package {
 		return symbol.name;
+	} else if symbol.type == .Keyword {
+		return symbol.name;
 	} else {
-
 		if symbol.signature != "" {
 			return fmt.tprintf("%v.%v: %v", pkg, symbol.name, symbol.signature);
 		} else {
 			return fmt.tprintf("%v.%v", pkg, symbol.name);
 		}
 	}
-
-	return ""; //weird bug requires this
 }
 
 get_definition_location :: proc(document: ^Document, position: common.Position) -> (common.Location, bool) {
@@ -1966,6 +1965,8 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_information[0].documentation = call.doc;
 
 	signature_help.signatures = signature_information;
+	signature_help.activeSignature = 1;
+	signature_help.activeParameter = 0;
 
 	return signature_help, true;
 }
