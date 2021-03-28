@@ -111,7 +111,7 @@ tokenizer_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	Walk through the type expression while both the call expression and specialization type are the same
 */
 
-resolve_poly_spec :: proc{
+resolve_poly_spec :: proc {
 	resolve_poly_spec_node,
 	resolve_poly_spec_array,
 	resolve_poly_spec_dynamic_array,
@@ -320,7 +320,7 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 	return current_symbol, true;
 }
 
-resolve_generic_function :: proc{
+resolve_generic_function :: proc {
 	resolve_generic_function_ast,
 	resolve_generic_function_symbol,
 };
@@ -1964,7 +1964,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_information[0].label         = concatenate_symbols_information(&ast_context, call, false);
 	signature_information[0].documentation = call.doc;
 
-	signature_help.signatures = signature_information;
+	signature_help.signatures      = signature_information;
 	signature_help.activeSignature = 0;
 	signature_help.activeParameter = 0;
 
@@ -2083,6 +2083,7 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 	return position_context, true;
 }
 
+//terrible fallback code
 fallback_position_context_completion :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 
 	paren_count:   int;
@@ -2094,6 +2095,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 	last_dot:      bool;
 	last_arrow:    bool;
 	dots_seen:     int;
+	partial_arrow: bool;
 
 	i := position_context.position - 1;
 
@@ -2138,10 +2140,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		if c == ' ' || c == '{' || c == ',' ||
 		c == '}' || c == '^' || c == ':' ||
 		c == '\n' || c == '\r' || c == '=' ||
-		c == '<' || c == '>' || c == '-' ||
+		c == '<' || c == '-' ||
 		c == '+' || c == '&' {
 			start = i + 1;
 			break;
+		} else if c == '>' {
+			partial_arrow = true;
 		}
 
 		last_dot   = false;
@@ -2171,6 +2175,23 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		return;
 	}
 
+	if !partial_arrow {
+
+		only_whitespaces := true;
+
+		s := string(position_context.file.src[begin_offset:end_offset]);
+
+		for r in s {
+			if !strings.is_space(r) {
+				only_whitespaces = false;
+			}
+		}
+
+		if only_whitespaces {
+			return;
+		}
+	}
+
 	p := parser.Parser {
 		err = parser_warning_handler, //empty
 		warn = parser_warning_handler, //empty
@@ -2178,8 +2199,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 	};
 
 	tokenizer.init(&p.tok, str, position_context.file.fullpath, parser_warning_handler);
-
-	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 
 	p.tok.ch          = ' ';
 	p.tok.line_count  = position.line;
@@ -2331,7 +2350,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 	All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
 */
 
-get_document_position :: proc{
+get_document_position :: proc {
 	get_document_position_array,
 	get_document_position_dynamic_array,
 	get_document_position_node,
@@ -2414,7 +2433,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.args, position_context);
 	case Selector_Expr:
 		if position_context.hint == .Completion {
-			if n.field != nil && n.field.pos.line == position_context.line {
+			if n.field != nil && n.field.pos.line-1 == position_context.line {
 				position_context.selector = n.expr;
 				position_context.field    = n.field;
 			}
@@ -2530,6 +2549,13 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case Value_Decl:
 		position_context.value_decl = cast(^Value_Decl)node;
 		get_document_position(n.attributes, position_context);
+
+		for name in n.names {
+			if position_in_node(name, position_context.position) && n.end.line-1 == position_context.line {
+				position_context.abort_completion = true;
+				break;
+			}
+		}
 		get_document_position(n.names, position_context);
 		get_document_position(n.type, position_context);
 		get_document_position(n.values, position_context);
