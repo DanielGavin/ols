@@ -48,7 +48,6 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 
 	completion_type: Completion_Type = .Identifier;
 
-
 	if position_context.comp_lit != nil && is_lhs_comp_lit(&position_context) {
 		completion_type = .Comp_Lit;
 	}
@@ -737,7 +736,6 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 							append(&items, item);
 						}
 
-
 						list.items = items[:];
 						return;
 					}
@@ -863,8 +861,27 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 	}
 
-
 	for keyword, _ in common.keyword_map {
+
+		symbol := index.Symbol {
+			name = keyword,
+			type = .Keyword,
+		};
+
+		if score, ok := common.fuzzy_match(matcher, keyword); ok {
+			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+		}
+	}
+
+	language_keywords: []string = {
+		"align_of","case","defer","enum","import","proc","transmute","when",
+		"auto_cast","cast","distinct","fallthrough","in","notin","return","type_of",
+		"bit_field","const","do","for","inline","offset_of","size_of","typeid",
+		"bit_set","context","dynamic","foreign","opaque","struct","union",
+		"break","continue","else","if","map","package","switch","using",
+	};
+
+	for keyword, _ in language_keywords {
 
 		symbol := index.Symbol {
 			name = keyword,
