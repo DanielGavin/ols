@@ -42,7 +42,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
 			} else {
 				if len(value_decl.values) > i {
-						append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
+					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
 				}
 			}
 		}
@@ -57,19 +57,7 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 	for decl in file.decls {
 
 		if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-
-			for name, i in value_decl.names {
-
-				str := get_ast_node_string(name, file.src);
-
-				if value_decl.type != nil {
-					append(&exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
-				} else {
-					if len(value_decl.values) > i {
-						append(&exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
-					}
-				}
-			}
+			collect_value_decl(&exprs, file, decl);
 		} else if when_decl, ok := decl.derived.(ast.When_Stmt); ok {
 
 			if when_decl.cond == nil {
@@ -128,8 +116,6 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 					}
 				}
 			}
-			//YUPPI - what a fun slide
-
 		} else if foreign_decl, ok := decl.derived.(ast.Foreign_Block_Decl); ok {
 
 			if foreign_decl.body == nil {
@@ -137,24 +123,8 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 			}
 
 			if block, ok := foreign_decl.body.derived.(ast.Block_Stmt); ok {
-
 				for stmt in block.stmts {
-
-					if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
-
-						for name, i in value_decl.names {
-
-							str := get_ast_node_string(name, file.src);
-
-							if value_decl.type != nil {
-								append(&exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
-							} else {
-								if len(value_decl.values) > i {
-									append(&exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
-								}
-							}
-						}
-					}
+					collect_value_decl(&exprs, file, stmt);
 				}
 			}
 		}
