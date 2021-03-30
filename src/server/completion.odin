@@ -806,6 +806,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	global: for k, v in ast_context.globals {
 
+		if position_context.global_lhs_stmt {
+			break;
+		}
+
 		//combined is sorted and should do binary search instead.
 		for result in combined {
 			if result.symbol.name == k {
@@ -832,6 +836,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	for k, v in ast_context.locals {
 
+		if position_context.global_lhs_stmt {
+			break;
+		}
+
 		ast_context.use_locals      = true;
 		ast_context.use_globals     = true;
 		ast_context.current_package = ast_context.document_package;
@@ -850,6 +858,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 	}
 
 	for pkg in ast_context.imports {
+
+		if position_context.global_lhs_stmt {
+			break;
+		}
 
 		symbol := index.Symbol {
 			name = pkg.base,

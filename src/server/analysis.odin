@@ -58,6 +58,7 @@ DocumentPositionContext :: struct {
 	value_decl:       ^ast.Value_Decl, //used for completion
 	abort_completion: bool,
 	hint:             DocumentPositionContextHint,
+	global_lhs_stmt:  bool,
 }
 
 DocumentLocal :: struct {
@@ -2049,7 +2050,14 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 	position_context.position = absolute_position;
 
 	for decl in document.ast.decls {
-		get_document_position(decl, &position_context);
+		if position_in_node(decl, position_context.position) {
+			get_document_position(decl, &position_context);
+
+			switch v in decl.derived {
+			case ast.Expr_Stmt:
+				position_context.global_lhs_stmt = true;
+			}
+		}
 	}
 
 	if !position_in_node(position_context.comp_lit, position_context.position) {
@@ -2277,29 +2285,16 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
 fallback_position_context_signature :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 
-	paren_count: int;
-	end:         int;
-	start:       int;
-	first_paren: bool;
+	end:   int;
+	start: int;
 	i := position_context.position - 1;
+	end = i;
 
 	for i > 0 {
 
 		c := position_context.file.src[i];
 
-		if c == '(' && (paren_count == 0 || paren_count == -1) {
-			end         = i;
-			first_paren = true;
-		} else if c == ')' {
-			paren_count -= 1;
-		} else if c == '(' {
-			paren_count += 1;
-		} else if c == ' ' && end != 0 {
-			start = i + 1;
-			break;
-		} else
-		//not good enough if you want multi function signature help
-		if c == '\n' || c == '\r' {
+		if c == ' ' || c == '\n' || c == '\r' {
 			start = i + 1;
 			break;
 		}
@@ -2307,9 +2302,11 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 		i -= 1;
 	}
 
-	if !first_paren {
+	if position_context.file.src[end] != '(' {
 		return;
 	}
+
+	end -= 1;
 
 	begin_offset := max(0, start);
 	end_offset   := max(start, end + 1);
@@ -2341,9 +2338,11 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	e := parser.parse_expr(&p, true);
 
-	//log.error(string(position_context.file.src[begin_offset:end_offset]));
+	if call, ok := e.derived.(ast.Call_Expr); ok {
+		position_context.call = e;
+	}
 
-	position_context.call = e;
+	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 }
 
 /*
@@ -2433,7 +2432,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.args, position_context);
 	case Selector_Expr:
 		if position_context.hint == .Completion {
-			if n.field != nil && n.field.pos.line-1 == position_context.line {
+			if n.field != nil && n.field.pos.line - 1 == position_context.line {
 				position_context.selector = n.expr;
 				position_context.field    = n.field;
 			}
@@ -2551,7 +2550,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.attributes, position_context);
 
 		for name in n.names {
-			if position_in_node(name, position_context.position) && n.end.line-1 == position_context.line {
+			if position_in_node(name, position_context.position) && n.end.line - 1 == position_context.line {
 				position_context.abort_completion = true;
 				break;
 			}
