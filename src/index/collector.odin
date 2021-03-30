@@ -196,8 +196,15 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
 	forward, _  := filepath.to_slash(file.fullpath, context.temp_allocator);
-	directory   := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
 	package_map := get_package_mapping(file, collection.config, uri);
+
+	when ODIN_OS == "windows" {
+		directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
+	} else {
+		directory := path.dir(forward, context.temp_allocator);
+	}
+
+	
 
 	exprs := common.collect_globals(file);
 
@@ -307,7 +314,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
 		}
-
+	
+		
 		if expr.docs != nil {
 
 			tmp: string;
@@ -326,7 +334,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 		id := get_symbol_id(cat);
 
-		//right now i'm not checking comments whether is for windows, linux, etc, and some packages do not specify that(os)
 		if v, ok := collection.symbols[id]; !ok || v.name == "" {
 			collection.symbols[id] = symbol;
 		} else {
@@ -361,7 +368,11 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
 			name: string;
 
-			full := path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator);
+			when ODIN_OS == "windows" {
+				full := path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator);
+			} else {
+				full := path.join(elems = {dir, p}, allocator = context.temp_allocator);
+			}
 
 			if imp.name.text != "" {
 				name = imp.name.text;
@@ -369,7 +380,11 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 				name = path.base(full, false, context.temp_allocator);
 			}
 
-			package_map[name] = strings.to_lower(full, context.temp_allocator);
+			when ODIN_OS == "windows" {
+				package_map[name] = strings.to_lower(full, context.temp_allocator);
+			} else {
+				package_map[name] = full;
+			}
 		} else {
 
 			name: string;
@@ -387,7 +402,11 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 				name = path.base(full, false, context.temp_allocator);
 			}
 
-			package_map[name] = strings.to_lower(full, context.temp_allocator);
+			when ODIN_OS == "windows" {
+				package_map[name] = strings.to_lower(full, context.temp_allocator);
+			} else {
+				package_map[name] = full;
+			}
 		}
 	}
 

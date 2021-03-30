@@ -375,7 +375,12 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 	parser.parse_file(&p, &document.ast);
 
 	imports := make([dynamic]Package);
-	document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
+
+	when ODIN_OS == "windows" {
+		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
+	} else {
+		document.package_name = path.dir(document.uri.path);
+	}
 
 	for imp, index in document.ast.imports {
 
@@ -400,14 +405,19 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 			}
 
 			import_: Package;
-			import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator));
+
+			when ODIN_OS == "windows" {
+				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator));
+			} else {
+				import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
+			}
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text;
 			} else {
 				import_.base = path.base(import_.name, false);
 			}
-
+			
 			append(&imports, import_);
 		} else {
 			//relative

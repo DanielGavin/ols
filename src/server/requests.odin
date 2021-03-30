@@ -208,7 +208,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 		log.error("No root object");
 		return false;
 	}
-
+	
 	id:       RequestId;
 	id_value: json.Value;
 	id_value, ok = root["id"];
@@ -399,7 +399,7 @@ request_initialize :: proc (task: ^common.Task) {
 	enable_document_symbols: bool;
 	enable_hover:            bool;
 	enable_format:           bool;
-
+	
 	if len(config.workspace_folders) > 0 {
 
 		//right now just look at the first workspace - TODO(daniel, add multiple workspace support)
@@ -526,9 +526,13 @@ request_initialize :: proc (task: ^common.Task) {
 	*/
 
 	if core, ok := config.collections["core"]; ok {
-		append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
+		when ODIN_OS == "windows" { 
+			append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
+		} else {
+			append(&index.indexer.built_in_packages, path.join(core, "runtime"));
+		}
 	}
-
+	
 	log.info("Finished indexing");
 }
 
@@ -815,8 +819,6 @@ notification_did_save :: proc (task: ^common.Task) {
 	defer json.destroy_value(root);
 	defer free(info);
 
-	//this is temporary, but will provide dynamic indexing and is syncronized
-
 	params_object, ok := params.value.(json.Object);
 
 	if !ok {
@@ -876,7 +878,7 @@ notification_did_save :: proc (task: ^common.Task) {
 			index.indexer.dynamic_index.collection.symbols[key] = {};
 		}
 	}
-
+	
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret);
 	}

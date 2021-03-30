@@ -12,12 +12,6 @@ import "core:strings"
 
 import "shared:common"
 
-/*
-	Not fully sure how to handle rebuilding, but one thing is for sure, dynamic indexing has to have a background thread
-	rebuilding every minute or less to fight against stale information
-*/
-
-//test version for static indexing
 
 symbol_collection: SymbolCollection;
 
@@ -29,6 +23,8 @@ platform_os: map[string]bool = {
 	"essence" = true,
 	"js" = true,
 	"freebsd" = true,
+	"darwin" = true,
+	"wasm32" = true,
 };
 
 walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
@@ -49,8 +45,7 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
 		name_between := info.name[last_underscore_index + 1:last_dot_index];
 
 		if _, ok := platform_os[name_between]; ok {
-
-			if name_between != ODIN_OS {
+			if name_between != ODIN_OS {	
 				return 0, false;
 			}
 		}
@@ -73,10 +68,19 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		filepath.walk(v, walk_static_index_build);
 	}
 
-	slashed, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator), context.temp_allocator);
-	builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.temp_allocator);
+	when ODIN_OS == "windows" {
+		slashed, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator), context.temp_allocator);
+	} else {
+		slashed, _ := filepath.to_slash(os.get_current_directory(), context.temp_allocator);
+	}
 
-	append(&indexer.built_in_packages, strings.to_lower(builtin_package));
+	when ODIN_OS == "windows" {
+		builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.temp_allocator);
+		append(&indexer.built_in_packages, strings.to_lower(builtin_package));
+	} else {
+		builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.allocator);
+		append(&indexer.built_in_packages, builtin_package);
+	}
 
 	filepath.walk(builtin_package, walk_static_index_build);
 
