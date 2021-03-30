@@ -2049,15 +2049,22 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 	position_context.position = absolute_position;
 
+	exists_in_decl := false;
+
 	for decl in document.ast.decls {
 		if position_in_node(decl, position_context.position) {
 			get_document_position(decl, &position_context);
-
+			exists_in_decl = true;
 			switch v in decl.derived {
 			case ast.Expr_Stmt:
 				position_context.global_lhs_stmt = true;
 			}
+			break;
 		}
+	}
+
+	if !exists_in_decl {
+		position_context.abort_completion = true;
 	}
 
 	if !position_in_node(position_context.comp_lit, position_context.position) {
