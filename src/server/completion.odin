@@ -238,13 +238,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 	ast_context.current_package = ast_context.document_package;
 
-	if ident, ok := position_context.selector.derived.(ast.Ident); ok {
-
-		if !resolve_ident_is_variable(ast_context, ident) && !resolve_ident_is_package(ast_context, ident) && ident.name != "" {
-			return;
-		}
-	}
-
 	symbols := make([dynamic]index.Symbol, context.temp_allocator);
 
 	selector: index.Symbol;
@@ -257,6 +250,17 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 	if !ok {
 		return;
+	}
+
+	if ident, ok := position_context.selector.derived.(ast.Ident); ok {
+
+		is_variable := resolve_ident_is_variable(ast_context, ident);
+		is_package  := resolve_ident_is_package(ast_context, ident);
+
+		if (!is_variable && !is_package && selector.type != .Enum && ident.name != "") || (is_variable && selector.type == .Enum) {
+			return;
+		}
+
 	}
 
 	if selector.pkg != "" {
