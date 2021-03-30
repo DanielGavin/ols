@@ -24,6 +24,7 @@ keyword_map: map[string]bool = {
 	"byte" = true,
 	"u8" = true,
 	"i8" = true,
+	"rune" = true,
 };
 
 GlobalExpr :: struct {
