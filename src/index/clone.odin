@@ -214,6 +214,10 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case Helper_Type:
 		r := cast(^Helper_Type)res;
 		r.type = clone_type(r.type, allocator, unique_strings);
+	case Type_Cast:
+		r := cast(^Type_Cast)res;
+		r.type = clone_type(r.type, allocator, unique_strings);
+		r.expr = clone_type(r.expr, allocator, unique_strings);
 	case:
 		panic(fmt.aprintf("Clone type Unhandled node kind: %T", node.derived));
 	}
