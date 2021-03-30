@@ -2238,7 +2238,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		//this is most likely because of use of 'in', 'context', etc.
 		//try to go back one dot.
 
-		src_with_dot := string(position_context.file.src[0:end_offset + 1]);
+		src_with_dot := string(position_context.file.src[0:min(len(position_context.file.src), end_offset + 1)]);
 		last_dot     := strings.last_index(src_with_dot, ".");
 
 		if last_dot == -1 {
