@@ -2161,7 +2161,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		if c == ' ' || c == '{' || c == ',' ||
 		c == '}' || c == '^' || c == ':' ||
 		c == '\n' || c == '\r' || c == '=' ||
-		c == '<' || c == '-' ||
+		c == '<' || c == '-' || c == '!' ||
 		c == '+' || c == '&' {
 			start = i + 1;
 			break;
