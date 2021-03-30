@@ -33,6 +33,22 @@ GlobalExpr :: struct {
 	docs:    ^ast.Comment_Group,
 }
 
+collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node) {
+	if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
+		for name, i in value_decl.names {
+			str := get_ast_node_string(name, file.src);
+
+			if value_decl.type != nil {
+				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
+			} else {
+				if len(value_decl.values) > i {
+						append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
+				}
+			}
+		}
+	}
+}
+
 //TODO(add a sub procedure to avoid repeating the value decl work)
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
@@ -91,26 +107,24 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 					if ident.name == "ODIN_OS" && basic_lit.tok.text == "\"windows\"" {
 
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
-
 							for stmt in block.stmts {
-
-								if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
-
-									for name, i in value_decl.names {
-
-										str := get_ast_node_string(name, file.src);
-
-										if value_decl.type != nil {
-											append(&exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
-										} else {
-											if len(value_decl.values) > i {
-												append(&exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
-											}
-										}
-									}
-								}
+								collect_value_decl(&exprs, file, stmt);
 							}
 						}
+					} else if ident.name != "ODIN_OS" {
+						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
+							for stmt in block.stmts {
+								collect_value_decl(&exprs, file, stmt);
+							}
+						}
+					}
+				}
+			}
+
+			else {
+				if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
+					for stmt in block.stmts {
+						collect_value_decl(&exprs, file, stmt);
 					}
 				}
 			}
