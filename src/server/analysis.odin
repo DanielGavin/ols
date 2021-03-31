@@ -59,6 +59,7 @@ DocumentPositionContext :: struct {
 	abort_completion: bool,
 	hint:             DocumentPositionContextHint,
 	global_lhs_stmt:  bool,
+	import_stmt:      ^ast.Import_Decl,
 }
 
 DocumentLocal :: struct {
@@ -2069,7 +2070,14 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 		}
 	}
 
-	if !exists_in_decl {
+	for import_stmt in document.ast.imports {
+		if position_in_node(import_stmt, position_context.position) {
+			position_context.import_stmt = import_stmt;
+			break;
+		}
+	}
+
+	if !exists_in_decl && position_context.import_stmt == nil {
 		position_context.abort_completion = true;
 	}
 
@@ -2162,7 +2170,7 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		c == '}' || c == '^' || c == ':' ||
 		c == '\n' || c == '\r' || c == '=' ||
 		c == '<' || c == '-' || c == '!' ||
-		c == '+' || c == '&' {
+		c == '+' || c == '&'|| c == '|' {
 			start = i + 1;
 			break;
 		} else if c == '>' {
@@ -2196,11 +2204,11 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		return;
 	}
 
+	s := string(position_context.file.src[begin_offset:end_offset]);
+
 	if !partial_arrow {
 
 		only_whitespaces := true;
-
-		s := string(position_context.file.src[begin_offset:end_offset]);
 
 		for r in s {
 			if !strings.is_space(r) {

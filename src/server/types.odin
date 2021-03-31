@@ -96,6 +96,10 @@ CompletionOptions :: struct {
 	triggerCharacters: []string,
 }
 
+CompletionContext :: struct {
+	triggerCharacter: string,
+}
+
 SaveOptions :: struct {
 	includeText: bool,
 }
@@ -222,6 +226,7 @@ SignatureHelpParams :: struct {
 CompletionParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
+	context_: 	  CompletionContext,
 }
 
 CompletionItemKind :: enum {
