@@ -432,6 +432,10 @@ request_initialize :: proc (task: ^common.Task) {
 								config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
 							}
 						}
+
+						if ok := "" in config.collections; !ok {
+							config.collections[""] = uri.path;
+						}
 					} else {
 						log.errorf("Failed to unmarshal %v", ols_config_path);
 					}
