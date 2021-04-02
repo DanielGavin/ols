@@ -204,7 +204,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		directory := path.dir(forward, context.temp_allocator);
 	}
 
-	
+
 
 	exprs := common.collect_globals(file);
 
@@ -295,11 +295,19 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.value = collect_generic(collection, col_expr, package_map);
 		case ast.Ident:
 			token        = v;
-			token_type   = .Variable;
 			symbol.value = collect_generic(collection, col_expr, package_map);
+			if expr.mutable {
+				token_type = .Variable;
+			} else {
+				token_type = .Unresolved;
+			}
 		case: // default
 			symbol.value = collect_generic(collection, col_expr, package_map);
-			token_type   = .Variable;
+			if expr.mutable {
+				token_type = .Variable;
+			} else {
+				token_type = .Unresolved;
+			}
 			token        = expr.expr;
 			break;
 		}
@@ -314,8 +322,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
 		}
-	
-		
+
+
 		if expr.docs != nil {
 
 			tmp: string;

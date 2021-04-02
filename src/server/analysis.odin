@@ -978,6 +978,12 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		return symbol, ok;
 	}
 
+	symbol := symbol;
+
+	if symbol.type == .Unresolved {
+		fix_symbol_unresolved_type(&symbol);
+	}
+
 	#partial switch v in symbol.value {
 	case index.SymbolProcedureGroupValue:
 		if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
@@ -1007,6 +1013,29 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 	}
 
 	return symbol, true;
+}
+
+fix_symbol_unresolved_type :: proc(symbol: ^index.Symbol) {
+
+	using index;
+
+	switch v in symbol.value {
+	case SymbolStructValue:
+		symbol.type = .Struct;
+    case SymbolPackageValue:
+		symbol.type = .Package;
+    case SymbolProcedureValue, SymbolProcedureGroupValue:
+		symbol.type = .Function;
+    case SymbolGenericValue:
+		symbol.type = .Variable;
+    case SymbolUnionValue:
+		symbol.type = .Enum;
+    case SymbolEnumValue:
+		symbol.type = .Enum;
+    case SymbolBitSetValue:
+		symbol.type = .Enum;
+	}
+
 }
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {

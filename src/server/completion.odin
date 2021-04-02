@@ -737,11 +737,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 
-					log.error("procedure symbol");
-
 					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
-
-						log.error("unwrap");
 
 						for name in enum_value.names {
 							item := CompletionItem {
@@ -810,10 +806,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		append(&pkgs, u);
 	}
 
-	append(&pkgs, ast_context.document_package);
-
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
-
 		for r in results {
 			append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
 		}

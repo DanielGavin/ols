@@ -88,6 +88,7 @@ SymbolType :: enum {
 	Keyword    = 14,
 	EnumMember = 20,
 	Struct     = 22,
+	Unresolved = 9999,
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
