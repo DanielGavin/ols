@@ -742,6 +742,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
 
+		if dist, ok := local.derived.(ast.Distinct_Type); ok {
+			if dist.type != nil {
+				local = dist.type; //save information for overloading
+			}
+		}
+
 		switch v in local.derived {
 		case Ident:
 
@@ -775,9 +781,14 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case:
 			log.warnf("default type node kind: %T", v);
 			return resolve_type_expression(ast_context, local);
-				//return make_symbol_generic_from_ast(ast_context, local), true;
 		}
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
+
+		if dist, ok := global.derived.(ast.Distinct_Type); ok {
+			if dist.type != nil {
+				global = dist.type; //save information for overloading
+			}
+		}
 
 		switch v in global.derived {
 		case Ident:

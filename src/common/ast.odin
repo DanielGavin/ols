@@ -50,7 +50,6 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 	}
 }
 
-//TODO(add a sub procedure to avoid repeating the value decl work)
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator);
