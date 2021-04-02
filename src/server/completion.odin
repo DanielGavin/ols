@@ -42,7 +42,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 		return list, true;
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);
 
@@ -806,9 +806,13 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		append(&pkgs, u);
 	}
 
+	append(&pkgs, ast_context.document_package);
+
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
 		for r in results {
-			append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
+			if r.symbol.uri != ast_context.uri {
+				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
+			}
 		}
 	}
 

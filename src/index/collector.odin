@@ -161,7 +161,10 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 			}
 		}
 
-		append(&types, clone_type(variant, collection.allocator, &collection.unique_strings));
+		cloned := clone_type(variant, collection.allocator, &collection.unique_strings);
+		replace_package_alias(cloned, package_map, collection);
+
+		append(&types, cloned);
 	}
 
 	value := SymbolUnionValue {
@@ -174,8 +177,11 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 
 collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
 
+	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings);
+	replace_package_alias(cloned, package_map, collection);
+
 	value := SymbolBitSetValue {
-		expr = clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings),
+		expr = cloned,
 	};
 
 	return value;
@@ -203,8 +209,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	} else {
 		directory := path.dir(forward, context.temp_allocator);
 	}
-
-
 
 	exprs := common.collect_globals(file);
 

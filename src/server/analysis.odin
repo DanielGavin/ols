@@ -85,9 +85,10 @@ AstContext :: struct {
 	position:         common.AbsolutePosition,
 	value_decl:       ^ast.Value_Decl,
 	field_name:       string,
+	uri:              string,
 }
 
-make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
 
 	ast_context := AstContext {
 		locals = make(map[string][dynamic]DocumentLocal, 0, allocator),
@@ -102,7 +103,13 @@ make_ast_context :: proc(file: ast.File, imports: []Package, package_name: strin
 		use_globals = true,
 		document_package = package_name,
 		current_package = package_name,
+		uri = uri,
 	};
+
+	when ODIN_OS == "windows" {
+		ast_context.uri = strings.to_lower(ast_context.uri, allocator);
+	}
+
 	return ast_context;
 }
 
@@ -1812,7 +1819,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
 	location: common.Location;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	uri: string;
 
@@ -1982,7 +1989,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
 	signature_help: SignatureHelp;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 
@@ -2021,7 +2028,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);
 
