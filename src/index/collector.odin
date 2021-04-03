@@ -201,14 +201,15 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
-	forward, _  := filepath.to_slash(file.fullpath, context.temp_allocator);
-	package_map := get_package_mapping(file, collection.config, uri);
+	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
 
 	when ODIN_OS == "windows" {
 		directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
 	} else {
 		directory := path.dir(forward, context.temp_allocator);
 	}
+
+	package_map := get_package_mapping(file, collection.config, directory);
 
 	exprs := common.collect_globals(file);
 
@@ -312,8 +313,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			} else {
 				token_type = .Unresolved;
 			}
-			token        = expr.expr;
-			break;
+			token = expr.expr;
 		}
 
 		symbol.range = common.get_token_range(token, file.src);
@@ -359,7 +359,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 /*
 	Gets the map from import alias to absolute package directory
 */
-get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string) -> map[string]string {
+get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: string) -> map[string]string {
 
 	package_map := make(map[string]string, 0, context.temp_allocator);
 
@@ -401,15 +401,12 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
 			name: string;
 
-			base := path.base(uri, false, context.temp_allocator);
-
-			full := path.join(elems = {base, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
+			full := path.join(elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
 
 			full = path.clean(full, context.temp_allocator);
 
 			if imp.name.text != "" {
 				name = imp.name.text;
-				//ERROR hover is wrong on name
 			} else {
 				name = path.base(full, false, context.temp_allocator);
 			}
@@ -553,6 +550,9 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case Comp_Lit:
 		replace_package_alias(n.type, package_map, collection);
 		replace_package_alias(n.elems, package_map, collection);
+	case Helper_Type:
+		replace_package_alias(n.type, package_map, collection);
+	case Proc_Lit:
 	case:
 		log.warnf("Replace Unhandled node kind: %T", n);
 	}

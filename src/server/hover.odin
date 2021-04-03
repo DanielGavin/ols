@@ -114,9 +114,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						return hover, true;
 					}
 				}
-			} else if symbol, ok := index.lookup(field, selector.pkg); ok {
-				hover.contents = write_hover_content(&ast_context, symbol);
-				return hover, true;
 			}
 		}
 	} else if position_context.identifier != nil {
