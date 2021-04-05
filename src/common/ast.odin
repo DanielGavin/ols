@@ -373,7 +373,7 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.key, allocator);
 		free_ast(n.value, allocator);
 	case:
-		log.warnf("free Unhandled node kind: %T", n);
+		panic(fmt.aprintf("free Unhandled node kind: %T", n));
 	}
 
 	mem.free(node, allocator);
