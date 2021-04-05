@@ -216,7 +216,9 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
 				for name, i in v.names {
-					//ERROR no completion on name and hover
+
+					ast_context.current_package = comp_symbol.pkg;
+
 					if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 
 						if field_exists_in_comp_lit(position_context.comp_lit, name) {
