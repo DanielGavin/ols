@@ -211,7 +211,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 	package_map := get_package_mapping(file, collection.config, directory);
 
-	exprs := common.collect_globals(file);
+	exprs := common.collect_globals(file, true);
 
 	for expr in exprs {
 
