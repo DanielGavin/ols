@@ -428,8 +428,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		arg_types = params,
 	};
 
-	//log.infof("return %v", poly_map);
-
 	return symbol, true;
 }
 
@@ -459,10 +457,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	using ast;
 
-	//log.info("overload");
-
 	if ast_context.call == nil {
-		//log.info("no call");
 		return index.Symbol {}, false;
 	}
 
@@ -939,7 +934,7 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, val
 	//ERROR no completion or over on names and types - generic resolve error
 	names := slice.to_dynamic(value.names, context.temp_allocator);
 	types := slice.to_dynamic(value.types, context.temp_allocator);
-
+	
 	//ERROR no hover on k and v(completion works)
 	for k, v in value.usings {
 
