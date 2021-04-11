@@ -1625,9 +1625,17 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 
 			switch v in generic.expr.derived {
 			case Map_Type:
-				for val in stmt.vals {
-					if ident, ok := val.derived.(Ident); ok {
+				if len(stmt.vals) >= 1 {
+					if ident, ok := stmt.vals[0].derived.(Ident); ok {
 						store_local(ast_context, v.key, ident.pos.offset, ident.name);
+						ast_context.variables[ident.name]  = true;
+						ast_context.in_package[ident.name] = symbol.pkg;
+					}
+				}
+
+				if len(stmt.vals) >= 2 {
+					if ident, ok := stmt.vals[1].derived.(Ident); ok {
+						store_local(ast_context, v.value, ident.pos.offset, ident.name);
 						ast_context.variables[ident.name]  = true;
 						ast_context.in_package[ident.name] = symbol.pkg;
 					}
