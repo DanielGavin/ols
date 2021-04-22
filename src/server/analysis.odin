@@ -2495,8 +2495,9 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case Selector_Expr:
 		if position_context.hint == .Completion {
 			if n.field != nil && n.field.pos.line - 1 == position_context.line {
-				position_context.selector = n.expr;
-				position_context.field = n.field;
+				//The parser is not fault tolerant enough, relying on the fallback as the main completion parsing for now
+				//position_context.selector = n.expr;
+				//position_context.field = n.field;
 			}
 		} else if (position_context.hint == .Definition || position_context.hint == .Hover) && n.field != nil {
 			position_context.selector = n.expr;
