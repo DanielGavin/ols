@@ -12,7 +12,7 @@ import "core:strconv"
 
 import "shared:common"
 
-SymbolCollection :: struct {
+SymbolCollection :: struct { 
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	symbols:        map[uint]Symbol,

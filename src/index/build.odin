@@ -19,7 +19,7 @@ files: [dynamic]string;
 
 platform_os: map[string]bool = {
 	"windows" = true,
-	"linux" = true,
+	"linux" = true, 
 	"essence" = true,
 	"js" = true,
 	"freebsd" = true,

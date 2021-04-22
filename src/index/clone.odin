@@ -43,7 +43,7 @@ clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator, un
 	for elem, i in array {
 		res[i] = auto_cast clone_type(elem, allocator, unique_strings);
 	}
-	return res;
+	return res; 
 }
 
 clone_expr :: proc(node: ^ast.Expr, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Expr {
