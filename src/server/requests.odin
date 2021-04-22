@@ -465,8 +465,9 @@ request_initialize :: proc (task: ^common.Task) {
 
 	config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
-	completionTriggerCharacters := []string {".", ">", "#", "\"", "/", ":"};
-	signatureTriggerCharacters  := []string {"("};
+	completionTriggerCharacters  := []string {".", ">", "#", "\"", "/", ":"};
+	signatureTriggerCharacters   := []string {"("};
+	signatureRetriggerCharacters := []string {","};
 
 	token_type     := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
 	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
@@ -498,7 +499,8 @@ request_initialize :: proc (task: ^common.Task) {
 				triggerCharacters = completionTriggerCharacters,
 			},
 			signatureHelpProvider = SignatureHelpOptions {
-				triggerCharacters = signatureTriggerCharacters
+				triggerCharacters = signatureTriggerCharacters,
+				retriggerCharacters = signatureRetriggerCharacters,
 			},
 			semanticTokensProvider = SemanticTokensOptions {
 				range = false,

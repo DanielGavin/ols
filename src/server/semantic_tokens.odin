@@ -101,6 +101,10 @@ get_semantic_tokens :: proc(document: ^Document, range: common.Range) -> Semanti
 
 	get_globals(document.ast, &ast_context);
 
+	if document.ast.pkg_decl != nil {
+		write_semantic_token(&builder, document.ast.pkg_token, document.ast.src, .Keyword, .None);
+	}
+
 	for decl in document.ast.decls {
 		if range.start.line <= decl.pos.line && decl.end.line <= range.end.line {
 			write_semantic_tokens(decl, &builder, &ast_context);
@@ -354,8 +358,19 @@ write_semantic_tokens_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuild
 		write_semantic_token_pos(builder, n.tok_pos, "map", ast_context.file.src, .Keyword, .None);
 		write_semantic_tokens(n.key, builder, ast_context);
 		write_semantic_tokens(n.value, builder, ast_context);
+	case Defer_Stmt:
+		write_semantic_token_pos(builder, n.pos, "defer", ast_context.file.src, .Keyword, .None);
+		write_semantic_tokens(n.stmt, builder, ast_context);
+	case Import_Decl:
+		write_semantic_token(builder, n.import_tok, ast_context.file.src, .Keyword, .None);
+
+		if n.name.text != "" {
+			write_semantic_token(builder, n.name, ast_context.file.src, .Namespace, .None);
+		}
+
+		write_semantic_token(builder, n.relpath, ast_context.file.src, .String, .None);
 	case:
-		log.infof("unhandled write node %v", n);
+		log.errorf("unhandled write node %v", n);
 	}
 }
 
