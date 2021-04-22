@@ -370,7 +370,7 @@ write_semantic_tokens_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuild
 
 		write_semantic_token(builder, n.relpath, ast_context.file.src, .String, .None);
 	case:
-		log.errorf("unhandled write node %v", n);
+		log.warnf("unhandled write node %v", n);
 	}
 }
 
