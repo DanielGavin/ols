@@ -740,19 +740,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		}
 	}
 
-	/*
-	//handle all the recursive identifier nonsense + shadowing
-	if node.name == ast_context.last_ident_lookup {
-		//ERROR NO COMPLETION ON LOCAL
-		if local, is_local := ast_context.locals[node.name]; is_local && len(local) == 1 {
-			
-			//return {}, false;
-		} else if _, is_global := ast_context.globals[node.name]; is_global {
-			return {}, false;
-		}
-	}
-	*/
-
 	ast_context.last_ident_lookup = node.name;
 
 	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
