@@ -86,7 +86,7 @@ AstContext :: struct {
 	value_decl:        ^ast.Value_Decl,
 	field_name:        string,
 	uri:               string,
-	last_ident_lookup: string,
+
 }
 
 make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
@@ -739,8 +739,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			}
 		}
 	}
-
-	ast_context.last_ident_lookup = node.name;
 
 	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
@@ -2398,11 +2396,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	context.allocator = context.temp_allocator;
 
-	e := parser.parse_expr(&p, true);
-
-	if call, ok := e.derived.(ast.Call_Expr); ok {
-		position_context.call = e;
-	}
+	position_context.call = parser.parse_expr(&p, true);
 
 	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 }

@@ -98,7 +98,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 	case .Selector:
 		get_selector_completion(&ast_context, &position_context, &list);
 	case .Switch_Type:
-		get_type_switch_Completion(&ast_context, &position_context, &list);
+		get_type_switch_completion(&ast_context, &position_context, &list);
 	case .Directive:
 		get_directive_completion(&ast_context, &position_context, &list);
 	case .Package:
@@ -1035,7 +1035,7 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	return packages[:];
 }
 
-get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 	list.isIncomplete = false;
@@ -1057,6 +1057,9 @@ get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^
 			}
 		}
 	}
+
+	ast_context.use_locals  = true;
+	ast_context.use_globals = true;
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
 
