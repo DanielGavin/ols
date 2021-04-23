@@ -882,7 +882,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			}
 		}
 
-		//TODO(daniel, index can be used on identifiers if using is in the function scope)
 	}
 
 	return index.Symbol {}, false;

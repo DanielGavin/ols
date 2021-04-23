@@ -30,7 +30,7 @@ clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^
 	}
 	res := make(A, len(array), allocator);
 	for elem, i in array {
-		res[i] = auto_cast clone_type(elem, allocator, unique_strings);
+		res[i] = cast(^T)clone_type(elem, allocator, unique_strings);
 	}
 	return res;
 }
