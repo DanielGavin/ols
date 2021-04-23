@@ -182,7 +182,7 @@ resolve_and_write_ident :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder,
 	return;
 }
 
-write_semantic_tokens :: proc{
+write_semantic_tokens :: proc {
 	write_semantic_tokens_node,
 	write_semantic_tokens_dynamic_array,
 	write_semantic_tokens_array,
@@ -208,7 +208,6 @@ write_semantic_tokens_stmt :: proc(node: ^ast.Stmt, builder: ^SemanticTokenBuild
 	ast_context.use_globals     = true;
 	ast_context.use_locals      = true;
 	builder.selector_member     = false;
-	builder.selector_package    = false;
 	write_semantic_tokens_node(node, builder, ast_context);
 }
 
@@ -542,13 +541,18 @@ write_semantic_selector :: proc(selector: ^ast.Selector_Expr, builder: ^Semantic
 
 	using ast;
 
-	if ident, ok := selector.expr.derived.(Ident); ok {
+	if _, ok := selector.expr.derived.(Selector_Expr); !ok {
 		get_locals_at(builder.current_function, selector.expr, ast_context);
-		builder.selector_member, builder.selector_package, ast_context.current_package = resolve_and_write_ident(selector.expr, builder, ast_context); //base
 
-		if builder.selector_package && selector.field != nil && resolve_ident_is_variable(ast_context, selector.field^) {
-			builder.selector_member = true;
+		if symbol, ok := resolve_type_expression(ast_context, selector.expr); ok {
+			
+			#partial switch v in symbol.value {
+			case index.SymbolStructValue:
+				builder.selector_member = true;
+			}
+
 		}
+
 	} else {
 		write_semantic_tokens(selector.expr, builder, ast_context);
 	}
