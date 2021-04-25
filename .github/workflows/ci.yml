@@ -1,0 +1,43 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build_windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download Odin
+      shell: cmd
+      run: git clone https://github.com/odin-lang/Odin
+    - name: Download and unpack LLVM bins
+      shell: powershell
+      run: |
+          cd Odin
+          cd bin
+          $ProgressPreference = "SilentlyContinue";
+          Invoke-WebRequest -Uri https://github.com/odin-lang/Odin/releases/download/llvm-windows/llvm-binaries.zip -OutFile llvm-binaries.zip
+          7z x llvm-binaries.zip > $null 
+    - name: Build Odin
+      shell: cmd
+      run: |
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+        cd Odin
+        ./build.bat 1
+    - name: Build ols
+      shell: cmd
+      run: ./build.bat CI
+    
+    
+

@@ -24,7 +24,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		},
 	};
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	position_context, ok := get_document_position_context(document, position, .Hover);
 
@@ -114,9 +114,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						return hover, true;
 					}
 				}
-			} else if symbol, ok := index.lookup(field, selector.pkg); ok {
-				hover.contents = write_hover_content(&ast_context, symbol);
-				return hover, true;
 			}
 		}
 	} else if position_context.identifier != nil {

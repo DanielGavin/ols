@@ -32,9 +32,19 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		case Type_Info_Struct:
 			for field, i in variant.names {
 				a := any {rawptr(uintptr(v.data) + uintptr(variant.offsets[i])), variant.types[i].id};
-				if ret := unmarshal(j[field], a, allocator); ret != .None {
-					return ret;
+
+				//TEMP most likely have to rewrite the entire unmarshal using tags instead, because i sometimes have to support names like 'context', which can't be written like that
+				if field[len(field)-1] == '_' {
+					if ret := unmarshal(j[field[:len(field)-1]], a, allocator); ret != .None {
+						return ret;
+					}
+				} else {
+					if ret := unmarshal(j[field], a, allocator); ret != .None {
+						return ret;
+					}
 				}
+
+
 			}
 
 		case Type_Info_Union:

@@ -1,16 +1,19 @@
 @echo off
 
 
-rem odin run tests\ -show-timings -llvm-api -collection:shared=src -microarch:native -out:test
+if "%1" == "CI" (
+    set ODIN="Odin/odin"
+) else (
+    set ODIN="odin"
+)
 
-rem odin build tests\ -show-timings  -collection:shared=src -microarch:native -out:test -debug
+%ODIN% test tests -llvm-api
+
+if %errorlevel% neq 0 goto end_of_build
+
+%ODIN% build src\ -show-timings -microarch:native -collection:shared=src -out:ols -opt:2 -llvm-api
+rem %ODIN% build src\ -show-timings -microarch:native -collection:shared=src -out:ols -opt:0 -llvm-api -debug
 
 
-rem odin build src\ -show-timings -microarch:native -collection:shared=src -out:ols -debug
 
-
-rem odin build src\ -llvm-api -show-timings -microarch:native -collection:shared=src -out:ols -debug
-
-odin build src\ -show-timings -microarch:native -collection:shared=src -out:ols -opt:3
-
-
+:end_of_build

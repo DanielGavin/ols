@@ -34,8 +34,17 @@ GlobalExpr :: struct {
 	docs:    ^ast.Comment_Group,
 }
 
-collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node) {
+collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
 	if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
+
+		for attribute in value_decl.attributes {
+			for elem in attribute.elems {
+				if ident, ok := elem.derived.(ast.Ident); ok && ident.name == "private" && skip_private {
+					return;
+				}
+			}
+		}
+
 		for name, i in value_decl.names {
 			str := get_ast_node_string(name, file.src);
 
@@ -50,15 +59,14 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 	}
 }
 
-//TODO(add a sub procedure to avoid repeating the value decl work)
-collect_globals :: proc(file: ast.File) -> []GlobalExpr {
+collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator);
 
 	for decl in file.decls {
 
 		if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
-			collect_value_decl(&exprs, file, decl);
+			collect_value_decl(&exprs, file, decl, skip_private);
 		} else if when_decl, ok := decl.derived.(ast.When_Stmt); ok {
 
 			if when_decl.cond == nil {
@@ -96,13 +104,13 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, stmt);
+								collect_value_decl(&exprs, file, stmt, skip_private);
 							}
 						}
 					} else if ident.name != "ODIN_OS" {
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, stmt);
+								collect_value_decl(&exprs, file, stmt, skip_private);
 							}
 						}
 					}
@@ -112,7 +120,7 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 			else {
 				if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 					for stmt in block.stmts {
-						collect_value_decl(&exprs, file, stmt);
+						collect_value_decl(&exprs, file, stmt, skip_private);
 					}
 				}
 			}
@@ -124,7 +132,7 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
 			if block, ok := foreign_decl.body.derived.(ast.Block_Stmt); ok {
 				for stmt in block.stmts {
-					collect_value_decl(&exprs, file, stmt);
+					collect_value_decl(&exprs, file, stmt, skip_private);
 				}
 			}
 		}
@@ -373,7 +381,7 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.key, allocator);
 		free_ast(n.value, allocator);
 	case:
-		log.warnf("free Unhandled node kind: %T", n);
+		panic(fmt.aprintf("free Unhandled node kind: %T", n));
 	}
 
 	mem.free(node, allocator);

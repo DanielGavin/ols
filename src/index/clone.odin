@@ -30,7 +30,7 @@ clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^
 	}
 	res := make(A, len(array), allocator);
 	for elem, i in array {
-		res[i] = auto_cast clone_type(elem, allocator, unique_strings);
+		res[i] = cast(^T)clone_type(elem, allocator, unique_strings);
 	}
 	return res;
 }
@@ -43,7 +43,7 @@ clone_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator, un
 	for elem, i in array {
 		res[i] = auto_cast clone_type(elem, allocator, unique_strings);
 	}
-	return res;
+	return res; 
 }
 
 clone_expr :: proc(node: ^ast.Expr, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Expr {
@@ -211,12 +211,17 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case Proc_Lit:
 		r := cast(^Proc_Lit)res;
 		r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings);
+		r.body = nil;
+		r.where_clauses = nil;
 	case Helper_Type:
 		r := cast(^Helper_Type)res;
 		r.type = clone_type(r.type, allocator, unique_strings);
 	case Type_Cast:
 		r := cast(^Type_Cast)res;
 		r.type = clone_type(r.type, allocator, unique_strings);
+		r.expr = clone_type(r.expr, allocator, unique_strings);
+	case Deref_Expr:
+		r := cast(^Deref_Expr)res;
 		r.expr = clone_type(r.expr, allocator, unique_strings);
 	case:
 		panic(fmt.aprintf("Clone type Unhandled node kind: %T", node.derived));

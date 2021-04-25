@@ -6,3 +6,8 @@
 *.ll
 *.sublime-project
 *.sublime-workspace
+*.lib
+*.exp
+*.sqlite
+*.suo
+

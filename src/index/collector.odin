@@ -12,7 +12,7 @@ import "core:strconv"
 
 import "shared:common"
 
-SymbolCollection :: struct {
+SymbolCollection :: struct { 
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	symbols:        map[uint]Symbol,
@@ -161,7 +161,10 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 			}
 		}
 
-		append(&types, clone_type(variant, collection.allocator, &collection.unique_strings));
+		cloned := clone_type(variant, collection.allocator, &collection.unique_strings);
+		replace_package_alias(cloned, package_map, collection);
+
+		append(&types, cloned);
 	}
 
 	value := SymbolUnionValue {
@@ -174,8 +177,11 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 
 collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
 
+	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings);
+	replace_package_alias(cloned, package_map, collection);
+
 	value := SymbolBitSetValue {
-		expr = clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings),
+		expr = cloned,
 	};
 
 	return value;
@@ -195,8 +201,7 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 
-	forward, _  := filepath.to_slash(file.fullpath, context.temp_allocator);
-	package_map := get_package_mapping(file, collection.config, uri);
+	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
 
 	when ODIN_OS == "windows" {
 		directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator);
@@ -204,9 +209,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		directory := path.dir(forward, context.temp_allocator);
 	}
 
-	
+	package_map := get_package_mapping(file, collection.config, directory);
 
-	exprs := common.collect_globals(file);
+	exprs := common.collect_globals(file, true);
 
 	for expr in exprs {
 
@@ -295,13 +300,20 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.value = collect_generic(collection, col_expr, package_map);
 		case ast.Ident:
 			token        = v;
-			token_type   = .Variable;
 			symbol.value = collect_generic(collection, col_expr, package_map);
+			if expr.mutable {
+				token_type = .Variable;
+			} else {
+				token_type = .Unresolved;
+			}
 		case: // default
 			symbol.value = collect_generic(collection, col_expr, package_map);
-			token_type   = .Variable;
-			token        = expr.expr;
-			break;
+			if expr.mutable {
+				token_type = .Variable;
+			} else {
+				token_type = .Unresolved;
+			}
+			token = expr.expr;
 		}
 
 		symbol.range = common.get_token_range(token, file.src);
@@ -314,8 +326,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
 		}
-	
-		
+
+
 		if expr.docs != nil {
 
 			tmp: string;
@@ -347,7 +359,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 /*
 	Gets the map from import alias to absolute package directory
 */
-get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string) -> map[string]string {
+get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: string) -> map[string]string {
 
 	package_map := make(map[string]string, 0, context.temp_allocator);
 
@@ -389,15 +401,12 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, uri: string)
 
 			name: string;
 
-			base := path.base(uri, false, context.temp_allocator);
-
-			full := path.join(elems = {base, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
+			full := path.join(elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
 
 			full = path.clean(full, context.temp_allocator);
 
 			if imp.name.text != "" {
 				name = imp.name.text;
-				//ERROR hover is wrong on name
 			} else {
 				name = path.base(full, false, context.temp_allocator);
 			}
@@ -541,6 +550,9 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case Comp_Lit:
 		replace_package_alias(n.type, package_map, collection);
 		replace_package_alias(n.elems, package_map, collection);
+	case Helper_Type:
+		replace_package_alias(n.type, package_map, collection);
+	case Proc_Lit:
 	case:
 		log.warnf("Replace Unhandled node kind: %T", n);
 	}

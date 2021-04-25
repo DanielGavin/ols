@@ -208,7 +208,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 		log.error("No root object");
 		return false;
 	}
-	
+
 	id:       RequestId;
 	id_value: json.Value;
 	id_value, ok = root["id"];
@@ -399,7 +399,7 @@ request_initialize :: proc (task: ^common.Task) {
 	enable_document_symbols: bool;
 	enable_hover:            bool;
 	enable_format:           bool;
-	
+
 	if len(config.workspace_folders) > 0 {
 
 		//right now just look at the first workspace - TODO(daniel, add multiple workspace support)
@@ -432,6 +432,10 @@ request_initialize :: proc (task: ^common.Task) {
 								config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
 							}
 						}
+
+						if ok := "" in config.collections; !ok {
+							config.collections[""] = uri.path;
+						}
 					} else {
 						log.errorf("Failed to unmarshal %v", ols_config_path);
 					}
@@ -461,8 +465,9 @@ request_initialize :: proc (task: ^common.Task) {
 
 	config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
-	completionTriggerCharacters := []string {".", ">", "#"};
-	signatureTriggerCharacters  := []string {"("};
+	completionTriggerCharacters  := []string {".", ">", "#", "\"", "/", ":"};
+	signatureTriggerCharacters   := []string {"("};
+	signatureRetriggerCharacters := []string {","};
 
 	token_type     := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
 	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);
@@ -494,7 +499,8 @@ request_initialize :: proc (task: ^common.Task) {
 				triggerCharacters = completionTriggerCharacters,
 			},
 			signatureHelpProvider = SignatureHelpOptions {
-				triggerCharacters = signatureTriggerCharacters
+				triggerCharacters = signatureTriggerCharacters,
+				retriggerCharacters = signatureRetriggerCharacters,
 			},
 			semanticTokensProvider = SemanticTokensOptions {
 				range = false,
@@ -526,13 +532,13 @@ request_initialize :: proc (task: ^common.Task) {
 	*/
 
 	if core, ok := config.collections["core"]; ok {
-		when ODIN_OS == "windows" { 
+		when ODIN_OS == "windows" {
 			append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
 		} else {
 			append(&index.indexer.built_in_packages, path.join(core, "runtime"));
 		}
 	}
-	
+
 	log.info("Finished indexing");
 }
 
@@ -624,7 +630,7 @@ request_completion :: proc (task: ^common.Task) {
 	}
 
 	list: CompletionList;
-	list, ok = get_completion_list(document, completition_params.position);
+	list, ok = get_completion_list(document, completition_params.position, completition_params.context_);
 
 	if !ok {
 		handle_error(.InternalError, id, writer);
@@ -878,7 +884,7 @@ notification_did_save :: proc (task: ^common.Task) {
 			index.indexer.dynamic_index.collection.symbols[key] = {};
 		}
 	}
-	
+
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret);
 	}

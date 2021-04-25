@@ -12,6 +12,8 @@ import "core:strconv"
 import "core:path/filepath"
 import "core:sort"
 import "core:slice"
+import "core:os"
+
 
 import "shared:common"
 import "shared:index"
@@ -23,9 +25,10 @@ Completion_Type :: enum {
 	Identifier,
 	Comp_Lit,
 	Directive,
+	Package,
 }
 
-get_completion_list :: proc(document: ^Document, position: common.Position) -> (CompletionList, bool) {
+get_completion_list :: proc(document: ^Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
 
 	list: CompletionList;
 
@@ -35,7 +38,11 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 		return list, true;
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name);
+	if position_context.import_stmt == nil && strings.contains_any(completion_context.triggerCharacter, "/:\"") {
+		return list, true;
+	}
+
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);
 
@@ -64,9 +71,16 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 		completion_type = .Implicit;
 	}
 
+	if position_context.import_stmt != nil {
+		completion_type = .Package;
+	}
+
 	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
 
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
+
+			ast_context.use_globals = true;
+			ast_context.use_locals = true;
 
 			if symbol, ok := resolve_type_expression(&ast_context, assign.rhs[0]); ok {
 
@@ -87,9 +101,11 @@ get_completion_list :: proc(document: ^Document, position: common.Position) -> (
 	case .Selector:
 		get_selector_completion(&ast_context, &position_context, &list);
 	case .Switch_Type:
-		get_type_switch_Completion(&ast_context, &position_context, &list);
+		get_type_switch_completion(&ast_context, &position_context, &list);
 	case .Directive:
 		get_directive_completion(&ast_context, &position_context, &list);
+	case .Package:
+		get_package_completion(&ast_context, &position_context, &list);
 	}
 
 	return list, true;
@@ -203,7 +219,9 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
 				for name, i in v.names {
-					//ERROR no completion on name and hover
+
+					ast_context.current_package = comp_symbol.pkg;
+
 					if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 
 						if field_exists_in_comp_lit(position_context.comp_lit, name) {
@@ -724,11 +742,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 
-					log.error("procedure symbol");
-
 					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
-
-						log.error("unwrap");
 
 						for name in enum_value.names {
 							item := CompletionItem {
@@ -800,9 +814,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 	append(&pkgs, ast_context.document_package);
 
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
-
 		for r in results {
-			append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
+			if r.symbol.uri != ast_context.uri {
+				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
+			}
 		}
 	}
 
@@ -938,9 +953,92 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 }
 
 get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+
+	items := make([dynamic]CompletionItem, context.temp_allocator);
+
+	list.isIncomplete = false;
+
+	fullpath_length := len(position_context.import_stmt.fullpath);
+
+	if fullpath_length <= 1 {
+		return;
+	}
+
+	without_quotes := position_context.import_stmt.fullpath[1:fullpath_length-1];
+	absolute_path := without_quotes;
+	colon_index := strings.index(without_quotes, ":");
+
+	if colon_index >= 0 {
+		c := without_quotes[0:colon_index];
+
+		if colon_index+1 < len(without_quotes) {
+			absolute_path = filepath.join(elems = {common.config.collections[c], filepath.dir(without_quotes[colon_index+1:], context.temp_allocator)}, allocator = context.temp_allocator);
+		} else {
+			absolute_path = common.config.collections[c];
+		}
+	} else {
+		import_file_dir := filepath.dir(position_context.import_stmt.pos.file, context.temp_allocator);
+		import_dir := filepath.dir(without_quotes, context.temp_allocator);
+		absolute_path = filepath.join(elems = {import_file_dir, import_dir}, allocator = context.temp_allocator);
+	}
+
+	if !strings.contains(position_context.import_stmt.fullpath, "/") && !strings.contains(position_context.import_stmt.fullpath, ":") {
+
+		for key, _ in common.config.collections {
+
+			item := CompletionItem {
+				detail = "collection",
+				label = key,
+				kind = .Module,
+			};
+
+			append(&items, item);
+		}
+
+	}
+
+	for pkg in search_for_packages(absolute_path) {
+
+		item := CompletionItem {
+			detail = pkg,
+			label = filepath.base(pkg),
+			kind = .Folder,
+		};
+
+		if item.label[0] == '.' {
+			continue;
+		}
+
+		append(&items, item);
+	}
+
+	list.items = items[:];
 }
 
-get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+search_for_packages :: proc(fullpath: string) -> [] string {
+
+	packages := make([dynamic]string, context.temp_allocator);
+
+	fh, err := os.open(fullpath);
+
+	if err != 0 {
+		return {};
+	}
+
+	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == 0 {
+
+		for file in files {
+			if file.is_dir {
+				append(&packages, file.fullpath);
+			}
+		}
+
+	}
+
+	return packages[:];
+}
+
+get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 	list.isIncomplete = false;
@@ -962,6 +1060,9 @@ get_type_switch_Completion :: proc(ast_context: ^AstContext, position_context: ^
 			}
 		}
 	}
+
+	ast_context.use_locals  = true;
+	ast_context.use_globals = true;
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
 

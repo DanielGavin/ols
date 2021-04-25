@@ -4,7 +4,6 @@ import "core:odin/ast"
 import "core:hash"
 import "core:strings"
 import "core:mem"
-import "core:fmt"
 import "core:path/filepath"
 import "core:path"
 import "core:slice"
@@ -88,13 +87,14 @@ SymbolType :: enum {
 	Keyword    = 14,
 	EnumMember = 20,
 	Struct     = 22,
+	Unresolved = 9999,
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
 	if symbol.signature != "" && symbol.signature != "struct" &&
 	symbol.signature != "union" && symbol.signature != "enum" &&
-	symbol.signature != "bitset" && symbol.signature != "bitfield" {
+	symbol.signature != "bitset" {
 		delete(symbol.signature, allocator);
 	}
 

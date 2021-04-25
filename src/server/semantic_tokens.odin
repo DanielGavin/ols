@@ -96,10 +96,14 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 
 get_semantic_tokens :: proc(document: ^Document, range: common.Range) -> SemanticTokens {
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, context.temp_allocator);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, context.temp_allocator);
 	builder     := make_token_builder();
 
 	get_globals(document.ast, &ast_context);
+
+	if document.ast.pkg_decl != nil {
+		write_semantic_token(&builder, document.ast.pkg_token, document.ast.src, .Keyword, .None);
+	}
 
 	for decl in document.ast.decls {
 		if range.start.line <= decl.pos.line && decl.end.line <= range.end.line {
@@ -178,7 +182,7 @@ resolve_and_write_ident :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder,
 	return;
 }
 
-write_semantic_tokens :: proc{
+write_semantic_tokens :: proc {
 	write_semantic_tokens_node,
 	write_semantic_tokens_dynamic_array,
 	write_semantic_tokens_array,
@@ -204,7 +208,6 @@ write_semantic_tokens_stmt :: proc(node: ^ast.Stmt, builder: ^SemanticTokenBuild
 	ast_context.use_globals     = true;
 	ast_context.use_locals      = true;
 	builder.selector_member     = false;
-	builder.selector_package    = false;
 	write_semantic_tokens_node(node, builder, ast_context);
 }
 
@@ -354,8 +357,19 @@ write_semantic_tokens_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuild
 		write_semantic_token_pos(builder, n.tok_pos, "map", ast_context.file.src, .Keyword, .None);
 		write_semantic_tokens(n.key, builder, ast_context);
 		write_semantic_tokens(n.value, builder, ast_context);
+	case Defer_Stmt:
+		write_semantic_token_pos(builder, n.pos, "defer", ast_context.file.src, .Keyword, .None);
+		write_semantic_tokens(n.stmt, builder, ast_context);
+	case Import_Decl:
+		write_semantic_token(builder, n.import_tok, ast_context.file.src, .Keyword, .None);
+
+		if n.name.text != "" {
+			write_semantic_token(builder, n.name, ast_context.file.src, .Namespace, .None);
+		}
+
+		write_semantic_token(builder, n.relpath, ast_context.file.src, .String, .None);
 	case:
-		log.infof("unhandled write node %v", n);
+		log.warnf("unhandled write node %v", n);
 	}
 }
 
@@ -527,13 +541,18 @@ write_semantic_selector :: proc(selector: ^ast.Selector_Expr, builder: ^Semantic
 
 	using ast;
 
-	if ident, ok := selector.expr.derived.(Ident); ok {
+	if _, ok := selector.expr.derived.(Selector_Expr); !ok {
 		get_locals_at(builder.current_function, selector.expr, ast_context);
-		builder.selector_member, builder.selector_package, ast_context.current_package = resolve_and_write_ident(selector.expr, builder, ast_context); //base
 
-		if builder.selector_package && selector.field != nil && resolve_ident_is_variable(ast_context, selector.field^) {
-			builder.selector_member = true;
+		if symbol, ok := resolve_type_expression(ast_context, selector.expr); ok {
+			
+			#partial switch v in symbol.value {
+			case index.SymbolStructValue:
+				builder.selector_member = true;
+			}
+
 		}
+
 	} else {
 		write_semantic_tokens(selector.expr, builder, ast_context);
 	}

@@ -208,7 +208,7 @@ get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: []u
 
 		r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
-		if r == '\n' {
+		if r == '\n' || r == '\r' {
 			return utf8_idx;
 		} else if w == 0 {
 			return utf8_idx;
@@ -233,31 +233,7 @@ get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: []u
 
 		r, w := utf8.decode_rune(document_text[utf8_idx:]);
 
-		if r == '\n' {
-			return utf16_idx;
-		} else if w == 0 {
-			return utf16_idx;
-		} else if r < 0x10000 {
-			utf16_idx += 1;
-		} else {
-			utf16_idx += 2;
-		}
-
-		utf8_idx += w;
-	}
-
-	return utf16_idx;
-}
-
-get_end_line_u16 :: proc(document_text: []u8) -> int {
-
-	utf8_idx  := 0;
-	utf16_idx := 0;
-
-	for utf8_idx < len(document_text) {
-		r, w := utf8.decode_rune(document_text[utf8_idx:]);
-
-		if r == '\n' {
+		if r == '\n' || r == '\r' {
 			return utf16_idx;
 		} else if w == 0 {
 			return utf16_idx;
