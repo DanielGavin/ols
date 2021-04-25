@@ -18,16 +18,17 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
+    - name: Download Odin
+      shell: cmd
+      run: git clone https://github.com/odin-lang/Odin
     - name: Download and unpack LLVM bins
       shell: powershell
       run: |
+          cd Odin
           cd bin
           $ProgressPreference = "SilentlyContinue";
           Invoke-WebRequest -Uri https://github.com/odin-lang/Odin/releases/download/llvm-windows/llvm-binaries.zip -OutFile llvm-binaries.zip
           7z x llvm-binaries.zip > $null 
-    - name: Download Odin
-      shell: cmd
-      run: git clone https://github.com/odin-lang/Odin
     - name: Build Odin
       shell: cmd
       run: |
