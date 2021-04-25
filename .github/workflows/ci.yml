@@ -52,5 +52,25 @@ jobs:
         make release
     - name: Build ols
       run: ./build.sh CI
+  build_macOS:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download LLVM and setup PATH
+      run: |
+        brew install llvm@11
+        echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
+        TMP_PATH=$(xcrun --show-sdk-path)/user/include
+        echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
+    - name: Download Odin
+      run: git clone https://github.com/odin-lang/Odin
+    - name: Build Odin
+      run: |
+        cd Odin
+        make release
+    - name: Build ols
+      run: ./build.sh CI
+     
+     
     
 
