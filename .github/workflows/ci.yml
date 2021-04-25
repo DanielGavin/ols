@@ -33,8 +33,9 @@ jobs:
       shell: cmd
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
-        /Odin/build.bat 1
-        $env:Path += ";.\Odin";
+        cd Odin
+        ./build.bat 1
+        $env:Path += ";.";
     - name: Build ols
       shell: cmd
       run: ./build.bat
