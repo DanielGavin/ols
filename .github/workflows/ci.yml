@@ -38,6 +38,19 @@ jobs:
     - name: Build ols
       shell: cmd
       run: ./build.bat CI
-    
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download LLVM
+      run: sudo apt-get install llvm-11 clang-11 llvm
+    - name: Download Odin
+      run: git clone https://github.com/odin-lang/Odin
+    - name: Build Odin
+      run: |
+        cd Odin
+        make release
+    - name: Build ols
+      run: ./build.sh CI
     
 
