@@ -4,7 +4,7 @@
 if "%1" == "CI" (
     set ODIN="Odin/odin"
 ) else (
-    set ODIN="C:\Users\danie\OneDrive\Desktop\Computer_Science\Odin-fork\odin"
+    set ODIN="odin"
 )
 
 %ODIN% test tests -llvm-api
