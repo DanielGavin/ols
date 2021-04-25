@@ -1,7 +1,19 @@
-#!/bin/sh -x
+#!/usr/bin/env bash
 
-#debug mode is the only version that works on linux right now...
-odin build src/ -show-timings -microarch:native -collection:shared=src -debug -out:ols
+if [[ $1 == "CI" ]]
+then 
+    ODIN="Odin/odin"
+else
+    ODIN="odin"
+fi
 
-#odin build src/ -show-timings  -collection:shared=src -out:ols -opt:2
+#BUG in odin test, it makes the executable with the same name as a folder and gets confused.
+#${ODIN} test tests -llvm-api
 
+#if [ $? -ne 0 ]
+#then
+#    echo "Test failed"
+#    exit 1
+#fi
+
+${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2 -llvm-api -microarch=native
