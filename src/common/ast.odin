@@ -92,8 +92,7 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 
 				if ident != nil && basic_lit != nil {
 
-					//hardcode for windows for now
-					if ident.name == "ODIN_OS" && basic_lit.tok.text == "\"windows\"" {
+					if ident.name == "ODIN_OS" && basic_lit.tok.text == ODIN_OS {
 
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 							for stmt in block.stmts {
