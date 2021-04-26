@@ -16,4 +16,4 @@ fi
 #    exit 1
 #fi
 
-${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2 -llvm-api -microarch=native
+${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2 -microarch=native
