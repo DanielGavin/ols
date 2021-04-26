@@ -2397,6 +2397,10 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	position_context.call = parser.parse_expr(&p, true);
 
+	if _, ok := position_context.call.derived.(ast.Proc_Type); ok {
+		position_context.call = nil;
+	}
+	
 	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 }
 
