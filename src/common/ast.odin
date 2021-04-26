@@ -115,9 +115,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 						}
 					}
 				}
-			}
-
-			else {
+			} else {
 				if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 					for stmt in block.stmts {
 						collect_value_decl(&exprs, file, stmt, skip_private);

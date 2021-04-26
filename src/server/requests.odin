@@ -490,7 +490,7 @@ request_initialize :: proc (task: ^common.Task) {
 				openClose = true,
 				change = 2, //incremental
 				save = {
-					includeText = true
+					includeText = true,
 				},
 			},
 			definitionProvider = true,
@@ -513,7 +513,7 @@ request_initialize :: proc (task: ^common.Task) {
 			documentSymbolProvider = enable_document_symbols,
 			hoverProvider = enable_hover,
 			documentFormattingProvider = enable_format,
-		}
+		},
 	},
 	id = id);
 
@@ -916,10 +916,10 @@ request_semantic_token_full :: proc (task: ^common.Task) {
 
 	range := common.Range {
 		start = common.Position {
-			line = 0
+			line = 0,
 		},
 		end = common.Position {
-			line = 9000000 //should be enough
+			line = 9000000, //should be enough
 		},
 	};
 
