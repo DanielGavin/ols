@@ -7,7 +7,7 @@ if "%1" == "CI" (
     set ODIN="odin"
 )
 
-%ODIN% test tests -llvm-api
+%ODIN% test tests -llvm-api -collection:shared=src
 
 if %errorlevel% neq 0 goto end_of_build
 
