@@ -767,6 +767,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
 			return make_symbol_dynamic_array_from_ast(ast_context, v), true;
+		case Map_Type:
+			return make_symbol_map_from_ast(ast_context, v), true;
 		case Call_Expr:
 			return resolve_type_expression(ast_context, local);
 		case:
@@ -1211,6 +1213,21 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 
 	symbol.value = index.SymbolDynamicArrayValue {
 		expr = v.elem,
+	};
+
+	return symbol;
+}
+
+make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type) -> index.Symbol {
+
+	symbol := index.Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		pkg = get_package_from_node(v.node),
+	};
+
+	symbol.value = index.SymbolMapValue {
+		key = v.key,
+		value = v.value,
 	};
 
 	return symbol;

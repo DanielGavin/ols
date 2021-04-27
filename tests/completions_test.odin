@@ -7,7 +7,6 @@ import test "shared:testing"
 
 @(test)
 ast_simple_struct_completion :: proc(t: ^testing.T) {
-
     source := test.Source {
         main = `package test
 
@@ -30,7 +29,6 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_index_array_completion :: proc(t: ^testing.T) {
-
     source := test.Source {
         main = `package test
 
@@ -53,7 +51,6 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_struct_pointer_completion :: proc(t: ^testing.T) {
-
     source := test.Source {
         main = `package test
 
@@ -76,7 +73,6 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_struct_take_address_completion :: proc(t: ^testing.T) {
-
     source := test.Source {
         main = `package test
 
@@ -100,7 +96,6 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_struct_deref_completion :: proc(t: ^testing.T) {
-
     source := test.Source {
         main = `package test
 
@@ -121,5 +116,59 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 
     test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
 }
+
+@(test)
+ast_range_map :: proc(t: ^testing.T) {
+    source := test.Source {
+        main = `package test
+
+        My_Struct :: struct {
+            one: int,
+            two: int,
+            three: int,
+        }
+
+        main :: proc() {
+            my_map: map[int]My_Struct;
+            
+            for key, value in my_map {
+                value.*
+            }
+
+        }
+        `,
+        source_packages = {},
+    };
+
+    test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+}
+
+@(test)
+ast_range_array :: proc(t: ^testing.T) {
+    source := test.Source {
+        main = `package test
+
+        My_Struct :: struct {
+            one: int,
+            two: int,
+            three: int,
+        }
+
+        main :: proc() {
+            my_array: []My_Struct;
+            
+            for value in my_array {
+                value.*
+            }
+
+        }
+        `,
+        source_packages = {},
+    };
+
+    test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+}
+
+
 
 
