@@ -384,25 +384,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.name = get_index_unique_string(collection, name);
 		symbol.pkg = get_index_unique_string(collection, directory);
 		symbol.type = token_type;
+		symbol.doc = common.get_doc(expr.docs, collection.allocator);
 
 		when ODIN_OS == "windows" {
 			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));
 		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
-		}
-
-		if expr.docs != nil {
-
-			tmp: string;
-
-			for doc in expr.docs.list {
-				tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator);
-			}
-
-			if tmp != "" {
-				replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator);
-				symbol.doc = strings.clone(replaced, collection.allocator);
-			}
 		}
 
 		cat := strings.concatenate({symbol.pkg, name}, context.temp_allocator);

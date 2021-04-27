@@ -13,6 +13,7 @@ import "core:path/filepath"
 import "core:sort"
 import "core:slice"
 import "core:unicode/utf8"
+import "core:reflect"
 
 import "shared:common"
 import "shared:index"
@@ -82,7 +83,6 @@ AstContext :: struct {
 	value_decl:        ^ast.Value_Decl,
 	field_name:        string,
 	uri:               string,
-
 }
 
 make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
@@ -449,6 +449,29 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list);
 }
 
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bool
+{
+	a_id := reflect.union_variant_typeid(a);
+	b_id := reflect.union_variant_typeid(b);
+
+	if a_id != b_id {
+		return false;
+	}
+
+	if a.pointers != b.pointers {
+		return false;
+	}
+
+	/*
+	switch s in a.value {
+	case index.SymbolBasicValue:
+		
+	}
+	*/
+
+	return true;
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -476,26 +499,35 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 				for arg, i in call_expr.args {
 
-					if eval_call_expr, ok := resolve_type_expression(ast_context, arg); ok {
+					call_symbol: index.Symbol;
+					arg_symbol:  index.Symbol;
+					ok:          bool;
 
-						#partial switch v in eval_call_expr.value {
-						case index.SymbolProcedureValue:
-						/*
-						case index.SymbolGenericValue:
-							if !common.node_equal(v.expr, procedure.arg_types[i].type) {
-								break next_fn;
-							}
-							*/
-						case index.SymbolStructValue:
-						}
-					} else {
-						return index.Symbol {}, false;
+					if _, ok = arg.derived.(ast.Bad_Expr); ok {
+						continue;
 					}
+
+					call_symbol, ok = resolve_type_expression(ast_context, arg);
+
+					if !ok {
+						fmt.println("call_symbol failed");
+						break next_fn;
+					}
+
+					arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type);
+
+					if !ok {
+						fmt.println("arg_symbol failed");
+						break next_fn;
+					}
+
+					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {
+						break next_fn;
+					}
+
 				}
 
 				append(&candidates, f);
-
-				return f, true;
 			}
 		}
 	}
@@ -772,7 +804,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Call_Expr:
 			return resolve_type_expression(ast_context, local);
 		case:
-			log.warnf("default type node kind: %T", v);
 			return resolve_type_expression(ast_context, local);
 		}
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
@@ -2060,17 +2091,26 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	call: index.Symbol;
 	call, ok = resolve_type_expression(&ast_context, position_context.call);
 
-	if symbol, ok := call.value.(index.SymbolProcedureValue); !ok {
-		return signature_help, true;
+	signature_information := make([dynamic]SignatureInformation, 1, context.temp_allocator);
+
+	if _, ok := call.value.(index.SymbolProcedureValue); ok {
+		info := SignatureInformation {
+			label = concatenate_symbols_information(&ast_context, call, false),
+			documentation = call.doc,
+		};	
+		append(&signature_information, info);
+	} else if value, ok := call.value.(index.SymbolAggregateValue); ok {
+		for symbol in value.symbols {
+			info := SignatureInformation {
+				label = concatenate_symbols_information(&ast_context, symbol, false),
+				documentation = symbol.doc,
+			};	
+			append(&signature_information, info);
+		}
 	}
 
-	signature_information := make([]SignatureInformation, 1, context.temp_allocator);
-
-	signature_information[0].label = concatenate_symbols_information(&ast_context, call, false);
-	signature_information[0].documentation = call.doc;
-
-	signature_help.signatures = signature_information;
-	signature_help.activeSignature = 0;
+	signature_help.signatures = signature_information[:];
+	signature_help.activeSignature = len(signature_information);
 	signature_help.activeParameter = 0;
 
 	return signature_help, true;

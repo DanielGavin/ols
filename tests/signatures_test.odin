@@ -63,5 +63,5 @@ ast_proc_group_signature :: proc(t: ^testing.T) {
         source_packages = {},
     };
 
-    //test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int)", "test.bool_function: proc(a: bool)"});
+    test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int)", "test.bool_function: proc(a: bool)"});
 }
