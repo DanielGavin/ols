@@ -991,6 +991,8 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		} else {
 			return symbol, true;
 		}
+	case index.SymbolGenericValue:
+		return resolve_type_expression(ast_context, v.expr);
 	}
 
 	return symbol, true;

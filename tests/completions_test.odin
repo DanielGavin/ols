@@ -169,6 +169,28 @@ ast_range_array :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
 }
 
+@(test)
+index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 
+    source := test.Source {
+        main = `package test
+
+        My_Struct :: struct {
+            one: int,
+            two: int,
+            three: int,
+        }
+
+        main :: proc() {
+            my_comp := M* {
+
+            };
+        }
+        `,
+        source_packages = {},
+    };
+
+    //test.expect_completion_details(t, &source, "", {"My_Struct: struct"});
+}
 
 

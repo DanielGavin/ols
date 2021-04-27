@@ -12,14 +12,14 @@ import "core:strconv"
 
 import "shared:common"
 
-SymbolCollection :: struct { 
+SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	symbols:        map[uint]Symbol,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
-get_index_unique_string :: proc{
+get_index_unique_string :: proc {
 	get_index_unique_string_collection,
 	get_index_unique_string_collection_raw,
 };
@@ -180,11 +180,59 @@ collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit
 	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
-	value := SymbolBitSetValue {
+	return SymbolBitSetValue {
 		expr = cloned,
 	};
+}
 
-	return value;
+collect_slice :: proc(collection: ^SymbolCollection, array: ast.Array_Type, package_map: map[string]string) -> SymbolFixedArrayValue {
+
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
+	len  := clone_type(array.len, collection.allocator, &collection.unique_strings);
+
+	replace_package_alias(elem, package_map, collection);
+	replace_package_alias(len, package_map, collection);
+
+	return SymbolFixedArrayValue {
+		expr = elem,
+		len = len,
+	};
+}
+
+collect_array :: proc(collection: ^SymbolCollection, array: ast.Array_Type, package_map: map[string]string) -> SymbolSliceValue {
+
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
+
+	replace_package_alias(elem, package_map, collection);
+
+	return SymbolSliceValue {
+		expr = elem,
+	};
+}
+
+collect_map :: proc(collection: ^SymbolCollection, m: ast.Map_Type, package_map: map[string]string) -> SymbolMapValue {
+
+	key   := clone_type(m.key, collection.allocator, &collection.unique_strings);
+	value := clone_type(m.value, collection.allocator, &collection.unique_strings);
+
+	replace_package_alias(key, package_map, collection);
+	replace_package_alias(value, package_map, collection);
+
+	return SymbolMapValue {
+		key = key,
+		value = value,
+	};
+}
+
+collect_dynamic_array :: proc(collection: ^SymbolCollection, array: ast.Dynamic_Array_Type, package_map: map[string]string) -> SymbolDynamicArrayValue {
+
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
+
+	replace_package_alias(elem, package_map, collection);
+
+	return SymbolDynamicArrayValue {
+		expr = elem,
+	};
 }
 
 collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string) -> SymbolGenericValue {
@@ -238,68 +286,84 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 		switch v in col_expr.derived {
 		case ast.Proc_Lit:
-			token      = v;
+			token = v;
 			token_type = .Function;
 
 			if v.type.params != nil {
 				symbol.signature = strings.concatenate({"(", string(file.src[v.type.params.pos.offset:v.type.params.end.offset]), ")"},
-				                   collection.allocator);
+				                                       collection.allocator);
 			}
 
 			if v.type.results != nil {
 				symbol.returns = strings.concatenate({"(", string(file.src[v.type.results.pos.offset:v.type.results.end.offset]), ")"},
-				                   collection.allocator);
+				                                     collection.allocator);
 			}
 
 			if v.type != nil {
 				symbol.value = collect_procedure_fields(collection, v.type, v.type.params, v.type.results, package_map);
 			}
 		case ast.Proc_Type:
-			token      = v;
+			token = v;
 			token_type = .Function;
 
 			if v.params != nil {
 				symbol.signature = strings.concatenate({"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"},
-				                   collection.allocator);
+				                                       collection.allocator);
 			}
 
 			if v.results != nil {
 				symbol.returns = strings.concatenate({"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"},
-				                   collection.allocator);
+				                                     collection.allocator);
 			}
 
 			symbol.value = collect_procedure_fields(collection, cast(^ast.Proc_Type)col_expr, v.params, v.results, package_map);
 		case ast.Proc_Group:
-			token        = v;
-			token_type   = .Function;
+			token = v;
+			token_type = .Function;
 			symbol.value = SymbolProcedureGroupValue {
 				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
 			};
 		case ast.Struct_Type:
-			token            = v;
-			token_type       = .Struct;
-			symbol.value     = collect_struct_fields(collection, v, package_map);
+			token = v;
+			token_type = .Struct;
+			symbol.value = collect_struct_fields(collection, v, package_map);
 			symbol.signature = "struct";
 		case ast.Enum_Type:
-			token            = v;
-			token_type       = .Enum;
-			symbol.value     = collect_enum_fields(collection, v.fields, package_map);
+			token = v;
+			token_type = .Enum;
+			symbol.value = collect_enum_fields(collection, v.fields, package_map);
 			symbol.signature = "enum";
 		case ast.Union_Type:
-			token            = v;
-			token_type       = .Enum;
-			symbol.value     = collect_union_fields(collection, v, package_map);
+			token = v;
+			token_type = .Enum;
+			symbol.value = collect_union_fields(collection, v, package_map);
 			symbol.signature = "union";
 		case ast.Bit_Set_Type:
-			token            = v;
-			token_type       = .Enum;
-			symbol.value     = collect_bitset_field(collection, v, package_map);
+			token = v;
+			token_type = .Enum;
+			symbol.value = collect_bitset_field(collection, v, package_map);
 			symbol.signature = "bitset";
+		case ast.Map_Type:
+			token = v;
+			token_type = .Variable;
+			symbol.value = collect_map(collection, v, package_map);
+		case ast.Array_Type:
+			token = v;
+			token_type = .Variable;
+			if v.len == nil {
+				symbol.value = collect_slice(collection, v, package_map);
+			} else {
+				symbol.value = collect_array(collection, v, package_map);
+			}
+		case ast.Dynamic_Array_Type:
+			token = v;
+			token_type = .Variable;
+			symbol.value = collect_dynamic_array(collection, v, package_map);
 		case ast.Basic_Lit:
-			token        = v;
+			token = v;
 			symbol.value = collect_generic(collection, col_expr, package_map);
 		case ast.Ident:
-			token        = v;
+			token = v;
 			symbol.value = collect_generic(collection, col_expr, package_map);
 			if expr.mutable {
 				token_type = .Variable;
@@ -317,16 +381,15 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		}
 
 		symbol.range = common.get_token_range(token, file.src);
-		symbol.name  = get_index_unique_string(collection, name);
-		symbol.pkg   = get_index_unique_string(collection, directory);
-		symbol.type  = token_type;
+		symbol.name = get_index_unique_string(collection, name);
+		symbol.pkg = get_index_unique_string(collection, directory);
+		symbol.type = token_type;
 
 		when ODIN_OS == "windows" {
 			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));
 		} else {
 			symbol.uri = get_index_unique_string(collection, uri);
 		}
-
 
 		if expr.docs != nil {
 
@@ -427,7 +490,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 	package name(absolute directory path)
 */
 
-replace_package_alias :: proc{
+replace_package_alias :: proc {
 	replace_package_alias_node,
 	replace_package_alias_expr,
 	replace_package_alias_array,
