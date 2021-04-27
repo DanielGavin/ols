@@ -23,10 +23,6 @@ import "shared:index"
 	TODO(try to flatten some of the nested branches if possible)
 */
 
-bool_lit   := "bool";
-int_lit    := "int";
-string_lit := "string";
-
 DocumentPositionContextHint :: enum {
 	Completion,
 	SignatureHelp,
@@ -374,9 +370,11 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 				if arg_eval, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
 
+					/*
 					if value, ok := arg_eval.value.(index.SymbolGenericValue); ok {
 						resolve_poly_spec_node(ast_context, value.expr, poly.specialization, &poly_map);
 					}
+					*/
 				}
 			}
 
@@ -464,6 +462,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	call_expr := ast_context.call;
 
+	candidates := make([dynamic] index.Symbol, context.temp_allocator);
+
 	for arg_expr in group.args {
 
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
@@ -480,22 +480,34 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 						#partial switch v in eval_call_expr.value {
 						case index.SymbolProcedureValue:
+						/*
 						case index.SymbolGenericValue:
 							if !common.node_equal(v.expr, procedure.arg_types[i].type) {
 								break next_fn;
 							}
+							*/
 						case index.SymbolStructValue:
 						}
 					} else {
-						//log.debug("Failed to resolve call expr");
 						return index.Symbol {}, false;
 					}
 				}
 
-				//log.debugf("return overload %v", f);
+				append(&candidates, f);
+
 				return f, true;
 			}
 		}
+	}
+
+	if len(candidates) > 1 {
+		return index.Symbol {
+			value = index.SymbolAggregateValue {
+				symbols = candidates[:],
+			},
+		}, true;
+	} else if len(candidates) == 1 {
+		return candidates[0], true;
 	}
 
 	return index.Symbol {}, false;
@@ -503,29 +515,21 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
 
-	/*
-		This is temporary, since basic lit is untyped, but either way it's going to be an ident representing a keyword.
-
-		Could perhaps name them "$integer", "$float", etc.
-	*/
-
-	ident := index.new_type(ast.Ident, basic_lit.pos, basic_lit.end, context.temp_allocator);
-
 	symbol := index.Symbol {
 		type = .Keyword,
 	};
 
+	value: index.SymbolUntypedValue;
+
 	if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
-		ident.name = bool_lit;
+		value.type = .Bool;
 	} else if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
-		ident.name = int_lit;
+		value.type = .Integer;
 	} else {
-		ident.name = string_lit;
+		value.type = .String;
 	}
 
-	symbol.value = index.SymbolGenericValue {
-		expr = ident,
-	};
+	symbol.value = value;
 
 	return symbol, true;
 }
@@ -551,12 +555,16 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return resolve_type_expression(ast_context, v.expr);
 	case Unary_Expr:
 		if v.op.kind == .And {
-			return resolve_type_expression(ast_context, make_pointer_ast(v.expr));
+			symbol, ok := resolve_type_expression(ast_context, v.expr);
+			symbol.pointers += 1;
+			return symbol, ok;
 		} else {
 			return resolve_type_expression(ast_context, v.expr);
 		}
 	case Deref_Expr:
-		return resolve_type_expression(ast_context, v.expr);
+		symbol, ok := resolve_type_expression(ast_context, v.expr);
+		symbol.pointers -= 1;
+		return symbol, ok;
 	case Paren_Expr:
 		return resolve_type_expression(ast_context, v.expr);
 	case Slice_Expr:
@@ -580,32 +588,21 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 			}
 		}
 	case Pointer_Type:
-
-		/*
-			Add flag to not pull out a type from a pointer for function overloading.
-		*/
-
-		if v2, ok := v.elem.derived.(ast.Pointer_Type); !ok {
-			return resolve_type_expression(ast_context, v.elem);
-		} else if v2, ok := v.elem.derived.(ast.Type_Assertion); !ok {
-			return resolve_type_expression(ast_context, v.elem);
-		} else {
-			return make_symbol_generic_from_ast(ast_context, node), true;
-		}
-
+		symbol, ok := resolve_type_expression(ast_context, v.elem);
+		symbol.pointers += 1;
+		return symbol, ok;
 	case Index_Expr:
 		indexed, ok := resolve_type_expression(ast_context, v.expr);
 
-		if generic, ok := indexed.value.(index.SymbolGenericValue); ok {
-
-			switch c in generic.expr.derived {
-			case Array_Type:
-				return resolve_type_expression(ast_context, c.elem);
-			case Dynamic_Array_Type:
-				return resolve_type_expression(ast_context, c.elem);
-			case Map_Type:
-				return resolve_type_expression(ast_context, c.value);
-			}
+		#partial switch v2 in indexed.value {
+		case index.SymbolDynamicArrayValue:
+			return resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolSliceValue:
+			return resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolFixedArrayValue:
+			return resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolMapValue:
+			return resolve_type_expression(ast_context, v2.value);
 		}
 
 		return index.Symbol {}, false;
@@ -663,8 +660,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		if v == nil {
 			return {}, false;
 		}
-
-		return make_symbol_generic_from_ast(ast_context, node), true;
 	}
 
 	return index.Symbol {}, false;
@@ -769,9 +764,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Proc_Group:
 			return resolve_function_overload(ast_context, v);
 		case Array_Type:
-			return make_symbol_generic_from_ast(ast_context, local), true;
+			return make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
-			return make_symbol_generic_from_ast(ast_context, local), true;
+			return make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Call_Expr:
 			return resolve_type_expression(ast_context, local);
 		case:
@@ -806,9 +801,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Proc_Group:
 			return resolve_function_overload(ast_context, v);
 		case Array_Type:
-			return make_symbol_generic_from_ast(ast_context, global), true;
+			return make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
-			return make_symbol_generic_from_ast(ast_context, global), true;
+			return make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Call_Expr:
 			return resolve_type_expression(ast_context, global);
 		case:
@@ -827,13 +822,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			type = .Keyword,
 			signature = node.name,
 			pkg = ast_context.current_package,
-			value = index.SymbolGenericValue {
-				expr = ident,
+			value = index.SymbolBasicValue {
+				ident = ident,
 			},
 		};
 		return symbol, true;
 	} else {
-
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
 		if strings.contains(node.name, "/") {
 
@@ -845,7 +839,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 			return symbol, true;
 		} else {
-
 			//part of the ast so we check the imports of the document
 			for imp in ast_context.imports {
 
@@ -988,7 +981,6 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 			return symbol, true;
 		}
 	case index.SymbolStructValue:
-
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
 		if len(v.usings) > 0 {
 			expanded := symbol;
@@ -997,9 +989,6 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		} else {
 			return symbol, true;
 		}
-
-	case index.SymbolGenericValue:
-		return resolve_type_expression(ast_context, v.expr);
 	}
 
 	return symbol, true;
@@ -1009,15 +998,13 @@ fix_symbol_unresolved_type :: proc(symbol: ^index.Symbol) {
 
 	using index;
 
-	switch v in symbol.value {
+	#partial switch v in symbol.value {
 	case SymbolStructValue:
 		symbol.type = .Struct;
     case SymbolPackageValue:
 		symbol.type = .Package;
     case SymbolProcedureValue, SymbolProcedureGroupValue:
 		symbol.type = .Function;
-    case SymbolGenericValue:
-		symbol.type = .Variable;
     case SymbolUnionValue:
 		symbol.type = .Enum;
     case SymbolEnumValue:
@@ -1098,13 +1085,13 @@ make_pointer_ast :: proc(elem: ^ast.Expr) -> ^ast.Pointer_Type {
 
 make_bool_ast :: proc() -> ^ast.Ident {
 	ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
-	ident.name = bool_lit;
+	ident.name = "bool";
 	return ident;
 }
 
 make_int_ast :: proc() -> ^ast.Ident {
 	ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
-	ident.name = int_lit;
+	ident.name = "int";
 	return ident;
 }
 
@@ -1148,9 +1135,8 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 		range = common.get_token_range(n^, ast_context.file.src),
 		type = .Function,
 		pkg = get_package_from_node(n^),
+		name = name,
 	};
-
-	symbol.name = name;
 
 	return_types := make([dynamic]^ast.Field, context.temp_allocator);
 	arg_types    := make([dynamic]^ast.Field, context.temp_allocator);
@@ -1181,17 +1167,64 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	return symbol;
 }
 
-make_symbol_generic_from_ast :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> index.Symbol {
+make_symbol_slice_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Slice_Expr) -> index.Symbol {
 
 	symbol := index.Symbol {
-		range = common.get_token_range(expr, ast_context.file.src),
-		type = .Variable,
-		signature = index.node_to_string(expr),
-		pkg = get_package_from_node(expr^),
+		range = common.get_token_range(n^, ast_context.file.src),
+		pkg = get_package_from_node(n^),
 	};
 
-	symbol.value = index.SymbolGenericValue {
-		expr = expr,
+	symbol.value = index.SymbolSliceValue {
+		expr = v.expr,
+	};
+
+	return symbol;
+}
+
+make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) -> index.Symbol {
+
+	symbol := index.Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		pkg = get_package_from_node(v.node),
+	};
+
+	if v.len == nil {
+		symbol.value = index.SymbolFixedArrayValue {
+			expr = v.elem,
+			len = v.len,
+		};
+	} else {
+		symbol.value = index.SymbolDynamicArrayValue {
+			expr = v.elem,
+		};
+	}
+
+	return symbol;
+}
+
+make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type) -> index.Symbol {
+
+	symbol := index.Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		pkg = get_package_from_node(v.node),
+	};
+
+	symbol.value = index.SymbolDynamicArrayValue {
+		expr = v.elem,
+	};
+
+	return symbol;
+}
+
+make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ^ast.Ident) -> index.Symbol {
+
+	symbol := index.Symbol {
+		range = common.get_token_range(n^, ast_context.file.src),
+		pkg = get_package_from_node(n^),
+	};
+
+	symbol.value = index.SymbolBasicValue {
+		ident = v,
 	};
 
 	return symbol;
@@ -1603,59 +1636,66 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 	}
 
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
-
-		if generic, ok := symbol.value.(index.SymbolGenericValue); ok {
-
-			switch v in generic.expr.derived {
-			case Map_Type:
-				if len(stmt.vals) >= 1 {
-					if ident, ok := stmt.vals[0].derived.(Ident); ok {
-						store_local(ast_context, v.key, ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+		#partial switch v in symbol.value {
+		case index.SymbolMapValue:
+			if len(stmt.vals) >= 1 {
+				if ident, ok := stmt.vals[0].derived.(Ident); ok {
+					store_local(ast_context, v.key, ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
-
-				if len(stmt.vals) >= 2 {
-					if ident, ok := stmt.vals[1].derived.(Ident); ok {
-						store_local(ast_context, v.value, ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+			}
+			if len(stmt.vals) >= 2 {
+				if ident, ok := stmt.vals[1].derived.(Ident); ok {
+					store_local(ast_context, v.value, ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
-			case Dynamic_Array_Type:
-				if len(stmt.vals) >= 1 {
-					if ident, ok := stmt.vals[0].derived.(Ident); ok {
-						store_local(ast_context, v.elem, ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+			}
+		case index.SymbolDynamicArrayValue:
+			if len(stmt.vals) >= 1 {
+				if ident, ok := stmt.vals[0].derived.(Ident); ok {
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
-
-				if len(stmt.vals) >= 2 {
-					if ident, ok := stmt.vals[1].derived.(Ident); ok {
-						store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+			}
+			if len(stmt.vals) >= 2 {
+				if ident, ok := stmt.vals[1].derived.(Ident); ok {
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
-			case Array_Type:
-				if len(stmt.vals) >= 1 {
-
-					if ident, ok := stmt.vals[0].derived.(Ident); ok {
-						store_local(ast_context, v.elem, ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+			}
+		case index.SymbolFixedArrayValue:
+			if len(stmt.vals) >= 1 {
+				if ident, ok := stmt.vals[0].derived.(Ident); ok {
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
+			}
 
-				if len(stmt.vals) >= 2 {
-
-					if ident, ok := stmt.vals[1].derived.(Ident); ok {
-						store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
-						ast_context.variables[ident.name] = true;
-						ast_context.in_package[ident.name] = symbol.pkg;
-					}
+			if len(stmt.vals) >= 2 {
+				if ident, ok := stmt.vals[1].derived.(Ident); ok {
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
+				}
+			}
+		case index.SymbolSliceValue:
+			if len(stmt.vals) >= 1 {
+				if ident, ok := stmt.vals[0].derived.(Ident); ok {
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
+				}
+			}
+			if len(stmt.vals) >= 2 {
+				if ident, ok := stmt.vals[1].derived.(Ident); ok {
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					ast_context.variables[ident.name] = true;
+					ast_context.in_package[ident.name] = symbol.pkg;
 				}
 			}
 		}

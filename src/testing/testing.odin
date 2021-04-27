@@ -74,7 +74,7 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 	help, ok := server.get_signature_information(src.document, src.position);
 
 	if !ok {
-		testing.errorf(t, "Failed get_signature_information");
+		testing.error(t, "Failed get_signature_information");
 	}
 
 	if len(expect_labels) == 0 && len(help.signatures) > 0 {
@@ -83,9 +83,9 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 
 	flags := make([]int, len(expect_labels));
 
-	for expect_signature, i in expect_labels {
+	for expect_label, i in expect_labels {
 		for signature, j in help.signatures {
-			if expect_signature == signature.label {
+			if expect_label == signature.label {
 				flags[i] += 1;
 			}
 		}
@@ -99,8 +99,38 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 
 }
 
-expect_completion :: proc(t: ^testing.T, src: ^Source, dot: bool, expect_completions: []string) {
+expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
 	setup(src);
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	};
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context);
+
+	if !ok {
+		testing.error(t, "Failed get_completion_list");
+	}
+
+	if len(expect_details) == 0 && len(completion_list.items) > 0 {
+		testing.errorf(t, "Expected empty completion label, but received %v", completion_list.items);
+	}
+
+	flags := make([]int, len(expect_details));
+
+	for expect_detail, i in expect_details {
+		for completion, j in completion_list.items {
+			if expect_detail == completion.detail {
+				flags[i] += 1;
+			}
+		}
+	}
+
+	for flag, i in flags {
+		if flag != 1 {
+			testing.errorf(t, "Expected completion label %v, but received %v", expect_details[i], completion_list.items);
+		}
+	}
 
 }
 

@@ -381,9 +381,9 @@ write_semantic_token_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^Seman
 
 			ident := generic.expr.derived.(ast.Ident);
 
-			if ident.name == string_lit {
+			if ident.name == "string" {
 				write_semantic_node(builder, generic.expr, ast_context.file.src, .String, .None);
-			} else if ident.name == int_lit {
+			} else if ident.name == "int" {
 				write_semantic_node(builder, generic.expr, ast_context.file.src, .Number, .None);
 			} else {
 			}

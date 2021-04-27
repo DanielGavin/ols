@@ -10,12 +10,6 @@ import "core:slice"
 
 import "shared:common"
 
-/*
-	Note(Daniel, how concerned should we be about keeping the memory usage low for the symbol. You could hash some of strings.
-	Right now I have the unique string map in order to have strings reference the same string match.)
-
-*/
-
 SymbolStructValue :: struct {
 	names:   []string,
 	types:   []^ast.Expr,
@@ -35,6 +29,11 @@ SymbolProcedureGroupValue :: struct {
 	group: ^ast.Expr,
 }
 
+//runtime temp symbol value
+SymbolAggregateValue :: struct {
+	symbols: []Symbol,
+}
+
 SymbolEnumValue :: struct {
 	names: []string,
 }
@@ -44,8 +43,34 @@ SymbolUnionValue :: struct {
 	types: []^ast.Expr,
 }
 
+SymbolDynamicArrayValue :: struct {
+	expr: ^ast.Expr,
+}
+
+SymbolFixedArrayValue :: struct {
+	len:  ^ast.Expr,
+	expr: ^ast.Expr,
+}
+
+SymbolSliceValue :: struct {
+	expr: ^ast.Expr,
+}
+
+SymbolBasicValue :: struct {
+	ident: ^ast.Ident,
+}
+
 SymbolBitSetValue :: struct {
 	expr: ^ast.Expr,
+}
+
+SymbolUntypedValue :: struct {
+	type: enum {Integer, Float, String, Bool},
+}
+
+SymbolMapValue :: struct {
+	key:   ^ast.Expr,
+	value: ^ast.Expr,
 }
 
 /*
@@ -64,18 +89,27 @@ SymbolValue :: union {
 	SymbolUnionValue,
 	SymbolEnumValue,
 	SymbolBitSetValue,
+	SymbolAggregateValue,
+	SymbolDynamicArrayValue,
+	SymbolFixedArrayValue,
+	SymbolMapValue,
+	SymbolSliceValue,
+	SymbolBasicValue,
+	SymbolUntypedValue,
 }
 
 Symbol :: struct {
-	range:     common.Range,
-	uri:       string,
-	pkg:       string,
-	name:      string,
-	doc:       string,
-	signature: string,
-	returns:   string,
-	type:      SymbolType,
-	value:     SymbolValue,
+	range:       common.Range,
+	uri:         string,
+	pkg:         string,
+	name:        string,
+	doc:         string,
+	signature:   string,
+	returns:     string,
+	type:        SymbolType,
+	value:       SymbolValue,
+	pointers:    int,
+	is_distinct: bool,
 }
 
 SymbolType :: enum {
@@ -93,8 +127,8 @@ SymbolType :: enum {
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
 	if symbol.signature != "" && symbol.signature != "struct" &&
-	symbol.signature != "union" && symbol.signature != "enum" &&
-	symbol.signature != "bitset" {
+	   symbol.signature != "union" && symbol.signature != "enum" &&
+	   symbol.signature != "bitset" {
 		delete(symbol.signature, allocator);
 	}
 
@@ -124,6 +158,14 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.types, allocator);
 	case SymbolBitSetValue:
 		common.free_ast(v.expr, allocator);
+	case SymbolDynamicArrayValue:
+		common.free_ast(v.expr, allocator);
+	case SymbolFixedArrayValue:
+		common.free_ast(v.expr, allocator);
+	case SymbolSliceValue:
+		common.free_ast(v.expr, allocator);
+	case SymbolBasicValue:
+		common.free_ast(v.ident, allocator);
 	}
 }
 

@@ -57,12 +57,11 @@ ast_proc_group_signature :: proc(t: ^testing.T) {
         };
 
         main :: proc() {
-            group_functions(*)
+            group_function(*)
         }
         `,
         source_packages = {},
     };
 
-	//needs to be fixed
     //test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int)", "test.bool_function: proc(a: bool)"});
 }
