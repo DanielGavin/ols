@@ -10,6 +10,7 @@ keyword_map: map[string]bool = {
 	"int" = true,
 	"uint" = true,
 	"string" = true,
+	"cstring" = true,
 	"u64" = true,
 	"f32" = true,
 	"f64" = true,

@@ -451,8 +451,33 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 
 is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bool
 {
-	a_id := reflect.union_variant_typeid(a);
-	b_id := reflect.union_variant_typeid(b);
+	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
+	if untyped, ok := a.value.(index.SymbolUntypedValue); ok {
+		if basic, ok := b.value.(index.SymbolBasicValue); ok {
+			switch untyped.type {
+			case .Integer:
+				switch basic.ident.name {
+				case "int", "uint", "u32", "i32", "u8", "i8", "u64": return true;
+				case: return false;
+				}
+			case .Bool:
+				switch basic.ident.name {
+				case "bool": return true;
+				case: return false;
+				}
+			case .String:
+				switch basic.ident.name {
+				case "string", "cstring": return true;
+				case: return false;
+				}
+			case .Float:
+			}
+		}
+	}
+
+
+	a_id := reflect.union_variant_typeid(a.value);
+	b_id := reflect.union_variant_typeid(b.value);
 
 	if a_id != b_id {
 		return false;
@@ -462,7 +487,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 		return false;
 	}
 
-	/*
+	/*	
 	switch s in a.value {
 	case index.SymbolBasicValue:
 		
@@ -851,14 +876,30 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		ident := index.new_type(Ident, node.pos, node.end, context.temp_allocator);
 		ident.name = node.name;
 
-		symbol := index.Symbol {
+		symbol: index.Symbol;
+
+		switch ident.name {
+		case "true", "false":
+			symbol = index.Symbol {
+				type = .Keyword,
+				signature = node.name,
+				pkg = ast_context.current_package,
+				value = index.SymbolUntypedValue {
+					type = .Bool,	
+				},
+			};
+		case:
+			symbol = index.Symbol {
 			type = .Keyword,
 			signature = node.name,
 			pkg = ast_context.current_package,
 			value = index.SymbolBasicValue {
 				ident = ident,
-			},
-		};
+				},
+			};
+		}
+
+		
 		return symbol, true;
 	} else {
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
@@ -1402,14 +1443,12 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol: ^index.Symbol) {
 
 	if ast_context.call == nil {
-		log.infof("no call");
 		return;
 	}
 
 	symbol_value := &symbol.value.(index.SymbolStructValue);
 
 	if symbol_value == nil {
-		log.infof("no value");
 		return;
 	}
 

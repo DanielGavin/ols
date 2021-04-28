@@ -35,7 +35,7 @@ setup :: proc(src: ^Source) {
 	src.document.allocator = new(common.Scratch_Allocator);
 	src.document.package_name = "test";
 
-	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(5), context.temp_allocator);
+	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(20), context.temp_allocator);
 
 	server.document_refresh(src.document, &src.config, nil);
 
