@@ -499,19 +499,110 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 	   a.name == b.name &&
 	   a.pkg == b.pkg {
 		return true;
-	} else {
-		return false;
-	}
+	} 
 
-	/*
-	#partial switch s in a.value {
-	case index.SymbolBasicValue:
-		
+	#partial switch a_value in a.value {
+	case index.SymbolBasicValue, index.SymbolStructValue, index.SymbolEnumValue, index.SymbolUnionValue, index.SymbolBitSetValue:
+		if a.name == b.name && a.pkg == b.pkg {
+			return true;
+		}
+	case index.SymbolSliceValue:
+		b_value := b.value.(index.SymbolSliceValue);
+
+		a_symbol: index.Symbol;
+		b_symbol: index.Symbol;
+		ok: bool;
+
+		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		return is_symbol_same_typed(ast_context, a_symbol, b_symbol);
+	case index.SymbolFixedArrayValue:
+		b_value := b.value.(index.SymbolFixedArrayValue);
+
+		a_symbol: index.Symbol;
+		b_symbol: index.Symbol;
+		ok: bool;
+
+		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		return is_symbol_same_typed(ast_context, a_symbol, b_symbol);
+	case index.SymbolDynamicArrayValue:
+		b_value := b.value.(index.SymbolDynamicArrayValue);
+
+		a_symbol: index.Symbol;
+		b_symbol: index.Symbol;
+		ok: bool;
+
+		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr);
+
+		if !ok {
+			return false;
+		}
+
+		return is_symbol_same_typed(ast_context, a_symbol, b_symbol);
+	case index.SymbolMapValue:
+		b_value := b.value.(index.SymbolMapValue);
+
+		a_key_symbol: index.Symbol;
+		b_key_symbol: index.Symbol;
+		a_value_symbol: index.Symbol;
+		b_value_symbol: index.Symbol;
+		ok: bool;
+
+		a_key_symbol, ok = resolve_type_expression(ast_context, a_value.key);
+
+		if !ok {
+			return false;
+		}
+
+		b_key_symbol, ok = resolve_type_expression(ast_context, b_value.key);
+
+		if !ok {
+			return false;
+		}
+
+		a_value_symbol, ok = resolve_type_expression(ast_context, a_value.value);
+
+		if !ok {
+			return false;
+		}
+
+		b_value_symbol, ok = resolve_type_expression(ast_context, b_value.value);
+
+		if !ok {
+			return false;
+		}
+
+		return is_symbol_same_typed(ast_context, a_key_symbol, b_key_symbol) && is_symbol_same_typed(ast_context, a_value_symbol, b_value_symbol); 
 	}
-	*/
 	
-
-	return true;
+	return false;
 }
 
 /*
@@ -552,7 +643,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					call_symbol, ok = resolve_type_expression(ast_context, arg);
 
 					if !ok {
-						fmt.println("call_symbol failed");
 						break next_fn;
 					}
 
