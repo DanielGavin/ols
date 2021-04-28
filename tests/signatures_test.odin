@@ -93,3 +93,38 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 
     test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int, b: bool, c: int)"});
 }
+
+
+@(test)
+ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
+
+    source := test.Source {
+        main = `package test
+
+        My_Int :: distinct int;
+
+        distinct_function :: proc(a: My_Int, c: int) {
+
+        }
+
+        int_function :: proc(a: int, c: int) {
+
+        }
+
+        group_function :: proc {
+            int_function,
+            distinct_function,
+        };
+
+        main :: proc() {
+
+            a: My_Int;
+
+            group_function(a, *)
+        }
+        `,
+        source_packages = {},
+    };
+
+    test.expect_signature_labels(t, &source, {"test.distinct_function: proc(a: My_Int, c: int)"});
+}

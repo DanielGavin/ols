@@ -471,10 +471,13 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 				case: return false;
 				}
 			case .Float:
+				switch basic.ident.name {
+				case "f32", "f64": return true;
+				case: return false;
+				}
 			}
 		}
 	}
-
 
 	a_id := reflect.union_variant_typeid(a.value);
 	b_id := reflect.union_variant_typeid(b.value);
@@ -487,12 +490,26 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 		return false;
 	}
 
-	/*	
-	switch s in a.value {
+	if a.is_distinct != b.is_distinct {
+		return false;
+	}
+
+	if a.is_distinct == b.is_distinct && 
+	   a.is_distinct == true &&
+	   a.name == b.name &&
+	   a.pkg == b.pkg {
+		return true;
+	} else {
+		return false;
+	}
+
+	/*
+	#partial switch s in a.value {
 	case index.SymbolBasicValue:
 		
 	}
 	*/
+	
 
 	return true;
 }
@@ -795,61 +812,89 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
 
+		is_distinct := false;
+
 		if dist, ok := local.derived.(ast.Distinct_Type); ok {
 			if dist.type != nil {
-				local = dist.type; //save information for overloading
+				local = dist.type; 
+				is_distinct = true;
 			}
 		}
+
+		return_symbol: index.Symbol;
+		ok: bool;
 
 		switch v in local.derived {
 		case Ident:
-			return resolve_type_identifier(ast_context, v);
+			return_symbol, ok = resolve_type_identifier(ast_context, v);
 		case Union_Type:
-			return make_symbol_union_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Enum_Type:
-			return make_symbol_enum_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Struct_Type:
-			return make_symbol_struct_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Bit_Set_Type:
-			return make_symbol_bitset_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
-				return make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true;
+				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true;
 			} else {
-				return resolve_generic_function(ast_context, v);
+				return_symbol, ok = resolve_generic_function(ast_context, v);
 			}
 		case Proc_Group:
-			return resolve_function_overload(ast_context, v);
+			return_symbol, ok = resolve_function_overload(ast_context, v);
 		case Array_Type:
-			return make_symbol_array_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
-			return make_symbol_dynamic_array_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Map_Type:
-			return make_symbol_map_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_map_from_ast(ast_context, v), true;
 		case Call_Expr:
-			return resolve_type_expression(ast_context, local);
+			return_symbol, ok = resolve_type_expression(ast_context, local);
 		case:
-			return resolve_type_expression(ast_context, local);
+			return_symbol, ok = resolve_type_expression(ast_context, local);
 		}
+
+		if is_distinct {
+			return_symbol.name = node.name;
+			return_symbol.is_distinct = is_distinct;
+		}
+
+		return return_symbol, ok;
+
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
+
+		is_distinct := false;
 
 		if dist, ok := global.derived.(ast.Distinct_Type); ok {
 			if dist.type != nil {
-				global = dist.type; //save information for overloading
+				global = dist.type;
+				is_distinct = true;
 			}
 		}
 
+		return_symbol: index.Symbol;
+		ok: bool;
+
 		switch v in global.derived {
 		case Ident:
-			return resolve_type_identifier(ast_context, v);
+			return_symbol, ok = resolve_type_identifier(ast_context, v);
 		case Struct_Type:
-			return make_symbol_struct_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Bit_Set_Type:
-			return make_symbol_bitset_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Union_Type:
-			return make_symbol_union_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Enum_Type:
-			return make_symbol_enum_from_ast(ast_context, v, node), true;
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v), true;
+			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
 				return make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
@@ -857,17 +902,23 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 				return resolve_generic_function(ast_context, v);
 			}
 		case Proc_Group:
-			return resolve_function_overload(ast_context, v);
+			return_symbol, ok = resolve_function_overload(ast_context, v);
 		case Array_Type:
-			return make_symbol_array_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
-			return make_symbol_dynamic_array_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Call_Expr:
-			return resolve_type_expression(ast_context, global);
+			return_symbol, ok = resolve_type_expression(ast_context, global);
 		case:
-			log.warnf("default type node kind: %T", v);
-			return resolve_type_expression(ast_context, global);
+			return_symbol, ok = resolve_type_expression(ast_context, global);
 		}
+
+		if is_distinct {
+			return_symbol.name = node.name;
+			return_symbol.is_distinct = is_distinct;
+		}
+
+		return return_symbol, ok;
 	} else if node.name == "context" {
 		//if there are more of these variables that hard builtin, move them to the indexer
 		return index.lookup("Context", ast_context.current_package);
@@ -899,7 +950,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			};
 		}
 
-		
 		return symbol, true;
 	} else {
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
@@ -1321,12 +1371,11 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 	return symbol;
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
-		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1352,12 +1401,11 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 	return symbol;
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
-		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1379,12 +1427,11 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 	return symbol;
 }
 
-make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
-		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1395,12 +1442,11 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 	return symbol;
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident) -> index.Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Struct,
-		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	};
 
