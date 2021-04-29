@@ -195,7 +195,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 		source_packages = {},
 	};
 
-	test.expect_completion_details(t, &source, "", {"group_function"});
+	test.expect_completion_details(t, &source, "", {"test.group_function: proc"});
 }
 
 @(test)
@@ -222,4 +222,27 @@ index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 	//test.expect_completion_details(t, &source, "", {"My_Struct: struct"});
 }
 
+@(test)
+index_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		My_Struct :: struct {
+			array: []string,
+		}
+
+		main :: proc() {
+			my_struct: My_Struct;
+	
+			for value in my_struct.array {
+				val*
+			}
+		}
+		`,
+		source_packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.value: string"});
+}
 

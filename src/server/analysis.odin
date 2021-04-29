@@ -655,6 +655,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	if len(candidates) > 1 {
 		return index.Symbol {
+			type = candidates[0].type,
+			name = candidates[0].name,
+			pkg = candidates[0].pkg,
 			value = index.SymbolAggregateValue {
 				symbols = candidates[:],
 			},
@@ -696,6 +699,12 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	using ast;
 
 	switch v in node.derived {
+	case Array_Type:
+		return make_symbol_array_from_ast(ast_context, v), true;
+	case Dynamic_Array_Type:
+		return make_symbol_dynamic_array_from_ast(ast_context, v), true;
+	case Map_Type:
+		return make_symbol_map_from_ast(ast_context, v), true;
 	case Proc_Type:
 		return make_symbol_procedure_from_ast(ast_context, node, v, ast_context.field_name), true;
 	case Ident:
@@ -1024,11 +1033,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			};
 		case:
 			symbol = index.Symbol {
-			type = .Keyword,
-			signature = node.name,
-			pkg = ast_context.current_package,
-			value = index.SymbolBasicValue {
-				ident = ident,
+				type = .Keyword,
+				signature = node.name,
+				pkg = ast_context.current_package,
+				value = index.SymbolBasicValue {
+					ident = ident,
 				},
 			};
 		}
@@ -1380,34 +1389,21 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	return symbol;
 }
 
-make_symbol_slice_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Slice_Expr) -> index.Symbol {
-
-	symbol := index.Symbol {
-		range = common.get_token_range(n^, ast_context.file.src),
-		pkg = get_package_from_node(n^),
-	};
-
-	symbol.value = index.SymbolSliceValue {
-		expr = v.expr,
-	};
-
-	return symbol;
-}
-
 make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
+		type = .Variable,
 		pkg = get_package_from_node(v.node),
 	};
 
-	if v.len == nil {
+	if v.len != nil {
 		symbol.value = index.SymbolFixedArrayValue {
 			expr = v.elem,
 			len = v.len,
 		};
 	} else {
-		symbol.value = index.SymbolDynamicArrayValue {
+		symbol.value = index.SymbolSliceValue {
 			expr = v.elem,
 		};
 	}
@@ -1419,6 +1415,7 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
+		type = .Variable,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1433,6 +1430,7 @@ make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type) -> i
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
+		type = .Variable,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1448,6 +1446,7 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 
 	symbol := index.Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
+		type = .Variable,
 		pkg = get_package_from_node(n^),
 	};
 
@@ -2209,7 +2208,6 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 	if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
 
 		if local := get_local(ast_context, ident.pos.offset, ident.name); local != nil {
-
 			if i, ok := local.derived.(ast.Ident); ok {
 				return get_signature(ast_context, i, symbol, true);
 			} else {

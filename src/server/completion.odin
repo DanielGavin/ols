@@ -935,20 +935,24 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	for result in top_results {
 
+		result := result;
+
 		item := CompletionItem {
 			label = result.symbol.name,
-			detail = concatenate_symbols_information(ast_context, result.symbol, true),
 		};
 
 		if result.variable != nil {
 			if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
 				item.kind = .Variable;
+				result.symbol.type = .Variable;
 			} else {
 				item.kind = cast(CompletionItemKind)result.symbol.type;
 			}
 		} else {
 			item.kind = cast(CompletionItemKind)result.symbol.type;
 		}
+
+		item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
 
 		append(&items, item);
 	}
