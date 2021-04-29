@@ -366,17 +366,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 				continue;
 			}
 
-			if poly, ok := param.type.derived.(Poly_Type); ok {
-
-				if arg_eval, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
-
-					/*
-					if value, ok := arg_eval.value.(index.SymbolGenericValue); ok {
-						resolve_poly_spec_node(ast_context, value.expr, poly.specialization, &poly_map);
-					}
-					*/
-				}
-			}
+			resolve_poly_spec_node(ast_context, call_expr.args[i], param.type, &poly_map);	
 
 			i += 1;
 		}
@@ -392,7 +382,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		function_name = selector.field.name;
 		function_range = common.get_token_range(selector, ast_context.file.src);
 	} else {
-		log.debug("call expr expr could not be derived correctly");
 		return index.Symbol {}, false;
 	}
 
@@ -612,10 +601,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	using ast;
 
-	if ast_context.call == nil {
-		return index.Symbol {}, false;
-	}
-
 	call_expr := ast_context.call;
 
 	candidates := make([dynamic] index.Symbol, context.temp_allocator);
@@ -623,6 +608,11 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	for arg_expr in group.args {
 
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
+
+			if ast_context.call == nil {
+				append(&candidates, f);
+				break next_fn;
+			}
 
 			if procedure, ok := f.value.(index.SymbolProcedureValue); ok {
 
@@ -649,7 +639,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type);
 
 					if !ok {
-						fmt.println("arg_symbol failed");
 						break next_fn;
 					}
 
@@ -933,7 +922,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			if !v.type.generic {
 				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true;
 			} else {
-				return_symbol, ok = resolve_generic_function(ast_context, v);
+				if return_symbol, ok = resolve_generic_function(ast_context, v); !ok {
+					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true;
+				}
 			}
 		case Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v);
@@ -989,7 +980,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			if !v.type.generic {
 				return make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
 			} else {
-				return resolve_generic_function(ast_context, v);
+				if return_symbol, ok = resolve_generic_function(ast_context, v); !ok {
+					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
+				}
 			}
 		case Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v);
@@ -1190,7 +1183,11 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		}
 	case index.SymbolProcedureValue:
 		if v.generic {
-			return resolve_generic_function_symbol(ast_context, v.arg_types, v.return_types);
+			if resolved_symbol, ok := resolve_generic_function(ast_context, v.arg_types, v.return_types); ok {
+				return resolved_symbol, ok;
+			} else {
+				return symbol, true;
+			}
 		} else {
 			return symbol, true;
 		}
@@ -2047,6 +2044,8 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
+
+
 concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
 
 	pkg := path.base(symbol.pkg, false, context.temp_allocator);
@@ -2239,56 +2238,6 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 	}
 
 	return ident.name;
-}
-
-get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
-
-	signature_help: SignatureHelp;
-
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
-
-	position_context, ok := get_document_position_context(document, position, .SignatureHelp);
-
-	if !ok {
-		return signature_help, true;
-	}
-
-	if position_context.call == nil {
-		return signature_help, true;
-	}
-
-	get_globals(document.ast, &ast_context);
-
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context);
-	}
-
-	call: index.Symbol;
-	call, ok = resolve_type_expression(&ast_context, position_context.call);
-
-	signature_information := make([dynamic]SignatureInformation, 1, context.temp_allocator);
-
-	if _, ok := call.value.(index.SymbolProcedureValue); ok {
-		info := SignatureInformation {
-			label = concatenate_symbols_information(&ast_context, call, false),
-			documentation = call.doc,
-		};	
-		append(&signature_information, info);
-	} else if value, ok := call.value.(index.SymbolAggregateValue); ok {
-		for symbol in value.symbols {
-			info := SignatureInformation {
-				label = concatenate_symbols_information(&ast_context, symbol, false),
-				documentation = symbol.doc,
-			};	
-			append(&signature_information, info);
-		}
-	}
-
-	signature_help.signatures = signature_information[:];
-	signature_help.activeSignature = len(signature_information);
-	signature_help.activeParameter = 0;
-
-	return signature_help, true;
 }
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {

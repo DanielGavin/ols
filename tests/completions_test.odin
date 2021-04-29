@@ -170,6 +170,35 @@ ast_range_array :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
+
+    source := test.Source {
+        main = `package test
+
+        My_Int :: distinct int;
+
+        distinct_function :: proc(a: My_Int, c: int) {
+        }
+
+        int_function :: proc(a: int, c: int) {
+        }
+
+        group_function :: proc {
+            int_function,
+            distinct_function,
+        };
+
+        main :: proc() {
+            grou*
+        }
+        `,
+        source_packages = {},
+    };
+
+    test.expect_completion_details(t, &source, "", {"group_function"});
+}
+
+@(test)
 index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 
     source := test.Source {

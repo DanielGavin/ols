@@ -67,6 +67,27 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_proc_signature_generic :: proc(t: ^testing.T) {
+
+    source := test.Source {
+        main = `package test
+
+        import "core:mem"
+
+        clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
+        }
+      
+        main :: proc() {
+            clone_array(*)
+        }
+        `,
+        source_packages = {},
+    };
+
+    test.expect_signature_labels(t, &source, {"test.clone_array: proc (array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> (A)"});
+}
+
+@(test)
 ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 
     source := test.Source {
@@ -172,4 +193,3 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 
     test.expect_signature_labels(t, &source, {"test.struct_function: proc(a: int, b: My_Struct, c: int)"});
 }
-

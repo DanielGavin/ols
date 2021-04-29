@@ -17,7 +17,7 @@ new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) 
 	return n;
 }
 
-clone_type :: proc{
+clone_type :: proc {
 	clone_node,
 	clone_expr,
 	clone_array,
