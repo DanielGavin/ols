@@ -362,7 +362,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				}
 
 				item := CompletionItem {
-					label = symbol.name,
+					label = name,
 					kind = .Field,
 					detail = fmt.tprintf("%v.%v: %v", selector.name, name, index.node_to_string(v.types[i])),
 					documentation = symbol.doc,

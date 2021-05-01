@@ -219,11 +219,11 @@ index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		source_packages = {},
 	};
 
-	//test.expect_completion_details(t, &source, "", {"My_Struct: struct"});
+	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct"});
 }
 
 @(test)
-index_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
+ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package test
