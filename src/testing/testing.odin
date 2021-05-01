@@ -134,7 +134,21 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 
 }
 
-expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_info: string) {
+expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src);
+
+	hover, ok := server.get_hover_information(src.document, src.position);
+
+	if !ok {
+		testing.error(t, "Failed get_hover_information");
+	}
+
+	if expect_hover_string == "" && hover.contents.value != "" {
+		testing.errorf(t, "Expected empty hover string, but received %v", hover.contents.value);
+	}
+
+	if strings.contains(expect_hover_string, hover.contents.value) {
+		testing.errorf(t, "Expected hover string %v, but received %v", expect_hover_string, hover.contents.value);
+	}
 
 }

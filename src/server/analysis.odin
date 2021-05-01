@@ -2003,6 +2003,11 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 						using_stmt.list[0] = arg.type;
 						get_locals_using_stmt(using_stmt, ast_context);
 					}
+				} else {
+					str := common.get_ast_node_string(name, file.src);
+					store_local(ast_context, arg.default_value, name.pos.offset, str);
+					ast_context.variables[str] = true;
+					ast_context.parameters[str] = true;
 				}
 			}
 		}
@@ -2182,21 +2187,6 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 	}
 
 	return location, true;
-}
-
-write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
-	content: MarkupContent;
-
-	cat := concatenate_symbols_information(ast_context, symbol, false);
-
-	if cat != "" {
-		content.kind = "markdown";
-		content.value = fmt.tprintf("```odin\n %v\n```\n%v", cat, symbol.doc);
-	} else {
-		content.kind = "plaintext";
-	}
-
-	return content;
 }
 
 get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
@@ -2424,6 +2414,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 			continue;
 		}
 
+		//ignore everything in the bracket
+		if bracket_count != 0 || paren_count != 0 {
+			i -= 1;
+			continue;
+		}
+
 		//yeah..
 		if c == ' ' || c == '{' || c == ',' ||
 		c == '}' || c == '^' || c == ':' ||
@@ -2441,8 +2437,6 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 
 		i -= 1;
 	}
-
-	//log.error(u8(position_context.file.src[end]));
 
 	if i >= 0 && position_context.file.src[end] == '.' {
 		empty_dot = true;

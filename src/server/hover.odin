@@ -16,6 +16,33 @@ import "core:slice"
 import "shared:common"
 import "shared:index"
 
+write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
+	content: MarkupContent;
+
+	symbol := symbol;
+
+	if untyped, ok := symbol.value.(index.SymbolUntypedValue); ok {
+		switch untyped.type {
+		case .String:  symbol.signature = "string";
+		case .Bool:	   symbol.signature = "bool";
+		case .Float:   symbol.signature = "float";
+		case .Integer: symbol.signature = "int";
+		}
+	}
+
+	cat := concatenate_symbols_information(ast_context, symbol, false);
+
+	if cat != "" {
+		content.kind = "markdown";
+		content.value = fmt.tprintf("```odin\n %v\n```\n%v", cat, symbol.doc);
+	} else {
+		content.kind = "plaintext";
+	}
+
+	return content;
+}
+
+
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
 
 	hover := Hover {

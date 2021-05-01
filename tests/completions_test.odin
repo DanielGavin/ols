@@ -246,3 +246,40 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.value: string"});
 }
 
+@(test)
+ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		My_Foo :: struct {
+			a: int,
+			b: int,
+		}
+
+		My_Struct :: struct {
+			array: []My_Foo,
+		}
+
+		main :: proc() {
+			my_struct: My_Struct;
+	
+			my_struct.array[len(my_struct.array)-1].*
+		}
+		`,
+		source_packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Foo.a: int", "My_Foo.b: int"});
+}
+
+
+/*
+
+	SymbolUntypedValue :: struct {
+		type: enum {Integer, Float, String, Bool},
+	}
+
+	Can't complete nested enums(maybe structs also?)
+
+*/
