@@ -283,3 +283,12 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 	Can't complete nested enums(maybe structs also?)
 
 */
+
+/*
+
+	CodeLensOptions :: str*(no keyword completion) {
+
+		resolveProvider?: boolean;
+	}
+
+*/

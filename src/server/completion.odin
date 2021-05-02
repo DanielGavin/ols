@@ -844,7 +844,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		ast_context.use_globals     = true;
 		ast_context.current_package = ast_context.document_package;
 
-		ident := index.new_type(ast.Ident, v.pos, v.end, context.temp_allocator);
+		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator);
 		ident.name = k;
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {

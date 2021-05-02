@@ -66,7 +66,7 @@ DocumentLocal :: struct {
 
 AstContext :: struct {
 	locals:            map[string][dynamic]DocumentLocal, //locals all the way to the document position
-	globals:           map[string]^ast.Expr,
+	globals:           map[string]common.GlobalExpr,
 	variables:         map[string]bool,
 	parameters:        map[string]bool,
 	in_package:        map[string]string, //sometimes you have to extract types from arrays/maps and you lose package information
@@ -89,7 +89,7 @@ make_ast_context :: proc(file: ast.File, imports: []Package, package_name: strin
 
 	ast_context := AstContext {
 		locals = make(map[string][dynamic]DocumentLocal, 0, allocator),
-		globals = make(map[string]^ast.Expr, 0, allocator),
+		globals = make(map[string]common.GlobalExpr, 0, allocator),
 		variables = make(map[string]bool, 0, allocator),
 		usings = make([dynamic]string, allocator),
 		parameters = make(map[string]bool, 0, allocator),
@@ -960,9 +960,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		is_distinct := false;
 
-		if dist, ok := global.derived.(ast.Distinct_Type); ok {
+		if dist, ok := global.expr.derived.(ast.Distinct_Type); ok {
 			if dist.type != nil {
-				global = dist.type;
+				global.expr = dist.type;
 				is_distinct = true;
 			}
 		}
@@ -970,7 +970,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		return_symbol: index.Symbol;
 		ok: bool;
 
-		switch v in global.derived {
+		switch v in global.expr.derived {
 		case Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v);
 		case Struct_Type:
@@ -987,10 +987,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
-				return make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
+				return make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true;
 			} else {
 				if return_symbol, ok = resolve_generic_function(ast_context, v); !ok {
-					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global, v.type^, node.name), true;
+					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true;
 				}
 			}
 		case Proc_Group:
@@ -1000,9 +1000,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Dynamic_Array_Type:
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Call_Expr:
-			return_symbol, ok = resolve_type_expression(ast_context, global);
+			return_symbol, ok = resolve_type_expression(ast_context, global.expr);
 		case:
-			return_symbol, ok = resolve_type_expression(ast_context, global);
+			return_symbol, ok = resolve_type_expression(ast_context, global.expr);
 		}
 
 		if is_distinct {
@@ -1245,7 +1245,7 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		symbol.range = common.get_token_range(get_local(ast_context, node.pos.offset, node.name), ast_context.file.src);
 		return symbol, true;
 	} else if global, ok := ast_context.globals[node.name]; ok {
-		symbol.range = common.get_token_range(global, ast_context.file.src);
+		symbol.range = common.get_token_range(global.expr, ast_context.file.src);
 		return symbol, true;
 	}
 
@@ -1644,8 +1644,8 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 	exprs := common.collect_globals(file);
 
 	for expr in exprs {
-		ast_context.globals[expr.name] = expr.expr;
 		ast_context.variables[expr.name] = expr.mutable;
+		ast_context.globals[expr.name] = expr;
 	}
 }
 
@@ -2206,10 +2206,10 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		}
 
 		if global, ok := ast_context.globals[ident.name]; ok {
-			if i, ok := global.derived.(ast.Ident); ok {
+			if i, ok := global.expr.derived.(ast.Ident); ok {
 				return get_signature(ast_context, i, symbol, true);
 			} else {
-				return index.node_to_string(global);
+				return index.node_to_string(global.expr);
 			}
 		}
 	}
@@ -2256,15 +2256,14 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator);
 
-	for k, expr in ast_context.globals {
+	for k, global in ast_context.globals {
 
 		symbol: DocumentSymbol;
-
-		symbol.range = common.get_token_range(expr, ast_context.file.src);
+		symbol.range = common.get_token_range(global.expr, ast_context.file.src);
 		symbol.selectionRange = symbol.range;
 		symbol.name = k;
 
-		switch v in expr.derived {
+		switch v in global.expr.derived {
 		case ast.Struct_Type:
 			symbol.kind = .Struct;
 		case ast.Proc_Lit, ast.Proc_Group:

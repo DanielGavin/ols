@@ -30,10 +30,11 @@ keyword_map: map[string]bool = {
 };
 
 GlobalExpr :: struct {
-	name:    string,
-	expr:    ^ast.Expr,
-	mutable: bool,
-	docs:    ^ast.Comment_Group,
+	name:       string,
+	expr:       ^ast.Expr,
+	mutable:    bool,
+	docs:       ^ast.Comment_Group,
+	attributes: []^ast.Attribute,
 }
 
 collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
@@ -51,10 +52,10 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 			str := get_ast_node_string(name, file.src);
 
 			if value_decl.type != nil {
-				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
+				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
 			} else {
 				if len(value_decl.values) > i {
-					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
+					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs, attributes = value_decl.attributes[:]});
 				}
 			}
 		}
