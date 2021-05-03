@@ -45,6 +45,10 @@ jobs:
     runs-on: ubuntu-16.04
     needs: ['dist-x86_64-pc-windows-msvc']
     steps:
+    - name: Install Nodejs
+      uses: actions/setup-node@v1
+      with:
+        node-version: 12.x
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
@@ -63,5 +67,5 @@ jobs:
       uses: ./.github/actions/github-release
       with:
         files: "dist/*"
-        name: ${{ env.TAG }}
+        name: "nigthly"
         token: ${{ secrets.GITHUB_TOKEN }}
