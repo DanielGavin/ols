@@ -30,6 +30,11 @@ jobs:
     - name: Build ols
       shell: cmd
       run: ./build.bat CI
+    - name: Move to Dist
+      shell: cmd
+      run: | 
+        mkdir dist
+        copy ols.exe dist/
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
