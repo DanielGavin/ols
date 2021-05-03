@@ -36,7 +36,7 @@ jobs:
         mkdir dist
         copy ols.exe dist
         cd dist
-        ren ols.exe ols_windows.exe
+        ren ols.exe ols-x86_64-pc-windows-msvc.exe
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
@@ -63,8 +63,10 @@ jobs:
       with:
         name: dist-x86_64-pc-windows-msvc
         path: dist
-    - run: ls -al ./dist
-    
+    - run: |
+        gzip ols-x86_64-pc-windows-msvc.exe
+        ls -al ./dist
+
     - name: Publish Release
       uses: ./.github/actions/github-release
       with:
