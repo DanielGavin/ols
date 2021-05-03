@@ -4,11 +4,13 @@ import "core:odin/ast"
 import "core:log"
 import "core:mem"
 import "core:fmt"
+import "core:strings"
 
 keyword_map: map[string]bool = {
 	"int" = true,
 	"uint" = true,
 	"string" = true,
+	"cstring" = true,
 	"u64" = true,
 	"f32" = true,
 	"f64" = true,
@@ -28,10 +30,11 @@ keyword_map: map[string]bool = {
 };
 
 GlobalExpr :: struct {
-	name:    string,
-	expr:    ^ast.Expr,
-	mutable: bool,
-	docs:    ^ast.Comment_Group,
+	name:       string,
+	expr:       ^ast.Expr,
+	mutable:    bool,
+	docs:       ^ast.Comment_Group,
+	attributes: []^ast.Attribute,
 }
 
 collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
@@ -49,10 +52,10 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 			str := get_ast_node_string(name, file.src);
 
 			if value_decl.type != nil {
-				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs});
+				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
 			} else {
 				if len(value_decl.values) > i {
-					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs});
+					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs, attributes = value_decl.attributes[:]});
 				}
 			}
 		}
@@ -141,6 +144,24 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 get_ast_node_string :: proc(node: ^ast.Node, src: []byte) -> string {
 	return string(src[node.pos.offset:node.end.offset]);
+}
+
+get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
+
+	if comment != nil {
+		tmp: string;
+
+		for doc in comment.list {
+			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator);
+		}
+
+		if tmp != "" {
+			replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator);
+			return strings.clone(replaced, allocator);
+		}
+	}
+
+	return "";
 }
 
 free_ast :: proc{

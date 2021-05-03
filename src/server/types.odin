@@ -110,7 +110,7 @@ HoverClientCapabilities :: struct {
 }
 
 DocumentSymbolClientCapabilities :: struct {
-	symbolKind:                        struct {
+	symbolKind: struct {
 		valueSet: [dynamic]SymbolKind,
 	},
 	hierarchicalDocumentSymbolSupport: bool,
@@ -226,7 +226,7 @@ SignatureHelpParams :: struct {
 CompletionParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
-	context_: 	  CompletionContext,
+	context_:     CompletionContext,
 }
 
 CompletionItemKind :: enum {
@@ -351,4 +351,10 @@ HoverParams :: struct {
 Hover :: struct {
 	contents: MarkupContent,
 	range:    common.Range,
+}
+
+Command :: struct {
+	title:     string,
+	command:   string,
+	arguments: []string,
 }

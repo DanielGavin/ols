@@ -228,15 +228,10 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 							continue;
 						}
 
-						resolved.signature = index.node_to_string(v.types[i]);
-						resolved.pkg       = comp_symbol.name;
-						resolved.name      = name;
-						resolved.type      = .Field;
-
 						item := CompletionItem {
 							label = resolved.name,
-							kind = cast(CompletionItemKind)resolved.type,
-							detail = concatenate_symbols_information(ast_context, resolved, true),
+							kind = .Field,
+							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, resolved.name, index.node_to_string(v.types[i])),  
 							documentation = resolved.doc,
 						};
 
@@ -255,8 +250,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
 	ast_context.current_package = ast_context.document_package;
-
-	symbols := make([dynamic]index.Symbol, context.temp_allocator);
 
 	selector: index.Symbol;
 	ok:       bool;
@@ -319,9 +312,14 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), name);
 				}
 
-				symbol.pkg  = selector.name;
-				symbol.type = .EnumMember;
-				append(&symbols, symbol);
+				item := CompletionItem {
+					label = symbol.name,
+					kind = .EnumMember,
+					detail = fmt.tprintf("%v", selector.name),
+					documentation = symbol.doc,
+				};
+
+				append(&items, item);
 			}
 		}
 
@@ -329,11 +327,14 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		list.isIncomplete = false;
 
 		for name in v.names {
-			symbol: index.Symbol;
-			symbol.name = name;
-			symbol.pkg  = selector.name;
-			symbol.type = .EnumMember;
-			append(&symbols, symbol);
+
+			item := CompletionItem {
+				label = name,
+				kind = .EnumMember,
+				detail = fmt.tprintf("%v.%v", selector.name, name),
+			};
+
+			append(&items, item);
 		}
 
 	case index.SymbolStructValue:
@@ -360,17 +361,24 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					continue;
 				}
 
-				symbol.name      = name;
-				symbol.type      = .Field;
-				symbol.pkg       = selector.name;
-				symbol.signature = index.node_to_string(v.types[i]);
-				append(&symbols, symbol);
+				item := CompletionItem {
+					label = name,
+					kind = .Field,
+					detail = fmt.tprintf("%v.%v: %v", selector.name, name, index.node_to_string(v.types[i])),
+					documentation = symbol.doc,
+				};
+
+				append(&items, item);
 			} else {
 				//just give some generic symbol with name.
-				symbol: index.Symbol;
-				symbol.name = name;
-				symbol.type = .Field;
-				append(&symbols, symbol);
+				item := CompletionItem {
+					label = symbol.name,
+					kind = .Field,
+					detail = fmt.tprintf("%v: %v", name, index.node_to_string(v.types[i])),
+					documentation = symbol.doc,
+				};
+
+				append(&items, item);
 			}
 		}
 
@@ -381,24 +389,20 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
 
 			for search in searched {
-				append(&symbols, search.symbol);
+
+				item := CompletionItem {
+					label = search.symbol.name,
+					kind = cast(CompletionItemKind)search.symbol.type,
+					detail = fmt.tprintf("%v.%v: %v", path.base(search.symbol.pkg, false, context.temp_allocator), search.symbol.name, search.symbol.signature),
+					documentation = search.symbol.doc,
+				};
+
+				append(&items, item);
 			}
 		} else {
 			log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg);
 			return;
 		}
-	}
-
-	for symbol, i in symbols {
-
-		item := CompletionItem {
-			label = symbol.name,
-			kind = cast(CompletionItemKind)symbol.type,
-			detail = concatenate_symbols_information(ast_context, symbol, true),
-			documentation = symbol.doc,
-		};
-
-		append(&items, item);
 	}
 
 	list.items = items[:];
@@ -840,7 +844,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		ast_context.use_globals     = true;
 		ast_context.current_package = ast_context.document_package;
 
-		ident := index.new_type(ast.Ident, v.pos, v.end, context.temp_allocator);
+		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator);
 		ident.name = k;
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
@@ -931,20 +935,24 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	for result in top_results {
 
+		result := result;
+
 		item := CompletionItem {
 			label = result.symbol.name,
-			detail = concatenate_symbols_information(ast_context, result.symbol, true),
 		};
 
 		if result.variable != nil {
 			if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
 				item.kind = .Variable;
+				result.symbol.type = .Variable;
 			} else {
 				item.kind = cast(CompletionItemKind)result.symbol.type;
 			}
 		} else {
 			item.kind = cast(CompletionItemKind)result.symbol.type;
 		}
+
+		item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
 
 		append(&items, item);
 	}
