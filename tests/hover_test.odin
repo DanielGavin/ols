@@ -16,7 +16,7 @@ ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 		}
 
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_hover(t, &source, "test.a: bool");

@@ -21,7 +21,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 			my_struct.*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -43,7 +43,7 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 			my_struct[2].*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -65,7 +65,7 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 			my_struct.*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -88,7 +88,7 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 			my_pointer.*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -111,7 +111,7 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 			my_deref.*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -137,7 +137,7 @@ ast_range_map :: proc(t: ^testing.T) {
 
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -163,7 +163,7 @@ ast_range_array :: proc(t: ^testing.T) {
 
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
@@ -192,7 +192,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 			grou*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, "", {"test.group_function: proc"});
@@ -216,7 +216,7 @@ index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 			};
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct"});
@@ -240,7 +240,7 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, "", {"test.value: string"});
@@ -267,12 +267,42 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 			my_struct.array[len(my_struct.array)-1].*
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_completion_details(t, &source, ".", {"My_Foo.a: int", "My_Foo.b: int"});
 }
 
+@(test)
+ast_package_completion :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package{
+		pkg = "my_package",
+		source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+	});
+
+    source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		main :: proc() {	
+            my_package.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"});
+}
 
 /*
 

@@ -392,7 +392,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 				item := CompletionItem {
 					label = search.symbol.name,
-					kind = .Field,
+					kind = cast(CompletionItemKind)search.symbol.type,
 					detail = fmt.tprintf("%v.%v: %v", path.base(search.symbol.pkg, false, context.temp_allocator), search.symbol.name, search.symbol.signature),
 					documentation = search.symbol.doc,
 				};

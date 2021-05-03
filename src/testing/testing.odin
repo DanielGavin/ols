@@ -4,19 +4,22 @@ import "core:testing"
 import "core:mem"
 import "core:fmt"
 import "core:strings"
+import "core:path/filepath"
+import "core:odin/parser"
+import "core:odin/ast"
 
 import "shared:server"
 import "shared:index"
 import "shared:common"
 
-Package_Source :: struct {
-	pkg_name: string,
+Package :: struct {
+	pkg: string,
 	source:   string,
 }
 
 Source :: struct {
 	main:            string,
-	source_packages: Package_Source,
+	packages:        [] Package,
 	document:        ^server.Document,
 	collections:     map[string]string,
 	config:          common.Config,
@@ -66,6 +69,49 @@ setup :: proc(src: ^Source) {
 		last = current;
 	}
 
+	/*
+		There is a lot code here that is used in the real code, then i'd like to see.
+	*/
+
+	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
+
+	for src_pkg in src.packages {
+		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator);
+
+		fullpath := uri.path;
+
+		p := parser.Parser {
+			err = index.log_error_handler,
+			warn = index.log_warning_handler,
+		};
+
+		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
+
+		pkg := new(ast.Package);
+		pkg.kind     = .Normal;
+		pkg.fullpath = fullpath;
+		pkg.name     = dir;
+
+		if dir == "runtime" {
+			pkg.kind = .Runtime;
+		}
+	
+		file := ast.File {
+			fullpath = fullpath,
+			src = transmute([]u8)src_pkg.source,
+			pkg = pkg,
+		};
+
+		ok := parser.parse_file(&p, &file);
+
+		if !ok {
+			return;
+		}
+	
+		if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+			return;
+		}
+	}
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {

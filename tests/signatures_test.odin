@@ -13,7 +13,7 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 		main = `package test
 		main :: proc(*)
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {});
@@ -25,14 +25,13 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int) {
-
 		}
 
 		main :: proc() { 
 			cool_function(*)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.cool_function: proc(a: int)"});
@@ -44,11 +43,9 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		int_function :: proc(a: int) {
-
 		}
 
 		bool_function :: proc(a: bool) {
-
 		}
 
 		group_function :: proc {
@@ -60,7 +57,7 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 			group_function(*)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int)", "test.bool_function: proc(a: bool)"});
@@ -81,7 +78,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 			clone_array(*)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.clone_array: proc (array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> (A)"});
@@ -93,11 +90,9 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		int_function :: proc(a: int, b: bool, c: int) {
-
 		}
 
 		bool_function :: proc(a: bool, b: bool, c: bool) {
-
 		}
 
 		group_function :: proc {
@@ -109,7 +104,7 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 			group_function(2, true, *)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int, b: bool, c: int)"});
@@ -125,11 +120,9 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 		My_Int :: distinct int;
 
 		distinct_function :: proc(a: My_Int, c: int) {
-
 		}
 
 		int_function :: proc(a: int, c: int) {
-
 		}
 
 		group_function :: proc {
@@ -144,7 +137,7 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 			group_function(a, *)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.distinct_function: proc(a: My_Int, c: int)"});
@@ -165,15 +158,12 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 		}
 
 		distinct_function :: proc(a: My_Int, c: int) {
-
 		}
 
 		int_function :: proc(a: int, c: int) {
-
 		}
 
 		struct_function :: proc(a: int, b: My_Struct, c: int) {
-
 		}
 
 		group_function :: proc {
@@ -188,7 +178,7 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 			group_function(a, b, *)
 		}
 		`,
-		source_packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"test.struct_function: proc(a: int, b: My_Struct, c: int)"});
