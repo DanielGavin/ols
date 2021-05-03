@@ -55,7 +55,7 @@ jobs:
     
     - uses: actions/download-artifact@v1
       with:
-        name: dist-x86_64-pc-windows-msv
+        name: dist-x86_64-pc-windows-msvc
         path: dist
     - run: ls -al ./dist
     
