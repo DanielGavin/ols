@@ -34,7 +34,9 @@ jobs:
       shell: cmd
       run: | 
         mkdir dist
-        copy ols.exe dist/ols_windows.exe
+        copy ols.exe dist
+        cd dist
+        ren ols.exe ols_windows.exe
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
