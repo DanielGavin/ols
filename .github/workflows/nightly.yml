@@ -34,7 +34,7 @@ jobs:
       shell: cmd
       run: | 
         mkdir dist
-        copy ols.exe dist
+        copy ols.exe dist/ols_windows.exe
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
@@ -67,5 +67,5 @@ jobs:
       uses: ./.github/actions/github-release
       with:
         files: "dist/*"
-        name: "nigthly"
+        name: "nightly"
         token: ${{ secrets.GITHUB_TOKEN }}
