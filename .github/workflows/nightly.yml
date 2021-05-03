@@ -64,9 +64,9 @@ jobs:
         name: dist-x86_64-pc-windows-msvc
         path: dist
     - run: |
-        gzip ols-x86_64-pc-windows-msvc.exe
         ls -al ./dist
-
+        gzip ols-x86_64-pc-windows-msvc
+  
     - name: Publish Release
       uses: ./.github/actions/github-release
       with:
