@@ -67,7 +67,7 @@ jobs:
     - run: |
         ls -al ./dist
         cd dist
-        zip ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
+        zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
         rm -rf builtin
     
     - name: Publish Release
