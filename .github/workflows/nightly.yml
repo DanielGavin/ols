@@ -34,7 +34,8 @@ jobs:
       shell: cmd
       run: | 
         mkdir dist
-        copy ols.exe dist
+        move ols.exe dist/
+        move builtin dist/
         cd dist
         ren ols.exe ols-x86_64-pc-windows-msvc.exe
     - name: Upload artifacts
@@ -65,7 +66,9 @@ jobs:
         path: dist
     - run: |
         ls -al ./dist
-        zip dist/ols-x86_64-pc-windows-msvc.zip dist/ols-x86_64-pc-windows-msvc.exe
+        cd dist
+        zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
+        rm -rf builtin
     
     - name: Publish Release
       uses: ./.github/actions/github-release
