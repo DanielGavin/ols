@@ -7,6 +7,7 @@ on:
     - cron: 0 20 * * *
 jobs:
   dist-x86_64-pc-windows-msvc:
+    timeout-minutes: 30
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
@@ -46,6 +47,7 @@ jobs:
   publish:
     name: publish
     runs-on: ubuntu-16.04
+    timeout-minutes: 30
     needs: ['dist-x86_64-pc-windows-msvc']
     steps:
     - name: Install Nodejs

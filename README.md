@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-NOTE: Linux and MacOS are not actively being supported, this will change when Odin makes them into first class citizens.
+**NOTE**: Linux and MacOS are not actively being supported. This will change when Odin makes them into first class citizens.
 
 ![Procedure example](images/completion.gif)
 
@@ -54,7 +54,7 @@ Example of ols.json:
 ## Clients
 
 ### VS Code
-Install the extension https://github.com/DanielGavin/ols-vscode
+Install the extension https://marketplace.visualstudio.com/items?itemName=DanielGavin.ols
 ### Sublime
 Install the package https://github.com/sublimelsp/LSP
 

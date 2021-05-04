@@ -16,6 +16,7 @@ on:
 jobs:
   build_windows:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
     - name: Download Odin
@@ -40,6 +41,7 @@ jobs:
       run: ./build.bat CI
   build_linux:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
     - name: Download LLVM
@@ -54,6 +56,7 @@ jobs:
       run: ./build.sh CI
   build_macOS:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
     - name: Download LLVM and setup PATH
