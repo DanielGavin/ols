@@ -89,7 +89,6 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
 		arg_types = args[:],
 		generic = proc_type.generic,
 	};
-
 	return value;
 }
 

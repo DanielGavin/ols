@@ -278,7 +278,7 @@ ast_package_completion :: proc(t: ^testing.T) {
 
 	packages := make([dynamic]test.Package);
 
-	append(&packages, test.Package{
+	append(&packages, test.Package {
 		pkg = "my_package",
 		source = `package my_package
 		My_Struct :: struct {

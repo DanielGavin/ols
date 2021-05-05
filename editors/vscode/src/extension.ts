@@ -320,6 +320,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     });
 
     if (release === undefined || release.id === state.releaseId) {
+        await state.updateLastCheck(Date.now());
         return destExecutable;
     }
 
