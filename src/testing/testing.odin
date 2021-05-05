@@ -145,6 +145,16 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 
 }
 
+expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {
+	setup(src);
+
+	help, ok := server.get_signature_information(src.document, src.position);
+
+	if help.activeParameter != position {
+		testing.errorf(t, "expected parameter position %v, but received %v", position, help.activeParameter);
+	}
+}
+
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
 	setup(src);
 

@@ -38,6 +38,42 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_proc_signature_argument_position :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b: int) {
+		}
+
+		main :: proc() { 
+			cool_function(2,*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 1);
+}
+
+@(test)
+ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b: int, c: int) {
+		}
+
+		main :: proc() { 
+			cool_function(2,*, 3);
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 1);
+}
+
+@(test)
 ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 
 	source := test.Source {

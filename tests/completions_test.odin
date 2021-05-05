@@ -322,3 +322,11 @@ ast_package_completion :: proc(t: ^testing.T) {
 	}
 
 */
+
+/*
+	position_context.last_token = tokenizer.Token {
+			kind = .Comma,
+		};
+
+	It shows the type instead of the label Token_Kind
+*/

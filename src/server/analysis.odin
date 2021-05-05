@@ -57,6 +57,7 @@ DocumentPositionContext :: struct {
 	hint:             DocumentPositionContextHint,
 	global_lhs_stmt:  bool,
 	import_stmt:      ^ast.Import_Decl,
+	call_commas:      []int,
 }
 
 DocumentLocal :: struct {
@@ -2285,6 +2286,29 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 }
 
 /*
+	Parser gives ranges of expression, but not actually where the commas are placed.
+*/
+get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^Document) {
+
+	if position_context.call == nil {
+		return;
+	}
+
+	commas := make([dynamic]int, 0, 10, context.temp_allocator);
+
+	if call, ok := position_context.call.derived.(ast.Call_Expr); ok {
+		for i := call.open.offset; i < call.close.offset; i += 1 {
+
+			if document.text[i] == ',' {
+				append(&commas, i);
+			}
+		}
+	}
+
+	position_context.call_commas = commas[:];
+}
+
+/*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
 get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
@@ -2355,6 +2379,10 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 	if (hint == .SignatureHelp || hint == .Completion) && position_context.call == nil {
 		fallback_position_context_signature(document, position, &position_context);
+	}
+
+	if hint == .SignatureHelp {
+		get_call_commas(&position_context, document);
 	}
 
 	return position_context, true;

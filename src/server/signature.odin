@@ -16,7 +16,36 @@ import "core:slice"
 import "shared:common"
 import "shared:index"
 
+SignatureInformationCapabilities :: struct {
+	parameterInformation: ParameterInformationCapabilities,
+}
 
+SignatureHelpClientCapabilities :: struct {
+	dynamicRegistration:  bool,
+	signatureInformation: SignatureInformationCapabilities,
+	contextSupport:       bool,
+}
+
+SignatureHelpOptions :: struct {
+	triggerCharacters:   []string,
+	retriggerCharacters: []string,
+}
+
+SignatureHelp :: struct {
+	signatures:      []SignatureInformation,
+	activeSignature: int,
+	activeParameter: int,
+}
+
+SignatureInformation :: struct {
+	label:         string,
+	documentation: string,
+	parameters:    []ParameterInformation,
+}
+
+ParameterInformation :: struct {
+	label: string,
+}
 
 get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
 
@@ -40,15 +69,30 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		get_locals(document.ast, position_context.function, &ast_context, &position_context);
 	}
 
+	for comma, i in position_context.call_commas {
+		if position_context.position > comma {
+			signature_help.activeParameter = i+1;
+		} else if position_context.position == comma {
+			signature_help.activeParameter = i;
+		}
+	}
+
 	call: index.Symbol;
 	call, ok = resolve_type_expression(&ast_context, position_context.call);
 
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator);
 
-	if _, ok := call.value.(index.SymbolProcedureValue); ok {
+	if value, ok := call.value.(index.SymbolProcedureValue); ok {
+		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator);
+
+		for arg, i in value.arg_types {
+			parameters[i].label = common.get_ast_node_string(arg, document.ast.src);
+		}
+
 		info := SignatureInformation {
 			label = concatenate_symbols_information(&ast_context, call, false),
 			documentation = call.doc,
+			parameters = parameters,
 		};	
 		append(&signature_information, info);
 	} else if value, ok := call.value.(index.SymbolAggregateValue); ok {
@@ -62,8 +106,6 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	}
 
 	signature_help.signatures = signature_information[:];
-	signature_help.activeSignature = 0;
-	signature_help.activeParameter = 0;
 
 	return signature_help, true;
 }
