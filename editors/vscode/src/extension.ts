@@ -310,6 +310,10 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     /*
         Temp: right now it doesn't check for versions, since ols has no versioning right now
     */
+    
+    if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000)  < Date.now()) {
+        return destExecutable;
+    }
 
     const release = await downloadWithRetryDialog(state, async () => {
         return await fetchRelease("nightly", state.githubToken, config.httpProxy);

@@ -7,9 +7,9 @@
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"engines": {
-		"vscode": "^1.55.0"
+		"vscode": "^1.55.2"
 	},
 	"categories": [
 		"Programming Languages"
@@ -17,6 +17,7 @@
 	"activationEvents": [
 		"onLanguage:odin"
 	],
+	
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
@@ -81,13 +82,42 @@
 				}
 			}
 		},
+		"icons_PROPOSED": [
+			{
+				"id": "odin-fileicon",
+				"description": "Odin file icon",
+				"default": {
+					"fontId": "odin-icon-font",
+					"fontCharacter": "\\E000"
+				}
+			}
+		],
+		"iconFonts_PROPOSED": [
+			{
+				"id": "odin-icon-font",
+				"src": [
+					{
+						"path": "./fileicons/odin_file.svg",
+						"format": "svg"
+					}
+				]
+			}
+		],
 		"languages": [
 			{
 				"id": "odin",
+				"icon_PROPOSED": "odin-fileicon",
 				"extensions": [
 					".odin"
 				],
 				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "odin",
+				"scopeName": "source.odin",
+				"path": "./syntaxes/odin.tmLanguage.json"
 			}
 		]
 	},
