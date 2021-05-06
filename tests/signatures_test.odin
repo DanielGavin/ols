@@ -315,3 +315,32 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 
 	test.expect_signature_labels(t, &source, {"test.struct_function: proc(a: int, b: My_Struct, c: int)"});
 }
+
+@(test)
+index_simple_signature :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		my_function :: proc(a: int, b := context.allocator) {
+
+		}
+		`,
+	});
+
+    source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		main :: proc() {	
+            my_package.my_function(*)
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_signature_labels(t, &source, {"my_package.my_function: proc(a: int, b := context.allocator)"});
+}

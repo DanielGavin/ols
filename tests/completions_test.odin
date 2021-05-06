@@ -199,7 +199,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 }
 
 @(test)
-index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
+ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package test
@@ -274,7 +274,7 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_package_completion :: proc(t: ^testing.T) {
+index_package_completion :: proc(t: ^testing.T) {
 
 	packages := make([dynamic]test.Package);
 
