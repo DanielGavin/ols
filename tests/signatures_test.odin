@@ -64,13 +64,49 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(2,*, 3);
+			cool_function(2,3*, 3);
 		}
 		`,
 		packages = {},
 	};
 
 	test.expect_signature_parameter_position(t, &source, 1);
+}
+
+@(test)
+ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b: int, c: int) {
+		}
+
+		main :: proc() { 
+			cool_function(2,3, 3*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 2);
+}
+
+@(test)
+ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(args: ..any, b := 2) {
+		}
+
+		main :: proc() { 
+			cool_function(3, 4, 5*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 0);
 }
 
 @(test)

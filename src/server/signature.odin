@@ -59,6 +59,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		return signature_help, true;
 	}
 
+	//TODO(should probably not be an ast.Expr, but ast.Call_Expr)
 	if position_context.call == nil {
 		return signature_help, true;
 	}
@@ -83,6 +84,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator);
 
 	if value, ok := call.value.(index.SymbolProcedureValue); ok {
+
 		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator);
 
 		for arg, i in value.arg_types {
@@ -96,6 +98,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		};	
 		append(&signature_information, info);
 	} else if value, ok := call.value.(index.SymbolAggregateValue); ok {
+		//function overloaded procedures
 		for symbol in value.symbols {
 			info := SignatureInformation {
 				label = concatenate_symbols_information(&ast_context, symbol, false),
