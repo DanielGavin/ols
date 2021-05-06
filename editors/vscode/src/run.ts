@@ -75,11 +75,11 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 					lenses.push(debugCodelens);
 				}
 
-				//const runCodelens = this.makeRunLens(reTest.lastIndex, testMatch[0].length, fn.trim(), doc);
+				const runCodelens = this.makeRunLens(reTest.lastIndex, testMatch[0].length, fn.trim(), doc);
 
-				//if (runCodelens !== undefined) {
-				//	lenses.push(runCodelens);
-				//}
+				if (runCodelens !== undefined) {
+					lenses.push(runCodelens);
+				}
 
 			}
 

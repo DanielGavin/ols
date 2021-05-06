@@ -24,6 +24,7 @@ import { Config } from './config';
 import { fetchRelease, download } from './net';
 import { getDebugConfiguration } from './debug';
 import { isOdinInstalled } from './toolchain';
+import { tasks } from 'vscode';
 
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
@@ -114,6 +115,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     client.start();
 
+    //Temp
     //Move commands to somewhere else(probably do it like rust-analyzer does it)
     vscode.commands.registerCommand("extension.debug", debugConfig => {
         const fn = debugConfig.function;
@@ -159,6 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
             vscode.debug.startDebugging(undefined, getDebugConfiguration(config, executableName)).then(r => console.log("Result", r));
         });
 
+
     });
 
     vscode.commands.registerCommand("extension.run", debugConfig => {
@@ -187,22 +190,19 @@ export async function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        const odinExecution = execFile("odin", args, {cwd : workspaceFolder}, (err, stdout, stderr) => {
-            if (err) {
-                vscode.window.showErrorMessage(err.message);
-            }
-        });
- 
-        odinExecution.stdout?.on("data", (data) => {
-            console.log(data);
-        });
-   
-        odinExecution.on("exit", (code) => {
-            if(code !== 0) {
-                throw Error("Odin test failed!");
-            }   
-        });
+        var definition = {
+            type: "shell",
+            command: "run", 
+            args: args,
+            cwd: workspaceFolder,
+        };
 
+        const shellExec = new vscode.ShellExecution("odin", args, { cwd: workspaceFolder});
+ 
+        const target = vscode.workspace.workspaceFolders![0];
+        var task = new vscode.Task(definition, target, "Run Test", "odin", shellExec);
+
+        tasks.executeTask(task);
     });
 
 
