@@ -213,7 +213,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 		packages = {},
 	};
 
-	test.expect_signature_labels(t, &source, {"test.clone_array: proc (array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> (A)"});
+	test.expect_signature_labels(t, &source, {"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> (A)"});
 }
 
 @(test)

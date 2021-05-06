@@ -30,6 +30,9 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> M
 		}
 	}
 
+	build_symbol_return(&symbol);
+	build_symbol_signature(&symbol);
+
 	cat := concatenate_symbols_information(ast_context, symbol, false);
 
 	if cat != "" {

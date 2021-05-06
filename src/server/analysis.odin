@@ -2039,8 +2039,6 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
-
-
 concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
 
 	pkg := path.base(symbol.pkg, false, context.temp_allocator);
@@ -2048,7 +2046,7 @@ concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.
 	if symbol.type == .Function {
 
 		if symbol.returns != "" {
-			return fmt.tprintf("%v.%v: proc %v -> %v", pkg, symbol.name, symbol.signature, symbol.returns);
+			return fmt.tprintf("%v.%v: proc%v -> %v", pkg, symbol.name, symbol.signature, symbol.returns);
 		} else {
 			return fmt.tprintf("%v.%v: proc%v", pkg, symbol.name, symbol.signature);
 		}
