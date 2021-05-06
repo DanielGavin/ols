@@ -1365,21 +1365,15 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	arg_types    := make([dynamic]^ast.Field, context.temp_allocator);
 
 	if v.results != nil {
-
 		for ret in v.results.list {
 			append(&return_types, ret);
 		}
-
-		symbol.returns = strings.concatenate({"(", string(ast_context.file.src[v.results.pos.offset:v.results.end.offset]), ")"}, context.temp_allocator);
 	}
 
 	if v.params != nil {
-
 		for param in v.params.list {
 			append(&arg_types, param);
 		}
-
-		symbol.signature = strings.concatenate({"(", string(ast_context.file.src[v.params.pos.offset:v.params.end.offset]), ")"}, context.temp_allocator);
 	}
 
 	symbol.value = index.SymbolProcedureValue {
@@ -2202,7 +2196,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 			if i, ok := local.derived.(ast.Ident); ok {
 				return get_signature(ast_context, i, symbol, true);
 			} else {
-				return index.node_to_string(local);
+				return common.node_to_string(local);
 			}
 		}
 
@@ -2210,7 +2204,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 			if i, ok := global.expr.derived.(ast.Ident); ok {
 				return get_signature(ast_context, i, symbol, true);
 			} else {
-				return index.node_to_string(global.expr);
+				return common.node_to_string(global.expr);
 			}
 		}
 	}

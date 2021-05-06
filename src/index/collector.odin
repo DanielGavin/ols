@@ -304,17 +304,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ast.Proc_Type:
 			token = v;
 			token_type = .Function;
-
-			if v.params != nil {
-				symbol.signature = strings.concatenate({"(", string(file.src[v.params.pos.offset:v.params.end.offset]), ")"},
-				                                       collection.allocator);
-			}
-
-			if v.results != nil {
-				symbol.returns = strings.concatenate({"(", string(file.src[v.results.pos.offset:v.results.end.offset]), ")"},
-				                                     collection.allocator);
-			}
-
 			symbol.value = collect_procedure_fields(collection, cast(^ast.Proc_Type)col_expr, v.params, v.results, package_map);
 		case ast.Proc_Group:
 			token = v;

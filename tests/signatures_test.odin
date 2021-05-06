@@ -20,6 +20,19 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_declare_proc_signature :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		main :: proc(*)
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {});
+}
+
+@(test)
 ast_simple_proc_signature :: proc(t: ^testing.T) {
 
 	source := test.Source {
@@ -38,7 +51,25 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_proc_signature_argument_position :: proc(t: ^testing.T) {
+ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b := context.allocator) {
+		}
+
+		main :: proc() { 
+			cool_function(*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {"test.cool_function: proc(a: int, b := context.allocator)"});
+}
+
+@(test)
+ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package test
@@ -54,6 +85,25 @@ ast_proc_signature_argument_position :: proc(t: ^testing.T) {
 
 	test.expect_signature_parameter_position(t, &source, 1);
 }
+
+@(test)
+ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b: int) {
+		}
+
+		main :: proc() { 
+			cool_function(2*,)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 0);
+}
+
 
 @(test)
 ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {

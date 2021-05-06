@@ -231,7 +231,7 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 						item := CompletionItem {
 							label = resolved.name,
 							kind = .Field,
-							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, resolved.name, index.node_to_string(v.types[i])),  
+							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, resolved.name, common.node_to_string(v.types[i])),  
 							documentation = resolved.doc,
 						};
 
@@ -364,7 +364,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				item := CompletionItem {
 					label = name,
 					kind = .Field,
-					detail = fmt.tprintf("%v.%v: %v", selector.name, name, index.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v.%v: %v", selector.name, name, common.node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				};
 
@@ -374,7 +374,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				item := CompletionItem {
 					label = symbol.name,
 					kind = .Field,
-					detail = fmt.tprintf("%v: %v", name, index.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v: %v", name, common.node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				};
 

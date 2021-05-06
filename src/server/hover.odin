@@ -126,7 +126,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name      = name;
 						symbol.pkg       = selector.name;
-						symbol.signature = index.node_to_string(v.types[i]);
+						symbol.signature = common.node_to_string(v.types[i]);
 						hover.contents   = write_hover_content(&ast_context, symbol);
 						return hover, true;
 					}
