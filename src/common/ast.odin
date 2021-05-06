@@ -657,13 +657,13 @@ build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder
 }
 
 build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
-
+	
 	using ast;
-
+	
 	if node == nil {
 		return;
 	}
-
+	
 	switch n in node.derived {
 	case Bad_Expr:
 	case Ident:
@@ -741,6 +741,8 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 
 		} else if len(n.names) > 0 && n.default_value != nil {
 			strings.write_string(builder, " := ");
+		} else {
+			build_string(n.type, builder);
 		}
 		
 		build_string(n.default_value, builder);
@@ -752,6 +754,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 			}
 		}
 	case Typeid_Type:
+		strings.write_string(builder, "$");
 		build_string(n.specialization, builder);
 	case Helper_Type:
 		build_string(n.type, builder);

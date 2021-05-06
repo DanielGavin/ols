@@ -944,8 +944,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Map_Type:
 			return_symbol, ok = make_symbol_map_from_ast(ast_context, v), true;
-		case Call_Expr:
-			return_symbol, ok = resolve_type_expression(ast_context, local);
 		case:
 			return_symbol, ok = resolve_type_expression(ast_context, local);
 		}
@@ -1000,8 +998,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol, ok = make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
-		case Call_Expr:
-			return_symbol, ok = resolve_type_expression(ast_context, global.expr);
 		case:
 			return_symbol, ok = resolve_type_expression(ast_context, global.expr);
 		}
@@ -2605,6 +2601,10 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 
 	begin_offset := max(0, start);
 	end_offset   := max(start, end + 1);
+
+	if end_offset - begin_offset <= 1 {
+		return;
+	}
 
 	str := position_context.file.src[0:end_offset];
 

@@ -154,8 +154,8 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
 			symbol := symbol;
 
-			build_symbol_signature(&call);
-			build_symbol_return(&call);
+			build_symbol_signature(&symbol);
+			build_symbol_return(&symbol);
 
 			info := SignatureInformation {
 				label = concatenate_symbols_information(&ast_context, symbol, false),

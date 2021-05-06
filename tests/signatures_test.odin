@@ -20,11 +20,21 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_declare_proc_signature :: proc(t: ^testing.T) {
+ast_naked_parens :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package test
-		main :: proc(*)
+		main :: proc() { 
+
+			if node == nil {
+				return;
+			}
+
+			(*)
+			switch n in node.derived {
+
+			}
+		}
 		`,
 		packages = {},
 	};
