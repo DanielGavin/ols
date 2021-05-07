@@ -134,6 +134,24 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		cool_function :: proc(a: int, b: int, c: int) {
+		}
+
+		main :: proc() { 
+			cool_function(a(2,5,b(3,sdf[2],{})), *);
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_parameter_position(t, &source, 1);
+}
+
+@(test)
 ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
 
 	source := test.Source {
@@ -344,3 +362,4 @@ index_simple_signature :: proc(t: ^testing.T) {
 
     test.expect_signature_labels(t, &source, {"my_package.my_function: proc(a: int, b := context.allocator)"});
 }
+

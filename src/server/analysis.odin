@@ -2284,11 +2284,27 @@ get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^D
 
 	commas := make([dynamic]int, 0, 10, context.temp_allocator);
 
+	paren_count := 0;
+	bracket_count := 0;
+	brace_count := 0;
+
 	if call, ok := position_context.call.derived.(ast.Call_Expr); ok {
+		if document.text[call.open.offset] == '(' {
+			paren_count -= 1;
+		}
 		for i := call.open.offset; i < call.close.offset; i += 1 {
 
-			if document.text[i] == ',' {
-				append(&commas, i);
+			switch document.text[i] {
+			case '[': paren_count += 1;
+			case ']': paren_count -= 1;
+			case '{': brace_count += 1;
+			case '}': brace_count -= 1;
+			case '(': paren_count += 1;
+			case ')': paren_count -= 1;
+			case ',':
+				if paren_count == 0 && brace_count == 0 && bracket_count == 0 {
+					append(&commas, i);
+				}
 			}
 		}
 	}

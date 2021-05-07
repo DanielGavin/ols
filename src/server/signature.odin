@@ -45,6 +45,7 @@ SignatureInformation :: struct {
 
 ParameterInformation :: struct {
 	label: string,
+	activeParameter: int,
 }
 
 /*
@@ -154,14 +155,33 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 
 			symbol := symbol;
 
-			build_symbol_signature(&symbol);
-			build_symbol_return(&symbol);
+			if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 
-			info := SignatureInformation {
-				label = concatenate_symbols_information(&ast_context, symbol, false),
-				documentation = symbol.doc,
-			};	
-			append(&signature_information, info);
+				parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator);
+
+				for arg, i in value.arg_types {
+				
+					if arg.type != nil {
+						if _, is_ellipsis := arg.type.derived.(ast.Ellipsis); is_ellipsis {
+							signature_help.activeParameter = min(i, signature_help.activeParameter);
+						}
+					}
+
+					parameters[i].label = common.node_to_string(arg);
+					parameters[i].activeParameter = i;
+				}
+
+				build_symbol_signature(&symbol);
+				build_symbol_return(&symbol);
+
+				info := SignatureInformation {
+					label = concatenate_symbols_information(&ast_context, symbol, false),
+					documentation = symbol.doc,
+					parameters = parameters,
+				};	
+
+				append(&signature_information, info);
+			}
 		}
 	}
 
