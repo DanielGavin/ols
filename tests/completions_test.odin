@@ -304,6 +304,38 @@ index_package_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"});
 }
 
+@(test)
+ast_generic_make_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		make :: proc{
+			make_dynamic_array,
+			make_dynamic_array_len,
+		};
+
+		make_dynamic_array :: proc($T: typeid/[dynamic]$E, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
+		}
+
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+
+		My_Struct :: struct {
+			my_int: int,
+		}
+
+		main :: proc() {
+			my_array := make([dynamic]My_Struct, context.allocator);
+			my_array[2].*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+}
+
 /*
 
 	SymbolUntypedValue :: struct {

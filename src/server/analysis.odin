@@ -336,22 +336,27 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	using ast;
 
 	if params == nil {
-		return index.Symbol {}, false;
+		return {}, false;
 	}
 
 	if results == nil {
-		return index.Symbol {}, false;
+		return {}, false;
 	}
 
 	if ast_context.call == nil {
-		return index.Symbol {}, false;
+		return {}, false;
 	}
 
 	call_expr := ast_context.call;
-	poly_map  := make(map[string]^Expr, 0, context.temp_allocator);
-	i         := 0;
+	poly_map := make(map[string]^Expr, 0, context.temp_allocator);
+	i := 0;
+	count_required_params := 0;	
 
 	for param in params {
+
+		if param.default_value != nil {
+			count_required_params += 1;
+		}
 
 		for name in param.names {
 
@@ -371,6 +376,10 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 			i += 1;
 		}
+	}
+
+	if count_required_params > len(call_expr.args) || count_required_params == 0 || len(call_expr.args) == 0 {
+		return {}, false;
 	}
 
 	function_name := "";
@@ -402,14 +411,15 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 		if ident, ok := result.type.derived.(Ident); ok {
 			field := cast(^Field)index.clone_node(result, context.temp_allocator, nil);
-
-			if m := &poly_map[ident.name]; m != nil {
+			if m, ok := poly_map[ident.name]; ok {
 				field.type = poly_map[ident.name];
 				append(&return_types, field);
-			} else {
-				return index.Symbol {}, false;
-			}
+			} 
 		}
+	}
+
+	if len(poly_map) != len(return_types) {
+		return {}, false;
 	}
 
 	symbol.value = index.SymbolProcedureValue {
