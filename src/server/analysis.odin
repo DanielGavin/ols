@@ -645,7 +645,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
 
-			if ast_context.call == nil {
+			if ast_context.call == nil || len(ast_context.call.args) == 0 {
 				append(&candidates, f);
 				break next_fn;
 			}
