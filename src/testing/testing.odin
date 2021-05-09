@@ -73,6 +73,7 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
+	index.indexer.static_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
 	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
 
 	for src_pkg in src.packages {
@@ -108,7 +109,7 @@ setup :: proc(src: ^Source) {
 			return;
 		}
 	
-		if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {
 			return;
 		}
 	}

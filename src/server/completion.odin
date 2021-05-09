@@ -161,10 +161,10 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 	return false;
 }
 
-get_attribute_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 }
 
-get_directive_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false;
 

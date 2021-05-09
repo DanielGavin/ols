@@ -492,12 +492,6 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		}
 	case Poly_Type:
 		return true;
-			//return node_equal(n.sp)
-			//if n, ok := a.derived.(Poly_Type); ok {
-			//    ret := node_equal(n.type, m.type);
-			//    ret &= node_equal(n.specialization, m.specialization);
-			//    return ret;
-			//}
 	case Ellipsis:
 		if n, ok := a.derived.(Ellipsis); ok {
 			return node_equal(n.expr, m.expr);
@@ -549,8 +543,10 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		}
 	case Array_Type:
 		if n, ok := a.derived.(Array_Type); ok {
-			ret := node_equal(n.len, m.len);
-			ret &= node_equal(n.elem, m.elem);
+			ret := node_equal(n.elem, m.elem);
+			if n.len != nil && m.len != nil {
+				ret &= node_equal(n.len, m.len);
+			}
 			return ret;
 		}
 	case Dynamic_Array_Type:
@@ -614,9 +610,6 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		}
 	case Typeid_Type:
 		return true;
-			//if n, ok := a.derived.(Typeid_Type); ok {
-			//    return node_equal(n.specialization, m.specialization);
-			//}
 	case:
 		log.warn("Unhandled poly node kind: %T", m);
 	}

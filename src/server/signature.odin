@@ -128,7 +128,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	if value, ok := call.value.(index.SymbolProcedureValue); ok {
 
 		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator);
-
+		
 		for arg, i in value.arg_types {
 			
 			if arg.type != nil {

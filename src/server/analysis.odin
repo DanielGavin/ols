@@ -178,7 +178,7 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 	case Implicit:
 	case Undef:
 	case Basic_Lit:
-	case Poly_Type:
+	case Poly_Type:	
 		if expr := get_poly_node_to_expr(call_node); expr != nil {
 			poly_map[m.type.name] = expr;
 		}
@@ -354,7 +354,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 	for param in params {
 
-		if param.default_value != nil {
+		if param.default_value == nil {
 			count_required_params += 1;
 		}
 
@@ -370,6 +370,12 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 			if param.type == nil {
 				continue;
+			}
+
+			if type_id, ok := param.type.derived.(Typeid_Type); ok {
+				if !common.node_equal(call_expr.args[i], type_id.specialization) {
+					return {}, false;
+				}
 			}
 
 			resolve_poly_spec_node(ast_context, call_expr.args[i], param.type, &poly_map);	
@@ -392,7 +398,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		function_name = selector.field.name;
 		function_range = common.get_token_range(selector, ast_context.file.src);
 	} else {
-		return index.Symbol {}, false;
+		return {}, false;
 	}
 
 	symbol := index.Symbol {
@@ -402,6 +408,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	};
 
 	return_types := make([dynamic]^ast.Field, context.temp_allocator);
+	argument_types := make([dynamic]^ast.Field, context.temp_allocator);
 
 	for result in results {
 
@@ -410,21 +417,40 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		}
 
 		if ident, ok := result.type.derived.(Ident); ok {
-			field := cast(^Field)index.clone_node(result, context.temp_allocator, nil);
 			if m, ok := poly_map[ident.name]; ok {
-				field.type = poly_map[ident.name];
+				field := cast(^Field)index.clone_node(result, context.temp_allocator, nil);
+				field.type = m;
 				append(&return_types, field);
-			} 
+			} else {
+				append(&return_types, result);
+			}
+		} else {
+			append(&return_types, result);
 		}
 	}
 
-	if len(poly_map) != len(return_types) {
-		return {}, false;
+	for param in params {
+		
+		if len(param.names) == 0 {
+			continue;
+		}
+
+		//check the name for poly
+		if poly_type, ok := param.names[0].derived.(ast.Poly_Type); ok && param.type != nil {
+			if m, ok := poly_map[poly_type.type.name]; ok {
+				field := cast(^Field)index.clone_node(param, context.temp_allocator, nil);
+				field.type = m;
+				append(&argument_types, field);
+			}
+		} else {
+			append(&argument_types, param);
+		}
+
 	}
 
 	symbol.value = index.SymbolProcedureValue {
 		return_types = return_types[:],
-		arg_types = params,
+		arg_types = argument_types[:],
 	};
 
 	return symbol, true;
@@ -449,8 +475,7 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list);
 }
 
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bool
-{
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bool {
 	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
 	if untyped, ok := a.value.(index.SymbolUntypedValue); ok {
 		if basic, ok := b.value.(index.SymbolBasicValue); ok {
@@ -627,6 +652,18 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 			if procedure, ok := f.value.(index.SymbolProcedureValue); ok {
 
+				count_required_params := 0;
+
+				for arg in procedure.arg_types {
+					if arg.default_value == nil {
+						count_required_params += 1;
+					}
+				}
+
+				if count_required_params > len(call_expr.args) {
+					break next_fn;
+				}				
+
 				if len(procedure.arg_types) < len(call_expr.args) {
 					continue;
 				}
@@ -643,17 +680,21 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 					call_symbol, ok = resolve_type_expression(ast_context, arg);
 
-					if !ok {
+					if !ok {		
 						break next_fn;
 					}
 
-					arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type);
-
-					if !ok {
-						break next_fn;
+					if procedure.arg_types[i].type != nil {
+						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type);
+					} else {					
+						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].default_value);
 					}
 
-					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {
+					if !ok {					
+						break next_fn;
+					}
+					
+					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {	
 						break next_fn;
 					}
 
@@ -1019,7 +1060,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		return return_symbol, ok;
 	} else if node.name == "context" {
-		//if there are more of these variables that hard builtin, move them to the indexer
 		return index.lookup("Context", ast_context.current_package);
 	} else if v, ok := common.keyword_map[node.name]; ok {
 		//keywords
