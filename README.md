@@ -1,8 +1,6 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**NOTE**: Linux and MacOS are not actively being supported. This will change when Odin makes them into first class citizens.
-
 ![Procedure example](images/completion.gif)
 
 ## Table Of Contents

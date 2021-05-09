@@ -8,12 +8,16 @@ else
 fi
 
 #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
-#${ODIN} test tests -llvm-api
+cd tests
 
-#if [ $? -ne 0 ]
-#then
-#    echo "Test failed"
-#    exit 1
-#fi
+${ODIN} test ../tests -collection:shared=../src
 
-${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2 -microarch=native
+if ([ $? -ne 0 ] && [[ $1 == "CI" ]])
+then
+    echo "Test failed"
+    exit 1
+fi
+
+cd ..
+
+${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2
