@@ -199,7 +199,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 }
 
 @(test)
-index_completion_in_comp_lit_type :: proc(t: ^testing.T) {
+ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package test
@@ -274,7 +274,7 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_package_completion :: proc(t: ^testing.T) {
+index_package_completion :: proc(t: ^testing.T) {
 
 	packages := make([dynamic]test.Package);
 
@@ -304,6 +304,79 @@ ast_package_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"});
 }
 
+@(test)
+ast_generic_make_slice :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		Allocator :: struct {
+
+		}
+		Context :: struct {
+			allocator: Allocator,
+		}
+		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+
+		My_Struct :: struct {
+			my_int: int,
+		}
+
+		main :: proc() {
+			my_slice := make_slice([]My_Struct, 23);
+			my_slic*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_slice: []My_Struct"});
+}
+
+/*
+	Figure out whether i want to introduce the runtime to the tests
+
+@(test)
+ast_generic_make_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		make :: proc{
+			make_dynamic_array,
+			make_dynamic_array_len,
+			make_dynamic_array_len_cap,
+			make_map,
+			make_slice,
+		};
+		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, allocator := context.allocator, loc := #caller_location) -> T {
+		}
+		make_dynamic_array :: proc($T: typeid/[dynamic]$E, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
+		}
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+
+		My_Struct :: struct {
+			my_int: int,
+		}
+
+		main :: proc() {
+			allocator: Allocator;
+			my_array := make([dynamic]My_Struct, 343, allocator);
+			my_array[2].*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+}
+*/
+
 /*
 
 	SymbolUntypedValue :: struct {
@@ -321,4 +394,12 @@ ast_package_completion :: proc(t: ^testing.T) {
 		resolveProvider?: boolean;
 	}
 
+*/
+
+/*
+	position_context.last_token = tokenizer.Token {
+			kind = .Comma,
+		};
+
+	It shows the type instead of the label Token_Kind
 */

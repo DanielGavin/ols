@@ -30,6 +30,9 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> M
 		}
 	}
 
+	build_symbol_return(&symbol);
+	build_symbol_signature(&symbol);
+
 	cat := concatenate_symbols_information(ast_context, symbol, false);
 
 	if cat != "" {
@@ -126,7 +129,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name      = name;
 						symbol.pkg       = selector.name;
-						symbol.signature = index.node_to_string(v.types[i]);
+						symbol.signature = common.node_to_string(v.types[i]);
 						hover.contents   = write_hover_content(&ast_context, symbol);
 						return hover, true;
 					}

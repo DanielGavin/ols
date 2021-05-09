@@ -73,6 +73,7 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
+	index.indexer.static_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
 	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
 
 	for src_pkg in src.packages {
@@ -108,7 +109,7 @@ setup :: proc(src: ^Source) {
 			return;
 		}
 	
-		if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {
 			return;
 		}
 	}
@@ -143,6 +144,16 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 		}
 	}
 
+}
+
+expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {
+	setup(src);
+
+	help, ok := server.get_signature_information(src.document, src.position);
+
+	if help.activeParameter != position {
+		testing.errorf(t, "expected parameter position %v, but received %v", position, help.activeParameter);
+	}
 }
 
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {

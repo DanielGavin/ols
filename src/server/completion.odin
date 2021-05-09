@@ -18,6 +18,11 @@ import "core:os"
 import "shared:common"
 import "shared:index"
 
+/*
+	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
+
+*/
+
 Completion_Type :: enum {
 	Implicit,
 	Selector,
@@ -156,10 +161,10 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 	return false;
 }
 
-get_attribute_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 }
 
-get_directive_completion :: proc(ast_context: ^AstContext, postition_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false;
 
@@ -229,9 +234,9 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 						}
 
 						item := CompletionItem {
-							label = resolved.name,
+							label = name,
 							kind = .Field,
-							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, resolved.name, index.node_to_string(v.types[i])),  
+							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, name, common.node_to_string(v.types[i])),  
 							documentation = resolved.doc,
 						};
 
@@ -364,7 +369,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				item := CompletionItem {
 					label = name,
 					kind = .Field,
-					detail = fmt.tprintf("%v.%v: %v", selector.name, name, index.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v.%v: %v", selector.name, name, common.node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				};
 
@@ -374,7 +379,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				item := CompletionItem {
 					label = symbol.name,
 					kind = .Field,
-					detail = fmt.tprintf("%v: %v", name, index.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v: %v", name, common.node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				};
 
@@ -390,11 +395,16 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 			for search in searched {
 
+				symbol := search.symbol;
+
+				build_symbol_signature(&symbol);
+				build_symbol_return(&symbol);
+
 				item := CompletionItem {
-					label = search.symbol.name,
-					kind = cast(CompletionItemKind)search.symbol.type,
-					detail = fmt.tprintf("%v.%v: %v", path.base(search.symbol.pkg, false, context.temp_allocator), search.symbol.name, search.symbol.signature),
-					documentation = search.symbol.doc,
+					label = symbol.name,
+					kind = cast(CompletionItemKind)symbol.type,
+					detail = fmt.tprintf("%v.%v: %v", path.base(symbol.pkg, false, context.temp_allocator), symbol.name, symbol.signature),
+					documentation = symbol.doc,
 				};
 
 				append(&items, item);
@@ -819,6 +829,9 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
 		for r in results {
+			r := r;
+			build_symbol_return(&r.symbol);
+			build_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
 				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
 			}
@@ -851,6 +864,9 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			symbol.name      = ident.name;
 			symbol.signature = get_signature(ast_context, ident^, symbol);
 
+			build_symbol_return(&symbol);
+			build_symbol_signature(&symbol);
+
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
 			}
@@ -873,6 +889,9 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 			symbol.name      = ident.name;
 			symbol.signature = get_signature(ast_context, ident^, symbol);
+
+			build_symbol_return(&symbol);
+			build_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});

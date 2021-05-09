@@ -96,9 +96,27 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 			r.name = get_index_unique_string(unique_strings, allocator, n.name);
 		}
 	case Implicit:
+		r := cast(^Implicit)res;
+		if unique_strings == nil {
+			r.tok.text = strings.clone(n.tok.text, allocator);
+		} else {
+			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text);
+		}
 	case Undef:
 	case Basic_Lit:
+		r := cast(^Basic_Lit)res;
+		if unique_strings == nil {
+			r.tok.text = strings.clone(n.tok.text, allocator);
+		} else {
+			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text);
+		}
 	case Basic_Directive:
+		r := cast(^Basic_Directive)res;
+		if unique_strings == nil {
+			r.name = strings.clone(n.name, allocator);
+		} else {
+			r.name = get_index_unique_string(unique_strings, allocator, n.name);
+		}
 	case Ellipsis:
 		r := cast(^Ellipsis)res;
 		r.expr = clone_type(r.expr, allocator, unique_strings);

@@ -131,21 +131,6 @@ ParameterInformationCapabilities :: struct {
 	labelOffsetSupport: bool,
 }
 
-SignatureInformationCapabilities :: struct {
-	parameterInformation: ParameterInformationCapabilities,
-}
-
-SignatureHelpClientCapabilities :: struct {
-	dynamicRegistration:  bool,
-	signatureInformation: SignatureInformationCapabilities,
-	contextSupport:       bool,
-}
-
-SignatureHelpOptions :: struct {
-	triggerCharacters:   []string,
-	retriggerCharacters: []string,
-}
-
 ClientCapabilities :: struct {
 	textDocument: TextDocumentClientCapabilities,
 }
@@ -273,22 +258,6 @@ TextDocumentSyncOptions :: struct {
 	openClose: bool,
 	change:    int,
 	save:      SaveOptions,
-}
-
-SignatureHelp :: struct {
-	signatures:      []SignatureInformation,
-	activeSignature: int,
-	activeParameter: int,
-}
-
-SignatureInformation :: struct {
-	label:         string,
-	documentation: string,
-	parameters:    []ParameterInformation,
-}
-
-ParameterInformation :: struct {
-	label: [2]int,
 }
 
 OlsConfig :: struct {
