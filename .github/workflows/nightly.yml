@@ -6,6 +6,31 @@ on:
   schedule:
     - cron: 0 20 * * *
 jobs:
+  dist-x86_64-unknown-linux-gnu:
+    timeout-minutes: 30
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download LLVM
+      run: sudo apt-get install llvm-11 clang-11 llvm
+    - name: Download Odin
+      run: git clone https://github.com/odin-lang/Odin
+    - name: Build Odin
+      run: |
+        cd Odin
+        make release
+    - name: Build ols
+      run: ./build.sh CI
+    - name: Move to Dist
+      run: |
+        mkdir dist
+        mv ols dist/ols-x86_64-unknown-linux-gnu
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: dist-x86_64-unknown-linux-gnu
+        path: ./dist
+  
   dist-x86_64-pc-windows-msvc:
     timeout-minutes: 30
     runs-on: windows-latest
@@ -64,14 +89,17 @@ jobs:
     
     - uses: actions/download-artifact@v1
       with:
+        name: dist-x86_64-unknown-linux-gnu
+        path: dist
+    - uses: actions/download-artifact@v1
+      with:
         name: dist-x86_64-pc-windows-msvc
         path: dist
     - run: |
         ls -al ./dist
         cd dist
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
-        rm -rf builtin
-    
+        zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
     - name: Publish Release
       uses: ./.github/actions/github-release
       with:
