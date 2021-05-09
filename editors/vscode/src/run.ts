@@ -96,7 +96,7 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 	
 		return new CodeLens(range, {
 			title: "Debug",
-			command: "extension.debug",
+			command: "ols.runDebugTest",
 			tooltip: "Debug",
 			arguments: [{
 				function: fn,
@@ -114,7 +114,7 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 
 		return new CodeLens(range, {
 			title: "Run",
-			command: "extension.run",
+			command: "ols.runTest",
 			tooltip: "Run",
 			arguments: [{
 				function: fn,

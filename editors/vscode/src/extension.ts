@@ -6,8 +6,6 @@ import * as vscode from 'vscode';
 import * as path from "path";
 import * as os from "os";
 import { promises as fs, PathLike, constants } from "fs";
-import { execFile } from 'child_process';
-import { trace } from 'console';
 
 var AdmZip = require('adm-zip');
 
@@ -22,14 +20,13 @@ import { RunnableCodeLensProvider } from "./run";
 import { PersistentState } from './persistent_state';
 import { Config } from './config';
 import { fetchRelease, download } from './net';
-import { getDebugConfiguration } from './debug';
 import { isOdinInstalled } from './toolchain';
-import { tasks } from 'vscode';
-
+import { Ctx } from './ctx';
+import { runDebugTest, runTest } from './commands';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
-let client: LanguageClient;
+let ctx: Ctx | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -106,7 +103,7 @@ export async function activate(context: vscode.ExtensionContext) {
         outputChannel: vscode.window.createOutputChannel("Odin Language Server")
     };
 
-    client = new LanguageClient(
+    var client = new LanguageClient(
         'odinLanguageClient',
         'Odin Language Server Client',
         serverOptions,
@@ -115,96 +112,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
     client.start();
 
-    //Temp
-    //Move commands to somewhere else(probably do it like rust-analyzer does it)
-    vscode.commands.registerCommand("extension.debug", debugConfig => {
-        const fn = debugConfig.function;
-        const cwd = debugConfig.cwd;
-        const pkg = path.basename(cwd);
+    ctx = await Ctx.create(config, client, context, serverPath, workspaceFolder.uri.fsPath);
 
-        var args = [];
-
-        args.push("test");
-        args.push(cwd);
-        args.push(`-test-name:${fn}`);
-        args.push("-debug");
-
-        for(var i = 0; i < config.collections.length; i++) {
-            const name = config.collections[i].name;
-            const path = config.collections[i].path;
-            if(name === "core") {
-                continue;
-            }
-            args.push(`-collection:${name}=${path}`);
-        }
-
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-
-        if(workspaceFolder === undefined) {
-            return;
-        }
-
-        const odinExecution = execFile("odin", args, {cwd : workspaceFolder}, (err, stdout, stderr) => {
-            if (err) {
-                vscode.window.showErrorMessage(err.message);
-            }
-        });
- 
-        const executableName = path.join(workspaceFolder, pkg);
-
-        odinExecution.on("exit", (code) => {
-
-            if(code !== 0) {
-                throw Error("Odin test failed!");
-            }
-
-            vscode.debug.startDebugging(undefined, getDebugConfiguration(config, executableName)).then(r => console.log("Result", r));
-        });
-
-
-    });
-
-    vscode.commands.registerCommand("extension.run", debugConfig => {
-        const fn = debugConfig.function;
-        const cwd = debugConfig.cwd;
-        const pkg = path.basename(cwd);
-
-        var args = [];
-
-        args.push("test");
-        args.push(cwd);
-        args.push(`-test-name:${fn}`);
-
-        for(var i = 0; i < config.collections.length; i++) {
-            const name = config.collections[i].name;
-            const path = config.collections[i].path;
-            if(name === "core") {
-                continue;
-            }
-            args.push(`-collection:${name}=${path}`);
-        }
-
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-
-        if(workspaceFolder === undefined) {
-            return;
-        }
-
-        var definition = {
-            type: "shell",
-            command: "run", 
-            args: args,
-            cwd: workspaceFolder,
-        };
-
-        const shellExec = new vscode.ShellExecution("odin", args, { cwd: workspaceFolder});
- 
-        const target = vscode.workspace.workspaceFolders![0];
-        var task = new vscode.Task(definition, target, "Run Test", "odin", shellExec);
-
-        tasks.executeTask(task);
-    });
-
+    ctx.registerCommand("runDebugTest", runDebugTest);
+    ctx.registerCommand("runTest", runTest);
 
     vscode.commands.registerCommand("ols.start", () => {
         client.start();
@@ -410,5 +321,5 @@ async function queryForGithubToken(state: PersistentState): Promise<void> {
 }
 
 export function deactivate(): Thenable<void> {
-    return client.stop();
+    return ctx!.client.stop();
 }
