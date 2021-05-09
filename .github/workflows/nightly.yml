@@ -6,6 +6,36 @@ on:
   schedule:
     - cron: 0 20 * * *
 jobs:
+
+  dist-x86_64-darwin:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download LLVM and setup PATH
+      run: |
+        brew install llvm@11
+        echo "/usr/local/opt/llvm@11/bin" >> $GITHUB_PATH
+        TMP_PATH=$(xcrun --show-sdk-path)/user/include
+        echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
+    - name: Download Odin
+      run: git clone https://github.com/odin-lang/Odin
+    - name: Build Odin
+      run: |
+        cd Odin
+        make release
+    - name: Build ols
+      run: ./build.sh CI
+    - name: Move to Dist
+      run: |
+        mkdir dist
+        mv ols dist/ols-x86_64-darwin
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: ols-x86_64-darwin 
+        path: ./dist
+
   dist-x86_64-unknown-linux-gnu:
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -73,7 +103,7 @@ jobs:
     name: publish
     runs-on: ubuntu-16.04
     timeout-minutes: 30
-    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu']
+    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-x86_64-darwin']
     steps:
     - name: Install Nodejs
       uses: actions/setup-node@v1
@@ -101,6 +131,8 @@ jobs:
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
         chmod +x ols-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
+        chmod +x ols-x86_64-darwin
+        zip -r ols-x86_64-darwin.zip ols-x86_64-darwin builtin
         rm -rf builtin
     - name: Publish Release
       uses: ./.github/actions/github-release
