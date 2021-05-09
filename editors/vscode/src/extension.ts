@@ -23,6 +23,7 @@ import { fetchRelease, download } from './net';
 import { isOdinInstalled } from './toolchain';
 import { Ctx } from './ctx';
 import { runDebugTest, runTest } from './commands';
+import { watchOlsConfigFile } from './watch';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
@@ -129,6 +130,8 @@ export async function activate(context: vscode.ExtensionContext) {
         await client.stop();
         client.start();
     });
+
+    watchOlsConfigFile(ctx, olsFile);
 }
 
 async function bootstrap(config: Config, state: PersistentState): Promise<string> {
@@ -160,7 +163,7 @@ async function bootstrapServer(config: Config, state: PersistentState): Promise<
     return path;
 }
 
-async function parseOlsFile(config: Config, file: string) {
+export async function parseOlsFile(config: Config, file: string) {
     /*
         We have to parse the collections that they have specificed through the json(This will be changed when odin gets it's own builder files)
     */
@@ -186,6 +189,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     const platforms: { [key: string]: string } = {
         "x64 win32": "x86_64-pc-windows-msvc",
         "x64 linux": "x86_64-unknown-linux-gnu",
+        "x64 darwin": "x86_64-darwin",
     };
 
     let platform = platforms[`${process.arch} ${process.platform}`];
