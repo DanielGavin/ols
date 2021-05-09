@@ -673,6 +673,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 	case Basic_Directive:
 		strings.write_string(builder, n.name);
 	case Ellipsis:
+		strings.write_string(builder, "..");
 		build_string(n.expr, builder);
 	case Proc_Lit:
 		build_string(n.type, builder);
