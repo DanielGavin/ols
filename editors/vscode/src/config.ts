@@ -1,4 +1,3 @@
-import { ExecOptionsWithStringEncoding } from 'node:child_process';
 import * as vscode from 'vscode';
 import { log } from "./util";
 
