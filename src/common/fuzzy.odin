@@ -148,20 +148,20 @@ fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
 
 	return str, true;
 }
-
-fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
-
+//changed from bool to int because of a linux bug - 10.05.2021
+fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, int) {
+	
 	if !fuzzy_init(matcher, word) {
-		return 0, false;
+		return 0, 0;
 	}
 
 	if matcher.pattern_count <= 0 {
-		return 1, true;
+		return 1, 1;
 	}
 
 	if acronym, ok := fuzzy_to_acronym(word); ok {
 		if acronym == matcher.pattern {
-			return 20, true;
+			return 20, 1;
 		}
 	}
 
@@ -171,7 +171,7 @@ fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 	   cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score);
 
 	if fuzzy_is_awful(best) {
-		return 0.0, false;
+		return 0.0, 0;
 	}
 
 	score := matcher.score_scale * min(perfect_bonus * cast(f32)matcher.pattern_count, cast(f32)max(0, best));
@@ -180,7 +180,7 @@ fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, bool) {
 		score *= 2;
 	}
 
-	return score, true;
+	return score, 1;
 }
 
 fuzzy_is_awful :: proc(s: int) -> bool {

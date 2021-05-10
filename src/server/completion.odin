@@ -867,7 +867,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			build_symbol_return(&symbol);
 			build_symbol_signature(&symbol);
 
-			if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
 			}
 		}
@@ -893,7 +893,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			build_symbol_return(&symbol);
 			build_symbol_signature(&symbol);
 
-			if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
 			}
 		}
@@ -910,7 +910,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			type = .Package,
 		};
 
-		if score, ok := common.fuzzy_match(matcher, symbol.name); ok {
+		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
 		}
 	}
@@ -922,18 +922,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			type = .Keyword,
 		};
 
-		if score, ok := common.fuzzy_match(matcher, keyword); ok {
+		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
 		}
 	}
-
-	language_keywords: []string = {
-		"align_of","case","defer","enum","import","proc","transmute","when",
-		"auto_cast","cast","distinct","fallthrough","in","notin","return","type_of",
-		"bit_field","const","do","for","inline","offset_of","size_of","typeid",
-		"bit_set","context","dynamic","foreign","opaque","struct","union",
-		"break","continue","else","if","map","package","switch","using",
-	};
 
 	for keyword, _ in language_keywords {
 
@@ -942,7 +934,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			type = .Keyword,
 		};
 
-		if score, ok := common.fuzzy_match(matcher, keyword); ok {
+		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
 		}
 	}
@@ -1149,3 +1141,11 @@ is_bitset_binary_operator :: proc(op: string) -> bool {
 is_bitset_assignment_operator :: proc(op: string) -> bool {
 	return op in bitset_assignment_operators;
 }
+
+language_keywords: []string = {
+	"align_of","case","defer","enum","import","proc","transmute","when",
+	"auto_cast","cast","distinct","fallthrough","in","notin","return","type_of",
+	"bit_field","const","do","for","inline","offset_of","size_of","typeid",
+	"bit_set","context","dynamic","foreign","opaque","struct","union",
+	"break","continue","else","if","map","package","switch","using",
+};

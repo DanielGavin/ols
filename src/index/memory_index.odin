@@ -44,7 +44,7 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 			continue;
 		}
 
-		if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok {
+		if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
 			result := FuzzyResult {
 				symbol = symbol,
 				score = score,
