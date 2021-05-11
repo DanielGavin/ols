@@ -105,7 +105,7 @@ export async function activate(context: vscode.ExtensionContext) {
     };
 
     var client = new LanguageClient(
-        'odinLanguageClient',
+        'ols',
         'Odin Language Server Client',
         serverOptions,
         clientOptions

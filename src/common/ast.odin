@@ -724,7 +724,14 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 	case Attribute:
 		build_string(n.elems, builder);
 	case Field:
-		build_string(n.names, builder);
+
+		for name, i in n.names {
+			build_string(name, builder);
+			if len(n.names) - 1 != i {
+				strings.write_string(builder, ", ");
+			}
+		}
+
 		if len(n.names) > 0 && n.type != nil {
 			strings.write_string(builder, ": ");
 			build_string(n.type, builder);

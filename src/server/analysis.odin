@@ -1539,11 +1539,14 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) ->
 	names := make([dynamic]string, context.temp_allocator);
 
 	for n in v.fields {
-
 		if ident, ok := n.derived.(ast.Ident); ok {
 			append(&names, ident.name);
 		} else if field, ok := n.derived.(ast.Field_Value); ok {
-			append(&names, field.field.derived.(ast.Ident).name);
+			if ident, ok := field.field.derived.(ast.Ident); ok {
+				append(&names, ident.name);
+			} else if binary, ok := field.field.derived.(ast.Binary_Expr); ok {
+				append(&names, binary.left.derived.(ast.Ident).name);
+			}	
 		}
 	}
 

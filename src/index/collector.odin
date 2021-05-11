@@ -129,11 +129,14 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 	//ERROR no hover on n in the for, but elsewhere is fine
 	for n in fields {
-
 		if ident, ok := n.derived.(ast.Ident); ok {
 			append(&names, get_index_unique_string(collection, ident.name));
 		} else if field, ok := n.derived.(ast.Field_Value); ok {
-			append(&names, get_index_unique_string(collection, field.field.derived.(ast.Ident).name));
+			if ident, ok := field.field.derived.(ast.Ident); ok {
+				append(&names, get_index_unique_string(collection, ident.name));
+			} else if binary, ok := field.field.derived.(ast.Binary_Expr); ok {
+				append(&names, get_index_unique_string(collection, binary.left.derived.(ast.Ident).name));
+			}	
 		}
 	}
 

@@ -48,13 +48,25 @@ read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.B
 	return true;
 }
 
-read_sized :: proc(reader: ^Reader, data: []u8) -> bool {
+read_sized :: proc(reader: ^Reader, data: []u8) -> (ok: bool) {
+	ok = true;
+	size := len(data);
+	n := 0;
 
-	read, err := reader.reader_fn(reader.reader_context, data);
+	for n < size && ok {
+		read: int;
+		err_code: int;
 
-	if (err != 0 || read != len(data)) {
-		return false;
+		read, err_code = reader.reader_fn(reader.reader_context, data[n:]);
+
+		ok = err_code == 0;
+
+		n += read;
 	}
 
-	return true;
+	if n >= size {
+		ok = true;
+	}
+
+	return;
 }
