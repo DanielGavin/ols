@@ -114,9 +114,9 @@ get_semantic_tokens :: proc(document: ^Document, range: common.Range) -> Semanti
 	return get_tokens(builder);
 }
 
-write_semantic_node :: proc(builder: ^SemanticTokenBuilder, node: ^ast.Node, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_node :: proc(builder: ^SemanticTokenBuilder, node: ^ast.Node, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
-	position := common.get_relative_token_position(node.pos.offset, src, builder.current_start);
+	position := common.get_relative_token_position(node.pos.offset, transmute([]u8)src, builder.current_start);
 
 	name := common.get_ast_node_string(node, src);
 
@@ -125,18 +125,18 @@ write_semantic_node :: proc(builder: ^SemanticTokenBuilder, node: ^ast.Node, src
 	builder.current_start = node.pos.offset;
 }
 
-write_semantic_token :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_token :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
-	position := common.get_relative_token_position(token.pos.offset, src, builder.current_start);
+	position := common.get_relative_token_position(token.pos.offset, transmute([]u8)src, builder.current_start);
 
 	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(token.text), cast(u32)type, 0);
 
 	builder.current_start = token.pos.offset;
 }
 
-write_semantic_token_pos :: proc(builder: ^SemanticTokenBuilder, pos: tokenizer.Pos, name: string, src: []byte, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
+write_semantic_token_pos :: proc(builder: ^SemanticTokenBuilder, pos: tokenizer.Pos, name: string, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 
-	position := common.get_relative_token_position(pos.offset, src, builder.current_start);
+	position := common.get_relative_token_position(pos.offset, transmute([]u8)src, builder.current_start);
 
 	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(name), cast(u32)type, 0);
 
@@ -453,7 +453,7 @@ write_semantic_tokens_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^S
 	}
 }
 
-write_semantic_token_op :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: []byte) {
+write_semantic_token_op :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: string) {
 
 	if token.text == "=" {
 		write_semantic_token_pos(builder, token.pos, token.text, src, .Operator, .None);

@@ -115,7 +115,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 		file := ast.File {
 			fullpath = fullpath,
-			src = data,
+			src = string(data),
 			pkg = pkg,
 		};
 

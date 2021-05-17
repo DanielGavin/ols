@@ -304,6 +304,9 @@ index_package_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"});
 }
 
+import "core:odin/ast"
+import "core:odin/parser"
+
 @(test)
 ast_generic_make_slice :: proc(t: ^testing.T) {
 

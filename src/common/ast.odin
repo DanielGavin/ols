@@ -143,7 +143,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 	return exprs[:];
 }
 
-get_ast_node_string :: proc(node: ^ast.Node, src: []byte) -> string {
+get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset]);
 }
 

@@ -99,7 +99,7 @@ setup :: proc(src: ^Source) {
 	
 		file := ast.File {
 			fullpath = fullpath,
-			src = transmute([]u8)src_pkg.source,
+			src = src_pkg.source,
 			pkg = pkg,
 		};
 

@@ -367,7 +367,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	document.ast = ast.File {
 		fullpath = document.uri.path,
-		src = document.text[:document.used_text],
+		src = string(document.text[:document.used_text]),
 		pkg = pkg,
 	};
 

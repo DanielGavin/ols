@@ -867,7 +867,7 @@ notification_did_save :: proc (task: ^common.Task) {
 
 	file := ast.File {
 		fullpath = fullpath,
-		src = transmute([]u8)save_params.text,
+		src = save_params.text,
 		pkg = pkg,
 	};
 

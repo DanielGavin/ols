@@ -91,7 +91,7 @@ get_relative_token_position :: proc(offset: int, document_text: []u8, current_st
 /*
 	Get the range of a token in utf16 space
 */
-get_token_range :: proc(node: ast.Node, document_text: []u8) -> Range {
+get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
 	range: Range;
 
 	go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
@@ -112,15 +112,15 @@ get_token_range :: proc(node: ast.Node, document_text: []u8) -> Range {
 	pos_offset := min(len(document_text) - 1, node.pos.offset);
 	end_offset := min(len(document_text) - 1, node.end.offset);
 
-	offset := go_backwards_to_endline(pos_offset, document_text);
+	offset := go_backwards_to_endline(pos_offset, transmute([]u8)document_text);
 
 	range.start.line      = node.pos.line - 1;
-	range.start.character = get_character_offset_u8_to_u16(node.pos.column - 1, document_text[offset:]);
+	range.start.character = get_character_offset_u8_to_u16(node.pos.column - 1, transmute([]u8)document_text[offset:]);
 
-	offset = go_backwards_to_endline(end_offset, document_text);
+	offset = go_backwards_to_endline(end_offset, transmute([]u8)document_text);
 
 	range.end.line      = node.end.line - 1;
-	range.end.character = get_character_offset_u8_to_u16(node.end.column - 1, document_text[offset:]);
+	range.end.character = get_character_offset_u8_to_u16(node.end.column - 1, transmute([]u8)document_text[offset:]);
 
 	return range;
 }
