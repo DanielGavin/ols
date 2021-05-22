@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: Linux and MacOS not working after compiler change - 11/05/2021
+**Status**: All platforms currently work
 ![Procedure example](images/completion.gif)
 
 ## Table Of Contents
