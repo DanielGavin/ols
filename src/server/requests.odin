@@ -394,61 +394,60 @@ request_initialize :: proc (task: ^common.Task) {
 		append(&config.workspace_folders, s);
 	}
 
-	thread_count := 2;
+	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
+		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
 
-	enable_document_symbols: bool;
-	enable_hover:            bool;
-	enable_format:           bool;
+			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
 
-	if len(config.workspace_folders) > 0 {
+				ols_config: OlsConfig;
 
-		//right now just look at the first workspace - TODO(daniel, add multiple workspace support)
-		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+				if unmarshal(value, ols_config, context.temp_allocator) == .None {
 
-			ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
+					config.thread_count = ols_config.thread_pool_count;
+					config.enable_document_symbols = ols_config.enable_document_symbols;
+					config.enable_hover = ols_config.enable_hover;
+					config.enable_format = ols_config.enable_format;
+					config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
+					config.verbose = ols_config.verbose;
 
-			if data, ok := os.read_entire_file(ols_config_path, context.temp_allocator); ok {
+					for p in ols_config.collections {
 
-				if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
+						forward_path, _ := filepath.to_slash(p.path, context.temp_allocator);
 
-					ols_config: OlsConfig;
-
-					if unmarshal(value, ols_config, context.temp_allocator) == .None {
-
-						thread_count                  = ols_config.thread_pool_count;
-						enable_document_symbols       = ols_config.enable_document_symbols;
-						enable_hover                  = ols_config.enable_hover;
-						enable_format                 = ols_config.enable_format;
-						config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
-						config.verbose                = ols_config.verbose;
-
-						for p in ols_config.collections {
-
-							forward_path, _ := filepath.to_slash(p.path, context.temp_allocator);
-
-							if filepath.is_abs(p.path) {
-								config.collections[strings.clone(p.name)] = strings.clone(forward_path);
-							} else {
-								config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
-							}
+						if filepath.is_abs(p.path) {
+							config.collections[strings.clone(p.name)] = strings.clone(forward_path);
+						} else {
+							config.collections[strings.clone(p.name)] = path.join(elems = {uri.path, forward_path}, allocator = context.allocator);
 						}
+					}
 
-						if ok := "" in config.collections; !ok {
-							config.collections[""] = uri.path;
-						}
-					} else {
-						log.errorf("Failed to unmarshal %v", ols_config_path);
+					if ok := "" in config.collections; !ok {
+						config.collections[""] = uri.path;
 					}
 				} else {
-					log.errorf("Failed to parse json %v", ols_config_path);
+					log.errorf("Failed to unmarshal %v", file);
 				}
 			} else {
-				log.errorf("Failed to read/find %v", ols_config_path);
+				log.errorf("Failed to parse json %v", file);
 			}
+		} else {
+			log.errorf("Failed to read/find %v", file);
 		}
 	}
 
-	common.pool_init(&pool, thread_count);
+	//global config
+
+
+	//local specific
+	if len(config.workspace_folders) > 0 {
+		//right now just look at the first workspace - TODO(daniel, add multiple workspace support)
+		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+			ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
+			read_ols_config(ols_config_path, config, uri);
+		}
+	}
+
+	common.pool_init(&pool, config.thread_count);
 	common.pool_start(&pool);
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
@@ -510,9 +509,9 @@ request_initialize :: proc (task: ^common.Task) {
 					tokenModifiers = token_modifiers,
 				},
 			},
-			documentSymbolProvider = enable_document_symbols,
-			hoverProvider = enable_hover,
-			documentFormattingProvider = enable_format,
+			documentSymbolProvider = config.enable_document_symbols,
+			hoverProvider = config.enable_hover,
+			documentFormattingProvider = config.enable_format,
 		},
 	},
 	id = id);

@@ -63,7 +63,7 @@ get_complete_format :: proc(document: ^Document) -> ([]TextEdit, bool) {
 			},
 			end = {
 				character = 1,
-				line = line,
+				line = line+1,
 			},
 		},
 	};

@@ -9,7 +9,11 @@ Config :: struct {
 	running:                  bool,
 	verbose:                  bool,
 	debug_single_thread:      bool,
-	enable_semantic_tokens:   bool, //This will be removed when vscode client stops sending me semantic tokens after disabling it in requests initialize.
+	enable_format:            bool,
+	enable_hover:             bool,
+	enable_document_symbols:  bool,
+	enable_semantic_tokens:   bool, 
+	thread_count:             int,
 }
 
 config: Config;
