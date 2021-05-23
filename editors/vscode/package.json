@@ -146,7 +146,7 @@
 		"adm-zip": "^0.5.5",
 		"https-proxy-agent": "^5.0.0",
 		"node-fetch": "^2.6.1",
-		"vscode-languageclient": "^7.0.0"
+		"vscode-languageclient": "^7.1.0-next.4"
 	},
 	"configurationDefaults": {
 		"[odin]": {

@@ -6,10 +6,10 @@ import { execFile, spawnSync } from 'child_process';
 import { LanguageClient } from 'vscode-languageclient/node';
 import path = require('path');
 import { getDebugConfiguration } from './debug';
-
+import { getPathForExecutable } from './toolchain';
+import { promises as fs, PathLike, constants, writeFileSync} from "fs";
 
 export function runDebugTest(ctx: Ctx): Cmd {
-
     return async(debugConfig: any) => {
 
         const fn = debugConfig.function;

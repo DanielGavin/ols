@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from "path";
 import * as os from "os";
-import { promises as fs, PathLike, constants } from "fs";
+import { promises as fs, PathLike, constants, writeFileSync } from "fs";
 
 var AdmZip = require('adm-zip');
 
@@ -20,14 +20,14 @@ import { RunnableCodeLensProvider } from "./run";
 import { PersistentState } from './persistent_state';
 import { Config } from './config';
 import { fetchRelease, download } from './net';
-import { isOdinInstalled } from './toolchain';
+import { getPathForExecutable, isOdinInstalled } from './toolchain';
 import { Ctx } from './ctx';
 import { runDebugTest, runTest } from './commands';
 import { watchOlsConfigFile } from './watch';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
-let ctx: Ctx | undefined;
+let ctx: Ctx;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -54,20 +54,6 @@ export async function activate(context: vscode.ExtensionContext) {
     if (workspaceFolder === undefined) {
         throw new Error("no folder is opened");
     }
-
-    const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
-
-    fs.access(olsFile, constants.F_OK).catch(err => {
-        if (err) {
-            vscode.window.showErrorMessage("No ols.json in the workspace root folder. [Config](https://github.com/DanielGavin/ols/#Configuration).");
-        }
-    });
-
-    if(!isOdinInstalled()) {
-        vscode.window.showErrorMessage("Odin cannot be found in your path environment. Please install Odin or add it into your path environment before going any further: [Install](https://odin-lang.org/docs/install/).");
-    }
-
-    parseOlsFile(config, olsFile);
 
     const codeLensProvider = new RunnableCodeLensProvider(
         onDidChange,
@@ -111,12 +97,34 @@ export async function activate(context: vscode.ExtensionContext) {
         clientOptions
     );
 
-    client.start();
-
     ctx = await Ctx.create(config, client, context, serverPath, workspaceFolder.uri.fsPath);
 
     ctx.registerCommand("runDebugTest", runDebugTest);
     ctx.registerCommand("runTest", runTest);
+
+    const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
+    
+    fs.access(olsFile, constants.F_OK).catch(async err => {
+        if (err) {
+
+            const userResponse = await vscode.window.showInformationMessage(
+                "No ols config file in the workspace root folder. Do you wish to create one?",
+                "Yes",
+                "No"
+            );
+
+            if (userResponse === "Yes") {
+                createOlsConfig(ctx);
+            }
+
+        }
+
+        parseOlsFile(config, olsFile);
+    });
+
+    if(!isOdinInstalled()) {
+        vscode.window.showErrorMessage("Odin cannot be found in your path environment. Please install Odin or add it into your path environment before going any further: [Install](https://odin-lang.org/docs/install/).");
+    }
 
     vscode.commands.registerCommand("ols.start", () => {
         client.start();
@@ -130,6 +138,8 @@ export async function activate(context: vscode.ExtensionContext) {
         await client.stop();
         client.start();
     });
+
+    client.start();
 
     watchOlsConfigFile(ctx, olsFile);
 }
@@ -163,6 +173,27 @@ async function bootstrapServer(config: Config, state: PersistentState): Promise<
     return path;
 }
 
+export function createOlsConfig(ctx: Ctx) {
+    const odinPath = getPathForExecutable("odin");
+
+    const corePath = path.resolve(path.join(path.dirname(odinPath), "core"));
+
+    const config = {
+        collections: [{ name: "core", path: corePath }],
+        enable_document_symbols: true,
+        enable_semantic_tokens: false,
+        enable_hover: true
+    };
+
+    const olsPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+
+    const edit = new vscode.WorkspaceEdit();
+
+    const content = JSON.stringify(config, null, 4);
+
+    writeFileSync(path.join(olsPath, "ols.json"), content);
+}
+
 export async function parseOlsFile(config: Config, file: string) {
     /*
         We have to parse the collections that they have specificed through the json(This will be changed when odin gets it's own builder files)
@@ -170,6 +201,9 @@ export async function parseOlsFile(config: Config, file: string) {
     fs.readFile(file).then((data) => {
         const conf = JSON.parse(data.toString());
         config.collections = conf.collections;
+    },
+    (rejected) => {
+        log.error("failed to read ols file: ", rejected);
     });
 } 
 

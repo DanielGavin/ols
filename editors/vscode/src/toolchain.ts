@@ -19,16 +19,17 @@ export const getPathForExecutable = memoize(
 			}
         }
 
-        if (lookupInPath(executableName)) {
-			return executableName;
+        const path = lookupInPath(executableName);
+        if (path != undefined) {
+			return path;
 		}
 
         return "";
     }
 );
 
-function lookupInPath(exec: string): boolean {
-    const paths = process.env.PATH ?? "";;
+function lookupInPath(exec: string): string | undefined {
+    const paths = process.env.PATH ?? "";
 
     const candidates = paths.split(path.delimiter).flatMap(dirInPath => {
         const candidate = path.join(dirInPath, exec);
@@ -37,7 +38,13 @@ function lookupInPath(exec: string): boolean {
             : [candidate];
     });
 
-    return candidates.some(isFile);
+    for (var i = 0; i < candidates.length; i += 1) {
+        if (isFile(candidates[i])) {
+            return candidates[i];
+        }
+    }
+
+    return undefined;
 }
 
 function isFile(suspectPath: string): boolean {

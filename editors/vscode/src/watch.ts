@@ -9,16 +9,14 @@ export function watchOlsConfigFile(ctx: Ctx, olsFile: string)
 
     olsWatcher.onDidCreate(async (uri) => {
         log.info("ols.json modified - restarting client");
-        await ctx.client.stop();
-        ctx.client.start();
-        parseOlsFile(ctx.config, uri.fsPath);
+        await parseOlsFile(ctx.config, uri.fsPath);
+        vscode.commands.executeCommand("ols.restart");
     });
 
     olsWatcher.onDidChange(async (uri) => {
         log.info("ols.json modified - restarting client");
-        await ctx.client.stop();
-        ctx.client.start();
-        parseOlsFile(ctx.config, uri.fsPath);
+        await parseOlsFile(ctx.config, uri.fsPath);
+        vscode.commands.executeCommand("ols.restart");
     });
 
 }
