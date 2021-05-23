@@ -31,7 +31,7 @@ jobs:
         mkdir dist
         mv ols dist/ols-x86_64-darwin
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: dist-x86_64-darwin 
         path: ./dist
@@ -56,7 +56,7 @@ jobs:
         mkdir dist
         mv ols dist/ols-x86_64-unknown-linux-gnu
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: dist-x86_64-unknown-linux-gnu
         path: ./dist
@@ -69,14 +69,6 @@ jobs:
     - name: Download Odin
       shell: cmd
       run: git clone https://github.com/odin-lang/Odin
-    - name: Download and unpack LLVM bins
-      shell: powershell
-      run: |
-          cd Odin
-          cd bin
-          $ProgressPreference = "SilentlyContinue";
-          Invoke-WebRequest -Uri https://github.com/odin-lang/Odin/releases/download/llvm-windows/llvm-binaries.zip -OutFile llvm-binaries.zip
-          7z x llvm-binaries.zip > $null 
     - name: Build Odin
       shell: cmd
       run: |
@@ -95,13 +87,13 @@ jobs:
         cd dist
         ren ols.exe ols-x86_64-pc-windows-msvc.exe
     - name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: dist-x86_64-pc-windows-msvc
         path: ./dist
   publish:
     name: publish
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-x86_64-darwin']
     steps:
@@ -117,15 +109,15 @@ jobs:
     - run: echo "HEAD_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
     - run: 'echo "HEAD_SHA: $HEAD_SHA"'
     
-    - uses: actions/download-artifact@v1
+    - uses: actions/download-artifact@v2
       with:
         name: dist-x86_64-unknown-linux-gnu
         path: dist
-    - uses: actions/download-artifact@v1
+    - uses: actions/download-artifact@v2
       with:
         name: dist-x86_64-pc-windows-msvc
         path: dist
-    - uses: actions/download-artifact@v1
+    - uses: actions/download-artifact@v2
       with:
         name: dist-x86_64-darwin
         path: dist
