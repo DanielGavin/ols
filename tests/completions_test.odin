@@ -336,6 +336,30 @@ ast_generic_make_slice :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_slice: []My_Struct"});
 }
 
+@(test)
+ast_named_procedure_1 :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		proc_a :: proc(a: int, b: int) -> int {
+		}
+
+		proc_b :: proc(a: int, b: bool) -> bool {
+		}
+
+		my_group :: proc {proc_a, proc_b};
+
+		main :: proc() {
+			my_bool := my_group(b = false, a = 2);
+			my_boo*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"});
+}
+
 /*
 	Figure out whether i want to introduce the runtime to the tests
 

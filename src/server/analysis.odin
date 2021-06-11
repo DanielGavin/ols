@@ -630,6 +630,21 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 	return false;
 }
 
+get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (int, bool) {
+
+	for field, i in field_list {
+		for field_name in field.names {
+			if ident, ok := field_name.derived.(ast.Ident); ok {
+				if name == ident.name {
+					return i, true;
+				}
+			}		
+		}
+	}
+
+	return 0, false;
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -673,12 +688,29 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					call_symbol: index.Symbol;
 					arg_symbol:  index.Symbol;
 					ok:          bool;
+					i := i;
 
 					if _, ok = arg.derived.(ast.Bad_Expr); ok {
 						continue;
 					}
 
-					call_symbol, ok = resolve_type_expression(ast_context, arg);
+					//named parameter
+					if field, is_field := arg.derived.(ast.Field_Value); is_field {
+						call_symbol, ok = resolve_type_expression(ast_context, field.value);
+
+						if !ok {
+							break next_fn;
+						}
+
+						if ident, is_ident := field.field.derived.(ast.Ident); is_ident {
+							i, ok = get_field_list_name_index(field.field.derived.(ast.Ident).name, procedure.arg_types);
+						} else {
+							break next_fn;
+						}
+						
+					} else {
+						call_symbol, ok = resolve_type_expression(ast_context, arg);
+					}
 
 					if !ok {		
 						break next_fn;

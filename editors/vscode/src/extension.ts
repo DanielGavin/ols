@@ -141,6 +141,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     client.start();
 
+    parseOlsFile(config, olsFile);
     watchOlsConfigFile(ctx, olsFile);
 }
 
