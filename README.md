@@ -36,7 +36,8 @@ Example of ols.json:
   "thread_pool_count": 4,
   "enable_semantic_tokens": false,
   "enable_document_symbols": true,
-  "enable_hover": true
+  "enable_hover": true,
+  "enable_format": true
 }
 
 ```

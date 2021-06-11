@@ -202,9 +202,6 @@ export async function parseOlsFile(config: Config, file: string) {
     fs.readFile(file).then((data) => {
         const conf = JSON.parse(data.toString());
         config.collections = conf.collections;
-    },
-    (rejected) => {
-        log.error("failed to read ols file: ", rejected);
     });
 } 
 
