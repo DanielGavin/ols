@@ -304,6 +304,101 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 
 	#partial switch v in selector.value {
+	case index.SymbolFixedArrayValue:
+		list.isIncomplete = true;
+
+		containsColor := 1;
+		containsCoord := 1;
+
+		expr_len := 0;
+
+		if basic, ok := v.len.derived.(ast.Basic_Lit); ok {
+			if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
+				expr_len = 0;
+			}
+		}
+
+		if field != "" {
+			for i := 0; i < len(field); i += 1 {
+				c := field[i];
+				if _, ok := swizzle_color_components[c]; ok {
+					containsColor += 1;
+				} else if _, ok := swizzle_coord_components[c]; ok {
+					containsCoord += 1;
+				}
+			}
+		} 
+
+		if containsColor == 1 && containsCoord == 1 {
+			save := expr_len;
+			for k in swizzle_color_components {
+
+				if expr_len <= 0 {
+					break;
+				}
+
+				expr_len -= 1;
+
+				item := CompletionItem {
+					label = fmt.tprintf("%v%c", field, k),
+					kind = .Property,
+					detail = fmt.tprintf("%v%c: %v", field, k, common.node_to_string(v.expr)),
+				};
+				append(&items, item);
+			}
+			
+			expr_len = save;
+
+			for k in swizzle_coord_components {
+
+				if expr_len <= 0 {
+					break;
+				}
+
+				expr_len -= 1;
+
+				item := CompletionItem {
+					label = fmt.tprintf("%v%c", field, k),
+					kind = .Property,
+					detail = fmt.tprintf("%v%c: %v", field, k, common.node_to_string(v.expr)),
+				};
+				append(&items, item);
+			}
+		} 
+
+		if containsColor > 1 {
+			for k in swizzle_color_components {
+
+				if expr_len <= 0 {
+					break;
+				}
+
+				expr_len -= 1;
+
+				item := CompletionItem {
+					label = fmt.tprintf("%v%c", field, k),
+					kind = .Property,
+					detail = fmt.tprintf("%v%c: [%v]%v", field, k, containsColor, common.node_to_string(v.expr)),
+				};
+				append(&items, item);
+			}
+		} else if containsCoord > 1 {
+			for k in swizzle_coord_components {
+
+				if expr_len <= 0 {
+					break;
+				}
+
+				expr_len -= 1;
+
+				item := CompletionItem {
+					label = fmt.tprintf("%v%c", field, k),
+					kind = .Property,
+					detail = fmt.tprintf("%v%c: [%v]%v", field, k, containsCoord, common.node_to_string(v.expr)),
+				};
+				append(&items, item);
+			}
+		} 
 	case index.SymbolUnionValue:
 		list.isIncomplete = false;
 
@@ -1148,4 +1243,18 @@ language_keywords: []string = {
 	"bit_field","const","do","for","inline","offset_of","size_of","typeid",
 	"bit_set","context","dynamic","foreign","opaque","struct","union",
 	"break","continue","else","if","map","package","switch","using",
+};
+
+swizzle_color_components: map[u8]bool = {
+	'r' = true, 
+	'g' = true, 
+	'b' = true, 
+	'a' = true,
+};
+
+swizzle_coord_components: map[u8]bool = {
+	'x' = true,
+	'y' = true,
+	'z' = true,
+	'w' = true,
 };

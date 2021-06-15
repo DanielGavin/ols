@@ -124,6 +124,36 @@ SymbolType :: enum {
 	Unresolved = 9999,
 }
 
+symbol_type_to_string :: proc(symbol: Symbol) -> string {
+	#partial switch v in symbol.value {
+	case SymbolBasicValue:
+		return common.node_to_string(v.ident);
+	case SymbolBitSetValue:
+		return common.node_to_string(v.expr);
+	case SymbolEnumValue:
+		return "enum";
+	case SymbolMapValue:
+		return strings.concatenate(a = {"map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)}, allocator = context.temp_allocator);
+	case SymbolProcedureValue:
+		return "proc";
+	case SymbolStructValue:
+		return "struct";
+	case SymbolUnionValue:
+		return "union";
+	case SymbolDynamicArrayValue:
+		return strings.concatenate(a = {"[dynamic]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolSliceValue:
+		return strings.concatenate(a = {"[]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolFixedArrayValue:
+		return strings.concatenate(a = {"[", common.node_to_string(v.len), "]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolPackageValue:
+		return "package";
+	case SymbolUntypedValue:
+	}
+
+	return "";
+}
+
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
 	if symbol.signature != "" && symbol.signature != "struct" &&
@@ -162,6 +192,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.expr, allocator);
 	case SymbolFixedArrayValue:
 		common.free_ast(v.expr, allocator);
+		common.free_ast(v.len, allocator);
 	case SymbolSliceValue:
 		common.free_ast(v.expr, allocator);
 	case SymbolBasicValue:

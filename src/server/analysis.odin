@@ -675,9 +675,12 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					}
 				}
 
+				/*
+				Don't give up 
 				if count_required_params > len(call_expr.args) {
 					break next_fn;
-				}				
+				}		
+				*/		
 
 				if len(procedure.arg_types) < len(call_expr.args) {
 					continue;
@@ -866,8 +869,35 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 			ast_context.use_locals = false;
 
 			#partial switch s in selector.value {
-			case index.SymbolProcedureValue:
+			case index.SymbolFixedArrayValue:
+				components_count := 0;
+				for c in v.field.name {
+					if c == 'x' || c == 'y' || c == 'z'  || c == 'w' ||
+					   c == 'r' || c == 'g' || c == 'b'  || c == 'a' {
+						components_count += 1;
+					}
+				}
 
+				if components_count == 0 {
+					return {}, false;
+				}
+
+				if components_count == 1 {
+					if selector.pkg != "" {
+						ast_context.current_package = selector.pkg;
+					} else {
+						ast_context.current_package = ast_context.document_package;
+					}
+					return resolve_type_expression(ast_context, s.expr);
+				} else {
+					value := index.SymbolFixedArrayValue {
+						expr = s.expr,
+						len = make_int_basic_value(components_count),
+					};
+					selector.value = value;
+					return selector, true;
+				}
+			case index.SymbolProcedureValue:
 				if len(s.return_types) == 1 {
 					selector_expr := index.new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, context.temp_allocator);
 					selector_expr.expr = s.return_types[0].type;
@@ -888,7 +918,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 					}
 				}
 			case index.SymbolPackageValue:
-
 				ast_context.current_package = selector.pkg;
 
 				if v.field != nil {
@@ -1394,6 +1423,12 @@ make_int_ast :: proc() -> ^ast.Ident {
 	ident := index.new_type(ast.Ident, {}, {}, context.temp_allocator);
 	ident.name = "int";
 	return ident;
+}
+
+make_int_basic_value :: proc(n: int) -> ^ast.Basic_Lit {
+	basic := index.new_type(ast.Basic_Lit, {}, {}, context.temp_allocator);
+	basic.tok.text = fmt.tprintf("%v", n);
+	return basic; 
 }
 
 get_package_from_node :: proc(node: ast.Node) -> string {
@@ -2269,37 +2304,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		return symbol.signature;
 	}
 
-	if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
-
-		if local := get_local(ast_context, ident.pos.offset, ident.name); local != nil {
-			if i, ok := local.derived.(ast.Ident); ok {
-				return get_signature(ast_context, i, symbol, true);
-			} else {
-				return common.node_to_string(local);
-			}
-		}
-
-		if global, ok := ast_context.globals[ident.name]; ok {
-			if i, ok := global.expr.derived.(ast.Ident); ok {
-				return get_signature(ast_context, i, symbol, true);
-			} else {
-				return common.node_to_string(global.expr);
-			}
-		}
-	}
-
-	if !was_variable {
-		#partial switch v in symbol.value {
-		case index.SymbolStructValue:
-			return "struct";
-		case index.SymbolUnionValue:
-			return "union";
-		case index.SymbolEnumValue:
-			return "enum";
-		}
-	}
-
-	return ident.name;
+	return index.symbol_type_to_string(symbol);
 }
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {

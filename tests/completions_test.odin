@@ -360,6 +360,146 @@ ast_named_procedure_1 :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"});
 }
 
+@(test)
+ast_named_procedure_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		proc_a :: proc(a: int, b: int) -> int {
+		}
+
+		proc_b :: proc(a: int, b: bool) -> bool {
+		}
+
+		my_group :: proc {proc_a, proc_b};
+
+		main :: proc() {
+			my_bool := my_group(b = false);
+			my_boo*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"});
+}
+
+@(test)
+ast_swizzle_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			my_array: [4] f32;
+			my_array.*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"x: f32", "y: f32", "z: f32", "w: f32", "r: f32", "g: f32", "b: f32", "a: f32"});
+}
+
+@(test)
+ast_swizzle_completion_one_component :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			my_array: [4] f32;
+			my_array.x*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"xx: [2]f32", "xy: [2]f32", "xz: [2]f32", "xw: [2]f32"});
+}
+
+@(test)
+ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			my_array: [2] f32;
+			my_array.x*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"xx: [2]f32", "xy: [2]f32"});
+}
+
+
+@(test)
+ast_swizzle_resolve_one_components :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			my_array: [4]f32;
+			my_swizzle := my_array.x;
+			my_swizz*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_swizzle: f32"});
+}
+
+@(test)
+ast_swizzle_resolve_two_components :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			my_array: [4]f32;
+			my_swizzle := my_array.xx;
+			my_swizz*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_swizzle: [2]f32"});
+}
+
+@(test)
+ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		My_Struct :: struct {
+			one: int,
+			two: int,
+		};
+		main :: proc() {
+			my_array: [4] My_Struct;
+			my_array.x.*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int"});
+}
+
+
+@(test)
+just_testing :: proc(t: ^testing.T) {
+
+	My_Struct :: struct {
+		one: int,
+		two: int,
+	};
+
+	my_array: [4] My_Struct;
+
+	//my_array.x.
+
+
+
+	
+
+}
+
+
 /*
 	Figure out whether i want to introduce the runtime to the tests
 
