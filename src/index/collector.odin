@@ -92,7 +92,7 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
 	return value;
 }
 
-collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
+collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string, ident: string) -> SymbolStructValue {
 
 	names  := make([dynamic]string, 0, collection.allocator);
 	types  := make([dynamic]^ast.Expr, 0, collection.allocator);
@@ -118,12 +118,13 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 		names = names[:],
 		types = types[:],
 		usings = usings,
+		struct_name = ident,
 	};
 
 	return value;
 }
 
-collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string) -> SymbolEnumValue {
+collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string, ident: string) -> SymbolEnumValue {
 
 	names := make([dynamic]string, 0, collection.allocator);
 
@@ -142,12 +143,13 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 	value := SymbolEnumValue {
 		names = names[:],
+		enum_name = ident,
 	};
 
 	return value;
 }
 
-collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string) -> SymbolUnionValue {
+collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string, ident: string) -> SymbolUnionValue {
 
 	names := make([dynamic]string, 0, collection.allocator);
 	types := make([dynamic]^ast.Expr, 0, collection.allocator);
@@ -172,18 +174,20 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 	value := SymbolUnionValue {
 		names = names[:],
 		types = types[:],
+		union_name = ident,
 	};
 
 	return value;
 }
 
-collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
+collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string, ident: string) -> SymbolBitSetValue {
 
 	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
 	return SymbolBitSetValue {
 		expr = cloned,
+		bitset_name = ident,
 	};
 }
 
@@ -307,22 +311,22 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ast.Struct_Type:
 			token = v;
 			token_type = .Struct;
-			symbol.value = collect_struct_fields(collection, v, package_map);
+			symbol.value = collect_struct_fields(collection, v, package_map, name);
 			symbol.signature = "struct";
 		case ast.Enum_Type:
 			token = v;
 			token_type = .Enum;
-			symbol.value = collect_enum_fields(collection, v.fields, package_map);
+			symbol.value = collect_enum_fields(collection, v.fields, package_map, name);
 			symbol.signature = "enum";
 		case ast.Union_Type:
 			token = v;
 			token_type = .Enum;
-			symbol.value = collect_union_fields(collection, v, package_map);
+			symbol.value = collect_union_fields(collection, v, package_map, name);
 			symbol.signature = "union";
 		case ast.Bit_Set_Type:
 			token = v;
 			token_type = .Enum;
-			symbol.value = collect_bitset_field(collection, v, package_map);
+			symbol.value = collect_bitset_field(collection, v, package_map, name);
 			symbol.signature = "bitset";
 		case ast.Map_Type:
 			token = v;

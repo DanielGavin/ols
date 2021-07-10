@@ -11,6 +11,7 @@ import "core:slice"
 import "shared:common"
 
 SymbolStructValue :: struct {
+	struct_name: string,
 	names:   []string,
 	types:   []^ast.Expr,
 	usings:  map[string]bool,
@@ -35,10 +36,12 @@ SymbolAggregateValue :: struct {
 }
 
 SymbolEnumValue :: struct {
+	enum_name: string,
 	names: []string,
 }
 
 SymbolUnionValue :: struct {
+	union_name: string,
 	names: []string,
 	types: []^ast.Expr,
 }
@@ -61,6 +64,7 @@ SymbolBasicValue :: struct {
 }
 
 SymbolBitSetValue :: struct {
+	bitset_name: string,
 	expr: ^ast.Expr,
 }
 
@@ -162,6 +166,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.expr, allocator);
 	case SymbolFixedArrayValue:
 		common.free_ast(v.expr, allocator);
+		common.free_ast(v.len, allocator);
 	case SymbolSliceValue:
 		common.free_ast(v.expr, allocator);
 	case SymbolBasicValue:
