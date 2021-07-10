@@ -1029,16 +1029,16 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v);
 		case Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
@@ -1085,16 +1085,16 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v);
 		case Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v), true;
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v, node.name), true;
 			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
@@ -1565,7 +1565,7 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 	return symbol;
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) -> index.Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: string) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1590,12 +1590,13 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type) 
 	symbol.value = index.SymbolUnionValue {
 		names = names[:],
 		types = v.variants,
+		union_name = ident,
 	};
 
 	return symbol;
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) -> index.Symbol {
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: string) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1619,12 +1620,13 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type) ->
 
 	symbol.value = index.SymbolEnumValue {
 		names = names[:],
+		enum_name = ident,
 	};
 
 	return symbol;
 }
 
-make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type) -> index.Symbol {
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: string) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1634,12 +1636,13 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 
 	symbol.value = index.SymbolBitSetValue {
 		expr = v.elem,
+		bitset_name = ident,
 	};
 
 	return symbol;
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type) -> index.Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: string) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
@@ -1669,6 +1672,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 		names = names[:],
 		types = types[:],
 		usings = usings,
+		struct_name = ident,
 	};
 
 	if v.poly_params != nil {
@@ -2300,11 +2304,56 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
 get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
 
+	using index;
+
 	if symbol.type == .Function {
 		return symbol.signature;
 	}
 
-	return index.symbol_type_to_string(symbol);
+	is_variable := resolve_ident_is_variable(ast_context, ident);
+
+	#partial switch v in symbol.value {
+	case SymbolBasicValue:
+		return common.node_to_string(v.ident);
+	case SymbolBitSetValue:
+		return common.node_to_string(v.expr);
+	case SymbolEnumValue:
+		if is_variable {
+			return v.enum_name;
+		}
+		else {
+			return "enum";
+		}
+	case SymbolMapValue:
+		return strings.concatenate(a = {"map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)}, allocator = context.temp_allocator);
+	case SymbolProcedureValue:
+		return "proc";
+	case SymbolStructValue:
+		if is_variable {
+			return v.struct_name;
+		}
+		else {
+			return "struct";
+		}
+	case SymbolUnionValue:
+		if is_variable {
+			return v.union_name;
+		}
+		else {
+			return "union";
+		}
+	case SymbolDynamicArrayValue:
+		return strings.concatenate(a = {"[dynamic]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolSliceValue:
+		return strings.concatenate(a = {"[]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolFixedArrayValue:
+		return strings.concatenate(a = {"[", common.node_to_string(v.len), "]", common.node_to_string(v.expr)}, allocator = context.temp_allocator);
+	case SymbolPackageValue:
+		return "package";
+	case SymbolUntypedValue:
+	}
+	
+	return "";
 }
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {

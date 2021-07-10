@@ -480,6 +480,34 @@ ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int"});
 }
 
+@(test)
+ast_for_in_identifier_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		My_Struct :: struct {
+			one: int,
+			two: int,
+		};
+		
+		main :: proc() {
+		
+			my_array: [4]My_Struct;
+		
+		
+			for my_element in my_array {
+				my_elem*
+			}
+		
+		}
+		`,
+	packages = {},
+	};
+
+
+	test.expect_completion_details(t, &source, "", {"test.my_element: My_Struct"});
+}
+
 
 @(test)
 just_testing :: proc(t: ^testing.T) {
