@@ -112,6 +112,7 @@ Symbol :: struct {
 	returns:     string,
 	type:        SymbolType,
 	value:       SymbolValue,
+	references:  []common.Location,
 	pointers:    int,
 	is_distinct: bool,
 }
