@@ -11,6 +11,7 @@ import "core:odin/ast"
 import "shared:server"
 import "shared:index"
 import "shared:common"
+import "shared:analysis"
 
 Package :: struct {
 	pkg: string,
@@ -20,7 +21,7 @@ Package :: struct {
 Source :: struct {
 	main:            string,
 	packages:        [] Package,
-	document:        ^server.Document,
+	document:        ^common.Document,
 	collections:     map[string]string,
 	config:          common.Config,
 	position:        common.Position,
@@ -30,7 +31,7 @@ Source :: struct {
 setup :: proc(src: ^Source) {
 
 	src.main = strings.clone(src.main);
-	src.document = new(server.Document, context.temp_allocator);
+	src.document = new(common.Document, context.temp_allocator);
 	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator);
 	src.document.client_owned = true;
 	src.document.text = transmute([]u8)src.main;

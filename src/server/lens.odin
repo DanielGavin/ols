@@ -2,6 +2,7 @@ package server
 
 import "core:odin/ast"
 
+import "shared:analysis"
 import "shared:common"
 
 
@@ -19,8 +20,10 @@ CodeLens :: struct {
 	data: string,
 }
 
-get_code_lenses :: proc(document: ^Document, position: common.Position) -> ([]CodeLens, bool) {
+get_code_lenses :: proc(document: ^common.Document, position: common.Position) -> ([]CodeLens, bool) {
 	
+	using analysis;
+
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);

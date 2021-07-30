@@ -17,6 +17,7 @@ import "core:os"
 
 import "shared:common"
 import "shared:index"
+import "shared:analysis"
 
 /*
 	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
@@ -33,7 +34,9 @@ Completion_Type :: enum {
 	Package,
 }
 
-get_completion_list :: proc(document: ^Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
+get_completion_list :: proc(document: ^common.Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
+
+	using analysis;
 
 	list: CompletionList;
 
@@ -116,55 +119,11 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 	return list, true;
 }
 
-is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
-
-	if len(position_context.comp_lit.elems) == 0 {
-		return true;
-	}
-
-	for elem in position_context.comp_lit.elems {
-
-		if position_in_node(elem, position_context.position) {
-
-			if ident, ok := elem.derived.(ast.Ident); ok {
-				return true;
-			} else if field, ok := elem.derived.(ast.Field_Value); ok {
-
-				if position_in_node(field.value, position_context.position) {
-					return false;
-				}
-			}
-		}
-	}
-
-	return true;
+get_attribute_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+	
 }
 
-field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool {
-
-	for elem in comp_lit.elems {
-
-		if field, ok := elem.derived.(ast.Field_Value); ok {
-
-			if field.field != nil {
-
-				if ident, ok := field.field.derived.(ast.Ident); ok {
-
-					if ident.name == name {
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
-get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-}
-
-get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false;
 
@@ -209,7 +168,9 @@ get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 	list.items = items[:];
 }
 
-get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+
+	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -250,7 +211,9 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	list.items = items[:];
 }
 
-get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+
+	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -513,55 +476,16 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	list.items = items[:];
 }
 
-unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
+get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
 
-	if node == nil {
-		return {}, false;
-	}
-
-	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
-
-		if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
-			return enum_value, true;
-		}
-	}
-
-	return {}, false;
-}
-
-unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
-
-	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
-
-		if union_value, ok := union_symbol.value.(index.SymbolUnionValue); ok {
-			return union_value, true;
-		}
-	}
-
-	return {}, false;
-}
-
-unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: index.Symbol) -> (index.SymbolEnumValue, bool) {
-
-	if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
-		if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
-			if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
-				return enum_value, true;
-			}
-		}
-	}
-
-	return {}, false;
-}
-
-get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
 	list.isIncomplete = false;
 
 	selector: index.Symbol;
-
+ 
 	ast_context.use_locals  = true;
 	ast_context.use_globals = true;
 
@@ -872,7 +796,9 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 }
 
-get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+
+	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -1066,7 +992,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 	list.items = items[:];
 }
 
-get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_package_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 
@@ -1152,7 +1078,9 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	return packages[:];
 }
 
-get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+
+	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
 	list.isIncomplete = false;

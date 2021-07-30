@@ -15,8 +15,12 @@ import "core:slice"
 
 import "shared:common"
 import "shared:index"
+import "shared:analysis"
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> MarkupContent {
+write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Symbol) -> MarkupContent {
+	
+	using analysis;
+
 	content: MarkupContent;
 
 	symbol := symbol;
@@ -46,7 +50,9 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: index.Symbol) -> M
 }
 
 
-get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool) {
+get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool) {
+
+	using analysis;
 
 	hover := Hover {
 		contents = {

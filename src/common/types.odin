@@ -1,5 +1,8 @@
 package common
 
+import "core:odin/ast"
+import "core:odin/tokenizer"
+
 Error :: enum {
 	None                 = 0,
 	ParseError           = -32700,
@@ -18,4 +21,25 @@ Error :: enum {
 WorkspaceFolder :: struct {
 	name: string,
 	uri:  string,
+}
+
+Package :: struct {
+	name: string, //the entire absolute path to the directory
+	base: string,
+}
+
+Document :: struct {
+	uri:              Uri,
+	text:             []u8,
+	used_text:        int, //allow for the text to be reallocated with more data than needed
+	client_owned:     bool,
+	diagnosed_errors: bool,
+	ast:              ast.File,
+	imports:          []Package,
+	package_name:     string,
+	allocator:        ^Scratch_Allocator, //because does not support freeing I use arena allocators for each document
+	operating_on:     int, //atomic
+}
+
+parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }

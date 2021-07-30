@@ -48,7 +48,7 @@ RequestType :: enum {
 RequestInfo :: struct {
 	root:     json.Value,
 	params:   json.Value,
-	document: ^Document,
+	document: ^common.Document,
 	id:       RequestId,
 	config:   ^common.Config,
 	writer:   ^Writer,

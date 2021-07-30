@@ -22,26 +22,8 @@ ParserError :: struct {
 	offset:  int,
 }
 
-Package :: struct {
-	name: string, //the entire absolute path to the directory
-	base: string,
-}
-
-Document :: struct {
-	uri:              common.Uri,
-	text:             []u8,
-	used_text:        int, //allow for the text to be reallocated with more data than needed
-	client_owned:     bool,
-	diagnosed_errors: bool,
-	ast:              ast.File,
-	imports:          []Package,
-	package_name:     string,
-	allocator:        ^common.Scratch_Allocator, //because does not support freeing I use arena allocators for each document
-	operating_on:     int, //atomic
-}
-
 DocumentStorage :: struct {
-	documents:       map[string]Document,
+	documents:       map[string] common.Document,
 	free_allocators: [dynamic]^common.Scratch_Allocator,
 }
 
@@ -77,7 +59,7 @@ document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
 	append(&document_storage.free_allocators, allocator);
 }
 
-document_get :: proc(uri_string: string) -> ^Document {
+document_get :: proc(uri_string: string) -> ^common.Document {
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
@@ -96,7 +78,7 @@ document_get :: proc(uri_string: string) -> ^Document {
 	return document;
 }
 
-document_release :: proc(document: ^Document) {
+document_release :: proc(document: ^common.Document) {
 
 	if document != nil {
 		intrinsics.atomic_sub(&document.operating_on, 1);
@@ -136,7 +118,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		}
 	} else {
 
-		document := Document {
+		document := common.Document {
 			uri = uri,
 			text = transmute([]u8)text,
 			client_owned = true,
@@ -267,7 +249,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	return .None;
 }
 
-document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_refresh :: proc(document: ^common.Document, config: ^common.Config, writer: ^Writer) -> common.Error {
 
 	errors, ok := parse_document(document, config);
 
@@ -304,7 +286,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 
 		notifaction := Notification {
 			jsonrpc = "2.0",
-			method = "textDocument/publishDiagnostics",
+			method = "textcommon.Document/publishDiagnostics",
 			params = params,
 		};
 
@@ -318,7 +300,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 
 			notifaction := Notification {
 				jsonrpc = "2.0",
-				method = "textDocument/publishDiagnostics",
+				method = "textcommon.Document/publishDiagnostics",
 				params = NotificationPublishDiagnosticsParams {
 					uri = document.uri.uri,
 					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
@@ -344,14 +326,11 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	append(&current_errors, error);
 }
 
-parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
-}
-
-parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
+parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([]ParserError, bool) {
 
 	p := parser.Parser {
 		err = parser_error_handler,
-		warn = parser_warning_handler,
+		warn = common.parser_warning_handler,
 	};
 
 	current_errors = make([dynamic]ParserError, context.temp_allocator);
@@ -373,7 +352,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	parser.parse_file(&p, &document.ast);
 
-	imports := make([dynamic]Package);
+	imports := make([dynamic]common.Package);
 
 	when ODIN_OS == "windows" {
 		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
@@ -403,7 +382,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 				continue;
 			}
 
-			import_: Package;
+			import_: common.Package;
 
 			when ODIN_OS == "windows" {
 				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator));
@@ -424,7 +403,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 				continue;
 			}
 
-			import_: Package;
+			import_: common.Package;
 			import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
 			import_.name = path.clean(import_.name);
 

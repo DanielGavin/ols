@@ -15,6 +15,7 @@ import "core:slice"
 
 import "shared:common"
 import "shared:index"
+import "shared:analysis"
 
 SignatureInformationCapabilities :: struct {
 	parameterInformation: ParameterInformationCapabilities,
@@ -89,7 +90,9 @@ build_symbol_return :: proc(symbol: ^index.Symbol) {
 }
 
 
-get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
+get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
+
+	using analysis;
 
 	signature_help: SignatureHelp;
 
