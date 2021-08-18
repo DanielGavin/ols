@@ -118,7 +118,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 		names = names[:],
 		types = types[:],
 		usings = usings,
-		struct_name = strings.clone(ident, collection.allocator),
+		struct_name = get_index_unique_string(collection, ident.name),
 	};
 
 	return value;
@@ -143,7 +143,7 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 	value := SymbolEnumValue {
 		names = names[:],
-		enum_name = strings.clone(ident, collection.allocator),
+		enum_name = get_index_unique_string(collection, ident.name),
 	};
 
 	return value;
@@ -174,7 +174,7 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 	value := SymbolUnionValue {
 		names = names[:],
 		types = types[:],
-		union_name = strings.clone(ident, collection.allocator),
+		union_name = get_index_unique_string(collection, ident.name),
 	};
 
 	return value;
@@ -187,7 +187,7 @@ collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit
 
 	return SymbolBitSetValue {
 		expr = cloned,
-		bitset_name = strings.clone(ident, collection.allocator),
+		bitset_name = get_index_unique_string(collection, ident.name),
 	};
 }
 
