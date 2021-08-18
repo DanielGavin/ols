@@ -508,26 +508,6 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_element: My_Struct"});
 }
 
-
-@(test)
-just_testing :: proc(t: ^testing.T) {
-
-	My_Struct :: struct {
-		one: int,
-		two: int,
-	};
-
-	my_array: [4] My_Struct;
-
-	//my_array.x.
-
-
-
-	
-
-}
-
-
 /*
 	Figure out whether i want to introduce the runtime to the tests
 

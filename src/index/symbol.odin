@@ -151,6 +151,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.arg_types, allocator);
 	case SymbolStructValue:
 		delete(v.names, allocator);
+		delete(v.struct_name, allocator);
 		common.free_ast(v.types, allocator);
 	case SymbolGenericValue:
 		common.free_ast(v.expr, allocator);

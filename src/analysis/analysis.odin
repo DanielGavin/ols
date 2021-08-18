@@ -2822,10 +2822,6 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case Field_Value:
 		get_document_position(n.field, position_context);
 		get_document_position(n.value, position_context);
-	case Ternary_Expr:
-		get_document_position(n.cond, position_context);
-		get_document_position(n.x, position_context);
-		get_document_position(n.y, position_context);
 	case Ternary_If_Expr:
 		get_document_position(n.x, position_context);
 		get_document_position(n.cond, position_context);

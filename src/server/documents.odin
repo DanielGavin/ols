@@ -93,8 +93,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.allocator);
 
-	log.infof("document_open: %v", uri_string);
-
 	if !parsed_ok {
 		log.error("Failed to parse uri");
 		return .ParseError;
