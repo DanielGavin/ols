@@ -22,7 +22,7 @@ TextEdit :: struct {
 	newText: string,
 }
 
-get_complete_format :: proc(document: ^Document) -> ([]TextEdit, bool) {
+get_complete_format :: proc(document: ^common.Document) -> ([]TextEdit, bool) {
 	prnt := printer.make_printer(printer.default_style, context.temp_allocator);
 
 	if document.ast.syntax_error_count > 0 {

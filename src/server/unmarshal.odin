@@ -20,13 +20,13 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		return .None;
 	}
 
-	if json_value.value == nil {
+	if json_value == nil {
 		return .None;
 	}
 
 	type_info := type_info_base(type_info_of(v.id));
 
-	#partial switch j in json_value.value {
+	#partial switch j in json_value {
 	case json.Object:
 		#partial switch variant in type_info.variant {
 		case Type_Info_Struct:

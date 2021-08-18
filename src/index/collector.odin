@@ -118,7 +118,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 		names = names[:],
 		types = types[:],
 		usings = usings,
-		struct_name = ident,
+		struct_name = strings.clone(ident, collection.allocator),
 	};
 
 	return value;

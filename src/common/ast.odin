@@ -252,10 +252,6 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case Field_Value:
 		free_ast(n.field, allocator);
 		free_ast(n.value, allocator);
-	case Ternary_Expr:
-		free_ast(n.cond, allocator);
-		free_ast(n.x, allocator);
-		free_ast(n.y, allocator);
 	case Ternary_If_Expr:
 		free_ast(n.x, allocator);
 		free_ast(n.cond, allocator);

@@ -48,7 +48,7 @@ RequestType :: enum {
 RequestInfo :: struct {
 	root:     json.Value,
 	params:   json.Value,
-	document: ^Document,
+	document: ^common.Document,
 	id:       RequestId,
 	config:   ^common.Config,
 	writer:   ^Writer,
@@ -202,7 +202,7 @@ handle_error :: proc (err: common.Error, id: RequestId, writer: ^Writer) {
 
 handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
 
-	root, ok := request.value.(json.Object);
+	root, ok := request.(json.Object);
 
 	if !ok {
 		log.error("No root object");
@@ -215,7 +215,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 	if ok {
 
-		#partial switch v in id_value.value {
+		#partial switch v in id_value {
 		case json.String:
 			id = v;
 		case json.Integer:
@@ -225,7 +225,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 		}
 	}
 
-	method := root["method"].value.(json.String);
+	method := root["method"].(json.String);
 
 	request_type: RequestType;
 	request_type, ok = request_map[method];
@@ -302,7 +302,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 			task_proc(&task);
 		case .Completion,.Definition,.Hover,.FormatDocument:
 
-			uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
 			document := document_get(uri);
 
@@ -317,7 +317,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 		case .DidClose,.DidChange,.DidOpen,.DidSave:
 
-			uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
 			document := document_get(uri);
 
@@ -337,7 +337,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 			task_proc(&task);
 		case .SignatureHelp,.SemanticTokensFull,.SemanticTokensRange,.DocumentSymbol:
 
-			uri := root["params"].value.(json.Object)["textDocument"].value.(json.Object)["uri"].value.(json.String);
+			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
 			document := document_get(uri);
 
@@ -371,10 +371,10 @@ request_initialize :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
 	defer free(info);
-
-	params_object, ok := params.value.(json.Object);
+	defer json.destroy_value(info.root);
+	
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -422,7 +422,7 @@ request_initialize :: proc (task: ^common.Task) {
 					}
 
 					if ok := "" in config.collections; !ok {
-						config.collections[""] = uri.path;
+						config.collections[""] = strings.clone(uri.path);
 					}
 				} else {
 					log.errorf("Failed to unmarshal %v", file);
@@ -556,8 +556,10 @@ request_shutdown :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
 	response := make_response_message(
 	params = nil,
@@ -572,11 +574,13 @@ request_definition :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer free(info);
-	defer json.destroy_value(root);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -609,11 +613,13 @@ request_completion :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -649,11 +655,13 @@ request_signature_help :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -688,11 +696,13 @@ request_format_document :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -725,8 +735,10 @@ notification_exit :: proc (task: ^common.Task) {
 	info := get_request_info(task);
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
 	config.running = false;
 }
@@ -737,10 +749,12 @@ notification_did_open :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		log.error("Failed to parse open document notification");
@@ -767,10 +781,12 @@ notification_did_change :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -793,10 +809,12 @@ notification_did_close :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -821,10 +839,12 @@ notification_did_save :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -895,11 +915,14 @@ request_semantic_token_full :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+		
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -941,11 +964,13 @@ request_semantic_token_range :: proc (task: ^common.Task) {
 
 	using info;
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -978,11 +1003,13 @@ request_document_symbols :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
 
-	params_object, ok := params.value.(json.Object);
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
@@ -1011,11 +1038,13 @@ request_hover :: proc (task: ^common.Task) {
 
 	using info;
 
-	defer document_release(document);
-	defer json.destroy_value(root);
-	defer free(info);
-
-	params_object, ok := params.value.(json.Object);
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
+	
+	params_object, ok := params.(json.Object);
 
 	if !ok {
 		handle_error(.ParseError, id, writer);
