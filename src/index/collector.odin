@@ -143,7 +143,7 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 	value := SymbolEnumValue {
 		names = names[:],
-		enum_name = ident,
+		enum_name = strings.clone(ident, collection.allocator),
 	};
 
 	return value;
@@ -174,7 +174,7 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 	value := SymbolUnionValue {
 		names = names[:],
 		types = types[:],
-		union_name = ident,
+		union_name = strings.clone(ident, collection.allocator),
 	};
 
 	return value;
@@ -187,7 +187,7 @@ collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit
 
 	return SymbolBitSetValue {
 		expr = cloned,
-		bitset_name = ident,
+		bitset_name = strings.clone(ident, collection.allocator),
 	};
 }
 
