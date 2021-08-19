@@ -75,7 +75,7 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		free_all(context.temp_allocator);
 	}
 
-	for k, v in config.collections {
+	for k, v in common.config.collections {
 		delete(k);
 		delete(v);
 	}
