@@ -17,15 +17,13 @@ import "shared:index"
 import "shared:server"
 import "shared:common"
 
-os_read :: proc (handle: rawptr, data: []byte) -> (int, int) 
-{
+os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr  := cast(^os.Handle)handle;
 	a, b := os.read(ptr^, data);
 	return a, cast(int)b;
 }
 
-os_write :: proc (handle: rawptr, data: []byte) -> (int, int) 
-{
+os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr  := cast(^os.Handle)handle;
 	a, b := os.write(ptr^, data);
 	return a, cast(int)b;
@@ -35,19 +33,18 @@ os_write :: proc (handle: rawptr, data: []byte) -> (int, int)
 
 verbose_logger: log.Logger;
 
-run :: proc (reader: ^server.Reader, writer: ^server.Writer) {
+run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
-	config: common.Config;
-	config.debug_single_thread = true;
-	config.collections         = make(map[string]string);
+	common.config.debug_single_thread = true;
+	common.config.collections = make(map[string]string);
 
 	log.info("Starting Odin Language Server");
 
-	config.running = true;
+	common.config.running = true;
 
-	for config.running {
+	for common.config.running {
 
-		if config.verbose {
+		if common.config.verbose {
 			context.logger = verbose_logger;
 		} else {
 			context.logger = log.Logger {nil, nil, log.Level.Debug, nil};
@@ -68,7 +65,7 @@ run :: proc (reader: ^server.Reader, writer: ^server.Writer) {
 			return;
 		}
 
-		success = server.handle_request(value, &config, writer);
+		success = server.handle_request(value, &common.config, writer);
 
 		if (!success) {
 			log.error("Unrecoverable handle request");
@@ -83,8 +80,8 @@ run :: proc (reader: ^server.Reader, writer: ^server.Writer) {
 		delete(v);
 	}
 
-	delete(config.collections);
-	delete(config.workspace_folders);
+	delete(common.config.collections);
+	delete(common.config.workspace_folders);
 
 	server.document_storage_shutdown();
 
@@ -94,10 +91,10 @@ run :: proc (reader: ^server.Reader, writer: ^server.Writer) {
 	common.pool_destroy(&server.pool);
 }
 
-end :: proc () {
+end :: proc() {
 }
 
-main :: proc () {
+main :: proc() {
 
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin);
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout);
