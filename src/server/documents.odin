@@ -329,6 +329,7 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	p := parser.Parser {
 		err = parser_error_handler,
 		warn = common.parser_warning_handler,
+		flags = {.Optional_Semicolons},
 	};
 
 	current_errors = make([dynamic]ParserError, context.temp_allocator);
