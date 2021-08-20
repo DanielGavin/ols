@@ -281,10 +281,10 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 				message = error.message,
 			};
 		}
-
+ 
 		notifaction := Notification {
 			jsonrpc = "2.0",
-			method = "textcommon.Document/publishDiagnostics",
+			method = "textDocument/publishDiagnostics",
 			params = params,
 		};
 
@@ -298,7 +298,7 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 
 			notifaction := Notification {
 				jsonrpc = "2.0",
-				method = "textcommon.Document/publishDiagnostics",
+				method = "textDocument/publishDiagnostics",
 				params = NotificationPublishDiagnosticsParams {
 					uri = document.uri.uri,
 					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
