@@ -1357,7 +1357,19 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		return symbol, true;
 	}
 
-	return index.lookup(node.name, ast_context.document_package);
+	if symbol, ok := index.lookup(node.name, ast_context.document_package); ok {
+		return symbol, ok;
+	}
+
+	usings := get_using_packages(ast_context);
+
+	for pkg in usings {
+		if symbol, ok := index.lookup(node.name, pkg); ok {
+			return symbol, ok;
+		}
+	}
+
+	return {}, false;
 }
 
 resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (index.Symbol, bool) {
