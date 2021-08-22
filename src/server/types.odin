@@ -261,13 +261,14 @@ TextDocumentSyncOptions :: struct {
 }
 
 OlsConfig :: struct {
-	collections:             [dynamic]OlsConfigCollection,
-	thread_pool_count:       int,
-	enable_semantic_tokens:  bool,
-	enable_document_symbols: bool,
-	enable_hover:            bool,
-	enable_format:           bool,
-	verbose:                 bool,
+	collections:              [dynamic]OlsConfigCollection,
+	thread_pool_count:        int,
+	enable_semantic_tokens:   bool,
+	enable_document_symbols:  bool,
+	enable_hover:             bool,
+	enable_format:            bool,
+	enable_procedure_context: bool,
+	verbose:                  bool,
 }
 
 OlsConfigCollection :: struct {

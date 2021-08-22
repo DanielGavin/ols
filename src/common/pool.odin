@@ -1,6 +1,6 @@
 package common
 
-import "intrinsics"
+import "core:intrinsics"
 import "core:sync"
 import "core:mem"
 import "core:thread"

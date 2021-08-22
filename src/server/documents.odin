@@ -10,7 +10,7 @@ import "core:odin/tokenizer"
 import "core:path"
 import "core:mem"
 
-import "intrinsics"
+import "core:intrinsics"
 
 import "shared:common"
 

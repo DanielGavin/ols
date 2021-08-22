@@ -1222,7 +1222,6 @@ resolve_ident_is_package :: proc(ast_context: ^AstContext, node: ast.Ident) -> b
 	if strings.contains(node.name, "/") {
 		return true;
 	} else {
-
 		for imp in ast_context.imports {
 
 			if imp.base == node.name {
@@ -2294,6 +2293,29 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 	return "";
 }
 
+position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+
+	if position_context.value_decl == nil {
+		return false;
+	}
+
+	if len(position_context.value_decl.values) != 1 {
+		return false;
+	}
+
+	if _, ok := position_context.value_decl.values[0].derived.(ast.Proc_Type); ok {
+		return true;
+	}
+
+	if proc_lit, ok := position_context.value_decl.values[0].derived.(ast.Proc_Lit); ok {
+		if proc_lit.type != nil && position_in_node(proc_lit.type, position_context.position) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 
@@ -2776,7 +2798,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		if position_in_node(n.body, position_context.position) {
 			position_context.function = cast(^Proc_Lit)node;
 			get_document_position(n.body, position_context);
-		}
+		}  
 	case Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
 		if position_context.parent_comp_lit == nil {

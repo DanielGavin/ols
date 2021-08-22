@@ -396,6 +396,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case Map_Type:
 		free_ast(n.key, allocator);
 		free_ast(n.value, allocator);
+	case Multi_Pointer_Type:
+		free_ast(n.elem, allocator);
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %T", n));
 	}

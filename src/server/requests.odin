@@ -13,7 +13,7 @@ import "core:runtime"
 import "core:thread"
 import "core:sync"
 import "core:path/filepath"
-import "intrinsics"
+import "core:intrinsics"
 import "core:odin/ast"
 import "core:odin/parser"
 
@@ -408,6 +408,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.enable_hover = ols_config.enable_hover;
 					config.enable_format = ols_config.enable_format;
 					config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
+					config.enable_procedure_context = ols_config.enable_procedure_context;
 					config.verbose = ols_config.verbose;
 
 					for p in ols_config.collections {

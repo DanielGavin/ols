@@ -13,6 +13,7 @@ Config :: struct {
 	enable_hover:             bool,
 	enable_document_symbols:  bool,
 	enable_semantic_tokens:   bool, 
+	enable_procedure_context: bool,
 	thread_count:             int,
 }
 

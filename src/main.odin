@@ -11,7 +11,7 @@ import "core:thread"
 import "core:encoding/json"
 import "core:reflect"
 
-import "intrinsics"
+import "core:intrinsics"
 
 import "shared:index"
 import "shared:server"
