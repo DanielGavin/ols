@@ -12,7 +12,7 @@ Scratch_Allocator :: struct {
 }
 
 scratch_allocator_init :: proc (s: ^Scratch_Allocator, size: int, backup_allocator := context.allocator) {
-	s.data                         = mem.make_aligned([]byte, size, 2 * align_of(rawptr), backup_allocator);
+	s.data, _                      = mem.make_aligned([]byte, size, 2 * align_of(rawptr), backup_allocator);
 	s.curr_offset                  = 0;
 	s.prev_allocation              = nil;
 	s.backup_allocator             = backup_allocator;

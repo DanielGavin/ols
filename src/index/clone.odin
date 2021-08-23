@@ -8,7 +8,7 @@ import "core:strings"
 import "core:log"
 
 new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
-	n := mem.new(T, allocator);
+	n, _ := mem.new(T, allocator);
 	n.pos     = pos;
 	n.end     = end;
 	n.derived = n^;
