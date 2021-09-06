@@ -508,6 +508,46 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_element: My_Struct"});
 }
 
+@(test)
+ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		RenderPass :: struct(type : typeid) { list : ^int, data : type, }
+
+		LightingAccumPass2 :: struct {
+			foo: int,
+		}		
+		
+		execute_lighting_pass2 :: proc(pass : RenderPass(LightingAccumPass2)) {
+			pass.*
+		}
+		`,
+	packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
+}
+
+/*
+@(test)
+ast_completion_core_fmt_proc :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		import "core:fmt"
+		main :: proc() {
+			fmt.*
+		}
+		`,
+	packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
+
+}
+*/
+
 /*
 	Figure out whether i want to introduce the runtime to the tests
 
