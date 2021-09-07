@@ -9,6 +9,7 @@ import "core:odin/ast"
 import "core:log"
 import "core:odin/tokenizer"
 import "core:strings"
+import "core:mem"
 
 import "shared:common"
 
@@ -84,11 +85,15 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 	filepath.walk(builtin_package, walk_static_index_build);
 
-	context.allocator = context.temp_allocator;
+	temp_arena: mem.Arena;
+
+	mem.init_arena(&temp_arena, make([]byte, mem.megabytes(100)));
+
+	context.allocator = mem.arena_allocator(&temp_arena);
 
 	for fullpath in files {
 
-		data, ok := os.read_entire_file(fullpath, context.temp_allocator);
+		data, ok := os.read_entire_file(fullpath, context.allocator);
 
 		if !ok {
 			log.errorf("failed to read entire file for indexing %v", fullpath);
@@ -102,7 +107,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 		//have to cheat the parser since it really wants to parse an entire package with the new changes...
 
-		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
+		dir := filepath.base(filepath.dir(fullpath, context.allocator));
 
 		pkg := new(ast.Package);
 		pkg.kind     = .Normal;
@@ -126,17 +131,18 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 			log.errorf("error in parse file for indexing %v", fullpath);
 		}
 
-		uri := common.create_uri(fullpath, context.temp_allocator);
+		uri := common.create_uri(fullpath, context.allocator);
 
 		//ERROR hover on uri does not show string
 		collect_symbols(&symbol_collection, file, uri.uri);
 
-		free_all(context.temp_allocator);
+		free_all(context.allocator);
 
 		delete(fullpath, allocator);
 	}
 
 	delete(files);
+	delete(temp_arena.data);
 
 	indexer.static_index = make_memory_index(symbol_collection);
 }

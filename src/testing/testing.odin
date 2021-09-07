@@ -74,7 +74,8 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
-	index.indexer.static_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
+	index.build_static_index(context.allocator, &common.config);
+
 	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
 
 	for src_pkg in src.packages {

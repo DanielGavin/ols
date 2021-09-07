@@ -529,24 +529,6 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
 }
 
-/*
-@(test)
-ast_completion_core_fmt_proc :: proc(t: ^testing.T) {
-
-	source := test.Source {
-		main = `package test	
-		import "core:fmt"
-		main :: proc() {
-			fmt.*
-		}
-		`,
-	packages = {},
-	};
-
-	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
-
-}
-*/
 
 /*
 	Figure out whether i want to introduce the runtime to the tests

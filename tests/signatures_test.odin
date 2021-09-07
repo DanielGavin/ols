@@ -363,3 +363,18 @@ index_simple_signature :: proc(t: ^testing.T) {
     test.expect_signature_labels(t, &source, {"my_package.my_function: proc(a: int, b := context.allocator)"});
 }
 
+@(test)
+ast_index_builtin_len_proc :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		main :: proc() {
+			len(*)
+		}
+		`,
+	packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {"builtin.len: proc(array: Array_Type) -> (int)"});
+
+}
