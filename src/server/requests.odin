@@ -476,7 +476,12 @@ request_initialize :: proc (task: ^common.Task) {
 	token_modifiers := make([]string, len(token_modifier.names), context.temp_allocator);
 
 	for name, i in token_type.names {
-		token_types[i] = strings.to_lower(name, context.temp_allocator);
+		if name == "EnumMember" { 
+			token_types[i] = "enumMember";
+		}
+		else {
+			token_types[i] = strings.to_lower(name, context.temp_allocator);
+		}
 	}
 
 	for name, i in token_modifier.names {
