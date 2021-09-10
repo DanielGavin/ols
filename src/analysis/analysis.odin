@@ -1180,9 +1180,17 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		}
 
 		//last option is to check the index
-
 		if symbol, ok := index.lookup(node.name, ast_context.current_package); ok {
 			return resolve_symbol_return(ast_context, symbol);
+		}
+
+		//If we are resolving a symbol that is in the document package, then we'll check the builtin packages.
+		if ast_context.current_package == ast_context.document_package {
+			for built in index.indexer.built_in_packages {
+				if symbol, ok := index.lookup(node.name, built); ok {
+					return resolve_symbol_return(ast_context, symbol);
+				}
+			}
 		}
 
 		for u in ast_context.usings {
