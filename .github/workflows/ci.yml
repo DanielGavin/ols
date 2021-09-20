@@ -38,7 +38,9 @@ jobs:
         ./build.bat 1
     - name: Build ols
       shell: cmd
-      run: ./build.bat CI
+      run: |
+        dir
+        ./build.bat CI
   build_linux:
     runs-on: ubuntu-latest
     timeout-minutes: 15
