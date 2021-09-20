@@ -77,12 +77,16 @@ async function runOnce() {
   // Upload all the relevant assets for this release as just general blobs.
   for (const file of glob.sync(files)) {
     const size = fs.statSync(file).size;
+    const name = path.basename(file);
+    const uri = release.data.upload_url;
     core.info(`upload ${file}`);
+    core.info(`name ${name}`);
+    core.info(`uri ${uri}`);
     await octokit.repos.uploadReleaseAsset({
       data: fs.createReadStream(file),
       headers: { 'content-length': size, 'content-type': 'application/octet-stream' },
-      name: path.basename(file),
-      url: release.data.upload_url,
+      name: name,
+      url: uri,
     });
   }
 }
