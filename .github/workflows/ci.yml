@@ -53,7 +53,9 @@ jobs:
         cd Odin
         make release
     - name: Build ols
-      run: ./build.sh CI
+      run: |
+        dir
+        ./build.sh CI
   build_macOS:
     runs-on: macos-latest
     timeout-minutes: 15
