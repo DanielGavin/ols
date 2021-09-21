@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: All platforms work.
+**Status**: No platforms work after Odin update. I'll have to look into this.
 ![Procedure example](images/completion.gif)
 
 ## Table Of Contents
