@@ -83,6 +83,8 @@ async function runOnce() {
     core.info(`name ${name}`);
     core.info(`uri ${uri}`);
     await octokit.repos.uploadReleaseAsset({
+      owner,
+      repo,
       data: fs.createReadStream(file),
       headers: { 'content-length': size, 'content-type': 'application/octet-stream' },
       name: name,
