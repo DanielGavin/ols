@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: No platforms work after Odin update. I'll have to look into this.
+**Status**: No platforms work after Odin update. I'll have to look into this. Please use Odin commit version 05ac2002e0296c3acccca1d8cffaafb002e43120.
 ![Procedure example](images/completion.gif)
 
 ## Table Of Contents
