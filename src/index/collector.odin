@@ -588,6 +588,8 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case Helper_Type:
 		replace_package_alias(n.type, package_map, collection);
 	case Proc_Lit:
+	case Multi_Pointer_Type:
+		replace_package_alias(n.elem, package_map, collection);
 	case:
 		log.warnf("Replace Unhandled node kind: %T", n);
 	}

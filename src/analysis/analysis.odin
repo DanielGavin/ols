@@ -840,6 +840,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		symbol, ok := resolve_type_expression(ast_context, v.elem);
 		symbol.pointers += 1;
 		return symbol, ok;
+	case Multi_Pointer_Type:
+		symbol, ok := resolve_type_expression(ast_context, v.elem);
+		symbol.pointers += 1;
+		return symbol, ok;
 	case Index_Expr:
 		indexed, ok := resolve_type_expression(ast_context, v.expr);
 
