@@ -372,9 +372,119 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 			len(*)
 		}
 		`,
-	packages = {},
+		packages = {},
 	};
 
 	test.expect_signature_labels(t, &source, {"builtin.len: proc(array: Array_Type) -> (int)"});
+}
+
+@(test)
+ast_signature_on_invalid_package :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		import "core:totallyReal"
+		main :: proc() {
+			a := totallyReal.read_cycle_counter(*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {});
+}
+
+@(test)
+ast_signature_variable_pointer :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		import "core:totallyReal"
+
+		My_Fun :: proc(a: int) {
+		}
+
+		main :: proc() {
+			my_fun_ptr: My_Fun;
+			my_fun_ptr(*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"});
 
 }
+
+@(test)
+ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		import "core:totallyReal"
+
+		My_Fun :: proc(a: int) {
+		}
+
+		my_fun_ptr: My_Fun;
+
+		main :: proc() {		
+			my_fun_ptr(*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"});
+}
+
+@(test)
+index_variable_pointer_signature :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		My_Fun :: proc(a: int) {
+		}
+
+		my_fun_ptr: My_Fun;
+		`,
+	});
+
+    source := test.Source {
+		main = `package test
+
+		import "my_package"
+		main :: proc() {		
+			my_package.my_fun_ptr(*)
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_signature_labels(t, &source, {"my_package.My_Fun: proc(a: int)"});
+}
+
+/*
+@(test)
+signature_function_inside_when :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test	
+		when ODIN_OS == "windows" {
+			ProcAllocationFunction :: #type proc"stdcall"(pUserData: rawptr, size: int, alignment: int, allocationScope: SystemAllocationScope) -> rawptr;
+		}
+
+		main :: proc() {		
+			ProcAllocationFunction(*)
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"});
+
+}
+*/
