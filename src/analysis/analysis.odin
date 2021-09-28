@@ -487,7 +487,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 				}
 			case .Bool:
 				switch basic.ident.name {
-				case "bool": return true;
+				case "bool", "b32", "b64": return true;
 				case: return false;
 				}
 			case .String:
