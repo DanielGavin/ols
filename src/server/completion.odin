@@ -46,15 +46,9 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 		return list, true;
 	}
 
-	/*
-		NOTE
-		Currently bug in contains_any, uncomment when https://github.com/odin-lang/Odin/issues/1129 is closed.
-	*/
-	/*
 	if position_context.import_stmt == nil && strings.contains_any(completion_context.triggerCharacter, "/:\"") {
 		return list, true;
 	}
-	*/
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
