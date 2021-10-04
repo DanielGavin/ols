@@ -21,10 +21,10 @@ jobs:
     - name: Download Odin
       run: |
         git clone https://github.com/odin-lang/Odin
-        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
     - name: Build Odin
       run: |
         cd Odin
+        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
         make release
     - name: Build ols
       run: ./build.sh CI
@@ -48,10 +48,10 @@ jobs:
     - name: Download Odin
       run: |
         git clone https://github.com/odin-lang/Odin
-        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
     - name: Build Odin
       run: |
         cd Odin
+        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
         make release
     - name: Build ols
       run: ./build.sh CI
@@ -74,12 +74,12 @@ jobs:
       shell: cmd
       run: |
         git clone https://github.com/odin-lang/Odin
-        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
     - name: Build Odin
       shell: cmd
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
         cd Odin
+        git checkout 05ac2002e0296c3acccca1d8cffaafb002e43120
         ./build.bat 1
     - name: Build ols
       shell: cmd
