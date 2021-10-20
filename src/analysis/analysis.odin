@@ -1125,7 +1125,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		return return_symbol, ok;
 	} else if node.name == "context" {
-		return index.lookup("Context", ast_context.current_package);
+		for built in index.indexer.built_in_packages {
+			if symbol, ok := index.lookup("Context", built); ok {
+				return symbol, ok;
+			}
+		}
 	} else if v, ok := common.keyword_map[node.name]; ok {
 		//keywords
 		ident := index.new_type(Ident, node.pos, node.end, context.temp_allocator);
