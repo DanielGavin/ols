@@ -529,9 +529,21 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
 }
 
+@(test)
+ast_completion_context_temp :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
 
-/*
-	Figure out whether i want to introduce the runtime to the tests
+		main :: proc() {
+			context.*
+		}
+		`,
+	packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {""});
+}
+
 
 @(test)
 ast_generic_make_completion :: proc(t: ^testing.T) {
@@ -572,6 +584,71 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
 }
+
+
+@(test)
+ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+		PlatformContext :: struct {
+			windows:  [dynamic]Window,
+			running:  bool,
+		}
+		
+		platform_context: PlatformContext;
+		
+		Window :: struct {
+			width:      int,
+			height:     int,
+		}
+
+		switch (message) {
+		case win32.WM_SIZE:
+			for w in platform_context.windows {
+				w.*
+			}
+		}
+		`,
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+}
+
+/*	
+	Looks like a bug in for each on w.*
+
+	
+
+	window_proc :: proc "std" (window: win32.Hwnd, message: u32, w_param: win32.Wparam, l_param: win32.Lparam) -> win32.Lresult {
+
+		result: win32.Lresult;
+
+		context = runtime.default_context();
+
+		switch (message) {
+		case win32.WM_DESTROY:
+			win32.post_quit_message(0);
+		case win32.WM_SIZE:
+			width := bits.bitfield_extract_int(cast(int)l_param, 0, 16);
+			height := bits.bitfield_extract_int(cast(int)l_param, 16, 16);
+			
+			for w in platform_context.windows {
+				
+			}
+
+		case:
+			result = win32.def_window_proc_a(window, message, w_param, l_param);
+		}
+
+		return result;
+	}
+*/
+
+/*
+	Figure out whether i want to introduce the runtime to the tests
+
+
 */
 
 /*
