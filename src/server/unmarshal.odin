@@ -73,7 +73,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 				array.cap       = len(j);
 				array.allocator = allocator;
 			} else {
-				return .Invalid_Data;
+				return .Unsupported_Type;
 			}
 
 			for i in 0..<array.len {
@@ -127,7 +127,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 				tmp := i8(j);
 				mem.copy(v.data, &tmp, type_info.size);
 			case:
-				return .Invalid_Data;
+				return .Unsupported_Type;
 			}
 		case Type_Info_Union:
 			tag_ptr := uintptr(v.data) + variant.tag_offset;
@@ -142,7 +142,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 				tmp := f32(j);
 				mem.copy(v.data, &tmp, type_info.size);
 			case:
-				return .Invalid_Data;
+				return .Unsupported_Type;
 			}
 		}
 	case json.Null:
