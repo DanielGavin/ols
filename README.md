@@ -1,8 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: Currently only works with the llvm-11 branch(https://github.com/odin-lang/Odin/tree/windows-llvm-11.1.0).
-![Procedure example](images/completion.gif)
+**Status**: Works with all platforms
 
 ## Table Of Contents
 - [Installation](#installation)
