@@ -482,7 +482,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
-				case "int", "uint", "u32", "i32", "u8", "i8", "u64": return true;
+				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16": return true;
 				case: return false;
 				}
 			case .Bool:
@@ -723,6 +723,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					}
 					
 					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {	
+						fmt.println(call_symbol)
+						fmt.println()
+						fmt.println(arg_symbol)
 						break next_fn;
 					}
 
@@ -757,10 +760,10 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 
 	value: index.SymbolUntypedValue;
 
-	if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
-		value.type = .Bool;
-	} else if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+	if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
 		value.type = .Integer;
+	} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
+		value.type = .Bool;
 	} else {
 		value.type = .String;
 	}
@@ -794,7 +797,9 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case Type_Cast:
 		return resolve_type_expression(ast_context, v.type);
 	case Auto_Cast:
-		return resolve_type_expression(ast_context, v.expr);
+		symbol, ok := resolve_type_expression(ast_context, v.expr);
+		fmt.println("autocast", v);
+		return symbol, ok;
 	case Unary_Expr:
 		if v.op.kind == .And {
 			symbol, ok := resolve_type_expression(ast_context, v.expr);
@@ -928,7 +933,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		}
 	case:
 		log.warnf("default node kind, resolve_type_expression: %T", v);
-
 		if v == nil {
 			return {}, false;
 		}
