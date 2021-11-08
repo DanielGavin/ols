@@ -529,6 +529,7 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
 }
 
+/*
 @(test)
 ast_completion_context_temp :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -543,7 +544,7 @@ ast_completion_context_temp :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {""});
 }
-
+*/
 
 @(test)
 ast_generic_make_completion :: proc(t: ^testing.T) {
