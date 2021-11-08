@@ -654,7 +654,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	call_expr := ast_context.call;
 
-	candidates := make([dynamic] index.Symbol, context.temp_allocator);
+	candidates := make([dynamic]index.Symbol, context.temp_allocator);
 
 	for arg_expr in group.args {
 
@@ -674,13 +674,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						count_required_params += 1;
 					}
 				}
-
-				/*
-				Don't give up 
-				if count_required_params > len(call_expr.args) {
-					break next_fn;
-				}		
-				*/		
 
 				if len(procedure.arg_types) < len(call_expr.args) {
 					continue;
@@ -715,7 +708,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						call_symbol, ok = resolve_type_expression(ast_context, arg);
 					}
 
-					if !ok {		
+					if !ok {	
 						break next_fn;
 					}
 
@@ -725,7 +718,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].default_value);
 					}
 
-					if !ok {					
+					if !ok {			
 						break next_fn;
 					}
 					
@@ -1127,6 +1120,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	} else if node.name == "context" {
 		for built in index.indexer.built_in_packages {
 			if symbol, ok := index.lookup("Context", built); ok {
+				ast_context.current_package = built;
 				return symbol, ok;
 			}
 		}
@@ -1917,6 +1911,10 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 	case When_Stmt:
 		get_locals_stmt(file, v.else_stmt, ast_context, document_position);
 		get_locals_stmt(file, v.body, ast_context, document_position);
+	case Case_Clause:
+		for stmt in v.body {
+			get_locals_stmt(file, stmt, ast_context, document_position);
+		}
 	case:
 			//log.debugf("default node local stmt %v", v);
 	}

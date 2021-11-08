@@ -558,15 +558,15 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 			make_map,
 			make_slice,
 		};
-		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, allocator := context.allocator, loc := #caller_location) -> T {
+		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
 		}
-		make_dynamic_array :: proc($T: typeid/[dynamic]$E, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
+		make_dynamic_array :: proc($T: typeid/[dynamic]$E, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
 		}
-		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
 
 		My_Struct :: struct {
@@ -575,7 +575,7 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			allocator: Allocator;
-			my_array := make([dynamic]My_Struct, 343, allocator);
+			my_array := make([dynamic]My_Struct, 343);
 			my_array[2].*
 		}
 		`,
@@ -603,16 +603,18 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 			height:     int,
 		}
 
-		switch (message) {
-		case win32.WM_SIZE:
-			for w in platform_context.windows {
-				w.*
+		main :: proc() {
+			switch (message) {
+			case win32.WM_SIZE:
+				for w in platform_context.windows {
+					w.*
+				}
 			}
 		}
 		`,
 	};
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+	test.expect_completion_details(t, &source, ".", {"Window.height: int"});
 }
 
 /*	
