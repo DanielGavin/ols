@@ -723,9 +723,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					}
 					
 					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {	
-						fmt.println(call_symbol)
-						fmt.println()
-						fmt.println(arg_symbol)
 						break next_fn;
 					}
 
@@ -798,7 +795,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return resolve_type_expression(ast_context, v.type);
 	case Auto_Cast:
 		symbol, ok := resolve_type_expression(ast_context, v.expr);
-		fmt.println("autocast", v);
 		return symbol, ok;
 	case Unary_Expr:
 		if v.op.kind == .And {
