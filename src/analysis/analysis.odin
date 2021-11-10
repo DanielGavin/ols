@@ -475,7 +475,7 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list);
 }
 
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bool {
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol, flags: ast.Field_Flags = {}) -> bool {
 	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
 	if untyped, ok := a.value.(index.SymbolUntypedValue); ok {
 		if basic, ok := b.value.(index.SymbolBasicValue); ok {
@@ -527,10 +527,20 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol) -> bo
 	} 
 
 	#partial switch a_value in a.value {
-	case index.SymbolBasicValue, index.SymbolStructValue, index.SymbolEnumValue, index.SymbolUnionValue, index.SymbolBitSetValue:
-		if a.name == b.name && a.pkg == b.pkg {
+	case index.SymbolBasicValue:
+		if .Auto_Cast in flags {
 			return true;
+		} else if .Any_Int in flags {
+			//Temporary - make a function that finds the base type of basic values 
+			//This code only works with non distinct ints
+			switch b.name {
+				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16": return true;
+			}
+		} else {
+			return a.name == b.name && a.pkg == b.pkg
 		}
+	case index.SymbolStructValue, index.SymbolEnumValue, index.SymbolUnionValue, index.SymbolBitSetValue:
+			return a.name == b.name && a.pkg == b.pkg;
 	case index.SymbolSliceValue:
 		b_value := b.value.(index.SymbolSliceValue);
 
@@ -721,18 +731,18 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					if !ok {			
 						break next_fn;
 					}
-					
-					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol) {	
+
+					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, procedure.arg_types[i].flags) {	
 						break next_fn;
 					}
 
 				}
-
+	
 				append(&candidates, f);
 			}
 		}
 	}
-
+	
 	if len(candidates) > 1 {
 		return index.Symbol {
 			type = candidates[0].type,
@@ -794,8 +804,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case Type_Cast:
 		return resolve_type_expression(ast_context, v.type);
 	case Auto_Cast:
-		symbol, ok := resolve_type_expression(ast_context, v.expr);
-		return symbol, ok;
+		return resolve_type_expression(ast_context, v.expr);
 	case Unary_Expr:
 		if v.op.kind == .And {
 			symbol, ok := resolve_type_expression(ast_context, v.expr);
@@ -861,7 +870,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case Selector_Call_Expr:
 		return resolve_type_expression(ast_context, v.expr);
 	case Selector_Expr:
-
 		if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
 
 			ast_context.use_locals = false;
@@ -1120,7 +1128,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	} else if node.name == "context" {
 		for built in index.indexer.built_in_packages {
 			if symbol, ok := index.lookup("Context", built); ok {
-				ast_context.current_package = built;
 				return symbol, ok;
 			}
 		}
@@ -1145,6 +1152,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			symbol = index.Symbol {
 				type = .Keyword,
 				signature = node.name,
+				name = ident.name,
 				pkg = ast_context.current_package,
 				value = index.SymbolBasicValue {
 					ident = ident,

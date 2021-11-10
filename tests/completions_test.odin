@@ -618,6 +618,62 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"Window.height: int"});
 }
 
+@(test)
+ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		my_group :: proc{
+			with_autocast,
+			with_bool,
+		};
+		with_autocast :: proc(auto_cast a: int) -> bool {
+		}
+		with_bool :: proc(a: bool) -> int {
+		}
+
+		main :: proc() {
+			my_uint: uint = 0;
+			my_value := my_group(my_uint);
+			my_val*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+}
+
+
+@(test)
+ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		my_group :: proc{
+			with_any_int,
+			with_bool,
+		};
+		with_any_int :: proc(#any_int a: int) -> bool {
+		}
+		with_bool :: proc(a: bool) -> int {
+		}
+
+		main :: proc() {
+			my_uint: uint = 0;
+			my_value := my_group(my_uint);
+			my_val*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+}
+
+
 /*	
 	Looks like a bug in for each on w.*
 
