@@ -529,23 +529,6 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
 }
 
-/*
-@(test)
-ast_completion_context_temp :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package test	
-
-		main :: proc() {
-			context.*
-		}
-		`,
-	packages = {},
-	};
-
-	test.expect_completion_details(t, &source, "", {""});
-}
-*/
-
 @(test)
 ast_generic_make_completion :: proc(t: ^testing.T) {
 
@@ -671,6 +654,70 @@ ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
 	};
 
 	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+}
+
+@(test)
+ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		my_group :: proc{
+			with_any_int,
+			with_bool,
+		};
+		with_any_int :: proc($T: typeid/[dynamic]$E, #any_int a: int) -> bool {
+		}
+		with_bool :: proc($T: typeid/[dynamic]$E, a: bool) -> int {
+		}
+
+		main :: proc() {
+			my_uint: uint = 0;
+			my_value := my_group([dynamic]f32, my_uint);
+			my_val*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+}
+
+
+@(test)
+ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		my_group :: proc{
+			with_any_int,
+			with_bool,
+		};
+		with_any_int :: proc($T: typeid/[dynamic]$E, #any_int a: int) -> bool {
+		}
+		with_bool :: proc($T: typeid/[dynamic]$E, a: bool) -> int {
+		}
+		`,
+	});
+
+    source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		main :: proc() {
+			my_uint: uint = 0;
+			my_value := my_package.my_group([dynamic]f32, my_uint);
+			my_val*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {"my_package.my_value: bool"});
 }
 
 

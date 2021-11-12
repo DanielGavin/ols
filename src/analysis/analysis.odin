@@ -526,19 +526,22 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol, flags
 		return true;
 	} 
 
-	#partial switch a_value in a.value {
+	#partial switch b_value in b.value {
 	case index.SymbolBasicValue:
 		if .Auto_Cast in flags {
 			return true;
 		} else if .Any_Int in flags {
 			//Temporary - make a function that finds the base type of basic values 
 			//This code only works with non distinct ints
-			switch b.name {
+			switch a.name {
 				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16": return true;
 			}
-		} else {
-			return a.name == b.name && a.pkg == b.pkg
-		}
+		} 
+	}
+
+	#partial switch a_value in a.value {
+	case index.SymbolBasicValue:
+		return a.name == b.name && a.pkg == b.pkg
 	case index.SymbolStructValue, index.SymbolEnumValue, index.SymbolUnionValue, index.SymbolBitSetValue:
 			return a.name == b.name && a.pkg == b.pkg;
 	case index.SymbolSliceValue:
@@ -691,6 +694,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 				for arg, i in call_expr.args {
 
+					ast_context.use_locals = true;
+
 					call_symbol: index.Symbol;
 					arg_symbol:  index.Symbol;
 					ok:          bool;
@@ -703,7 +708,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					//named parameter
 					if field, is_field := arg.derived.(ast.Field_Value); is_field {
 						call_symbol, ok = resolve_type_expression(ast_context, field.value);
-
 						if !ok {
 							break next_fn;
 						}
