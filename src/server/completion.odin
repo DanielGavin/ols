@@ -775,6 +775,10 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 
+					if len(proc_value.arg_types) <= parameter_index {
+						return;
+					}
+
 					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
 
 						for name in enum_value.names {
