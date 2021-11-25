@@ -455,13 +455,15 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 				symbol := search.symbol;
 
-				build_symbol_signature(&symbol);
 				build_symbol_return(&symbol);
+				build_symbol_signature(&symbol);
+				
+				
 
 				item := CompletionItem {
 					label = symbol.name,
 					kind = cast(CompletionItemKind)symbol.type,
-					detail = fmt.tprintf("%v.%v: %v", path.base(symbol.pkg, false, context.temp_allocator), symbol.name, symbol.signature),
+					detail = concatenate_symbols_information(ast_context, symbol, true),
 					documentation = symbol.doc,
 				};
 

@@ -683,7 +683,28 @@ ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
 }
 
+@(test)
+ast_completion_in_between_struct :: proc(t: ^testing.T) {
 
+	source := test.Source {
+		main = `package test
+
+		Format_Decision_State :: struct {
+			type: Format_Decision_Type,
+			current_token: ^Format_Token,
+			previous_token: ^Format_Token,
+			line: ^Unwrapped_Line,
+			a*
+			indent: int,
+			width: int,
+			penalty: f32,
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+}
 @(test)
 ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 
@@ -720,6 +741,34 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.my_value: bool"});
 }
 
+
+@(test)
+ast_package_procedure_completion :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		my_proc :: proc() -> bool {
+		}
+		`,
+	});
+
+    source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		main :: proc() {
+			my_package.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
+}
 
 /*	
 	Looks like a bug in for each on w.*

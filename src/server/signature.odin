@@ -77,14 +77,21 @@ build_symbol_return :: proc(symbol: ^index.Symbol) {
 			return;
 		}
 
-		strings.write_string(&builder, "(");
+		if len(value.return_types) > 1 {
+			strings.write_string(&builder, "(");
+		}
+
 		for arg, i in value.return_types {
 			strings.write_string(&builder, common.node_to_string(arg));
 			if i != len(value.return_types) - 1 {
 				strings.write_string(&builder, ", ");
 			}
 		}
-		strings.write_string(&builder, ")");
+		
+		if len(value.return_types) > 1 {
+			strings.write_string(&builder, ")");
+		}
+
 		symbol.returns = strings.to_string(builder);
 	}
 }
