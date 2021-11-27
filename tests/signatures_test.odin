@@ -231,7 +231,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 		packages = {},
 	};
 
-	test.expect_signature_labels(t, &source, {"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> (A)"});
+	test.expect_signature_labels(t, &source, {"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A"});
 }
 
 @(test)
@@ -375,7 +375,7 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 		packages = {},
 	};
 
-	test.expect_signature_labels(t, &source, {"builtin.len: proc(array: Array_Type) -> (int)"});
+	test.expect_signature_labels(t, &source, {"builtin.len: proc(array: Array_Type) -> int"});
 }
 
 @(test)
