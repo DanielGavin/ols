@@ -683,6 +683,9 @@ ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
 }
 
+
+/*
+	Wait for odin issue to be done 
 @(test)
 ast_completion_in_between_struct :: proc(t: ^testing.T) {
 
@@ -705,6 +708,9 @@ ast_completion_in_between_struct :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
 }
+
+*/
+
 @(test)
 ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 
