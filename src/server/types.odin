@@ -269,6 +269,8 @@ OlsConfig :: struct {
 	enable_format:            bool,
 	enable_procedure_context: bool,
 	verbose:                  bool,
+	file_log:                 bool,
+	formatter:                common.Format_Config,
 }
 
 OlsConfigCollection :: struct {

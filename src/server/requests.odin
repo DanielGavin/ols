@@ -399,17 +399,24 @@ request_initialize :: proc (task: ^common.Task) {
 
 			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
 
-				ols_config: OlsConfig;
+				ols_config := OlsConfig {
+					formatter = {
+						characters = 90,
+						tabs = true,
+					},
+				}
 
 				if unmarshal(value, ols_config, context.temp_allocator) == .None {
 
 					config.thread_count = ols_config.thread_pool_count;
 					config.enable_document_symbols = ols_config.enable_document_symbols;
 					config.enable_hover = ols_config.enable_hover;
-					config.enable_format = ols_config.enable_format;
+					config.enable_format = true // ols_config.enable_format;
 					config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
 					config.enable_procedure_context = ols_config.enable_procedure_context;
 					config.verbose = ols_config.verbose;
+					config.file_log = ols_config.file_log;
+					config.formatter = ols_config.formatter;
 
 					for p in ols_config.collections {
 
@@ -723,7 +730,7 @@ request_format_document :: proc (task: ^common.Task) {
 	}
 
 	edit: []TextEdit;
-	edit, ok = get_complete_format(document);
+	edit, ok = get_complete_format(document, config);
 
 	if !ok {
 		handle_error(.InternalError, id, writer);
@@ -913,6 +920,8 @@ notification_did_save :: proc (task: ^common.Task) {
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret);
 	}
+
+	check(uri, writer);
 }
 
 request_semantic_token_full :: proc (task: ^common.Task) {

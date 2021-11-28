@@ -15,6 +15,13 @@ Config :: struct {
 	enable_semantic_tokens:   bool, 
 	enable_procedure_context: bool,
 	thread_count:             int,
+	file_log:                 bool,
+	formatter:                Format_Config,
+}
+
+Format_Config :: struct {
+	tabs: bool,
+	characters: int,
 }
 
 config: Config;

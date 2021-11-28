@@ -2,7 +2,7 @@ package server
 
 import "shared:common"
 
-import "core:odin/printer"
+import "shared:odin/printer"
 
 FormattingOptions :: struct {
 	tabSize:                uint,
@@ -22,8 +22,13 @@ TextEdit :: struct {
 	newText: string,
 }
 
-get_complete_format :: proc(document: ^common.Document) -> ([]TextEdit, bool) {
-	prnt := printer.make_printer(printer.default_style, context.temp_allocator);
+get_complete_format :: proc(document: ^common.Document, config: ^common.Config) -> ([]TextEdit, bool) {
+
+	style := printer.default_style;
+	style.max_characters = config.formatter.characters;
+	style.tabs = config.formatter.tabs;
+
+	prnt := printer.make_printer(style, context.temp_allocator);
 
 	if document.ast.syntax_error_count > 0 {
 		return {}, true;
