@@ -58,15 +58,29 @@ Newline_Style :: enum {
 	LF,
 }
 
-default_style := Config {
-	spaces               = 4,
-	newline_limit        = 2,
-	convert_do           = false,
-	tabs                 = true,
-	brace_style          = ._1TBS,
-	indent_cases         = false,
-	newline_style        = .LF,
-	max_characters       = 120,
+
+when ODIN_OS == "windows" {
+	default_style := Config {
+		spaces               = 4,
+		newline_limit        = 2,
+		convert_do           = false,
+		tabs                 = true,
+		brace_style          = ._1TBS,
+		indent_cases         = false,
+		newline_style        = .CRLF,
+		max_characters       = 100,
+	}
+} else {
+	default_style := Config {
+		spaces               = 4,
+		newline_limit        = 2,
+		convert_do           = false,
+		tabs                 = true,
+		brace_style          = ._1TBS,
+		indent_cases         = false,
+		newline_style        = .LF,
+		max_characters       = 100,
+	}
 }
 
 make_printer :: proc(config: Config, allocator := context.allocator) -> Printer {
