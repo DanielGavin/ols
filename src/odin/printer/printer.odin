@@ -62,10 +62,10 @@ default_style := Config {
 	spaces               = 4,
 	newline_limit        = 2,
 	convert_do           = false,
-	tabs                 = false,
+	tabs                 = true,
 	brace_style          = ._1TBS,
 	indent_cases         = false,
-	newline_style        = .CRLF,
+	newline_style        = .LF,
 	max_characters       = 120,
 }
 
@@ -135,6 +135,8 @@ print :: proc(p: ^Printer, file: ^ast.File) -> string {
 		document, _ := visit_comments(p, infinite)
 		p.document = cons(p.document, document)
 	}
+
+	p.document = cons(p.document, newline(1))
 
 	list := make([dynamic]Tuple, p.allocator)
 
