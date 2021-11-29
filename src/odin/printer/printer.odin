@@ -102,13 +102,13 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 				disable_position = comment.pos
 			} else if strings.contains(comment.text[:], "//odinfmt: enable") && found_disable {
 				for line := disable_position.line; line <= comment.pos.line; line += 1 {
-					p.disabled_lines[line] = p.src[disable_position.offset:comment.pos.offset+len(comment.text)]
+					p.disabled_lines[line] = ""
 				}
+				p.disabled_lines[disable_position.line+1] = p.src[disable_position.offset:comment.pos.offset+len(comment.text)]
 				found_disable = false
 			}
 		}
 	}
-
 }
 
 print :: proc(p: ^Printer, file: ^ast.File) -> string {

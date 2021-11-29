@@ -117,19 +117,6 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 			p.source_position = comment.pos
 			return newlines_before_comment, cons(document, text(comment.text))
 		}
-		/*
-		if comment.pos.line in p.disabled_lines {
-			p.source_position = comment.pos
-			return 1, empty()
-		} else if !end_newline || comment.pos.line == p.source_position.line {
-			p.source_position = comment.pos
-			return newlines_before_comment, cons_with_opl(document, text(comment.text))
-		} else {
-			p.source_position = comment.pos
-			p.source_position.line += 1
-			return newlines_before_comment+1, cons(document, cons(text(comment.text), newline(1)))
-		}
-		*/
 	} else {		
 		newlines := strings.count(comment.text, "\n")
 
@@ -147,27 +134,8 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 			return newlines_before_comment+newlines, cons(document, text(comment.text))
 		}
 
-		/*
-		if comment.pos.line in p.disabled_lines {
-			p.source_position = comment.pos
-			p.source_position.line += newlines
-			return 1, empty()
-		} else if comment.pos.line == p.source_position.line {
-			p.source_position = comment.pos
-			p.source_position.line += newlines
-			return newlines_before_comment+newlines, cons_with_opl(document, text(comment.text))
-		} else {
-			p.source_position = comment.pos
-			p.source_position.line += newlines
-			p.source_position.line += 1
-			return newlines_before_comment+newlines+1, cons(document, cons(text(comment.text), newline(1)))
-		}
-		*/
-
 		return 0, document
 	}
-
-	
 }
 
 @(private)
@@ -192,6 +160,11 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos, end_newline := true) -> 
 
 visit_disabled_decl :: proc(p: ^Printer, decl: ^ast.Decl) -> ^Document {
 	disabled_text := p.disabled_lines[decl.pos.line]
+
+	if disabled_text == "" {
+		return empty()
+	}
+
 	move := move_line(p, decl.pos)
 
 	for comment_before_or_in_line(p, decl.end.line + 1) {
@@ -339,6 +312,41 @@ visit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}) -
 }
 
 @(private)
+visit_comp_lit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}) -> ^Document {
+	if len(list) == 0 {
+		return empty()
+	}
+
+	document := empty()
+
+	alignment := get_possible_comp_lit_alignment(p, list)
+
+	for expr, i in list {
+
+		if (.Enforce_Newline in options) {
+			if value, ok := expr.derived.(ast.Field_Value); ok && alignment > 0 {
+				document = cons(document, cons_with_opl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
+			} else {
+				document = group(cons(document, visit_expr(p, expr, options)))
+			}
+		} else {
+			document = group(cons_with_opl(document, visit_expr(p, expr, options)))
+		}
+
+		if (i != len(list) - 1 || .Trailing in options) && .Add_Comma in options {
+			document = cons(document, text(","))
+		}
+
+		if (i != len(list) - 1 && .Enforce_Newline in options) {
+			comment, ok := visit_comments(p, list[i+1].pos, false)
+			document = cons(document, cons(comment, newline(1)))
+		}
+	}
+
+	return document
+}
+
+@(private)
 visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos: tokenizer.Pos) -> ^Document {
 	document := empty()
 	if len(attributes) == 0 {
@@ -453,9 +461,9 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			set_source_position(p, v.else_stmt.pos)
 
 			if _, ok := v.else_stmt.derived.(ast.If_Stmt); ok {
-				document = cons_with_opl(document, cons_with_opl(text("else"), visit_stmt(p, v.else_stmt)))
+				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			} else {
-				document = cons_with_opl(document, cons(text("else"), visit_stmt(p, v.else_stmt)))
+				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			}
 		}
 		return document
@@ -928,7 +936,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 		if len(v.elems) != 0 && v.pos.line != v.elems[len(v.elems) - 1].pos.line {
 			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))
 			set_source_position(p, v.elems[0].pos)
-			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_exprs(p, v.elems, {.Add_Comma, .Trailing, .Enforce_Newline}))))
+			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_comp_lit_exprs(p, v.elems, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			document = cons(document, visit_end_brace(p, v.end))
 		} else {
 			document = cons(document, text("{"))
@@ -1138,7 +1146,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.results))))
 			document = group(cons(document, cons(break_with(""), text(")"))))
 		} else {
-			document = cons_with_opl(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.results))))
+			document = group(cons_with_nopl(document, nest(p.indentation_count, cons(break_with(""), group(visit_signature_list(p, proc_type.results))))))
 		}
 	}
 
@@ -1236,4 +1244,61 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 
 
 	return document
+}
+
+repeat_space :: proc(amount: int) -> ^Document {
+	document := empty()
+	for i := 0; i < amount; i += 1 {
+		document = cons(document, break_with_space())
+	}
+	return document
+}
+
+get_node_length :: proc(node: ^ast.Node) -> int {
+	switch v in node.derived {
+	case ast.Ident:
+		return len(v.name)
+	case: 
+		panic("unhandled get_node_length case")
+	}
+}
+
+/*
+get_possible_field_alignment :: proc(p: ^Printer, fields: []^ast.Field) -> int {
+
+	longest_name := 0
+
+	for field in fields {
+		length := 0
+		for name in field.names {
+			length += get_node_length(name) + 2
+		}
+		longest_name = max(longest_name, length)
+	}
+
+	return longest_name
+}
+*/
+
+
+get_possible_comp_lit_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int {
+
+	longest_name := 0
+
+	for expr in exprs {
+
+		value, ok := expr.derived.(ast.Field_Value)
+
+		if !ok {
+			return 0
+		}
+
+		if _, ok := value.value.derived.(ast.Comp_Lit); ok {
+			return 0
+		}
+
+		longest_name = max(longest_name, get_node_length(value.field))
+	}
+
+	return longest_name
 }
