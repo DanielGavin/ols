@@ -953,7 +953,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))
 			set_source_position(p, v.args[0].pos)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.args[0].pos), visit_exprs(p, v.args, {.Add_Comma, .Trailing, .Enforce_Newline}))))
-			document = cons(document, visit_end_brace(p, v.end))
+			document = cons(document, visit_end_brace(p, v.end, 1))
 		} else {
 			document = cons(document, text("{"))
 			document = cons(document, visit_exprs(p, v.args, {.Add_Comma}))
@@ -1067,8 +1067,12 @@ visit_end_brace :: proc(p: ^Printer, end: tokenizer.Pos, limit := 0) -> ^Documen
 	if limit == 0 {
 		return cons(move_line(p, end), text("}"))
 	} else {
-		document, _ := move_line_limit(p, end, limit)
-		return cons(document, text("}"))
+		document, newlined := move_line_limit(p, end, limit)
+		if !newlined {
+			return cons(document, cons(newline(1), text("}")))
+		} else {
+			return cons(document, text("}"))
+		}
 	}
 }
 
@@ -1164,11 +1168,11 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 
 	if v, ok := proc_type.calling_convention.(string); ok {
 		explicit_calling = true
-		document = cons_with_opl(document, text(v))
+		document = cons_with_nopl(document, text(v))
 	}
 
 	if explicit_calling {
-		document = cons_with_opl(document, text("("))
+		document = cons_with_nopl(document, text("("))
 	} else {
 		document = cons(document, text("("))
 	}
