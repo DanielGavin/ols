@@ -169,9 +169,10 @@ Tuple :: struct {
 	document: ^Document,
 }
 
-fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
+fits :: proc(width: int, list: ^[dynamic]Tuple, consumed: ^int) -> bool {
 	assert(list != nil)
 
+	start_width := width
 	width := width
 
 	if len(list) == 0 {
@@ -184,12 +185,14 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		data: Tuple = pop(list)
 
 		if width < 0 {
+			consumed^ = start_width
 			return false
 		}
 
 		switch v in data.document {
 		case Document_Nil:
 		case Document_Newline:
+			consumed^ = start_width - width
 			return true
 		case Document_Cons:
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs})
@@ -200,6 +203,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			width -= len(v.value)
 		case Document_Break:
 			if data.mode == .Break && v.newline {
+				consumed^ = start_width - width
 				return true
 			} else {
 				width -= len(v.value)
@@ -213,6 +217,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		}
 	}
 
+	consumed^ = start_width - width
 	return true
 }
 
@@ -231,7 +236,6 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 	consumed := 0
 
 	for len(list) != 0 {
-
 		data: Tuple = pop(list)
 
 		switch v in data.document {
@@ -280,7 +284,9 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		
 			append(&l, Tuple {indentation = data.indentation, mode = .Flat, document = v.document})
 
-			if fits(width-consumed, &l) {
+			fits_consumed := 0
+
+			if fits(width-consumed, &l, &fits_consumed) {
 				append(list, Tuple {indentation = data.indentation, mode = .Flat, document = v.document})
 			} else {
 				if v.fill || data.mode == .Fill {
