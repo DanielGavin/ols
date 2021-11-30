@@ -1197,8 +1197,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.results))))
 			document = group(cons(document, cons(break_with(""), text(")"))))
 		} else {
-			document = cons_with_nopl(document, nest(p.indentation_count, cons(break_with(""), group(visit_signature_list(p, proc_type.results)))))
-			document = group(cons(document, break_with("")))
+			document = cons(document, group(nest(p.indentation_count, cons(break_with(" "), group(visit_signature_list(p, proc_type.results))))))
 		}
 	}
 
