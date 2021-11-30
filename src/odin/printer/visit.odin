@@ -996,6 +996,8 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 		return document
 	case Pointer_Type:
 		return cons(text("^"), visit_expr(p, v.elem))
+	case Multi_Pointer_Type:
+		return cons(text("[^]"), visit_expr(p, v.elem))
 	case Implicit:
 		return text_token(p, v.tok)
 	case Poly_Type:
@@ -1311,8 +1313,12 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 	switch v in node.derived {
 	case ast.Ident:
 		return len(v.name)
+	case ast.Basic_Lit:
+		return len(v.tok.text)
+	case ast.Binary_Expr:
+		return 0
 	case: 
-		panic("unhandled get_node_length case")
+		panic(fmt.aprintf("unhandled get_node_length case %v", node.derived))
 	}
 }
 
