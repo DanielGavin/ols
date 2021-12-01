@@ -461,7 +461,11 @@ request_initialize :: proc (task: ^common.Task) {
 		read_ols_config(ols_config_path, config, uri);
 	}
 
-	odin_core_env := os.get_env("ODIN_CORE_PATH", context.temp_allocator);
+	when ODIN_OS == "windows" {
+		odin_core_env := os.get_env("ODIN_CORE_PATH", context.temp_allocator);
+	} else {
+		odin_core_env, _ := os.getenv("ODIN_CORE_PATH");
+	}
 
 	if "core" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator);
