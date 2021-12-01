@@ -451,9 +451,21 @@ request_initialize :: proc (task: ^common.Task) {
 		project_uri = initialize_params.rootUri;
 	}
 
+	//default config
+	config.enable_hover = true;
+	config.enable_format = true;
+	config.enable_document_symbols = true;
+
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
 		read_ols_config(ols_config_path, config, uri);
+	}
+
+	odin_core_env := os.get_env("ODIN_CORE_PATH", context.temp_allocator);
+
+	if "core" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator);
+		config.collections["core"] = strings.clone(forward_path);
 	}
 
 	common.pool_init(&pool, config.thread_count);
