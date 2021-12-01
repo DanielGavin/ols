@@ -472,6 +472,11 @@ request_initialize :: proc (task: ^common.Task) {
 		config.collections["core"] = strings.clone(forward_path);
 	}
 
+	if "vendor" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator);
+		config.collections["vendor"] = path.join(elems = {forward_path, "../vendor"}, allocator = context.allocator);
+	}
+
 	common.pool_init(&pool, config.thread_count);
 	common.pool_start(&pool);
 
