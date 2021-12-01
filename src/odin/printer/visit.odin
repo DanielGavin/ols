@@ -717,6 +717,10 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 
 	set_source_position(p, expr.pos)
 
+	defer {
+		set_source_position(p, expr.end);
+	}
+
 	switch v in expr.derived {
 	case Inline_Asm_Expr:
 		document := cons(text_token(p, v.tok), text("("))
@@ -1080,7 +1084,7 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt, split := false) -> ^D
 	document := empty()
 
 	for stmt, i in stmts {
-		document = cons(document, visit_stmt(p, stmt, .Generic, false, true))
+		document = cons(document, group(visit_stmt(p, stmt, .Generic, false, true)))
 	}
 
 	return document
