@@ -462,19 +462,19 @@ request_initialize :: proc (task: ^common.Task) {
 	}
 
 	when ODIN_OS == "windows" {
-		odin_core_env := os.get_env("ODIN_CORE_PATH", context.temp_allocator);
+		odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator);
 	} else {
-		odin_core_env, _ := os.getenv("ODIN_CORE_PATH");
+		odin_core_env, _ := os.getenv("ODIN_ROOT");
 	}
 
 	if "core" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator);
-		config.collections["core"] = strings.clone(forward_path);
+		config.collections["core"] = path.join(elems = {forward_path, "core"}, allocator = context.allocator);
 	}
 
 	if "vendor" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator);
-		config.collections["vendor"] = path.join(elems = {forward_path, "../vendor"}, allocator = context.allocator);
+		config.collections["vendor"] = path.join(elems = {forward_path, "vendor"}, allocator = context.allocator);
 	}
 
 	common.pool_init(&pool, config.thread_count);
