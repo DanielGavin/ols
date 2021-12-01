@@ -324,7 +324,7 @@ visit_enum_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options
 			alignment := get_possible_enum_alignment(p, list)
 
 			if value, ok := expr.derived.(ast.Field_Value); ok && alignment > 0 {
-				document = cons(document, cons_with_opl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
+				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
 			} else {
 				document = group(cons(document, visit_expr(p, expr, options)))
 			}
@@ -358,12 +358,12 @@ visit_comp_lit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Opt
 			alignment := get_possible_comp_lit_alignment(p, list)
 
 			if value, ok := expr.derived.(ast.Field_Value); ok && alignment > 0 {
-				document = cons(document, cons_with_opl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
+				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
 			} else {
 				document = group(cons(document, visit_expr(p, expr, options)))
 			}
 		} else {
-			document = group(cons_with_opl(document, visit_expr(p, expr, options)))
+			document = group(cons_with_nopl(document, visit_expr(p, expr, options)))
 		}
 
 		if (i != len(list) - 1 || .Trailing in options) && .Add_Comma in options {
@@ -980,7 +980,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 	case Unary_Expr:
 		return cons(text_token(p, v.op), visit_expr(p, v.expr))
 	case Field_Value:
-		document := cons_with_opl(visit_expr(p, v.field), cons_with_nopl(text_position(p, "=", v.sep), visit_expr(p, v.value)))
+		document := cons_with_nopl(visit_expr(p, v.field), cons_with_nopl(text_position(p, "=", v.sep), visit_expr(p, v.value)))
 		return document
 	case Type_Assertion:
 		document := visit_expr(p, v.expr)
@@ -1308,7 +1308,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 repeat_space :: proc(amount: int) -> ^Document {
 	document := empty()
 	for i := 0; i < amount; i += 1 {
-		document = cons(document, break_with_space())
+		document = cons(document, break_with_no_newline())
 	}
 	return document
 }

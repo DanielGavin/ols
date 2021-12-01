@@ -443,16 +443,17 @@ request_initialize :: proc (task: ^common.Task) {
 		}
 	}
 
-	//global config
+	project_uri := "";
 
-
-	//local specific
 	if len(config.workspace_folders) > 0 {
-		//right now just look at the first workspace - TODO(daniel, add multiple workspace support)
-		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
-			ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
-			read_ols_config(ols_config_path, config, uri);
-		}
+		project_uri = config.workspace_folders[0].uri;
+	} else if initialize_params.rootUri != "" {
+		project_uri = initialize_params.rootUri;
+	}
+
+	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
+		read_ols_config(ols_config_path, config, uri);
 	}
 
 	common.pool_init(&pool, config.thread_count);

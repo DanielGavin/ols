@@ -73,6 +73,7 @@ RequestInitializeParams :: struct {
 	trace:            string,
 	workspaceFolders: [dynamic]common.WorkspaceFolder,
 	capabilities:     ClientCapabilities,
+	rootUri:          string,
 }
 
 MarkupContent :: struct {

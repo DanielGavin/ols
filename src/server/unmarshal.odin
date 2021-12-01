@@ -6,8 +6,6 @@ import "core:runtime"
 import "core:mem"
 import "core:fmt"
 
-//Note(Daniel, investigate if you can use some sort of attribute not to be forced to have the same variable name as the json name)
-
 /*
 	Right now union handling is type specific so you can only have one struct type, int type, etc.
 */
