@@ -2722,6 +2722,10 @@ fallback_position_context_signature :: proc(document: ^common.Document, position
 		i -= 1;
 	}
 
+	if end < 0 {
+		return;
+	}
+
 	if position_context.file.src[end] != '(' {
 		return;
 	}
