@@ -455,6 +455,8 @@ request_initialize :: proc (task: ^common.Task) {
 	config.enable_hover = true;
 	config.enable_format = true;
 	config.enable_document_symbols = true;
+	config.formatter.characters = 90;
+	config.formatter.tabs = true;
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
@@ -629,17 +631,19 @@ request_definition :: proc (task: ^common.Task) {
 		return;
 	}
 
-	location, ok2 := get_definition_location(document, definition_params.position);
+	locations, ok2 := get_definition_location(document, definition_params.position);
 
 	if !ok2 {
 		log.warn("Failed to get definition location");
 	}
 
-	response := make_response_message(
-	params = location,
-	id = id);
-
-	send_response(response, writer);
+	if len(locations) == 1 {
+		response := make_response_message(params = locations[0], id = id);
+		send_response(response, writer);
+	} else {
+		response := make_response_message(params = locations, id = id);
+		send_response(response, writer);
+	}
 }
 
 request_completion :: proc (task: ^common.Task) {

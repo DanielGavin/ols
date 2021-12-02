@@ -19,6 +19,7 @@ ResponseParams :: union {
 	ResponseInitializeParams,
 	rawptr,
 	common.Location,
+	[]common.Location,
 	CompletionList,
 	SignatureHelp,
 	[]DocumentSymbol,

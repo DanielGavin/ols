@@ -207,9 +207,19 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 			document = cons_with_opl(document, text_position(p, v.name.name, v.pos))
 		}
 
-		for path in v.fullpaths {
-			document = cons_with_opl(document, text(path))
+		if len(v.fullpaths) > 1 {
+			document = cons_with_nopl(document, text("{"))
+			for path, i in v.fullpaths {
+				document = cons(document, text(path))
+				if i != len(v.fullpaths) - 1 {
+					document = cons(document, cons(text(","), break_with_space()))
+				} 
+			}
+			document = cons(document, text("}"))
+		} else if len(v.fullpaths) == 1 {
+			document = cons_with_nopl(document, text(v.fullpaths[0]))
 		}
+
 		return document
 	case Foreign_Block_Decl:
 		document := empty()
@@ -472,7 +482,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		if uses_do && !p.config.convert_do {
-			document = cons(document, cons_with_opl(text("do"), visit_stmt(p, v.body, .If_Stmt, true)))
+			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, .If_Stmt, true)))
 		} else {
 			if uses_do {
 				document = cons(document, newline(1))
@@ -915,7 +925,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 			set_source_position(p, v.body.pos)
 			document = cons_with_nopl(document, group(visit_stmt(p, v.body, .Proc)))
 		} else {
-			document = cons_with_opl(document, text("---"))
+			document = cons_with_nopl(document, text("---"))
 		}
 
 		return document
