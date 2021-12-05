@@ -38,6 +38,10 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 
 	top := 20;
 
+	if name == "" {
+		top = 10000
+	}
+
 	for _, symbol in index.collection.symbols {
 
 		if !exists_in_scope(symbol.pkg, pkgs) {
