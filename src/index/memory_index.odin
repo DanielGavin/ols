@@ -55,7 +55,7 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 	}
 
 	sort.sort(fuzzy_sort_interface(&symbols));
-	strings.clone_to_cstring
+
 	if name == "" {
 		return symbols[:], true;
 	} else {
