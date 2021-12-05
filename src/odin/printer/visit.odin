@@ -254,42 +254,60 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 		document = cons(document, move_line(p, decl.pos))
 
+		lhs := empty()
+		rhs := empty()
+
 		if v.is_using {
-			document = cons(document, cons(text("using"), break_with_no_newline()))
+			lhs = cons(lhs, cons(text("using"), break_with_no_newline()))
 		}
 
-		document = cons(document, visit_exprs(p, v.names, {.Add_Comma}))
+		lhs = cons(lhs, visit_exprs(p, v.names, {.Add_Comma}))
 
 		if v.type != nil {
-			document = group(cons(document, text(":")))
-			document = cons_with_nopl(document, visit_expr(p, v.type))
+			lhs = cons(lhs, text(":"))
+			lhs = cons_with_nopl(lhs, visit_expr(p, v.type))
 		} else {
 			if !v.is_mutable {
-				document = cons_with_nopl(document, cons(text(":"), text(":")))
+				lhs = cons_with_nopl(lhs, cons(text(":"), text(":")))
 			} else {
-				document = cons_with_nopl(document, text(":"))
+				lhs = cons_with_nopl(lhs, text(":"))
 			}
 		}
 
 		if len(v.values) > 0 && v.is_mutable {
 			if v.type != nil {
-				document = cons_with_nopl(document, text("="))
+				lhs = cons_with_nopl(lhs, text("="))
 			} else {
-				document = cons(document, text("="))
+				lhs = cons(lhs, text("="))
 			}
-			document = cons_with_nopl(document, visit_exprs(p, v.values, {.Add_Comma}))
+
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}))		
 		} else if len(v.values) > 0 && v.type != nil {
-			document = cons_with_nopl(document, cons_with_nopl(text(":"), visit_exprs(p, v.values, {.Add_Comma})))
+			rhs = cons_with_nopl(rhs, cons_with_nopl(text(":"), visit_exprs(p, v.values, {.Add_Comma})))		
 		} else {
-			document = cons_with_nopl(document, visit_exprs(p, v.values, {.Add_Comma}))
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}))		
 		}
-		
-		return document
+
+		if is_values_binary(p, v.values) {
+			return cons(document, fill_group(cons_with_opl(group(lhs), align(fill_group(rhs)))))
+		} else {
+			return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))
+		}		
 	case:
 		panic(fmt.aprint(decl.derived))
 	}
 
 	return empty()
+}
+
+@(private)
+is_values_binary :: proc(p: ^Printer, list: []^ast.Expr) -> bool {
+	for expr in list {
+		if _, bin := expr.derived.(ast.Binary_Expr); bin {
+			return true
+		}
+	}
+	return false
 }
 
 @(private)
@@ -303,9 +321,9 @@ visit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}) -
 	for expr, i in list {
 
 		if (.Enforce_Newline in options) {
-			document = group(cons(document, visit_expr(p, expr, options)))
+			document = cons(document, visit_expr(p, expr, options))
 		} else {
-			document = group(cons_with_opl(document, visit_expr(p, expr, options)))
+			document = cons_with_opl(document, visit_expr(p, expr, options))
 		}
 
 		if (i != len(list) - 1 || .Trailing in options) && .Add_Comma in options {
@@ -441,13 +459,21 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	case Block_Stmt:
 		document := move_line(p, v.pos)
 
+		if v.label != nil {
+			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
+		}
+
+		if .Bounds_Check in v.state_flags {
+			document = cons(document, cons(text("#bounds_check"), break_with_space()))
+		}
+
 		if !empty_block {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type, len(v.stmts)))
 		}
 
 		set_source_position(p, v.pos)
 
-		block := group(visit_block_stmts(p, v.stmts, len(v.stmts) > 1))
+		block := visit_block_stmts(p, v.stmts, len(v.stmts) > 1)
 		comment_end, _ := visit_comments(p, tokenizer.Pos {line = v.end.line, offset = v.end.offset}, false)
 
 		if block_type == .Switch_Stmt && !p.config.indent_cases {
@@ -467,13 +493,17 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
 
-		document = cons(document, text("if"))
+		if_document := text("if")
 
 		if v.init != nil {
-			document = cons_with_nopl(document, cons(visit_stmt(p, v.init), text(";")))
+			if_document = cons_with_nopl(if_document, cons(group(visit_stmt(p, v.init)), cons(text(";"), break_with(""))))
 		}
 
-		document = cons_with_opl(document, visit_expr(p, v.cond))
+		if v.cond != nil {
+			if_document = cons_with_nopl(if_document, hang(3, fill_group(visit_expr(p, v.cond))))
+		}
+
+		document = cons(document, group(if_document))
 
 		uses_do := false
 
@@ -569,10 +599,14 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	case Assign_Stmt:
 		document := move_line(p, v.pos)
 
-		document = cons(document, visit_exprs(p, v.lhs, {.Add_Comma}))
-		document = cons_with_opl(document, cons_with_opl(text(v.op.text), visit_exprs(p, v.rhs, {.Add_Comma})))
+		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma}), text(v.op.text)))
 
-		return document
+		if block_stmt {
+			assign_document = fill_group(cons(assign_document, align(cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma})))))
+		} else {
+			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}))
+		}
+		return cons(document, group(assign_document))
 	case Expr_Stmt:
 		document := move_line(p, v.pos)
 		document = cons(document, visit_expr(p, v.expr))
@@ -584,25 +618,29 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
 
-		document = cons(document, text("for"))
+		for_document := text("for")
 
 		if v.init != nil {
-			document = cons_with_nopl(document, cons(visit_stmt(p, v.init), text(";")))
+			set_source_position(p, v.init.pos);
+			for_document = cons_with_nopl(for_document, cons(group(visit_stmt(p, v.init)), cons(text(";"), break_with(""))))
 		} else if v.post != nil {
-			document = cons_with_nopl(document, text(";"))
+			for_document = cons_with_nopl(for_document, text(";"))
 		}
 
 		if v.cond != nil {
-			document = cons_with_nopl(document, visit_expr(p, v.cond))
+			set_source_position(p, v.cond.pos);
+			for_document = cons_with_nopl(for_document, fill_group(visit_expr(p, v.cond)))
 		}
 
 		if v.post != nil {
-			document = cons(document, text(";"))
-			document = cons_with_nopl(document, visit_stmt(p, v.post))
+			set_source_position(p, v.post.pos);
+			for_document = cons(for_document, text(";"))
+			for_document = cons_with_opl(for_document, group(visit_stmt(p, v.post)))
 		} else if v.post == nil && v.cond != nil && v.init != nil {
-			document = cons(document, text(";"))
+			for_document = cons(for_document, text(";"))
 		}
 
+		document = cons(document, group(hang(4, for_document)))
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 		return document
 	case Inline_Range_Stmt:
@@ -618,7 +656,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document, visit_expr(p, v.val0))
 
 		if v.val1 != nil {
-			document = cons_with_nopl(document, cons_with_opl(text(","), visit_expr(p, v.val1)))
+			document = cons(document, cons_with_opl(text(","), visit_expr(p, v.val1)))
 		}
 
 		document = cons_with_nopl(document, text("in"))
@@ -715,7 +753,6 @@ visit_poly_params :: proc(p: ^Printer, poly_params: ^ast.Field_List) -> ^Documen
 		return empty()
 	}
 }
-
 
 @(private)
 visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^Document {
@@ -934,7 +971,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 	case Basic_Lit:
 		return text_token(p, v.tok)
 	case Binary_Expr:
-		return nest(p.indentation_count, fill_group(visit_binary_expr(p, v)))
+		return visit_binary_expr(p, v)
 	case Implicit_Selector_Expr:
 		return cons(text("."), text_position(p, v.field.name, v.field.pos))
 	case Call_Expr:
@@ -1242,7 +1279,7 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
 
 	op := text(binary.op.text)
 
-	return nest(0, cons_with_nopl(lhs, cons_with_opl(op, rhs)))	
+	return cons_with_nopl(lhs, cons_with_opl(op, rhs))
 }
 
 visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^Document {

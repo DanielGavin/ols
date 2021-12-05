@@ -2408,7 +2408,6 @@ get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^c
 			paren_count -= 1;
 		}
 		for i := call.open.offset; i < call.close.offset; i += 1 {
-
 			switch document.text[i] {
 			case '[': paren_count += 1;
 			case ']': paren_count -= 1;

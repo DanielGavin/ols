@@ -96,6 +96,30 @@ build_symbol_return :: proc(symbol: ^index.Symbol) {
 	}
 }
 
+seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
+	if value, ok := &procedure.value.(index.SymbolProcedureValue); ok {
+		types := make([dynamic]^ast.Field, context.temp_allocator);
+				
+		for arg, i in value.arg_types {
+
+			if len(arg.names) == 1 {
+				append(&types, arg);
+				continue;
+			}
+
+			for name in arg.names {
+				field : ^ast.Field = index.new_type(ast.Field, {}, {}, context.temp_allocator);
+				field.names = make([]^ast.Expr, 1, context.temp_allocator);
+				field.names[0] = name;
+				field.type = arg.type;
+				append(&types, field);
+			}
+		}
+
+		value.arg_types = types[:];
+	}
+}
+
 
 get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
 
@@ -133,14 +157,14 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 	call: index.Symbol;
 	call, ok = resolve_type_expression(&ast_context, position_context.call);
 
+	seperate_proc_field_arguments(&call);
+
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator);
 
 	if value, ok := call.value.(index.SymbolProcedureValue); ok {
-
 		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator);
 		
 		for arg, i in value.arg_types {
-			
 			if arg.type != nil {
 				if _, is_ellipsis := arg.type.derived.(ast.Ellipsis); is_ellipsis {
 					signature_help.activeParameter = min(i, signature_help.activeParameter);
