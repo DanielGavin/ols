@@ -507,8 +507,8 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		uses_do := false
 
-		if check_stmt, ok := v.body.derived.(Block_Stmt); ok && check_stmt.uses_do {
-			uses_do = true
+		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
+			uses_do = check_stmt.uses_do
 		}
 
 		if uses_do && !p.config.convert_do {
@@ -641,7 +641,25 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		document = cons(document, group(hang(4, for_document)))
-		document = cons_with_nopl(document, visit_stmt(p, v.body))
+
+		uses_do := false
+
+		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
+			uses_do = check_stmt.uses_do
+		}
+
+		if uses_do && !p.config.convert_do {
+			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
+		} else {
+			if uses_do {
+				document = cons(document, newline(1))
+			}
+
+			set_source_position(p, v.body.pos)
+			document = cons_with_nopl(document,  visit_stmt(p, v.body))
+			set_source_position(p, v.body.end)
+		}
+
 		return document
 	case Inline_Range_Stmt:
 		document := move_line(p, v.pos)
@@ -662,7 +680,25 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document, text("in"))
 
 		document = cons_with_nopl(document, visit_expr(p, v.expr))
-		document = cons_with_nopl(document, visit_stmt(p, v.body))
+
+		uses_do := false
+
+		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
+			uses_do = check_stmt.uses_do
+		}
+
+		if uses_do && !p.config.convert_do {
+			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
+		} else {
+			if uses_do {
+				document = cons(document, newline(1))
+			}
+
+			set_source_position(p, v.body.pos)
+			document = cons_with_nopl(document,  visit_stmt(p, v.body))
+			set_source_position(p, v.body.end)
+		}
+
 		return document
 	case Range_Stmt:
 		document := move_line(p, v.pos)
@@ -684,7 +720,25 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_opl(document, text("in"))
 
 		document = cons_with_opl(document, visit_expr(p, v.expr))
-		document = cons_with_nopl(document, visit_stmt(p, v.body))
+		
+		uses_do := false
+
+		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
+			uses_do = check_stmt.uses_do
+		}
+
+		if uses_do && !p.config.convert_do {
+			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
+		} else {
+			if uses_do {
+				document = cons(document, newline(1))
+			}
+
+			set_source_position(p, v.body.pos)
+			document = cons_with_nopl(document,  visit_stmt(p, v.body))
+			set_source_position(p, v.body.end)
+		}
+
 		return document
 	case Return_Stmt:
 		document := move_line(p, v.pos)
@@ -786,16 +840,16 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 	case Auto_Cast:
 		return cons(text_token(p, v.op), visit_expr(p, v.expr))
 	case Ternary_If_Expr:
-		document := visit_expr(p, v.x)
+		document := visit_expr(p, v.cond)
 		document = cons_with_opl(document, text_token(p, v.op1))
-		document = cons_with_opl(document, visit_expr(p, v.cond))
+		document = cons_with_opl(document, visit_expr(p, v.x))
 		document = cons_with_opl(document, text_token(p, v.op2))
 		document = cons_with_opl(document, visit_expr(p, v.y))
 		return document
 	case Ternary_When_Expr:
-		document := visit_expr(p, v.x)
+		document := visit_expr(p, v.cond)
 		document = cons_with_opl(document, text_token(p, v.op1))
-		document = cons_with_opl(document, visit_expr(p, v.cond))
+		document = cons_with_opl(document, visit_expr(p, v.x))
 		document = cons_with_opl(document, text_token(p, v.op2))
 		document = cons_with_opl(document, visit_expr(p, v.y))
 		return document

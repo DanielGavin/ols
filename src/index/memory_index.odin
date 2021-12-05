@@ -38,10 +38,6 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 
 	top := 20;
 
-	if name == "" {
-		top = 10000
-	}
-
 	for _, symbol in index.collection.symbols {
 
 		if !exists_in_scope(symbol.pkg, pkgs) {
@@ -59,8 +55,12 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 	}
 
 	sort.sort(fuzzy_sort_interface(&symbols));
-
-	return symbols[:min(top, len(symbols))], true;
+	strings.clone_to_cstring
+	if name == "" {
+		return symbols[:], true;
+	} else {
+		return symbols[:min(top, len(symbols))], true;
+	}
 }
 
 exists_in_scope :: proc(symbol_scope: string, scope: []string) -> bool {
