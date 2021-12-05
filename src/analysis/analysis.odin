@@ -809,6 +809,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return resolve_type_expression(ast_context, v.type);
 	case Auto_Cast:
 		return resolve_type_expression(ast_context, v.expr);
+	case Comp_Lit:
+		return resolve_type_expression(ast_context, v.type);
 	case Unary_Expr:
 		if v.op.kind == .And {
 			symbol, ok := resolve_type_expression(ast_context, v.expr);

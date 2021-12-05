@@ -467,6 +467,25 @@ index_variable_pointer_signature :: proc(t: ^testing.T) {
     test.expect_signature_labels(t, &source, {"my_package.My_Fun: proc(a: int)"});
 }
 
+@(test)
+shared_value_decl_type_signature :: proc(t: ^testing.T) {
+    source := test.Source {
+		main = `package test
+
+		my_function :: proc(a, b: int) {
+
+		}
+
+		main :: proc() {		
+			my_function(*)
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_signature_labels(t, &source, {"test.my_function: proc(a: int, b: int)"});
+}
+
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {

@@ -60,7 +60,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
 			} else {
 				if len(value_decl.values) > i {
-					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], docs = value_decl.docs, attributes = value_decl.attributes[:]});
+					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
 				}
 			}
 		}

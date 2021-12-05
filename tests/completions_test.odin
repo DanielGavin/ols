@@ -569,6 +569,45 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
 }
 
+@(test)
+ast_generic_make_completion_2 :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package test
+
+		make :: proc{
+			make_dynamic_array,
+			make_dynamic_array_len,
+			make_dynamic_array_len_cap,
+			make_map,
+			make_slice,
+		};
+		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
+		}
+		make_dynamic_array :: proc($T: typeid/[dynamic]$E, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
+		}
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		}
+
+		My_Struct :: struct {
+			my_int: int,
+		}
+
+		main :: proc() {
+			allocator: Allocator;
+			my_array := make([]My_Struct, 343);
+			my_array[2].*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+}
 
 @(test)
 ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
@@ -774,6 +813,64 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 	};
 
     test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
+}
+
+@(test)
+ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
+
+    source := test.Source {
+		main = `package test
+	
+		My_Struct :: struct {
+			a: int,
+		}
+
+		new_type :: proc($T: typeid, pos, end: My_Struct) -> ^T {
+		}
+
+		main :: proc() {
+			t := new_type(My_Struct, {}, {})
+			t.*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
+}
+
+@(test)
+ast_global_struct_completion :: proc(t: ^testing.T) {
+
+    source := test.Source {
+		main = `package main
+
+		Foo :: struct { x: int }
+		foo := Foo{}
+		main :: proc() {
+			x := foo.*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_completion_details(t, &source, ".", {"Foo.x: int"});
+}
+
+@(test)
+ast_global_non_mutable_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		Foo :: struct { x: int }
+		main :: proc() {
+			x := Foo.*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_completion_details(t, &source, ".", {});
 }
 
 /*	
