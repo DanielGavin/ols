@@ -1,5 +1,6 @@
 package server
 
+/*
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -17,6 +18,7 @@ import "core:intrinsics"
 import "core:text/scanner"
 
 import "shared:common"
+
 
 check :: proc(uri: common.Uri, writer: ^Writer) {
 
@@ -188,3 +190,4 @@ check :: proc(uri: common.Uri, writer: ^Writer) {
 		send_notification(notifaction, writer);
 	}
 }
+*/
