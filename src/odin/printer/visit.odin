@@ -948,15 +948,13 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 			document = cons(document, visit_expr(p, v.base_type))
 		}
 
-		if v.fields != nil && (len(v.fields) == 0 || v.pos.line == v.end.line) {
+		if len(v.fields) == 0 || v.pos.line == v.end.line {
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, visit_enum_exprs(p, v.fields, {.Add_Comma}))
 			document = cons(document, text("}"))
 		} else {
-			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))
-			
+			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))		
 			set_source_position(p, v.fields[0].pos)
-
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.fields[0].pos), visit_enum_exprs(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			document = cons(document, visit_end_brace(p, v.end, 1))
 		}
