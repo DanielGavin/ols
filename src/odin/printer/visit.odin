@@ -945,7 +945,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 		document := text_position(p, "enum", v.pos)
 
 		if v.base_type != nil {
-			document = cons(document, visit_expr(p, v.base_type))
+			document = cons_with_nopl(document, visit_expr(p, v.base_type))
 		}
 
 		if len(v.fields) == 0 || v.pos.line == v.end.line {
