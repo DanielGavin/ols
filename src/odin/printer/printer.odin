@@ -57,6 +57,7 @@ Block_Type :: enum {
 Expr_Called_Type :: enum {
 	None,
 	Value_Decl,
+	Assignment_Stmt,
 }
 
 Newline_Style :: enum {

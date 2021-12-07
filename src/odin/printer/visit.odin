@@ -390,7 +390,6 @@ visit_comp_lit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Opt
 	for expr, i in list {
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_comp_lit_alignment(p, list)
-
 			if value, ok := expr.derived.(ast.Field_Value); ok && alignment > 0 {
 				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
 			} else {
@@ -612,9 +611,13 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma}), text(v.op.text)))
 
 		if block_stmt {
-			assign_document = fill_group(cons(assign_document, align(cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma})))))
+			if should_align_assignment_stmt(p, v) {
+				assign_document = fill_group(cons(assign_document, align(cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
+			} else {
+				assign_document = fill_group(cons(assign_document, cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))))
+			}
 		} else {
-			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}))
+			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))
 		}
 		return cons(document, group(assign_document))
 	case Expr_Stmt:
@@ -798,6 +801,21 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	set_source_position(p, stmt.end)
 
 	return empty()
+}
+
+@(private)
+should_align_assignment_stmt :: proc(p: ^Printer, stmt: ast.Assign_Stmt) -> bool {
+	if len(stmt.rhs) == 0 {
+		return false
+	}
+
+	for expr in stmt.rhs {
+		if _, ok := stmt.rhs[0].derived.(ast.Comp_Lit); ok {
+			return false
+		}
+	}
+	
+	return true
 }
 
 @(private)
@@ -1080,7 +1098,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		}
 
 		//If we call from the value declartion, we want it to be nicly newlined and aligned
-		if called_from == .Value_Decl && len(v.elems) != 0 {
+		if (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
 			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))
 			set_source_position(p, v.elems[0].pos)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_comp_lit_exprs(p, v.elems, {.Add_Comma, .Trailing, .Enforce_Newline}))))
@@ -1207,6 +1225,7 @@ List_Option :: enum u8 {
 	Trailing,
 	Enforce_Newline,
 	Enforce_Poly_Names,
+	Group,
 }
 
 List_Options :: distinct bit_set[List_Option]
