@@ -54,6 +54,11 @@ Block_Type :: enum {
 	Switch_Stmt,
 }
 
+Expr_Called_Type :: enum {
+	None,
+	Value_Decl,
+}
+
 Newline_Style :: enum {
 	CRLF,
 	LF,
