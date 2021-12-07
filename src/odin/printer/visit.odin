@@ -158,22 +158,28 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos, end_newline := true) -> 
 	return document, lines
 }
 
-visit_disabled_decl :: proc(p: ^Printer, decl: ^ast.Decl) -> ^Document {
-	disabled_text := p.disabled_lines[decl.pos.line]
+visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
+	disabled_text := p.disabled_lines[node.pos.line]
+
+	if p.last_disabled_line + 1 == node.pos.line {
+		return empty();
+	}
 
 	if disabled_text == "" {
 		return empty()
 	}
 
-	move := move_line(p, decl.pos)
+	move := move_line(p, node.pos)
 
-	for comment_before_or_in_line(p, decl.end.line + 1) {
+	for comment_before_or_in_line(p, node.end.line) {
 		next_comment_group(p)
 	}
-	
-	p.source_position = decl.end
 
-	return cons(move, text(disabled_text))
+	p.last_disabled_line = node.pos.line
+	
+	p.source_position = node.end
+
+	return cons(nest(-p.indentation_count, move), text(disabled_text))
 }
 
 @(private)
@@ -185,7 +191,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	}
 
 	if decl.pos.line in p.disabled_lines {
-		return visit_disabled_decl(p, decl)
+		return visit_disabled(p, decl)
 	}
 	
 	switch v in &decl.derived {
@@ -438,6 +444,10 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 	if stmt == nil {
 		return empty()
+	}
+
+	if stmt.pos.line in p.disabled_lines {
+		return visit_disabled(p, stmt)
 	}
 
 	switch v in stmt.derived {
@@ -796,7 +806,7 @@ push_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
 		return empty()
 	}
 	
-	return nest(p.indentation_count, cons(newline(1), cons_with_opl(text("where"), visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline}))))
+	return group(nest(p.indentation_count, cons_with_nopl(text("where"), visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline}))))
 }
 
 @(private)
@@ -926,7 +936,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 			document = cons_with_opl(document, text("#maybe"))
 		}
 
-		document = cons_with_opl(document, push_where_clauses(p, v.where_clauses))
+		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
 		if v.variants != nil && (len(v.variants) == 0 || v.pos.line == v.end.line) {
 			document = cons_with_nopl(document, text("{"))
@@ -979,7 +989,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 			document = cons_with_nopl(document, visit_expr(p, v.align))
 		}
 
-		document = cons_with_opl(document, push_where_clauses(p, v.where_clauses))
+		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
 		if v.fields != nil && (len(v.fields.list) == 0 || v.pos.line == v.end.line) {
 			document = cons_with_nopl(document, text("{"))
@@ -1008,7 +1018,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 		}
 
 		document = cons(document, visit_proc_type(p, v.type^))
-		document = cons_with_opl(document, push_where_clauses(p, v.where_clauses))
+		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
 		if v.body != nil {
 			set_source_position(p, v.body.pos)
