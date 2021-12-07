@@ -873,6 +873,40 @@ ast_global_non_mutable_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {});
 }
 
+@(test)
+ast_basic_value_untyped_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		main :: proc() {
+			xaa := 2
+			xa*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.xaa: int"});
+}
+
+@(test)
+ast_basic_value_binary_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		main :: proc() {
+			xaa := 2
+			xb2 := xaa - 2
+			xb*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.xb2: int"});
+}
+
+
 /*	
 	Looks like a bug in for each on w.*
 

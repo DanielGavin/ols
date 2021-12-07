@@ -779,6 +779,7 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		value.type = .String;
 	}
 
+	symbol.pkg = ast_context.current_package
 	symbol.value = value;
 
 	return symbol, true;
@@ -792,7 +793,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
 	using ast;
 
-	switch v in node.derived {
+	switch v in &node.derived {
 	case Array_Type:
 		return make_symbol_array_from_ast(ast_context, v), true;
 	case Dynamic_Array_Type:
@@ -801,6 +802,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return make_symbol_map_from_ast(ast_context, v), true;
 	case Proc_Type:
 		return make_symbol_procedure_from_ast(ast_context, node, v, ast_context.field_name), true;
+	case Binary_Expr:
+		return resolve_first_symbol_from_binary_expression(ast_context, &v); 
 	case Ident:
 		return resolve_type_identifier(ast_context, v);
 	case Basic_Lit:
@@ -2316,6 +2319,12 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 	case SymbolPackageValue:
 		return "package";
 	case SymbolUntypedValue:
+		switch v.type {
+		case .Float:   return "float"
+		case .String:  return "string"
+		case .Bool:    return "bool"
+		case .Integer: return "int"
+		}
 	}
 	
 	return "";

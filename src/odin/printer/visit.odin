@@ -838,7 +838,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, options := List_Options{}) -> ^
 	case Undef:
 		return text("---")
 	case Auto_Cast:
-		return cons(text_token(p, v.op), visit_expr(p, v.expr))
+		return cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
 	case Ternary_If_Expr:
 		document := visit_expr(p, v.cond)
 		document = cons_with_opl(document, text_token(p, v.op1))
