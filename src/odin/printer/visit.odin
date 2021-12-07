@@ -1088,7 +1088,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		} else {
 			document = cons(document, text("{"))
 			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma}))))
-			document = cons(document, cons(break_with(""), text("}")))
+			document = cons(document, cons(cons(if_break(","), break_with("")), text("}")))
 			document = group(document)
 		}
 
