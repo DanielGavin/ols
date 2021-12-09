@@ -497,7 +497,7 @@ request_initialize :: proc (task: ^common.Task) {
 	config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
 	completionTriggerCharacters  := []string {".", ">", "#", "\"", "/", ":"};
-	signatureTriggerCharacters   := []string {"("};
+	signatureTriggerCharacters   := []string {"(", ","};
 	signatureRetriggerCharacters := []string {","};
 
 	token_type     := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum);

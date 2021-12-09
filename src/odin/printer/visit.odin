@@ -327,9 +327,9 @@ visit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}, c
 	for expr, i in list {
 
 		if (.Enforce_Newline in options) {
-			document = cons(document, visit_expr(p, expr, called_from, options))
+			document = cons(document, .Group in options ? group(visit_expr(p, expr, called_from, options)) : visit_expr(p, expr, called_from, options))
 		} else {
-			document = cons_with_opl(document, visit_expr(p, expr, called_from, options))
+			document = cons_with_opl(document, .Group in options ? group(visit_expr(p, expr, called_from, options)) : visit_expr(p, expr, called_from, options))
 		}
 
 		if (i != len(list) - 1 || .Trailing in options) && .Add_Comma in options {
@@ -635,14 +635,14 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		if v.init != nil {
 			set_source_position(p, v.init.pos);
-			for_document = cons_with_nopl(for_document, cons(group(visit_stmt(p, v.init)), cons(text(";"), break_with(""))))
+			for_document = cons_with_nopl(for_document, cons(group(visit_stmt(p, v.init)), text(";")))
 		} else if v.post != nil {
 			for_document = cons_with_nopl(for_document, text(";"))
 		}
 
 		if v.cond != nil {
 			set_source_position(p, v.cond.pos);
-			for_document = cons_with_nopl(for_document, fill_group(visit_expr(p, v.cond)))
+			for_document = cons_with_opl(for_document, fill_group(visit_expr(p, v.cond)))
 		}
 
 		if v.post != nil {
@@ -759,19 +759,19 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons(document, text("return"))
 
 		if v.results != nil {
-			document = cons_with_opl(document, visit_exprs(p, v.results, {.Add_Comma}))
+			document = cons_with_nopl(document, visit_exprs(p, v.results, {.Add_Comma}))
 		}
 
 		return document
 	case Defer_Stmt:
 		document := move_line(p, v.pos)
 		document = cons(document, text("defer"))
-		document = cons_with_opl(document, visit_stmt(p, v.stmt))
+		document = cons_with_nopl(document, visit_stmt(p, v.stmt))
 		return document
 	case When_Stmt:
 		document := move_line(p, v.pos)
 
-		document = cons(document, cons_with_opl(text("when"), visit_expr(p, v.cond)))
+		document = cons(document, cons_with_nopl(text("when"), visit_expr(p, v.cond)))
 
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 
@@ -782,7 +782,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 			set_source_position(p, v.else_stmt.pos)
 
-			document = cons(document, cons_with_opl(text("else"), visit_stmt(p, v.else_stmt)))
+			document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 		}
 		return document
 	case Branch_Stmt:
@@ -869,17 +869,17 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		return cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
 	case Ternary_If_Expr:
 		document := visit_expr(p, v.cond)
-		document = cons_with_opl(document, text_token(p, v.op1))
-		document = cons_with_opl(document, visit_expr(p, v.x))
-		document = cons_with_opl(document, text_token(p, v.op2))
-		document = cons_with_opl(document, visit_expr(p, v.y))
+		document = cons_with_nopl(document, text_token(p, v.op1))
+		document = cons_with_nopl(document, visit_expr(p, v.x))
+		document = cons_with_nopl(document, text_token(p, v.op2))
+		document = cons_with_nopl(document, visit_expr(p, v.y))
 		return document
 	case Ternary_When_Expr:
 		document := visit_expr(p, v.cond)
-		document = cons_with_opl(document, text_token(p, v.op1))
-		document = cons_with_opl(document, visit_expr(p, v.x))
-		document = cons_with_opl(document, text_token(p, v.op2))
-		document = cons_with_opl(document, visit_expr(p, v.y))
+		document = cons_with_nopl(document, text_token(p, v.op1))
+		document = cons_with_nopl(document, visit_expr(p, v.x))
+		document = cons_with_nopl(document, text_token(p, v.op2))
+		document = cons_with_nopl(document, visit_expr(p, v.y))
 		return document
 	case Or_Else_Expr:
 		document := visit_expr(p, v.x)
@@ -895,7 +895,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text(")"))
 		return document
 	case Ellipsis:
-		return cons_with_opl(text("..."), visit_expr(p, v.expr))
+		return cons_with_opl(text(".."), visit_expr(p, v.expr))
 	case Relative_Type:
 		return cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
 	case Slice_Expr:
@@ -1105,7 +1105,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons(document, visit_end_brace(p, v.end, 1))
 		} else {
 			document = cons(document, text("{"))
-			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma}))))
+			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma, .Group}))))
 			document = cons(document, cons(cons(if_break(","), break_with("")), text("}")))
 			document = group(document)
 		}
@@ -1371,7 +1371,7 @@ visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^
 
 	for expr, i in list {
 		if i == len(list) - 1 && ellipsis {
-			document = cons(document, text("..."))
+			document = cons(document, text(".."))
 		}
 		document = cons(document, visit_expr(p, expr))
 		
@@ -1454,6 +1454,8 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 		return len(v.name)
 	case ast.Basic_Lit:
 		return len(v.tok.text)
+	case ast.Implicit_Selector_Expr:
+		return len(v.field.name) + 1
 	case ast.Binary_Expr:
 		return 0
 	case: 
