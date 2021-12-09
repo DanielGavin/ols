@@ -55,7 +55,7 @@ Block_Type :: enum {
 }
 
 Expr_Called_Type :: enum {
-	None,
+	Generic,
 	Value_Decl,
 	Assignment_Stmt,
 }

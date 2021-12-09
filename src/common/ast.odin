@@ -705,6 +705,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 	    strings.write_string(builder, n.tok.text);
 	case Basic_Directive:
 		strings.write_string(builder, n.name);
+	case Implicit_Selector_Expr:
+		strings.write_string(builder, ".");
+		build_string(n.field, builder);
 	case Ellipsis:
 		strings.write_string(builder, "..");
 		build_string(n.expr, builder);
@@ -713,7 +716,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 		build_string(n.body, builder);
 	case Comp_Lit:
 		build_string(n.type, builder);
+		strings.write_string(builder, "{");
 		build_string(n.elems, builder);
+		strings.write_string(builder, "}");
 	case Tag_Expr:
 		build_string(n.expr, builder);
 	case Unary_Expr:
@@ -770,7 +775,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 			build_string(n.type, builder);
 
 			if n.default_value != nil && n.type != nil {
-				strings.write_string(builder, "=");
+				strings.write_string(builder, " = ");
 			}
 
 		} else if len(n.names) > 0 && n.default_value != nil {

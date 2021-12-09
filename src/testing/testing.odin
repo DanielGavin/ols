@@ -206,7 +206,7 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 		testing.errorf(t, "Expected empty hover string, but received %v", hover.contents.value);
 	}
 
-	if strings.contains(expect_hover_string, hover.contents.value) {
+	if !strings.contains(hover.contents.value, expect_hover_string) {
 		testing.errorf(t, "Expected hover string %v, but received %v", expect_hover_string, hover.contents.value);
 	}
 
