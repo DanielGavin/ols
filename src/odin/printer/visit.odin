@@ -159,13 +159,18 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos, end_newline := true) -> 
 }
 
 visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
-	disabled_text := p.disabled_lines[node.pos.line]
-
-	if p.last_disabled_line + 1 == node.pos.line {
-		return empty();
+	
+	if node.pos.line not_in p.disabled_lines {
+		return empty()
 	}
 
-	if disabled_text == "" {
+	disabled_info := p.disabled_lines[node.pos.line]
+
+	if disabled_info.text == "" {
+		return empty()
+	}
+
+	if p.disabled_until_line > node.pos.line {
 		return empty()
 	}
 
@@ -175,11 +180,10 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 		next_comment_group(p)
 	}
 
-	p.last_disabled_line = node.pos.line
-	
 	p.source_position = node.end
+	p.disabled_until_line = disabled_info.end_line
 
-	return cons(nest(-p.indentation_count, move), text(disabled_text))
+	return cons(nest(-p.indentation_count, move), text(disabled_info.text))
 }
 
 @(private)
@@ -856,6 +860,8 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		set_source_position(p, expr.end);
 	}
 
+	fmt.println(expr.derived)	
+
 	switch v in expr.derived {
 	case Inline_Asm_Expr:
 		document := cons(text_token(p, v.tok), text("("))
@@ -874,12 +880,21 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case Auto_Cast:
 		return cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
 	case Ternary_If_Expr:
-		document := visit_expr(p, v.cond)
-		document = cons_with_nopl(document, text_token(p, v.op1))
-		document = cons_with_nopl(document, visit_expr(p, v.x))
-		document = cons_with_nopl(document, text_token(p, v.op2))
-		document = cons_with_nopl(document, visit_expr(p, v.y))
-		return document
+		if v.op1.text == "if" {
+			document := visit_expr(p, v.x)
+			document = cons_with_nopl(document, text_token(p, v.op1))
+			document = cons_with_nopl(document, visit_expr(p, v.cond))		
+			document = cons_with_nopl(document, text_token(p, v.op2))
+			document = cons_with_nopl(document, visit_expr(p, v.y))
+			return document
+		} else {
+			document := visit_expr(p, v.cond)
+			document = cons_with_nopl(document, text_token(p, v.op1))
+			document = cons_with_nopl(document, visit_expr(p, v.x))
+			document = cons_with_nopl(document, text_token(p, v.op2))
+			document = cons_with_nopl(document, visit_expr(p, v.y))
+			return document
+		}		
 	case Ternary_When_Expr:
 		document := visit_expr(p, v.cond)
 		document = cons_with_nopl(document, text_token(p, v.op1))

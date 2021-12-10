@@ -22,9 +22,14 @@ Printer :: struct {
 	indentation:          string,
 	newline:              string,
 	indentation_count:    int,
-	disabled_lines:       map[int]string,
-	last_disabled_line:   int,
+	disabled_lines:       map[int]Disabled_Info,
+	disabled_until_line:  int,
 	src:                  string,
+}
+
+Disabled_Info :: struct {
+	text: string,
+	end_line: int,
 }
 
 Config :: struct {
@@ -110,8 +115,14 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 			} else if strings.contains(comment.text[:], "//odinfmt: enable") && found_disable {
 				begin := disable_position.offset - (comment.pos.column - 1)
 				end := comment.pos.offset+len(comment.text)
+
+				disabled_info := Disabled_Info {
+					end_line = comment.pos.line,
+					text = p.src[begin:end],
+				}
+
 				for line := disable_position.line; line <= comment.pos.line; line += 1 {
-					p.disabled_lines[line] = p.src[begin:end]
+					p.disabled_lines[line] = disabled_info
 				}
 				
 				found_disable = false
