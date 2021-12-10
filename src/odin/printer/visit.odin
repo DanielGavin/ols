@@ -814,6 +814,22 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 }
 
 @(private)
+should_align_comp_lit :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
+
+	if len(comp_lit.elems) == 0 {
+		return false
+	}
+
+	for expr in comp_lit.elems {
+		if _, ok := expr.derived.(ast.Field_Value); ok {
+			return true
+		}
+	}
+	
+	return false
+}
+
+@(private)
 should_align_assignment_stmt :: proc(p: ^Printer, stmt: ast.Assign_Stmt) -> bool {
 	if len(stmt.rhs) == 0 {
 		return false
@@ -1118,8 +1134,8 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons(document, visit_expr(p, v.type))
 		}
 
-		//If we call from the value declartion, we want it to be nicly newlined and aligned
-		if (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
+		//If we call from the value declartion, we want it to be nicely newlined and aligned
+		if should_align_comp_lit(p, v) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
 			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.elems[0].pos)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_comp_lit_exprs(p, v.elems, {.Add_Comma, .Trailing, .Enforce_Newline}))))
