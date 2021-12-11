@@ -876,8 +876,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		set_source_position(p, expr.end);
 	}
 
-	fmt.println(expr.derived)	
-
 	switch v in expr.derived {
 	case Inline_Asm_Expr:
 		document := cons(text_token(p, v.tok), text("("))
