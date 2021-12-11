@@ -785,6 +785,18 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 	return symbol, true;
 }
 
+resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_Directive, a := #caller_location) -> (index.Symbol, bool) {
+	switch directive.name {
+	case "caller_location":
+		ident := index.new_type(ast.Ident, directive.pos, directive.end, context.temp_allocator);
+		ident.name = "Source_Code_Location";
+		ast_context.current_package = ast_context.document_package;
+		return resolve_type_identifier(ast_context, ident^)
+	}
+
+	return {}, false;
+}
+
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
 
 	if node == nil {
@@ -802,6 +814,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return make_symbol_map_from_ast(ast_context, v), true;
 	case Proc_Type:
 		return make_symbol_procedure_from_ast(ast_context, node, v, ast_context.field_name), true;
+	case Basic_Directive:
+		return resolve_basic_directive(ast_context, v);
 	case Binary_Expr:
 		return resolve_first_symbol_from_binary_expression(ast_context, &v); 
 	case Ident:
