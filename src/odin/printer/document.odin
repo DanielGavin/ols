@@ -225,7 +225,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple, consumed: ^int) -> bool {
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
 		case Document_Align:
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = start_width - width})
+			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width})
 		case Document_Nest:
 			append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
 		case Document_Text:
@@ -294,7 +294,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		case Document_Nest:
 			append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
 		case Document_Align:
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = consumed})
+			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = consumed})
 		case Document_Text:
 			strings.write_string(builder, v.value)
 			consumed += len(v.value)

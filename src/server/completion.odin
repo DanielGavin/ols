@@ -232,14 +232,12 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if ident, ok := position_context.selector.derived.(ast.Ident); ok {
-
 		is_variable := resolve_ident_is_variable(ast_context, ident);
 		is_package  := resolve_ident_is_package(ast_context, ident);
 
 		if (!is_variable && !is_package && selector.type != .Enum && ident.name != "") || (is_variable && selector.type == .Enum) {
 			return;
 		}
-
 	}
 
 	if selector.pkg != "" {
@@ -251,7 +249,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	field: string;
 
 	if position_context.field != nil {
-
 		switch v in position_context.field.derived {
 		case ast.Ident:
 			field = v.name;
@@ -366,7 +363,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		list.isIncomplete = false;
 
 		for name, i in v.names {
-
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 
 				if symbol.pkg == ast_context.document_package {
@@ -404,7 +400,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		list.isIncomplete = false;
 
 		for name, i in v.names {
-
 			if selector.pkg != "" {
 				ast_context.current_package = selector.pkg;
 			} else {
@@ -412,7 +407,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-
 				if expr, ok := position_context.selector.derived.(ast.Selector_Expr); ok {
 
 					if expr.op.text == "->" && symbol.type != .Function {
@@ -452,20 +446,23 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
 
 			for search in searched {
-
 				symbol := search.symbol;
 
 				build_symbol_return(&symbol);
 				build_symbol_signature(&symbol);
 				
-				
-
 				item := CompletionItem {
 					label = symbol.name,
 					kind = cast(CompletionItemKind)symbol.type,
 					detail = concatenate_symbols_information(ast_context, symbol, true),
 					documentation = symbol.doc,
 				};
+
+				if symbol.type == .Function {
+					item.insertText = fmt.tprintf("%v($0)", item.label);
+					item.insertTextFormat = .Snippet;
+					item.command.command = "editor.action.triggerParameterHints";
+				}
 
 				append(&items, item);
 			}
@@ -566,7 +563,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	if position_context.comp_lit != nil && position_context.parent_binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
 		//bitsets
 		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
-
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 
 				for name in value.names {
@@ -587,7 +583,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if position_context.comp_lit != nil {
-
 		if position_context.parent_comp_lit.type == nil {
 			return;
 		}
@@ -595,9 +590,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		field_name: string;
 
 		for elem in position_context.comp_lit.elems {
-
 			if position_in_node(elem, position_context.position) {
-
 				if field, ok := elem.derived.(ast.Field_Value); ok {
 					field_name = field.field.derived.(ast.Ident).name;
 				}
@@ -609,13 +602,9 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-
 			if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
-
 				if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
-
 					for name, i in s.names {
-
 						if name != field_name {
 							continue;
 						}
@@ -654,9 +643,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		if context_node != nil && enum_node != nil {
-
 			if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
-
 				for name in enum_value.names {
 
 					item := CompletionItem {
@@ -679,7 +666,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		rhs_index: int;
 
 		for elem in position_context.assign.rhs {
-
 			if position_in_node(elem, position_context.position) {
 				break;
 			} else {
@@ -702,9 +688,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		if len(position_context.assign.lhs) > rhs_index {
-
 			if enum_value, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
-
 				for name in enum_value.names {
 
 					item := CompletionItem {
@@ -814,6 +798,8 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		score:    f32,
 		symbol:   index.Symbol,
 		variable: ^ast.Ident,
+		snippet:  Snippet_Info,	
+		name:     string,
 	};
 
 	combined_sort_interface :: proc(s: ^[dynamic]CombinedResult) -> sort.Interface {
@@ -868,7 +854,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	matcher := common.make_fuzzy_matcher(lookup);
 
 	global: for k, v in ast_context.globals {
-
 		if position_context.global_lhs_stmt {
 			break;
 		}
@@ -901,7 +886,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for k, v in ast_context.locals {
-
 		if position_context.global_lhs_stmt {
 			break;
 		}
@@ -927,7 +911,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for pkg in ast_context.imports {
-
 		if position_context.global_lhs_stmt {
 			break;
 		}
@@ -943,7 +926,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for keyword, _ in common.keyword_map {
-
 		symbol := index.Symbol {
 			name = keyword,
 			type = .Keyword,
@@ -955,7 +937,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for keyword, _ in language_keywords {
-
 		symbol := index.Symbol {
 			name = keyword,
 			type = .Keyword,
@@ -963,6 +944,14 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+		}
+	}
+
+	if common.config.enable_snippets {
+		for k, v in snippets {
+			if score, ok := common.fuzzy_match(matcher, k); ok == 1 {
+				append(&combined, CombinedResult {score = score * 1.1, snippet = v, name = k});
+			}
 		}
 	}
 
@@ -980,24 +969,54 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			continue;
 		}
 
-		item := CompletionItem {
-			label = result.symbol.name,
-		};
+		if result.snippet.insert != "" {
+			item := CompletionItem {
+				label = result.name,
+				insertText = result.snippet.insert,
+				kind = .Snippet,
+				detail = result.snippet.detail,
+				insertTextFormat = .Snippet,
+			};
 
-		if result.variable != nil {
-			if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
-				item.kind = .Variable;
-				result.symbol.type = .Variable;
+			edits := make([dynamic]TextEdit, context.temp_allocator);
+
+			for pkg in result.snippet.packages {
+				edit, ok := get_core_insert_package_if_non_existent(ast_context, pkg);
+				if ok {
+					append(&edits, edit);
+				}
+			}
+
+			item.additionalTextEdits = edits[:];
+
+			append(&items, item);
+		} else {
+			item := CompletionItem {
+				label = result.symbol.name,
+				insertTextFormat = .PlainText,
+			};
+
+			if result.variable != nil {
+				if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
+					item.kind = .Variable;
+					result.symbol.type = .Variable;
+				} else {
+					item.kind = cast(CompletionItemKind)result.symbol.type;
+				}
 			} else {
 				item.kind = cast(CompletionItemKind)result.symbol.type;
 			}
-		} else {
-			item.kind = cast(CompletionItemKind)result.symbol.type;
+
+			if result.symbol.type == .Function {
+				item.insertText = fmt.tprintf("%v($0)", item.label);
+				item.insertTextFormat = .Snippet;
+				item.command.command = "editor.action.triggerParameterHints";
+			}
+
+			item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
+
+			append(&items, item);
 		}
-
-		item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
-
-		append(&items, item);
 	}
 
 	list.items = items[:];
@@ -1148,6 +1167,33 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	}
 
 	list.items = items[:];
+}
+
+get_core_insert_package_if_non_existent :: proc(ast_context: ^analysis.AstContext, pkg: string) -> (TextEdit, bool) {
+
+	builder := strings.make_builder(context.temp_allocator);
+
+	for imp in ast_context.imports {
+		if imp.base == pkg {
+			return {}, false;
+		}
+	}
+
+	strings.write_string(&builder, fmt.tprintf("import \"core:%v\"", pkg));
+
+	return {
+		newText = strings.to_string(builder),
+		range = {
+			start = {
+				line = ast_context.file.pkg_decl.end.line + 1,
+				character = 0,
+			},
+			end = {
+				line = ast_context.file.pkg_decl.end.line + 1,
+				character = 0,
+			},
+		},
+	}, true;
 }
 
 bitset_operators: map[string]bool = {

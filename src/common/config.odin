@@ -14,6 +14,7 @@ Config :: struct {
 	enable_document_symbols:  bool,
 	enable_semantic_tokens:   bool, 
 	enable_procedure_context: bool,
+	enable_snippets:          bool,
 	thread_count:             int,
 	file_log:                 bool,
 	formatter:                Format_Config,

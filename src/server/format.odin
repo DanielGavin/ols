@@ -17,11 +17,6 @@ DocumentFormattingParams :: struct {
 	options:      FormattingOptions,
 }
 
-TextEdit :: struct {
-	range:   common.Range,
-	newText: string,
-}
-
 get_complete_format :: proc(document: ^common.Document, config: ^common.Config) -> ([]TextEdit, bool) {
 
 	style := printer.default_style;

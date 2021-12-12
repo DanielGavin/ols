@@ -414,6 +414,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.enable_format = true // ols_config.enable_format;
 					config.enable_semantic_tokens = ols_config.enable_semantic_tokens;
 					config.enable_procedure_context = ols_config.enable_procedure_context;
+					config.enable_snippets = ols_config.enable_snippets;
 					config.verbose = ols_config.verbose;
 					config.file_log = ols_config.file_log;
 					config.formatter = ols_config.formatter;
@@ -451,13 +452,6 @@ request_initialize :: proc (task: ^common.Task) {
 		project_uri = initialize_params.rootUri;
 	}
 
-	//default config
-	config.enable_hover = true;
-	config.enable_format = true;
-	config.enable_document_symbols = true;
-	config.formatter.characters = 90;
-	config.formatter.tabs = true;
-
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator);
 		read_ols_config(ols_config_path, config, uri);
@@ -494,6 +488,7 @@ request_initialize :: proc (task: ^common.Task) {
 		}
 	}
 
+	config.enable_snippets &= initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport;
 	config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport;
 
 	completionTriggerCharacters  := []string {".", ">", "#", "\"", "/", ":"};

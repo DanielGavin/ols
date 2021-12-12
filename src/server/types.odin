@@ -125,8 +125,13 @@ TextDocumentClientCapabilities :: struct {
 	documentSymbol: DocumentSymbolClientCapabilities,
 }
 
+CompletionItemCapabilities :: struct {
+	snippetSupport: bool,
+}
+
 CompletionClientCapabilities :: struct {
 	documentationFormat: [dynamic]string,
+	completionItem:      CompletionItemCapabilities,
 }
 
 ParameterInformationCapabilities :: struct {
@@ -162,6 +167,11 @@ TextDocumentIdentifier :: struct {
 TextDocumentItem :: struct {
 	uri:  string,
 	text: string,
+}
+
+TextEdit :: struct {
+	range:   common.Range,
+	newText: string,
 }
 
 DiagnosticSeverity :: enum {
@@ -244,11 +254,20 @@ CompletionItemKind :: enum {
 	TypeParameter = 25,
 }
 
+InsertTextFormat :: enum {
+	PlainText = 1,
+	Snippet   = 2,
+}
+
 CompletionItem :: struct {
-	label:         string,
-	kind:          CompletionItemKind,
-	detail:        string,
-	documentation: string,
+	label:               string,
+	kind:                CompletionItemKind,
+	detail:              string,
+	documentation:       string,
+	insertTextFormat:    InsertTextFormat,
+	insertText:          string,
+	additionalTextEdits: []TextEdit,
+	command:             Command,
 }
 
 CompletionList :: struct {
@@ -270,6 +289,7 @@ OlsConfig :: struct {
 	enable_hover:             bool,
 	enable_format:            bool,
 	enable_procedure_context: bool,
+	enable_snippets:          bool,
 	verbose:                  bool,
 	file_log:                 bool,
 	formatter:                common.Format_Config,
