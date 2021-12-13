@@ -448,6 +448,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			for search in searched {
 				symbol := search.symbol;
 
+				resolve_unresolved_symbol(ast_context, &symbol);
 				build_symbol_return(&symbol);
 				build_symbol_signature(&symbol);
 				
@@ -462,6 +463,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 					item.insertText = fmt.tprintf("%v($0)", item.label);
 					item.insertTextFormat = .Snippet;
 					item.command.command = "editor.action.triggerParameterHints";
+					item.deprecated = symbol.is_deprecated;
 				}
 
 				append(&items, item);
@@ -843,6 +845,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
 		for r in results {
 			r := r;
+			resolve_unresolved_symbol(ast_context, &r.symbol);
 			build_symbol_return(&r.symbol);
 			build_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
@@ -1010,9 +1013,10 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			if result.symbol.type == .Function {
 				item.insertText = fmt.tprintf("%v($0)", item.label);
 				item.insertTextFormat = .Snippet;
+				item.deprecated = result.symbol.is_deprecated;
 				item.command.command = "editor.action.triggerParameterHints";
 			}
-
+			
 			item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
 
 			append(&items, item);

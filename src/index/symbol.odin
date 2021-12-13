@@ -103,18 +103,21 @@ SymbolValue :: union {
 }
 
 Symbol :: struct {
-	range:       common.Range,
-	uri:         string,
-	pkg:         string,
-	name:        string,
-	doc:         string,
-	signature:   string,
-	returns:     string,
-	type:        SymbolType,
-	value:       SymbolValue,
-	references:  []common.Location,
-	pointers:    int,
-	is_distinct: bool,
+	range:               common.Range,
+	uri:                 string,
+	pkg:                 string,
+	name:                string,
+	doc:                 string,
+	signature:           string,
+	returns:             string,
+	type:                SymbolType,
+	value:               SymbolValue,
+	references:          []common.Location,
+	pointers:            int,
+	is_distinct:         bool,
+	is_deprecated:       bool,
+	is_private_file:     bool,
+	is_private_package:  bool,
 }
 
 SymbolType :: enum {
@@ -125,6 +128,7 @@ SymbolType :: enum {
 	Enum       = 13,
 	Keyword    = 14,
 	EnumMember = 20,
+	Constant   = 21,
 	Struct     = 22,
 	Unresolved = 9999,
 }

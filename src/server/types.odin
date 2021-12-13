@@ -267,7 +267,13 @@ CompletionItem :: struct {
 	insertTextFormat:    InsertTextFormat,
 	insertText:          string,
 	additionalTextEdits: []TextEdit,
+	tags:                []CompletionItemTag,
+	deprecated:          bool,
 	command:             Command,
+}
+
+CompletionItemTag :: enum {
+	Deprecated = 1,
 }
 
 CompletionList :: struct {

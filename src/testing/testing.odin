@@ -84,6 +84,7 @@ setup :: proc(src: ^Source) {
 		fullpath := uri.path;
 
 		p := parser.Parser {
+			//err = parser.default_error_handler,
 			err = index.log_error_handler,
 			warn = index.log_warning_handler,
 		};
@@ -107,8 +108,9 @@ setup :: proc(src: ^Source) {
 
 		ok := parser.parse_file(&p, &file);
 
-		if !ok {
-			return;
+
+		if !ok || file.syntax_error_count > 0 {
+			panic("Parser error in test package source");
 		}
 	
 		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {

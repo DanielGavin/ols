@@ -65,32 +65,76 @@ keyword_map: map[string]bool = {
 };
 
 GlobalExpr :: struct {
-	name:       string,
-	expr:       ^ast.Expr,
-	mutable:    bool,
-	docs:       ^ast.Comment_Group,
-	attributes: []^ast.Attribute,
+	name:            string,
+	expr:            ^ast.Expr,
+	mutable:         bool,
+	docs:            ^ast.Comment_Group,
+	attributes:      []^ast.Attribute,
+	deprecated:      bool,
+	file_private:    bool,
+	package_private: bool,
 }
 
 collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
 	if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
 
+		is_deprecated := false;
+		is_private_file := false;
+		is_package_file := false;
+
 		for attribute in value_decl.attributes {
 			for elem in attribute.elems {
-				if ident, ok := elem.derived.(ast.Ident); ok && ident.name == "private" && skip_private {
-					return;
+				if value, ok := elem.derived.(ast.Field_Value); ok {
+					if ident, ok := value.field.derived.(ast.Ident); ok {
+						switch ident.name {
+						case "private":
+							if val, ok := value.value.derived.(ast.Basic_Lit); ok {
+								switch val.tok.text {
+								case "\"file\"":
+									is_private_file = true;
+								case "package":
+									is_package_file = true;
+								}
+							}
+						case "deprecated":
+							is_deprecated = true;
+						}
+					}
+				} else if ident, ok := elem.derived.(ast.Ident); ok {
+					switch ident.name {
+					case "deprecated":
+						is_deprecated = true;
+					}
 				}
 			}
+		}
+
+		if is_private_file && skip_private {
+			return;
 		}
 
 		for name, i in value_decl.names {
 			str := get_ast_node_string(name, file.src);
 
 			if value_decl.type != nil {
-				append(exprs, GlobalExpr {name = str, expr = value_decl.type, mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
+				append(exprs, GlobalExpr {
+					name = str, 
+					expr = value_decl.type, 
+					mutable = value_decl.is_mutable, 
+					docs = value_decl.docs, 
+					attributes = value_decl.attributes[:],
+					deprecated = is_deprecated,
+				});
 			} else {
 				if len(value_decl.values) > i {
-					append(exprs, GlobalExpr {name = str, expr = value_decl.values[i], mutable = value_decl.is_mutable, docs = value_decl.docs, attributes = value_decl.attributes[:]});
+					append(exprs, GlobalExpr {
+						name = str,
+						expr = value_decl.values[i], 
+						mutable = value_decl.is_mutable, 
+						docs = value_decl.docs, 
+						attributes = value_decl.attributes[:],
+						deprecated = is_deprecated,
+					});
 				}
 			}
 		}
@@ -98,15 +142,12 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 }
 
 collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
-
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator);
 
 	for decl in file.decls {
-
 		if value_decl, ok := decl.derived.(ast.Value_Decl); ok {
 			collect_value_decl(&exprs, file, decl, skip_private);
 		} else if when_decl, ok := decl.derived.(ast.When_Stmt); ok {
-
 			if when_decl.cond == nil {
 				continue;
 			}
@@ -116,7 +157,6 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 			}
 
 			if binary, ok := when_decl.cond.derived.(ast.Binary_Expr); ok {
-
 				if binary.left == nil || binary.right == nil {
 					continue;
 				}
@@ -138,7 +178,6 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 				if ident != nil && basic_lit != nil {
 					if ident.name == "ODIN_OS" && basic_lit.tok.text[1:len(basic_lit.tok.text)-1] == ODIN_OS {
-
 						if block, ok := when_decl.body.derived.(ast.Block_Stmt); ok {
 							for stmt in block.stmts {
 								collect_value_decl(&exprs, file, stmt, skip_private);
@@ -160,7 +199,6 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 				}
 			}
 		} else if foreign_decl, ok := decl.derived.(ast.Foreign_Block_Decl); ok {
-
 			if foreign_decl.body == nil {
 				continue;
 			}

@@ -789,7 +789,6 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_package_procedure_completion :: proc(t: ^testing.T) {
-
 	packages := make([dynamic]test.Package);
 
 	append(&packages, test.Package {
@@ -906,6 +905,56 @@ ast_basic_value_binary_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, "", {"test.xb2: int"});
 }
 
+@(test)
+ast_file_private_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+
+		@(private="file") my_proc :: proc() -> bool {
+		}
+		`,
+	});
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			my_package.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {});
+}
+
+@(test)
+ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		My_Struct :: struct { a: int }
+		Im :: My_Struct;
+		`,
+	});
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			my_package.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"});
+}
 
 /*	
 	Looks like a bug in for each on w.*

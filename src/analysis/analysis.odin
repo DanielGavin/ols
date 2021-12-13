@@ -766,7 +766,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
 
 	symbol := index.Symbol {
-		type = .Keyword,
+		type = .Constant,
 	};
 
 	value: index.SymbolUntypedValue;
@@ -1084,6 +1084,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
 		case Map_Type:
 			return_symbol, ok = make_symbol_map_from_ast(ast_context, v), true;
+		case Basic_Lit:
+			return_symbol, ok = resolve_basic_lit(ast_context, v);
+			return_symbol.name = node.name;
+			return_symbol.type = ast_context.variables[node.name] ? .Variable : .Constant;
 		case:
 			return_symbol, ok = resolve_type_expression(ast_context, local);
 		}
@@ -1138,6 +1142,10 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol, ok = make_symbol_array_from_ast(ast_context, v), true;
 		case Dynamic_Array_Type:
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v), true;
+		case Basic_Lit:
+			return_symbol, ok = resolve_basic_lit(ast_context, v);
+			return_symbol.name = node.name;
+			return_symbol.type = global.mutable ? .Variable : .Constant;
 		case:
 			return_symbol, ok = resolve_type_expression(ast_context, global.expr);
 		}
@@ -1320,7 +1328,6 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, val
 }
 
 resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok := true) -> (index.Symbol, bool) {
-
 	if !ok {
 		return symbol, ok;
 	}
@@ -1328,7 +1335,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 	symbol := symbol;
 
 	if symbol.type == .Unresolved {
-		fix_symbol_unresolved_type(&symbol);
+		resolve_unresolved_symbol(ast_context, &symbol);
 	}
 
 	#partial switch v in symbol.value {
@@ -1358,14 +1365,14 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 			return symbol, true;
 		}
 	case index.SymbolGenericValue:
-		return resolve_type_expression(ast_context, v.expr);
+		ret, ok := resolve_type_expression(ast_context, v.expr);
+		return ret, ok;
 	}
 
 	return symbol, true;
 }
 
-fix_symbol_unresolved_type :: proc(symbol: ^index.Symbol) {
-
+resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^index.Symbol) {
 	using index;
 
 	#partial switch v in symbol.value {
@@ -1381,8 +1388,13 @@ fix_symbol_unresolved_type :: proc(symbol: ^index.Symbol) {
 		symbol.type = .Enum;
     case SymbolBitSetValue:
 		symbol.type = .Enum;
+	case index.SymbolGenericValue:
+		ast_context.current_package = symbol.pkg;
+		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
+			symbol.type = ret.type;
+			symbol.signature = ret.signature;
+		}
 	}
-
 }
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
@@ -1539,6 +1551,10 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 		for param in v.params.list {
 			append(&arg_types, param);
 		}
+	}
+
+	if expr, ok := ast_context.globals[name]; ok {
+		symbol.is_deprecated = expr.deprecated;
 	}
 
 	symbol.value = index.SymbolProcedureValue {
