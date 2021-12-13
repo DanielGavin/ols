@@ -37,6 +37,7 @@ Example of ols.json:
   "enable_document_symbols": true,
   "enable_hover": true,
   "enable_format": true,
+  "enable_snippets": true,
   "formatter": {
   	"tabs": true,
 	"characters": 90
