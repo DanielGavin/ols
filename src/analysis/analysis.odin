@@ -1375,6 +1375,10 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^index.Symbol) {
 	using index;
 
+	if symbol.type != .Unresolved {
+		return;
+	}
+
 	#partial switch v in symbol.value {
 	case SymbolStructValue:
 		symbol.type = .Struct;
