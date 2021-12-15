@@ -194,6 +194,10 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		return empty()
 	}
 
+	defer {
+		set_source_position(p, decl.end)
+	}
+
 	if decl.pos.line in p.disabled_lines {
 		return visit_disabled(p, decl)
 	}
@@ -476,7 +480,10 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 		return document
 	case Block_Stmt:
+		
 		document := move_line(p, v.pos)
+
+		uses_do := v.uses_do
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -486,8 +493,10 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, cons(text("#bounds_check"), break_with_space()))
 		}
 
-		if !empty_block {
+		if !uses_do {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type, len(v.stmts)))
+		} else {
+			document = cons(document, cons(text("do"), break_with(" ", false)))
 		}
 
 		set_source_position(p, v.pos)
@@ -501,7 +510,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, nest(p.indentation_count, cons(block, comment_end)))
 		}
 
-		if !empty_block {
+		if !uses_do {
 			document = cons(document, visit_end_brace(p, v.end))
 		}
 		return document
@@ -524,25 +533,11 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = cons(document, group(hang(3, if_document)))
 
-		uses_do := false
+		set_source_position(p, v.body.pos)
 
-		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
-			uses_do = check_stmt.uses_do
-		}
+		document = cons_with_nopl(document, visit_stmt(p, v.body, .If_Stmt))
 
-		if uses_do && !p.config.convert_do {
-			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, .If_Stmt, true)))
-		} else {
-			if uses_do {
-				document = cons(document, newline(1))
-			}
-
-			set_source_position(p, v.body.pos)
-
-			document = cons_with_nopl(document, visit_stmt(p, v.body, .If_Stmt))
-
-			set_source_position(p, v.body.end)
-		}
+		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
 
@@ -665,23 +660,9 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = cons(document, group(hang(4, for_document)))
 
-		uses_do := false
-
-		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
-			uses_do = check_stmt.uses_do
-		}
-
-		if uses_do && !p.config.convert_do {
-			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
-		} else {
-			if uses_do {
-				document = cons(document, newline(1))
-			}
-
-			set_source_position(p, v.body.pos)
-			document = cons_with_nopl(document,  visit_stmt(p, v.body))
-			set_source_position(p, v.body.end)
-		}
+		set_source_position(p, v.body.pos)
+		document = cons_with_nopl(document,  visit_stmt(p, v.body))
+		set_source_position(p, v.body.end)
 
 		return document
 	case Inline_Range_Stmt:
@@ -704,23 +685,9 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = cons_with_nopl(document, visit_expr(p, v.expr))
 
-		uses_do := false
-
-		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
-			uses_do = check_stmt.uses_do
-		}
-
-		if uses_do && !p.config.convert_do {
-			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
-		} else {
-			if uses_do {
-				document = cons(document, newline(1))
-			}
-
-			set_source_position(p, v.body.pos)
-			document = cons_with_nopl(document,  visit_stmt(p, v.body))
-			set_source_position(p, v.body.end)
-		}
+		set_source_position(p, v.body.pos)
+		document = cons_with_nopl(document,  visit_stmt(p, v.body))
+		set_source_position(p, v.body.end)
 
 		return document
 	case Range_Stmt:
@@ -744,23 +711,9 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = cons_with_opl(document, visit_expr(p, v.expr))
 		
-		uses_do := false
-
-		if check_stmt, ok := v.body.derived.(Block_Stmt); ok {
-			uses_do = check_stmt.uses_do
-		}
-
-		if uses_do && !p.config.convert_do {
-			document = cons_with_nopl(document, cons_with_nopl(text("do"), visit_stmt(p, v.body, {}, true)))
-		} else {
-			if uses_do {
-				document = cons(document, newline(1))
-			}
-
-			set_source_position(p, v.body.pos)
-			document = cons_with_nopl(document,  visit_stmt(p, v.body))
-			set_source_position(p, v.body.end)
-		}
+		set_source_position(p, v.body.pos)
+		document = cons_with_nopl(document,  visit_stmt(p, v.body))
+		set_source_position(p, v.body.end)
 
 		return document
 	case Return_Stmt:
@@ -873,7 +826,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	set_source_position(p, expr.pos)
 
 	defer {
-		set_source_position(p, expr.end);
+		set_source_position(p, expr.end)
 	}
 
 	switch v in expr.derived {
