@@ -1012,10 +1012,6 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 	return nil;
 }
 
-/*
-	Function recusively goes through the identifier until it hits a struct, enum, procedure literals, since you can
-	have chained variable declarations. ie. a := foo { test =  2}; b := a; c := b;
-*/
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
 
 	using ast;
@@ -1130,7 +1126,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol.name = node.name;
 		case Proc_Lit:
 			if !v.type.generic {
-				return make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true;
+				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true;
 			} else {
 				if return_symbol, ok = resolve_generic_function(ast_context, v); !ok {
 					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true;
@@ -1154,6 +1150,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol.name = node.name;
 			return_symbol.is_distinct = is_distinct;
 		}
+
+		return_symbol.doc = common.get_doc(global.docs, context.temp_allocator);
 
 		return return_symbol, ok;
 	} else if node.name == "context" {
