@@ -26,6 +26,7 @@ ResponseParams :: union {
 	SemanticTokens,
 	Hover,
 	[]TextEdit,
+	[]InlayHint,
 }
 
 ResponseMessage :: struct {
@@ -91,6 +92,7 @@ ServerCapabilities :: struct {
 	documentSymbolProvider:     bool,
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
+	inlayHintsProvider:         bool,
 }
 
 CompletionOptions :: struct {
@@ -357,4 +359,10 @@ Command :: struct {
 	title:     string,
 	command:   string,
 	arguments: []string,
+}
+
+InlayHint :: struct {
+	range: common.Range,
+	kind:  string,
+	label: string,
 }

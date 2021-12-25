@@ -139,6 +139,10 @@ export async function activate(context: vscode.ExtensionContext) {
         client.start();
     });
 
+    vscode.commands.registerCommand("ols.createOls", async() => {
+        createOlsConfig(ctx);
+    });
+
     client.start();
 
     parseOlsFile(config, olsFile);
@@ -183,7 +187,8 @@ export function createOlsConfig(ctx: Ctx) {
         collections: [{ name: "core", path: corePath }],
         enable_document_symbols: true,
         enable_semantic_tokens: false,
-        enable_hover: true
+        enable_hover: true,
+        enable_snippets: true
     };
 
     const olsPath = vscode.workspace.workspaceFolders![0].uri.fsPath;

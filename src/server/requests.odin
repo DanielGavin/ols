@@ -43,6 +43,7 @@ RequestType :: enum {
 	FormatDocument,
 	Hover,
 	CancelRequest,
+	InlayHint,
 }
 
 RequestInfo :: struct {
@@ -186,6 +187,7 @@ request_map: map[string]RequestType = {
 	"textDocument/hover" = .Hover,
 	"$/cancelRequest" = .CancelRequest,
 	"textDocument/formatting" = .FormatDocument,
+	"odin/inlayHints" = .InlayHint,
 };
 
 handle_error :: proc (err: common.Error, id: RequestId, writer: ^Writer) {
@@ -282,6 +284,8 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 		case .CancelRequest:
 		case .FormatDocument:
 			task_proc = request_format_document;
+		case .InlayHint:
+			task_proc = request_inlay_hint;
 		}
 
 		task := common.Task {
@@ -298,9 +302,9 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 					break;
 				}
 			}
-		case .Initialize,.Initialized:
+		case .Initialize, .Initialized:
 			task_proc(&task);
-		case .Completion,.Definition,.Hover,.FormatDocument:
+		case .Completion, .Definition, .Hover, .FormatDocument:
 
 			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
@@ -315,7 +319,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 			task_proc(&task);
 
-		case .DidClose,.DidChange,.DidOpen,.DidSave:
+		case .DidClose, .DidChange, .DidOpen, .DidSave:
 
 			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
@@ -335,7 +339,7 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 			document_release(document);
 		case .Shutdown,.Exit:
 			task_proc(&task);
-		case .SignatureHelp,.SemanticTokensFull,.SemanticTokensRange,.DocumentSymbol:
+		case .SignatureHelp, .SemanticTokensFull, .SemanticTokensRange, .DocumentSymbol, .InlayHint:
 
 			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
 
@@ -541,6 +545,7 @@ request_initialize :: proc (task: ^common.Task) {
 					tokenModifiers = token_modifiers,
 				},
 			},
+			inlayHintsProvider = true,
 			documentSymbolProvider = config.enable_document_symbols,
 			hoverProvider = config.enable_hover,
 			documentFormattingProvider = config.enable_format,
@@ -1105,6 +1110,37 @@ request_hover :: proc (task: ^common.Task) {
 	response := make_response_message(
 	params = hover,
 	id = id);
+
+	send_response(response, writer);
+}
+
+request_inlay_hint :: proc (task: ^common.Task) {
+	info := get_request_info(task);
+
+	using info;
+
+	defer {
+		document_release(document);
+		json.destroy_value(root);
+		free(info);
+	}
+	
+	params_object, ok := params.(json.Object);
+
+	if !ok {
+		handle_error(.ParseError, id, writer);
+		return;
+	}
+
+	hints: []InlayHint;
+	hints, ok = get_inlay_hints(document);
+
+	if !ok {
+		handle_error(.InternalError, id, writer);
+		return;
+	}
+
+	response := make_response_message(params = hints, id = id);
 
 	send_response(response, writer);
 }

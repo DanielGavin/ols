@@ -2044,7 +2044,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 	if stmt.expr == nil {
 		return;
 	}
-
+	
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
 		#partial switch v in symbol.value {
 		case index.SymbolMapValue:
@@ -2235,6 +2235,33 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.parameters);
 	clear(&ast_context.variables);
 	clear(&ast_context.usings);
+}
+
+resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> []^index.Symbol {
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+
+	get_globals(document.ast, &ast_context);
+
+	ast_context.current_package = ast_context.document_package;
+
+	symbols := make([]^index.Symbol, allocator);
+
+	for decl in document.ast.decls {
+		switch v in decl.derived {
+		case ast.Proc_Lit:
+			resolve_entire_procedure(v.type, &symbols, allocator);
+		}
+	}
+}
+
+resolve_entire_procedure :: proc(procedure: ^ast.Proc_Type, symbols: ^[]^index.Symbol, allocator := context.allocator) {
+	if procedure == nil {
+		return {};
+	}
+
+	get_locals()
+
+
 }
 
 concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {

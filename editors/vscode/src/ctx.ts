@@ -4,6 +4,8 @@ import * as lc from 'vscode-languageclient/node';
 import { Config } from './config';
 import { isOdinEditor, OdinEditor } from './util';
 
+import * as inlayHints from './inlay_hints';
+
 //modified from https://github.com/rust-analyzer/rust-analyzer/blob/master/editors/code/src/ctx.ts - 09.05.2021
 
 export class Ctx {
@@ -24,6 +26,9 @@ export class Ctx {
         cwd: string,
     ): Promise<Ctx> {
         const res = new Ctx(config, extCtx, client, serverPath);
+
+        inlayHints.activate(res);
+
         return res;
     }
 
@@ -52,6 +57,10 @@ export class Ctx {
     get subscriptions(): Disposable[] {
         return this.extCtx.subscriptions;
     }
+
+    isOdinDocument(document: vscode.TextDocument): number {
+        return vscode.languages.match({scheme: 'file', language: 'odin'}, document);
+    } 
 
     pushCleanup(d: Disposable) {
         this.extCtx.subscriptions.push(d);
