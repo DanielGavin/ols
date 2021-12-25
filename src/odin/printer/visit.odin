@@ -944,15 +944,12 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
-		if v.variants != nil && (len(v.variants) == 0 || v.pos.line == v.end.line) {
+		if len(v.variants) == 0 {
 			document = cons_with_nopl(document, text("{"))
-			document = cons(document, visit_exprs(p, v.variants, {.Add_Comma}))
 			document = cons(document, text("}"))
-		} else if v.variants != nil {
-			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
-			
+		} else {
+			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))		
 			set_source_position(p, v.variants[0].pos)
-
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.variants[0].pos), visit_exprs(p, v.variants, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			document = cons(document, visit_end_brace(p, v.end, 1))
 		}
@@ -966,7 +963,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 		if len(v.fields) == 0 {
 			document = cons_with_nopl(document, text("{"))
-			document = cons(document, visit_enum_exprs(p, v.fields, {.Add_Comma}))
 			document = cons(document, text("}"))
 		} else {
 			document = cons(document, cons(break_with_space(), visit_begin_brace(p, v.pos, .Generic)))		
