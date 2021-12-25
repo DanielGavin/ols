@@ -956,6 +956,24 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"});
 }
 
+@(test)
+ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			{
+				aabb := 2
+			}
+			aab*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {});
+}
+
 /*	
 	Looks like a bug in for each on w.*
 
