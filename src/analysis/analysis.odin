@@ -1946,9 +1946,7 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 	case If_Stmt:
 		get_locals_if_stmt(file, v, ast_context, document_position);
 	case Block_Stmt:
-		for stmt in v.stmts {
-			get_locals_stmt(file, stmt, ast_context, document_position);
-		}
+		get_locals_block_stmt(file, v, ast_context, document_position);
 	case Proc_Lit:
 		get_locals_stmt(file, v.body, ast_context, document_position);
 	case Assign_Stmt:
@@ -1966,6 +1964,17 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 		}
 	case:
 			//log.debugf("default node local stmt %v", v);
+	}
+}
+
+get_locals_block_stmt :: proc(file: ast.File, block: ast.Block_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+	if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
+		return;
+	}
+
+	for stmt in block.stmts {
+		get_locals_stmt(file, stmt, ast_context, document_position);
 	}
 }
 
