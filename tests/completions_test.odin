@@ -974,6 +974,24 @@ ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, "", {});
 }
 
+@(test)
+ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			xaaaa, yaaaa: string
+			xaaaa = "hi"
+			yaaa*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.yaaaa: string"});
+}
+
+
 /*	
 	Looks like a bug in for each on w.*
 

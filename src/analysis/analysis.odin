@@ -1884,7 +1884,6 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 }
 
 get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
-
 	using ast;
 
 	if len(value_decl.names) <= 0 {
@@ -1892,9 +1891,11 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	if value_decl.type != nil {
-		str := common.get_ast_node_string(value_decl.names[0], file.src);
-		ast_context.variables[str] = value_decl.is_mutable;
-		store_local(ast_context, value_decl.type, value_decl.end.offset, str);
+		for name, i in value_decl.names {
+			str := common.get_ast_node_string(value_decl.names[i], file.src);
+			ast_context.variables[str] = value_decl.is_mutable;
+			store_local(ast_context, value_decl.type, value_decl.end.offset, str);
+		}
 		return;
 	}
 
@@ -1905,12 +1906,11 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for name, i in value_decl.names {
-		if i < len(results) {
-			str := common.get_ast_node_string(name, file.src);
-			ast_context.in_package[str] = get_package_from_node(results[i]);
-			store_local(ast_context, results[i], value_decl.end.offset, str);
-			ast_context.variables[str] = value_decl.is_mutable;
-		}
+		result_i := min(len(results)-1, i);
+		str := common.get_ast_node_string(name, file.src);
+		ast_context.in_package[str] = get_package_from_node(results[result_i]);
+		store_local(ast_context, results[result_i], value_decl.end.offset, str);
+		ast_context.variables[str] = value_decl.is_mutable;
 	}
 }
 
