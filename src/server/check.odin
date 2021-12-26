@@ -168,12 +168,36 @@ when ODIN_OS == "windows" {
 				},
 				message = error.message,
 			});
+		}
+ 
+		matches, err := filepath.glob(fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)));
 
+		if err == .None {
+			for match in matches {
+				uri := common.create_uri(match, context.temp_allocator);
+				 
+				params := NotificationPublishDiagnosticsParams {
+					uri = uri.uri,
+					diagnostics = {},
+				};
+	
+				notifaction := Notification {
+					jsonrpc = "2.0",
+					method = "textDocument/publishDiagnostics",
+					params = params,
+				};
+
+				if writer != nil {
+					send_notification(notifaction, writer);
+				}
+			}
 		}
 
 		for k, v in errors {
+			uri := common.create_uri(k, context.temp_allocator);
+
 			params := NotificationPublishDiagnosticsParams {
-				uri = k,
+				uri = uri.uri,
 				diagnostics = v[:],
 			};
 
@@ -187,6 +211,8 @@ when ODIN_OS == "windows" {
 				send_notification(notifaction, writer);
 			}
 		}
+
+
 	}
 } else {
 	check :: proc(uri: common.Uri, writer: ^Writer) {
