@@ -1905,6 +1905,10 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		get_generic_assignment(file, value, ast_context, &results);
 	}
 
+	if len(results) == 0 {
+		return;
+	}
+
 	for name, i in value_decl.names {
 		result_i := min(len(results)-1, i);
 		str := common.get_ast_node_string(name, file.src);
