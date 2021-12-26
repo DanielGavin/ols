@@ -41,7 +41,7 @@ when ODIN_OS == "windows" {
 		if common.config.odin_command != "" {
 			command = common.config.odin_command;
 		} else {
-			command = "aodin";
+			command = "odin";
 		}
 
 		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point", path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder)), &data); !ok {
