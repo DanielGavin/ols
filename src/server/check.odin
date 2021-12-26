@@ -221,6 +221,6 @@ when ODIN_OS == "windows" {
 		}
 	}
 } else {
-	check :: proc(uri: common.Uri, writer: ^Writer) {
+	check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	}
 }
