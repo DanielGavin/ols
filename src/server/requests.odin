@@ -418,6 +418,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.verbose = ols_config.verbose;
 					config.file_log = ols_config.file_log;
 					config.formatter = ols_config.formatter;
+					config.odin_command = ols_config.odin_command;
 
 					for p in ols_config.collections {
 

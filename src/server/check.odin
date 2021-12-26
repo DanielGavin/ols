@@ -36,7 +36,15 @@ when ODIN_OS == "windows" {
 			strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=%v ", k, v));
 		}
 
-		if code, ok, buffer = common.run_executable(fmt.tprintf("odin check %s %s -no-entry-point", path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder)), &data); !ok {
+		command: string;
+		
+		if common.config.odin_command != "" {
+			command = common.config.odin_command;
+		} else {
+			command = "aodin";
+		}
+
+		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point", path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder)), &data); !ok {
 			log.errorf("Odin check failed with code %v for file %v", code, uri.path);
 			return;
 		} 
@@ -211,8 +219,6 @@ when ODIN_OS == "windows" {
 				send_notification(notifaction, writer);
 			}
 		}
-
-
 	}
 } else {
 	check :: proc(uri: common.Uri, writer: ^Writer) {
