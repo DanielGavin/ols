@@ -19,8 +19,7 @@ import "core:text/scanner"
 import "shared:common"
 
 when ODIN_OS == "windows" {
-	check :: proc(uri: common.Uri, writer: ^Writer) {
-
+	check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		data := make([]byte, mem.kilobytes(10), context.temp_allocator);
 
 		buffer: []byte;
@@ -37,13 +36,14 @@ when ODIN_OS == "windows" {
 		}
 
 		command: string;
-		
-		if common.config.odin_command != "" {
-			command = common.config.odin_command;
+	
+		if config.odin_command != "" {
+			command = config.odin_command;
+			
 		} else {
 			command = "odin";
 		}
-
+ 
 		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point", command, path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder)), &data); !ok {
 			log.errorf("Odin check failed with code %v for file %v", code, uri.path);
 			return;

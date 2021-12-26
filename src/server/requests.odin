@@ -418,7 +418,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.verbose = ols_config.verbose;
 					config.file_log = ols_config.file_log;
 					config.formatter = ols_config.formatter;
-					config.odin_command = ols_config.odin_command;
+					config.odin_command = strings.clone(ols_config.odin_command, context.allocator);
 
 					for p in ols_config.collections {
 
@@ -943,7 +943,7 @@ notification_did_save :: proc (task: ^common.Task) {
 		log.errorf("failed to collect symbols on save %v", ret);
 	}
 
-	check(uri, writer);
+	check(uri, writer, config);
 }
 
 request_semantic_token_full :: proc (task: ^common.Task) {
