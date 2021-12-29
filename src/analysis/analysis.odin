@@ -44,6 +44,7 @@ DocumentPositionContext :: struct {
 	returns:          ^ast.Return_Stmt, //used for completion
 	comp_lit:         ^ast.Comp_Lit,    //used for completion
 	parent_comp_lit:  ^ast.Comp_Lit,    //used for completion
+	field_value:      ^ast.Field_Value,
 	implicit:         bool,             //used for completion
 	arrow:            bool,
 	binary:           ^ast.Binary_Expr,      //used for completion
@@ -292,10 +293,18 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 	}
 }
 
-resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: index.Symbol, current_comp_lit: ^ast.Comp_Lit) -> (index.Symbol, bool) {
+resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: index.Symbol, current_comp_lit: ^ast.Comp_Lit) -> (index.Symbol, ^ast.Comp_Lit, bool) {
 
 	if position_context.comp_lit == current_comp_lit {
-		return current_symbol, true;
+		return current_symbol, current_comp_lit, true;
+	}
+
+	element_index := 0;
+
+	for elem, i in current_comp_lit.elems {
+		if position_in_node(elem, position_context.position) {
+			element_index = i;
+		}
 	}
 
 	for elem in current_comp_lit.elems {
@@ -303,28 +312,42 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 		if !position_in_node(elem, position_context.position) {
 			continue;
 		}
-
-		if field_value, ok := elem.derived.(ast.Field_Value); ok {
-
+		
+		if field_value, ok := elem.derived.(ast.Field_Value); ok { //named
 			if comp_lit, ok := field_value.value.derived.(ast.Comp_Lit); ok {
-
 				if s, ok := current_symbol.value.(index.SymbolStructValue); ok {
-
 					for name, i in s.names {
-
 						if name == field_value.field.derived.(ast.Ident).name {
-
 							if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+								if _, ok := symbol.value.(index.SymbolBitSetValue); ok {
+									return current_symbol, current_comp_lit, true;
+								}
 								return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value);
 							}
 						}
 					}
 				}
 			}
+		} else { //indexed
+			if s, ok := current_symbol.value.(index.SymbolStructValue); ok {
+
+				if len(s.types) <= element_index {
+					return {}, {}, false;
+				}
+
+				if symbol, ok := resolve_type_expression(ast_context, s.types[element_index]); ok {
+					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+					if _, ok := symbol.value.(index.SymbolBitSetValue); ok {
+						return current_symbol, current_comp_lit, true;
+					}
+					return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value);
+				}
+			}
 		}
 	}
 
-	return current_symbol, true;
+	return current_symbol, current_comp_lit, true;
 }
 
 resolve_generic_function :: proc {
@@ -1335,7 +1358,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 	if symbol.type == .Unresolved {
 		resolve_unresolved_symbol(ast_context, &symbol);
 	}
-
+	
 	#partial switch v in symbol.value {
 	case index.SymbolProcedureGroupValue:
 		if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
@@ -2939,6 +2962,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.low, position_context);
 		get_document_position(n.high, position_context);
 	case Field_Value:
+		position_context.field_value = cast(^Field_Value)node;
 		get_document_position(n.field, position_context);
 		get_document_position(n.value, position_context);
 	case Ternary_If_Expr:

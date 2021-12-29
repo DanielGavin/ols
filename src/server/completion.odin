@@ -180,7 +180,7 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 	if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 
-		if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
@@ -584,6 +584,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 	}
 
+	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
 	if position_context.comp_lit != nil {
 		if position_context.parent_comp_lit.type == nil {
 			return;
@@ -591,37 +592,63 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 		field_name: string;
 
-		for elem in position_context.comp_lit.elems {
-			if position_in_node(elem, position_context.position) {
-				if field, ok := elem.derived.(ast.Field_Value); ok {
-					field_name = field.field.derived.(ast.Ident).name;
-				}
-			}
-		}
-
-		if field_name == "" {
-			return;
+		if position_context.field_value != nil {
+			field_name = position_context.field_value.field.derived.(ast.Ident).name;
 		}
 
 		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-			if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 				if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
+
+					//We can either have the final 
+					elem_index := -1;
+
+					for elem, i in comp_lit.elems {
+						if position_in_node(elem, position_context.position) {
+							elem_index = i;
+						}
+					}
+
+					type: ^ast.Expr;
+
 					for name, i in s.names {
 						if name != field_name {
 							continue;
+						} 
+
+						type = s.types[i];
+						break;
+					}
+
+					if type == nil && len(s.types) > elem_index  {
+						type = s.types[elem_index];
+					}
+
+					if enum_value, ok := unwrap_enum(ast_context, type); ok {
+						for enum_name in enum_value.names {
+							item := CompletionItem {
+								label = enum_name,
+								kind = .EnumMember,
+								detail = enum_name,
+							};
+
+							append(&items, item);
 						}
 
-						if enum_value, ok := unwrap_enum(ast_context, s.types[i]); ok {
-							for enum_name in enum_value.names {
+						list.items = items[:];
+						return;
+					} else if bitset_symbol, ok := resolve_type_expression(ast_context, type); ok {
+						if value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
+							for name in value.names {
+			
 								item := CompletionItem {
-									label = enum_name,
+									label = name,
 									kind = .EnumMember,
-									detail = enum_name,
+									detail = name,
 								};
-
+			
 								append(&items, item);
-							}
-
+							}			
 							list.items = items[:];
 							return;
 						}
@@ -629,8 +656,8 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				}
 			}
 		}
-	}
-
+	} 
+	
 	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
 		context_node: ^ast.Expr;
@@ -961,13 +988,13 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	sort.sort(combined_sort_interface(&combined));
 
 	//hard code for now
-	top_results := combined[0:(min(20, len(combined)))];
+	top_results := combined[0:(min(50, len(combined)))];
 
 	for result in top_results {
 
 		result := result;
 
-		//Skip procedures when the position is in proc decl
+			//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) && result.symbol.type == .Function && common.config.enable_procedure_context {
 			continue;
 		}

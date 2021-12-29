@@ -991,6 +991,100 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, "", {"test.yaaaa: string"});
 }
 
+@(test)
+ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct :: struct {
+			bits: My_Bitset,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				bits = {.*}
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct :: struct {
+			bits: My_Bitset,
+			bits_2: My_Bitset,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				{.A}, {.*},
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		My_Enum :: enum {A, B, C}
+
+		My_Struct :: struct {
+			enums: My_Enum,
+			enums_2: My_Enum,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				.A, .*
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct_2 :: struct {
+			bitset_1: My_Bitset,
+			bitset_2: My_Bitset,
+		}
+		My_Struct :: struct {
+			foo: My_Struct_2,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				foo = {{.A}, {.*}, {.B} }
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
 
 /*	
 	Looks like a bug in for each on w.*
