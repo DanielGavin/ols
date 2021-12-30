@@ -1190,12 +1190,6 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	};
 
-	m: Maybe(int)
-
-	a := m.(nil);
-
-	
-
     test.expect_completion_labels(t, &source, ".", {"(my_package.int)"});
 }
 
