@@ -434,7 +434,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	argument_types := make([dynamic]^ast.Field, context.temp_allocator);
 
 	for result in results {
-
 		if result.type == nil {
 			continue;
 		}
@@ -453,7 +452,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	}
 
 	for param in params {
-		
 		if len(param.names) == 0 {
 			continue;
 		}
@@ -854,7 +852,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case Basic_Lit:
 		return resolve_basic_lit(ast_context, v);
 	case Type_Cast:
-		return resolve_type_expression(ast_context, v.type);
+			return resolve_type_expression(ast_context, v.type);
 	case Auto_Cast:
 		return resolve_type_expression(ast_context, v.expr);
 	case Comp_Lit:
@@ -886,7 +884,20 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		ident.name = v.tok.text;
 		return resolve_type_identifier(ast_context, ident^);
 	case Type_Assertion:
-		return resolve_type_expression(ast_context, v.type);
+		if unary, ok := v.type.derived.(ast.Unary_Expr); ok {
+			if unary.op.kind == .Question {
+				if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
+					if union_value, ok := symbol.value.(index.SymbolUnionValue); ok {
+						if len(union_value.types) != 1 {
+							return {}, false;
+						}
+						return resolve_type_expression(ast_context, union_value.types[0]);
+					}
+				}
+			}
+		} else {
+			return resolve_type_expression(ast_context, v.type);
+		}	
 	case Proc_Lit:
 		if v.type.results != nil {
 			if len(v.type.results.list) == 1 {
@@ -1367,7 +1378,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		resolve_unresolved_symbol(ast_context, &symbol);
 	}
 	
-	#partial switch v in symbol.value {
+	#partial switch v in &symbol.value {
 	case index.SymbolProcedureGroupValue:
 		if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(ast.Proc_Group)); ok {
 			return symbol, true;
@@ -1384,14 +1395,33 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: index.Symbol, ok
 		} else {
 			return symbol, true;
 		}
+	case index.SymbolUnionValue:
+		if v.poly != nil {
+			//Todo(daniel): Maybe change the function to return a new symbol instead of referencing it.
+			//resolving the poly union means changing the type, so we do a copy of it.
+			types := make([dynamic]^ast.Expr, context.temp_allocator);
+			append_elems(&types, ..v.types);
+			v.types = types[:];
+			resolve_poly_union(ast_context, v.poly, &symbol);
+		}
+		return symbol, ok;
 	case index.SymbolStructValue:
+		if v.poly != nil {
+			//Todo(daniel): Maybe change the function to return a new symbol instead of referencing it.
+			//resolving the struct union means changing the type, so we do a copy of it.
+			types := make([dynamic]^ast.Expr, context.temp_allocator);
+			append_elems(&types, ..v.types);
+			v.types = types[:];
+			resolve_poly_struct(ast_context, v.poly, &symbol);
+		}
+
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
 		if len(v.usings) > 0 {
 			expanded := symbol;
 			expanded.value = expand_struct_usings(ast_context, symbol, v);
 			return expanded, true;
 		} else {
-			return symbol, true;
+			return symbol, true; 
 		}
 	case index.SymbolGenericValue:
 		ret, ok := resolve_type_expression(ast_context, v.expr);
@@ -1672,7 +1702,7 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
-		type = .Enum,
+		type = .Union,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1696,10 +1726,13 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 	}
 
 	symbol.value = index.SymbolUnionValue {
-		names = names[:],
 		types = v.variants,
 		union_name = ident,
 	};
+
+	if v.poly_params != nil {
+		resolve_poly_union(ast_context, v.poly_params, &symbol);
+	}
 
 	return symbol;
 }
@@ -1778,7 +1811,6 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 	usings := make(map[string]bool, 0, context.temp_allocator);
 
 	for field in v.fields.list {
-
 		for n in field.names {
 			if identifier, ok := n.derived.(ast.Ident); ok {
 				append(&names, identifier.name);
@@ -1799,7 +1831,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 	};
 
 	if v.poly_params != nil {
-		resolve_poly_struct(ast_context, v, &symbol);
+		resolve_poly_struct(ast_context, v.poly_params, &symbol);
 	}
 
 	//TODO change the expand to not double copy the array, but just pass the dynamic arrays
@@ -1810,7 +1842,68 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 	return symbol;
 }
 
-resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol: ^index.Symbol) {
+resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^index.Symbol) {
+
+	if ast_context.call == nil {
+		return;
+	}
+
+	symbol_value := &symbol.value.(index.SymbolUnionValue);
+
+	if symbol_value == nil {
+		return;
+	}
+
+	i := 0;
+
+	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator);
+
+	for param in poly_params.list {
+		for name in param.names {
+			if len(ast_context.call.args) <= i {
+				break;
+			}
+
+			if param.type == nil {
+				continue;
+			}
+			
+			if poly, ok := param.type.derived.(ast.Typeid_Type); ok {
+				if ident, ok := name.derived.(ast.Ident); ok {
+					poly_map[ident.name] = ast_context.call.args[i];
+				} else if poly, ok := name.derived.(ast.Poly_Type); ok { 
+					if poly.type != nil {
+						poly_map[poly.type.name] = ast_context.call.args[i];
+					}
+				}
+			}
+
+			i += 1;
+		}
+	}
+	
+	for type, i in symbol_value.types {
+		if ident, ok := type.derived.(ast.Ident); ok {
+			if expr, ok := poly_map[ident.name]; ok {
+				symbol_value.types[i] = expr;
+			}
+		} else if call_expr, ok := type.derived.(ast.Call_Expr); ok {
+			if call_expr.args == nil {
+				continue;
+			}
+
+			for arg, i in call_expr.args {
+				if ident, ok := arg.derived.(ast.Ident); ok {
+					if expr, ok := poly_map[ident.name]; ok {
+						symbol_value.types[i] = expr;
+					}
+				}
+			}
+		}
+	}
+}
+
+resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^index.Symbol) {
 
 	if ast_context.call == nil {
 		return;
@@ -1826,10 +1919,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator);
 
-	for param in v.poly_params.list {
-
+	for param in poly_params.list {
 		for name in param.names {
-
 			if len(ast_context.call.args) <= i {
 				break;
 			}
@@ -1837,37 +1928,35 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, v: ast.Struct_Type, symbol
 			if param.type == nil {
 				continue;
 			}
-
+			
 			if poly, ok := param.type.derived.(ast.Typeid_Type); ok {
-
 				if ident, ok := name.derived.(ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i];
+				} else if poly, ok := name.derived.(ast.Poly_Type); ok { 
+					if poly.type != nil {
+						poly_map[poly.type.name] = ast_context.call.args[i];
+					}
 				}
 			}
 
 			i += 1;
 		}
 	}
-
+	
 	for type, i in symbol_value.types {
-
 		if ident, ok := type.derived.(ast.Ident); ok {
-
 			if expr, ok := poly_map[ident.name]; ok {
 				symbol_value.types[i] = expr;
 			}
 		} else if call_expr, ok := type.derived.(ast.Call_Expr); ok {
-
 			if call_expr.args == nil {
 				continue;
 			}
 
 			for arg, i in call_expr.args {
-
 				if ident, ok := arg.derived.(ast.Ident); ok {
-
 					if expr, ok := poly_map[ident.name]; ok {
-						call_expr.args[i] = expr;
+						symbol_value.types[i] = expr;
 					}
 				}
 			}
@@ -1894,7 +1983,7 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 	ast_context.use_locals = true;
 	ast_context.use_globals = true;
 
-	switch v in value.derived {
+	switch v in &value.derived {
 	case Call_Expr:
 
 		ast_context.call = cast(^ast.Call_Expr)value;
@@ -1927,8 +2016,16 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 		}
 	case Type_Assertion:
 		if v.type != nil {
-			append(results, v.type);
-			append(results, make_bool_ast());
+			//This is the unique .? that can only be used with maybe
+			if unary, ok := v.type.derived.(ast.Unary_Expr); ok && unary.op.kind == .Question {
+				append(results, cast(^ast.Expr)&v.node);
+			} else {
+				append(results, v.type);
+			}
+
+			b := make_bool_ast();
+			b.pos.file = v.type.pos.file;
+			append(results, b);
 		}
 	case:
 		//log.debugf("default node get_generic_assignment %v", v);
@@ -2304,11 +2401,9 @@ clear_locals :: proc(ast_context: ^AstContext) {
 }
 
 concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
-
 	pkg := path.base(symbol.pkg, false, context.temp_allocator);
 
 	if symbol.type == .Function {
-
 		if symbol.returns != "" {
 			return fmt.tprintf("%v.%v: proc%v -> %v", pkg, symbol.name, symbol.signature, symbol.returns);
 		} else {

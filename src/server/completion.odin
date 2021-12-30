@@ -362,13 +362,13 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	case index.SymbolUnionValue:
 		list.isIncomplete = false;
 
-		for name, i in v.names {
-			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-
-				if symbol.pkg == ast_context.document_package {
-					symbol.name = fmt.aprintf("(%v)", name);
+		for type in v.types {
+			if symbol, ok := resolve_type_expression(ast_context, type); ok {
+				base := path.base(symbol.pkg, false, context.temp_allocator);
+				if symbol.pkg == ast_context.document_package || base == "runtime" {
+					symbol.name = fmt.aprintf("(%v)", common.node_to_string(type));
 				} else {
-					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), name);
+					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type));
 				}
 
 				item := CompletionItem {
@@ -1127,7 +1127,6 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	}
 
 	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == 0 {
-
 		for file in files {
 			if file.is_dir {
 				append(&packages, file.fullpath);
@@ -1149,13 +1148,9 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	used_unions := make(map[string]bool, 5, context.temp_allocator);
 
 	if block, ok := position_context.switch_type_stmt.body.derived.(ast.Block_Stmt); ok {
-
 		for stmt in block.stmts {
-
 			if case_clause, ok := stmt.derived.(ast.Case_Clause); ok {
-
 				for name in case_clause.list {
-
 					if ident, ok := name.derived.(ast.Ident); ok {
 						used_unions[ident.name] = true;
 					}
@@ -1168,23 +1163,21 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	ast_context.use_globals = true;
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
-
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
-
-			for name, i in union_value.names {
+			for type, i in union_value.types {
+				name := common.node_to_string(type);
 
 				if name in used_unions {
 					continue;
 				}
 
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
-
 					item := CompletionItem {
 						kind = .EnumMember,
 					};
 
 					if symbol.pkg == ast_context.document_package {
-						item.label  = fmt.aprintf("%v", name);
+						item.label  = fmt.aprintf("%v", common.node_to_string(union_value.types[i]));
 						item.detail = item.label;
 					} else {
 						item.label  = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name);

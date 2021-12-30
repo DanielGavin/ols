@@ -160,6 +160,41 @@ expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, positio
 	}
 }
 
+expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_labels: []string) {
+	setup(src);
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	};
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context);
+
+	if !ok {
+		testing.error(t, "Failed get_completion_list");
+	}
+
+	if len(expect_labels) == 0 && len(completion_list.items) > 0 {
+		testing.errorf(t, "Expected empty completion label, but received %v", completion_list.items);
+	}
+
+	flags := make([]int, len(expect_labels));
+
+	for expect_label, i in expect_labels {
+		for completion, j in completion_list.items {
+			if expect_label == completion.label {
+				flags[i] += 1;
+			}
+		}
+	}
+
+	for flag, i in flags {
+		if flag != 1 {
+			testing.errorf(t, "Expected completion detail %v, but received %v", expect_labels[i], completion_list.items);
+		}
+	}
+
+}
+
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
 	setup(src);
 

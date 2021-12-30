@@ -961,7 +961,6 @@ ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		main :: proc() {
 			{
 				aabb := 2
@@ -979,7 +978,6 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		main :: proc() {
 			xaaaa, yaaaa: string
 			xaaaa = "hi"
@@ -995,7 +993,6 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		My_Enum :: enum {A, B, C}
 		My_Bitset :: bit_set[My_Enum]
 		My_Struct :: struct {
@@ -1017,7 +1014,6 @@ ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		My_Enum :: enum {A, B, C}
 		My_Bitset :: bit_set[My_Enum]
 		My_Struct :: struct {
@@ -1040,7 +1036,6 @@ ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		My_Enum :: enum {A, B, C}
 
 		My_Struct :: struct {
@@ -1063,7 +1058,6 @@ ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
 ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		My_Enum :: enum {A, B, C}
 		My_Bitset :: bit_set[My_Enum]
 		My_Struct_2 :: struct {
@@ -1089,8 +1083,6 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 ast_inlined_struct :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
-
 		My_Struct :: struct {
 			foo: struct {
 				a: int,
@@ -1112,7 +1104,6 @@ ast_inlined_struct :: proc(t: ^testing.T) {
 ast_inlined_union :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		import "my_package"
 
 		My_Struct :: struct {
 			variant: union {int, f32},
@@ -1126,6 +1117,86 @@ ast_inlined_union :: proc(t: ^testing.T) {
 	};
 	
     test.expect_completion_details(t, &source, ".", {"My_Struct.variant: union"});
+}
+
+@(test)
+ast_union_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Union :: union($T: typeid) #maybe {T}
+
+		main :: proc() {
+			m: My_Union(int)
+    		m.*
+		}
+		`,
+	};
+
+    test.expect_completion_labels(t, &source, ".", {"(int)"});
+}
+
+@(test)
+ast_maybe_first_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Maybe :: union($T: typeid) #maybe {T}
+
+		main :: proc() {
+			m: Maybe(int)
+    		v, ok := m.?
+			v*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, "", {"test.v: int"});
+}
+
+@(test)
+ast_maybe_second_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			m: Maybe(int)
+    		v, ok := m.?
+			ok*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.ok: bool"});
+}
+
+
+@(test)
+ast_maybe_index_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		Maybe :: union($T: typeid) #maybe {T}
+		`,
+	});
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			m: my_package.Maybe(int)
+    		m.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+	m: Maybe(int)
+
+	a := m.(nil);
+
+	
+
+    test.expect_completion_labels(t, &source, ".", {"(my_package.int)"});
 }
 
 
