@@ -1009,7 +1009,7 @@ ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 		}
 		`,
 	};
-	
+
     test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
 }
 
@@ -1083,6 +1083,49 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 	};
 	
     test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_inlined_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		My_Struct :: struct {
+			foo: struct {
+				a: int,
+				b: int,
+			},
+		}
+
+		main :: proc() {
+			inst: My_Struct
+			inst.foo.*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"struct.a: int", "struct.b: int"});
+}
+
+@(test)
+ast_inlined_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		My_Struct :: struct {
+			variant: union {int, f32},
+		}
+
+		main :: proc() {
+			inst: My_Struct
+			inst.*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"My_Struct.variant: union"});
 }
 
 

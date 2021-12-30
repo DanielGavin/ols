@@ -538,12 +538,12 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol, flags
 		return false;
 	}
 
-	if a.is_distinct != b.is_distinct {
+	if .Distinct in a.flags != .Distinct in b.flags {
 		return false;
 	}
 
-	if a.is_distinct == b.is_distinct && 
-	   a.is_distinct == true &&
+	if .Distinct in a.flags == .Distinct in b.flags && 
+	   .Distinct in a.flags &&
 	   a.name == b.name &&
 	   a.pkg == b.pkg {
 		return true;
@@ -829,6 +829,14 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	using ast;
 
 	switch v in &node.derived {
+	case Union_Type:
+		return make_symbol_union_from_ast(ast_context, v, ast_context.field_name, true), true;
+	case Enum_Type:
+		return make_symbol_enum_from_ast(ast_context, v, ast_context.field_name, true), true;
+	case Struct_Type:
+		return make_symbol_struct_from_ast(ast_context, v, ast_context.field_name, true), true;
+	case Bit_Set_Type:
+		return make_symbol_bitset_from_ast(ast_context, v, ast_context.field_name, true), true;
 	case Array_Type:
 		return make_symbol_array_from_ast(ast_context, v), true;
 	case Dynamic_Array_Type:
@@ -1113,7 +1121,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		if is_distinct {
 			return_symbol.name = node.name;
-			return_symbol.is_distinct = is_distinct;
+			return_symbol.flags |= {.Distinct};
 		}
 
 		return return_symbol, ok;
@@ -1171,7 +1179,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		if is_distinct {
 			return_symbol.name = node.name;
-			return_symbol.is_distinct = is_distinct;
+			return_symbol.flags |= {.Distinct};
 		}
 
 		return_symbol.doc = common.get_doc(global.docs, context.temp_allocator);
@@ -1579,7 +1587,9 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	}
 
 	if expr, ok := ast_context.globals[name]; ok {
-		symbol.is_deprecated = expr.deprecated;
+		if expr.deprecated {
+			symbol.flags |= {.Distinct};
+		}
 	}
 
 	symbol.value = index.SymbolProcedureValue {
@@ -1658,13 +1668,18 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 	return symbol;
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: string) -> index.Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: string, inlined := false) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
 		pkg = get_package_from_node(v.node),
 	};
+
+	if inlined {
+		symbol.flags |= {.Anonymous};
+		symbol.name = "union";
+	}
 
 	names := make([dynamic]string, context.temp_allocator);
 
@@ -1689,13 +1704,18 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 	return symbol;
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: string) -> index.Symbol {
-
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: string, inlined := false) -> index.Symbol {
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
 		pkg = get_package_from_node(v.node),
 	};
+
+	if inlined {
+		symbol.flags |= {.Anonymous};
+		symbol.name = "enum";
+	}
+
 
 	names := make([dynamic]string, context.temp_allocator);
 
@@ -1719,13 +1739,18 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 	return symbol;
 }
 
-make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: string) -> index.Symbol {
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: string, inlined := false) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
 		pkg = get_package_from_node(v.node),
 	};
+
+	if inlined {
+		symbol.flags |= {.Anonymous};
+		symbol.name = "bitset";
+	}
 
 	symbol.value = index.SymbolBitSetValue {
 		expr = v.elem,
@@ -1735,13 +1760,18 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 	return symbol;
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: string) -> index.Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: string, inlined := false) -> index.Symbol {
 
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Struct,
 		pkg = get_package_from_node(v.node),
 	};
+
+	if inlined {
+		symbol.flags |= {.Anonymous};
+		symbol.name = "struct";
+	}
 
 	names  := make([dynamic]string, context.temp_allocator);
 	types  := make([dynamic]^ast.Expr, context.temp_allocator);
@@ -2503,6 +2533,17 @@ get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^c
 	}
 
 	position_context.call_commas = commas[:];
+}
+
+type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
+	
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if .Anonymous in symbol.flags {
+			return symbol.name;
+		}
+	}
+
+	return  common.node_to_string(expr);
 }
 
 /*

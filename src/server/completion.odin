@@ -408,7 +408,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 				if expr, ok := position_context.selector.derived.(ast.Selector_Expr); ok {
-
 					if expr.op.text == "->" && symbol.type != .Function {
 						continue;
 					}
@@ -421,7 +420,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				item := CompletionItem {
 					label = name,
 					kind = .Field,
-					detail = fmt.tprintf("%v.%v: %v", selector.name, name, common.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v.%v: %v", selector.name, name, type_to_string(ast_context, v.types[i])),
 					documentation = symbol.doc,
 				};
 
@@ -463,7 +462,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 					item.insertText = fmt.tprintf("%v($0)", item.label);
 					item.insertTextFormat = .Snippet;
 					item.command.command = "editor.action.triggerParameterHints";
-					item.deprecated = symbol.is_deprecated;
+					item.deprecated = .Deprecated in symbol.flags;			
 				}
 
 				append(&items, item);
@@ -1041,7 +1040,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			if result.symbol.type == .Function {
 				item.insertText = fmt.tprintf("%v($0)", item.label);
 				item.insertTextFormat = .Snippet;
-				item.deprecated = result.symbol.is_deprecated;
+				item.deprecated =  .Deprecated in result.symbol.flags;
 				item.command.command = "editor.action.triggerParameterHints";
 			}
 			

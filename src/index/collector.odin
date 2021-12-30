@@ -371,9 +371,18 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.pkg = get_index_unique_string(collection, directory);
 		symbol.type = token_type;
 		symbol.doc = common.get_doc(expr.docs, collection.allocator);
-		symbol.is_deprecated = expr.deprecated;
-		symbol.is_private_file = expr.file_private;
-		symbol.is_private_package = expr.package_private;
+
+		if expr.deprecated {
+			symbol.flags |= {.Deprecated};
+		}
+
+		if expr.file_private {
+			symbol.flags |= {.PrivateFile};
+		}
+
+		if expr.package_private {
+			symbol.flags |= {.PrivatePackage};
+		}
 
 		when ODIN_OS == "windows" {
 			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));

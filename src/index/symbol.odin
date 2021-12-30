@@ -102,6 +102,16 @@ SymbolValue :: union {
 	SymbolUntypedValue,
 }
 
+SymbolFlag :: enum {
+	Distinct,
+	Deprecated,
+	PrivateFile,
+	PrivatePackage,
+	Anonymous,
+}
+
+SymbolFlags :: bit_set[SymbolFlag]
+
 Symbol :: struct {
 	range:               common.Range,
 	uri:                 string,
@@ -114,10 +124,7 @@ Symbol :: struct {
 	value:               SymbolValue,
 	references:          []common.Location,
 	pointers:            int,
-	is_distinct:         bool,
-	is_deprecated:       bool,
-	is_private_file:     bool,
-	is_private_package:  bool,
+	flags:               SymbolFlags,
 }
 
 SymbolType :: enum {
