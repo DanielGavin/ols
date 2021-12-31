@@ -448,8 +448,8 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				symbol := search.symbol;
 
 				resolve_unresolved_symbol(ast_context, &symbol);
-				build_symbol_return(&symbol);
-				build_symbol_signature(&symbol);
+				build_procedure_symbol_return(&symbol);
+				build_procedure_symbol_signature(&symbol);
 				
 				item := CompletionItem {
 					label = symbol.name,
@@ -872,8 +872,8 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		for r in results {
 			r := r;
 			resolve_unresolved_symbol(ast_context, &r.symbol);
-			build_symbol_return(&r.symbol);
-			build_symbol_signature(&r.symbol);
+			build_procedure_symbol_return(&r.symbol);
+			build_procedure_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
 				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
 			}
@@ -901,12 +901,12 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator);
 		ident.name = k;
 
-		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.name      = ident.name;
+		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
 			symbol.signature = get_signature(ast_context, ident^, symbol);
+			symbol.name = ident.name;
 
-			build_symbol_return(&symbol);
-			build_symbol_signature(&symbol);
+			build_procedure_symbol_return(&symbol);
+			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
@@ -927,11 +927,12 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		ident.name = k;
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.name      = ident.name;
+			
 			symbol.signature = get_signature(ast_context, ident^, symbol);
+			symbol.name = ident.name;
 
-			build_symbol_return(&symbol);
-			build_symbol_signature(&symbol);
+			build_procedure_symbol_return(&symbol);
+			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});

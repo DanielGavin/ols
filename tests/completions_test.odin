@@ -1193,6 +1193,24 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
     test.expect_completion_labels(t, &source, ".", {"(my_package.int)"});
 }
 
+@(test)
+ast_distinct_u32_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		f :: proc() {
+			Distinct_Type :: distinct u32
+
+			d: Distinct_Type
+			d*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+}
+
 
 /*	
 	Looks like a bug in for each on w.*

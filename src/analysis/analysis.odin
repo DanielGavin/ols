@@ -2471,6 +2471,10 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		return symbol.signature;
 	}
 
+	if .Distinct in symbol.flags {
+		return symbol.name;
+	}
+
 	is_variable := resolve_ident_is_variable(ast_context, ident);
 
 	#partial switch v in symbol.value {

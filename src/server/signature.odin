@@ -52,7 +52,7 @@ ParameterInformation :: struct {
 /*
 	Lazily build the signature and returns from ast.Nodes
 */
-build_symbol_signature :: proc(symbol: ^index.Symbol) {
+build_procedure_symbol_signature :: proc(symbol: ^index.Symbol) {
 	if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 		builder := strings.make_builder(context.temp_allocator);
 	
@@ -69,7 +69,7 @@ build_symbol_signature :: proc(symbol: ^index.Symbol) {
 	}
 }
 
-build_symbol_return :: proc(symbol: ^index.Symbol) {
+build_procedure_symbol_return :: proc(symbol: ^index.Symbol) {
 	if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 		builder := strings.make_builder(context.temp_allocator);
 	
@@ -174,8 +174,8 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 			parameters[i].label = common.node_to_string(arg);
 		}
 
-		build_symbol_signature(&call);
-		build_symbol_return(&call);
+		build_procedure_symbol_signature(&call);
+		build_procedure_symbol_return(&call);
 
 		info := SignatureInformation {
 			label = concatenate_symbols_information(&ast_context, call, false),
@@ -205,8 +205,8 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 					parameters[i].activeParameter = i;
 				}
 
-				build_symbol_signature(&symbol);
-				build_symbol_return(&symbol);
+				build_procedure_symbol_signature(&symbol);
+				build_procedure_symbol_return(&symbol);
 
 				info := SignatureInformation {
 					label = concatenate_symbols_information(&ast_context, symbol, false),

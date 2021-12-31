@@ -19,6 +19,11 @@ import "core:text/scanner"
 import "shared:common"
 
 when ODIN_OS == "windows" {
+
+	is_package :: proc(file: string, pkg: string) {
+		
+	}
+
 	check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		data := make([]byte, mem.kilobytes(10), context.temp_allocator);
 
