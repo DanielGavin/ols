@@ -11,7 +11,6 @@ import "core:slice"
 import "shared:common"
 
 SymbolStructValue :: struct {
-	struct_name: string,
 	names:   []string,
 	types:   []^ast.Expr,
 	usings:  map[string]bool,
@@ -36,12 +35,10 @@ SymbolAggregateValue :: struct {
 }
 
 SymbolEnumValue :: struct {
-	enum_name: string,
 	names: []string,
 }
 
 SymbolUnionValue :: struct {
-	union_name: string,
 	types: []^ast.Expr,
 	poly: ^ast.Field_List,
 }
@@ -64,7 +61,6 @@ SymbolBasicValue :: struct {
 }
 
 SymbolBitSetValue :: struct {
-	bitset_name: string,
 	expr: ^ast.Expr,
 }
 
@@ -113,17 +109,17 @@ SymbolFlag :: enum {
 SymbolFlags :: bit_set[SymbolFlag]
 
 Symbol :: struct {
-	range:               common.Range,
-	uri:                 string,
-	pkg:                 string,
-	name:                string,
+	range:               common.Range, //the range of the symbol in the file
+	uri:                 string, //uri of the file the symbol resides
+	pkg:                 string, //absolute directory path where the symbol resides
+	name:                string, //name of the symbol
 	doc:                 string,
-	signature:           string,
-	returns:             string,
+	signature:           string, //type signature
+	returns:             string, //precedure return signature
 	type:                SymbolType,
 	value:               SymbolValue,
-	references:          []common.Location,
-	pointers:            int,
+	references:          []common.Location, //all the places in the project that it's being referenced 
+	pointers:            int, //how many `^` are applied to the symbol
 	flags:               SymbolFlags,
 }
 

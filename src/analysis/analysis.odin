@@ -1704,6 +1704,7 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Union,
 		pkg = get_package_from_node(v.node),
+		name = ident,
 	};
 
 	if inlined {
@@ -1727,7 +1728,6 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 
 	symbol.value = index.SymbolUnionValue {
 		types = v.variants,
-		union_name = ident,
 	};
 
 	if v.poly_params != nil {
@@ -1741,6 +1741,7 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
+		name = ident,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1766,7 +1767,6 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 
 	symbol.value = index.SymbolEnumValue {
 		names = names[:],
-		enum_name = ident,
 	};
 
 	return symbol;
@@ -1777,6 +1777,7 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
+		name = ident,
 		pkg = get_package_from_node(v.node),
 	};
 
@@ -1787,7 +1788,6 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 
 	symbol.value = index.SymbolBitSetValue {
 		expr = v.elem,
-		bitset_name = ident,
 	};
 
 	return symbol;
@@ -1799,6 +1799,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Struct,
 		pkg = get_package_from_node(v.node),
+		name = ident,
 	};
 
 	if inlined {
@@ -1827,7 +1828,6 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 		names = names[:],
 		types = types[:],
 		usings = usings,
-		struct_name = ident,
 	};
 
 	if v.poly_params != nil {
@@ -2400,6 +2400,7 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
+/*
 resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> []^index.Symbol {
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
@@ -2426,25 +2427,35 @@ resolve_entire_procedure :: proc(procedure: ^ast.Proc_Type, symbols: ^[]^index.S
 
 
 }
+*/
 
-concatenate_symbols_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
-	pkg := path.base(symbol.pkg, false, context.temp_allocator);
+concatenate_symbol_information :: proc {
+	concatenate_raw_symbol_information,
+	concatenate_raw_string_information,
+}
 
-	if symbol.type == .Function {
-		if symbol.returns != "" {
-			return fmt.tprintf("%v.%v: proc%v -> %v", pkg, symbol.name, symbol.signature, symbol.returns);
+concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
+	return concatenate_raw_string_information(ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.returns, symbol.type, is_completion);
+}
+
+concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string, name: string, signature: string, returns: string, type: index.SymbolType, is_completion: bool) -> string {
+	pkg := path.base(pkg, false, context.temp_allocator);
+
+	if type == .Function {
+		if returns != "" {
+			return fmt.tprintf("%v.%v: proc%v -> %v", pkg, name, signature, returns);
 		} else {
-			return fmt.tprintf("%v.%v: proc%v", pkg, symbol.name, symbol.signature);
+			return fmt.tprintf("%v.%v: proc%v", pkg, name, signature);
 		}
-	} else if symbol.type == .Package {
-		return symbol.name;
-	} else if symbol.type == .Keyword && is_completion {
-		return symbol.name;
+	} else if type == .Package {
+		return name;
+	} else if type == .Keyword && is_completion {
+		return name;
 	} else {
-		if symbol.signature != "" {
-			return fmt.tprintf("%v.%v: %v", pkg, symbol.name, symbol.signature);
+		if signature != "" {
+			return fmt.tprintf("%v.%v: %v", pkg, name, signature);
 		} else {
-			return fmt.tprintf("%v.%v", pkg, symbol.name);
+			return fmt.tprintf("%v.%v", pkg, name);
 		}
 	}
 }
@@ -2468,7 +2479,6 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolE
 unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
 
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
-
 		if union_value, ok := union_symbol.value.(index.SymbolUnionValue); ok {
 			return union_value, true;
 		}
@@ -2511,7 +2521,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		return common.node_to_string(v.expr);
 	case SymbolEnumValue:
 		if is_variable {
-			return v.enum_name;
+			return symbol.name;
 		}
 		else {
 			return "enum";
@@ -2522,14 +2532,14 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		return "proc";
 	case SymbolStructValue:
 		if is_variable {
-			return v.struct_name;
+			return symbol.name;
 		}
 		else {
 			return "struct";
 		}
 	case SymbolUnionValue:
 		if is_variable {
-			return v.union_name;
+			return symbol.name;
 		}
 		else {
 			return "union";

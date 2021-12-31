@@ -365,18 +365,18 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		for type in v.types {
 			if symbol, ok := resolve_type_expression(ast_context, type); ok {
 				base := path.base(symbol.pkg, false, context.temp_allocator);
-				if symbol.pkg == ast_context.document_package || base == "runtime" {
-					symbol.name = fmt.aprintf("(%v)", common.node_to_string(type));
-				} else {
-					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type));
-				}
 
 				item := CompletionItem {
-					label = symbol.name,
 					kind = .EnumMember,
 					detail = fmt.tprintf("%v", selector.name),
 					documentation = symbol.doc,
 				};
+
+				if symbol.pkg == ast_context.document_package || base == "runtime" {
+					item.label = fmt.aprintf("(%v)", common.node_to_string(type));
+				} else {
+					item.label = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type));
+				}
 
 				append(&items, item);
 			}
@@ -454,7 +454,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				item := CompletionItem {
 					label = symbol.name,
 					kind = cast(CompletionItemKind)symbol.type,
-					detail = concatenate_symbols_information(ast_context, symbol, true),
+					detail = concatenate_symbol_information(ast_context, symbol, true),
 					documentation = symbol.doc,
 				};
 
@@ -823,11 +823,16 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	list.isIncomplete = true;
 
 	CombinedResult :: struct {
-		score:    f32,
-		symbol:   index.Symbol,
-		variable: ^ast.Ident,
-		snippet:  Snippet_Info,	
-		name:     string,
+		score:     f32,
+		variable:  ^ast.Ident,
+		snippet:   Snippet_Info,	
+		name:      string,
+		type:      index.SymbolType,
+		doc:       string,
+		pkg:       string,
+		signature: string,
+		returns:   string,
+		flags:     index.SymbolFlags,
 	};
 
 	combined_sort_interface :: proc(s: ^[dynamic]CombinedResult) -> sort.Interface {
@@ -875,7 +880,16 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			build_procedure_symbol_return(&r.symbol);
 			build_procedure_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
-				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
+				append(&combined, CombinedResult {
+					score = r.score, 
+					type = r.symbol.type,
+					name = r.symbol.name,
+					doc = r.symbol.doc,
+					flags = r.symbol.flags,
+					signature = r.symbol.signature,
+					returns = r.symbol.returns,
+					pkg = r.symbol.pkg,
+				});
 			}
 		}
 	}
@@ -889,7 +903,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 		//combined is sorted and should do binary search instead.
 		for result in combined {
-			if result.symbol.name == k {
+			if result.name == k {
 				continue global;
 			}
 		}
@@ -903,13 +917,22 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
 			symbol.signature = get_signature(ast_context, ident^, symbol);
-			symbol.name = ident.name;
 
 			build_procedure_symbol_return(&symbol);
 			build_procedure_symbol_signature(&symbol);
 
-			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
+			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+				append(&combined, CombinedResult {
+					score = score * 1.1, 
+					type = symbol.type,
+					name = ident.name,
+					doc = symbol.doc,
+					flags = symbol.flags, 
+					pkg = symbol.pkg,
+					signature = symbol.signature,
+					returns = symbol.returns,
+					variable = ident,
+				});
 			}
 		}
 	}
@@ -919,23 +942,31 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			break;
 		}
 
-		ast_context.use_locals      = true;
-		ast_context.use_globals     = true;
+		ast_context.use_locals = true;
+		ast_context.use_globals = true;
 		ast_context.current_package = ast_context.document_package;
 
 		ident := index.new_type(ast.Ident, {offset = position_context.position}, {offset = position_context.position}, context.temp_allocator);
 		ident.name = k;
 
-		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			
+		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
 			symbol.signature = get_signature(ast_context, ident^, symbol);
-			symbol.name = ident.name;
 
 			build_procedure_symbol_return(&symbol);
 			build_procedure_symbol_signature(&symbol);
 
-			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
+			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+				append(&combined, CombinedResult {
+					score = score * 1.1, 
+					type = symbol.type,
+					name = ident.name,
+					doc = symbol.doc,
+					flags = symbol.flags,
+					pkg = symbol.pkg,
+					signature = symbol.signature,
+					returns = symbol.returns,
+					variable = ident,
+				});
 			}
 		}
 	}
@@ -951,7 +982,16 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		};
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+			append(&combined, CombinedResult {
+				score = score * 1.1, 
+				type = symbol.type,
+				name = symbol.name,
+				doc = symbol.doc,
+				flags = symbol.flags,
+				signature = symbol.signature,
+				returns = symbol.returns,
+				pkg = symbol.pkg,
+			});
 		}
 	}
 
@@ -962,7 +1002,16 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		};
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+			append(&combined, CombinedResult {
+				score = score * 1.1, 
+				type = symbol.type,
+				name = symbol.name,
+				doc = symbol.doc,
+				flags = symbol.flags,
+				signature = symbol.signature,
+				returns = symbol.returns,
+				pkg = symbol.pkg,
+			});
 		}
 	}
 
@@ -973,7 +1022,16 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		};
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult {score = score * 1.1, symbol = symbol});
+			append(&combined, CombinedResult {
+				score = score * 1.1, 
+				type = symbol.type,
+				name = symbol.name,
+				doc = symbol.doc,
+				flags = symbol.flags,
+				signature = symbol.signature,
+				returns = symbol.returns,
+				pkg = symbol.pkg,
+			});
 		}
 	}
 
@@ -994,8 +1052,8 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 		result := result;
 
-			//Skip procedures when the position is in proc decl
-		if position_in_proc_decl(position_context) && result.symbol.type == .Function && common.config.enable_procedure_context {
+		//Skip procedures when the position is in proc decl
+		if position_in_proc_decl(position_context) && result.type == .Function && common.config.enable_procedure_context {
 			continue;
 		}
 
@@ -1022,30 +1080,30 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			append(&items, item);
 		} else {
 			item := CompletionItem {
-				label = result.symbol.name,
+				label = result.name,
 				insertTextFormat = .PlainText,
-				documentation = result.symbol.doc,
+				documentation = result.doc,
 			};
 
 			if result.variable != nil {
 				if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
 					item.kind = .Variable;
-					result.symbol.type = .Variable;
+					result.type = .Variable;
 				} else {
-					item.kind = cast(CompletionItemKind)result.symbol.type;
+					item.kind = cast(CompletionItemKind)result.type;
 				}
 			} else {
-				item.kind = cast(CompletionItemKind)result.symbol.type;
+				item.kind = cast(CompletionItemKind)result.type;
 			}
 
-			if result.symbol.type == .Function {
+			if result.type == .Function {
 				item.insertText = fmt.tprintf("%v($0)", item.label);
 				item.insertTextFormat = .Snippet;
-				item.deprecated =  .Deprecated in result.symbol.flags;
+				item.deprecated =  .Deprecated in result.flags;
 				item.command.command = "editor.action.triggerParameterHints";
 			}
 			
-			item.detail = concatenate_symbols_information(ast_context, result.symbol, true);
+			item.detail = concatenate_symbol_information(ast_context, result.pkg, result.name, result.signature, result.returns, result.type, true);
 
 			append(&items, item);
 		}

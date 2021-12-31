@@ -62,7 +62,6 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 }
 
 collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.Proc_Type, arg_list: ^ast.Field_List, return_list: ^ast.Field_List, package_map: map[string]string) -> SymbolProcedureValue {
-
 	returns := make([dynamic]^ast.Field, 0, collection.allocator);
 	args    := make([dynamic]^ast.Field, 0, collection.allocator);
 
@@ -92,8 +91,7 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
 	return value;
 }
 
-collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string, ident: string) -> SymbolStructValue {
-
+collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
 	names  := make([dynamic]string, 0, collection.allocator);
 	types  := make([dynamic]^ast.Expr, 0, collection.allocator);
 	usings := make(map[string]bool, 0, collection.allocator);
@@ -118,15 +116,13 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 		names = names[:],
 		types = types[:],
 		usings = usings,
-		struct_name = get_index_unique_string(collection, ident),
 		poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings),
 	};
 
 	return value;
 }
 
-collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string, ident: string) -> SymbolEnumValue {
-
+collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, package_map: map[string]string) -> SymbolEnumValue {
 	names := make([dynamic]string, 0, collection.allocator);
 
 	//ERROR no hover on n in the for, but elsewhere is fine
@@ -144,14 +140,12 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 	value := SymbolEnumValue {
 		names = names[:],
-		enum_name = get_index_unique_string(collection, ident),
 	};
 
 	return value;
 }
 
-collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string, ident: string) -> SymbolUnionValue {
-
+collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string) -> SymbolUnionValue {
 	types := make([dynamic]^ast.Expr, 0, collection.allocator);
 
 	for variant in union_type.variants {
@@ -162,26 +156,22 @@ collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Unio
 
 	value := SymbolUnionValue {
 		types = types[:],
-		union_name = get_index_unique_string(collection, ident),
 		poly = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
 	};
 
 	return value;
 }
 
-collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string, ident: string) -> SymbolBitSetValue {
-
+collect_bitset_field :: proc(collection: ^SymbolCollection, bitset_type: ast.Bit_Set_Type, package_map: map[string]string) -> SymbolBitSetValue {
 	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
 	return SymbolBitSetValue {
 		expr = cloned,
-		bitset_name = get_index_unique_string(collection, ident),
 	};
 }
 
 collect_slice :: proc(collection: ^SymbolCollection, array: ast.Array_Type, package_map: map[string]string) -> SymbolFixedArrayValue {
-
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
 	len  := clone_type(array.len, collection.allocator, &collection.unique_strings);
 
@@ -195,7 +185,6 @@ collect_slice :: proc(collection: ^SymbolCollection, array: ast.Array_Type, pack
 }
 
 collect_array :: proc(collection: ^SymbolCollection, array: ast.Array_Type, package_map: map[string]string) -> SymbolSliceValue {
-
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
 
 	replace_package_alias(elem, package_map, collection);
@@ -206,7 +195,6 @@ collect_array :: proc(collection: ^SymbolCollection, array: ast.Array_Type, pack
 }
 
 collect_map :: proc(collection: ^SymbolCollection, m: ast.Map_Type, package_map: map[string]string) -> SymbolMapValue {
-
 	key   := clone_type(m.key, collection.allocator, &collection.unique_strings);
 	value := clone_type(m.value, collection.allocator, &collection.unique_strings);
 
@@ -220,7 +208,6 @@ collect_map :: proc(collection: ^SymbolCollection, m: ast.Map_Type, package_map:
 }
 
 collect_dynamic_array :: proc(collection: ^SymbolCollection, array: ast.Dynamic_Array_Type, package_map: map[string]string) -> SymbolDynamicArrayValue {
-
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings);
 
 	replace_package_alias(elem, package_map, collection);
@@ -231,7 +218,6 @@ collect_dynamic_array :: proc(collection: ^SymbolCollection, array: ast.Dynamic_
 }
 
 collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string) -> SymbolGenericValue {
-
 	cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
@@ -243,7 +229,6 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 }
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
-
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator);
 
 	when ODIN_OS == "windows" {
@@ -300,22 +285,22 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ast.Struct_Type:
 			token = v;
 			token_type = .Struct;
-			symbol.value = collect_struct_fields(collection, v, package_map, name);
+			symbol.value = collect_struct_fields(collection, v, package_map);
 			symbol.signature = "struct";
 		case ast.Enum_Type:
 			token = v;
 			token_type = .Enum;
-			symbol.value = collect_enum_fields(collection, v.fields, package_map, name);
+			symbol.value = collect_enum_fields(collection, v.fields, package_map);
 			symbol.signature = "enum";
 		case ast.Union_Type:
 			token = v;
 			token_type = .Union;
-			symbol.value = collect_union_fields(collection, v, package_map, name);
+			symbol.value = collect_union_fields(collection, v, package_map);
 			symbol.signature = "union";
 		case ast.Bit_Set_Type:
 			token = v;
 			token_type = .Enum;
-			symbol.value = collect_bitset_field(collection, v, package_map, name);
+			symbol.value = collect_bitset_field(collection, v, package_map);
 			symbol.signature = "bitset";
 		case ast.Map_Type:
 			token = v;

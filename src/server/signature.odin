@@ -178,7 +178,7 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 		build_procedure_symbol_return(&call);
 
 		info := SignatureInformation {
-			label = concatenate_symbols_information(&ast_context, call, false),
+			label = concatenate_symbol_information(&ast_context, call, false),
 			documentation = call.doc,
 			parameters = parameters,
 		};	
@@ -209,7 +209,7 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 				build_procedure_symbol_return(&symbol);
 
 				info := SignatureInformation {
-					label = concatenate_symbols_information(&ast_context, symbol, false),
+					label = concatenate_symbol_information(&ast_context, symbol, false),
 					documentation = symbol.doc,
 					parameters = parameters,
 				};	
