@@ -133,7 +133,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			for name, i in v.names {
 				if strings.compare(name, field) == 0 {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-						symbol.name      = name;
+						symbol.name      = name; //TODO refractor - never set symbol name after creation - change writer_hover_content
 						symbol.pkg       = selector.name;
 						symbol.signature = common.node_to_string(v.types[i]);
 						hover.contents   = write_hover_content(&ast_context, symbol);
