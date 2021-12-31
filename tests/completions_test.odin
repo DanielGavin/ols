@@ -956,6 +956,262 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
     test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"});
 }
 
+@(test)
+ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			{
+				aabb := 2
+			}
+			aab*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {});
+}
+
+@(test)
+ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			xaaaa, yaaaa: string
+			xaaaa = "hi"
+			yaaa*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.yaaaa: string"});
+}
+
+@(test)
+ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct :: struct {
+			bits: My_Bitset,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				bits = {.*}
+			}
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct :: struct {
+			bits: My_Bitset,
+			bits_2: My_Bitset,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				{.A}, {.*},
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Enum :: enum {A, B, C}
+
+		My_Struct :: struct {
+			enums: My_Enum,
+			enums_2: My_Enum,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				.A, .*
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Enum :: enum {A, B, C}
+		My_Bitset :: bit_set[My_Enum]
+		My_Struct_2 :: struct {
+			bitset_1: My_Bitset,
+			bitset_2: My_Bitset,
+		}
+		My_Struct :: struct {
+			foo: My_Struct_2,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				foo = {{.A}, {.*}, {.B} }
+			}
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_inlined_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Struct :: struct {
+			foo: struct {
+				a: int,
+				b: int,
+			},
+		}
+
+		main :: proc() {
+			inst: My_Struct
+			inst.foo.*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"struct.a: int", "struct.b: int"});
+}
+
+@(test)
+ast_inlined_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		My_Struct :: struct {
+			variant: union {int, f32},
+		}
+
+		main :: proc() {
+			inst: My_Struct
+			inst.*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"My_Struct.variant: union"});
+}
+
+@(test)
+ast_union_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Union :: union($T: typeid) #maybe {T}
+
+		main :: proc() {
+			m: My_Union(int)
+    		m.*
+		}
+		`,
+	};
+
+    test.expect_completion_labels(t, &source, ".", {"(int)"});
+}
+
+@(test)
+ast_maybe_first_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Maybe :: union($T: typeid) #maybe {T}
+
+		main :: proc() {
+			m: Maybe(int)
+    		v, ok := m.?
+			v*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, "", {"test.v: int"});
+}
+
+@(test)
+ast_maybe_second_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			m: Maybe(int)
+    		v, ok := m.?
+			ok*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.ok: bool"});
+}
+
+
+@(test)
+ast_maybe_index_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		Maybe :: union($T: typeid) #maybe {T}
+		`,
+	});
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			m: my_package.Maybe(int)
+    		m.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_labels(t, &source, ".", {"(my_package.int)"});
+}
+
+@(test)
+ast_distinct_u32_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		f :: proc() {
+			Distinct_Type :: distinct u32
+
+			d: Distinct_Type
+			d*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+}
+
+
 /*	
 	Looks like a bug in for each on w.*
 

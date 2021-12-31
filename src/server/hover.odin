@@ -34,8 +34,8 @@ write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Sym
 		}
 	}
 
-	build_symbol_return(&symbol);
-	build_symbol_signature(&symbol);
+	build_procedure_symbol_return(&symbol);
+	build_procedure_symbol_signature(&symbol);
 
 	cat := concatenate_symbols_information(ast_context, symbol, false);
 
@@ -95,9 +95,9 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 
 			if ident.name == base.name {
 
-				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-					resolved.name      = ident.name;
+				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {				
 					resolved.signature = get_signature(&ast_context, ident, resolved);
+					resolved.name = ident.name;
 
 					if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
 						resolved.pkg = ast_context.document_package;
@@ -162,9 +162,9 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 
 		hover.range = common.get_token_range(position_context.identifier^, document.ast.src);
 
-		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			resolved.name      = ident.name;
+		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {	
 			resolved.signature = get_signature(&ast_context, ident, resolved);
+			resolved.name = ident.name;
 
 			if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
 				resolved.pkg = ast_context.document_package;

@@ -771,7 +771,12 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 	case Call_Expr:
 		build_string(n.expr, builder);
 		strings.write_string(builder, "(");
-		build_string(n.args, builder);
+		for arg, i in n.args {
+			build_string(arg, builder);
+			if len(n.args) - 1 != i {
+				strings.write_string(builder, ", ");
+			}
+		}
 		strings.write_string(builder, ")");
 	case Selector_Expr:
 		build_string(n.expr, builder);

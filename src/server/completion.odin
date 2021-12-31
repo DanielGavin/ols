@@ -180,7 +180,7 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 	if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 
-		if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
@@ -362,13 +362,13 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	case index.SymbolUnionValue:
 		list.isIncomplete = false;
 
-		for name, i in v.names {
-			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-
-				if symbol.pkg == ast_context.document_package {
-					symbol.name = fmt.aprintf("(%v)", name);
+		for type in v.types {
+			if symbol, ok := resolve_type_expression(ast_context, type); ok {
+				base := path.base(symbol.pkg, false, context.temp_allocator);
+				if symbol.pkg == ast_context.document_package || base == "runtime" {
+					symbol.name = fmt.aprintf("(%v)", common.node_to_string(type));
 				} else {
-					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), name);
+					symbol.name = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type));
 				}
 
 				item := CompletionItem {
@@ -408,7 +408,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 				if expr, ok := position_context.selector.derived.(ast.Selector_Expr); ok {
-
 					if expr.op.text == "->" && symbol.type != .Function {
 						continue;
 					}
@@ -421,7 +420,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				item := CompletionItem {
 					label = name,
 					kind = .Field,
-					detail = fmt.tprintf("%v.%v: %v", selector.name, name, common.node_to_string(v.types[i])),
+					detail = fmt.tprintf("%v.%v: %v", selector.name, name, type_to_string(ast_context, v.types[i])),
 					documentation = symbol.doc,
 				};
 
@@ -449,8 +448,8 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				symbol := search.symbol;
 
 				resolve_unresolved_symbol(ast_context, &symbol);
-				build_symbol_return(&symbol);
-				build_symbol_signature(&symbol);
+				build_procedure_symbol_return(&symbol);
+				build_procedure_symbol_signature(&symbol);
 				
 				item := CompletionItem {
 					label = symbol.name,
@@ -463,7 +462,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 					item.insertText = fmt.tprintf("%v($0)", item.label);
 					item.insertTextFormat = .Snippet;
 					item.command.command = "editor.action.triggerParameterHints";
-					item.deprecated = symbol.is_deprecated;
+					item.deprecated = .Deprecated in symbol.flags;			
 				}
 
 				append(&items, item);
@@ -584,6 +583,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 	}
 
+	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
 	if position_context.comp_lit != nil {
 		if position_context.parent_comp_lit.type == nil {
 			return;
@@ -591,37 +591,63 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 		field_name: string;
 
-		for elem in position_context.comp_lit.elems {
-			if position_in_node(elem, position_context.position) {
-				if field, ok := elem.derived.(ast.Field_Value); ok {
-					field_name = field.field.derived.(ast.Ident).name;
-				}
-			}
-		}
-
-		if field_name == "" {
-			return;
+		if position_context.field_value != nil {
+			field_name = position_context.field_value.field.derived.(ast.Ident).name;
 		}
 
 		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-			if comp_symbol, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 				if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
+
+					//We can either have the final 
+					elem_index := -1;
+
+					for elem, i in comp_lit.elems {
+						if position_in_node(elem, position_context.position) {
+							elem_index = i;
+						}
+					}
+
+					type: ^ast.Expr;
+
 					for name, i in s.names {
 						if name != field_name {
 							continue;
+						} 
+
+						type = s.types[i];
+						break;
+					}
+
+					if type == nil && len(s.types) > elem_index  {
+						type = s.types[elem_index];
+					}
+
+					if enum_value, ok := unwrap_enum(ast_context, type); ok {
+						for enum_name in enum_value.names {
+							item := CompletionItem {
+								label = enum_name,
+								kind = .EnumMember,
+								detail = enum_name,
+							};
+
+							append(&items, item);
 						}
 
-						if enum_value, ok := unwrap_enum(ast_context, s.types[i]); ok {
-							for enum_name in enum_value.names {
+						list.items = items[:];
+						return;
+					} else if bitset_symbol, ok := resolve_type_expression(ast_context, type); ok {
+						if value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
+							for name in value.names {
+			
 								item := CompletionItem {
-									label = enum_name,
+									label = name,
 									kind = .EnumMember,
-									detail = enum_name,
+									detail = name,
 								};
-
+			
 								append(&items, item);
-							}
-
+							}			
 							list.items = items[:];
 							return;
 						}
@@ -629,8 +655,8 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				}
 			}
 		}
-	}
-
+	} 
+	
 	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 
 		context_node: ^ast.Expr;
@@ -846,8 +872,8 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		for r in results {
 			r := r;
 			resolve_unresolved_symbol(ast_context, &r.symbol);
-			build_symbol_return(&r.symbol);
-			build_symbol_signature(&r.symbol);
+			build_procedure_symbol_return(&r.symbol);
+			build_procedure_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
 				append(&combined, CombinedResult {score = r.score, symbol = r.symbol});
 			}
@@ -875,12 +901,12 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator);
 		ident.name = k;
 
-		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.name      = ident.name;
+		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
 			symbol.signature = get_signature(ast_context, ident^, symbol);
+			symbol.name = ident.name;
 
-			build_symbol_return(&symbol);
-			build_symbol_signature(&symbol);
+			build_procedure_symbol_return(&symbol);
+			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
@@ -901,11 +927,12 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		ident.name = k;
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.name      = ident.name;
+			
 			symbol.signature = get_signature(ast_context, ident^, symbol);
+			symbol.name = ident.name;
 
-			build_symbol_return(&symbol);
-			build_symbol_signature(&symbol);
+			build_procedure_symbol_return(&symbol);
+			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 				append(&combined, CombinedResult {score = score * 1.1, symbol = symbol, variable = ident});
@@ -961,13 +988,13 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	sort.sort(combined_sort_interface(&combined));
 
 	//hard code for now
-	top_results := combined[0:(min(20, len(combined)))];
+	top_results := combined[0:(min(50, len(combined)))];
 
 	for result in top_results {
 
 		result := result;
 
-		//Skip procedures when the position is in proc decl
+			//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) && result.symbol.type == .Function && common.config.enable_procedure_context {
 			continue;
 		}
@@ -1014,7 +1041,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			if result.symbol.type == .Function {
 				item.insertText = fmt.tprintf("%v($0)", item.label);
 				item.insertTextFormat = .Snippet;
-				item.deprecated = result.symbol.is_deprecated;
+				item.deprecated =  .Deprecated in result.symbol.flags;
 				item.command.command = "editor.action.triggerParameterHints";
 			}
 			
@@ -1101,7 +1128,6 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	}
 
 	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == 0 {
-
 		for file in files {
 			if file.is_dir {
 				append(&packages, file.fullpath);
@@ -1123,13 +1149,9 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	used_unions := make(map[string]bool, 5, context.temp_allocator);
 
 	if block, ok := position_context.switch_type_stmt.body.derived.(ast.Block_Stmt); ok {
-
 		for stmt in block.stmts {
-
 			if case_clause, ok := stmt.derived.(ast.Case_Clause); ok {
-
 				for name in case_clause.list {
-
 					if ident, ok := name.derived.(ast.Ident); ok {
 						used_unions[ident.name] = true;
 					}
@@ -1142,23 +1164,21 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	ast_context.use_globals = true;
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
-
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
-
-			for name, i in union_value.names {
+			for type, i in union_value.types {
+				name := common.node_to_string(type);
 
 				if name in used_unions {
 					continue;
 				}
 
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
-
 					item := CompletionItem {
 						kind = .EnumMember,
 					};
 
 					if symbol.pkg == ast_context.document_package {
-						item.label  = fmt.aprintf("%v", name);
+						item.label  = fmt.aprintf("%v", common.node_to_string(union_value.types[i]));
 						item.detail = item.label;
 					} else {
 						item.label  = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name);
@@ -1228,11 +1248,47 @@ is_bitset_assignment_operator :: proc(op: string) -> bool {
 }
 
 language_keywords: []string = {
-	"align_of","case","defer","enum","import","proc","transmute","when",
-	"auto_cast","cast","distinct","fallthrough","in","notin","return","type_of",
-	"bit_field","const","do","for","inline","offset_of","size_of","typeid",
-	"bit_set","context","dynamic","foreign","opaque","struct","union",
-	"break","continue","else","if","map","package","switch","using",
+	"align_of",
+	"case",
+	"defer",
+	"enum",
+	"import",
+	"proc",
+	"transmute",
+	"when",
+	"auto_cast",
+	"cast",
+	"distinct",
+	"fallthrough",
+	"in",
+	"notin",
+	"return",
+	"type_of",
+	"bit_field",
+	"const",
+	"do",
+	"for",
+	"inline",
+	"offset_of",
+	"size_of",
+	"typeid",
+	"bit_set",
+	"context",
+	"dynamic",
+	"foreign",
+	"opaque",
+	"struct",
+	"union",
+	"break",
+	"continue",
+	"else",
+	"if",
+	"map",
+	"package",
+	"switch",
+	"using",
+	"or_return",
+	"or_else",
 };
 
 swizzle_color_components: map[u8]bool = {

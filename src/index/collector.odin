@@ -119,6 +119,7 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 		types = types[:],
 		usings = usings,
 		struct_name = get_index_unique_string(collection, ident),
+		poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings),
 	};
 
 	return value;
@@ -151,30 +152,18 @@ collect_enum_fields :: proc(collection: ^SymbolCollection, fields: []^ast.Expr, 
 
 collect_union_fields :: proc(collection: ^SymbolCollection, union_type: ast.Union_Type, package_map: map[string]string, ident: string) -> SymbolUnionValue {
 
-	names := make([dynamic]string, 0, collection.allocator);
 	types := make([dynamic]^ast.Expr, 0, collection.allocator);
 
 	for variant in union_type.variants {
-
-		if ident, ok := variant.derived.(ast.Ident); ok {
-			append(&names, get_index_unique_string(collection, ident.name));
-		} else if selector, ok := variant.derived.(ast.Selector_Expr); ok {
-
-			if ident, ok := selector.field.derived.(ast.Ident); ok {
-				append(&names, get_index_unique_string(collection, ident.name));
-			}
-		}
-
 		cloned := clone_type(variant, collection.allocator, &collection.unique_strings);
 		replace_package_alias(cloned, package_map, collection);
-
 		append(&types, cloned);
 	}
 
 	value := SymbolUnionValue {
-		names = names[:],
 		types = types[:],
 		union_name = get_index_unique_string(collection, ident),
+		poly = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
 	};
 
 	return value;
@@ -320,7 +309,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.signature = "enum";
 		case ast.Union_Type:
 			token = v;
-			token_type = .Enum;
+			token_type = .Union;
 			symbol.value = collect_union_fields(collection, v, package_map, name);
 			symbol.signature = "union";
 		case ast.Bit_Set_Type:
@@ -371,9 +360,18 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.pkg = get_index_unique_string(collection, directory);
 		symbol.type = token_type;
 		symbol.doc = common.get_doc(expr.docs, collection.allocator);
-		symbol.is_deprecated = expr.deprecated;
-		symbol.is_private_file = expr.file_private;
-		symbol.is_private_package = expr.package_private;
+
+		if expr.deprecated {
+			symbol.flags |= {.Deprecated};
+		}
+
+		if expr.file_private {
+			symbol.flags |= {.PrivateFile};
+		}
+
+		if expr.package_private {
+			symbol.flags |= {.PrivatePackage};
+		}
 
 		when ODIN_OS == "windows" {
 			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator));

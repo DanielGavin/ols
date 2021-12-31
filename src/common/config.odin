@@ -18,6 +18,7 @@ Config :: struct {
 	thread_count:             int,
 	file_log:                 bool,
 	formatter:                Format_Config,
+	odin_command:             string,
 }
 
 Format_Config :: struct {

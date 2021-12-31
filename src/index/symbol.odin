@@ -15,7 +15,7 @@ SymbolStructValue :: struct {
 	names:   []string,
 	types:   []^ast.Expr,
 	usings:  map[string]bool,
-	generic: bool,
+	poly: ^ast.Field_List,
 }
 
 SymbolPackageValue :: struct {}
@@ -42,8 +42,8 @@ SymbolEnumValue :: struct {
 
 SymbolUnionValue :: struct {
 	union_name: string,
-	names: []string,
 	types: []^ast.Expr,
+	poly: ^ast.Field_List,
 }
 
 SymbolDynamicArrayValue :: struct {
@@ -102,6 +102,16 @@ SymbolValue :: union {
 	SymbolUntypedValue,
 }
 
+SymbolFlag :: enum {
+	Distinct,
+	Deprecated,
+	PrivateFile,
+	PrivatePackage,
+	Anonymous,
+}
+
+SymbolFlags :: bit_set[SymbolFlag]
+
 Symbol :: struct {
 	range:               common.Range,
 	uri:                 string,
@@ -114,10 +124,7 @@ Symbol :: struct {
 	value:               SymbolValue,
 	references:          []common.Location,
 	pointers:            int,
-	is_distinct:         bool,
-	is_deprecated:       bool,
-	is_private_file:     bool,
-	is_private_package:  bool,
+	flags:               SymbolFlags,
 }
 
 SymbolType :: enum {
@@ -130,6 +137,7 @@ SymbolType :: enum {
 	EnumMember = 20,
 	Constant   = 21,
 	Struct     = 22,
+	Union      = 9000,
 	Unresolved = 9999,
 }
 
@@ -163,7 +171,6 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolEnumValue:
 		delete(v.names, allocator);
 	case SymbolUnionValue:
-		delete(v.names, allocator);
 		common.free_ast(v.types, allocator);
 	case SymbolBitSetValue:
 		common.free_ast(v.expr, allocator);

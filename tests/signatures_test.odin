@@ -486,6 +486,28 @@ shared_value_decl_type_signature :: proc(t: ^testing.T) {
     test.expect_signature_labels(t, &source, {"test.my_function: proc(a: int, b: int)"});
 }
 
+@(test)
+proc_with_struct_poly :: proc(t: ^testing.T) {
+    source := test.Source {
+		main = `package test
+		U :: struct(N: int, E: typetid) {
+			t: [N]E,
+		}
+
+		uf :: proc(u: U($T, $E)) {
+		}
+
+		main :: proc() {		
+			uf(*)
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
+}
+
+
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {

@@ -301,6 +301,7 @@ OlsConfig :: struct {
 	verbose:                  bool,
 	file_log:                 bool,
 	formatter:                common.Format_Config,
+	odin_command:             string,
 }
 
 OlsConfigCollection :: struct {
