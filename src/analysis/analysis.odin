@@ -64,6 +64,7 @@ DocumentPositionContext :: struct {
 DocumentLocal :: struct {
 	expr:   ^ast.Expr,
 	offset: int,
+	id: int, //Id that can used to connect the local to something, i.e. for stmt begin offset
 }
 
 AstContext :: struct {
@@ -85,10 +86,10 @@ AstContext :: struct {
 	value_decl:        ^ast.Value_Decl,
 	field_name:        string,
 	uri:               string,
+	symbol_cache:      ^map[int]rawptr, //symbol_cache from the current document
 }
 
-make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
-
+make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name: string, uri: string, symbol_cache: ^map[int]rawptr, allocator := context.temp_allocator) -> AstContext {
 	ast_context := AstContext {
 		locals = make(map[string][dynamic]DocumentLocal, 0, allocator),
 		globals = make(map[string]common.GlobalExpr, 0, allocator),
@@ -103,6 +104,7 @@ make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name
 		document_package = package_name,
 		current_package = package_name,
 		uri = uri,
+		symbol_cache = symbol_cache,
 	};
 
 	when ODIN_OS == "windows" {
@@ -785,7 +787,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 }
 
 resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (index.Symbol, bool) {
-
 	symbol := index.Symbol {
 		type = .Constant,
 	};
@@ -818,8 +819,37 @@ resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_D
 	return {}, false;
 }
 
-resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
+//Experiment with caching the results of the current file, this might just make it slower, 
+//but it will help with multiple requests like semantic tokens.
+//If this doesn't provide good results, just handle caching explicitly on semantic tokens only.
+lookup_symbol_cache :: proc(ast_context: ^AstContext, node: ast.Node) -> (index.Symbol, bool) {
+	if ast_context.document_package != node.pos.file || node.pos.file == "" {
+		return {}, false;
+	}
+	
+	if cached := &ast_context.symbol_cache[node.pos.offset]; cached != nil {
+		symbol := cast(^index.Symbol)cached^;
+		return symbol^, true;
+	} 
+	return {}, false;
+}
 
+resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
+	if symbol, ok := lookup_symbol_cache(ast_context, node^); ok {
+		return symbol, true;
+	}
+
+	if symbol, ok := internal_resolve_type_expression(ast_context, node); ok {
+		cached_symbol := index.new_clone_symbol(symbol);
+		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
+		return symbol, true;
+	} 
+
+	return {}, false;
+}
+
+
+internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
 	if node == nil {
 		return {}, false;
 	}
@@ -1010,8 +1040,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	return index.Symbol {}, false;
 }
 
-store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string) {
-
+store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string, id := 0) {
 	local_stack := &ast_context.locals[name];
 
 	if local_stack == nil {
@@ -1019,11 +1048,10 @@ store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name
 		local_stack = &ast_context.locals[name];
 	}
 
-	append(local_stack, DocumentLocal {expr = expr, offset = offset});
+	append(local_stack, DocumentLocal {expr = expr, offset = offset, id = id});
 }
 
-get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
-
+get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) -> ^ast.Expr {
 	previous := 0;
 
 	//is the local we are getting being declared?
@@ -1041,7 +1069,7 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 
 	if local_stack, ok := ast_context.locals[name]; ok {
 		for i := len(local_stack) - 1; i >= 0; i -= 1 {
-			if local_stack[i].offset <= offset {
+			if local_stack[i].offset <= offset && local_stack[i].id == id {
 				if i - previous < 0 {
 					return nil;
 				} else {
@@ -1055,7 +1083,20 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 }
 
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
+	if symbol, ok := lookup_symbol_cache(ast_context, node); ok {
+		return symbol, true;
+	}
+	
+	if symbol, ok := internal_resolve_type_identifier(ast_context, node); ok {
+		cached_symbol := index.new_clone_symbol(symbol);
+		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
+		return symbol, true;
+	}
 
+	return {}, false;
+}
+
+internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
 	using ast;
 
 	if pkg, ok := ast_context.in_package[node.name]; ok {
@@ -1078,7 +1119,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
-
 		is_distinct := false;
 
 		if dist, ok := local.derived.(ast.Distinct_Type); ok {
@@ -1138,7 +1178,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		return return_symbol, ok;
 
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
-
 		is_distinct := false;
 
 		if dist, ok := global.expr.derived.(ast.Distinct_Type); ok {
@@ -1235,7 +1274,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	} else {
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
 		if strings.contains(node.name, "/") {
-
 			symbol := index.Symbol {
 				type = .Package,
 				pkg = node.name,
@@ -1246,9 +1284,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		} else {
 			//part of the ast so we check the imports of the document
 			for imp in ast_context.imports {
-
 				if strings.compare(imp.base, node.name) == 0 {
-
 					symbol := index.Symbol {
 						type = .Package,
 						pkg = imp.name,
@@ -1275,39 +1311,21 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		}
 
 		for u in ast_context.usings {
-
 			//TODO(Daniel, make into a map, not really required for performance but looks nicer)
 			for imp in ast_context.imports {
-
 				if strings.compare(imp.base, u) == 0 {
-
 					if symbol, ok := index.lookup(node.name, imp.name); ok {
 						return resolve_symbol_return(ast_context, symbol);
 					}
 				}
 			}
 		}
-
 	}
 
 	return index.Symbol {}, false;
 }
 
-resolve_ident_is_variable :: proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
-
-	if v, ok := ast_context.variables[node.name]; ok && v {
-		return true;
-	}
-
-	if symbol, ok := index.lookup(node.name, ast_context.current_package); ok {
-		return symbol.type == .Variable;
-	}
-
-	return false;
-}
-
 resolve_ident_is_package :: proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
-
 	if strings.contains(node.name, "/") {
 		return true;
 	} else {
@@ -1985,7 +2003,6 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 
 	switch v in &value.derived {
 	case Call_Expr:
-
 		ast_context.call = cast(^ast.Call_Expr)value;
 
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
@@ -2400,34 +2417,71 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
-/*
-resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> []^index.Symbol {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> []index.Symbol {
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
 
 	get_globals(document.ast, &ast_context);
 
 	ast_context.current_package = ast_context.document_package;
 
-	symbols := make([]^index.Symbol, allocator);
+	symbols := make([dynamic]index.Symbol, allocator);
 
 	for decl in document.ast.decls {
 		switch v in decl.derived {
 		case ast.Proc_Lit:
-			resolve_entire_procedure(v.type, &symbols, allocator);
+			resolve_entire_procedure(&ast_context, v, &symbols, allocator);
 		}
 	}
+
+	return symbols[:];
 }
 
-resolve_entire_procedure :: proc(procedure: ^ast.Proc_Type, symbols: ^[]^index.Symbol, allocator := context.allocator) {
-	if procedure == nil {
-		return {};
+resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_Lit, symbols: ^[dynamic]index.Symbol, allocator := context.allocator) {
+	Visit_Data :: struct {
+		ast_context: ^AstContext,
+		symbols: ^[dynamic]index.Symbol,
 	}
 
-	get_locals()
+	data := Visit_Data {
+		ast_context = ast_context,
+		symbols = symbols,
+	};
 
+	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil || visitor == nil {
+			return nil;
+		}
 
+		data := cast(^Visit_Data)visitor.data;
+		ast_context := data.ast_context;
+
+		switch v in &node.derived {
+		case ast.Ident:
+			if symbol, ok := resolve_type_identifier(ast_context, v); ok {
+				append(data.symbols, symbol);
+			}
+		case ast.Selector_Expr:
+			if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
+				append(data.symbols, symbol);
+			}
+		}
+
+		return visitor;
+	}
+
+	visitor := ast.Visitor {
+		data = &data,
+		visit = visit,
+	}
+
+	ast.walk(&visitor, procedure.body);
+	
+	if procedure.type != nil {
+		ast.walk(&visitor, procedure.type.params);
+		ast.walk(&visitor, procedure.type.results);
+	}
 }
-*/
+
 
 concatenate_symbol_information :: proc {
 	concatenate_raw_symbol_information,
@@ -2512,7 +2566,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 		return symbol.name;
 	}
 
-	is_variable := resolve_ident_is_variable(ast_context, ident);
+	is_variable := symbol.type == .Variable;
 
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:

@@ -1198,7 +1198,6 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 
 	source := test.Source {
 		main = `package main
-		import "my_package"
 		f :: proc() {
 			Distinct_Type :: distinct u32
 
@@ -1210,6 +1209,47 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 
     test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
 }
+
+@(test)
+ast_new_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		new :: proc($T: typeid) -> (^T, Allocator_Error) #optional_second {
+		}
+
+		main :: proc() {
+			adzz := new(int);
+			adzz*
+		}
+
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+}
+
+@(test)
+ast_rawtr_cast_completion :: proc(t: ^testing.T) {
+
+	source := test.Source {
+		main = `package main
+		
+		main :: proc() {
+			raw: rawptr
+			my_int := cast(^int)raw;
+			my_i*
+		}
+
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+}
+
+
+
+
 
 
 /*	

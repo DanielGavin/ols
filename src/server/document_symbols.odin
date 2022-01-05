@@ -21,10 +21,9 @@ import "shared:analysis"
 
 
 get_document_symbols :: proc(document: ^common.Document) -> []DocumentSymbol {
-
 	using analysis;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
 
 	get_globals(document.ast, &ast_context);
 

@@ -336,7 +336,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			}
 		case: // default
 			symbol.value = collect_generic(collection, col_expr, package_map);
-			token_type = .Unresolved;
+			if expr.mutable {
+				token_type = .Variable;
+			} else {
+				token_type = .Unresolved;
+			}
 			token = expr.expr;
 		}
 

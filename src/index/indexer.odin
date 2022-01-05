@@ -33,6 +33,8 @@ import "core:sort"
 	This index is first searched and if nothing is found look in the static index.
 */
 
+
+
 Indexer :: struct {
 	built_in_packages: [dynamic]string,
 	static_index:      MemoryIndex,
@@ -47,7 +49,6 @@ FuzzyResult :: struct {
 }
 
 lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
-
 	if symbol, ok := memory_index_lookup(&indexer.dynamic_index, name, pkg); ok {
 		log.infof("lookup dynamic name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc);
 		return symbol, true;
@@ -64,9 +65,9 @@ lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, b
 
 fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs);
-	static_results, static_ok   := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
-	result                      := make([dynamic]FuzzyResult, context.temp_allocator);
-	files                       := make(map[string]bool, 0, context.temp_allocator);
+	static_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs);
+	result := make([dynamic]FuzzyResult, context.temp_allocator);
+	files := make(map[string]bool, 0, context.temp_allocator);
 
 	if !dynamic_ok || !static_ok {
 		return {}, false;

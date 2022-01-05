@@ -105,11 +105,11 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			return .InvalidRequest;
 		}
 
-		document.uri          = uri;
+		document.uri = uri;
 		document.client_owned = true;
-		document.text         = transmute([]u8)text;
-		document.used_text    = len(document.text);
-		document.allocator    = document_get_allocator();
+		document.text = transmute([]u8)text;
+		document.used_text = len(document.text);
+		document.allocator = document_get_allocator();
 
 		if err := document_refresh(document, config, writer); err != .None {
 			return err;
@@ -123,6 +123,8 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			used_text = len(text),
 			allocator = document_get_allocator(),
 		};
+
+		document.symbol_cache = make(map[int]rawptr, 10, common.scratch_allocator(document.allocator));
 
 		if err := document_refresh(&document, config, writer); err != .None {
 			return err;
@@ -248,7 +250,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 }
 
 document_refresh :: proc(document: ^common.Document, config: ^common.Config, writer: ^Writer) -> common.Error {
-
+	clear(&document.symbol_cache);
 	errors, ok := parse_document(document, config);
 
 	if !ok {

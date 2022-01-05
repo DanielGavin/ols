@@ -103,24 +103,25 @@ SymbolFlag :: enum {
 	Deprecated,
 	PrivateFile,
 	PrivatePackage,
-	Anonymous,
+	Anonymous, //Usually applied to structs that are defined inline inside another struct
+	Variable, //Symbols that are variable, this means their value decl was mutable
 }
 
 SymbolFlags :: bit_set[SymbolFlag]
 
 Symbol :: struct {
-	range:               common.Range, //the range of the symbol in the file
-	uri:                 string, //uri of the file the symbol resides
-	pkg:                 string, //absolute directory path where the symbol resides
-	name:                string, //name of the symbol
-	doc:                 string,
-	signature:           string, //type signature
-	returns:             string, //precedure return signature
-	type:                SymbolType,
-	value:               SymbolValue,
-	references:          []common.Location, //all the places in the project that it's being referenced 
-	pointers:            int, //how many `^` are applied to the symbol
-	flags:               SymbolFlags,
+	range:      common.Range, //the range of the symbol in the file
+	uri:        string, //uri of the file the symbol resides
+	pkg:        string, //absolute directory path where the symbol resides
+	name:       string, //name of the symbol
+	doc:        string,
+	signature:  string, //type signature
+	returns:    string, //precedure return signature
+	type:       SymbolType,
+	value:      SymbolValue,
+	references: []common.Location, //all the places in the project that it's being referenced 
+	pointers:   int, //how many `^` are applied to the symbol
+	flags:      SymbolFlags,
 }
 
 SymbolType :: enum {
@@ -135,6 +136,13 @@ SymbolType :: enum {
 	Struct     = 22,
 	Union      = 9000,
 	Unresolved = 9999,
+}
+
+new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symbol) {
+	new_symbol := new(Symbol, allocator);
+	new_symbol^ = data;
+	new_symbol.value = data.value;
+	return new_symbol;
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {

@@ -20,14 +20,13 @@ import "shared:index"
 import "shared:analysis"
 
 get_definition_location :: proc(document: ^common.Document, position: common.Position) -> ([]common.Location, bool) {
-
 	using analysis;
 
 	locations := make([dynamic]common.Location, context.temp_allocator);
 
 	location: common.Location;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
 
 	uri: string;
 

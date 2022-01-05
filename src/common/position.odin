@@ -55,7 +55,6 @@ get_absolute_position :: proc(position: Position, document_text: []u8) -> (Absol
 }
 
 get_relative_token_position :: proc(offset: int, document_text: []u8, current_start: int) -> Position {
-
 	start_index := current_start;
 
 	data := document_text[start_index:];

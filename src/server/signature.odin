@@ -127,7 +127,7 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 
 	signature_help: SignatureHelp;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
 
 	position_context, ok := get_document_position_context(document, position, .SignatureHelp);
 

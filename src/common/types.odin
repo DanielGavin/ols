@@ -37,8 +37,9 @@ Document :: struct {
 	ast:              ast.File,
 	imports:          []Package,
 	package_name:     string,
-	allocator:        ^Scratch_Allocator, //because does not support freeing I use arena allocators for each document
+	allocator:        ^Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
+	symbol_cache:     map[int]rawptr, //Stores all the symbol data for this current iteration of the file. Gets cleared every change.
 }
 
 parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {

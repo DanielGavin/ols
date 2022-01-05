@@ -674,6 +674,8 @@ request_completion :: proc (task: ^common.Task) {
 		return;
 	}
 
+	//context.allocator = common.scratch_allocator(document.allocator);
+
 	list: CompletionList;
 	list, ok = get_completion_list(document, completition_params.position, completition_params.context_);
 
@@ -912,7 +914,6 @@ notification_did_save :: proc (task: ^common.Task) {
 		warn = index.log_warning_handler,
 	};
 
-	//have to cheat the parser since it really wants to parse an entire package with the new changes...
 	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
 
 	pkg := new(ast.Package);
@@ -937,7 +938,6 @@ notification_did_save :: proc (task: ^common.Task) {
 	}
 
 	for key, value in index.indexer.dynamic_index.collection.symbols {
-
 		if value.uri == save_params.textDocument.uri {
 			index.free_symbol(value, context.allocator);
 			index.indexer.dynamic_index.collection.symbols[key] = {};

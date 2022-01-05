@@ -50,7 +50,7 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 		return list, true;
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
 
 	get_globals(document.ast, &ast_context);
 
@@ -232,10 +232,13 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if ident, ok := position_context.selector.derived.(ast.Ident); ok {
-		is_variable := resolve_ident_is_variable(ast_context, ident);
-		is_package  := resolve_ident_is_package(ast_context, ident);
+		symbol, ok := resolve_type_identifier(ast_context, ident); 
 
-		if (!is_variable && !is_package && selector.type != .Enum && ident.name != "") || (is_variable && selector.type == .Enum) {
+		if !ok {
+			return;
+		}
+
+		if (symbol.type != .Variable && symbol.type != .Package && selector.type != .Enum && ident.name != "") || (symbol.type == .Variable && selector.type == .Enum) {
 			return;
 		}
 	}
@@ -386,7 +389,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		list.isIncomplete = false;
 
 		for name in v.names {
-
 			item := CompletionItem {
 				label = name,
 				kind = .EnumMember,
@@ -439,11 +441,9 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 	case index.SymbolPackageValue:
-
 		list.isIncomplete = true;
 
 		if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
-
 			for search in searched {
 				symbol := search.symbol;
 
@@ -477,7 +477,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 }
 
 get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-
 	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
@@ -497,17 +496,12 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 	//enum switch infer
 	if position_context.switch_stmt != nil && position_context.case_clause != nil && position_context.switch_stmt.cond != nil {
-
 		used_enums := make(map[string]bool, 5, context.temp_allocator);
 
 		if block, ok := position_context.switch_stmt.body.derived.(ast.Block_Stmt); ok {
-
 			for stmt in block.stmts {
-
 				if case_clause, ok := stmt.derived.(ast.Case_Clause); ok {
-
 					for name in case_clause.list {
-
 						if implicit, ok := name.derived.(ast.Implicit_Selector_Expr); ok {
 							used_enums[implicit.field.name] = true;
 						}
@@ -517,9 +511,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		if enum_value, ok := unwrap_enum(ast_context, position_context.switch_stmt.cond); ok {
-
 			for name in enum_value.names {
-
 				if name in used_enums {
 					continue;
 				}
@@ -658,7 +650,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	} 
 	
 	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
-
 		context_node: ^ast.Expr;
 		enum_node:    ^ast.Expr;
 
@@ -673,7 +664,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if context_node != nil && enum_node != nil {
 			if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
 				for name in enum_value.names {
-
 					item := CompletionItem {
 						label = name,
 						kind = .EnumMember,
@@ -690,19 +680,15 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
-
 		rhs_index: int;
 
 		for elem in position_context.assign.rhs {
 			if position_in_node(elem, position_context.position) {
 				break;
 			} else {
-
 				//procedures are the only types that can return more than one value
 				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
-
 					if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
-
 						if procedure.return_types == nil {
 							return;
 						}
@@ -718,7 +704,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if len(position_context.assign.lhs) > rhs_index {
 			if enum_value, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
 				for name in enum_value.names {
-
 					item := CompletionItem {
 						label = name,
 						kind = .EnumMember,
@@ -735,7 +720,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if position_context.returns != nil && position_context.function != nil {
-
 		return_index: int;
 
 		if position_context.returns.results == nil {
@@ -743,7 +727,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		for result, i in position_context.returns.results {
-
 			if position_in_node(result, position_context.position) {
 				return_index = i;
 				break;
@@ -759,11 +742,8 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
-
 			if enum_value, ok := unwrap_enum(ast_context, position_context.function.type.results.list[return_index].type); ok {
-
 				for name in enum_value.names {
-
 					item := CompletionItem {
 						label = name,
 						kind = .EnumMember,
@@ -780,21 +760,15 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if position_context.call != nil {
-
 		if call, ok := position_context.call.derived.(ast.Call_Expr); ok {
-
 			parameter_index, parameter_ok := find_position_in_call_param(ast_context, call);
-
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
-
 				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
-
 					if len(proc_value.arg_types) <= parameter_index {
 						return;
 					}
 
 					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
-
 						for name in enum_value.names {
 							item := CompletionItem {
 								label = name,
@@ -815,7 +789,6 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 }
 
 get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-
 	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
@@ -824,7 +797,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 	CombinedResult :: struct {
 		score:     f32,
-		variable:  ^ast.Ident,
 		snippet:   Snippet_Info,	
 		name:      string,
 		type:      index.SymbolType,
@@ -931,7 +903,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 					pkg = symbol.pkg,
 					signature = symbol.signature,
 					returns = symbol.returns,
-					variable = ident,
 				});
 			}
 		}
@@ -965,7 +936,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 					pkg = symbol.pkg,
 					signature = symbol.signature,
 					returns = symbol.returns,
-					variable = ident,
 				});
 			}
 		}
@@ -1049,7 +1019,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	top_results := combined[0:(min(50, len(combined)))];
 
 	for result in top_results {
-
 		result := result;
 
 		//Skip procedures when the position is in proc decl
@@ -1085,16 +1054,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 				documentation = result.doc,
 			};
 
-			if result.variable != nil {
-				if ok := resolve_ident_is_variable(ast_context, result.variable^); ok {
-					item.kind = .Variable;
-					result.type = .Variable;
-				} else {
-					item.kind = cast(CompletionItemKind)result.type;
-				}
-			} else {
-				item.kind = cast(CompletionItemKind)result.type;
-			}
+			item.kind = cast(CompletionItemKind)result.type;
 
 			if result.type == .Function {
 				item.insertText = fmt.tprintf("%v($0)", item.label);
@@ -1143,7 +1103,6 @@ get_package_completion :: proc(ast_context: ^analysis.AstContext, position_conte
 	}
 
 	if !strings.contains(position_context.import_stmt.fullpath, "/") && !strings.contains(position_context.import_stmt.fullpath, ":") {
-
 		for key, _ in common.config.collections {
 
 			item := CompletionItem {
@@ -1158,7 +1117,6 @@ get_package_completion :: proc(ast_context: ^analysis.AstContext, position_conte
 	}
 
 	for pkg in search_for_packages(absolute_path) {
-
 		item := CompletionItem {
 			detail = pkg,
 			label = filepath.base(pkg),
@@ -1176,7 +1134,6 @@ get_package_completion :: proc(ast_context: ^analysis.AstContext, position_conte
 }
 
 search_for_packages :: proc(fullpath: string) -> [] string {
-
 	packages := make([dynamic]string, context.temp_allocator);
 
 	fh, err := os.open(fullpath);
@@ -1198,7 +1155,6 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 }
 
 get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-
 	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
@@ -1253,7 +1209,6 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 }
 
 get_core_insert_package_if_non_existent :: proc(ast_context: ^analysis.AstContext, pkg: string) -> (TextEdit, bool) {
-
 	builder := strings.make_builder(context.temp_allocator);
 
 	for imp in ast_context.imports {
