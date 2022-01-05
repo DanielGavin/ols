@@ -151,13 +151,10 @@ print :: proc(p: ^Printer, file: ^ast.File) -> string {
 		p.newline = "\n"
 	}
 
-	set_source_position(p, file.pkg_token.pos)
-
-	p.last_source_position.line = 1
-
 	build_disabled_lines_info(p)
-
-	p.document = cons_with_nopl(text("package"), text(file.pkg_name))
+	
+	p.document = move_line(p, file.pkg_token.pos);
+	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))
 
 	for decl in file.decls {
 		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
