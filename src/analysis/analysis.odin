@@ -566,7 +566,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol, flags
 	case index.SymbolBasicValue:
 		return a.name == b.name && a.pkg == b.pkg
 	case index.SymbolStructValue, index.SymbolEnumValue, index.SymbolUnionValue, index.SymbolBitSetValue:
-			return a.name == b.name && a.pkg == b.pkg;
+		return a.name == b.name && a.pkg == b.pkg;
 	case index.SymbolSliceValue:
 		b_value := b.value.(index.SymbolSliceValue);
 
@@ -696,7 +696,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
 
-			if ast_context.call == nil || len(ast_context.call.args) == 0 {
+			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f);
 				break next_fn;
 			}
@@ -740,13 +740,21 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						} else {
 							break next_fn;
 						}
-						
 					} else {
 						call_symbol, ok = resolve_type_expression(ast_context, arg);
 					}
 
 					if !ok {	
 						break next_fn;
+					}
+
+					if p, ok := call_symbol.value.(index.SymbolProcedureValue); ok {
+						if len(p.return_types) != 1 {
+							break next_fn;
+						}
+						if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
+							call_symbol = s;
+						}
 					}
 
 					if procedure.arg_types[i].type != nil {
@@ -761,15 +769,14 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, procedure.arg_types[i].flags) {	
 						break next_fn;
-					}
-
+					} 
 				}
 	
 				append(&candidates, f);
 			}
 		}
 	}
-	
+
 	if len(candidates) > 1 {
 		return index.Symbol {
 			type = candidates[0].type,
