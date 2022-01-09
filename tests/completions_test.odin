@@ -1195,7 +1195,6 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_distinct_u32_completion :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package main
 		import "my_package"
@@ -1209,6 +1208,33 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 	};
 
     test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+}
+
+@(test)
+ast_overload_with_procedure_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"	
+	
+
+		my_group :: proc {
+			make_slice,
+			make_map,
+		}
+
+		make_slice :: proc($T: typeid/[]$E, auto_cast len: int) -> (T, Allocator_Error) #optional_second {}
+		make_map :: proc(a: int) -> int {}
+
+
+		test_int :: proc() -> int {}
+		main :: proc() {
+			my_in := my_group([]int, test_int())
+			my_in*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.my_in: []int"});
 }
 
 
