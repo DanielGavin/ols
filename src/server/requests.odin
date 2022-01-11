@@ -570,9 +570,9 @@ request_initialize :: proc (task: ^common.Task) {
 
 	if core, ok := config.collections["core"]; ok {
 		when ODIN_OS == "windows" {
-			append(&index.indexer.built_in_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
+			append(&index.indexer.builtin_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"));
 		} else {
-			append(&index.indexer.built_in_packages, path.join(core, "runtime"));
+			append(&index.indexer.builtin_packages, path.join(core, "runtime"));
 		}
 	}
 

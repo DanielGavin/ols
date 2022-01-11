@@ -36,7 +36,7 @@ import "core:sort"
 
 
 Indexer :: struct {
-	built_in_packages: [dynamic]string,
+	builtin_packages: [dynamic]string,
 	static_index:      MemoryIndex,
 	dynamic_index:     MemoryIndex,
 }

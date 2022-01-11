@@ -378,13 +378,11 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	count_required_params := 0;	
 
 	for param in params {
-
 		if param.default_value == nil {
 			count_required_params += 1;
 		}
 
 		for name in param.names {
-
 			if len(call_expr.args) <= i {
 				break;
 			}
@@ -398,7 +396,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 			}
 
 			if type_id, ok := param.type.derived.(Typeid_Type); ok {
-				if !common.node_equal(call_expr.args[i], type_id.specialization) {
+				if type_id.specialization != nil && !common.node_equal(call_expr.args[i], type_id.specialization)  {
 					return {}, false;
 				}
 			}
@@ -440,7 +438,9 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 			continue;
 		}
 
-		if ident, ok := result.type.derived.(Ident); ok {
+		ident, ok := common.unwrap_pointer(result.type);
+
+		if ok {
 			if m, ok := poly_map[ident.name]; ok {
 				field := cast(^Field)index.clone_node(result, context.temp_allocator, nil);
 				field.type = m;
@@ -468,7 +468,6 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		} else {
 			append(&argument_types, param);
 		}
-
 	}
 
 	symbol.value = index.SymbolProcedureValue {
@@ -830,7 +829,7 @@ resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_D
 //but it will help with multiple requests like semantic tokens.
 //If this doesn't provide good results, just handle caching explicitly on semantic tokens only.
 lookup_symbol_cache :: proc(ast_context: ^AstContext, node: ast.Node) -> (index.Symbol, bool) {
-	if ast_context.document_package != node.pos.file || node.pos.file == "" {
+	if ast_context.document_package != ast_context.current_package {
 		return {}, false;
 	}
 	
@@ -952,18 +951,26 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case Index_Expr:
 		indexed, ok := resolve_type_expression(ast_context, v.expr);
 
-		#partial switch v2 in indexed.value {
-		case index.SymbolDynamicArrayValue:
-			return resolve_type_expression(ast_context, v2.expr);
-		case index.SymbolSliceValue:
-			return resolve_type_expression(ast_context, v2.expr);
-		case index.SymbolFixedArrayValue:
-			return resolve_type_expression(ast_context, v2.expr);
-		case index.SymbolMapValue:
-			return resolve_type_expression(ast_context, v2.value);
+		if !ok {
+			return {}, false;
 		}
 
-		return index.Symbol {}, false;
+		symbol: index.Symbol;
+
+		#partial switch v2 in indexed.value {
+		case index.SymbolDynamicArrayValue:
+			symbol, ok = resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolSliceValue:
+			symbol, ok = resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolFixedArrayValue:
+			symbol, ok = resolve_type_expression(ast_context, v2.expr);
+		case index.SymbolMapValue:
+			symbol, ok = resolve_type_expression(ast_context, v2.value);
+		}
+
+		symbol.type = indexed.type;
+
+		return symbol, ok;
 	case Call_Expr:
 		ast_context.call = cast(^Call_Expr)node;
 		return resolve_type_expression(ast_context, v.expr);
@@ -973,7 +980,6 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return resolve_type_expression(ast_context, v.expr);
 	case Selector_Expr:
 		if selector, ok := resolve_type_expression(ast_context, v.expr); ok {
-
 			ast_context.use_locals = false;
 
 			#partial switch s in selector.value {
@@ -996,13 +1002,16 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 					} else {
 						ast_context.current_package = ast_context.document_package;
 					}
-					return resolve_type_expression(ast_context, s.expr);
+					symbol, ok := resolve_type_expression(ast_context, s.expr);
+					symbol.type = .Variable;
+					return symbol, ok;
 				} else {
 					value := index.SymbolFixedArrayValue {
 						expr = s.expr,
 						len = make_int_basic_value(components_count),
 					};
 					selector.value = value;
+					selector.type = .Variable;
 					return selector, true;
 				}
 			case index.SymbolProcedureValue:
@@ -1022,7 +1031,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 				for name, i in s.names {
 					if v.field != nil && name == v.field.name {
 						ast_context.field_name = v.field.name;
-						return resolve_type_expression(ast_context, s.types[i]);
+						symbol, ok := resolve_type_expression(ast_context, s.types[i]);
+						symbol.type = .Variable;
+						return symbol, ok;
 					}
 				}
 			case index.SymbolPackageValue:
@@ -1065,7 +1076,6 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) 
 	if ast_context.value_decl != nil {
 		for value_decl_name in ast_context.value_decl.names {
 			if ident, ok := value_decl_name.derived.(ast.Ident); ok {
-
 				if ident.name == name {
 					previous = 1;
 					break;
@@ -1087,6 +1097,21 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) 
 	}
 
 	return nil;
+}
+
+get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) -> int {
+	if local_stack, ok := ast_context.locals[name]; ok {
+		for i := len(local_stack) - 1; i >= 0; i -= 1 {
+			if local_stack[i].offset <= offset && local_stack[i].id == id {
+				if i < 0 {
+					return -1;
+				} else {
+					return local_stack[i].offset;
+				}		
+			}
+		}
+	}
+	return -1;
 }
 
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
@@ -1182,6 +1207,10 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol.flags |= {.Distinct};
 		}
 
+		if is_variable, ok := ast_context.variables[node.name]; ok && is_variable {
+			return_symbol.type = .Variable;
+		}
+
 		return return_symbol, ok;
 
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
@@ -1239,11 +1268,15 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol.flags |= {.Distinct};
 		}
 
+		if is_variable, ok := ast_context.variables[node.name]; ok && is_variable {
+			return_symbol.type = .Variable;
+		}
+
 		return_symbol.doc = common.get_doc(global.docs, context.temp_allocator);
 
 		return return_symbol, ok;
 	} else if node.name == "context" {
-		for built in index.indexer.built_in_packages {
+		for built in index.indexer.builtin_packages {
 			if symbol, ok := index.lookup("Context", built); ok {
 				return symbol, ok;
 			}
@@ -1310,7 +1343,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 		//If we are resolving a symbol that is in the document package, then we'll check the builtin packages.
 		if ast_context.current_package == ast_context.document_package {
-			for built in index.indexer.built_in_packages {
+			for built in index.indexer.builtin_packages {
 				if symbol, ok := index.lookup(node.name, built); ok {
 					return resolve_symbol_return(ast_context, symbol);
 				}
@@ -1348,14 +1381,10 @@ resolve_ident_is_package :: proc(ast_context: ^AstContext, node: ast.Ident) -> b
 }
 
 expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, value: index.SymbolStructValue) -> index.SymbolStructValue {
-
-	//ERROR no completion or over on names and types - generic resolve error
 	names := slice.to_dynamic(value.names, context.temp_allocator);
 	types := slice.to_dynamic(value.types, context.temp_allocator);
-	
-	//ERROR no hover on k and v(completion works)
-	for k, v in value.usings {
 
+	for k, v in value.usings {
 		ast_context.current_package = symbol.pkg;
 
 		field_expr: ^ast.Expr;
@@ -1372,9 +1401,7 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: index.Symbol, val
 		}
 
 		if s, ok := resolve_type_expression(ast_context, field_expr); ok {
-
 			if struct_value, ok := s.value.(index.SymbolStructValue); ok {
-
 				for name in struct_value.names {
 					append(&names, name);
 				}
@@ -1868,7 +1895,6 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 }
 
 resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^index.Symbol) {
-
 	if ast_context.call == nil {
 		return;
 	}
@@ -1929,7 +1955,6 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 }
 
 resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^index.Symbol) {
-
 	if ast_context.call == nil {
 		return;
 	}
@@ -2013,9 +2038,7 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 		ast_context.call = cast(^ast.Call_Expr)value;
 
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-
 			if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
-
 				for ret in procedure.return_types {
 					append(results, ret.type);
 				}
@@ -2489,26 +2512,19 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 	}
 }
 
-
 concatenate_symbol_information :: proc {
 	concatenate_raw_symbol_information,
 	concatenate_raw_string_information,
 }
 
 concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: index.Symbol, is_completion: bool) -> string {
-	return concatenate_raw_string_information(ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.returns, symbol.type, is_completion);
+	return concatenate_raw_string_information(ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.type, is_completion);
 }
 
-concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string, name: string, signature: string, returns: string, type: index.SymbolType, is_completion: bool) -> string {
+concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string, name: string, signature: string, type: index.SymbolType, is_completion: bool) -> string {
 	pkg := path.base(pkg, false, context.temp_allocator);
 
-	if type == .Function {
-		if returns != "" {
-			return fmt.tprintf("%v.%v: proc%v -> %v", pkg, name, signature, returns);
-		} else {
-			return fmt.tprintf("%v.%v: proc%v", pkg, name, signature);
-		}
-	} else if type == .Package {
+	if type == .Package {
 		return name;
 	} else if type == .Keyword && is_completion {
 		return name;
@@ -2522,7 +2538,6 @@ concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string
 }
 
 unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolEnumValue, bool) {
-
 	if node == nil {
 		return {}, false;
 	}
@@ -2538,7 +2553,6 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolE
 }
 
 unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.SymbolUnionValue, bool) {
-
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
 		if union_value, ok := union_symbol.value.(index.SymbolUnionValue); ok {
 			return union_value, true;
@@ -2549,7 +2563,6 @@ unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol
 }
 
 unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: index.Symbol) -> (index.SymbolEnumValue, bool) {
-
 	if bitset_value, ok := bitset_symbol.value.(index.SymbolBitSetValue); ok {
 		if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
 			if enum_value, ok := enum_symbol.value.(index.SymbolEnumValue); ok {
@@ -2562,7 +2575,6 @@ unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: index.Symbol) -> 
 }
 
 get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.Symbol, was_variable := false) -> string {
-
 	using index;
 
 	if symbol.type == .Function {
@@ -2626,7 +2638,6 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: index.
 }
 
 position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
-
 	if position_context.value_decl == nil {
 		return false;
 	}
@@ -2650,7 +2661,6 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 
 
 is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
-
 	if len(position_context.comp_lit.elems) == 0 {
 		return true;
 	}
@@ -2674,7 +2684,6 @@ is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 }
 
 field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool {
-
 	for elem in comp_lit.elems {
 
 		if field, ok := elem.derived.(ast.Field_Value); ok {
@@ -2698,7 +2707,6 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 	Parser gives ranges of expression, but not actually where the commas are placed.
 */
 get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^common.Document) {
-
 	if position_context.call == nil {
 		return;
 	}
@@ -2733,7 +2741,6 @@ get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^c
 }
 
 type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
-	
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if .Anonymous in symbol.flags {
 			return symbol.name;
@@ -2747,7 +2754,6 @@ type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
 get_document_position_context :: proc(document: ^common.Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
-
 	position_context: DocumentPositionContext;
 
 	position_context.hint = hint;
@@ -2825,7 +2831,6 @@ get_document_position_context :: proc(document: ^common.Document, position: comm
 
 //terrible fallback code
 fallback_position_context_completion :: proc(document: ^common.Document, position: common.Position, position_context: ^DocumentPositionContext) {
-
 	paren_count:   int;
 	bracket_count: int;
 	end:           int;
@@ -3020,7 +3025,6 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 }
 
 fallback_position_context_signature :: proc(document: ^common.Document, position: common.Position, position_context: ^DocumentPositionContext) {
-
 	end:   int;
 	start: int;
 	i := position_context.position - 1;
@@ -3100,14 +3104,12 @@ get_document_position ::proc {
 };
 
 get_document_position_array :: proc(array: $A/[]^$T, position_context: ^DocumentPositionContext) {
-
 	for elem, i in array {
 		get_document_position(elem, position_context);
 	}
 }
 
 get_document_position_dynamic_array :: proc(array: $A/[dynamic]^$T, position_context: ^DocumentPositionContext) {
-
 	for elem, i in array {
 		get_document_position(elem, position_context);
 	}
@@ -3118,7 +3120,6 @@ position_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> 
 }
 
 get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentPositionContext) {
-
 	using ast;
 
 	if node == nil {

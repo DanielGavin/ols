@@ -56,6 +56,7 @@ build_procedure_symbol_signature :: proc(symbol: ^index.Symbol) {
 	if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
 		builder := strings.make_builder(context.temp_allocator);
 	
+		strings.write_string(&builder, "proc");
 		strings.write_string(&builder, "(");
 		for arg, i in value.arg_types {
 			strings.write_string(&builder, common.node_to_string(arg));
@@ -65,34 +66,27 @@ build_procedure_symbol_signature :: proc(symbol: ^index.Symbol) {
 		}
 		strings.write_string(&builder, ")");
 
-		symbol.signature = strings.to_string(builder);
-	}
-}
+		if len(value.return_types) != 0 {
+			strings.write_string(&builder, " -> ");
 
-build_procedure_symbol_return :: proc(symbol: ^index.Symbol) {
-	if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
-		builder := strings.make_builder(context.temp_allocator);
+			if len(value.return_types) > 1 {
+				strings.write_string(&builder, "(");
+			}
 	
-		if len(value.return_types) == 0 {
-			return;
-		}
-
-		if len(value.return_types) > 1 {
-			strings.write_string(&builder, "(");
-		}
-
-		for arg, i in value.return_types {
-			strings.write_string(&builder, common.node_to_string(arg));
-			if i != len(value.return_types) - 1 {
-				strings.write_string(&builder, ", ");
+			for arg, i in value.return_types {
+				strings.write_string(&builder, common.node_to_string(arg));
+				if i != len(value.return_types) - 1 {
+					strings.write_string(&builder, ", ");
+				}
+			}
+			
+			if len(value.return_types) > 1 {
+				strings.write_string(&builder, ")");
 			}
 		}
-		
-		if len(value.return_types) > 1 {
-			strings.write_string(&builder, ")");
-		}
-
-		symbol.returns = strings.to_string(builder);
+		symbol.signature = strings.to_string(builder);
+	} else if value, ok := symbol.value.(index.SymbolAggregateValue); ok {
+		symbol.signature = "proc";
 	}
 }
 
@@ -101,7 +95,6 @@ seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
 		types := make([dynamic]^ast.Field, context.temp_allocator);
 				
 		for arg, i in value.arg_types {
-
 			if len(arg.names) == 1 {
 				append(&types, arg);
 				continue;
@@ -122,7 +115,6 @@ seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
 
 
 get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
-
 	using analysis;
 
 	signature_help: SignatureHelp;
@@ -175,7 +167,6 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 		}
 
 		build_procedure_symbol_signature(&call);
-		build_procedure_symbol_return(&call);
 
 		info := SignatureInformation {
 			label = concatenate_symbol_information(&ast_context, call, false),
@@ -206,7 +197,6 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 				}
 
 				build_procedure_symbol_signature(&symbol);
-				build_procedure_symbol_return(&symbol);
 
 				info := SignatureInformation {
 					label = concatenate_symbol_information(&ast_context, symbol, false),

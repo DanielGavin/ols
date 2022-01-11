@@ -116,7 +116,6 @@ Symbol :: struct {
 	name:       string, //name of the symbol
 	doc:        string,
 	signature:  string, //type signature
-	returns:    string, //precedure return signature
 	type:       SymbolType,
 	value:      SymbolValue,
 	references: []common.Location, //all the places in the project that it's being referenced 
@@ -151,10 +150,6 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	   symbol.signature != "union" && symbol.signature != "enum" &&
 	   symbol.signature != "bitset" {
 		delete(symbol.signature, allocator);
-	}
-
-	if symbol.returns != "" {
-		delete(symbol.returns, allocator);
 	}
 
 	if symbol.doc != "" {

@@ -79,5 +79,5 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 		packages = packages[:],
 	};
 
-	test.expect_hover(t, &source, "cool: my_package.My_Struct");
+	test.expect_hover(t, &source, "test.cool: My_Struct");
 }

@@ -155,7 +155,6 @@ get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_con
 	};
 
 	for elem in directive_list {
-
 		item := CompletionItem {
 			detail = elem,
 			label = elem,
@@ -169,7 +168,6 @@ get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_con
 }
 
 get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-
 	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
@@ -179,17 +177,13 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-
 		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
-
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
 				for name, i in v.names {
-
 					ast_context.current_package = comp_symbol.pkg;
 
 					if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-
 						if field_exists_in_comp_lit(position_context.comp_lit, name) {
 							continue;
 						}
@@ -212,7 +206,6 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 }
 
 get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-
 	using analysis;
 
 	items := make([dynamic]CompletionItem, context.temp_allocator);
@@ -220,9 +213,9 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	ast_context.current_package = ast_context.document_package;
 
 	selector: index.Symbol;
-	ok:       bool;
+	ok: bool;
 
-	ast_context.use_locals  = true;
+	ast_context.use_locals = true;
 	ast_context.use_globals = true;
 
 	selector, ok = resolve_type_expression(ast_context, position_context.selector);
@@ -231,16 +224,10 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		return;
 	}
 
-	if ident, ok := position_context.selector.derived.(ast.Ident); ok {
-		symbol, ok := resolve_type_identifier(ast_context, ident); 
-
-		if !ok {
-			return;
-		}
-
-		if (symbol.type != .Variable && symbol.type != .Package && selector.type != .Enum && ident.name != "") || (symbol.type == .Variable && selector.type == .Enum) {
-			return;
-		}
+	//if (selector.type != .Variable && selector.type != .Package && selector.type != .Enum && selector.name != "") || (selector.type == .Variable && selector.type == .Enum) {
+		
+	if selector.type != .Variable && selector.type != .Package {
+		return;
 	}
 
 	if selector.pkg != "" {
@@ -448,7 +435,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				symbol := search.symbol;
 
 				resolve_unresolved_symbol(ast_context, &symbol);
-				build_procedure_symbol_return(&symbol);
 				build_procedure_symbol_signature(&symbol);
 				
 				item := CompletionItem {
@@ -803,7 +789,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		doc:       string,
 		pkg:       string,
 		signature: string,
-		returns:   string,
 		flags:     index.SymbolFlags,
 	};
 
@@ -849,7 +834,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		for r in results {
 			r := r;
 			resolve_unresolved_symbol(ast_context, &r.symbol);
-			build_procedure_symbol_return(&r.symbol);
 			build_procedure_symbol_signature(&r.symbol);
 			if r.symbol.uri != ast_context.uri {
 				append(&combined, CombinedResult {
@@ -859,7 +843,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 					doc = r.symbol.doc,
 					flags = r.symbol.flags,
 					signature = r.symbol.signature,
-					returns = r.symbol.returns,
 					pkg = r.symbol.pkg,
 				});
 			}
@@ -890,7 +873,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
 			symbol.signature = get_signature(ast_context, ident^, symbol);
 
-			build_procedure_symbol_return(&symbol);
 			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
@@ -902,7 +884,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 					flags = symbol.flags, 
 					pkg = symbol.pkg,
 					signature = symbol.signature,
-					returns = symbol.returns,
 				});
 			}
 		}
@@ -913,17 +894,18 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			break;
 		}
 
+		local_offset := get_local_offset(ast_context, position_context.position, k);
+
 		ast_context.use_locals = true;
 		ast_context.use_globals = true;
 		ast_context.current_package = ast_context.document_package;
 
-		ident := index.new_type(ast.Ident, {offset = position_context.position}, {offset = position_context.position}, context.temp_allocator);
+		ident := index.new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator);
 		ident.name = k;
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
 			symbol.signature = get_signature(ast_context, ident^, symbol);
 
-			build_procedure_symbol_return(&symbol);
 			build_procedure_symbol_signature(&symbol);
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
@@ -935,7 +917,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 					flags = symbol.flags,
 					pkg = symbol.pkg,
 					signature = symbol.signature,
-					returns = symbol.returns,
 				});
 			}
 		}
@@ -959,7 +940,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 				doc = symbol.doc,
 				flags = symbol.flags,
 				signature = symbol.signature,
-				returns = symbol.returns,
 				pkg = symbol.pkg,
 			});
 		}
@@ -979,7 +959,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 				doc = symbol.doc,
 				flags = symbol.flags,
 				signature = symbol.signature,
-				returns = symbol.returns,
 				pkg = symbol.pkg,
 			});
 		}
@@ -999,7 +978,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 				doc = symbol.doc,
 				flags = symbol.flags,
 				signature = symbol.signature,
-				returns = symbol.returns,
 				pkg = symbol.pkg,
 			});
 		}
@@ -1063,7 +1041,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 				item.command.command = "editor.action.triggerParameterHints";
 			}
 			
-			item.detail = concatenate_symbol_information(ast_context, result.pkg, result.name, result.signature, result.returns, result.type, true);
+			item.detail = concatenate_symbol_information(ast_context, result.pkg, result.name, result.signature, result.type, true);
 
 			append(&items, item);
 		}

@@ -75,6 +75,25 @@ GlobalExpr :: struct {
 	package_private: bool,
 }
 
+
+unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
+	expr := expr;
+	for expr != nil {
+		if pointer, ok := expr.derived.(ast.Pointer_Type); ok {
+			expr = pointer.elem;
+		} else {
+			break;
+		}
+	}
+
+	if expr != nil {
+		ident, ok := expr.derived.(ast.Ident);
+		return ident, ok;
+	}
+
+	return {}, false;
+}
+
 collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
 	if value_decl, ok := stmt.derived.(ast.Value_Decl); ok {
 

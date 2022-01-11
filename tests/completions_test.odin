@@ -1211,7 +1211,6 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_new_completion :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package main
 		new :: proc($T: typeid) -> (^T, Allocator_Error) #optional_second {
@@ -1225,25 +1224,24 @@ ast_new_completion :: proc(t: ^testing.T) {
 		`,
 	};
 
-    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+    test.expect_completion_details(t, &source, "", {"test.adzz: int"});
 }
 
 @(test)
 ast_rawtr_cast_completion :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package main
 		
 		main :: proc() {
 			raw: rawptr
-			my_int := cast(^int)raw;
+			my_int := cast(int)raw;
 			my_i*
 		}
 
 		`,
 	};
 
-    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+    test.expect_completion_details(t, &source, "", {"test.my_int: int"});
 }
 
 ast_overload_with_procedure_return :: proc(t: ^testing.T) {

@@ -18,7 +18,6 @@ import "shared:index"
 import "shared:analysis"
 
 write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Symbol) -> MarkupContent {
-	
 	using analysis;
 
 	content: MarkupContent;
@@ -34,7 +33,6 @@ write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Sym
 		}
 	}
 
-	build_procedure_symbol_return(&symbol);
 	build_procedure_symbol_signature(&symbol);
 
 	cat := concatenate_symbol_information(ast_context, symbol, false);
@@ -99,7 +97,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 					resolved.signature = get_signature(&ast_context, ident, resolved);
 					resolved.name = ident.name;
 
-					if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
+					if resolved.type == .Variable {
 						resolved.pkg = ast_context.document_package;
 					}
 
@@ -166,7 +164,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			resolved.signature = get_signature(&ast_context, ident, resolved);
 			resolved.name = ident.name;
 
-			if is_variable, ok := ast_context.variables[ident.name]; ok && is_variable {
+			if resolved.type == .Variable {
 				resolved.pkg = ast_context.document_package;
 			}
 

@@ -77,10 +77,10 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 	when ODIN_OS == "windows" {
 		builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.temp_allocator);
-		append(&indexer.built_in_packages, strings.to_lower(builtin_package));
+		append(&indexer.builtin_packages, strings.to_lower(builtin_package));
 	} else {
 		builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.allocator);
-		append(&indexer.built_in_packages, builtin_package);
+		append(&indexer.builtin_packages, builtin_package);
 	}
 
 	filepath.walk(builtin_package, walk_static_index_build);
