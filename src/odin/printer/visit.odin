@@ -1058,7 +1058,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case Index_Expr:
 		document := visit_expr(p, v.expr)
 		document = cons(document, text("["))
-		document = cons(document, visit_expr(p, v.index))
+		document = cons(document, fill_group(align(visit_expr(p, v.index))))
 		document = cons(document, text("]"))
 		return document
 	case Proc_Group:
