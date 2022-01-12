@@ -113,7 +113,6 @@ seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
 	}
 }
 
-
 get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
 	using analysis;
 
@@ -148,6 +147,10 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 
 	call: index.Symbol;
 	call, ok = resolve_type_expression(&ast_context, position_context.call);
+
+	if !ok {
+		return signature_help, true; 
+	}
 
 	seperate_proc_field_arguments(&call);
 

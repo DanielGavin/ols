@@ -145,7 +145,6 @@ new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symb
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
-
 	if symbol.signature != "" && symbol.signature != "struct" &&
 	   symbol.signature != "union" && symbol.signature != "enum" &&
 	   symbol.signature != "bitset" {

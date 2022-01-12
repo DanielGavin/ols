@@ -845,6 +845,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 		return symbol, true;
 	}
 
+	context.temp_allocator = context.allocator;
+
 	if symbol, ok := internal_resolve_type_expression(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
 		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
@@ -1119,6 +1121,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		return symbol, true;
 	}
 	
+	context.temp_allocator = context.allocator;
+
 	if symbol, ok := internal_resolve_type_identifier(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
 		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
@@ -2685,13 +2689,9 @@ is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 
 field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool {
 	for elem in comp_lit.elems {
-
 		if field, ok := elem.derived.(ast.Field_Value); ok {
-
 			if field.field != nil {
-
 				if ident, ok := field.field.derived.(ast.Ident); ok {
-
 					if ident.name == name {
 						return true;
 					}

@@ -30,7 +30,6 @@ DocumentStorage :: struct {
 document_storage: DocumentStorage;
 
 document_storage_shutdown :: proc() {
-
 	for k, v in document_storage.documents {
 		delete(k);
 	}
@@ -45,7 +44,6 @@ document_storage_shutdown :: proc() {
 }
 
 document_get_allocator :: proc() -> ^common.Scratch_Allocator {
-
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators);
 	} else {
@@ -60,7 +58,6 @@ document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
 }
 
 document_get :: proc(uri_string: string) -> ^common.Document {
-
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
 	if !parsed_ok {
@@ -79,7 +76,6 @@ document_get :: proc(uri_string: string) -> ^common.Document {
 }
 
 document_release :: proc(document: ^common.Document) {
-
 	if document != nil {
 		intrinsics.atomic_sub(&document.operating_on, 1);
 	}
@@ -90,7 +86,6 @@ document_release :: proc(document: ^common.Document) {
 */
 
 document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
-
 	uri, parsed_ok := common.parse_uri(uri_string, context.allocator);
 
 	if !parsed_ok {
@@ -99,7 +94,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 	}
 
 	if document := &document_storage.documents[uri.path]; document != nil {
-
 		if document.client_owned {
 			log.errorf("Client called open on an already open document: %v ", document.uri.path);
 			return .InvalidRequest;
@@ -115,7 +109,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			return err;
 		}
 	} else {
-
 		document := common.Document {
 			uri = uri,
 			text = transmute([]u8)text,
@@ -123,8 +116,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			used_text = len(text),
 			allocator = document_get_allocator(),
 		};
-
-		document.symbol_cache = make(map[int]rawptr, 10, common.scratch_allocator(document.allocator));
 
 		if err := document_refresh(&document, config, writer); err != .None {
 			return err;
@@ -142,7 +133,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 	Function that applies changes to the given document through incremental syncronization
 */
 document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
-
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
 
 	if !parsed_ok {
@@ -157,7 +147,6 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 	}
 
 	for change in changes {
-
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
 
@@ -218,7 +207,6 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 }
 
 document_close :: proc(uri_string: string) -> common.Error {
-
 	log.infof("document_close: %v", uri_string);
 
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
@@ -250,7 +238,6 @@ document_close :: proc(uri_string: string) -> common.Error {
 }
 
 document_refresh :: proc(document: ^common.Document, config: ^common.Config, writer: ^Writer) -> common.Error {
-	clear(&document.symbol_cache);
 	errors, ok := parse_document(document, config);
 
 	if !ok {
@@ -266,7 +253,6 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 		};
 
 		for error, i in errors {
-
 			params.diagnostics[i] = Diagnostic {
 				range = common.Range {
 					start = common.Position {
@@ -294,7 +280,6 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 	}
 
 	if writer != nil && len(errors) == 0 {
-
 		//send empty diagnosis to remove the clients errors
 		if document.diagnosed_errors {
 
@@ -327,7 +312,6 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }
 
 parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([]ParserError, bool) {
-
 	p := parser.Parser {
 		err = parser_error_handler,
 		warn = common.parser_warning_handler,
@@ -339,6 +323,8 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	free_all(common.scratch_allocator(document.allocator));
 
 	context.allocator = common.scratch_allocator(document.allocator);
+
+	document.symbol_cache = make(map[int]rawptr, 10, common.scratch_allocator(document.allocator));
 
 	//have to cheat the parser since it really wants to parse an entire package with the new changes...
 	pkg := new(ast.Package);
@@ -362,7 +348,6 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	}
 
 	for imp, index in document.ast.imports {
-
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue;
 		}
@@ -375,7 +360,7 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 			}
 
 			collection := imp.fullpath[1:i];
-			p          := imp.fullpath[i + 1:len(imp.fullpath) - 1];
+			p := imp.fullpath[i + 1:len(imp.fullpath) - 1];
 
 			dir, ok := config.collections[collection];
 
