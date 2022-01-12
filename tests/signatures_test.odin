@@ -486,6 +486,25 @@ proc_with_struct_poly :: proc(t: ^testing.T) {
     test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
 }
 
+@(test)
+proc_signature_move_outside :: proc(t: ^testing.T) {
+    source := test.Source {
+		main = `package test	
+		my_cool_function :: proc(aa: int, ba: int, c: int) {
+
+		}
+		main :: proc() {		
+			my_cool_function() *
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
+}
+
+
+
 
 /*
 @(test)
