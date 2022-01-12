@@ -41,8 +41,6 @@ setup :: proc(src: ^Source) {
 
 	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(20), context.temp_allocator);
 
-	server.document_refresh(src.document, &src.config, nil);
-
 	//no unicode in tests currently
 	current, last:                   u8;
 	current_line, current_character: int;
@@ -70,6 +68,8 @@ setup :: proc(src: ^Source) {
 		last = current;
 	}
 
+	server.document_refresh(src.document, &src.config, nil);	
+	
 	/*
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/

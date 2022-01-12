@@ -494,13 +494,13 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 
 		}
 		main :: proc() {		
-			my_cool_function() *
+			my_cool_function()*
 		}
 		`,
 		packages = {},
 	};
 
-    test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
+    test.expect_signature_labels(t, &source, {"test.my_cool_function: proc(aa: int, ba: int, c: int)"});
 }
 
 

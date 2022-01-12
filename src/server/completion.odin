@@ -35,7 +35,6 @@ Completion_Type :: enum {
 }
 
 get_completion_list :: proc(document: ^common.Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
-
 	using analysis;
 
 	list: CompletionList;

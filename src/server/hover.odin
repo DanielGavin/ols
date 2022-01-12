@@ -49,7 +49,6 @@ write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Sym
 
 
 get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool) {
-
 	using analysis;
 
 	hover := Hover {
@@ -72,14 +71,13 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 		if ident, ok := position_context.identifier.derived.(ast.Ident); ok {
 			if _, ok := common.keyword_map[ident.name]; ok {
 				hover.contents.kind = "plaintext";
-				hover.range         = common.get_token_range(position_context.identifier^, ast_context.file.src);
+				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src);
 				return hover, true;
 			}
 		}
 	}
 
 	if position_context.selector != nil && position_context.identifier != nil {
-
 		hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src);
 
 		ast_context.use_locals      = true;

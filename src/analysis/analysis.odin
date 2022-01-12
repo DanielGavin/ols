@@ -81,6 +81,7 @@ AstContext :: struct {
 	document_package:  string,
 	use_globals:       bool,
 	use_locals:        bool,
+	local_id:      int, 
 	call:              ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
 	position:          common.AbsolutePosition,
 	value_decl:        ^ast.Value_Decl,
@@ -2095,7 +2096,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		for name, i in value_decl.names {
 			str := common.get_ast_node_string(value_decl.names[i], file.src);
 			ast_context.variables[str] = value_decl.is_mutable;
-			store_local(ast_context, value_decl.type, value_decl.end.offset, str);
+			store_local(ast_context, value_decl.type, value_decl.end.offset, str, ast_context.local_id);
 		}
 		return;
 	}
@@ -2114,7 +2115,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		result_i := min(len(results)-1, i);
 		str := common.get_ast_node_string(name, file.src);
 		ast_context.in_package[str] = get_package_from_node(results[result_i]);
-		store_local(ast_context, results[result_i], value_decl.end.offset, str);
+		store_local(ast_context, results[result_i], value_decl.end.offset, str, ast_context.local_id);
 		ast_context.variables[str] = value_decl.is_mutable;
 	}
 }
@@ -2200,7 +2201,7 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 					selector.expr = u;
 					selector.field = index.new_type(ast.Ident, v.types[i].pos, v.types[i].end, context.temp_allocator);
 					selector.field.name = name;
-					store_local(ast_context, selector, 0, name);
+					store_local(ast_context, selector, 0, name, ast_context.local_id);
 					ast_context.variables[name] = true;
 				}
 			}
@@ -2228,7 +2229,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 
 	for lhs, i in stmt.lhs {
 		if ident, ok := lhs.derived.(ast.Ident); ok {
-			store_local(ast_context, results[i], ident.pos.offset, ident.name);
+			store_local(ast_context, results[i], ident.pos.offset, ident.name, ast_context.local_id);
 			ast_context.variables[ident.name] = true;
 		}
 	}
@@ -2264,14 +2265,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case index.SymbolMapValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(Ident); ok {
-					store_local(ast_context, v.key, ident.pos.offset, ident.name);
+					store_local(ast_context, v.key, ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(Ident); ok {
-					store_local(ast_context, v.value, ident.pos.offset, ident.name);
+					store_local(ast_context, v.value, ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
@@ -2279,14 +2280,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case index.SymbolDynamicArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(Ident); ok {
-					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(Ident); ok {
-					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
@@ -2294,7 +2295,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case index.SymbolFixedArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(Ident); ok {
-					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
@@ -2302,7 +2303,7 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(Ident); ok {
-					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
@@ -2310,14 +2311,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case index.SymbolSliceValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(Ident); ok {
-					store_local(ast_context, v.expr, ident.pos.offset, ident.name);
+					store_local(ast_context, v.expr, ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(Ident); ok {
-					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name);
+					store_local(ast_context, make_int_ast(), ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 					ast_context.in_package[ident.name] = symbol.pkg;
 				}
@@ -2373,7 +2374,7 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
 					ident := tag.lhs[0].derived.(Ident);
-					store_local(ast_context, cause.list[0], ident.pos.offset, ident.name);
+					store_local(ast_context, cause.list[0], ident.pos.offset, ident.name, ast_context.local_id);
 					ast_context.variables[ident.name] = true;
 				}
 			}
@@ -2396,7 +2397,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 			for name in arg.names {
 				if arg.type != nil {
 					str := common.get_ast_node_string(name, file.src);
-					store_local(ast_context, arg.type, name.pos.offset, str);
+					store_local(ast_context, arg.type, name.pos.offset, str, ast_context.local_id);
 					ast_context.variables[str] = true;
 					ast_context.parameters[str] = true;
 
@@ -2408,7 +2409,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 					}
 				} else {
 					str := common.get_ast_node_string(name, file.src);
-					store_local(ast_context, arg.default_value, name.pos.offset, str);
+					store_local(ast_context, arg.default_value, name.pos.offset, str, ast_context.local_id);
 					ast_context.variables[str] = true;
 					ast_context.parameters[str] = true;
 				}
@@ -2423,7 +2424,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 			for name in result.names {
 				if result.type != nil {
 					str := common.get_ast_node_string(name, file.src);
-					store_local(ast_context, result.type, name.pos.offset, str);
+					store_local(ast_context, result.type, name.pos.offset, str, ast_context.local_id);
 					ast_context.variables[str] = true;
 					ast_context.parameters[str] = true;
 				}
@@ -2509,7 +2510,7 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 	}
 
 	ast.walk(&visitor, procedure.body);
-	
+
 	if procedure.type != nil {
 		ast.walk(&visitor, procedure.type.params);
 		ast.walk(&visitor, procedure.type.results);
@@ -2665,6 +2666,11 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 
 
 is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
+
+	if position_context.position <= position_context.comp_lit.open.offset {
+		return false;
+	}
+
 	if len(position_context.comp_lit.elems) == 0 {
 		return true;
 	}
