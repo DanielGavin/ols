@@ -1413,7 +1413,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 
 	for field, i in list.list {
 
-		document = cons(document, visit_field_flag(p, field.flags))
+		flag := visit_field_flag(p, field.flags);
 
 		named := false
 
@@ -1430,7 +1430,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 		}
 
 		if named {
-			document = cons_with_nopl(document, visit_exprs(p, field.names, {.Add_Comma}))
+			document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
 
 			if len(field.names) != 0 && field.type != nil {
 				document = cons(document, cons(text(":"), break_with_no_newline()))
