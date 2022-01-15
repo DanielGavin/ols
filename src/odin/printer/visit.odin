@@ -110,7 +110,7 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 		if comment.pos.line in p.disabled_lines {
 			p.source_position = comment.pos
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
 			return newlines_before_comment, cons_with_nopl(document, text(comment.text))
 		} else {
@@ -124,7 +124,7 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return newlines_before_comment+newlines, cons_with_opl(document, text(comment.text))
