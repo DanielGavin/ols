@@ -68,7 +68,7 @@ DocumentLocal :: struct {
 }
 
 AstContext :: struct {
-	locals:            map[string][dynamic]DocumentLocal, //locals all the way to the document position
+	locals:            [dynamic]map[string][dynamic]DocumentLocal, //locals all the way to the document position
 	globals:           map[string]common.GlobalExpr,
 	variables:         map[string]bool,
 	parameters:        map[string]bool,
@@ -81,7 +81,7 @@ AstContext :: struct {
 	document_package:  string,
 	use_globals:       bool,
 	use_locals:        bool,
-	local_id:      int, 
+	local_id:          int, 
 	call:              ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
 	position:          common.AbsolutePosition,
 	value_decl:        ^ast.Value_Decl,
@@ -92,7 +92,7 @@ AstContext :: struct {
 
 make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name: string, uri: string, symbol_cache: ^map[int]rawptr, allocator := context.temp_allocator) -> AstContext {
 	ast_context := AstContext {
-		locals = make(map[string][dynamic]DocumentLocal, 0, allocator),
+		locals = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals = make(map[string]common.GlobalExpr, 0, allocator),
 		variables = make(map[string]bool, 0, allocator),
 		usings = make([dynamic]string, allocator),
@@ -107,6 +107,8 @@ make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name
 		uri = uri,
 		symbol_cache = symbol_cache,
 	};
+
+	append(&ast_context.locals, make(map[string][dynamic]DocumentLocal, 0, allocator));
 
 	when ODIN_OS == "windows" {
 		ast_context.uri = strings.to_lower(ast_context.uri, allocator);
@@ -850,7 +852,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
 	if symbol, ok := internal_resolve_type_expression(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
-		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
+		ast_context.symbol_cache[node.end.offset] = cast(rawptr)cached_symbol;
 		return symbol, true;
 	} 
 
@@ -1062,17 +1064,21 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 }
 
 store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name: string, id := 0) {
-	local_stack := &ast_context.locals[name];
+	local_stack := &ast_context.locals[id][name];
 
 	if local_stack == nil {
-		ast_context.locals[name] = make([dynamic]DocumentLocal, context.temp_allocator);
-		local_stack = &ast_context.locals[name];
+		ast_context.locals[id][name] = make([dynamic]DocumentLocal, context.temp_allocator);
+		local_stack = &ast_context.locals[id][name];
 	}
 
 	append(local_stack, DocumentLocal {expr = expr, offset = offset, id = id});
 }
 
-get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) -> ^ast.Expr {
+clear_local :: proc(ast_context: ^AstContext, id: int) {
+	ordered_remove(&ast_context.locals, id);
+}
+
+get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
 	previous := 0;
 
 	//is the local we are getting being declared?
@@ -1087,14 +1093,16 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) 
 		}
 	}
 
-	if local_stack, ok := ast_context.locals[name]; ok {
-		for i := len(local_stack) - 1; i >= 0; i -= 1 {
-			if local_stack[i].offset <= offset && local_stack[i].id == id {
-				if i - previous < 0 {
-					return nil;
-				} else {
-					return local_stack[i - previous].expr;
-				}		
+	for locals in &ast_context.locals {
+		if local_stack, ok := locals[name]; ok {
+			for i := len(local_stack) - 1; i >= 0; i -= 1 {
+				if local_stack[i].offset <= offset {
+					if i - previous < 0 {
+						return nil;
+					} else {
+						return local_stack[i - previous].expr;
+					}		
+				}
 			}
 		}
 	}
@@ -1102,18 +1110,21 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) 
 	return nil;
 }
 
-get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string, id := 0) -> int {
-	if local_stack, ok := ast_context.locals[name]; ok {
-		for i := len(local_stack) - 1; i >= 0; i -= 1 {
-			if local_stack[i].offset <= offset && local_stack[i].id == id {
-				if i < 0 {
-					return -1;
-				} else {
-					return local_stack[i].offset;
-				}		
+get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) -> int {
+	for locals in &ast_context.locals {
+		if local_stack, ok := locals[name]; ok {
+			for i := len(local_stack) - 1; i >= 0; i -= 1 {
+				if local_stack[i].offset <= offset {
+					if i < 0 {
+						return -1;
+					} else {
+						return local_stack[i].offset;
+					}		
+				}
 			}
 		}
 	}
+
 	return -1;
 }
 
@@ -1126,7 +1137,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 	if symbol, ok := internal_resolve_type_identifier(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
-		ast_context.symbol_cache[node.pos.offset] = cast(rawptr)cached_symbol;
+		ast_context.symbol_cache[node.end.offset] = cast(rawptr)cached_symbol;
 		return symbol, true;
 	}
 
@@ -1283,6 +1294,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	} else if node.name == "context" {
 		for built in index.indexer.builtin_packages {
 			if symbol, ok := index.lookup("Context", built); ok {
+				symbol.type = .Variable;
 				return symbol, ok;
 			}
 		}
@@ -2472,25 +2484,58 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 }
 
 resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_Lit, symbols: ^[dynamic]index.Symbol, allocator := context.allocator) {
+	
+	Scope :: struct {
+		offset: int,
+		id:     int,
+	}
+
 	Visit_Data :: struct {
 		ast_context: ^AstContext,
 		symbols: ^[dynamic]index.Symbol,
+		scopes: [dynamic]Scope,
+		id_counter: int,
 	}
 
 	data := Visit_Data {
 		ast_context = ast_context,
 		symbols = symbols,
+		scopes = make([dynamic]Scope, allocator),
 	};
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
 		if node == nil || visitor == nil {
 			return nil;
 		}
-
 		data := cast(^Visit_Data)visitor.data;
 		ast_context := data.ast_context;
 
+		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
+		if len(data.scopes) > 0 {
+			current_scope := data.scopes[len(data.scopes)-1];
+
+			if current_scope.offset < node.end.offset {
+				clear_local(ast_context, current_scope.id);
+
+				pop(&data.scopes);
+
+				if len(data.scopes) > 0 {
+					current_scope = data.scopes[len(data.scopes)-1];
+					ast_context.local_id = current_scope.id;
+				} else {
+					ast_context.local_id = 0;
+				}
+			}	
+		}
+
 		switch v in &node.derived {
+		case ast.If_Stmt, ast.For_Stmt:
+			scope: Scope;
+			scope.id = data.id_counter;
+			scope.offset = node.end.offset;
+			data.id_counter += 1;
+			ast_context.local_id = scope.id;
+			append(&data.scopes, scope);
 		case ast.Ident:
 			if symbol, ok := resolve_type_identifier(ast_context, v); ok {
 				append(data.symbols, symbol);
@@ -2530,7 +2575,7 @@ concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string
 	pkg := path.base(pkg, false, context.temp_allocator);
 
 	if type == .Package {
-		return name;
+		return fmt.tprintf("%v: package", name);
 	} else if type == .Keyword && is_completion {
 		return name;
 	} else {

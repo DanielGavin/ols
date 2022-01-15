@@ -862,8 +862,8 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			}
 		}
 
-		ast_context.use_locals      = true;
-		ast_context.use_globals     = true;
+		ast_context.use_locals = true;
+		ast_context.use_globals = true;
 		ast_context.current_package = ast_context.document_package;
 
 		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator);
@@ -888,35 +888,37 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		}
 	}
 
-	for k, v in ast_context.locals {
-		if position_context.global_lhs_stmt {
-			break;
-		}
+	for local in ast_context.locals {
+		for k, v in local {
+			if position_context.global_lhs_stmt {
+				break;
+			}
 
-		local_offset := get_local_offset(ast_context, position_context.position, k);
+			local_offset := get_local_offset(ast_context, position_context.position, k);
 
-		ast_context.use_locals = true;
-		ast_context.use_globals = true;
-		ast_context.current_package = ast_context.document_package;
+			ast_context.use_locals = true;
+			ast_context.use_globals = true;
+			ast_context.current_package = ast_context.document_package;
 
-		ident := index.new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator);
-		ident.name = k;
+			ident := index.new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator);
+			ident.name = k;
 
-		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
-			symbol.signature = get_signature(ast_context, ident^, symbol);
+			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
+				symbol.signature = get_signature(ast_context, ident^, symbol);
 
-			build_procedure_symbol_signature(&symbol);
+				build_procedure_symbol_signature(&symbol);
 
-			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-				append(&combined, CombinedResult {
-					score = score * 1.1, 
-					type = symbol.type,
-					name = ident.name,
-					doc = symbol.doc,
-					flags = symbol.flags,
-					pkg = symbol.pkg,
-					signature = symbol.signature,
-				});
+				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+					append(&combined, CombinedResult {
+						score = score * 1.1, 
+						type = symbol.type,
+						name = ident.name,
+						doc = symbol.doc,
+						flags = symbol.flags,
+						pkg = symbol.pkg,
+						signature = symbol.signature,
+					});
+				}
 			}
 		}
 	}

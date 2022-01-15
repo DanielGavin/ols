@@ -29,7 +29,6 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
-
 	src.main = strings.clone(src.main);
 	src.document = new(common.Document, context.temp_allocator);
 	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator);

@@ -96,12 +96,12 @@ ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		import "my_package"
-		main :: proc(cool: my_package.My_Stru*ct) {
+		main :: proc(cool: my_packa*ge.My_Struct) {
 			
 		}
 		`,
 		packages = packages[:],
 	};
 
-	//test.expect_hover(t, &source, "test.cool: My_Struct");
+	test.expect_hover(t, &source, "my_package: package");
 }
