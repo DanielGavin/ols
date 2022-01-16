@@ -179,7 +179,7 @@ sha1_hash_block :: proc (state_context: ^Sha1context) {
 
 sha1_add_uncounted :: proc (state_context: ^Sha1context, data: byte) {
 
-	when ODIN_ENDIAN == "big" {
+	when ODIN_ENDIAN == .Big {
 		state_context.buf.c[state_context.buf_offset] = data;
 	} else
 
@@ -262,8 +262,7 @@ sha1_final :: proc (state_context: ^Sha1context, result: ^[5]u32) {
 
 	sha1_pad(state_context);
 
-	when ODIN_ENDIAN == "big" {
-
+	when ODIN_ENDIAN == .Big {
 		for i := 0; i < 5; i += 1 {
 			result[i] = state_context.state[i];
 		}
