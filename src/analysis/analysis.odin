@@ -68,7 +68,7 @@ DocumentLocal :: struct {
 }
 
 AstContext :: struct {
-	locals:            [dynamic]map[string][dynamic]DocumentLocal, //locals all the way to the document position
+	locals:            map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
 	globals:           map[string]common.GlobalExpr,
 	variables:         map[string]bool,
 	parameters:        map[string]bool,
@@ -92,7 +92,7 @@ AstContext :: struct {
 
 make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name: string, uri: string, symbol_cache: ^map[int]rawptr, allocator := context.temp_allocator) -> AstContext {
 	ast_context := AstContext {
-		locals = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
+		locals = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals = make(map[string]common.GlobalExpr, 0, allocator),
 		variables = make(map[string]bool, 0, allocator),
 		usings = make([dynamic]string, allocator),
@@ -106,9 +106,10 @@ make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name
 		current_package = package_name,
 		uri = uri,
 		symbol_cache = symbol_cache,
+		allocator = allocator,
 	};
 
-	append(&ast_context.locals, make(map[string][dynamic]DocumentLocal, 0, allocator));
+	add_local_group(&ast_context, 0);
 
 	when ODIN_OS == "windows" {
 		ast_context.uri = strings.to_lower(ast_context.uri, allocator);
@@ -1067,15 +1068,20 @@ store_local :: proc(ast_context: ^AstContext, expr: ^ast.Expr, offset: int, name
 	local_stack := &ast_context.locals[id][name];
 
 	if local_stack == nil {
-		ast_context.locals[id][name] = make([dynamic]DocumentLocal, context.temp_allocator);
-		local_stack = &ast_context.locals[id][name];
+		locals := &ast_context.locals[id];
+		locals[name] = make([dynamic]DocumentLocal, ast_context.allocator);
+		local_stack = &locals[name];
 	}
 
 	append(local_stack, DocumentLocal {expr = expr, offset = offset, id = id});
 }
 
-clear_local :: proc(ast_context: ^AstContext, id: int) {
-	ordered_remove(&ast_context.locals, id);
+add_local_group :: proc(ast_context: ^AstContext, id: int) {
+	ast_context.locals[id] = make(map[string][dynamic]DocumentLocal, 0, ast_context.allocator);
+}
+
+clear_local_group :: proc(ast_context: ^AstContext, id: int) {
+	ast_context.locals[id] = {};
 }
 
 get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
@@ -1093,7 +1099,7 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 		}
 	}
 
-	for locals in &ast_context.locals {
+	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
 				if local_stack[i].offset <= offset {
@@ -1111,7 +1117,7 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 }
 
 get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) -> int {
-	for locals in &ast_context.locals {
+	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
 				if local_stack[i].offset <= offset {
@@ -2394,8 +2400,7 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 	}
 }
 
-get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
-
+get_locals_proc_param_and_results :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 	proc_lit, ok := function.derived.(ast.Proc_Lit);
 
 	if !ok || proc_lit.body == nil {
@@ -2443,6 +2448,17 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 			}
 		}
 	}
+}
+
+get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+
+	proc_lit, ok := function.derived.(ast.Proc_Lit);
+
+	if !ok || proc_lit.body == nil {
+		return;
+	}
+
+	get_locals_proc_param_and_results(file, function, ast_context, document_position);
 
 	block: ast.Block_Stmt;
 	block, ok = proc_lit.body.derived.(ast.Block_Stmt);
@@ -2476,6 +2492,10 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 	for decl in document.ast.decls {
 		switch v in decl.derived {
 		case ast.Proc_Lit:
+			position_context: DocumentPositionContext;
+			position_context.position = v.end.offset;
+			//get_locals_proc_param_and_results
+			//get_locals_stmt()
 			resolve_entire_procedure(&ast_context, v, &symbols, allocator);
 		}
 	}
@@ -2484,7 +2504,6 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 }
 
 resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_Lit, symbols: ^[dynamic]index.Symbol, allocator := context.allocator) {
-	
 	Scope :: struct {
 		offset: int,
 		id:     int,
@@ -2515,7 +2534,7 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 			current_scope := data.scopes[len(data.scopes)-1];
 
 			if current_scope.offset < node.end.offset {
-				clear_local(ast_context, current_scope.id);
+				clear_local_group(ast_context, current_scope.id);
 
 				pop(&data.scopes);
 
@@ -2536,6 +2555,8 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 			data.id_counter += 1;
 			ast_context.local_id = scope.id;
 			append(&data.scopes, scope);
+			add_local_group(ast_context, scope.id);
+			//get_locals_stmt(ast_context.file, v, ast_context, )
 		case ast.Ident:
 			if symbol, ok := resolve_type_identifier(ast_context, v); ok {
 				append(data.symbols, symbol);

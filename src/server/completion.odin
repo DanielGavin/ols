@@ -888,7 +888,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		}
 	}
 
-	for local in ast_context.locals {
+	for _, local in ast_context.locals {
 		for k, v in local {
 			if position_context.global_lhs_stmt {
 				break;
