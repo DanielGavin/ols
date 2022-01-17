@@ -5,7 +5,7 @@ import "core:log"
 import "core:mem"
 import "core:fmt"
 import "core:strings"
-import "core:path"
+import path "core:path/slashpath"
 
 keyword_map: map[string]bool = {
 	"int" = true,

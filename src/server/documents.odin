@@ -7,7 +7,7 @@ import "core:os"
 import "core:odin/parser"
 import "core:odin/ast"
 import "core:odin/tokenizer"
-import "core:path"
+import path "core:path/slashpath"
 import "core:mem"
 
 import "core:intrinsics"

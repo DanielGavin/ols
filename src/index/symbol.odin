@@ -5,7 +5,7 @@ import "core:hash"
 import "core:strings"
 import "core:mem"
 import "core:path/filepath"
-import "core:path"
+import path "core:path/slashpath"
 import "core:slice"
 
 import "shared:common"
