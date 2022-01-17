@@ -51,7 +51,7 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 
 	private testMethodLenses(doc: TextDocument) {
 		const text = doc.getText();
-		const reTest = /\@\(test\)/g;
+		const reTest = /\@\(?test\)?/g;
 		const reFnTest = /\s*\w+\s*::\s*proc\s*\s*\(/g;
 		var testMatch: RegExpExecArray | null = null;
 
