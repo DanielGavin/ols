@@ -19,6 +19,7 @@ Config :: struct {
 	file_log:                 bool,
 	formatter:                Format_Config,
 	odin_command:             string,
+	checker_args:             string,
 }
 
 Format_Config :: struct {

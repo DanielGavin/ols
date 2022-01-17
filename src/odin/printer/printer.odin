@@ -154,6 +154,7 @@ print :: proc(p: ^Printer, file: ^ast.File) -> string {
 	build_disabled_lines_info(p)
 	
 	p.source_position.line = 1;
+	p.source_position.column = 1;
 
 	p.document = move_line(p, file.pkg_token.pos);
 	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))

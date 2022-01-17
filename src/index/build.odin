@@ -1,7 +1,7 @@
 package index
 
 import "core:path/filepath"
-import "core:path"
+import path "core:path/slashpath"
 import "core:os"
 import "core:fmt"
 import "core:odin/parser"

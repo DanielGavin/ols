@@ -6,7 +6,7 @@ import "core:strings"
 import "core:mem"
 import "core:fmt"
 import "core:path/filepath"
-import "core:path"
+import path "core:path/slashpath"
 import "core:log"
 import "core:strconv"
 

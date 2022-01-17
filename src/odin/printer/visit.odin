@@ -110,7 +110,7 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 		if comment.pos.line in p.disabled_lines {
 			p.source_position = comment.pos
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
 			return newlines_before_comment, cons_with_nopl(document, text(comment.text))
 		} else {
@@ -124,7 +124,7 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token, end_newline := true
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return newlines_before_comment+newlines, cons_with_opl(document, text(comment.text))
@@ -883,7 +883,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text(")"))
 		return document
 	case Ellipsis:
-		return cons_with_opl(text(".."), visit_expr(p, v.expr))
+		return cons(text(".."), visit_expr(p, v.expr))
 	case Relative_Type:
 		return cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
 	case Slice_Expr:
@@ -1058,7 +1058,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case Index_Expr:
 		document := visit_expr(p, v.expr)
 		document = cons(document, text("["))
-		document = cons(document, visit_expr(p, v.index))
+		document = cons(document, fill_group(align(visit_expr(p, v.index))))
 		document = cons(document, text("]"))
 		return document
 	case Proc_Group:
@@ -1281,7 +1281,6 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 }
 
 visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
-
 	document := text("proc")
 
 	explicit_calling := false
@@ -1371,14 +1370,50 @@ visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^
 	return document
 }
 
+visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
+
+	/*
+	Ellipsis,
+	Using,
+	No_Alias,
+	C_Vararg,
+	Auto_Cast,
+	Any_Int,
+
+	Results,
+	Tags,
+	Default_Parameters,
+	Typeid_Token,
+	*/
+
+
+	document := empty()
+
+	if .Auto_Cast in flags {
+		document = cons_with_nopl(document, text("#auto_cast"))
+	} 
+
+	if .Any_Int in flags {
+		document = cons_with_nopl(document, text("#any_int"))
+	} 
+
+	if .C_Vararg in flags {
+		document = cons_with_nopl(document, text("#c_vararg"))
+	} 
+
+	if .Using in flags {
+		document = cons_with_nopl(document, text("using"))
+	}
+
+	return document
+}
+
 visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank := true) -> ^Document {
 	document := empty()
 
 	for field, i in list.list {
 
-		if .Using in field.flags {
-			document = cons(document, cons(text("using"), break_with_no_newline()))
-		}
+		flag := visit_field_flag(p, field.flags);
 
 		named := false
 
@@ -1395,7 +1430,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 		}
 
 		if named {
-			document = cons(document, visit_exprs(p, field.names, {.Add_Comma}))
+			document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
 
 			if len(field.names) != 0 && field.type != nil {
 				document = cons(document, cons(text(":"), break_with_no_newline()))

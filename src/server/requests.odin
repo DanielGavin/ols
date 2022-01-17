@@ -8,7 +8,7 @@ import "core:strings"
 import "core:slice"
 import "core:strconv"
 import "core:encoding/json"
-import "core:path"
+import path "core:path/slashpath"
 import "core:runtime"
 import "core:thread"
 import "core:sync"
@@ -423,6 +423,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.file_log = ols_config.file_log;
 					config.formatter = ols_config.formatter;
 					config.odin_command = strings.clone(ols_config.odin_command, context.allocator);
+					config.checker_args = ols_config.checker_args;
 					
 					for p in ols_config.collections {
 

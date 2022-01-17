@@ -178,7 +178,6 @@ sha1_hash_block :: proc (state_context: ^Sha1context) {
 }
 
 sha1_add_uncounted :: proc (state_context: ^Sha1context, data: byte) {
-
 	when ODIN_ENDIAN == .Big {
 		state_context.buf.c[state_context.buf_offset] = data;
 	} else
@@ -201,7 +200,6 @@ sha1_write_byte :: proc (state_context: ^Sha1context, data: byte) {
 }
 
 sha1_update :: proc (state_context: ^Sha1context, data: []byte) {
-
 	state_context.byte_count += cast(u32)len(data);
 
 	current_data := data;
@@ -242,7 +240,6 @@ sha1_update :: proc (state_context: ^Sha1context, data: []byte) {
 }
 
 sha1_pad :: proc (state_context: ^Sha1context) {
-
 	sha1_add_uncounted(state_context, 0x80);
 
 	for state_context.buf_offset != 56 {
@@ -263,13 +260,10 @@ sha1_final :: proc (state_context: ^Sha1context, result: ^[5]u32) {
 	sha1_pad(state_context);
 
 	when ODIN_ENDIAN == .Big {
-
 		for i := 0; i < 5; i += 1 {
 			result[i] = state_context.state[i];
 		}
-	} else
-
-	{
+	} else {
 		for i := 0; i < 5; i += 1 {
 			result[i] = (((state_context.state[i]) << 24) & 0xff000000) |
 				(((state_context.state[i]) << 8) & 0x00ff0000) |
@@ -280,7 +274,6 @@ sha1_final :: proc (state_context: ^Sha1context, result: ^[5]u32) {
 }
 
 sha1_hash :: proc (data: []byte) -> [20]byte {
-
 	sha1_context: Sha1context;
 	sha1_init(&sha1_context);
 	sha1_update(&sha1_context, data);
