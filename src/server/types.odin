@@ -300,6 +300,7 @@ OlsConfig :: struct {
 	file_log:                 bool,
 	formatter:                common.Format_Config,
 	odin_command:             string,
+	checker_args:             string,
 }
 
 OlsConfigCollection :: struct {

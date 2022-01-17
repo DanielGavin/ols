@@ -49,7 +49,7 @@ when ODIN_OS == "windows" {
 			command = "odin";
 		}
  
-		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point", command, path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder)), &data); !ok {
+		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point %s", command, path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder), config.checker_args), &data); !ok {
 			log.errorf("Odin check failed with code %v for file %v", code, uri.path);
 			return;
 		} 
