@@ -589,7 +589,6 @@ request_initialized :: proc (task: ^common.Task) {
 }
 
 request_shutdown :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -607,7 +606,6 @@ request_shutdown :: proc (task: ^common.Task) {
 }
 
 request_definition :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -648,7 +646,6 @@ request_definition :: proc (task: ^common.Task) {
 }
 
 request_completion :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -692,7 +689,6 @@ request_completion :: proc (task: ^common.Task) {
 }
 
 request_signature_help :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -733,7 +729,6 @@ request_signature_help :: proc (task: ^common.Task) {
 }
 
 request_format_document :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -786,7 +781,6 @@ notification_exit :: proc (task: ^common.Task) {
 }
 
 notification_did_open :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -818,7 +812,6 @@ notification_did_open :: proc (task: ^common.Task) {
 }
 
 notification_did_change :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -846,7 +839,6 @@ notification_did_change :: proc (task: ^common.Task) {
 }
 
 notification_did_close :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -952,7 +944,6 @@ notification_did_save :: proc (task: ^common.Task) {
 }
 
 request_semantic_token_full :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -1001,7 +992,6 @@ request_semantic_token_full :: proc (task: ^common.Task) {
 }
 
 request_semantic_token_range :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -1040,7 +1030,6 @@ request_semantic_token_range :: proc (task: ^common.Task) {
 }
 
 request_document_symbols :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;
@@ -1075,7 +1064,6 @@ request_document_symbols :: proc (task: ^common.Task) {
 }
 
 request_hover :: proc (task: ^common.Task) {
-
 	info := get_request_info(task);
 
 	using info;

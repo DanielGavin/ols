@@ -837,11 +837,18 @@ lookup_symbol_cache :: proc(ast_context: ^AstContext, node: ast.Node) -> (index.
 		return {}, false;
 	}
 	
-	if cached := &ast_context.symbol_cache[node.pos.offset]; cached != nil {
+	if cached := &ast_context.symbol_cache[node.end.offset]; cached != nil {
 		symbol := cast(^index.Symbol)cached^;
 		return symbol^, true;
 	} 
 	return {}, false;
+}
+
+store_symbol_cache :: proc(ast_context: ^AstContext, data: rawptr, offset: int) {
+	if ast_context.document_package != ast_context.current_package {
+		return;
+	} 
+	ast_context.symbol_cache[offset] = cast(rawptr)data;
 }
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
@@ -853,7 +860,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 
 	if symbol, ok := internal_resolve_type_expression(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
-		ast_context.symbol_cache[node.end.offset] = cast(rawptr)cached_symbol;
+		store_symbol_cache(ast_context, cached_symbol, node.end.offset);
 		return symbol, true;
 	} 
 
@@ -1143,7 +1150,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 	if symbol, ok := internal_resolve_type_identifier(ast_context, node); ok {
 		cached_symbol := index.new_clone_symbol(symbol);
-		ast_context.symbol_cache[node.end.offset] = cast(rawptr)cached_symbol;
+		store_symbol_cache(ast_context, cached_symbol, node.end.offset);
 		return symbol, true;
 	}
 
@@ -1536,7 +1543,6 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^index.Symbo
 }
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (index.Symbol, bool) {
-
 	symbol: index.Symbol;
 
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil {
@@ -1563,7 +1569,6 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 }
 
 resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (index.Symbol, bool) {
-
 	//Fairly simple function to find the earliest identifier symbol in binary expression.
 
 	if binary.left != nil {
@@ -1595,7 +1600,6 @@ resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, bi
 }
 
 find_position_in_call_param :: proc(ast_context: ^AstContext, call: ast.Call_Expr) -> (int, bool) {
-
 	if call.args == nil {
 		return 0, false;
 	}
@@ -1646,7 +1650,6 @@ get_package_from_node :: proc(node: ast.Node) -> string {
 }
 
 get_using_packages :: proc(ast_context: ^AstContext) -> []string {
-
 	usings := make([]string, len(ast_context.usings), context.temp_allocator);
 
 	if len(ast_context.usings) == 0 {
@@ -1668,7 +1671,6 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 }
 
 make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: string) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
 		type = .Function,
@@ -1706,7 +1708,6 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 }
 
 make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
@@ -1728,7 +1729,6 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) 
 }
 
 make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
@@ -1743,7 +1743,6 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 }
 
 make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
@@ -1759,7 +1758,6 @@ make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type) -> i
 }
 
 make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ^ast.Ident) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
 		type = .Variable,
@@ -1774,7 +1772,6 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 }
 
 make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: string, inlined := false) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Union,
@@ -1848,7 +1845,6 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 }
 
 make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: string, inlined := false) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
@@ -1869,7 +1865,6 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 }
 
 make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: string, inlined := false) -> index.Symbol {
-
 	symbol := index.Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Struct,
@@ -2038,7 +2033,6 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 }
 
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
-
 	ast_context.variables["context"] = true;
 
 	exprs := common.collect_globals(file);
@@ -2050,7 +2044,6 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 }
 
 get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^AstContext, results: ^[dynamic]^ast.Expr) {
-
 	using ast;
 
 	ast_context.use_locals = true;
@@ -2067,7 +2060,6 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 				}
 			}
 		}
-
 	case Comp_Lit:
 		if v.type != nil {
 			append(results, v.type);
@@ -2400,7 +2392,7 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 	}
 }
 
-get_locals_proc_param_and_results :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_proc_param_and_results :: proc(file: ast.File, function: ast.Proc_Lit, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
 	proc_lit, ok := function.derived.(ast.Proc_Lit);
 
 	if !ok || proc_lit.body == nil {
@@ -2458,7 +2450,7 @@ get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext
 		return;
 	}
 
-	get_locals_proc_param_and_results(file, function, ast_context, document_position);
+	get_locals_proc_param_and_results(file, proc_lit, ast_context, document_position);
 
 	block: ast.Block_Stmt;
 	block, ok = proc_lit.body.derived.(ast.Block_Stmt);
@@ -2480,26 +2472,22 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings);
 }
 
-resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> []index.Symbol {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
-
-	get_globals(document.ast, &ast_context);
+resolve_entire_file :: proc(document: ^common.Document, ast_context: ^AstContext, allocator := context.allocator) -> []index.Symbol {
+	get_globals(document.ast, ast_context);
 
 	ast_context.current_package = ast_context.document_package;
 
 	symbols := make([dynamic]index.Symbol, allocator);
 
-	for decl in document.ast.decls {
-		switch v in decl.derived {
+	for k, v in ast_context.globals {
+		switch n in v.expr.derived {
 		case ast.Proc_Lit:
-			position_context: DocumentPositionContext;
-			position_context.position = v.end.offset;
-			//get_locals_proc_param_and_results
-			//get_locals_stmt()
-			resolve_entire_procedure(&ast_context, v, &symbols, allocator);
+			resolve_entire_procedure(ast_context, n, &symbols, allocator);
+			clear_local_group(ast_context, 0);
+			add_local_group(ast_context, 0);
 		}
 	}
-
+	
 	return symbols[:];
 }
 
@@ -2528,6 +2516,8 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 		}
 		data := cast(^Visit_Data)visitor.data;
 		ast_context := data.ast_context;
+		ast_context.use_locals = true;
+		ast_context.use_globals = true;
 
 		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
 		if len(data.scopes) > 0 {
@@ -2554,8 +2544,19 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 			scope.offset = node.end.offset;
 			data.id_counter += 1;
 			ast_context.local_id = scope.id;
+
 			append(&data.scopes, scope);
 			add_local_group(ast_context, scope.id);
+
+			position_context: DocumentPositionContext;
+			position_context.position = node.end.offset;
+			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context);
+		}
+
+
+		switch v in &node.derived {
+		case ast.If_Stmt: 
+		case ast.For_Stmt:
 			//get_locals_stmt(ast_context.file, v, ast_context, )
 		case ast.Ident:
 			if symbol, ok := resolve_type_identifier(ast_context, v); ok {
@@ -2575,12 +2576,20 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 		visit = visit,
 	}
 
-	ast.walk(&visitor, procedure.body);
-
-	if procedure.type != nil {
-		ast.walk(&visitor, procedure.type.params);
-		ast.walk(&visitor, procedure.type.results);
+	if procedure.body == nil {
+		return;
 	}
+
+	type_position_context: DocumentPositionContext;
+	type_position_context.position = procedure.end.offset;
+	get_locals_proc_param_and_results(ast_context.file, procedure, ast_context, &type_position_context);
+	
+	body_position_context: DocumentPositionContext;
+	body_position_context.position = procedure.body.end.offset;
+	
+	get_locals_stmt(ast_context.file, cast(^ast.Stmt)procedure.body, ast_context, &body_position_context);
+
+	ast.walk(&visitor, procedure.body);
 }
 
 concatenate_symbol_information :: proc {
