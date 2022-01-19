@@ -3,6 +3,7 @@ package server
 import "core:odin/tokenizer"
 import "core:odin/ast"
 import "core:log"
+import "core:fmt"
 
 import "shared:common"
 import "shared:index"
@@ -32,11 +33,11 @@ SemanticTokenTypes :: enum {
 	Method,
 }
 
-SemanticTokenModifiers :: enum {
-	None,
-	Declaration,
-	Definition,
-	Deprecated,
+SemanticTokenModifiers :: enum(u32) {
+	None = 0,
+	Declaration = 2,
+	Definition = 4,
+	Deprecated = 8,
 }
 
 SemanticTokensClientCapabilities :: struct {
@@ -77,6 +78,8 @@ SemanticTokens :: struct {
 SemanticTokenBuilder :: struct {
 	current_start: int,
 	tokens:        [dynamic]u32,
+	symbols:       map[uintptr]index.Symbol,
+	selector:      bool,
 }
 
 make_token_builder :: proc(allocator := context.temp_allocator) -> SemanticTokenBuilder {
@@ -91,7 +94,7 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 	};
 }
 
-get_semantic_tokens :: proc(document: ^common.Document, range: common.Range) -> SemanticTokens { 
+get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]index.Symbol) -> SemanticTokens { 
 	using analysis;
 
 	builder := make_token_builder();
@@ -100,9 +103,9 @@ get_semantic_tokens :: proc(document: ^common.Document, range: common.Range) -> 
 		write_semantic_token(&builder, document.ast.pkg_token, document.ast.src, .Keyword, .None);
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
-	//resolve_entire_file(document, &ast_context, context.temp_allocator);
+	builder.symbols = symbols;
 
 	ast_context.current_package = ast_context.document_package;
 
@@ -118,19 +121,19 @@ get_semantic_tokens :: proc(document: ^common.Document, range: common.Range) -> 
 write_semantic_node :: proc(builder: ^SemanticTokenBuilder, node: ^ast.Node, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 	position := common.get_relative_token_position(node.pos.offset, transmute([]u8)src, builder.current_start);
 	name := common.get_ast_node_string(node, src);
-	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(name), cast(u32)type, 0);
+	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(name), cast(u32)type, cast(u32)modifier);
 	builder.current_start = node.pos.offset;
 }
 
 write_semantic_token :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 	position := common.get_relative_token_position(token.pos.offset, transmute([]u8)src, builder.current_start);
-	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(token.text), cast(u32)type, 0);
+	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(token.text), cast(u32)type, cast(u32)modifier);
 	builder.current_start = token.pos.offset;
 }
 
 write_semantic_string :: proc(builder: ^SemanticTokenBuilder, pos: tokenizer.Pos, name: string, src: string, type: SemanticTokenTypes, modifier: SemanticTokenModifiers) {
 	position := common.get_relative_token_position(pos.offset, transmute([]u8)src, builder.current_start);
-	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(name), cast(u32)type, 0);
+	append(&builder.tokens, cast(u32)position.line, cast(u32)position.character, cast(u32)len(name), cast(u32)type, cast(u32)modifier);
 	builder.current_start = pos.offset;
 }
 
@@ -169,11 +172,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		write_semantic_string(builder, node.pos, "..", ast_context.file.src, .Operator, .None);
 		visit(n.expr, builder, ast_context);
 	case Ident:
-		if true {
-			write_semantic_node(builder, node, ast_context.file.src, .Variable, .None);
-			return;
-		}
-		if symbol, ok := analysis.lookup_symbol_cache(ast_context, n); ok {
+		if symbol, ok := builder.symbols[cast(uintptr)node]; ok {
 			if symbol.type == .Variable {
 				write_semantic_node(builder, node, ast_context.file.src, .Variable, .None);
 			}
@@ -195,6 +194,12 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		}
 	case Selector_Expr:
 		visit_selector(cast(^Selector_Expr)node, builder, ast_context);
+		builder.selector = false;
+	case When_Stmt:
+		write_semantic_string(builder, n.when_pos, "when", ast_context.file.src, .Keyword, .None);
+		visit(n.cond, builder, ast_context);
+		visit(n.body, builder, ast_context);
+		visit(n.else_stmt, builder, ast_context);
 	case Pointer_Type:
 		write_semantic_string(builder, node.pos, "^", ast_context.file.src, .Operator, .None);
 		visit(n.elem, builder, ast_context);
@@ -204,6 +209,12 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		visit(n.stmts, builder, ast_context);
 	case Expr_Stmt:
 		visit(n.expr, builder, ast_context);
+	case Branch_Stmt:
+		write_semantic_token(builder, n.tok, ast_context.file.src, .Type, .None);
+	case Poly_Type:
+		write_semantic_string(builder, n.dollar, "$", ast_context.file.src, .Operator, .None);
+		visit(n.type, builder, ast_context);
+		visit(n.specialization, builder, ast_context);
 	case Range_Stmt:
 		write_semantic_string(builder, n.for_pos, "for", ast_context.file.src, .Keyword, .None);
 
@@ -329,7 +340,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 
 		write_semantic_token(builder, n.relpath, ast_context.file.src, .String, .None);
 	case:
-		log.warnf("unhandled write node %v", n);
+		log.errorf("unhandled semantic token node %v", n);
+		//panic(fmt.tprintf("Missed semantic token handling %v", n));
 	}
 }
 
@@ -337,16 +349,14 @@ visit_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder
 	using analysis;
 
 	if symbol, ok := resolve_basic_lit(ast_context, basic_lit); ok {
-
-		if generic, ok := symbol.value.(index.SymbolGenericValue); ok {
-
-			ident := generic.expr.derived.(ast.Ident);
-
-			if ident.name == "string" {
-				write_semantic_node(builder, generic.expr, ast_context.file.src, .String, .None);
-			} else if ident.name == "int" {
-				write_semantic_node(builder, generic.expr, ast_context.file.src, .Number, .None);
-			} else {
+		if untyped, ok := symbol.value.(index.SymbolUntypedValue); ok {
+			switch untyped.type {
+			case .Bool:
+				write_semantic_token(builder, basic_lit.tok, ast_context.file.src, .Keyword, .None);
+			case .Float, .Integer:
+				write_semantic_token(builder, basic_lit.tok, ast_context.file.src, .Number, .None);
+			case .String:
+				write_semantic_token(builder, basic_lit.tok, ast_context.file.src, .String, .None);
 			}
 		}
 	}
@@ -455,7 +465,6 @@ visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, a
 	}
 
 	for field in node.fields {
-
 		if ident, ok := field.derived.(Ident); ok {
 			write_semantic_node(builder, field, ast_context.file.src, .EnumMember, .None);
 		}
@@ -476,7 +485,6 @@ visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilde
 	}
 
 	for field in node.fields.list {
-
 		for name in field.names {
 			if ident, ok := name.derived.(Ident); ok {
 				write_semantic_node(builder, name, ast_context.file.src, .Property, .None);
@@ -488,6 +496,34 @@ visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilde
 }
 
 visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
-	using analysis;
-	using ast;
+
+	if _, ok := selector.expr.derived.(ast.Selector_Expr); ok {
+		visit_selector(cast(^ast.Selector_Expr)selector.expr, builder, ast_context);
+	} else {
+		visit(selector.expr, builder, ast_context);
+		builder.selector = true;
+	}
+
+	if symbol, ok := builder.symbols[cast(uintptr)selector]; ok {
+		if symbol.type == .Variable {
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Method, .None);
+		}
+		#partial switch v in symbol.value { 
+		case index.SymbolPackageValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Namespace, .None);
+		case index.SymbolStructValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Struct, .None);
+		case index.SymbolEnumValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Enum, .None);
+		case index.SymbolUnionValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Enum, .None);
+		case index.SymbolProcedureValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Function, .None);
+		case index.SymbolProcedureGroupValue:
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Function, .None);
+		}
+	}
+
+
+	//((a.d).b).c
 }

@@ -8,20 +8,19 @@ import "shared:analysis"
 import "shared:index"
 
 //document
-get_inlay_hints :: proc(document: ^common.Document) -> ([]InlayHint, bool) {
-
+get_inlay_hints :: proc(document: ^common.Document, symbols: map[uintptr]index.Symbol) -> ([]InlayHint, bool) {
 	using analysis;
 
 	hints := make([dynamic]InlayHint, context.temp_allocator);
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	Visit_Data :: struct {
-		calls: [dynamic]ast.Call_Expr,
+		calls: [dynamic]^ast.Node,
 	}
 
 	data := Visit_Data {
-		calls = make([dynamic]ast.Call_Expr, context.temp_allocator),
+		calls = make([dynamic]^ast.Node, context.temp_allocator),
 	};
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -32,7 +31,7 @@ get_inlay_hints :: proc(document: ^common.Document) -> ([]InlayHint, bool) {
 		data := cast(^Visit_Data)visitor.data;
 
 		if call, ok := node.derived.(ast.Call_Expr); ok {
-			append(&data.calls, call);
+			append(&data.calls, node);
 		}
 
 		return visitor;
@@ -47,15 +46,18 @@ get_inlay_hints :: proc(document: ^common.Document) -> ([]InlayHint, bool) {
 		ast.walk(&visitor, decl);
 	}
 
-	loop: for call in &data.calls {
+	loop: for node_call in &data.calls {
 		symbol_arg_count := 0
+
+		call := node_call.derived.(ast.Call_Expr);
+
 		for arg in call.args {
 			if _, ok := arg.derived.(ast.Field); ok {
 				continue loop;
 			}
 		}
 
-		if symbol, ok := resolve_type_expression(&ast_context, &call); ok {
+		if symbol, ok := symbols[cast(uintptr)node_call]; ok {
 			if symbol_call, ok := symbol.value.(index.SymbolProcedureValue); ok {
 				for arg in symbol_call.arg_types {
 					for name in arg.names {
@@ -66,7 +68,7 @@ get_inlay_hints :: proc(document: ^common.Document) -> ([]InlayHint, bool) {
 						if ident, ok := name.derived.(ast.Ident); ok {
 							hint := InlayHint {
 								kind = "parameter",
-								label = fmt.tprintf("%v:", ident.name),
+								label = fmt.tprintf("%v = ", ident.name),
 								range = common.get_token_range(call.args[symbol_arg_count], string(document.text)),
 							}
 							append(&hints, hint);

@@ -17,6 +17,8 @@ import "shared:index"
 import "shared:server"
 import "shared:common"
 
+
+
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr  := cast(^os.Handle)handle;
 	a, b := os.read(ptr^, data);
@@ -32,10 +34,10 @@ os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 //Note(Daniel, Should look into handling errors without crashing from parsing)
 
 verbose_logger: log.Logger;
+file_logger: log.Logger;
+file_logger_init: bool;
 
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
-
-	common.config.debug_single_thread = true;
 	common.config.collections = make(map[string]string);
 
 	log.info("Starting Odin Language Server");
@@ -44,11 +46,20 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	for common.config.running {
 
-		if common.config.verbose {
+		if common.config.file_log {
+			if !file_logger_init {
+				if fh, err := os.open("log.txt"); err == 0 {
+					file_logger = log.create_file_logger(fh, log.Level.Info);
+				} 
+			}			
+			context.logger = file_logger;
+		} else if common.config.verbose {
 			context.logger = verbose_logger;
 		} else {
 			context.logger = log.Logger {nil, nil, log.Level.Debug, nil};
 		}
+		a: int;
+		b: int;
 
 		header, success := server.read_and_parse_header(reader);
 
@@ -86,9 +97,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	server.document_storage_shutdown();
 
 	index.free_static_index();
-
-	common.pool_wait_and_process(&server.pool);
-	common.pool_destroy(&server.pool);
 }
 
 end :: proc() {

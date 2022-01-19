@@ -57,7 +57,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 		},
 	};
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	position_context, ok := get_document_position_context(document, position, .Hover);
 

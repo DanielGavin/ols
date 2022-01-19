@@ -23,7 +23,7 @@ ParserError :: struct {
 }
 
 DocumentStorage :: struct {
-	documents:       map[string] common.Document,
+	documents:       map[string]common.Document,
 	free_allocators: [dynamic]^common.Scratch_Allocator,
 }
 
@@ -224,8 +224,8 @@ document_close :: proc(uri_string: string) -> common.Error {
 
 	free_all(common.scratch_allocator(document.allocator));
 	document_free_allocator(document.allocator);
-	document.allocator = nil;
 
+	document.allocator = nil;
 	document.client_owned = false;
 
 	common.delete_uri(document.uri);
@@ -298,6 +298,12 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 		}
 	}
 
+	//We only resolve the entire file, if we are dealing with the heavy features that require the entire file resolved.
+	//This gives the user a choice to use "fast mode" with only completion and gotos.
+	if config.enable_semantic_tokens || config.enable_inlay_hints {
+		resolve_entire_file(document);
+	} 
+
 	return .None;
 }
 
@@ -323,8 +329,6 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	free_all(common.scratch_allocator(document.allocator));
 
 	context.allocator = common.scratch_allocator(document.allocator);
-
-	document.symbol_cache = make(map[int]rawptr, 10, common.scratch_allocator(document.allocator));
 
 	//have to cheat the parser since it really wants to parse an entire package with the new changes...
 	pkg := new(ast.Package);

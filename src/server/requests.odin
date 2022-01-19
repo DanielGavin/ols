@@ -56,11 +56,6 @@ RequestInfo :: struct {
 	result:   common.Error,
 }
 
-pool: common.Pool;
-
-get_request_info :: proc (task: ^common.Task) -> ^RequestInfo {
-	return cast(^RequestInfo)task.data;
-}
 
 make_response_message :: proc (id: RequestId, params: ResponseParams) -> ResponseMessage {
 
@@ -159,7 +154,7 @@ read_and_parse_body :: proc (reader: ^Reader, header: Header) -> (json.Value, bo
 
 	err: json.Error;
 
-	value, err = json.parse(data = data, allocator = context.allocator, parse_integers = true);
+	value, err = json.parse(data = data, allocator = context.temp_allocator, parse_integers = true);
 
 	if (err != json.Error.None) {
 		log.error("Failed to parse body");
@@ -169,41 +164,27 @@ read_and_parse_body :: proc (reader: ^Reader, header: Header) -> (json.Value, bo
 	return value, true;
 }
 
-request_map: map[string]RequestType = {
-	"initialize" = .Initialize,
-	"initialized" = .Initialized,
-	"shutdown" = .Shutdown,
-	"exit" = .Exit,
-	"textDocument/didOpen" = .DidOpen,
-	"textDocument/didChange" = .DidChange,
-	"textDocument/didClose" = .DidClose,
-	"textDocument/didSave" = .DidSave,
-	"textDocument/definition" = .Definition,
-	"textDocument/completion" = .Completion,
-	"textDocument/signatureHelp" = .SignatureHelp,
-	"textDocument/documentSymbol" = .DocumentSymbol,
-	"textDocument/semanticTokens/full" = .SemanticTokensFull,
-	"textDocument/semanticTokens/range" = .SemanticTokensRange,
-	"textDocument/hover" = .Hover,
-	"$/cancelRequest" = .CancelRequest,
-	"textDocument/formatting" = .FormatDocument,
-	"odin/inlayHints" = .InlayHint,
+call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error =
+{
+	"initialize" = request_initialize,
+	"initialized" = request_initialized,
+	"shutdown" = request_shutdown,
+	"exit" = notification_exit,
+	"textDocument/didOpen" = notification_did_open,
+	"textDocument/didChange" = notification_did_change,
+	"textDocument/didClose" = notification_did_close,
+	"textDocument/didSave" = notification_did_save,
+	"textDocument/definition" = request_definition,
+	"textDocument/completion" = request_completion,
+	"textDocument/signatureHelp" = request_signature_help,
+	"textDocument/documentSymbol" = request_document_symbols,
+	"textDocument/semanticTokens/full" = request_semantic_token_full,
+	"textDocument/semanticTokens/range" = request_semantic_token_range,
+	"textDocument/hover" = request_hover,
+	"textDocument/formatting" = request_format_document,
 };
 
-handle_error :: proc (err: common.Error, id: RequestId, writer: ^Writer) {
-
-	if err != .None {
-
-		response := make_response_message_error(
-		id = id,
-		error = ResponseError {code = err, message = ""});
-
-		send_error(response, writer);
-	}
-}
-
 handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
-
 	root, ok := request.(json.Object);
 
 	if !ok {
@@ -229,8 +210,8 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 	method := root["method"].(json.String);
 
-	request_type: RequestType;
-	request_type, ok = request_map[method];
+	fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
+    fn, ok = call_map[method];
 
 	if !ok {
 		response := make_response_message_error(
@@ -239,157 +220,31 @@ handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Wr
 
 		send_error(response, writer);
 	} else {
-
-		info := new(RequestInfo);
-
-		info.root   = request;
-		info.params = root["params"];
-		info.id     = id;
-		info.config = config;
-		info.writer = writer;
-
-		task_proc: common.Task_Proc;
-
-		switch request_type {
-		case .Initialize:
-			task_proc = request_initialize;
-		case .Initialized:
-			task_proc = request_initialized;
-		case .Shutdown:
-			task_proc = request_shutdown;
-		case .Exit:
-			task_proc = notification_exit;
-		case .DidOpen:
-			task_proc = notification_did_open;
-		case .DidChange:
-			task_proc = notification_did_change;
-		case .DidClose:
-			task_proc = notification_did_close;
-		case .DidSave:
-			task_proc = notification_did_save;
-		case .Definition:
-			task_proc = request_definition;
-		case .Completion:
-			task_proc = request_completion;
-		case .SignatureHelp:
-			task_proc = request_signature_help;
-		case .DocumentSymbol:
-			task_proc = request_document_symbols;
-		case .SemanticTokensFull:
-			task_proc = request_semantic_token_full;
-		case .SemanticTokensRange:
-			task_proc = request_semantic_token_range;
-		case .Hover:
-			task_proc = request_hover;
-		case .CancelRequest:
-		case .FormatDocument:
-			task_proc = request_format_document;
-		case .InlayHint:
-			task_proc = request_inlay_hint;
-		}
-
-		task := common.Task {
-			data = info,
-			procedure = task_proc,
-		};
-
-		#partial switch request_type {
-		case .CancelRequest:
-			for {
-				if task, ok := common.pool_try_and_pop_task(&pool); ok {
-					common.pool_do_work(&pool, &task);
-				} else {
-					break;
-				}
-			}
-		case .Initialize, .Initialized:
-			task_proc(&task);
-		case .Completion, .Definition, .Hover, .FormatDocument:
-
-			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
-
-			document := document_get(uri);
-
-			if document == nil {
-				handle_error(.InternalError, id, writer);
-				return false;
-			}
-
-			info.document = document;
-
-			task_proc(&task);
-
-		case .DidClose, .DidChange, .DidOpen, .DidSave:
-
-			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
-
-			document := document_get(uri);
-
-			if document != nil {
-
-				for intrinsics.atomic_load(&document.operating_on) > 1 {
-					if task, ok := common.pool_try_and_pop_task(&pool); ok {
-						common.pool_do_work(&pool, &task);
-					}
-				}
-			}
-
-			task_proc(&task);
-
-			document_release(document);
-		case .Shutdown,.Exit:
-			task_proc(&task);
-		case .SignatureHelp, .SemanticTokensFull, .SemanticTokensRange, .DocumentSymbol, .InlayHint:
-
-			uri := root["params"].(json.Object)["textDocument"].(json.Object)["uri"].(json.String);
-
-			document := document_get(uri);
-
-			if document == nil {
-				handle_error(.InternalError, id, writer);
-				return false;
-			}
-
-			info.document = document;
-
-			if !config.debug_single_thread {
-				common.pool_add_task(&pool, task_proc, info);
-			} else {
-				task_proc(&task);
-			}
-		case:
-
-			if !config.debug_single_thread {
-				common.pool_add_task(&pool, task_proc, info);
-			} else {
-				task_proc(&task);
-			}
-		}
+		err := fn(root["params"], id, config, writer);
+        if err != .None {
+            response := make_response_message_error(
+				id = id,
+                error = ResponseError {code = err, message = ""},
+            );
+            send_error(response, writer);
+        }
 	}
 
 	return true;
 }
 
-request_initialize :: proc (task: ^common.Task) {
-	info := get_request_info(task);
+request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 
-	using info;
-
-	defer free(info);
-	defer json.destroy_value(info.root);
-	
 	params_object, ok := params.(json.Object);
-
-	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
-	}
+	
+    if !ok {
+        return .ParseError;
+    }
 
 	initialize_params: RequestInitializeParams;
 
 	if unmarshal(params, initialize_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	config.workspace_folders = make([dynamic]common.WorkspaceFolder);
@@ -424,6 +279,7 @@ request_initialize :: proc (task: ^common.Task) {
 					config.formatter = ols_config.formatter;
 					config.odin_command = strings.clone(ols_config.odin_command, context.allocator);
 					config.checker_args = ols_config.checker_args;
+					config.enable_inlay_hints = ols_config.enable_inlay_hints;
 					
 					for p in ols_config.collections {
 
@@ -479,8 +335,6 @@ request_initialize :: proc (task: ^common.Task) {
 		config.collections["vendor"] = path.join(elems = {forward_path, "vendor"}, allocator = context.allocator);
 	}
 
-	common.pool_init(&pool, config.thread_count);
-	common.pool_start(&pool);
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
@@ -578,58 +432,40 @@ request_initialize :: proc (task: ^common.Task) {
 	}
 
 	log.info("Finished indexing");
+
+	return .None;
 }
 
-request_initialized :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	json.destroy_value(root);
-	free(info);
+request_initialized :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+    return .None;
 }
 
-request_shutdown :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
-	response := make_response_message(
-	params = nil,
-	id = id);
+request_shutdown :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	response := make_response_message(params = nil, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_definition :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
+request_definition :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	definition_params: TextDocumentPositionParams;
 
 	if unmarshal(params, definition_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+	
+	document := document_get(definition_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	locations, ok2 := get_definition_location(document, definition_params.position);
 
@@ -644,260 +480,192 @@ request_definition :: proc (task: ^common.Task) {
 		response := make_response_message(params = locations, id = id);
 		send_response(response, writer);
 	}
+
+	return .None;
 }
 
-request_completion :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
+request_completion :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	completition_params: CompletionParams;
 
 	if unmarshal(params, completition_params, context.temp_allocator) != .None {
 		log.error("Failed to unmarshal completion request");
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
-	//context.allocator = common.scratch_allocator(document.allocator);
+	document := document_get(completition_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	list: CompletionList;
 	list, ok = get_completion_list(document, completition_params.position, completition_params.context_);
 
 	if !ok {
-		handle_error(.InternalError, id, writer);
-		return;
+		return .InternalError;
 	}
 
-	response := make_response_message(
-	params = list,
-	id = id);
+	response := make_response_message(params = list, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_signature_help :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
+request_signature_help :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	signature_params: SignatureHelpParams;
 
 	if unmarshal(params, signature_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+
+	document := document_get(signature_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	help: SignatureHelp;
 	help, ok = get_signature_information(document, signature_params.position);
 
 	if !ok {
-		handle_error(.InternalError, id, writer);
-		return;
+		return .InternalError;
 	}
 
-	response := make_response_message(
-	params = help,
-	id = id);
+	response := make_response_message(params = help, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_format_document :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
+request_format_document :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	format_params: DocumentFormattingParams;
 
 	if unmarshal(params, format_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+
+	document := document_get(format_params.textDocument.uri);
+	
+    if document == nil {
+        return .InternalError;
+    }
 
 	edit: []TextEdit;
 	edit, ok = get_complete_format(document, config);
 
 	if !ok {
-		handle_error(.InternalError, id, writer);
-		return;
+		return .InternalError;
 	}
 
-	response := make_response_message(
-	params = edit,
-	id = id);
+	response := make_response_message(params = edit, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-notification_exit :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
+notification_exit :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	config.running = false;
+	return .None;
 }
 
-notification_did_open :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
+notification_did_open :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
 		log.error("Failed to parse open document notification");
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	open_params: DidOpenTextDocumentParams;
 
 	if unmarshal(params, open_params, context.allocator) != .None {
 		log.error("Failed to parse open document notification");
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
-		handle_error(n, id, writer);
+		return .InternalError;
 	}
+
+	return .None;
 }
 
-notification_did_change :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
+notification_did_change :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	change_params: DidChangeTextDocumentParams;
 
 	if unmarshal(params, change_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer);
+
+	return .None;
 }
 
-notification_did_close :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
+notification_did_close :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	close_params: DidCloseTextDocumentParams;
 
 	if unmarshal(params, close_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	if n := document_close(close_params.textDocument.uri); n != .None {
-		handle_error(n, id, writer);
-		return;
+		return .InternalError;
 	}
+
+	return .None;
 }
 
-notification_did_save :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		json.destroy_value(root);
-		free(info);
-	}
-
+notification_did_save :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	save_params: DidSaveTextDocumentParams;
 
 	if unmarshal(params, save_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	uri: common.Uri;
 
 	if uri, ok = common.parse_uri(save_params.textDocument.uri, context.temp_allocator); !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	fullpath := uri.path;
@@ -942,33 +710,28 @@ notification_did_save :: proc (task: ^common.Task) {
 	}
 
 	check(uri, writer, config);
+
+	return .None;
 }
 
-request_semantic_token_full :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-		
-	}
-
+request_semantic_token_full :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	semantic_params: SemanticTokensParams;
 
 	if unmarshal(params, semantic_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+
+	document := document_get(semantic_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	range := common.Range {
 		start = common.Position {
@@ -982,155 +745,145 @@ request_semantic_token_full :: proc (task: ^common.Task) {
 	symbols: SemanticTokens;
 
 	if config.enable_semantic_tokens {
-		symbols = get_semantic_tokens(document, range);
+		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
+			symbols = get_semantic_tokens(document, range, cache_symbols);
+		}
 	}
 
-	response := make_response_message(
-	params = symbols,
-	id = id);
+	response := make_response_message(params = symbols, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_semantic_token_range :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
+request_semantic_token_range :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .None;
 	}
 
 	semantic_params: SemanticTokensRangeParams;
 
 	if unmarshal(params, semantic_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .None;
 	}
+
+	document := document_get(semantic_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	symbols: SemanticTokens;
 
 	if config.enable_semantic_tokens {
-		symbols = get_semantic_tokens(document, semantic_params.range);
+		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
+			symbols = get_semantic_tokens(document, semantic_params.range, cache_symbols);
+		}
 	}
 
-	response := make_response_message(
-	params = symbols,
-	id = id);
+	response := make_response_message(params = symbols, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_document_symbols :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-
+request_document_symbols :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	symbol_params: DocumentSymbolParams;
 
 	if unmarshal(params, symbol_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+
+	document := document_get(symbol_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	symbols := get_document_symbols(document);
 
-	response := make_response_message(
-	params = symbols,
-	id = id);
+	response := make_response_message(params = symbols, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_hover :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-	
+request_hover :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
 	hover_params: HoverParams;
 
 	if unmarshal(params, hover_params, context.temp_allocator) != .None {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
+
+	document := document_get(hover_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
 
 	hover: Hover;
 	hover, ok = get_hover_information(document, hover_params.position);
 
 	if !ok {
-		handle_error(.InternalError, id, writer);
-		return;
+		return .InternalError;
 	}
 
-	response := make_response_message(
-	params = hover,
-	id = id);
+	response := make_response_message(params = hover, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }
 
-request_inlay_hint :: proc (task: ^common.Task) {
-	info := get_request_info(task);
-
-	using info;
-
-	defer {
-		document_release(document);
-		json.destroy_value(root);
-		free(info);
-	}
-	
+request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 
 	if !ok {
-		handle_error(.ParseError, id, writer);
-		return;
+		return .ParseError;
 	}
 
+	inlay_params: InlayParams;
+
+	if unmarshal(params, inlay_params, context.temp_allocator) != .None {
+		return .ParseError;
+	}
+
+	document := document_get(inlay_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
 	hints: []InlayHint;
-	hints, ok = get_inlay_hints(document);
+
+	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok && config.enable_inlay_hints {
+		hints, ok = get_inlay_hints(document, cache_symbols);
+	}
 
 	if !ok {
-		handle_error(.InternalError, id, writer);
-		return;
+		return .InternalError;
 	}
 
 	response := make_response_message(params = hints, id = id);
 
 	send_response(response, writer);
+
+	return .None;
 }

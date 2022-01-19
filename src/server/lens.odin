@@ -24,7 +24,7 @@ get_code_lenses :: proc(document: ^common.Document, position: common.Position) -
 	
 	using analysis;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);
 

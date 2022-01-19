@@ -49,7 +49,7 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 		return list, true;
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	get_globals(document.ast, &ast_context);
 

@@ -298,6 +298,7 @@ OlsConfig :: struct {
 	enable_format:            bool,
 	enable_procedure_context: bool,
 	enable_snippets:          bool,
+	enable_inlay_hints:       bool,
 	verbose:                  bool,
 	file_log:                 bool,
 	formatter:                common.Format_Config,
@@ -350,6 +351,11 @@ DocumentSymbol :: struct {
 HoverParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
+}
+
+
+InlayParams :: struct {
+	textDocument: TextDocumentIdentifier,
 }
 
 Hover :: struct {

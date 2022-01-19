@@ -26,7 +26,7 @@ get_definition_location :: proc(document: ^common.Document, position: common.Pos
 
 	location: common.Location;
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, &document.symbol_cache);
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
 
 	uri: string;
 
