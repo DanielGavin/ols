@@ -81,19 +81,16 @@ RequestThreadData :: struct {
 }
 
 Request :: struct {
-	id:    RequestId,
-	value: json.Value,
+	id:              RequestId,
+	value:           json.Value,
+	is_notification: bool,
 }
-RequestNotification :: struct {
-	index: int,
-	value: json.Value,
-}
+
 
 requests_sempahore: sync.Semaphore;
 requests_mutex: sync.Mutex;
 
 requests: [dynamic]Request;
-notifications: [dynamic]RequestNotification;
 deletings: [dynamic]Request;
 
 thread_request_main :: proc(data: rawptr) {
@@ -142,15 +139,10 @@ thread_request_main :: proc(data: rawptr) {
 		method := root["method"].(json.String);
 
 		if method == "$/cancelRequest" {
-
-		} else if strings.contains(method, "textDocument/did") || method == "exit" {
-			if len(requests) > 0 {
-				append(&notifications, RequestNotification { index = len(requests)-1, value = root});
-				sync.semaphore_post(&requests_sempahore);
-			} else {
-				append(&notifications, RequestNotification { index = -1, value = root});
-				sync.semaphore_post(&requests_sempahore);
-			}
+			append(&deletings, Request { id = id });
+		} else if method in notification_map {
+			append(&requests, Request { value = root, is_notification = true});
+			sync.semaphore_post(&requests_sempahore);
 		} else {
 			append(&requests, Request { id = id, value = root});
 			sync.semaphore_post(&requests_sempahore);
@@ -270,47 +262,71 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
 	"textDocument/documentLink" = request_document_links,
 };
 
+notification_map: map [string] bool = {
+	"textDocument/didOpen" = true,
+	"textDocument/didChange" = true,
+	"textDocument/didClose" = true,
+	"textDocument/didSave" = true,
+	"initialized" = true,
+}
+
 consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 	temp_requests := make([dynamic]Request, 0, context.temp_allocator);
-	temp_notifications := make([dynamic]RequestNotification, 0, context.temp_allocator);
 
 	sync.mutex_lock(&requests_mutex);
+
+	for d in deletings {
+		delete_index := -1;
+		for request, i in requests {			
+			if request.id == d.id {
+				delete_index := i;
+				break;
+			}
+		}		
+		if delete_index != -1 {
+			cancel(requests[delete_index].value, requests[delete_index].id, writer, config);
+			ordered_remove(&requests, delete_index);
+		}
+	}
 
 	for request in requests {
 		append(&temp_requests, request);
 	}
 
-	for notification in notifications {
-		append(&temp_notifications, notification);
-	}
-
-	clear(&requests);
-	clear(&notifications);
-	
 	sync.mutex_unlock(&requests_mutex);
 
-	outer: for len(temp_notifications) > 0 || len(temp_requests) > 0 {
-		if len(temp_notifications) > 0 {
-			for notification in temp_notifications {
-				for request, i in temp_requests {
-					if notification.index >= i {
-						call(request.value, request.id, writer, config);
-					} else {
-						break;
-					}
-				}
-				call(notification.value, 0, writer, config);
-			}
-		} else {
-			for request, i in temp_requests {
-				call(request.value, request.id, writer, config);
-			}
-		}
+	request_index := 0;
+
+	for ; request_index < len(temp_requests); request_index += 1 {
+		request := temp_requests[request_index];
+		call(request.value, request.id, writer, config);
+	}
+	
+	sync.mutex_lock(&requests_mutex);
+	
+	for i := 0; i < request_index; i += 1 {
+		pop_front(&requests);
+	}
+
+	sync.mutex_unlock(&requests_mutex);
+
+	if request_index != len(temp_requests) {
+		sync.semaphore_post(&requests_sempahore);
 	}
 
 	sync.semaphore_wait_for(&requests_sempahore);
 
 	return true;
+}
+
+
+cancel :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
+	response := make_response_message(
+		id = id,
+		params = ResponseParams {},
+	);
+
+	send_response(response, writer);
 }
 
 call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
