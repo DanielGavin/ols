@@ -67,6 +67,7 @@ document_get :: proc(uri_string: string) -> ^common.Document {
 	document := &document_storage.documents[uri.path];
 
 	if document == nil {
+		log.errorf("Failed to get document %v", uri.path);
 		return nil;
 	}
 
