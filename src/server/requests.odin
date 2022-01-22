@@ -75,8 +75,94 @@ make_response_message_error :: proc (id: RequestId, error: ResponseError) -> Res
 	};
 }
 
-read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
+RequestThreadData :: struct {
+	reader: ^Reader,
+	writer: ^Writer,
+}
 
+Request :: struct {
+	id:    RequestId,
+	value: json.Value,
+}
+RequestNotification :: struct {
+	index: int,
+	value: json.Value,
+}
+
+requests_sempahore: sync.Semaphore;
+requests_mutex: sync.Mutex;
+
+requests: [dynamic]Request;
+notifications: [dynamic]RequestNotification;
+deletings: [dynamic]Request;
+
+thread_request_main :: proc(data: rawptr) {
+	request_data := cast(^RequestThreadData)data;
+
+	for common.config.running {
+		header, success := read_and_parse_header(request_data.reader);
+
+		if (!success) {
+			log.error("Failed to read and parse header");
+			return;
+		}
+
+		value: json.Value;
+		value, success = read_and_parse_body(request_data.reader, header);
+
+		if (!success) {
+			log.error("Failed to read and parse body");
+			return;
+		}
+
+		root, ok := value.(json.Object);
+
+		if !ok {
+			log.error("No root object");
+			return;
+		}
+
+		id: RequestId;
+		id_value: json.Value;
+		id_value, ok = root["id"];
+
+		if ok {
+			#partial switch v in id_value {
+			case json.String:
+				id = v;
+			case json.Integer:
+				id = v;
+			case:
+				id = 0;
+			}
+		}
+
+		sync.mutex_lock(&requests_mutex);
+
+		method := root["method"].(json.String);
+
+		if method == "$/cancelRequest" {
+
+		} else if strings.contains(method, "textDocument/did") || method == "exit" {
+			if len(requests) > 0 {
+				append(&notifications, RequestNotification { index = len(requests)-1, value = root});
+				sync.semaphore_post(&requests_sempahore);
+			} else {
+				append(&notifications, RequestNotification { index = -1, value = root});
+				sync.semaphore_post(&requests_sempahore);
+			}
+		} else {
+			append(&requests, Request { id = id, value = root});
+			sync.semaphore_post(&requests_sempahore);
+		}
+
+		sync.mutex_unlock(&requests_mutex);
+
+		free_all(context.temp_allocator);
+	}
+}
+
+read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
 	header: Header;
 
 	builder := strings.make_builder(context.temp_allocator);
@@ -114,7 +200,6 @@ read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
 		header_value := message[len(header_name) + 2:len(message) - 2];
 
 		if strings.compare(header_name, "Content-Length") == 0 {
-
 			if len(header_value) == 0 {
 				log.error("Header value has no length");
 				return header, false;
@@ -142,7 +227,6 @@ read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
 }
 
 read_and_parse_body :: proc (reader: ^Reader, header: Header) -> (json.Value, bool) {
-
 	value: json.Value;
 
 	data := make([]u8, header.content_length, context.temp_allocator);
@@ -154,7 +238,7 @@ read_and_parse_body :: proc (reader: ^Reader, header: Header) -> (json.Value, bo
 
 	err: json.Error;
 
-	value, err = json.parse(data = data, allocator = context.temp_allocator, parse_integers = true);
+	value, err = json.parse(data = data, allocator = context.allocator, parse_integers = true);
 
 	if (err != json.Error.None) {
 		log.error("Failed to parse body");
@@ -182,59 +266,73 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
 	"textDocument/semanticTokens/range" = request_semantic_token_range,
 	"textDocument/hover" = request_hover,
 	"textDocument/formatting" = request_format_document,
+	"odin/inlayHints" = request_inlay_hint,
+	"textDocument/documentLink" = request_document_links,
 };
 
-handle_request :: proc (request: json.Value, config: ^common.Config, writer: ^Writer) -> bool {
-	root, ok := request.(json.Object);
+consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
+	temp_requests := make([dynamic]Request, 0, context.temp_allocator);
+	temp_notifications := make([dynamic]RequestNotification, 0, context.temp_allocator);
 
-	if !ok {
-		log.error("No root object");
-		return false;
+	sync.mutex_lock(&requests_mutex);
+
+	for request in requests {
+		append(&temp_requests, request);
 	}
 
-	id:       RequestId;
-	id_value: json.Value;
-	id_value, ok = root["id"];
+	for notification in notifications {
+		append(&temp_notifications, notification);
+	}
 
-	if ok {
+	clear(&requests);
+	clear(&notifications);
+	
+	sync.mutex_unlock(&requests_mutex);
 
-		#partial switch v in id_value {
-		case json.String:
-			id = v;
-		case json.Integer:
-			id = v;
-		case:
-			id = 0;
+	outer: for len(temp_notifications) > 0 || len(temp_requests) > 0 {
+		if len(temp_notifications) > 0 {
+			for notification in temp_notifications {
+				for request, i in temp_requests {
+					if notification.index >= i {
+						call(request.value, request.id, writer, config);
+					} else {
+						break;
+					}
+				}
+				call(notification.value, 0, writer, config);
+			}
+		} else {
+			for request, i in temp_requests {
+				call(request.value, request.id, writer, config);
+			}
 		}
 	}
 
-	method := root["method"].(json.String);
-
-	fn: proc(json.Value, RequestId, ^common.Config, ^Writer) -> common.Error;
-    fn, ok = call_map[method];
-
-	if !ok {
-		response := make_response_message_error(
-		id = id,
-		error = ResponseError {code = .MethodNotFound, message = ""});
-
-		send_error(response, writer);
-	} else {
-		err := fn(root["params"], id, config, writer);
-        if err != .None {
-            response := make_response_message_error(
-				id = id,
-                error = ResponseError {code = err, message = ""},
-            );
-            send_error(response, writer);
-        }
-	}
+	sync.semaphore_wait_for(&requests_sempahore);
 
 	return true;
 }
 
-request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
+	root := value.(json.Object);
+	method := root["method"].(json.String);
 
+	if fn, ok := call_map[method]; !ok {
+		response := make_response_message_error(id = id, error = ResponseError {code = .MethodNotFound, message = ""});
+		send_error(response, writer);
+	} else {
+		err := fn(root["params"], id, config, writer);
+		if err != .None {
+			response := make_response_message_error(
+				id = id,
+				error = ResponseError {code = err, message = ""},
+			);
+			send_error(response, writer);
+		}
+	}
+}
+
+request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object);
 	
     if !ok {
@@ -405,9 +503,11 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 			documentSymbolProvider = config.enable_document_symbols,
 			hoverProvider = config.enable_hover,
 			documentFormattingProvider = config.enable_format,
+			documentLinkProvider = {
+				resolveProvider = false,
+			},
 		},
-	},
-	id = id);
+	}, id = id);
 
 	send_response(response, writer);
 
@@ -882,6 +982,40 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
 	}
 
 	response := make_response_message(params = hints, id = id);
+
+	send_response(response, writer);
+
+	return .None;
+}
+
+request_document_links :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	params_object, ok := params.(json.Object);
+
+	if !ok {
+		return .ParseError;
+	}
+
+	link_params: DocumentLinkParams;
+
+	if unmarshal(params, link_params, context.temp_allocator) != .None {
+		return .ParseError;
+	}
+
+	document := document_get(link_params.textDocument.uri);
+
+    if document == nil {
+        return .InternalError;
+    }
+
+	links: []DocumentLink;
+
+	links, ok = get_document_links(document);
+
+	if !ok {
+		return .InternalError;
+	}
+
+	response := make_response_message(params = links, id = id);
 
 	send_response(response, writer);
 

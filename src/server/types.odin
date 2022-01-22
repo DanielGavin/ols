@@ -27,6 +27,7 @@ ResponseParams :: union {
 	Hover,
 	[]TextEdit,
 	[]InlayHint,
+	[]DocumentLink,
 }
 
 ResponseMessage :: struct {
@@ -93,6 +94,7 @@ ServerCapabilities :: struct {
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
 	inlayHintsProvider:         bool,
+	documentLinkProvider:       DocumentLinkOptions,
 }
 
 CompletionOptions :: struct {
@@ -373,4 +375,22 @@ InlayHint :: struct {
 	range: common.Range,
 	kind:  string,
 	label: string,
+}
+
+DocumentLinkClientCapabilities :: struct {
+	tooltipSupport: bool,
+}
+
+DocumentLinkParams :: struct {
+	textDocument: TextDocumentIdentifier,
+}
+
+DocumentLink :: struct {
+	range: common.Range,
+	target: string,
+	tooltip: string,
+}
+
+DocumentLinkOptions :: struct {
+	resolveProvider: bool,
 }

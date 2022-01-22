@@ -10,14 +10,13 @@ import "core:strconv"
 import "core:thread"
 import "core:encoding/json"
 import "core:reflect"
+import "core:sync"
 
 import "core:intrinsics"
 
 import "shared:index"
 import "shared:server"
 import "shared:common"
-
-
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr  := cast(^os.Handle)handle;
@@ -36,6 +35,7 @@ os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 verbose_logger: log.Logger;
 file_logger: log.Logger;
 file_logger_init: bool;
+request_thread: ^thread.Thread;
 
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	common.config.collections = make(map[string]string);
@@ -44,8 +44,23 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	common.config.running = true;
 
-	for common.config.running {
+	request_thread_data := server.RequestThreadData {
+		reader = reader,
+		writer = writer,
+	};
 
+	sync.mutex_init(&server.requests_mutex);
+	sync.semaphore_init(&server.requests_sempahore);
+
+	server.requests = make([dynamic]server.Request, context.allocator);
+	server.notifications = make([dynamic]server.RequestNotification, context.allocator);
+	server.deletings = make([dynamic]server.Request, context.allocator);
+
+
+
+	request_thread = thread.create_and_start_with_data(cast(rawptr)&request_thread_data, server.thread_request_main);
+
+	for common.config.running {
 		if common.config.file_log {
 			if !file_logger_init {
 				if fh, err := os.open("log.txt"); err == 0 {
@@ -58,32 +73,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		} else {
 			context.logger = log.Logger {nil, nil, log.Level.Debug, nil};
 		}
-		a: int;
-		b: int;
 
-		header, success := server.read_and_parse_header(reader);
-
-		if (!success) {
-			log.error("Failed to read and parse header");
-			return;
-		}
-
-		value: json.Value;
-		value, success = server.read_and_parse_body(reader, header);
-
-		if (!success) {
-			log.error("Failed to read and parse body");
-			return;
-		}
-
-		success = server.handle_request(value, &common.config, writer);
-
-		if (!success) {
-			log.error("Unrecoverable handle request");
-			return;
-		}
-
-		free_all(context.temp_allocator);
+		server.consume_requests(&common.config, writer);
 	}
 
 	for k, v in common.config.collections {

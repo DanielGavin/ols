@@ -165,11 +165,6 @@ get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
 }
 
 resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node, poly_map: ^map[string]^ast.Expr) {
-
-	/*
-		Note(Daniel, uncertain about the switch cases being enough or too little)
-	*/
-
 	using ast;
 
 	if call_node == nil || spec_node == nil {
@@ -667,7 +662,6 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: index.Symbol, flags
 }
 
 get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (int, bool) {
-
 	for field, i in field_list {
 		for field_name in field.names {
 			if ident, ok := field_name.derived.(ast.Ident); ok {
@@ -685,7 +679,6 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 	Figure out which function the call expression is using out of the list from proc group
 */
 resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (index.Symbol, bool) {
-
 	using ast;
 
 	call_expr := ast_context.call;
@@ -830,6 +823,12 @@ resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_D
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (index.Symbol, bool) {
 	if node == nil {
 		return {}, false;
+	}
+
+	saved_package := ast_context.current_package;
+
+	defer {
+		ast_context.current_package = saved_package;
 	}
 
 	if ast_context.recursion_counter > 15 {
@@ -1117,6 +1116,12 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 	if ast_context.recursion_counter > 15 {
 		log.error("Recursion passed 15 attempts - giving up");
 		return {}, false;
+	}
+
+	saved_package := ast_context.current_package;
+
+	defer {
+		ast_context.current_package = saved_package;
 	}
 
 	ast_context.recursion_counter += 1;
@@ -2414,23 +2419,20 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 	symbols := make(map[uintptr]index.Symbol, 100, allocator);
 
 	for k, v in ast_context.globals {
-		switch n in v.expr.derived {
-		case ast.Proc_Lit:
-			resolve_entire_procedure(&ast_context, n, &symbols, allocator);
-			clear_local_group(&ast_context, 0);
-			add_local_group(&ast_context, 0);
-		}
+		resolve_entire_decl(&ast_context, v.expr, &symbols, allocator);
+		clear_local_group(&ast_context, 0);
+		add_local_group(&ast_context, 0);
 	}
 
 	return symbols;
 }
 
-resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_Lit, symbols: ^map[uintptr]index.Symbol, allocator := context.allocator) {
+resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Expr, symbols: ^map[uintptr]index.Symbol, allocator := context.allocator) {
 	Scope :: struct {
 		offset: int,
 		id:     int,
 	}
-
+	
 	Visit_Data :: struct {
 		ast_context: ^AstContext,
 		symbols: ^map[uintptr]index.Symbol,
@@ -2472,7 +2474,7 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 		}
 
 		switch v in &node.derived {
-		case ast.If_Stmt, ast.For_Stmt, ast.Range_Stmt, ast.Inline_Range_Stmt:
+		case ast.If_Stmt, ast.For_Stmt, ast.Range_Stmt, ast.Inline_Range_Stmt, ast.Proc_Lit:
 			scope: Scope;
 			scope.id = data.id_counter;
 			scope.offset = node.end.offset;
@@ -2485,9 +2487,6 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 			position_context: DocumentPositionContext;
 			position_context.position = node.end.offset;
 			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context);
-		}
-
-		switch v in &node.derived {
 		case ast.Ident:
 			if symbol, ok := resolve_type_identifier(ast_context, v); ok {
 				data.symbols[cast(uintptr)node] = symbol;
@@ -2502,6 +2501,17 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 			}
 		}
 
+		switch v in &node.derived {
+		case ast.Proc_Lit:
+			if v.body == nil {
+				break;
+			}
+		
+			type_position_context: DocumentPositionContext;
+			type_position_context.position = v.end.offset;
+			get_locals_proc_param_and_results(ast_context.file, v, ast_context, &type_position_context);
+		}
+
 		return visitor;
 	}
 
@@ -2510,20 +2520,7 @@ resolve_entire_procedure :: proc(ast_context: ^AstContext, procedure: ast.Proc_L
 		visit = visit,
 	}
 
-	if procedure.body == nil {
-		return;
-	}
-
-	type_position_context: DocumentPositionContext;
-	type_position_context.position = procedure.end.offset;
-	get_locals_proc_param_and_results(ast_context.file, procedure, ast_context, &type_position_context);
-	
-	body_position_context: DocumentPositionContext;
-	body_position_context.position = procedure.body.end.offset;
-	
-	get_locals_stmt(ast_context.file, cast(^ast.Stmt)procedure.body, ast_context, &body_position_context);
-
-	ast.walk(&visitor, procedure.body);
+	ast.walk(&visitor, decl);
 }
 
 concatenate_symbol_information :: proc {
