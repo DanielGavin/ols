@@ -25,6 +25,20 @@ get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool)
 	links := make([dynamic]DocumentLink, 0, context.temp_allocator);
 
 	for imp in document.ast.imports {
+		if len(imp.relpath.text) <= 1 {
+			continue;
+		}
+
+		e := strings.split(imp.relpath.text[1:len(imp.relpath.text)-1], ":", context.temp_allocator);
+
+		if len(e) != 2 {
+			continue;
+		}
+
+		if e[0] != "core" {
+			continue;
+		}
+
 		//Temporarly assuming non unicode
 		node := ast.Node {
 			pos = {
@@ -43,7 +57,7 @@ get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool)
 
 		link := DocumentLink {
 			range = range,
-			target = "https://code.visualstudio.com/docs/extensions/overview#frag",
+			target = fmt.tprintf("https://pkg.odin-lang.org/%v/%v", e[0], e[1]),
 			tooltip = "Documentation",
 		};
 

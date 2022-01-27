@@ -515,7 +515,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					tokenModifiers = token_modifiers,
 				},
 			},
-			inlayHintsProvider = true,
+			inlayHintsProvider = config.enable_inlay_hints,
 			documentSymbolProvider = config.enable_document_symbols,
 			hoverProvider = config.enable_hover,
 			documentFormattingProvider = config.enable_format,
@@ -989,7 +989,7 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	hints: []InlayHint;
 
-	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok && config.enable_inlay_hints {
+	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
 		hints, ok = get_inlay_hints(document, cache_symbols);
 	}
 

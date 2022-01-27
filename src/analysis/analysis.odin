@@ -129,7 +129,6 @@ resolve_poly_spec :: proc {
 };
 
 resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
-
 	if len(call_array) != len(spec_array) {
 		return;
 	}
@@ -140,7 +139,6 @@ resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, 
 }
 
 resolve_poly_spec_dynamic_array :: proc(ast_context: ^AstContext, call_array: $A/[dynamic]^$T, spec_array: $D/[dynamic]^$K, poly_map: ^map[string]^ast.Expr) {
-
 	if len(call_array) != len(spec_array) {
 		return;
 	}
@@ -151,7 +149,6 @@ resolve_poly_spec_dynamic_array :: proc(ast_context: ^AstContext, call_array: $A
 }
 
 get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
-
 	using ast;
 
 	switch v in node.derived {
@@ -295,6 +292,10 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 
 	if position_context.comp_lit == current_comp_lit {
 		return current_symbol, current_comp_lit, true;
+	}
+
+	if current_comp_lit == nil {
+		return {}, nil, false;
 	}
 
 	element_index := 0;
