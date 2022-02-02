@@ -217,7 +217,22 @@ collect_dynamic_array :: proc(collection: ^SymbolCollection, array: ast.Dynamic_
 	};
 }
 
-collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string) -> SymbolGenericValue {
+collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string, uri: string) -> SymbolGenericValue {
+	//Bit hacky right now, but it's hopefully a temporary solution.
+	//In the c package code it uses a documentation package(builtin).
+	if selector, ok := expr.derived.(ast.Selector_Expr); ok {
+		if ident, ok := selector.expr.derived.(ast.Ident); ok {
+			if ident.name == "builtin" && strings.contains(uri, "Odin/core/c/c.odin") {
+				cloned := clone_type(selector.field, collection.allocator, &collection.unique_strings);
+				replace_package_alias(cloned, package_map, collection);
+				value := SymbolGenericValue {
+					expr = cloned,
+				};
+				return value;
+			}
+		}
+	}
+
 	cloned := clone_type(expr, collection.allocator, &collection.unique_strings);
 	replace_package_alias(cloned, package_map, collection);
 
@@ -242,7 +257,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	exprs := common.collect_globals(file, true);
 
 	for expr in exprs {
-
 		symbol: Symbol;
 
 		token:      ast.Node;
@@ -320,7 +334,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.value = collect_dynamic_array(collection, v, package_map);
 		case ast.Basic_Lit:
 			token = v;
-			symbol.value = collect_generic(collection, col_expr, package_map);
+			symbol.value = collect_generic(collection, col_expr, package_map, uri);
 			if expr.mutable {
 				token_type = .Variable;
 			} else {
@@ -328,14 +342,14 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			}
 		case ast.Ident:
 			token = v;
-			symbol.value = collect_generic(collection, col_expr, package_map);
+			symbol.value = collect_generic(collection, col_expr, package_map, uri);
 			if expr.mutable {
 				token_type = .Variable;
 			} else {
 				token_type = .Unresolved;
 			}
 		case: // default
-			symbol.value = collect_generic(collection, col_expr, package_map);
+			symbol.value = collect_generic(collection, col_expr, package_map, uri);
 			if expr.mutable {
 				token_type = .Variable;
 			} else {
@@ -386,14 +400,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	Gets the map from import alias to absolute package directory
 */
 get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: string) -> map[string]string {
-
 	package_map := make(map[string]string, 0, context.temp_allocator);
 
 	for imp, index in file.imports {
-
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 {
-
 			//ERROR hover on collection should show string
 			collection := imp.fullpath[1:i];
 			p          := imp.fullpath[i + 1:len(imp.fullpath) - 1];
@@ -424,7 +435,6 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				package_map[name] = full;
 			}
 		} else {
-
 			name: string;
 
 			full := path.join(elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
@@ -461,14 +471,12 @@ replace_package_alias :: proc {
 };
 
 replace_package_alias_array :: proc(array: $A/[]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
-
 	for elem, i in array {
 		replace_package_alias(elem, package_map, collection);
 	}
 }
 
 replace_package_alias_dynamic_array :: proc(array: $A/[dynamic]^$T, package_map: map[string]string, collection: ^SymbolCollection) {
-
 	for elem, i in array {
 		replace_package_alias(elem, package_map, collection);
 	}
@@ -479,7 +487,6 @@ replace_package_alias_expr :: proc(node: ^ast.Expr, package_map: map[string]stri
 }
 
 replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]string, collection: ^SymbolCollection) {
-
 	using ast;
 
 	if node == nil {

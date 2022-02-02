@@ -815,10 +815,15 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	}
 
 	for key, value in index.indexer.dynamic_index.collection.symbols {
-		if value.uri == save_params.textDocument.uri {
+		when ODIN_OS == "windows"{
+			uri := strings.to_lower(save_params.textDocument.uri, context.temp_allocator);
+		} else {
+			uri := save_params.textDocument.uri;
+		}
+		if value.uri == uri {
 			index.free_symbol(value, context.allocator);
 			index.indexer.dynamic_index.collection.symbols[key] = {};
-		}
+		} 
 	}
 
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
