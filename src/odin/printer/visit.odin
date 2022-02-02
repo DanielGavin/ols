@@ -1289,7 +1289,11 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt, split := false) -> ^D
 	document := empty()
 
 	for stmt, i in stmts {
-		document = cons(document, group(visit_stmt(p, stmt, .Generic, false, true)))
+		last_index := max(0, i-1);
+		if stmts[last_index].end.line == stmt.pos.line && i != 0 { 
+			document = cons(document, break_with(";"));
+		}
+		document = cons_with_nopl(document, group(visit_stmt(p, stmt, .Generic, false, true)))
 	}
 
 	return document
