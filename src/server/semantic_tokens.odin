@@ -276,11 +276,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		visit(n.list, builder, ast_context);
 		visit(n.body, builder, ast_context);
 	case Call_Expr:
-		if ident, ok := n.expr.derived.(Ident); ok {
-			write_semantic_node(builder, n.expr, ast_context.file.src, .Function, .None);
-		} else {
-			visit(n.expr, builder, ast_context);
-		}
+		visit(n.expr, builder, ast_context);
 		visit(n.args, builder, ast_context);
 	case Implicit_Selector_Expr:
 		write_semantic_node(builder, n.field, ast_context.file.src, .Enum, .None);

@@ -798,6 +798,8 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		value.type = .Integer;
 	} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
 		value.type = .Bool;
+	} else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
+		value.type = .Float;
 	} else {
 		value.type = .String;
 	}
