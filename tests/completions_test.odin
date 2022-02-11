@@ -1286,3 +1286,36 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 
     test.expect_completion_details(t, &source, ".", {"my_package.param: My_Struct"});
 }
+
+@(test)
+ast_implicit_completion_in_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			foo :: enum{ one, two }
+			bar := [foo]int{
+			  .one = 1,
+			  .*two = 2, // When adding the '.' here
+			}
+	    }
+		`,
+	};
+
+    test.expect_completion_details(t, &source, ".", {"Not implemented - waiting for test system to work again"});
+}
+
+
+
+
+/*
+	Should be the same, but just check after fixing this:
+		E :: enum {
+			A,
+			B,
+			C,
+		}
+
+		x := [E]int {
+			.B = 1,
+		}
+*/
