@@ -1429,6 +1429,10 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 		} else {
 			document = cons(document, group(nest(p.indentation_count, cons(break_with(" "), group(visit_signature_list(p, proc_type.results))))))
 		}
+	} else if proc_type.diverging {
+		document = cons_with_nopl(document, text("-"))
+		document = cons(document, text(">"))
+		document = cons_with_nopl(document, text("!"))
 	}
 
 	return document
