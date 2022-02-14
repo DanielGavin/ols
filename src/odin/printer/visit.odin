@@ -1293,7 +1293,7 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt, split := false) -> ^D
 		if stmts[last_index].end.line == stmt.pos.line && i != 0 { 
 			document = cons(document, break_with(";"));
 		}
-		document = cons_with_nopl(document, group(visit_stmt(p, stmt, .Generic, false, true)))
+		document = cons(document, group(visit_stmt(p, stmt, .Generic, false, true)))
 	}
 
 	return document
