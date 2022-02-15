@@ -472,7 +472,7 @@ visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, a
 			write_semantic_node(builder, field, ast_context.file.src, .EnumMember, .None);
 		}
 		else if f, ok := field.derived.(Field_Value); ok {
-			if ident, ok := f.field.derived.(Ident); ok {
+			if _, ok := f.field.derived.(Ident); ok {
 				write_semantic_node(builder, f.field, ast_context.file.src, .EnumMember, .None);
 			}
 			visit(f.value, builder, ast_context);

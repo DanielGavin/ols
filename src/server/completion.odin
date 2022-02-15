@@ -1029,7 +1029,6 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		} else {
 			item := CompletionItem {
 				label = result.name,
-				insertTextFormat = .PlainText,
 				documentation = result.doc,
 			};
 

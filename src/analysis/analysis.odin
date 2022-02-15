@@ -292,6 +292,8 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 
 	if position_context.comp_lit == current_comp_lit {
 		return current_symbol, current_comp_lit, true;
+	} else if current_comp_lit == nil {
+		return {}, nil, false
 	}
 
 	if current_comp_lit == nil {
