@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: Works with all platforms
+**Status**: Some issues with compiling after new change with latest master. Please use the release images.
 
 ## Table Of Contents
 - [Installation](#installation)
