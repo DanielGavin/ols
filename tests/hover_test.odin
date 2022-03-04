@@ -18,7 +18,7 @@ ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 		packages = {},
 	};
 
-	test.expect_hover(t, &source, "test.a: bool");
+	test.expect_hover(t, &source, "test.a: bool")
 }
 
 @(test)
@@ -33,9 +33,9 @@ ast_hover_default_parameter_enum :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_hover(t, &source, "test.procedure: proc(called_from: Expr_Called_Type = .None, options := List_Options{})");
+	test.expect_hover(t, &source, "test.procedure: proc(called_from: Expr_Called_Type = .None, options := List_Options{})")
 }
 @(test)
 ast_hover_parameter :: proc(t: ^testing.T) {
@@ -47,9 +47,9 @@ ast_hover_parameter :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_hover(t, &source, "cool: int");
+	test.expect_hover(t, &source, "cool: int")
 }
 
 @(test)
@@ -65,7 +65,7 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 			three: int,
 		}
 		`,
-	});
+	})
 	source := test.Source {
 		main = `package test
 		import "my_package"
@@ -74,9 +74,9 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-	test.expect_hover(t, &source, "test.cool: My_Struct");
+	test.expect_hover(t, &source, "test.cool: My_Struct")
 }
 
 @(test)
@@ -92,7 +92,7 @@ ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
 			three: int,
 		}
 		`,
-	});
+	})
 	source := test.Source {
 		main = `package test
 		import "my_package"
@@ -101,7 +101,26 @@ ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-	test.expect_hover(t, &source, "my_package: package");
+	test.expect_hover(t, &source, "my_package: package")
+}
+
+@(test)
+ast_hover_procedure_with_default_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Color :: struct {
+			r: int,
+			g: int,
+			b: int,
+			a: int,
+		}
+
+		fa* :: proc(color_ : Color = { 255, 255, 255, 255 })
+
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.fa: proc(color_: Color = {255, 255, 255, 255})")
 }

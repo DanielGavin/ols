@@ -770,7 +770,12 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 	case ^Comp_Lit:
 		build_string(n.type, builder)
 		strings.write_string(builder, "{")
-		build_string(n.elems, builder)
+		for elem, i in n.elems {
+			build_string(elem, builder)
+			if len(n.elems) - 1 != i {
+				strings.write_string(builder, ", ")
+			}
+		}
 		strings.write_string(builder, "}")
 	case ^Tag_Expr:
 		build_string(n.expr, builder)

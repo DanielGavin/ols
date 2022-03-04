@@ -358,7 +358,7 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 		packages = {},
 	};
 
-	test.expect_signature_labels(t, &source, {"builtin.len: proc(array: Array_Type) -> int"});
+	test.expect_signature_labels(t, &source, {"$builtin.len: proc(array: Array_Type) -> int"});
 }
 
 @(test)
