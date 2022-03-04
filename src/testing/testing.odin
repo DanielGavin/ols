@@ -38,7 +38,7 @@ setup :: proc(src: ^Source) {
 	src.document.allocator = new(common.Scratch_Allocator);
 	src.document.package_name = "test";
 
-	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(20), context.temp_allocator);
+	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(200), context.temp_allocator);
 
 	//no unicode in tests currently
 	current, last:                   u8;
@@ -111,7 +111,7 @@ setup :: proc(src: ^Source) {
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source");
 		}
-	
+
 		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {
 			return;
 		}

@@ -20,23 +20,23 @@ import "shared:index"
 import "shared:analysis"
 
 get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool) {
-	using analysis;
+	using analysis
 
-	links := make([dynamic]DocumentLink, 0, context.temp_allocator);
+	links := make([dynamic]DocumentLink, 0, context.temp_allocator)
 
 	for imp in document.ast.imports {
 		if len(imp.relpath.text) <= 1 {
-			continue;
+			continue
 		}
 
-		e := strings.split(imp.relpath.text[1:len(imp.relpath.text)-1], ":", context.temp_allocator);
+		e := strings.split(imp.relpath.text[1:len(imp.relpath.text)-1], ":", context.temp_allocator)
 
 		if len(e) != 2 {
-			continue;
+			continue
 		}
 
 		if e[0] != "core" {
-			continue;
+			continue
 		}
 
 		//Temporarly assuming non unicode
@@ -53,16 +53,16 @@ get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool)
 			},
 		}
 
-		range := common.get_token_range(node, string(document.text));
+		range := common.get_token_range(node, string(document.text))
 
 		link := DocumentLink {
 			range = range,
 			target = fmt.tprintf("https://pkg.odin-lang.org/%v/%v", e[0], e[1]),
 			tooltip = "Documentation",
-		};
+		}
 
-		append(&links, link);
+		append(&links, link)
 	}
 
-	return links[:], true;
+	return links[:], true
 }

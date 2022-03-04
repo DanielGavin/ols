@@ -18,49 +18,49 @@ import "core:text/scanner"
 
 import "shared:common"
 
-when ODIN_OS == "windows" {
+when ODIN_OS == .Windows {
 
 	is_package :: proc(file: string, pkg: string) {
 		
 	}
 
 	check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
-		data := make([]byte, mem.kilobytes(10), context.temp_allocator);
+		data := make([]byte, mem.kilobytes(10), context.temp_allocator)
 
-		buffer: []byte;
-		code: u32;
-		ok: bool;
+		buffer: []byte
+		code: u32
+		ok: bool
 
-		collection_builder := strings.make_builder(context.temp_allocator);
+		collection_builder := strings.make_builder(context.temp_allocator)
 
 		for k, v in common.config.collections {
 			if k == "" || k == "core" || k == "vendor" {
-				continue;
+				continue
 			}
-			strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=%v ", k, v));
+			strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=%v ", k, v))
 		}
 
-		command: string;
+		command: string
 	
 		if config.odin_command != "" {
-			command = config.odin_command;
+			command = config.odin_command
 			
 		} else {
-			command = "odin";
+			command = "odin"
 		}
  
 		if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point %s", command, path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder), config.checker_args), &data); !ok {
-			log.errorf("Odin check failed with code %v for file %v", code, uri.path);
-			return;
+			log.errorf("Odin check failed with code %v for file %v", code, uri.path)
+			return
 		} 
 
-		s: scanner.Scanner;
+		s: scanner.Scanner
 
-		scanner.init(&s, string(buffer));
+		scanner.init(&s, string(buffer))
 
-		s.whitespace = {'\t', ' '}; 
+		s.whitespace = {'\t', ' '} 
 
-		current: rune;
+		current: rune
 
 		ErrorSeperator :: struct {
 			message: string,
@@ -69,101 +69,101 @@ when ODIN_OS == "windows" {
 			uri: string,
 		}
 
-		error_seperators := make([dynamic]ErrorSeperator, context.temp_allocator);
+		error_seperators := make([dynamic]ErrorSeperator, context.temp_allocator)
 
 		//find all the signatures string(digit:digit)
 		loop: for scanner.peek(&s) != scanner.EOF {
 
-			error: ErrorSeperator;
+			error: ErrorSeperator
 
-			source_pos := s.src_pos;
+			source_pos := s.src_pos
 
 			if source_pos == 1 {
-				source_pos = 0;
+				source_pos = 0
 			}
 
 			for scanner.peek(&s) != '(' {
-				n := scanner.scan(&s);
+				n := scanner.scan(&s)
 
 				if n == scanner.EOF {
-					break loop;
+					break loop
 				} 
 			}
 
-			error.uri = string(buffer[source_pos:s.src_pos-1]);
+			error.uri = string(buffer[source_pos:s.src_pos-1])
 
-			left_paren := scanner.scan(&s);
+			left_paren := scanner.scan(&s)
 
 			if left_paren != '(' {
-				break loop;
+				break loop
 			}
 
-			lhs_digit := scanner.scan(&s);
+			lhs_digit := scanner.scan(&s)
 
 			if lhs_digit != scanner.Int {
-				break loop;
+				break loop
 			}
 
-			line, column: int;
-			ok: bool;
+			line, column: int
+			ok: bool
 
-			line, ok = strconv.parse_int(scanner.token_text(&s));
+			line, ok = strconv.parse_int(scanner.token_text(&s))
 
 			if !ok {
-				break loop;
+				break loop
 			}
 
-			seperator := scanner.scan(&s);
+			seperator := scanner.scan(&s)
 
 			if seperator != ':' {
-				break loop;
+				break loop
 			} 
 
 			rhs_digit := scanner.scan(&s)
 
 			if rhs_digit != scanner.Int {
-				break loop;
+				break loop
 			}
 
-			column, ok = strconv.parse_int(scanner.token_text(&s));
+			column, ok = strconv.parse_int(scanner.token_text(&s))
 
 			if !ok {
-				break loop;
+				break loop
 			}
 
-			right_paren := scanner.scan(&s);
+			right_paren := scanner.scan(&s)
 
 			if right_paren != ')' {
-				break loop;
+				break loop
 			}
 
-			source_pos = s.src_pos;
+			source_pos = s.src_pos
 
 			for scanner.peek(&s) != '\n' {
-				n := scanner.scan(&s);
+				n := scanner.scan(&s)
 
 				if n == scanner.EOF {
-					break;
+					break
 				}
 			}
 
 			if source_pos == s.src_pos {
-				continue;
+				continue
 			}
 
-			error.message = string(buffer[source_pos:s.src_pos-1]);
-			error.column = column;
-			error.line = line;
+			error.message = string(buffer[source_pos:s.src_pos-1])
+			error.column = column
+			error.line = line
 
-			append(&error_seperators, error);
+			append(&error_seperators, error)
 		}
 
-		errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator);
+		errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
 
 		for error in error_seperators {
 
 			if error.uri not_in errors {
-				errors[error.uri] = make([dynamic]Diagnostic, context.temp_allocator);
+				errors[error.uri] = make([dynamic]Diagnostic, context.temp_allocator)
 			}
 
 			append(&errors[error.uri], Diagnostic {
@@ -180,48 +180,48 @@ when ODIN_OS == "windows" {
 					},
 				},
 				message = error.message,
-			});
+			})
 		}
  
-		matches, err := filepath.glob(fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)));
+		matches, err := filepath.glob(fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)))
 
 		if err == .None {
 			for match in matches {
-				uri := common.create_uri(match, context.temp_allocator);
+				uri := common.create_uri(match, context.temp_allocator)
 				 
 				params := NotificationPublishDiagnosticsParams {
 					uri = uri.uri,
 					diagnostics = {},
-				};
+				}
 	
 				notifaction := Notification {
 					jsonrpc = "2.0",
 					method = "textDocument/publishDiagnostics",
 					params = params,
-				};
+				}
 
 				if writer != nil {
-					send_notification(notifaction, writer);
+					send_notification(notifaction, writer)
 				}
 			}
 		}
 
 		for k, v in errors {
-			uri := common.create_uri(k, context.temp_allocator);
+			uri := common.create_uri(k, context.temp_allocator)
 
 			params := NotificationPublishDiagnosticsParams {
 				uri = uri.uri,
 				diagnostics = v[:],
-			};
+			}
 
 			notifaction := Notification {
 				jsonrpc = "2.0",
 				method = "textDocument/publishDiagnostics",
 				params = params,
-			};
+			}
 
 			if writer != nil {
-				send_notification(notifaction, writer);
+				send_notification(notifaction, writer)
 			}
 		}
 	}

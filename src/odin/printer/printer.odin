@@ -71,7 +71,7 @@ Newline_Style :: enum {
 }
 
 
-when ODIN_OS == "windows" {
+when ODIN_OS ==  .Windows {
 	default_style := Config {
 		spaces               = 4,
 		newline_limit        = 2,
@@ -156,7 +156,7 @@ print :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.source_position.line = 1
 	p.source_position.column = 1
 
-	p.document = move_line(p, file.pkg_token.pos);
+	p.document = move_line(p, file.pkg_token.pos)
 	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))
 
 	for decl in file.decls {

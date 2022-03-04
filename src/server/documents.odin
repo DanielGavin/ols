@@ -27,58 +27,58 @@ DocumentStorage :: struct {
 	free_allocators: [dynamic]^common.Scratch_Allocator,
 }
 
-document_storage: DocumentStorage;
+document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		delete(k);
+		delete(k)
 	}
 
 	for alloc in document_storage.free_allocators {
-		common.scratch_allocator_destroy(alloc);
-		free(alloc);
+		common.scratch_allocator_destroy(alloc)
+		free(alloc)
 	}
 
-	delete(document_storage.free_allocators);
-	delete(document_storage.documents);
+	delete(document_storage.free_allocators)
+	delete(document_storage.documents)
 }
 
 document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 	if len(document_storage.free_allocators) > 0 {
-		return pop(&document_storage.free_allocators);
+		return pop(&document_storage.free_allocators)
 	} else {
-		allocator := new(common.Scratch_Allocator);
-		common.scratch_allocator_init(allocator, mem.megabytes(1));
-		return allocator;
+		allocator := new(common.Scratch_Allocator)
+		common.scratch_allocator_init(allocator, mem.megabytes(1))
+		return allocator
 	}
 }
 
 document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
-	append(&document_storage.free_allocators, allocator);
+	append(&document_storage.free_allocators, allocator)
 }
 
 document_get :: proc(uri_string: string) -> ^common.Document {
-	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
+	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
-		return nil;
+		return nil
 	}
 
-	document := &document_storage.documents[uri.path];
+	document := &document_storage.documents[uri.path]
 
 	if document == nil {
-		log.errorf("Failed to get document %v", uri.path);
-		return nil;
+		log.errorf("Failed to get document %v", uri.path)
+		return nil
 	}
 
-	intrinsics.atomic_add(&document.operating_on, 1);
+	intrinsics.atomic_add(&document.operating_on, 1)
 
-	return document;
+	return document
 }
 
 document_release :: proc(document: ^common.Document) {
 	if document != nil {
-		intrinsics.atomic_sub(&document.operating_on, 1);
+		intrinsics.atomic_sub(&document.operating_on, 1)
 	}
 }
 
@@ -87,27 +87,27 @@ document_release :: proc(document: ^common.Document) {
 */
 
 document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
-	uri, parsed_ok := common.parse_uri(uri_string, context.allocator);
+	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 
 	if !parsed_ok {
-		log.error("Failed to parse uri");
-		return .ParseError;
+		log.error("Failed to parse uri")
+		return .ParseError
 	}
 
 	if document := &document_storage.documents[uri.path]; document != nil {
 		if document.client_owned {
-			log.errorf("Client called open on an already open document: %v ", document.uri.path);
-			return .InvalidRequest;
+			log.errorf("Client called open on an already open document: %v ", document.uri.path)
+			return .InvalidRequest
 		}
 
-		document.uri = uri;
-		document.client_owned = true;
-		document.text = transmute([]u8)text;
-		document.used_text = len(document.text);
-		document.allocator = document_get_allocator();
+		document.uri = uri
+		document.client_owned = true
+		document.text = transmute([]u8)text
+		document.used_text = len(document.text)
+		document.allocator = document_get_allocator()
 
 		if err := document_refresh(document, config, writer); err != .None {
-			return err;
+			return err
 		}
 	} else {
 		document := common.Document {
@@ -116,142 +116,142 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			client_owned = true,
 			used_text = len(text),
 			allocator = document_get_allocator(),
-		};
-
-		if err := document_refresh(&document, config, writer); err != .None {
-			return err;
 		}
 
-		document_storage.documents[strings.clone(uri.path)] = document;
+		if err := document_refresh(&document, config, writer); err != .None {
+			return err
+		}
+
+		document_storage.documents[strings.clone(uri.path)] = document
 	}
 
-	delete(uri_string);
+	delete(uri_string)
 
-	return .None;
+	return .None
 }
 
 /*
 	Function that applies changes to the given document through incremental syncronization
 */
 document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
-	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
+	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
-		return .ParseError;
+		return .ParseError
 	}
 
-	document := &document_storage.documents[uri.path];
+	document := &document_storage.documents[uri.path]
 
 	if !document.client_owned {
-		log.errorf("Client called change on an document not opened: %v ", document.uri.path);
-		return .InvalidRequest;
+		log.errorf("Client called change on an document not opened: %v ", document.uri.path)
+		return .InvalidRequest
 	}
 
 	for change in changes {
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
 
-			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text]);
+			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text])
 
 			if !ok {
-				return .ParseError;
+				return .ParseError
 			}
 
 			//lower bound is before the change
-			lower := document.text[:absolute_range.start];
+			lower := document.text[:absolute_range.start]
 
 			//new change between lower and upper
-			middle := change.text;
+			middle := change.text
 
 			//upper bound is after the change
-			upper := document.text[absolute_range.end:document.used_text];
+			upper := document.text[absolute_range.end:document.used_text]
 
 			//total new size needed
-			document.used_text = len(lower) + len(change.text) + len(upper);
+			document.used_text = len(lower) + len(change.text) + len(upper)
 
 			//Reduce the amount of allocation by allocating more memory than needed
 			if document.used_text > len(document.text) {
-				new_text := make([]u8, document.used_text * 2);
+				new_text := make([]u8, document.used_text * 2)
 
 				//join the 3 splices into the text
-				copy(new_text, lower);
-				copy(new_text[len(lower):], middle);
-				copy(new_text[len(lower) + len(middle):], upper);
+				copy(new_text, lower)
+				copy(new_text[len(lower):], middle)
+				copy(new_text[len(lower) + len(middle):], upper)
 
-				delete(document.text);
+				delete(document.text)
 
-				document.text = new_text;
+				document.text = new_text
 			} else {
 				//order matters here, we need to make sure we swap the data already in the text before the middle
-				copy(document.text, lower);
-				copy(document.text[len(lower) + len(middle):], upper);
-				copy(document.text[len(lower):], middle);
+				copy(document.text, lower)
+				copy(document.text[len(lower) + len(middle):], upper)
+				copy(document.text[len(lower):], middle)
 			}
 		} else {
 
-			document.used_text = len(change.text);
+			document.used_text = len(change.text)
 
 			if document.used_text > len(document.text) {
-				new_text := make([]u8, document.used_text * 2);
-				copy(new_text, change.text);
-				delete(document.text);
-				document.text = new_text;
+				new_text := make([]u8, document.used_text * 2)
+				copy(new_text, change.text)
+				delete(document.text)
+				document.text = new_text
 			} else {
-				copy(document.text, change.text);
+				copy(document.text, change.text)
 			}
 		}
 	}
 
 	//log.info(string(document.text[:document.used_text]));
 
-	return document_refresh(document, config, writer);
+	return document_refresh(document, config, writer)
 }
 
 document_close :: proc(uri_string: string) -> common.Error {
-	log.infof("document_close: %v", uri_string);
+	log.infof("document_close: %v", uri_string)
 
-	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator);
+	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
-		return .ParseError;
+		return .ParseError
 	}
 
-	document := &document_storage.documents[uri.path];
+	document := &document_storage.documents[uri.path]
 
 	if document == nil || !document.client_owned {
-		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path);
-		return .InvalidRequest;
+		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path)
+		return .InvalidRequest
 	}
 
-	free_all(common.scratch_allocator(document.allocator));
-	document_free_allocator(document.allocator);
+	free_all(common.scratch_allocator(document.allocator))
+	document_free_allocator(document.allocator)
 
-	document.allocator = nil;
-	document.client_owned = false;
+	document.allocator = nil
+	document.client_owned = false
 
-	common.delete_uri(document.uri);
+	common.delete_uri(document.uri)
 
-	delete(document.text);
+	delete(document.text)
 
-	document.used_text = 0;
+	document.used_text = 0
 
-	return .None;
+	return .None
 }
 
 document_refresh :: proc(document: ^common.Document, config: ^common.Config, writer: ^Writer) -> common.Error {
-	errors, ok := parse_document(document, config);
+	errors, ok := parse_document(document, config)
 
 	if !ok {
-		return .ParseError;
+		return .ParseError
 	}
 
 	if writer != nil && len(errors) > 0 {
-		document.diagnosed_errors = true;
+		document.diagnosed_errors = true
 
 		params := NotificationPublishDiagnosticsParams {
 			uri = document.uri.uri,
 			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
-		};
+		}
 
 		for error, i in errors {
 			params.diagnostics[i] = Diagnostic {
@@ -268,16 +268,16 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 				severity = DiagnosticSeverity.Error,
 				code = "test",
 				message = error.message,
-			};
+			}
 		}
  
 		notifaction := Notification {
 			jsonrpc = "2.0",
 			method = "textDocument/publishDiagnostics",
 			params = params,
-		};
+		}
 
-		send_notification(notifaction, writer);
+		send_notification(notifaction, writer)
 	}
 
 	if writer != nil && len(errors) == 0 {
@@ -291,31 +291,31 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 					uri = document.uri.uri,
 					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
 				},
-			};
+			}
 
-			document.diagnosed_errors = false;
+			document.diagnosed_errors = false
 
-			send_notification(notifaction, writer);
+			send_notification(notifaction, writer)
 		}
 	}
 
 	//We only resolve the entire file, if we are dealing with the heavy features that require the entire file resolved.
 	//This gives the user a choice to use "fast mode" with only completion and gotos.
 	if config.enable_semantic_tokens || config.enable_inlay_hints {
-		resolve_entire_file(document);
+		resolve_entire_file(document)
 	} 
 
-	return .None;
+	return .None
 }
 
-current_errors: [dynamic]ParserError;
+current_errors: [dynamic]ParserError
 
 parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	error := ParserError {
 		line = pos.line,column = pos.column,file = pos.file,
 		offset = pos.offset,message = fmt.tprintf(msg, ..args),
-	};
-	append(&current_errors, error);
+	}
+	append(&current_errors, error)
 }
 
 parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([]ParserError, bool) {
@@ -323,92 +323,92 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 		err = parser_error_handler,
 		warn = common.parser_warning_handler,
 		flags = {.Optional_Semicolons},
-	};
+	}
 
-	current_errors = make([dynamic]ParserError, context.temp_allocator);
+	current_errors = make([dynamic]ParserError, context.temp_allocator)
 
-	free_all(common.scratch_allocator(document.allocator));
+	free_all(common.scratch_allocator(document.allocator))
 
-	context.allocator = common.scratch_allocator(document.allocator);
+	context.allocator = common.scratch_allocator(document.allocator)
 
 	//have to cheat the parser since it really wants to parse an entire package with the new changes...
-	pkg := new(ast.Package);
-	pkg.kind     = .Normal;
-	pkg.fullpath = document.uri.path;
+	pkg := new(ast.Package)
+	pkg.kind     = .Normal
+	pkg.fullpath = document.uri.path
 
 	document.ast = ast.File {
 		fullpath = document.uri.path,
 		src = string(document.text[:document.used_text]),
 		pkg = pkg,
-	};
+	}
 
-	parser.parse_file(&p, &document.ast);
+	parser.parse_file(&p, &document.ast)
 
-	imports := make([dynamic]common.Package);
+	imports := make([dynamic]common.Package)
 
-	when ODIN_OS == "windows" {
-		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator));
+	when ODIN_OS == .Windows  {
+		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator))
 	} else {
-		document.package_name = path.dir(document.uri.path);
+		document.package_name = path.dir(document.uri.path)
 	}
 
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
-			continue;
+			continue
 		}
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
 
 			if len(imp.fullpath) < 2 {
-				continue;
+				continue
 			}
 
-			collection := imp.fullpath[1:i];
-			p := imp.fullpath[i + 1:len(imp.fullpath) - 1];
+			collection := imp.fullpath[1:i]
+			p := imp.fullpath[i + 1:len(imp.fullpath) - 1]
 
-			dir, ok := config.collections[collection];
+			dir, ok := config.collections[collection]
 
 			if !ok {
-				continue;
+				continue
 			}
 
-			import_: common.Package;
+			import_: common.Package
 
-			when ODIN_OS == "windows" {
-				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator));
+			when ODIN_OS == .Windows  {
+				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator))
 			} else {
-				import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator));
+				import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 			}
 
 			if imp.name.text != "" {
-				import_.base = imp.name.text;
+				import_.base = imp.name.text
 			} else {
-				import_.base = path.base(import_.name, false);
+				import_.base = path.base(import_.name, false)
 			}
 			
-			append(&imports, import_);
+			append(&imports, import_)
 		} else {
 			//relative
 			if len(imp.fullpath) < 2 {
-				continue;
+				continue
 			}
 
-			import_: common.Package;
-			import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator);
-			import_.name = path.clean(import_.name);
+			import_: common.Package
+			import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator)
+			import_.name = path.clean(import_.name)
 
 			if imp.name.text != "" {
-				import_.base = imp.name.text;
+				import_.base = imp.name.text
 			} else {
-				import_.base = path.base(import_.name, false);
+				import_.base = path.base(import_.name, false)
 			}
 
-			append(&imports, import_);
+			append(&imports, import_)
 		}
 	}
 
-	document.imports = imports[:];
+	document.imports = imports[:]
 
-	return current_errors[:], true;
+	return current_errors[:], true
 }
