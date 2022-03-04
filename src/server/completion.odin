@@ -834,6 +834,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	append(&pkgs, ast_context.document_package)
+	append(&pkgs, "$builtin")
 
 	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
 		for r in results {

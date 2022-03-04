@@ -359,6 +359,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.type = token_type
 		symbol.doc = common.get_doc(expr.docs, collection.allocator)
 
+		if expr.builtin {
+			symbol.pkg = "$builtin"
+		} else {
+			symbol.pkg = get_index_unique_string(collection, directory)
+		}
+
 		if expr.deprecated {
 			symbol.flags |= {.Deprecated}
 		}

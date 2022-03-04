@@ -73,8 +73,8 @@ GlobalExpr :: struct {
 	deprecated:      bool,
 	file_private:    bool,
 	package_private: bool,
+	builtin:         bool,
 }
-
 
 unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 	expr := expr
@@ -99,10 +99,10 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 
 collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
 	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
-
 		is_deprecated := false
 		is_private_file := false
 		is_package_file := false
+		is_builtin := false
 
 		for attribute in value_decl.attributes {
 			for elem in attribute.elems {
@@ -118,14 +118,14 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 									is_package_file = true
 								}
 							}
-						case "deprecated":
-							is_deprecated = true
 						}
 					}
 				} else if ident, ok := elem.derived.(^ast.Ident); ok {
 					switch ident.name {
 					case "deprecated":
 						is_deprecated = true
+					case "builtin":
+						is_builtin = true
 					}
 				}
 			}
@@ -146,6 +146,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 					docs = value_decl.docs, 
 					attributes = value_decl.attributes[:],
 					deprecated = is_deprecated,
+					builtin = is_builtin,
 				})
 			} else {
 				if len(value_decl.values) > i {
@@ -156,6 +157,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 						docs = value_decl.docs, 
 						attributes = value_decl.attributes[:],
 						deprecated = is_deprecated,
+						builtin = is_builtin,
 					})
 				}
 			}

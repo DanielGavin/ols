@@ -19,7 +19,6 @@ MemoryIndex :: struct {
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
-
 	return MemoryIndex {
 		collection = collection,
 	}
@@ -31,7 +30,6 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 }
 
 memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
-
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 
 	fuzzy_matcher := common.make_fuzzy_matcher(name)
@@ -64,7 +62,6 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 }
 
 exists_in_scope :: proc(symbol_scope: string, scope: []string) -> bool {
-
 	for s in scope {
 		if strings.compare(symbol_scope, s) == 0 {
 			return true

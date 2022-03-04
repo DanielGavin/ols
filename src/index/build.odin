@@ -113,6 +113,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		p := parser.Parser {
 			err = log_error_handler,
 			warn = log_warning_handler,
+			flags = {.Optional_Semicolons},
 		}
 
 		//have to cheat the parser since it really wants to parse an entire package with the new changes...

@@ -1346,6 +1346,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 
 		//If we are resolving a symbol that is in the document package, then we'll check the builtin packages.
 		if ast_context.current_package == ast_context.document_package {
+			if symbol, ok := index.lookup(node.name, "$builtin"); ok {
+				return resolve_symbol_return(ast_context, symbol)
+			}
 			for built in index.indexer.builtin_packages {
 				if symbol, ok := index.lookup(node.name, built); ok {
 					return resolve_symbol_return(ast_context, symbol)
