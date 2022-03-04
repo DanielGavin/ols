@@ -48,7 +48,7 @@ document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 		return pop(&document_storage.free_allocators)
 	} else {
 		allocator := new(common.Scratch_Allocator)
-		common.scratch_allocator_init(allocator, mem.megabytes(1))
+		common.scratch_allocator_init(allocator, mem.megabytes(3))
 		return allocator
 	}
 }
@@ -298,12 +298,6 @@ document_refresh :: proc(document: ^common.Document, config: ^common.Config, wri
 			send_notification(notifaction, writer)
 		}
 	}
-
-	//We only resolve the entire file, if we are dealing with the heavy features that require the entire file resolved.
-	//This gives the user a choice to use "fast mode" with only completion and gotos.
-	if config.enable_semantic_tokens || config.enable_inlay_hints {
-		resolve_entire_file(document)
-	} 
 
 	return .None
 }

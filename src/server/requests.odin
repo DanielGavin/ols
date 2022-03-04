@@ -866,6 +866,8 @@ request_semantic_token_full :: proc (params: json.Value, id: RequestId, config: 
 	symbols: SemanticTokens
 
 	if config.enable_semantic_tokens {
+		resolve_entire_file(document)
+
 		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
 			symbols = get_semantic_tokens(document, range, cache_symbols)
 		}

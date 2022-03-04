@@ -2422,7 +2422,7 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 
 	ast_context.current_package = ast_context.document_package
 
-	symbols := make(map[uintptr]index.Symbol, 100, allocator)
+	symbols := make(map[uintptr]index.Symbol, 10000, allocator)
 
 	for k, v in ast_context.globals {
 		resolve_entire_decl(&ast_context, v.expr, &symbols, allocator)
@@ -2512,7 +2512,7 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Expr, symbols: 
 			if v.body == nil {
 				break
 			}
-		
+
 			type_position_context: DocumentPositionContext
 			type_position_context.position = v.end.offset
 			get_locals_proc_param_and_results(ast_context.file, v^, ast_context, &type_position_context)
