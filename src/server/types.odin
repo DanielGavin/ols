@@ -129,6 +129,14 @@ TextDocumentClientCapabilities :: struct {
 	documentSymbol: DocumentSymbolClientCapabilities,
 }
 
+StaleRequestSupport :: struct {
+	cancel: bool,
+}
+
+GeneralClientCapabilities :: struct {
+	staleRequestSupport: StaleRequestSupport,
+}
+
 CompletionItemCapabilities :: struct {
 	snippetSupport: bool,
 }
@@ -144,6 +152,7 @@ ParameterInformationCapabilities :: struct {
 
 ClientCapabilities :: struct {
 	textDocument: TextDocumentClientCapabilities,
+	general: GeneralClientCapabilities,
 }
 
 RangeOptional :: union {

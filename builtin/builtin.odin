@@ -76,3 +76,6 @@ Odin_Endian_Type :: enum int {
 
 @builtin
 ODIN_ENDIAN: Odin_Endian_Type
+
+@builtin
+ODIN_DEBUG: bool
