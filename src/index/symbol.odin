@@ -11,7 +11,6 @@ import "core:slice"
 import "shared:common"
 
 SymbolStructValue :: struct {
-	struct_name: string,
 	names:   []string,
 	types:   []^ast.Expr,
 	usings:  map[string]bool,
@@ -36,12 +35,10 @@ SymbolAggregateValue :: struct {
 }
 
 SymbolEnumValue :: struct {
-	enum_name: string,
 	names: []string,
 }
 
 SymbolUnionValue :: struct {
-	union_name: string,
 	types: []^ast.Expr,
 	poly: ^ast.Field_List,
 }
@@ -64,7 +61,6 @@ SymbolBasicValue :: struct {
 }
 
 SymbolBitSetValue :: struct {
-	bitset_name: string,
 	expr: ^ast.Expr,
 }
 
@@ -107,24 +103,24 @@ SymbolFlag :: enum {
 	Deprecated,
 	PrivateFile,
 	PrivatePackage,
-	Anonymous,
+	Anonymous, //Usually applied to structs that are defined inline inside another struct
+	Variable, //Symbols that are variable, this means their value decl was mutable
 }
 
 SymbolFlags :: bit_set[SymbolFlag]
 
 Symbol :: struct {
-	range:               common.Range,
-	uri:                 string,
-	pkg:                 string,
-	name:                string,
-	doc:                 string,
-	signature:           string,
-	returns:             string,
-	type:                SymbolType,
-	value:               SymbolValue,
-	references:          []common.Location,
-	pointers:            int,
-	flags:               SymbolFlags,
+	range:      common.Range, //the range of the symbol in the file
+	uri:        string, //uri of the file the symbol resides
+	pkg:        string, //absolute directory path where the symbol resides
+	name:       string, //name of the symbol
+	doc:        string,
+	signature:  string, //type signature
+	type:       SymbolType,
+	value:      SymbolValue,
+	references: []common.Location, //all the places in the project that it's being referenced 
+	pointers:   int, //how many `^` are applied to the symbol
+	flags:      SymbolFlags,
 }
 
 SymbolType :: enum {
@@ -141,53 +137,55 @@ SymbolType :: enum {
 	Unresolved = 9999,
 }
 
-free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
+new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symbol) {
+	new_symbol := new(Symbol, allocator)
+	new_symbol^ = data
+	new_symbol.value = data.value
+	return new_symbol
+}
 
+free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	if symbol.signature != "" && symbol.signature != "struct" &&
 	   symbol.signature != "union" && symbol.signature != "enum" &&
 	   symbol.signature != "bitset" {
-		delete(symbol.signature, allocator);
-	}
-
-	if symbol.returns != "" {
-		delete(symbol.returns, allocator);
+		delete(symbol.signature, allocator)
 	}
 
 	if symbol.doc != "" {
-		delete(symbol.doc, allocator);
+		delete(symbol.doc, allocator)
 	}
 
 	#partial switch v in symbol.value {
 	case SymbolProcedureValue:
-		common.free_ast(v.return_types, allocator);
-		common.free_ast(v.arg_types, allocator);
+		common.free_ast(v.return_types, allocator)
+		common.free_ast(v.arg_types, allocator)
 	case SymbolStructValue:
-		delete(v.names, allocator);
-		common.free_ast(v.types, allocator);
+		delete(v.names, allocator)
+		common.free_ast(v.types, allocator)
 	case SymbolGenericValue:
-		common.free_ast(v.expr, allocator);
+		common.free_ast(v.expr, allocator)
 	case SymbolProcedureGroupValue:
-		common.free_ast(v.group, allocator);
+		common.free_ast(v.group, allocator)
 	case SymbolEnumValue:
-		delete(v.names, allocator);
+		delete(v.names, allocator)
 	case SymbolUnionValue:
-		common.free_ast(v.types, allocator);
+		common.free_ast(v.types, allocator)
 	case SymbolBitSetValue:
-		common.free_ast(v.expr, allocator);
+		common.free_ast(v.expr, allocator)
 	case SymbolDynamicArrayValue:
-		common.free_ast(v.expr, allocator);
+		common.free_ast(v.expr, allocator)
 	case SymbolFixedArrayValue:
-		common.free_ast(v.expr, allocator);
-		common.free_ast(v.len, allocator);
+		common.free_ast(v.expr, allocator)
+		common.free_ast(v.len, allocator)
 	case SymbolSliceValue:
-		common.free_ast(v.expr, allocator);
+		common.free_ast(v.expr, allocator)
 	case SymbolBasicValue:
-		common.free_ast(v.ident, allocator);
+		common.free_ast(v.ident, allocator)
 	}
 }
 
 get_symbol_id :: proc(str: string) -> uint {
-	ret := common.sha1_hash(transmute([]byte)str);
-	r   := cast(^uint)slice.first_ptr(ret[:]);
-	return r^;
+	ret := common.sha1_hash(transmute([]byte)str)
+	r   := cast(^uint)slice.first_ptr(ret[:])
+	return r^
 }

@@ -29,7 +29,6 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
-
 	src.main = strings.clone(src.main);
 	src.document = new(common.Document, context.temp_allocator);
 	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator);
@@ -39,9 +38,7 @@ setup :: proc(src: ^Source) {
 	src.document.allocator = new(common.Scratch_Allocator);
 	src.document.package_name = "test";
 
-	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(20), context.temp_allocator);
-
-	server.document_refresh(src.document, &src.config, nil);
+	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(200), context.temp_allocator);
 
 	//no unicode in tests currently
 	current, last:                   u8;
@@ -70,6 +67,8 @@ setup :: proc(src: ^Source) {
 		last = current;
 	}
 
+	server.document_refresh(src.document, &src.config, nil);	
+	
 	/*
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
@@ -112,7 +111,7 @@ setup :: proc(src: ^Source) {
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source");
 		}
-	
+
 		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {
 			return;
 		}

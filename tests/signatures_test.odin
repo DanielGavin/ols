@@ -8,7 +8,6 @@ import test "shared:testing"
 
 @(test)
 ast_declare_proc_signature :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		main :: proc(*)
@@ -21,7 +20,6 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 
 @(test)
 ast_naked_parens :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		main :: proc() { 
@@ -44,7 +42,6 @@ ast_naked_parens :: proc(t: ^testing.T) {
 
 @(test)
 ast_simple_proc_signature :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int) {
@@ -62,7 +59,6 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 
 @(test)
 ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b := context.allocator) {
@@ -80,7 +76,6 @@ ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b: int) {
@@ -98,7 +93,6 @@ ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b: int) {
@@ -117,7 +111,6 @@ ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b: int, c: int) {
@@ -135,7 +128,6 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b: int, c: int) {
@@ -153,7 +145,6 @@ ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(a: int, b: int, c: int) {
@@ -171,7 +162,6 @@ ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		cool_function :: proc(args: ..any, b := 2) {
@@ -189,7 +179,6 @@ ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		int_function :: proc(a: int) {
@@ -215,7 +204,6 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_signature_generic :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 
@@ -236,7 +224,6 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 		int_function :: proc(a: int, b: bool, c: int) {
@@ -263,7 +250,6 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 
@@ -295,7 +281,6 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 
 @(test)
 ast_proc_group_signature_struct :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 
@@ -336,7 +321,6 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 
 @(test)
 index_simple_signature :: proc(t: ^testing.T) {
-
 	packages := make([dynamic]test.Package);
 
 	append(&packages, test.Package {
@@ -365,7 +349,6 @@ index_simple_signature :: proc(t: ^testing.T) {
 
 @(test)
 ast_index_builtin_len_proc :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test	
 		main :: proc() {
@@ -380,7 +363,6 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 
 @(test)
 ast_signature_on_invalid_package :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test	
 		import "core:totallyReal"
@@ -396,7 +378,6 @@ ast_signature_on_invalid_package :: proc(t: ^testing.T) {
 
 @(test)
 ast_signature_variable_pointer :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test	
 		import "core:totallyReal"
@@ -418,7 +399,6 @@ ast_signature_variable_pointer :: proc(t: ^testing.T) {
 
 @(test)
 ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test	
 		import "core:totallyReal"
@@ -440,7 +420,6 @@ ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
 
 @(test)
 index_variable_pointer_signature :: proc(t: ^testing.T) {
-
 	packages := make([dynamic]test.Package);
 
 	append(&packages, test.Package {
@@ -506,6 +485,25 @@ proc_with_struct_poly :: proc(t: ^testing.T) {
 
     test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
 }
+
+@(test)
+proc_signature_move_outside :: proc(t: ^testing.T) {
+    source := test.Source {
+		main = `package test	
+		my_cool_function :: proc(aa: int, ba: int, c: int) {
+
+		}
+		main :: proc() {		
+			my_cool_function()*
+		}
+		`,
+		packages = {},
+	};
+
+    test.expect_signature_labels(t, &source, {"test.my_cool_function: proc(aa: int, ba: int, c: int)"});
+}
+
+
 
 
 /*

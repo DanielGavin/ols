@@ -19,57 +19,54 @@ MemoryIndex :: struct {
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
-
 	return MemoryIndex {
 		collection = collection,
-	};
+	}
 }
 
 memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
-	id := get_symbol_id(strings.concatenate({pkg, name}, context.temp_allocator));
-	return index.collection.symbols[id];
+	id := get_symbol_id(strings.concatenate({pkg, name}, context.temp_allocator))
+	return index.collection.symbols[id]
 }
 
 memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
+	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 
-	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator);
+	fuzzy_matcher := common.make_fuzzy_matcher(name)
 
-	fuzzy_matcher := common.make_fuzzy_matcher(name);
-
-	top := 20;
+	top := 20
 
 	for _, symbol in index.collection.symbols {
 
 		if !exists_in_scope(symbol.pkg, pkgs) {
-			continue;
+			continue
 		}
 
 		if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
 			result := FuzzyResult {
 				symbol = symbol,
 				score = score,
-			};
+			}
 
-			append(&symbols, result);
+			append(&symbols, result)
 		}
 	}
 
-	sort.sort(fuzzy_sort_interface(&symbols));
+	sort.sort(fuzzy_sort_interface(&symbols))
 
 	if name == "" {
-		return symbols[:], true;
+		return symbols[:], true
 	} else {
-		return symbols[:min(top, len(symbols))], true;
+		return symbols[:min(top, len(symbols))], true
 	}
 }
 
 exists_in_scope :: proc(symbol_scope: string, scope: []string) -> bool {
-
 	for s in scope {
 		if strings.compare(symbol_scope, s) == 0 {
-			return true;
+			return true
 		}
 	}
 
-	return false;
+	return false
 }

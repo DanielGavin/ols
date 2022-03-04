@@ -219,7 +219,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple, consumed: ^int) -> bool {
 		case Document_Newline:
 			if v.amount > 0 {
 				consumed^ = start_width - width
-				return true;
+				return true
 			}
 		case Document_Cons:
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})

@@ -21,23 +21,22 @@ import "shared:analysis"
 
 
 get_document_symbols :: proc(document: ^common.Document) -> []DocumentSymbol {
+	using analysis
 
-	using analysis;
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri);
+	get_globals(document.ast, &ast_context)
 
-	get_globals(document.ast, &ast_context);
+	symbols := make([dynamic]DocumentSymbol, context.temp_allocator)
 
-	symbols := make([dynamic]DocumentSymbol, context.temp_allocator);
-
-	package_symbol: DocumentSymbol;
+	package_symbol: DocumentSymbol
 
 	if len(document.ast.decls) == 0 {
-		return {};
+		return {}
 	}
 
-	package_symbol.kind = .Package;
-	package_symbol.name = path.base(document.package_name, false, context.temp_allocator);
+	package_symbol.kind = .Package
+	package_symbol.name = path.base(document.package_name, false, context.temp_allocator)
 	package_symbol.range = {
 		start = {
 			line = document.ast.decls[0].pos.line,
@@ -45,35 +44,35 @@ get_document_symbols :: proc(document: ^common.Document) -> []DocumentSymbol {
 		end = {
 			line = document.ast.decls[len(document.ast.decls) - 1].end.line,
 		},
-	};
-	package_symbol.selectionRange = package_symbol.range;
+	}
+	package_symbol.selectionRange = package_symbol.range
 
-	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator);
+	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator)
 
 	for k, global in ast_context.globals {
 
-		symbol: DocumentSymbol;
-		symbol.range = common.get_token_range(global.expr, ast_context.file.src);
-		symbol.selectionRange = symbol.range;
-		symbol.name = k;
+		symbol: DocumentSymbol
+		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
+		symbol.selectionRange = symbol.range
+		symbol.name = k
 
-		switch v in global.expr.derived {
-		case ast.Struct_Type:
-			symbol.kind = .Struct;
-		case ast.Proc_Lit, ast.Proc_Group:
-			symbol.kind = .Function;
-		case ast.Enum_Type, ast.Union_Type:
-			symbol.kind = .Enum;
+		#partial switch v in global.expr.derived {
+		case ^ast.Struct_Type:
+			symbol.kind = .Struct
+		case ^ast.Proc_Lit, ^ast.Proc_Group:
+			symbol.kind = .Function
+		case ^ast.Enum_Type, ^ast.Union_Type:
+			symbol.kind = .Enum
 		case:
-			symbol.kind = .Variable;
+			symbol.kind = .Variable
 		}
 
-		append(&children_symbols, symbol);
+		append(&children_symbols, symbol)
 	}
 
-	package_symbol.children = children_symbols[:];
+	package_symbol.children = children_symbols[:]
 
-	append(&symbols, package_symbol);
+	append(&symbols, package_symbol)
 
-	return symbols[:];
+	return symbols[:]
 }

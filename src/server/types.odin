@@ -26,6 +26,8 @@ ResponseParams :: union {
 	SemanticTokens,
 	Hover,
 	[]TextEdit,
+	[]InlayHint,
+	[]DocumentLink,
 }
 
 ResponseMessage :: struct {
@@ -91,6 +93,8 @@ ServerCapabilities :: struct {
 	documentSymbolProvider:     bool,
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
+	inlayHintsProvider:         bool,
+	documentLinkProvider:       DocumentLinkOptions,
 }
 
 CompletionOptions :: struct {
@@ -296,6 +300,7 @@ OlsConfig :: struct {
 	enable_format:            bool,
 	enable_procedure_context: bool,
 	enable_snippets:          bool,
+	enable_inlay_hints:       bool,
 	verbose:                  bool,
 	file_log:                 bool,
 	formatter:                common.Format_Config,
@@ -350,6 +355,11 @@ HoverParams :: struct {
 	position:     common.Position,
 }
 
+
+InlayParams :: struct {
+	textDocument: TextDocumentIdentifier,
+}
+
 Hover :: struct {
 	contents: MarkupContent,
 	range:    common.Range,
@@ -359,4 +369,28 @@ Command :: struct {
 	title:     string,
 	command:   string,
 	arguments: []string,
+}
+
+InlayHint :: struct {
+	range: common.Range,
+	kind:  string,
+	label: string,
+}
+
+DocumentLinkClientCapabilities :: struct {
+	tooltipSupport: bool,
+}
+
+DocumentLinkParams :: struct {
+	textDocument: TextDocumentIdentifier,
+}
+
+DocumentLink :: struct {
+	range: common.Range,
+	target: string,
+	tooltip: string,
+}
+
+DocumentLinkOptions :: struct {
+	resolveProvider: bool,
 }

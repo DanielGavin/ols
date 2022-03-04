@@ -17,116 +17,116 @@ Uri :: struct {
 
 parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
-	uri: Uri;
+	uri: Uri
 
-	decoded, ok := decode_percent(value, allocator);
+	decoded, ok := decode_percent(value, allocator)
 
 	if !ok {
-		return uri, false;
+		return uri, false
 	}
 
-	starts := "file:///";
+	starts := "file:///"
 
-	start_index := len(starts);
+	start_index := len(starts)
 
 	if !starts_with(decoded, starts) {
-		return uri, false;
+		return uri, false
 	}
 
-	when ODIN_OS != "windows" {
-		start_index -= 1;
+	when ODIN_OS != .Windows {
+		start_index -= 1
 	}
 
-	uri.uri         = strings.clone(value, allocator);
-	uri.decode_full = decoded;
-	uri.path        = decoded[start_index:];
+	uri.uri         = strings.clone(value, allocator)
+	uri.decode_full = decoded
+	uri.path        = decoded[start_index:]
 
-	return uri, true;
+	return uri, true
 }
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
-	path_forward, _ := filepath.to_slash(path, context.temp_allocator);
+	path_forward, _ := filepath.to_slash(path, context.temp_allocator)
 
-	builder := strings.make_builder(allocator);
+	builder := strings.make_builder(allocator)
 
 	//bad
-	when ODIN_OS == "windows" {
-		strings.write_string(&builder, "file:///");
+	when ODIN_OS == .Windows {
+		strings.write_string(&builder, "file:///")
 	} else {
-		strings.write_string(&builder, "file://");
+		strings.write_string(&builder, "file://")
 	}
 
-	strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator));
+	strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator))
 
-	uri: Uri;
+	uri: Uri
 
-	uri.uri         = strings.to_string(builder);
-	uri.decode_full = strings.clone(path_forward, allocator);
-	uri.path        = uri.decode_full;
+	uri.uri         = strings.to_string(builder)
+	uri.decode_full = strings.clone(path_forward, allocator)
+	uri.path        = uri.decode_full
 
-	return uri;
+	return uri
 }
 
 delete_uri :: proc(uri: Uri) {
 
 	if uri.uri != "" {
-		delete(uri.uri);
+		delete(uri.uri)
 	}
 
 	if uri.decode_full != "" {
-		delete(uri.decode_full);
+		delete(uri.decode_full)
 	}
 }
 
 encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
 
-	builder := strings.make_builder(allocator);
+	builder := strings.make_builder(allocator)
 
-	data := transmute([]u8)value;
-	index: int;
+	data := transmute([]u8)value
+	index: int
 
 	for index < len(value) {
 
-		r, w := utf8.decode_rune(data[index:]);
+		r, w := utf8.decode_rune(data[index:])
 
 		if r > 127 || r == ':' {
 
 			for i := 0; i < w; i += 1 {
 				strings.write_string(&builder, strings.concatenate({"%", fmt.tprintf("%X", data[index + i])},
-				                   context.temp_allocator));
+				                   context.temp_allocator))
 			}
 		} else {
-			strings.write_byte(&builder, data[index]);
+			strings.write_byte(&builder, data[index])
 		}
 
-		index += w;
+		index += w
 	}
 
-	return strings.to_string(builder);
+	return strings.to_string(builder)
 }
 
 @(private)
 starts_with :: proc(value: string, starts_with: string) -> bool {
 
 	if len(value) < len(starts_with) {
-		return false;
+		return false
 	}
 
 	for i := 0; i < len(starts_with); i += 1 {
 
 		if value[i] != starts_with[i] {
-			return false;
+			return false
 		}
 	}
 
-	return true;
+	return true
 }
 
 @(private)
 decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
 
-	builder := strings.make_builder(allocator);
+	builder := strings.make_builder(allocator)
 
 	for i := 0; i < len(value); i += 1 {
 
@@ -134,24 +134,24 @@ decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool
 
 			if i + 2 < len(value) {
 
-				v, ok := strconv.parse_i64_of_base(value[i + 1:i + 3], 16);
+				v, ok := strconv.parse_i64_of_base(value[i + 1:i + 3], 16)
 
 				if !ok {
-					strings.destroy_builder(&builder);
-					return "", false;
+					strings.destroy_builder(&builder)
+					return "", false
 				}
 
-				strings.write_byte(&builder, cast(byte)v);
+				strings.write_byte(&builder, cast(byte)v)
 
-				i += 2;
+				i += 2
 			} else {
-				strings.destroy_builder(&builder);
-				return "", false;
+				strings.destroy_builder(&builder)
+				return "", false
 			}
 		} else {
-			strings.write_byte(&builder, value[i]);
+			strings.write_byte(&builder, value[i])
 		}
 	}
 
-	return strings.to_string(builder), true;
+	return strings.to_string(builder), true
 }

@@ -37,7 +37,7 @@ Document :: struct {
 	ast:              ast.File,
 	imports:          []Package,
 	package_name:     string,
-	allocator:        ^Scratch_Allocator, //because does not support freeing I use arena allocators for each document
+	allocator:        ^Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
 }
 
