@@ -87,8 +87,11 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 	}
 
 	if expr != nil {
-		ident, ok := expr.derived.(^ast.Ident)
-		return ident^, ok
+		if ident, ok := expr.derived.(^ast.Ident); ok {
+			return ident^, ok
+		}
+
+		return {}, false
 	}
 
 	return {}, false

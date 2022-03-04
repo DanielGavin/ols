@@ -177,6 +177,7 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 	if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+			ast_context.current_package = comp_symbol.pkg;
 			#partial switch v in comp_symbol.value {
 			case index.SymbolStructValue:
 				for name, i in v.names {
@@ -579,6 +580,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 				if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
+					ast_context.current_package = comp_symbol.pkg;
 
 					//We can either have the final 
 					elem_index := -1

@@ -1302,5 +1302,40 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 	};
 
 	//TODO(Add proper completion support, but right now it's just to ensure no crashes)
-    test.expect_completion_details(t, &source, ".", {});
+    test.expect_completion_details(t, &source, ".", {})
+}
+
+@(test)
+ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		Foo :: enum {
+			ONE,
+			TWO,
+		}
+		
+		Bar :: struct {
+			a: int,
+			b: int,
+			c: Foo,
+		}
+		`,
+	})
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			a := my_package.Bar {
+				c = .*
+			}
+	    }
+		`,
+		packages = packages[:],
+	}
+
+    test.expect_completion_details(t, &source, ".", {"TWO", "ONE"})
 }
