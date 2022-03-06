@@ -917,7 +917,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 					append(&combined, CombinedResult {
-						score = score * 1.1, 
+						score = score * 1.7, 
 						type = symbol.type,
 						name = ident.name,
 						doc = symbol.doc,
@@ -961,7 +961,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(&combined, CombinedResult {
-				score = score * 1.1, 
+				score = score, 
 				type = symbol.type,
 				name = symbol.name,
 				doc = symbol.doc,

@@ -532,6 +532,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	*/
 
 	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, config))
+	index.indexer.dynamic_uri_owned = make(map[string]bool, 200, context.allocator)
 
 	index.build_static_index(context.allocator, config)
 
@@ -789,6 +790,7 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	p := parser.Parser {
 		err = index.log_error_handler,
 		warn = index.log_warning_handler,
+		flags = {.Optional_Semicolons},
 	}
 
 	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
@@ -815,12 +817,7 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	}
 
 	for key, value in index.indexer.dynamic_index.collection.symbols {
-		when ODIN_OS == .Windows {
-			uri := strings.to_lower(save_params.textDocument.uri, context.temp_allocator)
-		} else {
-			uri := save_params.textDocument.uri
-		}
-		if value.uri == uri {
+		if value.uri == uri.uri {
 			index.free_symbol(value, context.allocator)
 			index.indexer.dynamic_index.collection.symbols[key] = {}
 		} 
@@ -829,6 +826,8 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
+
+	index.indexer.dynamic_uri_owned[uri.uri] = true
 
 	check(uri, writer, config)
 
