@@ -32,7 +32,7 @@ platform_os: map[string]bool = {
 
 os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Windows = "windows",
-	.Darwin = "dawrin",
+	.Darwin = "darwin",
 	.Linux = "linux",
 	.Essence = "essence",
 	.FreeBSD = "freebsd",
@@ -52,7 +52,7 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
 	}
 
 	last_underscore_index := strings.last_index(info.name, "_")
-	last_dot_index        := strings.last_index(info.name, ".")
+	last_dot_index := strings.last_index(info.name, ".")
 
 	if last_underscore_index + 1 < last_dot_index {
 		name_between := info.name[last_underscore_index + 1:last_dot_index]
@@ -121,9 +121,9 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		dir := filepath.base(filepath.dir(fullpath, context.allocator))
 
 		pkg := new(ast.Package)
-		pkg.kind     = .Normal
+		pkg.kind = .Normal
 		pkg.fullpath = fullpath
-		pkg.name     = dir
+		pkg.name = dir
 
 		if dir == "runtime" {
 			pkg.kind = .Runtime
