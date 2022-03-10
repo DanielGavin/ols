@@ -78,7 +78,6 @@ fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	}
 
 	for r in static_results {
-		log.error(r.symbol.uri )
 		if r.symbol.uri in indexer.dynamic_uri_owned {
 			continue
 		}
