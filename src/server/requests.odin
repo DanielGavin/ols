@@ -816,11 +816,13 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 		log.errorf("error in parse file for indexing %v", fullpath)
 	}
 
-	for key, value in index.indexer.dynamic_index.collection.symbols {
-		if value.uri == uri.uri {
-			index.free_symbol(value, context.allocator)
-			index.indexer.dynamic_index.collection.symbols[key] = {}
-		} 
+	for k, v in &index.indexer.dynamic_index.collection.packages {
+		for k2, v2 in &v {
+			if v2.uri == uri.uri {
+				index.free_symbol(v2, context.allocator)
+				v[k2] = {}
+			} 
+		}
 	}
 
 	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
@@ -994,6 +996,8 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
     }
 
 	hints: []InlayHint
+
+	resolve_entire_file(document)
 
 	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
 		hints, ok = get_inlay_hints(document, cache_symbols)
