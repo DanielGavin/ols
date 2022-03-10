@@ -12,8 +12,10 @@ FileResolveCache :: struct {
 file_resolve_cache: FileResolveCache
 
 resolve_entire_file :: proc(document: ^common.Document) {
-	file_resolve_cache.files[document.uri.uri] = analysis.resolve_entire_file(
-		document,
-		common.scratch_allocator(document.allocator),
-	)
+	if document.uri.uri not_in file_resolve_cache.files {
+		file_resolve_cache.files[document.uri.uri] = analysis.resolve_entire_file(
+			document,
+			common.scratch_allocator(document.allocator),
+		)
+	}	
 }

@@ -15,7 +15,7 @@ import "shared:common"
 SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
-	symbols:        map[uint]Symbol,
+	packages:       map[uint]map[uint]Symbol,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
@@ -41,21 +41,27 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 	return SymbolCollection {
 		allocator = allocator,
 		config = config,
-		symbols = make(map[uint]Symbol, 16, allocator),
+		packages = make(map[uint]map[uint]Symbol, 16, allocator),
 		unique_strings = make(map[string]string, 16, allocator),
 	}
 }
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
-	for k, v in collection.symbols {
-		free_symbol(v, collection.allocator)
+	for k, v in collection.packages {
+		for k2, v2 in v {
+			free_symbol(v2, collection.allocator)
+		}	
 	}
 
 	for k, v in collection.unique_strings {
 		delete(v, collection.allocator)
 	}
 
-	delete(collection.symbols)
+	for k, v in collection.packages {
+		delete(v)
+	}
+
+	delete(collection.packages)
 	delete(collection.unique_strings)
 }
 
@@ -383,15 +389,22 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.uri = get_index_unique_string(collection, uri)
 		}
 
-		cat := strings.concatenate({symbol.pkg, name}, context.temp_allocator)
+		package_id := get_id(symbol.pkg)
+		name_id := get_id(name)
 
-		id := get_symbol_id(cat)
+		pkg: ^map[uint]Symbol
+		ok: bool
 
-		if v, ok := collection.symbols[id]; !ok || v.name == "" {
-			collection.symbols[id] = symbol
+		if pkg, ok = &collection.packages[package_id]; !ok {
+			collection.packages[package_id] = make(map[uint]Symbol, 100, collection.allocator)
+			pkg = &collection.packages[package_id]
+		} 
+
+		if v, ok := pkg[name_id]; !ok || v.name == "" {
+			pkg[name_id] = symbol
 		} else {
 			free_symbol(symbol, collection.allocator)
-		}
+		} 
 	}
 
 	return .None

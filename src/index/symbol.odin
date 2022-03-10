@@ -184,8 +184,6 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	}
 }
 
-get_symbol_id :: proc(str: string) -> uint {
-	ret := common.sha1_hash(transmute([]byte)str)
-	r   := cast(^uint)slice.first_ptr(ret[:])
-	return r^
+get_id :: proc(str: string) -> uint {
+	return cast(uint)hash.murmur64(transmute([]byte)str)
 }
