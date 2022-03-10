@@ -323,6 +323,8 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	free_all(common.scratch_allocator(document.allocator))
 
+	delete_key(&file_resolve_cache.files, document.uri.uri)
+
 	context.allocator = common.scratch_allocator(document.allocator)
 
 	//have to cheat the parser since it really wants to parse an entire package with the new changes...
