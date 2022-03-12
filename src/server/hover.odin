@@ -80,13 +80,12 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 	if position_context.selector != nil && position_context.identifier != nil {
 		hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
 
-		ast_context.use_locals      = true
-		ast_context.use_globals     = true
+		ast_context.use_locals = true
+		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
 
 		//if the base selector is the client wants to go to.
-		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
-
+		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil && position_in_node(position_context.selector, position_context.position) {
 			ident := position_context.identifier.derived.(^ast.Ident)^
 
 			if ident.name == base.name {
@@ -115,7 +114,6 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 		field: string
 
 		if position_context.field != nil {
-
 			#partial switch v in position_context.field.derived {
 			case ^ast.Ident:
 				field = v.name
@@ -149,7 +147,6 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			}
 		}
 	} else if position_context.identifier != nil {
-
 		ast_context.use_locals      = true
 		ast_context.use_globals     = true
 		ast_context.current_package = ast_context.document_package

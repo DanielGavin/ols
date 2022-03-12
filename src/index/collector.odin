@@ -419,9 +419,8 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 	for imp, index in file.imports {
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 {
-			//ERROR hover on collection should show string
 			collection := imp.fullpath[1:i]
-			p          := imp.fullpath[i + 1:len(imp.fullpath) - 1]
+			p := imp.fullpath[i + 1:len(imp.fullpath) - 1]
 
 			dir, ok := config.collections[collection]
 
@@ -452,7 +451,6 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 			name: string
 
 			full := path.join(elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator)
-
 			full = path.clean(full, context.temp_allocator)
 
 			if imp.name.text != "" {

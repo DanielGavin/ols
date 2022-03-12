@@ -1109,6 +1109,23 @@ ast_inlined_union :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_union_identifier_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Union :: union {
+			int,
+		}
+
+		main :: proc() {
+			a: My_*
+		}
+		`,
+	};
+	
+    test.expect_completion_details(t, &source, ".", {"test.My_Union: union"});
+}
+
+@(test)
 ast_union_poly :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main

@@ -133,7 +133,7 @@ SymbolType :: enum {
 	EnumMember = 20,
 	Constant   = 21,
 	Struct     = 22,
-	Union      = 9000,
+	Union      = 7,
 	Unresolved = 9999,
 }
 

@@ -144,7 +144,6 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 		uri := common.create_uri(fullpath, context.allocator)
 
-		//ERROR hover on uri does not show string
 		collect_symbols(&symbol_collection, file, uri.uri)
 
 		free_all(context.allocator)

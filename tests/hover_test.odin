@@ -124,3 +124,21 @@ ast_hover_procedure_with_default_comp_lit :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.fa: proc(color_: Color = {255, 255, 255, 255})")
 }
+
+@(test)
+ast_hover_same_name_in_selector_and_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Color :: struct {
+			color: int,
+		}
+
+		f :: proc() {
+			color: Color
+			color.colo*r
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "Color.color: int")
+}
