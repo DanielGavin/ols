@@ -140,6 +140,7 @@ thread_request_main :: proc(data: rawptr) {
 
 		if method == "$/cancelRequest" {
 			append(&deletings, Request { id = id })
+			json.destroy_value(root)
 		} else if method in notification_map {
 			append(&requests, Request { value = root, is_notification = true})
 			sync.semaphore_post(&requests_sempahore)
@@ -300,6 +301,7 @@ consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 	for ; request_index < len(temp_requests); request_index += 1 {
 		request := temp_requests[request_index]
 		call(request.value, request.id, writer, config)
+		json.destroy_value(request.value)
 	}
 	
 	sync.mutex_lock(&requests_mutex)
@@ -325,6 +327,8 @@ cancel :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^commo
 		id = id,
 		params = ResponseParams {},
 	)
+
+	json.destroy_value(value)
 
 	send_response(response, writer)
 }

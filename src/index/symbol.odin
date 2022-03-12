@@ -155,7 +155,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		delete(symbol.doc, allocator)
 	}
 
-	#partial switch v in symbol.value {
+	switch v in symbol.value {
 	case SymbolProcedureValue:
 		common.free_ast(v.return_types, allocator)
 		common.free_ast(v.arg_types, allocator)
@@ -181,6 +181,14 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.expr, allocator)
 	case SymbolBasicValue:
 		common.free_ast(v.ident, allocator)
+	case SymbolAggregateValue:
+		for symbol in v.symbols {
+			free_symbol(symbol, allocator)
+		}
+	case SymbolMapValue:
+		common.free_ast(v.key, allocator)
+		common.free_ast(v.value, allocator)
+	case SymbolUntypedValue, SymbolPackageValue:
 	}
 }
 

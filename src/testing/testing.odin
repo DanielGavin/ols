@@ -118,8 +118,14 @@ setup :: proc(src: ^Source) {
 	}
 }
 
+@private
+teardown :: proc(src: ^Source) {
+	index.free_static_index()
+}
+
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {
 	setup(src);
+	defer teardown(src);
 
 	help, ok := server.get_signature_information(src.document, src.position);
 
@@ -151,6 +157,7 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 
 expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {
 	setup(src);
+	defer teardown(src);
 
 	help, ok := server.get_signature_information(src.document, src.position);
 
@@ -161,6 +168,7 @@ expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, positio
 
 expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_labels: []string) {
 	setup(src);
+	defer teardown(src);
 
 	completion_context := server.CompletionContext {
 		triggerCharacter = trigger_character,
@@ -196,6 +204,7 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
 	setup(src);
+	defer teardown(src);
 
 	completion_context := server.CompletionContext {
 		triggerCharacter = trigger_character,
@@ -231,6 +240,7 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src);
+	defer teardown(src);
 
 	hover, ok := server.get_hover_information(src.document, src.position);
 
@@ -250,6 +260,7 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
 	setup(src);
+	defer teardown(src);
 
 	locations, ok := server.get_definition_location(src.document, src.position);
 
