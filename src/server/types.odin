@@ -187,6 +187,12 @@ TextEdit :: struct {
 	newText: string,
 }
 
+InsertReplaceEdit :: struct {
+	insert:  common.Range,
+	newText: string,
+	replace: common.Range,
+}
+
 DiagnosticSeverity :: enum {
 	Error       = 1,
 	Warning     = 2,
@@ -272,6 +278,11 @@ InsertTextFormat :: enum {
 	Snippet   = 2,
 }
 
+InsertTextMode :: enum {
+	asIs = 1,
+	adjustIndentation = 2,
+}
+
 CompletionItem :: struct {
 	label:               string,
 	kind:                CompletionItemKind,
@@ -279,10 +290,13 @@ CompletionItem :: struct {
 	documentation:       string,
 	insertTextFormat:    Maybe(InsertTextFormat),
 	insertText:          Maybe(string),
+	InsertTextMode:      Maybe(InsertTextMode),
+	textEdit:            Maybe(TextEdit),
 	additionalTextEdits: []TextEdit,
 	tags:                []CompletionItemTag,
 	deprecated:          bool,
 	command:             Command,
+
 }
 
 CompletionItemTag :: enum {

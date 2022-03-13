@@ -191,7 +191,3 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolUntypedValue, SymbolPackageValue:
 	}
 }
-
-get_id :: proc(str: string) -> uint {
-	return cast(uint)hash.murmur64(transmute([]byte)str)
-}

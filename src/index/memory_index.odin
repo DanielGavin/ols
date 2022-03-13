@@ -25,14 +25,8 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 }
 
 memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
-	package_id := get_id(pkg)
-	name_id := get_id(name)
-
-	pkg: ^map[uint]Symbol
-	ok: bool
-
-	if pkg, ok = &index.collection.packages[package_id]; ok {
-		return pkg[name_id]
+	if pkg, ok := &index.collection.packages[pkg]; ok {
+		return pkg[name]
 	} 
 
 	return {}, false
@@ -46,9 +40,7 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 	top := 20
 
 	for pkg in pkgs {
-		package_id := get_id(pkg)
-
-		if pkg, ok := index.collection.packages[package_id]; ok {
+		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg {
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
 					result := FuzzyResult {

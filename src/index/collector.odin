@@ -15,7 +15,7 @@ import "shared:common"
 SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
-	packages:       map[uint]map[uint]Symbol,
+	packages:       map[string]map[string]Symbol,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
@@ -41,7 +41,7 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 	return SymbolCollection {
 		allocator = allocator,
 		config = config,
-		packages = make(map[uint]map[uint]Symbol, 16, allocator),
+		packages = make(map[string]map[string]Symbol, 16, allocator),
 		unique_strings = make(map[string]string, 16, allocator),
 	}
 }
@@ -389,19 +389,16 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.uri = get_index_unique_string(collection, uri)
 		}
 
-		package_id := get_id(symbol.pkg)
-		name_id := get_id(name)
-
-		pkg: ^map[uint]Symbol
+		pkg: ^map[string]Symbol
 		ok: bool
 
-		if pkg, ok = &collection.packages[package_id]; !ok {
-			collection.packages[package_id] = make(map[uint]Symbol, 100, collection.allocator)
-			pkg = &collection.packages[package_id]
+		if pkg, ok = &collection.packages[symbol.pkg]; !ok {
+			collection.packages[symbol.pkg] = make(map[string]Symbol, 100, collection.allocator)
+			pkg = &collection.packages[symbol.pkg]
 		} 
 
-		if v, ok := pkg[name_id]; !ok || v.name == "" {
-			pkg[name_id] = symbol
+		if v, ok := pkg[symbol.name]; !ok || v.name == "" {
+			pkg[symbol.name] = symbol
 		} else {
 			free_symbol(symbol, collection.allocator)
 		} 

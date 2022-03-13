@@ -624,7 +624,7 @@ request_completion :: proc (params: json.Value, id: RequestId, config: ^common.C
     if document == nil {
         return .InternalError
     }
-
+	log.error(completition_params.position)
 	list: CompletionList
 	list, ok = get_completion_list(document, completition_params.position, completition_params.context_)
 

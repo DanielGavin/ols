@@ -857,9 +857,9 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case ^Bit_Set_Type:
 		return make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
 	case ^Array_Type:
-		return make_symbol_array_from_ast(ast_context, v^), true
+		return make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Dynamic_Array_Type:
-		return make_symbol_dynamic_array_from_ast(ast_context, v^), true
+		return make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Map_Type:
 		return make_symbol_map_from_ast(ast_context, v^), true
 	case ^Proc_Type:
@@ -1191,9 +1191,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^), true
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node.name), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^), true
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
 		case ^Map_Type:
 			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^), true
 		case ^Basic_Lit:
@@ -1254,9 +1254,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^), true
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node.name), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^), true
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
@@ -1683,11 +1683,12 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	return symbol
 }
 
-make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) -> index.Symbol {
+make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, name: string) -> index.Symbol {
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
+		name = name,
 	}
 
 	if v.len != nil {
@@ -1704,11 +1705,12 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type) 
 	return symbol
 }
 
-make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type) -> index.Symbol {
+make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type, name: string) -> index.Symbol {
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
+		name = name,
 	}
 
 	symbol.value = index.SymbolDynamicArrayValue {
@@ -2965,7 +2967,8 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 	tokenizer.init(&p.tok, str, position_context.file.fullpath, common.parser_warning_handler)
 
 	p.tok.ch = ' '
-	p.tok.line_count = position.line
+	p.tok.line_count = position.line + 1
+	p.tok.line_offset = begin_offset
 	p.tok.offset = begin_offset
 	p.tok.read_offset = begin_offset
 

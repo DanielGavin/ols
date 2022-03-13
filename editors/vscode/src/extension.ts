@@ -291,7 +291,6 @@ async function getServer(config: Config, state: PersistentState): Promise<string
             url: artifact.browser_download_url,
             dest: destZip,
             progressTitle: "Downloading ols",
-            mode: 0o755,
             httpProxy: config.httpProxy,
         });
     });
@@ -299,6 +298,10 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     var zip = new AdmZip(destZip);
 
     zip.extractAllTo(destFolder, true);
+
+    if (ext !== ".exe") {
+        fs.chmod(destExecutable, 0o755);
+    }
 
     await state.updateServerVersion(config.package.version);
     await state.updateReleaseId(release.id);

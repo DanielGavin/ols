@@ -224,8 +224,6 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		return
 	}
 
-	//if (selector.type != .Variable && selector.type != .Package && selector.type != .Enum && selector.name != "") || (selector.type == .Variable && selector.type == .Enum) {
-		
 	if selector.type != .Variable && selector.type != .Package {
 		return
 	}
@@ -352,6 +350,8 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	case index.SymbolUnionValue:
 		list.isIncomplete = false
 
+		//append_magic_union_completion(position_context, selector, &items)
+
 		for type in v.types {
 			if symbol, ok := resolve_type_expression(ast_context, type); ok {
 				base := path.base(symbol.pkg, false, context.temp_allocator)
@@ -457,6 +457,9 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg)
 			return
 		}
+	case index.SymbolDynamicArrayValue:
+		list.isIncomplete = false
+		//append_magic_dynamic_array_completion(position_context, selector, &items)
 	}
 
 	list.items = items[:]
@@ -1217,6 +1220,79 @@ get_core_insert_package_if_non_existent :: proc(ast_context: ^analysis.AstContex
 			},
 		},
 	}, true
+}
+
+get_range_from_selection_start_to_dot :: proc(position_context: ^analysis.DocumentPositionContext) -> (common.Range, bool) {
+	if position_context.selector != nil {
+		range := common.get_token_range(position_context.selector, position_context.file.src)
+		range.end.character += 1
+		return range, true
+	}
+
+	return {}, false
+}
+
+append_magic_dynamic_array_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+	
+	range, ok := get_range_from_selection_start_to_dot(position_context)
+
+	if !ok {
+		return 
+	}
+	
+
+	//len
+	{
+		text := fmt.tprintf("len(%v)", symbol.name)
+
+		item := CompletionItem {
+			label = "len",
+			kind = .Function,
+			detail = "len",
+			textEdit = TextEdit {
+				newText = text,
+				range = {
+					start = range.start,
+					end = range.end,
+				},
+			},
+		}
+		log.error(item)
+		append(items, item)
+	}
+
+	//append
+	{
+		item := CompletionItem {
+			label = "append",
+			kind = .Function,
+			detail =  "append",
+			insertText = fmt.tprintf("append(%v)$0", symbol.name),
+		}
+		append(items, item)
+	}
+	
+}
+
+append_magic_union_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+	range, ok := get_range_from_selection_start_to_dot(position_context)
+
+	if !ok {
+		return 
+	}
+
+	//switch
+	{
+		item := CompletionItem {
+			label = "switch",
+			kind = .Snippet,
+			detail = "switch",
+			insertText = fmt.tprintf("len(%v)$0", symbol.name),
+			insertTextFormat = .Snippet,
+		}
+		append(items, item)
+	}
+
 }
 
 bitset_operators: map[string]bool = {
