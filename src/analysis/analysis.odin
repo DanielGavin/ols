@@ -18,10 +18,6 @@ import "core:reflect"
 import "shared:common"
 import "shared:index"
 
-/*
-	TODO(improve the current_package logic, kinda confusing switching between different packages with selectors)
-*/
-
 DocumentPositionContextHint :: enum {
 	Completion,
 	SignatureHelp,
@@ -862,7 +858,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (i
 	case ^Dynamic_Array_Type:
 		return make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Map_Type:
-		return make_symbol_map_from_ast(ast_context, v^), true
+		return make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Proc_Type:
 		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name), true
 	case ^Basic_Directive:
@@ -1196,7 +1192,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		case ^Dynamic_Array_Type:
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
 		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^), true
+			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node.name), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
@@ -1258,6 +1254,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node.name), true
 		case ^Dynamic_Array_Type:
 			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
+		case ^Map_Type:
+			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node.name), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
@@ -1721,11 +1719,12 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 	return symbol
 }
 
-make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type) -> index.Symbol {
+make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name: string) -> index.Symbol {
 	symbol := index.Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
+		name = name,
 	}
 
 	symbol.value = index.SymbolMapValue {
@@ -2865,7 +2864,6 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 	end = i
 
 	for i > 0 {
-
 		c := position_context.file.src[i]
 
 		if c == '(' && paren_count == 0 {
@@ -2936,13 +2934,15 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 	end_offset   := max(start, end + 1)
 	line_offset := begin_offset
 
-	for line_offset > 0 {
-		c := position_context.file.src[line_offset]
-		if c == '\n' || c == '\r' {
-			line_offset += 1
-			break
+	if line_offset < len(position_context.file.src) {
+		for line_offset > 0 {
+			c := position_context.file.src[line_offset]
+			if c == '\n' || c == '\r' {
+				line_offset += 1
+				break
+			}
+			line_offset -= 1
 		}
-		line_offset -= 1
 	}
 
 	str := position_context.file.src[0:end_offset]
