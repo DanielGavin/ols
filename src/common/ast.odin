@@ -495,7 +495,6 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 }
 
 free_ast_file :: proc(file: ast.File, allocator := context.allocator) {
-
 	for decl in file.decls {
 		free_ast(decl, allocator)
 	}
@@ -518,7 +517,6 @@ node_equal :: proc{
 }
 
 node_equal_array :: proc(a, b: $A/[]^$T) -> bool {
-
 	ret := true
 
 	if len(a) != len(b) {
@@ -533,7 +531,6 @@ node_equal_array :: proc(a, b: $A/[]^$T) -> bool {
 }
 
 node_equal_dynamic_array :: proc(a, b: $A/[dynamic]^$T) -> bool {
-
 	ret := true
 
 	if len(a) != len(b) {
@@ -707,7 +704,6 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 	Returns the string representation of a type. This allows us to print the signature without storing it in the indexer as a string(saving memory).
 */
 node_to_string :: proc(node: ^ast.Node) -> string {
-
 	builder := strings.make_builder(context.temp_allocator)
 
 	build_string(node, &builder)
@@ -722,14 +718,12 @@ build_string :: proc{
 }
 
 build_string_dynamic_array :: proc(array: $A/[]^$T, builder: ^strings.Builder) {
-
 	for elem, i in array {
 		build_string(elem, builder)
 	}
 }
 
 build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder) {
-
 	for elem, i in array {
 		build_string(elem, builder)
 	}
@@ -907,4 +901,11 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 		strings.write_string(builder, "]")
 		build_string(n.value, builder)
 	}
+}
+
+repeat :: proc(value: string, count: int, allocator := context.allocator) -> string {
+	if count == 0 {
+		return ""
+	}
+	return strings.repeat(value, count, allocator)
 }

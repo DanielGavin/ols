@@ -363,9 +363,9 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				}
 
 				if symbol.pkg == ast_context.document_package || base == "runtime" {
-					item.label = fmt.aprintf("(%v)", common.node_to_string(type))
+					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), symbol.name)
 				} else {
-					item.label = fmt.aprintf("(%v.%v)", path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type))
+					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), symbol.name)
 				}
 
 				append(&items, item)
@@ -1168,23 +1168,20 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
-				name := common.node_to_string(type)
-
-				if name in used_unions {
-					continue
-				}
-
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
+					name := symbol.name
+					if name in used_unions {
+						continue
+					}
+					
 					item := CompletionItem {
 						kind = .EnumMember,
 					}
-
+					
 					if symbol.pkg == ast_context.document_package {
-						item.label  = fmt.aprintf("%v", common.node_to_string(union_value.types[i]))
-						item.detail = item.label
+						item.label = fmt.aprintf("%v%v", common.repeat("^", symbol.pointers, context.temp_allocator), name)
 					} else {
-						item.label  = fmt.aprintf("%v.%v", path.base(symbol.pkg, false, context.temp_allocator), name)
-						item.detail = item.label
+						item.label = fmt.aprintf("%v%v.%v", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), name)
 					}
 
 					append(&items, item)

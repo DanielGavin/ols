@@ -1063,9 +1063,34 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-	};
+	}
 	
     test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+}
+
+@(test)
+ast_comp_lit_in_complit_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Struct_2 :: struct {
+			aaa: int,
+			aab: int,
+		}
+		My_Struct :: struct {
+			foo: My_Struct_2,
+		}
+
+		main :: proc() {
+			inst := My_Struct {
+				foo = {
+					a*
+				}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"My_Struct_2.aab: int", "My_Struct_2.aaa: int"})
 }
 
 @(test)
@@ -1084,9 +1109,9 @@ ast_inlined_struct :: proc(t: ^testing.T) {
 			inst.foo.*
 		}
 		`,
-	};
+	}
 	
-    test.expect_completion_details(t, &source, ".", {"struct.a: int", "struct.b: int"});
+    test.expect_completion_details(t, &source, ".", {"struct.a: int", "struct.b: int"})
 }
 
 @(test)
