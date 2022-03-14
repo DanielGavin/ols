@@ -218,7 +218,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 	case ^Expr_Stmt:
 		visit(n.expr, builder, ast_context)
 	case ^Branch_Stmt:
-		write_semantic_token(builder, n.tok, ast_context.file.src, .Type, .None)
+		write_semantic_token(builder, n.tok, ast_context.file.src, .Keyword, .None)
 	case ^Poly_Type:
 		write_semantic_string(builder, n.dollar, "$", ast_context.file.src, .Operator, .None)
 		visit(n.type, builder, ast_context)

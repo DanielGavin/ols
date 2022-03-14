@@ -295,11 +295,12 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 		return {}, nil, false
 	}
 
-	if current_comp_lit == nil {
-		return {}, nil, false
-	}
-
 	element_index := 0
+
+	prev_package := ast_context.current_package
+	ast_context.current_package = current_symbol.pkg
+	 
+	defer ast_context.current_package = prev_package
 
 	for elem, i in current_comp_lit.elems {
 		if position_in_node(elem, position_context.position) {
@@ -2933,6 +2934,16 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 
 	begin_offset := max(0, start)
 	end_offset   := max(start, end + 1)
+	line_offset := begin_offset
+
+	for line_offset > 0 {
+		c := position_context.file.src[line_offset]
+		if c == '\n' || c == '\r' {
+			line_offset += 1
+			break
+		}
+		line_offset -= 1
+	}
 
 	str := position_context.file.src[0:end_offset]
 
@@ -2961,6 +2972,7 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 	p := parser.Parser {
 		err = common.parser_warning_handler,  //empty
 		warn = common.parser_warning_handler, //empty
+		flags = {.Optional_Semicolons},
 		file = &position_context.file,
 	}
 
@@ -2968,7 +2980,7 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 
 	p.tok.ch = ' '
 	p.tok.line_count = position.line + 1
-	p.tok.line_offset = begin_offset
+	p.tok.line_offset =  line_offset
 	p.tok.offset = begin_offset
 	p.tok.read_offset = begin_offset
 
@@ -3007,7 +3019,8 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 		tokenizer.init(&p.tok, position_context.file.src[0:last_dot], position_context.file.fullpath, common.parser_warning_handler)
 
 		p.tok.ch = ' '
-		p.tok.line_count = position.line
+		p.tok.line_count = position.line + 1
+		p.tok.line_offset =  line_offset
 		p.tok.offset = begin_offset
 		p.tok.read_offset = begin_offset
 
