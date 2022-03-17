@@ -103,6 +103,7 @@ make_printer :: proc(config: Config, allocator := context.allocator) -> Printer 
 }
 
 
+@private
 build_disabled_lines_info :: proc(p: ^Printer) {
 	found_disable := false
 	disable_position: tokenizer.Pos
@@ -131,7 +132,30 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 	}
 }
 
-print :: proc(p: ^Printer, file: ^ast.File) -> string {
+print :: proc {
+	print_file,
+	print_expr,
+}
+
+print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
+	p.document = empty();
+	p.document = cons(p.document, visit_expr(p, expr))
+	p.string_builder = strings.make_builder(p.allocator)
+	context.allocator = p.allocator
+
+	list := make([dynamic]Tuple, p.allocator)
+
+	append(&list, Tuple {
+		document = p.document,
+		indentation = 0,
+	})
+
+	format(p.config.max_characters, &list, &p.string_builder, p)
+
+	return strings.to_string(p.string_builder)
+}
+
+print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.comments = file.comments
 	p.string_builder = strings.make_builder(p.allocator)
 	p.src = file.src

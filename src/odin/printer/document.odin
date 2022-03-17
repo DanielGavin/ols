@@ -162,7 +162,6 @@ cons :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> 
 }
 
 cons_with_opl :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
-
 	if _, ok := lhs.(Document_Nil); ok {
 		return rhs
 	}
@@ -175,7 +174,6 @@ cons_with_opl :: proc(lhs: ^Document, rhs: ^Document, allocator := context.alloc
 }
 
 cons_with_nopl:: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
-
 	if _, ok := lhs.(Document_Nil); ok {
 		return rhs
 	}

@@ -59,11 +59,13 @@ text_token :: proc(p: ^Printer, token: tokenizer.Token) -> ^Document {
 	return cons(document, text(token.text))
 }
 
+@(private)
 text_position :: proc(p: ^Printer, value: string, pos: tokenizer.Pos) -> ^Document {
 	document, _ := visit_comments(p, pos)
 	return cons(document, text(value))
 }
 
+@(private)
 newline_position :: proc(p: ^Printer, amount: int, pos: tokenizer.Pos) -> ^Document {
 	document, _ := visit_comments(p, pos)
 	return cons(document, newline(amount))
@@ -158,6 +160,7 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos) -> (^Document, int) {
 	return document, lines
 }
 
+@(private)
 visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 	
 	if node.pos.line not_in p.disabled_lines {
@@ -524,6 +527,16 @@ visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos:
 }
 
 @(private)
+visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document {
+	fmt.println("called", flags)
+	if .No_Bounds_Check in flags {
+		fmt.println("IIIN")
+		return cons(text("#no_bounds_check"), break_with_no_newline())
+	}
+	return empty()
+}
+
+@(private)
 visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Generic, empty_block := false, block_stmt := false) -> ^Document {
 	using ast
 
@@ -551,9 +564,9 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document := move_line(p, v.pos)
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 		return document
-	case ^Block_Stmt:
-		
-		document := move_line(p, v.pos)
+	case ^Block_Stmt:		
+	    document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		uses_do := v.uses_do
 
@@ -588,6 +601,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^If_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -628,6 +642,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^Switch_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -668,6 +683,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^Type_Switch_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -703,6 +719,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^For_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -739,6 +756,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^Inline_Range_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -764,6 +782,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return document
 	case ^Range_Stmt:
 		document := move_line(p, v.pos)
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
@@ -1256,6 +1275,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	return empty()
 }
 
+@(private)
 visit_begin_brace :: proc(p: ^Printer, begin: tokenizer.Pos, type: Block_Type, count := 0, same_line_spaces_before := 1) -> ^Document {
 	set_source_position(p, begin)
 
@@ -1272,6 +1292,7 @@ visit_begin_brace :: proc(p: ^Printer, begin: tokenizer.Pos, type: Block_Type, c
 	}
 }
 
+@(private)
 visit_end_brace :: proc(p: ^Printer, end: tokenizer.Pos, limit := 0) -> ^Document {
 	if limit == 0 {
 		return cons(move_line(p, end), text("}"))
@@ -1285,6 +1306,7 @@ visit_end_brace :: proc(p: ^Printer, end: tokenizer.Pos, limit := 0) -> ^Documen
 	}
 }
 
+@(private)
 visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt, split := false) -> ^Document {
 	document := empty()
 
@@ -1310,6 +1332,7 @@ List_Option :: enum u8 {
 
 List_Options :: distinct bit_set[List_Option]
 
+@(private)
 visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Options{}) -> ^Document {
 	document := empty()
 	if list.list == nil {
@@ -1385,6 +1408,7 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 	return document
 }
 
+@(private)
 visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 	document := text("proc")
 
@@ -1404,7 +1428,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 	document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.params, false))))
 	document = group(cons(document, cons(break_with(""), text(")"))))
 
-	if proc_type.results != nil {
+	if proc_type.results != nil && len(proc_type.results.list) > 0 {
 		document = cons_with_nopl(document, text("-"))
 		document = cons(document, text(">"))
 
@@ -1438,6 +1462,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 	return document
 }
 
+@(private)
 visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
 	lhs: ^Document
 	rhs: ^Document
@@ -1459,6 +1484,7 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
 	return cons_with_nopl(lhs, cons_with_opl(op, rhs))
 }
 
+@(private)
 visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^Document {
 	document := empty()
 
@@ -1479,6 +1505,7 @@ visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^
 	return document
 }
 
+@(private)
 visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 
 	/*
@@ -1517,46 +1544,12 @@ visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 	return document
 }
 
+@(private)
 visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank := true) -> ^Document {
 	document := empty()
 
 	for field, i in list.list {
-
-		flag := visit_field_flag(p, field.flags)
-
-		named := false
-
-		for name in field.names {
-			if ident, ok := name.derived.(^ast.Ident); ok {
-				//for some reason the parser uses _ to mean empty
-				if ident.name != "_" || !remove_blank {
-					named = true
-				}
-			} else {
-				//alternative is poly names
-				named = true
-			}
-		}
-
-		if named {
-			document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
-
-			if len(field.names) != 0 && field.type != nil {
-				document = cons(document, cons(text(":"), break_with_no_newline()))
-			}
-		}
-
-		if field.type != nil && field.default_value != nil {
-			document = cons(document, visit_expr(p, field.type))
-			document = cons_with_nopl(document, text("="))
-			document = cons_with_nopl(document, visit_expr(p, field.default_value))
-		} else if field.type != nil {
-			document = cons(document, visit_expr(p, field.type))
-		} else {
-			document = cons_with_nopl(document, text(":"))
-			document = cons(document, text("="))
-			document = cons_with_nopl(document, visit_expr(p, field.default_value))
-		}
+		document = cons(document, visit_field(p, field, remove_blank))
 
 		if i != len(list.list) - 1 {
 			document = cons(document, cons(text(","), break_with_space()))
@@ -1565,10 +1558,51 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 		}	
 	}
 
-
 	return document
 }
 
+@(private)
+visit_field :: proc(p: ^Printer, field: ^ast.Field, remove_blank := true) -> ^Document {
+	document := empty()
+	flag := visit_field_flag(p, field.flags)
+
+	named := false
+
+	for name in field.names {
+		if ident, ok := name.derived.(^ast.Ident); ok {
+			//for some reason the parser uses _ to mean empty
+			if ident.name != "_" || !remove_blank {
+				named = true
+			}
+		} else {
+			//alternative is poly names
+			named = true
+		}
+	}
+
+	if named {
+		document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
+
+		if len(field.names) != 0 && field.type != nil {
+			document = cons(document, cons(text(":"), break_with_no_newline()))
+		}
+	}
+
+	if field.type != nil && field.default_value != nil {
+		document = cons(document, visit_expr(p, field.type))
+		document = cons_with_nopl(document, text("="))
+		document = cons_with_nopl(document, visit_expr(p, field.default_value))
+	} else if field.type != nil {
+		document = cons(document, visit_expr(p, field.type))
+	} else {
+		document = cons_with_nopl(document, text(":"))
+		document = cons(document, text("="))
+		document = cons_with_nopl(document, visit_expr(p, field.default_value))
+	}
+	return document
+}
+
+@(private)
 repeat_space :: proc(amount: int) -> ^Document {
 	document := empty()
 	for i := 0; i < amount; i += 1 {
@@ -1577,6 +1611,7 @@ repeat_space :: proc(amount: int) -> ^Document {
 	return document
 }
 
+@(private)
 get_node_length :: proc(node: ^ast.Node) -> int {
 	#partial switch v in node.derived {
 	case ^ast.Ident:
@@ -1592,6 +1627,7 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 	}
 }
 
+@(private)
 get_possible_field_alignment :: proc(p: ^Printer, fields: []^ast.Field) -> int {
 	longest_name := 0
 
@@ -1611,6 +1647,7 @@ get_possible_field_alignment :: proc(p: ^Printer, fields: []^ast.Field) -> int {
 	return longest_name
 }
 
+@(private)
 get_possible_comp_lit_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int {
 	longest_name := 0
 
@@ -1631,6 +1668,7 @@ get_possible_comp_lit_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int 
 	return longest_name
 }
 
+@(private)
 get_possible_enum_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int {
 	longest_name := 0
 
