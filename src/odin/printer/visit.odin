@@ -528,9 +528,7 @@ visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos:
 
 @(private)
 visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document {
-	fmt.println("called", flags)
 	if .No_Bounds_Check in flags {
-		fmt.println("IIIN")
 		return cons(text("#no_bounds_check"), break_with_no_newline())
 	}
 	return empty()
