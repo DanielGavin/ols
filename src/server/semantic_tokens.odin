@@ -78,7 +78,7 @@ SemanticTokens :: struct {
 SemanticTokenBuilder :: struct {
 	current_start: int,
 	tokens:        [dynamic]u32,
-	symbols:       map[uintptr]index.Symbol,
+	symbols:       map[uintptr]index.SymbolAndNode,
 	selector:      bool,
 }
 
@@ -94,7 +94,7 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 	}
 }
 
-get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]index.Symbol) -> SemanticTokens { 
+get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]index.SymbolAndNode) -> SemanticTokens { 
 	using analysis
 
 	builder := make_token_builder()
@@ -172,13 +172,13 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		write_semantic_string(builder, node.pos, "..", ast_context.file.src, .Operator, .None)
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
-		if symbol, ok := builder.symbols[cast(uintptr)node]; ok {
-			if symbol.type == .Variable {
+		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
+			if symbol_and_node.symbol.type == .Variable {
 				write_semantic_node(builder, node, ast_context.file.src, .Variable, .None)
 				return
 			}
 
-			#partial switch v in symbol.value { 
+			#partial switch v in symbol_and_node.symbol.value { 
 			case index.SymbolPackageValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Namespace, .None)
 			case index.SymbolStructValue:
@@ -506,11 +506,11 @@ visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuil
 		builder.selector = true
 	}
 
-	if symbol, ok := builder.symbols[cast(uintptr)selector]; ok {
-		if symbol.type == .Variable {
+	if symbol_and_node, ok := builder.symbols[cast(uintptr)selector]; ok {
+		if symbol_and_node.symbol.type == .Variable {
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Method, .None)
 		}
-		#partial switch v in symbol.value { 
+		#partial switch v in symbol_and_node.symbol.value { 
 		case index.SymbolPackageValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Namespace, .None)
 		case index.SymbolStructValue:

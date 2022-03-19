@@ -81,7 +81,7 @@ Configuration of the LSP:
 			],
 			"syntaxes":
 			[
-				"Packages/Odin/Odin.sublime-syntax"
+			  "Packages/User/sublime-odin/Odin.sublime-syntax"
 			]
 		}
 	},

@@ -10,6 +10,11 @@ import "core:slice"
 
 import "shared:common"
 
+SymbolAndNode :: struct {
+	symbol: Symbol,
+	node: ^ast.Node,
+}
+
 SymbolStructValue :: struct {
 	names:   []string,
 	types:   []^ast.Expr,
@@ -118,7 +123,7 @@ Symbol :: struct {
 	signature:  string, //type signature
 	type:       SymbolType,
 	value:      SymbolValue,
-	references: []common.Location, //all the places in the project that it's being referenced 
+	references: []common.Range, //all the places in the project that it's being referenced 
 	pointers:   int, //how many `^` are applied to the symbol
 	flags:      SymbolFlags,
 }

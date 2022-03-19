@@ -28,6 +28,7 @@ ResponseParams :: union {
 	[]TextEdit,
 	[]InlayHint,
 	[]DocumentLink,
+	WorkspaceEdit,
 }
 
 ResponseMessage :: struct {
@@ -94,6 +95,7 @@ ServerCapabilities :: struct {
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
 	inlayHintsProvider:         bool,
+	renameProvider:             bool,
 	documentLinkProvider:       DocumentLinkOptions,
 }
 
@@ -170,7 +172,8 @@ Version :: union {
 }
 
 VersionedTextDocumentIdentifier :: struct {
-	uri: string,
+	uri:     string,
+	version: int,
 }
 
 TextDocumentIdentifier :: struct {
@@ -417,3 +420,34 @@ DocumentLink :: struct {
 DocumentLinkOptions :: struct {
 	resolveProvider: bool,
 }
+
+PrepareSupportDefaultBehavior :: enum {
+	Identifier = 1,
+}
+
+RenameClientCapabilities :: struct {
+	prepareSupport: bool,
+	prepareSupportDefaultBehavior: PrepareSupportDefaultBehavior,
+	honorsChangeAnnotations: bool,
+}
+
+RenameParams :: struct {
+	newName:      string,
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
+OptionalVersionedTextDocumentIdentifier :: struct {
+	uri:     string,
+	version: Maybe(int),
+}
+
+TextDocumentEdit :: struct {
+	textDocument: OptionalVersionedTextDocumentIdentifier,
+	edits: []TextEdit,
+}
+
+WorkspaceEdit :: struct {
+	documentChanges: []TextDocumentEdit,
+}
+

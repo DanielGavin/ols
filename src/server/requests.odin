@@ -261,6 +261,7 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
 	"textDocument/formatting" = request_format_document,
 	"odin/inlayHints" = request_inlay_hint,
 	"textDocument/documentLink" = request_document_links,
+	"textDocument/rename" = request_rename,
 }
 
 notification_map: map [string] bool = {
@@ -502,6 +503,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					includeText = true,
 				},
 			},
+			renameProvider = false,
 			definitionProvider = true,
 			completionProvider = CompletionOptions {
 				resolveProvider = false,
@@ -665,9 +667,14 @@ request_signature_help :: proc (params: json.Value, id: RequestId, config: ^comm
 		return .InternalError
 	}
 
-	response := make_response_message(params = help, id = id)
+	if len(help.signatures) == 0 {
+		response := make_response_message(params = nil, id = id)
+		send_response(response, writer)
+	} else {
+		response := make_response_message(params = help, id = id)
+		send_response(response, writer)
+	}
 
-	send_response(response, writer)
 
 	return .None
 }
@@ -745,7 +752,7 @@ notification_did_change :: proc (params: json.Value, id: RequestId, config: ^com
 		return .ParseError
 	}
 
-	document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, config, writer)
+	document_apply_changes(change_params.textDocument.uri, change_params.contentChanges, change_params.textDocument.version, config, writer)
 
 	return .None
 }
@@ -1046,6 +1053,40 @@ request_document_links :: proc (params: json.Value, id: RequestId, config: ^comm
 	}
 
 	response := make_response_message(params = links, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_rename :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	rename_param: RenameParams
+
+	if unmarshal(params, rename_param, context.temp_allocator) != .None {
+		return .ParseError
+	}
+
+	document := document_get(rename_param.textDocument.uri)
+
+    if document == nil {
+        return .InternalError
+    }
+
+	workspace_edit: WorkspaceEdit
+
+	workspace_edit, ok = get_rename(document, rename_param.newName, rename_param.position)
+
+	if !ok {
+		return .InternalError
+	}
+
+	response := make_response_message(params = workspace_edit, id = id)
 
 	send_response(response, writer)
 

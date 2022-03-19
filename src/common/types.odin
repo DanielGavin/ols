@@ -39,6 +39,7 @@ Document :: struct {
 	package_name:     string,
 	allocator:        ^Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
+	version:          Maybe(int),
 }
 
 parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {

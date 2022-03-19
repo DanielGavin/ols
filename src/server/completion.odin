@@ -460,6 +460,9 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	case index.SymbolDynamicArrayValue:
 		list.isIncomplete = false
 		append_magic_dynamic_array_completion(position_context, selector, &items)
+	case index.SymbolMapValue:
+		list.isIncomplete = false 
+		append_magic_map_completion(position_context, selector, &items)
 	}
 
 	list.items = items[:]
@@ -1229,6 +1232,50 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^analysis.Docume
 	return {}, false
 }
 
+append_magic_map_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+	range, ok := get_range_from_selection_start_to_dot(position_context)
+
+	if !ok {
+		return 
+	}
+
+	remove_range := common.Range {
+		start = range.start,
+		end = range.end,
+	}
+
+	remove_edit := TextEdit {
+		range = remove_range,
+		newText = "",
+	}
+
+	additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+	additionalTextEdits[0] = remove_edit
+
+	//for
+	{
+		item := CompletionItem {
+			label = "for",
+			kind = .Snippet,
+			detail = "for",
+			additionalTextEdits = additionalTextEdits,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("for k, v in %v {{\n\t$0 \n}}", symbol.name),
+				range = {
+					start = range.end,
+					end = range.end,
+				},
+			},
+			insertTextFormat = .Snippet,
+			InsertTextMode = .adjustIndentation,
+		}
+		
+		append(items, item)
+	}
+
+
+}
+
 append_magic_dynamic_array_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
@@ -1267,6 +1314,27 @@ append_magic_dynamic_array_completion :: proc(position_context: ^analysis.Docume
 			additionalTextEdits = additionalTextEdits,
 		}
 
+		append(items, item)
+	}
+
+	//for
+	{
+		item := CompletionItem {
+			label = "for",
+			kind = .Snippet,
+			detail = "for",
+			additionalTextEdits = additionalTextEdits,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", symbol.name),
+				range = {
+					start = range.end,
+					end = range.end,
+				},
+			},
+			insertTextFormat = .Snippet,
+			InsertTextMode = .adjustIndentation,
+		}
+		
 		append(items, item)
 	}
 	

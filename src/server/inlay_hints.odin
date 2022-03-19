@@ -8,7 +8,7 @@ import "shared:analysis"
 import "shared:index"
 
 //document
-get_inlay_hints :: proc(document: ^common.Document, symbols: map[uintptr]index.Symbol) -> ([]InlayHint, bool) {
+get_inlay_hints :: proc(document: ^common.Document, symbols: map[uintptr]index.SymbolAndNode) -> ([]InlayHint, bool) {
 	using analysis
 
 	hints := make([dynamic]InlayHint, context.temp_allocator)
@@ -57,8 +57,8 @@ get_inlay_hints :: proc(document: ^common.Document, symbols: map[uintptr]index.S
 			}
 		}
 
-		if symbol, ok := symbols[cast(uintptr)node_call]; ok {
-			if symbol_call, ok := symbol.value.(index.SymbolProcedureValue); ok {
+		if symbol_and_node, ok := symbols[cast(uintptr)node_call]; ok {
+			if symbol_call, ok := symbol_and_node.symbol.value.(index.SymbolProcedureValue); ok {
 				for arg in symbol_call.arg_types {
 					for name in arg.names {
 						if symbol_arg_count >= len(call.args) {

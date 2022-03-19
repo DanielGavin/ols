@@ -133,7 +133,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 /*
 	Function that applies changes to the given document through incremental syncronization
 */
-document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, version: Maybe(int), config: ^common.Config, writer: ^Writer) -> common.Error {
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
@@ -141,6 +141,8 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 	}
 
 	document := &document_storage.documents[uri.path]
+
+	document.version = version
 
 	if !document.client_owned {
 		log.errorf("Client called change on an document not opened: %v ", document.uri.path)

@@ -1207,6 +1207,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (i
 		}
 
 		if is_variable, ok := ast_context.variables[node.name]; ok && is_variable {
+			//return_symbol.name = node.name
 			return_symbol.type = .Variable
 		}
 
@@ -2417,17 +2418,17 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings)
 }
 
-resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> map[uintptr]index.Symbol {
+resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> map[uintptr]index.SymbolAndNode {
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, allocator)
 
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
-	symbols := make(map[uintptr]index.Symbol, 10000, allocator)
+	symbols := make(map[uintptr]index.SymbolAndNode, 10000, allocator)
 
-	for k, v in ast_context.globals {
-		resolve_entire_decl(&ast_context, v.expr, &symbols, allocator)
+	for decl in document.ast.decls {
+		resolve_entire_decl(&ast_context, decl, &symbols, allocator)
 		clear_local_group(&ast_context, 0)
 		add_local_group(&ast_context, 0)
 	}
@@ -2435,7 +2436,7 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 	return symbols
 }
 
-resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Expr, symbols: ^map[uintptr]index.Symbol, allocator := context.allocator) {
+resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: ^map[uintptr]index.SymbolAndNode, allocator := context.allocator) {
 	Scope :: struct {
 		offset: int,
 		id:     int,
@@ -2443,7 +2444,7 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Expr, symbols: 
 	
 	Visit_Data :: struct {
 		ast_context: ^AstContext,
-		symbols: ^map[uintptr]index.Symbol,
+		symbols: ^map[uintptr]index.SymbolAndNode,
 		scopes: [dynamic]Scope,
 		id_counter: int,
 	}
@@ -2497,16 +2498,25 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Expr, symbols: 
 			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context)
 		case ^ast.Ident:
 			if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
-				data.symbols[cast(uintptr)node] = symbol
-			}
+				data.symbols[cast(uintptr)node] = index.SymbolAndNode {
+					node = v,
+					symbol = symbol,
+				}
+			} 
 		case ^ast.Selector_Expr:
 			if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
-				data.symbols[cast(uintptr)node] = symbol
+				data.symbols[cast(uintptr)node] = index.SymbolAndNode {
+					node = v,
+					symbol = symbol,
+				}
 			}
 		case ^ast.Call_Expr:
 			if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
-				data.symbols[cast(uintptr)node] = symbol
-			}
+				data.symbols[cast(uintptr)node] = index.SymbolAndNode {
+					node = v,
+					symbol = symbol,
+				}
+			}	
 		}
 
 		#partial switch v in node.derived {
