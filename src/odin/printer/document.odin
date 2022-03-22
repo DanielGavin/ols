@@ -45,6 +45,7 @@ Document_If_Break :: struct {
 Document_Group :: struct {
 	document: ^Document,
 	fill: bool,
+	fit: bool,
 }
 
 Document_Cons :: struct {
@@ -60,6 +61,7 @@ Document_Group_Mode :: enum {
 	Flat,
 	Break,
 	Fill,
+	Fit,
 }
 
 empty :: proc(allocator := context.allocator) -> ^Document {
@@ -98,6 +100,15 @@ hang :: proc(align: int, hanged_document: ^Document, allocator := context.alloca
 	document^ = Document_Nest {
 		alignment = align,
 		document = hanged_document,
+	}
+	return document
+}
+
+enforce_fit :: proc(fitted_document: ^Document, allocator := context.allocator) -> ^Document {
+	document := new(Document, allocator)
+	document^ = Document_Group { 
+		document = fitted_document,
+		fit = true,
 	}
 	return document
 }
@@ -272,7 +283,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		data: Tuple = pop(list)
 
 		switch v in data.document {
-		case Document_Nil: 
+		case Document_Nil:
 		case Document_Newline:
 			if v.amount > 0 {
 				for i := 0; i < v.amount; i += 1 {
@@ -324,11 +335,16 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 
 			fits_consumed := 0
 
-			if fits(width-consumed, &l, &fits_consumed) {
+			if data.mode == .Fit {
+				append(list, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
+			}
+			else if fits(width-consumed, &l, &fits_consumed) && !v.fit {
 				append(list, Tuple {indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment})
 			} else {
 				if v.fill {
 					append(list, Tuple {indentation = data.indentation, mode = .Fill, document = v.document, alignment = data.alignment})
+				} else if v.fit {
+					append(list, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
 				} else {
 					append(list, Tuple {indentation = data.indentation, mode = .Break, document = v.document, alignment = data.alignment})
 				}

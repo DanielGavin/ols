@@ -535,6 +535,17 @@ visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document
 }
 
 @(private)
+enforce_fit_if_do :: proc(stmt: ^ast.Stmt, document: ^Document) -> ^Document {
+	if v, ok := stmt.derived.(^ast.Block_Stmt); ok {
+		if v.uses_do {
+			return enforce_fit(document)
+		} 
+	}
+
+	return document
+}
+
+@(private)
 visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Generic, empty_block := false, block_stmt := false) -> ^Document {
 	using ast
 
@@ -637,7 +648,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			}
 		}
-		return document
+		return enforce_fit_if_do(v.body, document)
 	case ^Switch_Stmt:
 		document := move_line(p, v.pos)
 		document = cons(document, visit_state_flags(p, v.state_flags))
@@ -751,7 +762,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document,  visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		return document
+		return enforce_fit_if_do(v.body, document)
 	case ^Inline_Range_Stmt:
 		document := move_line(p, v.pos)
 		document = cons(document, visit_state_flags(p, v.state_flags))
@@ -777,7 +788,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document,  visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		return document
+		return enforce_fit_if_do(v.body, document)
 	case ^Range_Stmt:
 		document := move_line(p, v.pos)
 		document = cons(document, visit_state_flags(p, v.state_flags))
@@ -804,7 +815,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document,  visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		return document
+		return enforce_fit_if_do(v.body, document)
 	case ^Return_Stmt:
 		document := move_line(p, v.pos)
 
