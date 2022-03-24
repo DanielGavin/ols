@@ -900,6 +900,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder) {
 		build_string(n.key, builder)
 		strings.write_string(builder, "]")
 		build_string(n.value, builder)
+	case ^ast.Multi_Pointer_Type:
+		strings.write_string(builder, "[^]")
+		build_string(n.elem, builder)
 	}
 }
 
