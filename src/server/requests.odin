@@ -362,7 +362,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	initialize_params: RequestInitializeParams
 
-	if unmarshal(params, initialize_params, context.temp_allocator) != .None {
+	if unmarshal(params, initialize_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -384,7 +384,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					},
 				}
 
-				if unmarshal(value, ols_config, context.temp_allocator) == .None {
+				if unmarshal(value, ols_config, context.temp_allocator) == nil {
 
 					config.thread_count = ols_config.thread_pool_count
 					config.enable_document_symbols = ols_config.enable_document_symbols
@@ -580,7 +580,7 @@ request_definition :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	definition_params: TextDocumentPositionParams
 
-	if unmarshal(params, definition_params, context.temp_allocator) != .None {
+	if unmarshal(params, definition_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 	
@@ -616,7 +616,7 @@ request_completion :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	completition_params: CompletionParams
 
-	if unmarshal(params, completition_params, context.temp_allocator) != .None {
+	if unmarshal(params, completition_params, context.temp_allocator) != nil {
 		log.error("Failed to unmarshal completion request")
 		return .ParseError
 	}
@@ -650,7 +650,7 @@ request_signature_help :: proc (params: json.Value, id: RequestId, config: ^comm
 
 	signature_params: SignatureHelpParams
 
-	if unmarshal(params, signature_params, context.temp_allocator) != .None {
+	if unmarshal(params, signature_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -688,7 +688,7 @@ request_format_document :: proc (params: json.Value, id: RequestId, config: ^com
 
 	format_params: DocumentFormattingParams
 
-	if unmarshal(params, format_params, context.temp_allocator) != .None {
+	if unmarshal(params, format_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -727,7 +727,7 @@ notification_did_open :: proc (params: json.Value, id: RequestId, config: ^commo
 
 	open_params: DidOpenTextDocumentParams
 
-	if unmarshal(params, open_params, context.allocator) != .None {
+	if unmarshal(params, open_params, context.allocator) != nil {
 		log.error("Failed to parse open document notification")
 		return .ParseError
 	}
@@ -748,7 +748,7 @@ notification_did_change :: proc (params: json.Value, id: RequestId, config: ^com
 
 	change_params: DidChangeTextDocumentParams
 
-	if unmarshal(params, change_params, context.temp_allocator) != .None {
+	if unmarshal(params, change_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -766,11 +766,11 @@ notification_did_close :: proc(params: json.Value, id: RequestId, config: ^commo
 
 	close_params: DidCloseTextDocumentParams
 
-	if unmarshal(params, close_params, context.temp_allocator) != .None {
+	if unmarshal(params, close_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
-	if n := document_close(close_params.textDocument.uri); n != .None {
+	if n := document_close(close_params.textDocument.uri); n != nil {
 		return .InternalError
 	}
 
@@ -786,7 +786,7 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 
 	save_params: DidSaveTextDocumentParams
 
-	if unmarshal(params, save_params, context.temp_allocator) != .None {
+	if unmarshal(params, save_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -856,7 +856,7 @@ request_semantic_token_full :: proc (params: json.Value, id: RequestId, config: 
 
 	semantic_params: SemanticTokensParams
 
-	if unmarshal(params, semantic_params, context.temp_allocator) != .None {
+	if unmarshal(params, semantic_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -901,7 +901,7 @@ request_semantic_token_range :: proc (params: json.Value, id: RequestId, config:
 
 	semantic_params: SemanticTokensRangeParams
 
-	if unmarshal(params, semantic_params, context.temp_allocator) != .None {
+	if unmarshal(params, semantic_params, context.temp_allocator) != nil {
 		return .None
 	}
 
@@ -935,7 +935,7 @@ request_document_symbols :: proc (params: json.Value, id: RequestId, config: ^co
 
 	symbol_params: DocumentSymbolParams
 
-	if unmarshal(params, symbol_params, context.temp_allocator) != .None {
+	if unmarshal(params, symbol_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -963,7 +963,7 @@ request_hover :: proc (params: json.Value, id: RequestId, config: ^common.Config
 
 	hover_params: HoverParams
 
-	if unmarshal(params, hover_params, context.temp_allocator) != .None {
+	if unmarshal(params, hover_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -996,7 +996,7 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	inlay_params: InlayParams
 
-	if unmarshal(params, inlay_params, context.temp_allocator) != .None {
+	if unmarshal(params, inlay_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -1034,7 +1034,7 @@ request_document_links :: proc (params: json.Value, id: RequestId, config: ^comm
 
 	link_params: DocumentLinkParams
 
-	if unmarshal(params, link_params, context.temp_allocator) != .None {
+	if unmarshal(params, link_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -1068,7 +1068,7 @@ request_rename :: proc (params: json.Value, id: RequestId, config: ^common.Confi
 
 	rename_param: RenameParams
 
-	if unmarshal(params, rename_param, context.temp_allocator) != .None {
+	if unmarshal(params, rename_param, context.temp_allocator) != nil {
 		return .ParseError
 	}
 

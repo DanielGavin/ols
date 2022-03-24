@@ -1050,10 +1050,10 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		
 		document = cons(document, visit_poly_params(p, v.poly_params))
 
-		if v.is_maybe {
+		if v.kind == .maybe {
 			document = cons_with_opl(document, text("#maybe"))
 		}
-
+		
 		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
 		if len(v.variants) == 0 {

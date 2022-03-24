@@ -9,7 +9,7 @@ send_notification :: proc (notification: Notification, writer: ^Writer) -> bool 
 
 	header := fmt.tprintf("Content-Length: %v\r\n\r\n", len(data))
 
-	if error != .None {
+	if error != nil {
 		return false
 	}
 
@@ -30,7 +30,7 @@ send_response :: proc (response: ResponseMessage, writer: ^Writer) -> bool {
 
 	header := fmt.tprintf("Content-Length: %v\r\n\r\n", len(data))
 
-	if error != .None {
+	if error != nil {
 		return false
 	}
 
@@ -51,7 +51,7 @@ send_error :: proc (response: ResponseMessageError, writer: ^Writer) -> bool {
 
 	header := fmt.tprintf("Content-Length: %v\r\n\r\n", len(data))
 
-	if error != .None {
+	if error != nil {
 		return false
 	}
 

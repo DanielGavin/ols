@@ -15,11 +15,11 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 	using runtime
 
 	if v == nil {
-		return .None
+		return nil
 	}
 
 	if json_value == nil {
-		return .None
+		return nil
 	}
 
 	type_info := type_info_base(type_info_of(v.id))
@@ -33,11 +33,11 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 
 				//TEMP most likely have to rewrite the entire unmarshal using tags instead, because i sometimes have to support names like 'context', which can't be written like that
 				if field[len(field)-1] == '_' {
-					if ret := unmarshal(j[field[:len(field)-1]], a, allocator); ret != .None {
+					if ret := unmarshal(j[field[:len(field)-1]], a, allocator); ret != nil {
 						return ret
 					}
 				} else {
-					if ret := unmarshal(j[field], a, allocator); ret != .None {
+					if ret := unmarshal(j[field], a, allocator); ret != nil {
 						return ret
 					}
 				}
@@ -77,7 +77,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 			for i in 0..<array.len {
 				a := any {rawptr(uintptr(array.data) + uintptr(variant.elem_size * i)), variant.elem.id}
 
-				if ret := unmarshal(j[i], a, allocator); ret != .None {
+				if ret := unmarshal(j[i], a, allocator); ret != nil {
 					return ret
 				}
 			}
@@ -153,5 +153,5 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		return .Unsupported_Type
 	}
 
-	return .None
+	return nil
 }
