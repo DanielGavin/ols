@@ -139,6 +139,7 @@ get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_con
 		"raw_union",
 		"align",
 		"no_nil",
+		"shared_nil",
 		"complete",
 		"no_alias",
 		"caller_location",
