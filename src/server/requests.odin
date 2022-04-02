@@ -87,7 +87,7 @@ Request :: struct {
 }
 
 
-requests_sempahore: sync.Semaphore
+requests_sempahore: sync.Sema
 requests_mutex: sync.Mutex
 
 requests: [dynamic]Request
@@ -143,10 +143,10 @@ thread_request_main :: proc(data: rawptr) {
 			json.destroy_value(root)
 		} else if method in notification_map {
 			append(&requests, Request { value = root, is_notification = true})
-			sync.semaphore_post(&requests_sempahore)
+			sync.sema_post(&requests_sempahore)
 		} else {
 			append(&requests, Request { id = id, value = root})
-			sync.semaphore_post(&requests_sempahore)
+			sync.sema_post(&requests_sempahore)
 		}
 
 		sync.mutex_unlock(&requests_mutex)
@@ -314,10 +314,10 @@ consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 	sync.mutex_unlock(&requests_mutex)
 
 	if request_index != len(temp_requests) {
-		sync.semaphore_post(&requests_sempahore)
+		sync.sema_post(&requests_sempahore)
 	}
 
-	sync.semaphore_wait_for(&requests_sempahore)
+	sync.sema_wait(&requests_sempahore)
 
 	return true
 }
