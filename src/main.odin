@@ -49,9 +49,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		writer = writer,
 	}
 
-	sync.mutex_init(&server.requests_mutex)
-	sync.semaphore_init(&server.requests_sempahore)
-
 	server.requests = make([dynamic]server.Request, context.allocator)
 	server.deletings = make([dynamic]server.Request, context.allocator)
 
