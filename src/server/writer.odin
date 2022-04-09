@@ -20,7 +20,6 @@ make_writer :: proc(writer_fn: WriterFn, writer_context: rawptr) -> Writer {
 }
 
 write_sized :: proc(writer: ^Writer, data: []byte) -> bool {
-
 	sync.mutex_lock(&writer.writer_mutex)
 	defer sync.mutex_unlock(&writer.writer_mutex)
 

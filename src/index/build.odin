@@ -116,8 +116,6 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 			flags = {.Optional_Semicolons},
 		}
 
-		//have to cheat the parser since it really wants to parse an entire package with the new changes...
-
 		dir := filepath.base(filepath.dir(fullpath, context.allocator))
 
 		pkg := new(ast.Package)
@@ -145,6 +143,53 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		uri := common.create_uri(fullpath, context.allocator)
 
 		collect_symbols(&symbol_collection, file, uri.uri)
+
+		free_all(context.allocator)
+	}
+
+	//afterwards, I have to go through the files again to find all the references. Better to reload individually the files again to ensure we don't use too much memory.
+	
+	for fullpath in files {
+		data, ok := os.read_entire_file(fullpath, context.allocator)
+
+		if !ok {
+			log.errorf("failed to read entire file for indexing %v", fullpath)
+			continue
+		}
+
+		p := parser.Parser {
+			err = log_error_handler,
+			warn = log_warning_handler,
+			flags = {.Optional_Semicolons},
+		}
+
+		dir := filepath.base(filepath.dir(fullpath, context.allocator))
+
+		pkg := new(ast.Package)
+		pkg.kind = .Normal
+		pkg.fullpath = fullpath
+		pkg.name = dir
+
+		if dir == "runtime" {
+			pkg.kind = .Runtime
+		}
+
+		file := ast.File {
+			fullpath = fullpath,
+			src = string(data),
+			pkg = pkg,
+		}
+
+		ok = parser.parse_file(&p, &file)
+
+		if !ok {
+			log.info(pkg)
+			log.errorf("error in parse file for indexing %v", fullpath)
+		}
+
+		uri := common.create_uri(fullpath, context.allocator)
+
+		//collect_references(&symbol_collection, file, uri.uri)
 
 		free_all(context.allocator)
 

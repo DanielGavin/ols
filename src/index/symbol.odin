@@ -123,7 +123,6 @@ Symbol :: struct {
 	signature:  string, //type signature
 	type:       SymbolType,
 	value:      SymbolValue,
-	references: []common.Range, //all the places in the project that it's being referenced 
 	pointers:   int, //how many `^` are applied to the symbol
 	flags:      SymbolFlags,
 }

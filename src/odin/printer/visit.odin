@@ -1157,9 +1157,20 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Call_Expr:
 		document := visit_expr(p, v.expr)
 		document = cons(document, text("("))
-		document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v.args, v.ellipsis.kind == .Ellipsis))))
+
+		contains_comments := contains_comments_in_range(p, v.open, v.close)
+
+		document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v))))
 		document = cons(document, cons(break_with(""), text(")")))
-		return group(document)
+
+		//We enforce a break if comments exists inside the call args
+		if contains_comments {
+			document = enforce_break(document)
+		} else {
+			document = group(document)
+		}
+
+		return document 
 	case ^Typeid_Type:
 		document := text("typeid")
 
@@ -1494,20 +1505,28 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
 }
 
 @(private)
-visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^Document {
+visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 	document := empty()
 
-	for expr, i in list {
-		if i == len(list) - 1 && ellipsis {
+	ellipsis := call_expr.ellipsis.kind == .Ellipsis
+
+	for expr, i in call_expr.args {
+		if i == len(call_expr.args) - 1 && ellipsis {
 			document = cons(document, text(".."))
 		}
 		document = cons(document, group(visit_expr(p, expr)))
 		
-		if i != len(list) - 1 {
+		if i != len(call_expr.args) - 1 {
 			document = cons(document, text(","))
+
+			//need to look for comments before we write the comma with break
+			comments, _ := visit_comments(p, call_expr.args[i+1].pos)
+
+			document = cons(document, comments)
 			document = cons(document, break_with_space())
 		} else {
-			document = cons(document, if_break(","))
+			comments, _ := visit_comments(p, call_expr.close)
+			document = cons(document, cons(if_break(","), comments))
 		}	
 
 	}
@@ -1516,22 +1535,6 @@ visit_call_exprs :: proc(p: ^Printer, list: []^ast.Expr, ellipsis := false) -> ^
 
 @(private)
 visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
-
-	/*
-	Ellipsis,
-	Using,
-	No_Alias,
-	C_Vararg,
-	Auto_Cast,
-	Any_Int,
-
-	Results,
-	Tags,
-	Default_Parameters,
-	Typeid_Token,
-	*/
-
-
 	document := empty()
 
 	if .Auto_Cast in flags {

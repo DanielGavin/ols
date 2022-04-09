@@ -16,6 +16,7 @@ SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	packages:       map[string]map[string]Symbol,
+	//references:     map[string]map[string]Reference,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
