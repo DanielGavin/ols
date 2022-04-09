@@ -1,4 +1,4 @@
-package index
+package server
 
 import "core:mem"
 import "core:fmt"

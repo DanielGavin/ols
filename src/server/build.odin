@@ -1,4 +1,4 @@
-package index
+package server
 
 import "core:path/filepath"
 import path "core:path/slashpath"

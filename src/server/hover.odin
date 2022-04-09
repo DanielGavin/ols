@@ -14,17 +14,13 @@ import "core:sort"
 import "core:slice"
 
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
 
-write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Symbol) -> MarkupContent {
-	using analysis
-
+write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
 	content: MarkupContent
 
 	symbol := symbol
 
-	if untyped, ok := symbol.value.(index.SymbolUntypedValue); ok {
+	if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
 		switch untyped.type {
 		case .String:  symbol.signature = "string"
 		case .Bool:	   symbol.signature = "bool"
@@ -49,8 +45,6 @@ write_hover_content :: proc(ast_context: ^analysis.AstContext, symbol: index.Sym
 
 
 get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool) {
-	using analysis
-
 	hover := Hover {
 		contents = {
 			kind = "plaintext",
@@ -104,7 +98,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			}
 		}
 
-		selector: index.Symbol
+		selector: Symbol
 		selector, ok = resolve_type_expression(&ast_context, position_context.selector)
 
 		if !ok {
@@ -123,7 +117,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 		hover.range = common.get_token_range(position_context.identifier^, document.ast.src)
 
 		#partial switch v in selector.value {
-		case index.SymbolStructValue:
+		case SymbolStructValue:
 			for name, i in v.names {
 				if strings.compare(name, field) == 0 {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
@@ -135,7 +129,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 					}
 				}
 			}
-		case index.SymbolPackageValue:
+		case SymbolPackageValue:
 			if position_context.field != nil {
 				if ident, ok := position_context.field.derived.(^ast.Ident); ok {
 					ast_context.current_package = selector.pkg

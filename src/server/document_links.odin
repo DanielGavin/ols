@@ -16,12 +16,8 @@ import "core:os"
 
 
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
 
 get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool) {
-	using analysis
-
 	links := make([dynamic]DocumentLink, 0, context.temp_allocator)
 
 	for imp in document.ast.imports {

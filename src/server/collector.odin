@@ -1,4 +1,4 @@
-package index
+package server
 
 import "core:odin/ast"
 import "core:hash"
@@ -16,7 +16,7 @@ SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	packages:       map[string]map[string]Symbol,
-	//references:     map[string]map[string]Reference,
+	references:     map[string]map[string]Reference,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
@@ -261,7 +261,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	for expr in exprs {
 		symbol: Symbol
 
-		token:      ast.Node
+		token: ast.Node
 		token_type: SymbolType
 
 		name := expr.name

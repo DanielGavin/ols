@@ -14,7 +14,6 @@ import "core:sync"
 
 import "core:intrinsics"
 
-import "shared:index"
 import "shared:server"
 import "shared:common"
 
@@ -81,7 +80,7 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	server.document_storage_shutdown()
 
-	index.free_static_index()
+	server.free_static_index()
 }
 
 end :: proc() {

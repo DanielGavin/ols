@@ -6,8 +6,7 @@ import "core:log"
 import "core:fmt"
 
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
+
 
 /*
 	Right now I might be setting the wrong types, since there is no documentation as to what should be what, and looking at other LSP there is no consistancy.
@@ -78,7 +77,7 @@ SemanticTokens :: struct {
 SemanticTokenBuilder :: struct {
 	current_start: int,
 	tokens:        [dynamic]u32,
-	symbols:       map[uintptr]index.SymbolAndNode,
+	symbols:       map[uintptr]SymbolAndNode,
 	selector:      bool,
 }
 
@@ -94,9 +93,7 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 	}
 }
 
-get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]index.SymbolAndNode) -> SemanticTokens { 
-	using analysis
-
+get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]SymbolAndNode) -> SemanticTokens { 
 	builder := make_token_builder()
 
 	if document.ast.pkg_decl != nil {
@@ -144,23 +141,23 @@ visit :: proc {
 	visit_stmt,
 }
 
-visit_array :: proc(array: $A/[]^$T, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_array :: proc(array: $A/[]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	for elem, i in array {
 		visit(elem, builder, ast_context)
 	}
 }
 
-visit_dynamic_array :: proc(array: $A/[dynamic]^$T, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_dynamic_array :: proc(array: $A/[dynamic]^$T, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	for elem, i in array {
 		visit(elem, builder, ast_context)
 	}
 }
 
-visit_stmt :: proc(node: ^ast.Stmt, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_stmt :: proc(node: ^ast.Stmt, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	visit_node(node, builder, ast_context)
 }
 
-visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	using ast
 
 	if node == nil {
@@ -179,21 +176,21 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 			}
 
 			#partial switch v in symbol_and_node.symbol.value { 
-			case index.SymbolPackageValue:
+			case SymbolPackageValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Namespace, .None)
-			case index.SymbolStructValue:
+			case SymbolStructValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Struct, .None)
-			case index.SymbolEnumValue:
+			case SymbolEnumValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Enum, .None)
-			case index.SymbolUnionValue:
+			case SymbolUnionValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Enum, .None)
-			case index.SymbolProcedureValue:
+			case SymbolProcedureValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Function, .None)
-			case index.SymbolProcedureGroupValue:
+			case SymbolProcedureGroupValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Function, .None)
-			case index.SymbolUntypedValue:
+			case SymbolUntypedValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Type, .None)
-			case index.SymbolBasicValue:
+			case SymbolBasicValue:
 				write_semantic_node(builder, node, ast_context.file.src, .Type, .None)
 			case:
 				//log.errorf("Unexpected symbol value: %v", symbol.value);
@@ -349,11 +346,9 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 	}
 }
 
-visit_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
-	using analysis
-
+visit_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	if symbol, ok := resolve_basic_lit(ast_context, basic_lit); ok {
-		if untyped, ok := symbol.value.(index.SymbolUntypedValue); ok {
+		if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
 			switch untyped.type {
 			case .Bool:
 				write_semantic_token(builder, basic_lit.tok, ast_context.file.src, .Keyword, .None)
@@ -366,7 +361,7 @@ visit_basic_lit :: proc(basic_lit: ast.Basic_Lit, builder: ^SemanticTokenBuilder
 	}
 }
 
-visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	using ast
 
 	if value_decl.type != nil {
@@ -433,7 +428,7 @@ visit_token_op :: proc(builder: ^SemanticTokenBuilder, token: tokenizer.Token, s
 	}
 }
 
-visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	using ast
 
 	if node == nil {
@@ -460,7 +455,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder, as
 	}
 }
 
-visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	using ast
 
 	if node.fields == nil {
@@ -480,7 +475,7 @@ visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder, a
 	}
 }
 
-visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	using ast
 
 	if node.fields == nil {
@@ -498,7 +493,7 @@ visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilde
 	}
 }
 
-visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuilder, ast_context: ^analysis.AstContext) {
+visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuilder, ast_context: ^AstContext) {
 	if _, ok := selector.expr.derived.(^ast.Selector_Expr); ok {
 		visit_selector(cast(^ast.Selector_Expr)selector.expr, builder, ast_context)
 	} else {
@@ -511,17 +506,17 @@ visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuil
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Method, .None)
 		}
 		#partial switch v in symbol_and_node.symbol.value { 
-		case index.SymbolPackageValue:
+		case SymbolPackageValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Namespace, .None)
-		case index.SymbolStructValue:
+		case SymbolStructValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Struct, .None)
-		case index.SymbolEnumValue:
+		case SymbolEnumValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Enum, .None)
-		case index.SymbolUnionValue:
+		case SymbolUnionValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Enum, .None)
-		case index.SymbolProcedureValue:
+		case SymbolProcedureValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Function, .None)
-		case index.SymbolProcedureGroupValue:
+		case SymbolProcedureGroupValue:
 			write_semantic_node(builder, selector.field, ast_context.file.src, .Function, .None)
 		}
 	}

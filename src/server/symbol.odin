@@ -1,4 +1,4 @@
-package index
+package server
 
 import "core:odin/ast"
 import "core:hash"

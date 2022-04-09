@@ -1,11 +1,11 @@
-package index 
+package server 
 
-/*
+
 import "shared:common"
-import "shared:analysis"
 
 import "core:strings"
 import "core:odin/ast"
+import path "core:path/slashpath"
 
 
 Reference :: struct {
@@ -16,7 +16,6 @@ Reference :: struct {
 collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	document := common.Document {
 		ast = file,
-	
 	}
 
 	uri, ok := common.parse_uri(uri, context.temp_allocator) 
@@ -31,9 +30,12 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 		document.package_name = path.dir(document.uri.path)
 	}
 
+	document.uri = uri 
+	
+
 
 	return {}
 
 }
-*/
+
 

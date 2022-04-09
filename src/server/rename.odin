@@ -1,14 +1,11 @@
 package server 
 
 import "shared:common"
-import "shared:analysis"
 
 import "core:log"
 import "core:odin/ast"
 
 get_rename :: proc(document: ^common.Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
-	using analysis
-	
 	workspace: WorkspaceEdit
 
 	document_changes := make([dynamic]TextDocumentEdit, context.temp_allocator)

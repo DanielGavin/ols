@@ -14,8 +14,6 @@ import "core:sort"
 import "core:slice"
 
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
 
 SignatureInformationCapabilities :: struct {
 	parameterInformation: ParameterInformationCapabilities,
@@ -52,8 +50,8 @@ ParameterInformation :: struct {
 /*
 	Lazily build the signature and returns from ast.Nodes
 */
-build_procedure_symbol_signature :: proc(symbol: ^index.Symbol) {
-	if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
+build_procedure_symbol_signature :: proc(symbol: ^Symbol) {
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
 		builder := strings.make_builder(context.temp_allocator)
 	
 		strings.write_string(&builder, "proc")
@@ -85,13 +83,13 @@ build_procedure_symbol_signature :: proc(symbol: ^index.Symbol) {
 			}
 		}
 		symbol.signature = strings.to_string(builder)
-	} else if value, ok := symbol.value.(index.SymbolAggregateValue); ok {
+	} else if value, ok := symbol.value.(SymbolAggregateValue); ok {
 		symbol.signature = "proc"
 	}
 }
 
-seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
-	if value, ok := &procedure.value.(index.SymbolProcedureValue); ok {
+seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
+	if value, ok := &procedure.value.(SymbolProcedureValue); ok {
 		types := make([dynamic]^ast.Field, context.temp_allocator)
 				
 		for arg, i in value.arg_types {
@@ -101,7 +99,7 @@ seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
 			}
 
 			for name in arg.names {
-				field : ^ast.Field = index.new_type(ast.Field, {}, {}, context.temp_allocator)
+				field : ^ast.Field = new_type(ast.Field, {}, {}, context.temp_allocator)
 				field.names = make([]^ast.Expr, 1, context.temp_allocator)
 				field.names[0] = name
 				field.type = arg.type
@@ -114,8 +112,6 @@ seperate_proc_field_arguments :: proc(procedure: ^index.Symbol) {
 }
 
 get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
-	using analysis
-
 	signature_help: SignatureHelp
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
@@ -145,7 +141,7 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 		}
 	}
 
-	call: index.Symbol
+	call: Symbol
 	call, ok = resolve_type_expression(&ast_context, position_context.call)
 
 	if !ok {
@@ -156,7 +152,7 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
-	if value, ok := call.value.(index.SymbolProcedureValue); ok {
+	if value, ok := call.value.(SymbolProcedureValue); ok {
 		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator)
 		
 		for arg, i in value.arg_types {
@@ -177,13 +173,13 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 			parameters = parameters,
 		}	
 		append(&signature_information, info)
-	} else if value, ok := call.value.(index.SymbolAggregateValue); ok {
+	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
 		for symbol in value.symbols {
 
 			symbol := symbol
 
-			if value, ok := symbol.value.(index.SymbolProcedureValue); ok {
+			if value, ok := symbol.value.(SymbolProcedureValue); ok {
 
 				parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator)
 

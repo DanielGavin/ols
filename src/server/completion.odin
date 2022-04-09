@@ -16,8 +16,6 @@ import "core:os"
 
 
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
 
 /*
 	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
@@ -35,7 +33,6 @@ Completion_Type :: enum {
 }
 
 get_completion_list :: proc(document: ^common.Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
-	using analysis
 
 	list: CompletionList
 
@@ -90,8 +87,7 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 			ast_context.use_locals = true
 
 			if symbol, ok := resolve_type_expression(&ast_context, assign.rhs[0]); ok {
-
-				if union_value, ok := symbol.value.(index.SymbolUnionValue); ok {
+				if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 					completion_type = .Switch_Type
 				}
 			}
@@ -118,11 +114,11 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 	return list, true
 }
 
-get_attribute_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 	
 }
 
-get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false
 
@@ -167,8 +163,7 @@ get_directive_completion :: proc(ast_context: ^analysis.AstContext, position_con
 	list.items = items[:]
 }
 
-get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-	using analysis
+get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
@@ -180,7 +175,7 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
 			ast_context.current_package = comp_symbol.pkg;
 			#partial switch v in comp_symbol.value {
-			case index.SymbolStructValue:
+			case SymbolStructValue:
 				for name, i in v.names {
 					ast_context.current_package = comp_symbol.pkg
 
@@ -206,14 +201,13 @@ get_comp_lit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	list.items = items[:]
 }
 
-get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-	using analysis
+get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	ast_context.current_package = ast_context.document_package
 
-	selector: index.Symbol
+	selector: Symbol
 	ok: bool
 
 	ast_context.use_locals = true
@@ -244,7 +238,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		}
 	}
 
-	if s, ok := selector.value.(index.SymbolProcedureValue); ok {
+	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
 			if selector, ok = resolve_type_expression(ast_context, s.return_types[0].type); !ok {
 				return
@@ -253,7 +247,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 
 	#partial switch v in selector.value {
-	case index.SymbolFixedArrayValue:
+	case SymbolFixedArrayValue:
 		list.isIncomplete = true
 
 		containsColor := 1
@@ -348,7 +342,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 				append(&items, item)
 			}
 		} 
-	case index.SymbolUnionValue:
+	case SymbolUnionValue:
 		list.isIncomplete = false
 
 		append_magic_union_completion(position_context, selector, &items)
@@ -373,7 +367,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			}
 		}
 
-	case index.SymbolEnumValue:
+	case SymbolEnumValue:
 		list.isIncomplete = false
 
 		for name in v.names {
@@ -386,7 +380,7 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			append(&items, item)
 		}
 
-	case index.SymbolStructValue:
+	case SymbolStructValue:
 		list.isIncomplete = false
 
 		for name, i in v.names {
@@ -428,10 +422,10 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			}
 		}
 
-	case index.SymbolPackageValue:
+	case SymbolPackageValue:
 		list.isIncomplete = true
 
-		if searched, ok := index.fuzzy_search(field, {selector.pkg}); ok {
+		if searched, ok := fuzzy_search(field, {selector.pkg}); ok {
 			for search in searched {
 				symbol := search.symbol
 
@@ -458,10 +452,10 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg)
 			return
 		}
-	case index.SymbolDynamicArrayValue:
+	case SymbolDynamicArrayValue:
 		list.isIncomplete = false
 		append_magic_dynamic_array_completion(position_context, selector, &items)
-	case index.SymbolMapValue:
+	case SymbolMapValue:
 		list.isIncomplete = false 
 		append_magic_map_completion(position_context, selector, &items)
 	}
@@ -469,14 +463,13 @@ get_selector_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	list.items = items[:]
 }
 
-get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-	using analysis
+get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = false
 
-	selector: index.Symbol
+	selector: Symbol
  
 	ast_context.use_locals  = true
 	ast_context.use_globals = true
@@ -586,7 +579,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 
 		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
 			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
-				if s, ok := comp_symbol.value.(index.SymbolStructValue); ok {
+				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
 					ast_context.current_package = comp_symbol.pkg;
 
 					//We can either have the final 
@@ -686,7 +679,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 			} else {
 				//procedures are the only types that can return more than one value
 				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
-					if procedure, ok := symbol.value.(index.SymbolProcedureValue); ok {
+					if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 						if procedure.return_types == nil {
 							return
 						}
@@ -761,7 +754,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(ast_context, call^)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
-				if proc_value, ok := symbol.value.(index.SymbolProcedureValue); ok {
+				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
 					}
@@ -786,8 +779,7 @@ get_implicit_completion :: proc(ast_context: ^analysis.AstContext, position_cont
 	}
 }
 
-get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-	using analysis
+get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
@@ -797,11 +789,11 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		score:     f32,
 		snippet:   Snippet_Info,	
 		name:      string,
-		type:      index.SymbolType,
+		type:      SymbolType,
 		doc:       string,
 		pkg:       string,
 		signature: string,
-		flags:     index.SymbolFlags,
+		flags:     SymbolFlags,
 	}
 
 	combined_sort_interface :: proc(s: ^[dynamic]CombinedResult) -> sort.Interface {
@@ -824,11 +816,11 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 
 	combined := make([dynamic]CombinedResult)
 
-	lookup := ""
+	lookup_name := ""
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			lookup = ident.name
+			lookup_name = ident.name
 		}
 	}
 
@@ -843,7 +835,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	append(&pkgs, ast_context.document_package)
 	append(&pkgs, "$builtin")
 
-	if results, ok := index.fuzzy_search(lookup, pkgs[:]); ok {
+	if results, ok := fuzzy_search(lookup_name, pkgs[:]); ok {
 		for r in results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)
@@ -862,7 +854,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		}
 	}
 
-	matcher := common.make_fuzzy_matcher(lookup)
+	matcher := common.make_fuzzy_matcher(lookup_name)
 
 	global: for k, v in ast_context.globals {
 		if position_context.global_lhs_stmt {
@@ -880,7 +872,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
 
-		ident := index.new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator)
+		ident := new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator)
 		ident.name = k
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
@@ -914,7 +906,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			ast_context.use_globals = true
 			ast_context.current_package = ast_context.document_package
 
-			ident := index.new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator)
+			ident := new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator)
 			ident.name = k
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
@@ -942,7 +934,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 			break
 		}
 
-		symbol := index.Symbol {
+		symbol := Symbol {
 			name = pkg.base,
 			type = .Package,
 		}
@@ -961,7 +953,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for keyword, _ in common.keyword_map {
-		symbol := index.Symbol {
+		symbol := Symbol {
 			name = keyword,
 			type = .Keyword,
 		}
@@ -980,7 +972,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	}
 
 	for keyword, _ in language_keywords {
-		symbol := index.Symbol {
+		symbol := Symbol {
 			name = keyword,
 			type = .Keyword,
 		}
@@ -1064,7 +1056,7 @@ get_identifier_completion :: proc(ast_context: ^analysis.AstContext, position_co
 	list.items = items[:]
 }
 
-get_package_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
+get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
@@ -1146,8 +1138,7 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	return packages[:]
 }
 
-get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_context: ^analysis.DocumentPositionContext, list: ^CompletionList) {
-	using analysis
+get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 	list.isIncomplete = false
@@ -1197,7 +1188,7 @@ get_type_switch_completion :: proc(ast_context: ^analysis.AstContext, position_c
 	list.items = items[:]
 }
 
-get_core_insert_package_if_non_existent :: proc(ast_context: ^analysis.AstContext, pkg: string) -> (TextEdit, bool) {
+get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: string) -> (TextEdit, bool) {
 	builder := strings.make_builder(context.temp_allocator)
 
 	for imp in ast_context.imports {
@@ -1223,7 +1214,7 @@ get_core_insert_package_if_non_existent :: proc(ast_context: ^analysis.AstContex
 	}, true
 }
 
-get_range_from_selection_start_to_dot :: proc(position_context: ^analysis.DocumentPositionContext) -> (common.Range, bool) {
+get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositionContext) -> (common.Range, bool) {
 	if position_context.selector != nil {
 		range := common.get_token_range(position_context.selector, position_context.file.src)
 		range.end.character += 1
@@ -1233,7 +1224,7 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^analysis.Docume
 	return {}, false
 }
 
-append_magic_map_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_map_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
@@ -1277,7 +1268,7 @@ append_magic_map_completion :: proc(position_context: ^analysis.DocumentPosition
 
 }
 
-append_magic_dynamic_array_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_dynamic_array_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
@@ -1341,7 +1332,7 @@ append_magic_dynamic_array_completion :: proc(position_context: ^analysis.Docume
 	
 }
 
-append_magic_union_completion :: proc(position_context: ^analysis.DocumentPositionContext, symbol: index.Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_union_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {

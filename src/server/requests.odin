@@ -18,7 +18,6 @@ import "core:odin/ast"
 import "core:odin/parser"
 
 import "shared:common"
-import "shared:index"
 
 Header :: struct {
 	content_length: int,
@@ -537,10 +536,10 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		Temp index here, but should be some background thread that starts the indexing
 	*/
 
-	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, config))
-	index.indexer.dynamic_uri_owned = make(map[string]bool, 200, context.allocator)
+	indexer.dynamic_index = make_memory_index(make_symbol_collection(context.allocator, config))
+	indexer.dynamic_uri_owned = make(map[string]bool, 200, context.allocator)
 
-	index.build_static_index(context.allocator, config)
+	build_static_index(context.allocator, config)
 
 	/*
 		Add runtime package
@@ -548,9 +547,9 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	if core, ok := config.collections["core"]; ok {
 		when ODIN_OS == .Windows  {
-			append(&index.indexer.builtin_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"))
+			append(&indexer.builtin_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"))
 		} else {
-			append(&index.indexer.builtin_packages, path.join(core, "runtime"))
+			append(&indexer.builtin_packages, path.join(core, "runtime"))
 		}
 	}
 
@@ -799,8 +798,8 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	fullpath := uri.path
 
 	p := parser.Parser {
-		err = index.log_error_handler,
-		warn = index.log_warning_handler,
+		err = log_error_handler,
+		warn = log_warning_handler,
 		flags = {.Optional_Semicolons},
 	}
 
@@ -827,20 +826,20 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 		log.errorf("error in parse file for indexing %v", fullpath)
 	}
 
-	for k, v in &index.indexer.dynamic_index.collection.packages {
+	for k, v in &indexer.dynamic_index.collection.packages {
 		for k2, v2 in &v {
 			if v2.uri == uri.uri {
-				index.free_symbol(v2, context.allocator)
+				free_symbol(v2, context.allocator)
 				v[k2] = {}
 			} 
 		}
 	}
 
-	if ret := index.collect_symbols(&index.indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+	if ret := collect_symbols(&indexer.dynamic_index.collection, file, uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	index.indexer.dynamic_uri_owned[uri.uri] = true
+	indexer.dynamic_uri_owned[uri.uri] = true
 
 	check(uri, writer, config)
 
@@ -878,7 +877,7 @@ request_semantic_token_full :: proc (params: json.Value, id: RequestId, config: 
 	symbols: SemanticTokens
 
 	if config.enable_semantic_tokens {
-		resolve_entire_file(document)
+		resolve_entire_file_cached(document)
 
 		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
 			symbols = get_semantic_tokens(document, range, cache_symbols)
@@ -1008,7 +1007,7 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	hints: []InlayHint
 
-	resolve_entire_file(document)
+	resolve_entire_file_cached(document)
 
 	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
 		hints, ok = get_inlay_hints(document, cache_symbols)

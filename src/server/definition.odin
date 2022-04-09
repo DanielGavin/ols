@@ -14,14 +14,9 @@ import "core:sort"
 import "core:slice"
 import "core:os"
 
-
 import "shared:common"
-import "shared:index"
-import "shared:analysis"
 
 get_definition_location :: proc(document: ^common.Document, position: common.Position) -> ([]common.Location, bool) {
-	using analysis
-
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	location: common.Location
@@ -69,7 +64,7 @@ get_definition_location :: proc(document: ^common.Document, position: common.Pos
 
 		//otherwise it's the field the client wants to go to.
 
-		selector: index.Symbol
+		selector: Symbol
 
 		ast_context.use_locals = true
 		ast_context.use_globals = true
@@ -94,16 +89,16 @@ get_definition_location :: proc(document: ^common.Document, position: common.Pos
 		uri = selector.uri
 
 		#partial switch v in selector.value {
-		case index.SymbolEnumValue:
+		case SymbolEnumValue:
 			location.range = selector.range
-		case index.SymbolStructValue:
+		case SymbolStructValue:
 			for name, i in v.names {
 				if strings.compare(name, field) == 0 {
 					location.range = common.get_token_range(v.types[i]^, document.ast.src)
 				}
 			}
-		case index.SymbolPackageValue:
-			if symbol, ok := index.lookup(field, selector.pkg); ok {
+		case SymbolPackageValue:
+			if symbol, ok := lookup(field, selector.pkg); ok {
 				location.range = symbol.range
 				uri = symbol.uri
 			} else {
