@@ -33,7 +33,6 @@ Completion_Type :: enum {
 }
 
 get_completion_list :: proc(document: ^common.Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
-
 	list: CompletionList
 
 	position_context, ok := get_document_position_context(document, position, .Completion)
@@ -51,7 +50,7 @@ get_completion_list :: proc(document: ^common.Document, position: common.Positio
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
-	ast_context.value_decl      = position_context.value_decl
+	ast_context.value_decl = position_context.value_decl
 
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
@@ -202,7 +201,6 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 }
 
 get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	ast_context.current_package = ast_context.document_package
@@ -780,7 +778,6 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 }
 
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = true
@@ -1252,7 +1249,7 @@ append_magic_map_completion :: proc(position_context: ^DocumentPositionContext, 
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("for k, v in %v {{\n\t$0 \n}}", symbol.name),
+				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", symbol.name),
 				range = {
 					start = range.end,
 					end = range.end,

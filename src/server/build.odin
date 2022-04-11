@@ -195,6 +195,9 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 		delete(fullpath, allocator)
 	}
+	
+
+	log.error(symbol_collection.references)
 
 	delete(files)
 	delete(temp_arena.data)

@@ -5,7 +5,6 @@ import "core:fmt"
 
 import "shared:common"
 
-//document
 get_inlay_hints :: proc(document: ^common.Document, symbols: map[uintptr]SymbolAndNode) -> ([]InlayHint, bool) {
 	hints := make([dynamic]InlayHint, context.temp_allocator)
 

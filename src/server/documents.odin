@@ -342,6 +342,12 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	parser.parse_file(&p, &document.ast)
 
+	parse_imports(document, config)
+
+	return current_errors[:], true
+}
+
+parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 	imports := make([dynamic]common.Package)
 
 	when ODIN_OS == .Windows  {
@@ -407,6 +413,4 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	}
 
 	document.imports = imports[:]
-
-	return current_errors[:], true
 }

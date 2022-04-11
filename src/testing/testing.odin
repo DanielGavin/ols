@@ -9,9 +9,7 @@ import "core:odin/parser"
 import "core:odin/ast"
 
 import "shared:server"
-import "shared:index"
 import "shared:common"
-import "shared:analysis"
 
 Package :: struct {
 	pkg: string,
@@ -73,9 +71,9 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
-	index.build_static_index(context.allocator, &common.config);
+	server.build_static_index(context.allocator, &common.config);
 
-	index.indexer.dynamic_index = index.make_memory_index(index.make_symbol_collection(context.allocator, &common.config));
+	server.indexer.dynamic_index = server.make_memory_index(server.make_symbol_collection(context.allocator, &common.config));
 
 	for src_pkg in src.packages {
 		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator);
@@ -84,8 +82,8 @@ setup :: proc(src: ^Source) {
 
 		p := parser.Parser {
 			//err = parser.default_error_handler,
-			err = index.log_error_handler,
-			warn = index.log_warning_handler,
+			err = server.log_error_handler,
+			warn = server.log_warning_handler,
 		};
 
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
@@ -112,7 +110,7 @@ setup :: proc(src: ^Source) {
 			panic("Parser error in test package source");
 		}
 
-		if ret := index.collect_symbols(&index.indexer.static_index.collection, file, uri.uri); ret != .None {
+		if ret := server.collect_symbols(&server.indexer.static_index.collection, file, uri.uri); ret != .None {
 			return;
 		}
 	}
@@ -120,7 +118,7 @@ setup :: proc(src: ^Source) {
 
 @private
 teardown :: proc(src: ^Source) {
-	index.free_static_index()
+	server.free_static_index()
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {

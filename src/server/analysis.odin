@@ -1019,7 +1019,11 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				ast_context.current_package = selector.pkg
 
 				if v.field != nil {
-					return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))
+					when ODIN_OS == .Windows {
+						return resolve_symbol_return(ast_context, lookup(v.field.name, strings.to_lower(selector.pkg, context.temp_allocator)))
+					} else {
+						return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))
+					}			
 				} else {
 					return Symbol {}, false
 				}
@@ -1368,21 +1372,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 	return Symbol {}, false
 }
 
-resolve_ident_is_package :: proc(ast_context: ^AstContext, node: ast.Ident) -> bool {
-	if strings.contains(node.name, "/") {
-		return true
-	} else {
-		for imp in ast_context.imports {
-
-			if imp.base == node.name {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: SymbolStructValue) -> SymbolStructValue {
 	names := slice.to_dynamic(value.names, ast_context.allocator)
 	types := slice.to_dynamic(value.types, ast_context.allocator)
@@ -1629,9 +1618,7 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 
 	//probably map instead
 	for u, i in ast_context.usings {
-
 		for imp in ast_context.imports {
-
 			if strings.compare(imp.base, u) == 0 {
 				usings[i] = imp.name
 			}

@@ -62,6 +62,7 @@ keyword_map: map[string]bool = {
     "quaternion64" = true,  
     "quaternion128" = true,
     "quaternion256" = true,      
+	"uintptr" = true,
 }
 
 GlobalExpr :: struct {

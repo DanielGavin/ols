@@ -1381,3 +1381,38 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 
     test.expect_completion_details(t, &source, ".", {"TWO", "ONE"})
 }
+
+@(test)
+ast_package_uppercase_test :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(&packages, test.Package {
+		pkg = "My_package",
+		source = `package My_package
+		Foo :: enum {
+			ONE,
+			TWO,
+		}
+		
+		Bar :: struct {
+			a: int,
+			b: int,
+			c: Foo,
+		}
+		`,
+	})
+
+	source := test.Source {
+		main = `package main
+		import "My_package"
+		main :: proc() {
+			a := My_package.Bar {
+				c = .*
+			}
+	    }
+		`,
+		packages = packages[:],
+	}
+
+    test.expect_completion_details(t, &source, ".", {"TWO", "ONE"})
+}

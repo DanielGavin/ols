@@ -54,6 +54,13 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}	
 	}
 
+	for k, v in collection.references {
+		for k2, v2 in v {
+			common.free_ast(v2.identifiers, collection.allocator)
+			common.free_ast(v2.selectors, collection.allocator)
+		}
+	}
+
 	for k, v in collection.unique_strings {
 		delete(v, collection.allocator)
 	}
@@ -62,6 +69,11 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		delete(v)
 	}
 
+	for k, v in collection.references {
+		delete(v)
+	}
+
+	delete(collection.references)
 	delete(collection.packages)
 	delete(collection.unique_strings)
 }
@@ -362,7 +374,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 		symbol.range = common.get_token_range(token, file.src)
 		symbol.name = get_index_unique_string(collection, name)
-		symbol.pkg = get_index_unique_string(collection, directory)
 		symbol.type = token_type
 		symbol.doc = common.get_doc(expr.docs, collection.allocator)
 
@@ -407,6 +418,51 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 	return .None
 }
+
+Reference :: struct {
+	identifiers: [dynamic]^ast.Ident, 
+	selectors: [dynamic]^ast.Selector_Expr, 
+}
+
+collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
+	document := common.Document {
+		ast = file,
+	}
+
+	uri, ok := common.parse_uri(uri, context.temp_allocator) 
+
+	if !ok {
+		return .ParseError
+	}
+
+	document.uri = uri 
+	document.text = transmute([]u8)file.src
+	document.used_text = len(file.src)
+	document.allocator = document_get_allocator()
+
+	context.allocator = common.scratch_allocator(document.allocator)
+
+	parse_imports(&document, &common.config)
+
+	symbols_and_nodes := resolve_entire_file(&document, common.scratch_allocator(document.allocator))
+	
+	for k, v in symbols_and_nodes {
+		if pkg, ok := &collection.references[v.symbol.pkg]; ok {
+			if ref, ok := &pkg[v.symbol.name]; ok {
+				if ident, ok := v.node.derived.(^ast.Ident); ok {
+					//append(&ref.identifiers, cast(^ast.Ident)clone_type(ident, collection.allocator, nil))
+				} else if selector, ok := v.node.derived.(^ast.Selector_Expr); ok {
+					//append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
+				}
+			}
+		}
+	}
+
+	document_free_allocator(document.allocator)
+
+	return .None
+}
+
 
 /*
 	Gets the map from import alias to absolute package directory
