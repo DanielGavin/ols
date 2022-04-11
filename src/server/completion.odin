@@ -423,7 +423,13 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	case SymbolPackageValue:
 		list.isIncomplete = true
 
-		if searched, ok := fuzzy_search(field, {selector.pkg}); ok {
+		when ODIN_OS == .Windows {
+			pkg := strings.to_lower(selector.pkg)
+		} else {
+			pkg := selector.pkg
+		}
+
+		if searched, ok := fuzzy_search(field, {pkg}); ok {
 			for search in searched {
 				symbol := search.symbol
 
