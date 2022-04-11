@@ -53,7 +53,7 @@ jobs:
     - name: Build Odin
       run: |
         cd Odin
-        make release
+        ./build_odin.sh release
     - name: Build ols
       run: |
         dir
