@@ -43,7 +43,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download LLVM
-      run: sudo apt-get install llvm-11 clang-11 llvm
+      run: sudo apt-get install llvm-11 clang-11
     - name: Download Odin
       run: |
         git clone https://github.com/odin-lang/Odin
