@@ -48,7 +48,7 @@ document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 		return pop(&document_storage.free_allocators)
 	} else {
 		allocator := new(common.Scratch_Allocator)
-		common.scratch_allocator_init(allocator, mem.megabytes(3))
+		common.scratch_allocator_init(allocator, mem.Megabyte*3)
 		return allocator
 	}
 }

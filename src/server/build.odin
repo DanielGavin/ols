@@ -98,7 +98,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 	temp_arena: mem.Arena
 
-	mem.init_arena(&temp_arena, make([]byte, mem.megabytes(100)))
+	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*100))
 
 	context.allocator = mem.arena_allocator(&temp_arena)
 
