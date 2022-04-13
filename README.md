@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: Works on all platforms.
+**Status**: Apple M1 does not currently work.
 
 ## Table Of Contents
 - [Installation](#installation)
