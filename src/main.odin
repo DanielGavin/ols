@@ -95,7 +95,7 @@ main :: proc() {
 
 	context.logger = verbose_logger
 
-	init_global_temporary_allocator(mem.megabytes(100))
+	init_global_temporary_allocator(mem.Megabyte*100)
 
 	run(&reader, &writer)
 }

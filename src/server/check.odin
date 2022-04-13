@@ -25,7 +25,7 @@ when ODIN_OS == .Windows {
 	}
 
 	check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
-		data := make([]byte, mem.kilobytes(10), context.temp_allocator)
+		data := make([]byte, mem.Kilobyte*10, context.temp_allocator)
 
 		buffer: []byte
 		code: u32
