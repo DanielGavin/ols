@@ -343,6 +343,13 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		}
 
 		write_semantic_token(builder, n.relpath, ast_context.file.src, .String, .None)
+	case ^Or_Return_Expr:
+		visit(n.expr, builder, ast_context)
+		write_semantic_token(builder, n.token, ast_context.file.src, .Keyword, .None)
+	case ^Or_Else_Expr:
+		visit(n.x, builder, ast_context)
+		write_semantic_token(builder, n.token, ast_context.file.src, .Keyword, .None)
+		visit(n.y, builder, ast_context)
 	case:
 		//log.errorf("unhandled semantic token node %v", n);
 		//panic(fmt.tprintf("Missed semantic token handling %v", n));

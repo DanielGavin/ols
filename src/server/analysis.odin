@@ -2035,6 +2035,8 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 	ast_context.use_globals = true
 
 	#partial switch v in value.derived {
+	case ^Or_Return_Expr:
+		get_generic_assignment(file, v.expr, ast_context, results)
 	case ^Call_Expr:
 		ast_context.call = cast(^ast.Call_Expr)value
 	
@@ -3429,6 +3431,11 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^Implicit_Selector_Expr:
 		position_context.implicit = true
 		get_document_position(n.field, position_context)
+	case ^ast.Or_Else_Expr:
+		get_document_position(n.x, position_context)
+		get_document_position(n.y, position_context)
+	case ^ast.Or_Return_Expr:
+		get_document_position(n.expr, position_context)
 	case:
 		log.errorf("Unhandled node kind: %T", n)
 	}
