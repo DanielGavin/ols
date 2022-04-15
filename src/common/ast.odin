@@ -637,6 +637,10 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		if n, ok := a.derived.(^Dynamic_Array_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
+	case ^ast.Multi_Pointer_Type:
+		if n, ok := a.derived.(^Multi_Pointer_Type); ok {
+			return node_equal(n.elem, m.elem)
+		}
 	case ^Struct_Type:
 		if n, ok := a.derived.(^Struct_Type); ok {
 			ret := node_equal(n.poly_params, m.poly_params)

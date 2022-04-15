@@ -40,3 +40,39 @@ ast_goto_untyped_value :: proc(t: ^testing.T) {
 
     test.expect_definition_locations(t, &source, {location});
 }
+
+
+@(test)
+ast_goto_local_procedure_ret_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		my_function :: proc() -> int {
+			return 0;
+		}
+		
+		main :: proc() {
+			xaa := my_function()
+		
+			
+			xaa
+		}
+		`,
+		packages = {},
+	};
+
+	location := common.Location {
+		range = {
+			start = {
+				line = 5,
+				character = 10,
+			},
+			end = {
+				line = 5,
+				character = 12,
+			},
+		},
+		uri = "file:///test/test.odin",
+	}
+
+    test.expect_definition_locations(t, &source, {location});
+}

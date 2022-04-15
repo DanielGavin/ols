@@ -79,7 +79,6 @@ get_definition_location :: proc(document: ^common.Document, position: common.Pos
 		field: string
 
 		if position_context.field != nil {
-
 			#partial switch v in position_context.field.derived {
 			case ^ast.Ident:
 				field = v.name
@@ -110,7 +109,6 @@ get_definition_location :: proc(document: ^common.Document, position: common.Pos
 			return {}, false
 		}
 	} else if position_context.identifier != nil {
-
 		if resolved, ok := resolve_location_identifier(&ast_context, position_context.identifier.derived.(^ast.Ident)^); ok {
 			location.range = resolved.range
 			uri = resolved.uri

@@ -453,7 +453,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		config.collections["vendor"] = path.join(elems = {forward_path, "vendor"}, allocator = context.allocator)
 	}
 
-
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
 			config.hover_support_md = true
@@ -502,7 +501,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					includeText = true,
 				},
 			},
-			renameProvider = false,
+			renameProvider = true,
 			definitionProvider = true,
 			completionProvider = CompletionOptions {
 				resolveProvider = false,

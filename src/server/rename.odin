@@ -12,6 +12,8 @@ get_rename :: proc(document: ^common.Document, new_text: string, position: commo
 
 	edits := make([dynamic]TextEdit, context.temp_allocator)
 
+
+	/*
 	symbol_and_nodes := resolve_entire_file(document)
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
@@ -63,6 +65,7 @@ get_rename :: proc(document: ^common.Document, new_text: string, position: commo
 	append(&document_changes, document_change)
 
 	workspace.documentChanges = document_changes[:]
+	*/
 
 	return workspace, true
 }

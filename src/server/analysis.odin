@@ -597,6 +597,26 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		}
 
 		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
+	case SymbolMultiPointer:
+		b_value := b.value.(SymbolMultiPointer)
+
+		a_symbol: Symbol
+		b_symbol: Symbol
+		ok: bool
+
+		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
+
+		if !ok {
+			return false
+		}
+
+		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
+
+		if !ok {
+			return false
+		}
+
+		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
 	case SymbolDynamicArrayValue:
 		b_value := b.value.(SymbolDynamicArrayValue)
 
@@ -854,6 +874,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 		return make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Dynamic_Array_Type:
 		return make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
+	case ^Multi_Pointer_Type:
+		return make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Map_Type:
 		return make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Proc_Type:
@@ -923,10 +945,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 		symbol, ok := resolve_type_expression(ast_context, v.elem)
 		symbol.pointers += 1
 		return symbol, ok
-	case ^Multi_Pointer_Type:
-		symbol, ok := resolve_type_expression(ast_context, v.elem)
-		symbol.pointers += 1
-		return symbol, ok
 	case ^Index_Expr:
 		indexed, ok := resolve_type_expression(ast_context, v.expr)
 
@@ -945,6 +963,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 			symbol, ok = resolve_type_expression(ast_context, v2.expr)
 		case SymbolMapValue:
 			symbol, ok = resolve_type_expression(ast_context, v2.value)
+		case SymbolMultiPointer:
+			symbol, ok = resolve_type_expression(ast_context, v2.expr)
 		}
 
 		symbol.type = indexed.type
@@ -1469,6 +1489,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		}
 	case SymbolGenericValue:
 		ret, ok := resolve_type_expression(ast_context, v.expr)
+		if symbol.type == .Variable {
+			ret.type = symbol.type
+		}
 		return ret, ok
 	}
 
@@ -1696,6 +1719,21 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
+		expr = v.elem,
+	}
+
+	return symbol
+}
+
+make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Multi_Pointer_Type, name: string) -> Symbol {
+	symbol := Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		type = .Variable,
+		pkg = get_package_from_node(v.node),
+		name = name,
+	}
+
+	symbol.value = SymbolMultiPointer {
 		expr = v.elem,
 	}
 
@@ -2208,7 +2246,16 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 	if stmt.expr == nil {
 		return
 	}
-	
+
+	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
+		if binary.op.kind == .Range_Half {
+			if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				store_local(ast_context, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+				ast_context.variables[ident.name] = true
+			}
+		}
+	}
+
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
 		#partial switch v in symbol.value {
 		case SymbolMapValue:
@@ -2626,6 +2673,8 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 		else {
 			return "union"
 		}
+	case SymbolMultiPointer:
+		return strings.concatenate(a = {"[^]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
 	case SymbolDynamicArrayValue:
 		return strings.concatenate(a = {"[dynamic]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
 	case SymbolSliceValue:
@@ -3357,6 +3406,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.len, position_context)
 		get_document_position(n.elem, position_context)
 	case ^Dynamic_Array_Type:
+		get_document_position(n.elem, position_context)
+	case ^Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
 	case ^Struct_Type:
 		get_document_position(n.poly_params, position_context)

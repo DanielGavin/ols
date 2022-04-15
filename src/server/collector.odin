@@ -231,6 +231,16 @@ collect_dynamic_array :: proc(collection: ^SymbolCollection, array: ast.Dynamic_
 	}
 }
 
+collect_multi_pointer :: proc(collection: ^SymbolCollection, array: ast.Multi_Pointer_Type, package_map: map[string]string) -> SymbolMultiPointer {
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+
+	replace_package_alias(elem, package_map, collection)
+
+	return SymbolMultiPointer {
+		expr = elem,
+	}
+}
+
 collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_map: map[string]string, uri: string) -> SymbolGenericValue {
 	//Bit hacky right now, but it's hopefully a temporary solution.
 	//In the c package code it uses a documentation package(builtin).
@@ -346,6 +356,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = v^
 			token_type = .Variable
 			symbol.value = collect_dynamic_array(collection, v^, package_map)
+		case ^ast.Multi_Pointer_Type:
+			token = v^
+			token_type = .Variable
+			symbol.value = collect_multi_pointer(collection, v^, package_map)
 		case ^ast.Basic_Lit:
 			token = v^
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)
@@ -445,16 +459,26 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 	parse_imports(&document, &common.config)
 
 	symbols_and_nodes := resolve_entire_file(&document, common.scratch_allocator(document.allocator))
-	
+
 	for k, v in symbols_and_nodes {
-		if pkg, ok := &collection.references[v.symbol.pkg]; ok {
-			if ref, ok := &pkg[v.symbol.name]; ok {
-				if ident, ok := v.node.derived.(^ast.Ident); ok {
-					//append(&ref.identifiers, cast(^ast.Ident)clone_type(ident, collection.allocator, nil))
-				} else if selector, ok := v.node.derived.(^ast.Selector_Expr); ok {
-					//append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
-				}
-			}
+		pkg: ^map[string]Reference
+
+		if pkg, ok = &collection.references[v.symbol.pkg]; !ok {
+			collection.references[get_index_unique_string(collection, v.symbol.pkg)] = make(map[string]Reference, 100, collection.allocator)
+			pkg = &collection.references[v.symbol.pkg]
+		} 
+
+		ref: ^Reference
+
+		if ref, ok := &pkg[v.symbol.name]; !ok {
+			pkg[get_index_unique_string(collection, v.symbol.name)] = {}
+			ref = &pkg[v.symbol.name]
+		}
+
+		if ident, ok := v.node.derived.(^ast.Ident); ok {
+			append(&ref.identifiers, cast(^ast.Ident)clone_type(ident, collection.allocator, nil))
+		} else if selector, ok := v.node.derived.(^ast.Selector_Expr); ok {
+			append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
 		}
 	}
 

@@ -170,6 +170,24 @@ ast_range_array :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_range_array_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			ints: []int
+		
+			for int_idx in 0..<len(ints) {
+				ints[int_idx] = int_i*
+			}
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"test.int_idx: int"});
+}
+
+@(test)
 ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 
 	source := test.Source {
@@ -948,6 +966,31 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_mutable_variable_struct_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package);
+
+	append(&packages, test.Package {
+		pkg = "my_package",
+		source = `package my_package
+		My_Struct :: struct { a: int }
+		var: My_Struct;
+		`,
+	});
+
+	source := test.Source {
+		main = `package main
+		import "my_package"
+		main :: proc() {
+			my_package.var.*
+		}
+		`,
+		packages = packages[:],
+	};
+
+    test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"});
+}
+
+@(test)
 ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
@@ -976,6 +1019,35 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 	};
 
     test.expect_completion_details(t, &source, "", {"test.yaaaa: string"});
+}
+
+@(test)
+ast_multi_pointer_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			faa: [^]int
+			fa*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.faa: [^]int"});
+}
+
+@(test)
+ast_multi_pointer_indexed_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			faa: [^]int
+			sap := faa[1]
+			sa*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.sap: int"});
 }
 
 @(test)

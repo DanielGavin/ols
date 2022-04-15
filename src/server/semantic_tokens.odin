@@ -306,6 +306,9 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 	case ^Dynamic_Array_Type:
 		write_semantic_string(builder, n.dynamic_pos, "dynamic", ast_context.file.src, .Keyword, .None)
 		visit(n.elem, builder, ast_context)
+	case ^Multi_Pointer_Type:
+		write_semantic_string(builder, n.pos, "[^]", ast_context.file.src, .Keyword, .None)
+		visit(n.elem, builder, ast_context)
 	case ^Field_Value:
 		if ident, ok := n.field.derived.(^Ident); ok {
 			write_semantic_node(builder, n.field, ast_context.file.src, .Property, .None)

@@ -36,7 +36,7 @@ setup :: proc(src: ^Source) {
 	src.document.allocator = new(common.Scratch_Allocator);
 	src.document.package_name = "test";
 
-	common.scratch_allocator_init(src.document.allocator, mem.kilobytes(200), context.temp_allocator);
+	common.scratch_allocator_init(src.document.allocator, mem.Kilobyte * 200, context.temp_allocator);
 
 	//no unicode in tests currently
 	current, last:                   u8;

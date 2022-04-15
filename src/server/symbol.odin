@@ -52,6 +52,10 @@ SymbolDynamicArrayValue :: struct {
 	expr: ^ast.Expr,
 }
 
+SymbolMultiPointer :: struct {
+	expr: ^ast.Expr,
+}
+
 SymbolFixedArrayValue :: struct {
 	len:  ^ast.Expr,
 	expr: ^ast.Expr,
@@ -97,6 +101,7 @@ SymbolValue :: union {
 	SymbolAggregateValue,
 	SymbolDynamicArrayValue,
 	SymbolFixedArrayValue,
+	SymbolMultiPointer,
 	SymbolMapValue,
 	SymbolSliceValue,
 	SymbolBasicValue,
@@ -160,6 +165,8 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	}
 
 	switch v in symbol.value {
+	case SymbolMultiPointer:
+		common.free_ast(v.expr, allocator)
 	case SymbolProcedureValue:
 		common.free_ast(v.return_types, allocator)
 		common.free_ast(v.arg_types, allocator)
