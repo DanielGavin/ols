@@ -921,7 +921,7 @@ push_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
 @(private)
 visit_poly_params :: proc(p: ^Printer, poly_params: ^ast.Field_List) -> ^Document {
 	if poly_params != nil {
-		return cons(text("("), cons(visit_field_list(p, poly_params, {.Add_Comma, .Enforce_Poly_Names}), text(")")))
+		return cons(text("("), cons(visit_signature_list(p, poly_params), text(")")))
 	} else {
 		return empty()
 	}
@@ -1010,11 +1010,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text("]"))
 		return document
 	case ^Ident:
-		if .Enforce_Poly_Names in options {
-			return cons(text("$"), text(v.name))
-		} else {
-			return text_position(p, v.name, v.pos)
-		}
+		return text_position(p, v.name, v.pos)
 	case ^Deref_Expr:
 		return cons(visit_expr(p, v.expr), text_token(p, v.op))
 	case ^Type_Cast:
@@ -1049,6 +1045,15 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document := text_position(p, "union", v.pos)
 		
 		document = cons(document, visit_poly_params(p, v.poly_params))
+
+		#partial switch v.kind {
+		case .maybe:
+			document = cons_with_opl(document, text("#maybe"))
+		case .no_nil:
+			document = cons_with_opl(document, text("#no_nil"))
+		case .shared_nil:
+			document = cons_with_opl(document, text("#shared_nil"))
+		}
 
 		if v.kind == .maybe {
 			document = cons_with_opl(document, text("#maybe"))
@@ -1345,7 +1350,6 @@ List_Option :: enum u8 {
 	Add_Comma,
 	Trailing,
 	Enforce_Newline,
-	Enforce_Poly_Names,
 	Group,
 	Glue,
 }
@@ -1377,9 +1381,6 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 		}
 
 		name_options := List_Options{.Add_Comma}
-		if .Enforce_Poly_Names in options {
-			name_options += {.Enforce_Poly_Names}
-		}
 
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_field_alignment(p, list.list)
