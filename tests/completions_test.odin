@@ -1368,9 +1368,9 @@ ast_overload_with_procedure_return :: proc(t: ^testing.T) {
 			my_in*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.my_in: []int"});
+    test.expect_completion_details(t, &source, "", {"test.my_in: []int"})
 }
 
 
@@ -1386,7 +1386,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 			b: int,
 		}
 		`,
-	});
+	})
 
 	source := test.Source {
 		main = `package main
@@ -1396,9 +1396,9 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.param: My_Struct"});
+    test.expect_completion_details(t, &source, ".", {"my_package.param: My_Struct"})
 }
 
 @(test)
@@ -1413,11 +1413,71 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 			}
 	    }
 		`,
-	};
+	}
 
 	//TODO(Add proper completion support, but right now it's just to ensure no crashes)
     test.expect_completion_details(t, &source, ".", {})
 }
+
+@(test)
+ast_implicit_enum_value_decl_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: enum { Aa, Ab, Ac, Ad }
+		main :: proc() {
+			foo: Foo = .*
+	    }
+		`,
+	}
+
+    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+}
+
+@(test)
+ast_implicit_bitset_value_decl :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: enum { Aa, Ab, Ac, Ad }
+		Foo_Set :: bit_set[Foo]
+		main :: proc() {
+			foo_set := Foo_Set { .* }
+	    }
+		`,
+	}
+
+    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+}
+
+@(test)
+ast_implicit_bitset_add :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: enum { Aa, Ab, Ac, Ad }
+		Foo_Set :: bit_set[Foo]
+		main :: proc() {
+			foo_set: Foo_Set
+			foo_set += .*
+	    }
+		`,
+	}
+
+    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+}
+
+@(test)
+ast_enum_complete :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: enum { Aa, Ab, Ac, Ad }
+		main :: proc() {
+			foo := Foo.*
+	    }
+		`,
+	}
+
+    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+}
+
 
 @(test)
 ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {

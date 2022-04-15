@@ -217,7 +217,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		return
 	}
 
-	if selector.type != .Variable && selector.type != .Package {
+	if selector.type != .Variable && selector.type != .Package && selector.type != .Enum {
 		return
 	}
 
@@ -468,7 +468,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 }
 
 get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = false
@@ -482,6 +481,23 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		ast_context.current_package = selector.pkg
 	} else {
 		ast_context.current_package = ast_context.document_package
+	}
+
+	//value decl infer a : My_Enum = .*
+	if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		if enum_value, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
+			for name in enum_value.names {
+				item := CompletionItem {
+					label = name,
+					kind = .EnumMember,
+					detail = name,
+				}
+				append(&items, item)
+			}
+
+			list.items = items[:]
+			return
+		}
 	}
 
 	//enum switch infer
@@ -520,7 +536,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 	}
 
-	if position_context.comp_lit != nil && position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
+	if position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
 		//bitsets
 		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
 
@@ -639,6 +655,19 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 							return
 						}
 					}
+				} else if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
+					for enum_name in s.names {
+						item := CompletionItem {
+							label = enum_name,
+							kind = .EnumMember,
+							detail = enum_name,
+						}
+
+						append(&items, item)
+					}
+
+					list.items = items[:]
+					return
 				}
 			}
 		}
@@ -1394,6 +1423,7 @@ bitset_assignment_operators: map[string]bool = {
 	"<=" = true,
 	">=" = true,
 	"=" = true,
+	"+=" = true,
 }
 
 is_bitset_binary_operator :: proc(op: string) -> bool {
