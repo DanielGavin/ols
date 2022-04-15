@@ -349,7 +349,7 @@ main :: proc() {
 	context.allocator = mem.tracking_allocator(&tracking_allocator);
 
 
-	init_global_temporary_allocator(mem.megabytes(5));
+	init_global_temporary_allocator(mem.Megabyte * 5);
 
 	src.run(&reader, &writer);
 
