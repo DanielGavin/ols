@@ -1209,8 +1209,13 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		return document
 	case ^Comp_Lit:
 		document := empty()
+
+		if v.tag != nil {
+			document = cons_with_nopl(document, visit_expr(p, v.tag))
+		}
+
 		if v.type != nil {
-			document = cons(document, visit_expr(p, v.type))
+			document = cons_with_nopl(document, visit_expr(p, v.type))
 		}
 
 		//If we call from the value declartion, we want it to be nicely newlined and aligned
