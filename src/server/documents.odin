@@ -350,11 +350,7 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 	imports := make([dynamic]common.Package)
 
-	when ODIN_OS == .Windows  {
-		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator))
-	} else {
-		document.package_name = path.dir(document.uri.path)
-	}
+	document.package_name = path.dir(document.uri.path)
 
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
@@ -378,12 +374,7 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 			}
 
 			import_: common.Package
-
-			when ODIN_OS == .Windows  {
-				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator))
-			} else {
-				import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
-			}
+			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text

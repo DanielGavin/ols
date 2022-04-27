@@ -71,9 +71,9 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
-	server.build_static_index(context.allocator, &common.config);
-
 	server.indexer.dynamic_index = server.make_memory_index(server.make_symbol_collection(context.allocator, &common.config));
+
+	server.build_static_index(context.allocator, &common.config);
 
 	for src_pkg in src.packages {
 		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator);

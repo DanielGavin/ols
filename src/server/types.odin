@@ -96,6 +96,7 @@ ServerCapabilities :: struct {
 	documentFormattingProvider: bool,
 	inlayHintsProvider:         bool,
 	renameProvider:             bool,
+	referencesProvider:         bool,
 	documentLinkProvider:       DocumentLinkOptions,
 }
 
@@ -433,6 +434,11 @@ RenameClientCapabilities :: struct {
 
 RenameParams :: struct {
 	newName:      string,
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
+ReferenceParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
 }

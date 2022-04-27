@@ -269,13 +269,7 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
-
-	when ODIN_OS == .Windows {
-		directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator)
-	} else {
-		directory := path.dir(forward, context.temp_allocator)
-	}
-
+	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 
 	exprs := common.collect_globals(file, true)
@@ -409,12 +403,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.PrivatePackage}
 		}
 
-		when ODIN_OS == .Windows {
-			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator))
-		} else {
-			symbol.uri = get_index_unique_string(collection, uri)
-		}
-
+		symbol.uri = get_index_unique_string(collection, uri)
+		
 		pkg: ^map[string]Symbol
 		ok: bool
 
@@ -508,11 +498,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 
 			name: string
 
-			when ODIN_OS == .Windows {
-				full := path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator)
-			} else {
 				full := path.join(elems = {dir, p}, allocator = context.temp_allocator)
-			}
 
 			if imp.name.text != "" {
 				name = imp.name.text
@@ -520,11 +506,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				name = path.base(full, false, context.temp_allocator)
 			}
 
-			when ODIN_OS == .Windows {
-				package_map[name] = strings.to_lower(full, context.temp_allocator)
-			} else {
 				package_map[name] = full
-			}
 		} else {
 			name: string
 
@@ -537,11 +519,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				name = path.base(full, false, context.temp_allocator)
 			}
 
-			when ODIN_OS == .Windows {
-				package_map[name] = strings.to_lower(full, context.temp_allocator)
-			} else {
 				package_map[name] = full
-			}
 		}
 	}
 

@@ -37,11 +37,7 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 		start_index -= 1
 	}
 
-	when ODIN_OS == .Windows {
-		uri.uri = strings.clone(strings.to_lower(value, context.temp_allocator), allocator)
-	} else {
-		uri.uri = strings.clone(value, allocator)
-	}
+	uri.uri = strings.clone(value, allocator)
 
 	uri.decode_full = decoded
 	uri.path = decoded[start_index:]

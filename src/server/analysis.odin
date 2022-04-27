@@ -103,10 +103,6 @@ make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name
 
 	add_local_group(&ast_context, 0)
 
-	when ODIN_OS == .Windows  {
-		ast_context.uri = strings.to_lower(ast_context.uri, allocator)
-	}
-
 	return ast_context
 }
 
@@ -1039,11 +1035,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				ast_context.current_package = selector.pkg
 
 				if v.field != nil {
-					when ODIN_OS == .Windows {
-						return resolve_symbol_return(ast_context, lookup(v.field.name, strings.to_lower(selector.pkg, context.temp_allocator)))
-					} else {
-						return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))
-					}			
+						return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))	
 				} else {
 					return Symbol {}, false
 				}
@@ -1622,13 +1614,7 @@ make_int_basic_value :: proc(ast_context: ^AstContext, n: int) -> ^ast.Basic_Lit
 
 get_package_from_node :: proc(node: ast.Node) -> string {
 	slashed, _ := filepath.to_slash(node.pos.file, context.temp_allocator)
-
-	when ODIN_OS == .Windows {
-		ret := strings.to_lower(path.dir(slashed, context.temp_allocator), context.temp_allocator)
-	} else {
-		ret := path.dir(slashed, context.temp_allocator)
-	}
-
+	ret := path.dir(slashed, context.temp_allocator)
 	return ret
 }
 
