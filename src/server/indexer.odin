@@ -64,6 +64,7 @@ lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, b
 	return {}, false
 }
 
+
 fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs)
 	static_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs)

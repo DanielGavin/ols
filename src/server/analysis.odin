@@ -697,16 +697,13 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
-
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
 			}
 
 			if procedure, ok := f.value.(SymbolProcedureValue); ok {
-
 				count_required_params := 0
 
 				for arg in procedure.arg_types {
@@ -720,7 +717,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				}
 
 				for arg, i in call_expr.args {
-
 					ast_context.use_locals = true
 
 					call_symbol: Symbol
@@ -1101,7 +1097,7 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 			}
 		}
 	}
-
+	
 	return nil
 }
 
@@ -2446,8 +2442,7 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 
 	for decl in document.ast.decls {
 		resolve_entire_decl(&ast_context, decl, &symbols, allocator)
-		clear_local_group(&ast_context, 0)
-		add_local_group(&ast_context, 0)
+		clear(&ast_context.locals)
 	}
 
 	return symbols

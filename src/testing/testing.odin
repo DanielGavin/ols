@@ -119,6 +119,8 @@ setup :: proc(src: ^Source) {
 @private
 teardown :: proc(src: ^Source) {
 	server.free_static_index()
+	server.indexer.dynamic_index = {}
+	server.indexer.static_index = {}
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {

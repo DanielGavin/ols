@@ -16,6 +16,7 @@ import "core:path/filepath"
 import "core:intrinsics"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:time"
 
 import "shared:common"
 
@@ -338,19 +339,26 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 	root := value.(json.Object)
 	method := root["method"].(json.String)
 
-	if fn, ok := call_map[method]; !ok {
-		response := make_response_message_error(id = id, error = ResponseError {code = .MethodNotFound, message = ""})
-		send_error(response, writer)
-	} else {
-		err := fn(root["params"], id, config, writer)
-		if err != .None {
-			response := make_response_message_error(
-				id = id,
-				error = ResponseError {code = err, message = ""},
-			)
+	diff: time.Duration
+	{
+		time.SCOPED_TICK_DURATION(&diff)
+		
+		if fn, ok := call_map[method]; !ok {
+			response := make_response_message_error(id = id, error = ResponseError {code = .MethodNotFound, message = ""})
 			send_error(response, writer)
+		} else {
+			err := fn(root["params"], id, config, writer)
+			if err != .None {
+				response := make_response_message_error(
+					id = id,
+					error = ResponseError {code = err, message = ""},
+				)
+				send_error(response, writer)
+			}
 		}
 	}
+
+	log.infof("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
@@ -514,7 +522,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 				retriggerCharacters = signatureRetriggerCharacters,
 			},
 			semanticTokensProvider = SemanticTokensOptions {
-				range = false,
+				range =  config.enable_semantic_tokens,
 				full = config.enable_semantic_tokens,
 				legend = SemanticTokensLegend {
 					tokenTypes = token_types,

@@ -120,7 +120,7 @@ get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false
-
+	
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	/*
