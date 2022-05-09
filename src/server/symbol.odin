@@ -143,7 +143,7 @@ SymbolType :: enum {
 	Constant   = 21,
 	Struct     = 22,
 	Union      = 7,
-	Unresolved = 9999,
+	Unresolved = 1, //Use text if not being able to resolve it.
 }
 
 new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symbol) {
