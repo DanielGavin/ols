@@ -69,20 +69,12 @@ Configuration of the LSP:
 	{
 		"odin":
 		{
-			"command":
-			[
-				"C:/path/to/ols"
-			],
-			"enabled": true,
-			"languageId": "odin",
-			"scopes":
-			[
-				"source.odin"
-			],
-			"syntaxes":
-			[
-			  "Packages/User/sublime-odin/Odin.sublime-syntax"
-			]
+		    "command":
+		    [
+			"C:/path/to/ols.exe"
+		    ],
+		    "enabled": false, // true for globally-enabled, but not required due to 'Enable In Project' command
+		    "selector": "source.odin",
 		}
 	},
 	"only_show_lsp_completions": true,
