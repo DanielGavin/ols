@@ -1544,5 +1544,5 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.Foo: enum", "my_package.Bar: struct"})
+    test.expect_completion_details(t, &source, ".", {"My_package.Foo: enum", "My_package.Bar: struct"})
 }

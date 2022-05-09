@@ -522,7 +522,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 				retriggerCharacters = signatureRetriggerCharacters,
 			},
 			semanticTokensProvider = SemanticTokensOptions {
-				range =  config.enable_semantic_tokens,
+				range = config.enable_semantic_tokens,
 				full = config.enable_semantic_tokens,
 				legend = SemanticTokensLegend {
 					tokenTypes = token_types,
