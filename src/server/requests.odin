@@ -316,7 +316,9 @@ consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 		sync.sema_post(&requests_sempahore)
 	}
 
-	sync.sema_wait(&requests_sempahore)
+	if common.config.running {
+		sync.sema_wait(&requests_sempahore)
+	}
 
 	return true
 }
