@@ -7,12 +7,64 @@ import "core:log"
 
 import "core:sys/win32"
 
+FORMAT_MESSAGE_FROM_SYSTEM :: 0x00001000
+FORMAT_MESSAGE_IGNORE_INSERTS :: 0x00000200
+
+
 foreign import kernel32 "system:kernel32.lib"
 
 @(default_calling_convention = "std")
 foreign kernel32 {
-	@(link_name = "CreatePipe")create_pipe      :: proc (hReadPipe, hWritePipe: ^win32.Handle, lpPipeAttributes: ^win32.Security_Attributes, nSize: i32) -> i32 ---
+	@(link_name = "CreatePipe") create_pipe :: proc(hReadPipe, hWritePipe: ^win32.Handle, lpPipeAttributes: ^win32.Security_Attributes, nSize: i32) -> i32 ---
+	@(link_name = "GetFinalPathNameByHandleA") get_final_pathname_by_handle_a :: proc(handle: win32.Handle, lpszFilePath: cstring, cchFilePath: u32, dwFlags: u32) -> u32 ---
+	@(link_name = "FormatMessageA")
+	format_message_a :: proc(
+		flags: i32,
+		source: rawptr,
+		message_id: i32,
+		langauge_id: i32,
+		buffer: cstring,
+		size: i32,
+		va: rawptr,
+	) -> i32 ---
 }
+
+get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocator) -> string {
+	file := win32.create_file_a(strings.clone_to_cstring(path, context.temp_allocator), 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
+
+	if(file == win32.INVALID_HANDLE)
+    {
+		log_last_error()
+        return "";
+    }
+
+	buffer := make([]u8, 512, context.temp_allocator)
+
+	ret := get_final_pathname_by_handle_a(file, cast(cstring)&buffer[0], cast(u32)len(buffer), 0)
+
+	return strings.clone_from_cstring(cast(cstring)&buffer[4], allocator)
+}
+
+log_last_error :: proc() {
+	err_text: [512]byte
+
+	err := win32.get_last_error()
+
+	error_string := cstring(&err_text[0])
+
+	if (format_message_a(
+		   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		   nil,
+		   err,
+		   (1 << 10) | 0,
+		   error_string,
+		   len(err_text) - 1,
+		   nil,
+	   ) != 0) {
+		log.error(error_string)
+	}
+}
+
 
 run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) {
 

@@ -462,6 +462,13 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		config.collections["vendor"] = path.join(elems = {forward_path, "vendor"}, allocator = context.allocator)
 	}
 
+	when ODIN_OS == .Windows {
+		for k, v in config.collections {
+			forward, _ := filepath.to_slash(common.get_case_sensitive_path(v), context.temp_allocator)
+			config.collections[k] = strings.clone(forward, context.allocator)
+		}
+	}
+
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
 			config.hover_support_md = true

@@ -7,6 +7,7 @@ import "core:os"
 import "core:odin/parser"
 import "core:odin/ast"
 import "core:odin/tokenizer"
+import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:mem"
 
@@ -352,6 +353,11 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 
 	document.package_name = path.dir(document.uri.path)
 
+	when ODIN_OS == .Windows {
+		forward, _ := filepath.to_slash(common.get_case_sensitive_path(document.package_name), context.temp_allocator)
+		document.package_name = strings.clone(forward)
+	}
+	
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue
