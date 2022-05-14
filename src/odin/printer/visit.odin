@@ -1167,9 +1167,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
 			document = enforce_break(document)
-		} else {
-			document = group(document)
-		}
+		} 
 
 		return document 
 	case ^Typeid_Type:
