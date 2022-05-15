@@ -442,7 +442,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	when ODIN_OS == .Windows  {
 		odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 	} else {
-		odin_core_env, _ := os.getenv("ODIN_ROOT")
+		odin_core_env, _ := os.get_env("ODIN_ROOT")
 	}
 
 	if "core" not_in config.collections && odin_core_env != "" {

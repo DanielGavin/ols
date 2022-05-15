@@ -2,15 +2,15 @@
 
 
 if "%1" == "CI" (
-    "Odin/odin.exe" test tests -collection:shared=src -debug -opt:0 
+    "Odin/odin.exe" test tests -collection:shared=src -debug
     if %errorlevel% neq 0 exit 1
-    "Odin/odin.exe" build src\ -show-timings -collection:shared=src -out:ols -opt:2 -thread-count:1
+    "Odin/odin.exe" build src\ -show-timings -collection:shared=src -out:ols.exe -o:speed  -thread-count:1
 ) else if "%1" == "test" (
-    odin test tests -collection:shared=src -opt:0 
+    odin test tests -collection:shared=src -debug
 ) else if "%1" == "single_test" (
     odin test tests -collection:shared=src -test-name:%2
 ) else if "%1" == "debug" (
-    odin build src\ -show-timings -microarch:native -collection:shared=src -out:ols -opt:0 -debug
+    odin build src\ -show-timings  -collection:shared=src -out:ols.exe -o:speed  -no-bounds-check -debug
 ) else (
-    odin build src\ -show-timings -microarch:native -collection:shared=src -out:ols -opt:2 -no-bounds-check
+    odin build src\ -show-timings -microarch:native -collection:shared=src -out:ols.exe -o:speed  -no-bounds-check
 )
