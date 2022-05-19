@@ -318,7 +318,9 @@ consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 		sync.sema_post(&requests_sempahore)
 	}
 
-	sync.sema_wait(&requests_sempahore)
+	if common.config.running {
+		sync.sema_wait(&requests_sempahore)
+	}
 
 	return true
 }
@@ -446,11 +448,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		read_ols_config(ols_config_path, config, uri)
 	}
 
-	when ODIN_OS == .Windows  {
-		odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
-	} else {
-		odin_core_env, _ := os.getenv("ODIN_ROOT")
-	}
+	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 
 	if "core" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)

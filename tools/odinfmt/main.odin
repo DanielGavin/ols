@@ -66,7 +66,7 @@ walk_files :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip
 main :: proc() {
 
 	arena: mem.Arena;
-	mem.init_arena(&arena, make([]byte, mem.megabytes(20)));
+	mem.init_arena(&arena, make([]byte, 20 * mem.Megabyte));
 
 	arena_allocator := mem.arena_allocator(&arena);
 

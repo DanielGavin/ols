@@ -1054,10 +1054,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		case .shared_nil:
 			document = cons_with_opl(document, text("#shared_nil"))
 		}
-
-		if v.kind == .maybe {
-			document = cons_with_opl(document, text("#maybe"))
-		}
 		
 		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
@@ -1171,9 +1167,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
 			document = enforce_break(document)
-		} else {
-			document = group(document)
-		}
+		} 
 
 		return document 
 	case ^Typeid_Type:
