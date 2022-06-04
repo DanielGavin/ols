@@ -151,6 +151,7 @@
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
+		"package": "npm run compile && vsce package -o extension.vsix",
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
@@ -165,7 +166,8 @@
 		"glob": "^7.2.0",
 		"mocha": "^8.4.0",
 		"typescript": "^4.6.2",
-		"vscode-test": "^1.6.1"
+		"vscode-test": "^1.6.1",
+		"vsce": "^2.7.0"
 	},
 	"dependencies": {
 		"adm-zip": "^0.5.9",
