@@ -240,7 +240,7 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src);
 	defer teardown(src);
 
-	hover, ok := server.get_hover_information(src.document, src.position);
+	hover, _, ok := server.get_hover_information(src.document, src.position);
 
 	if !ok {
 		testing.error(t, "Failed get_hover_information");
