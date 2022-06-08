@@ -44,7 +44,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 }
 
 
-get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool) {
+get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool, bool) {
 	hover := Hover {
 		contents = {
 			kind = "plaintext",
@@ -66,7 +66,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			if _, ok := common.keyword_map[ident.name]; ok {
 				hover.contents.kind = "plaintext"
 				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
-				return hover, true
+				return hover, true, true
 			}
 		}
 	}
@@ -93,7 +93,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 					}
 
 					hover.contents = write_hover_content(&ast_context, resolved)
-					return hover, true
+					return hover, true, true
 				}
 			}
 		}
@@ -102,7 +102,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 		selector, ok = resolve_type_expression(&ast_context, position_context.selector)
 
 		if !ok {
-			return hover, true
+			return hover, false, true
 		}
 
 		field: string
@@ -125,7 +125,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 						symbol.pkg = selector.name
 						symbol.signature = common.node_to_string(v.types[i])
 						hover.contents = write_hover_content(&ast_context, symbol)
-						return hover, true
+						return hover, true, true
 					}
 				}
 			}
@@ -135,7 +135,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 					ast_context.current_package = selector.pkg
 					if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
 						hover.contents = write_hover_content(&ast_context, symbol)
-						return hover, true
+						return hover, true, true
 					}
 				}
 			}
@@ -158,9 +158,9 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			}
 
 			hover.contents = write_hover_content(&ast_context, resolved)
-			return hover, true
+			return hover, true, true
 		}
 	}
 
-	return hover, true
+	return hover, false, true
 }
