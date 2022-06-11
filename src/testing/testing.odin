@@ -39,7 +39,7 @@ setup :: proc(src: ^Source) {
 	common.scratch_allocator_init(src.document.allocator, mem.Kilobyte * 200, context.temp_allocator);
 
 	//no unicode in tests currently
-	current, last:                   u8;
+	current, last: u8;
 	current_line, current_character: int;
 
 	for current_index := 0; current_index < len(src.main); current_index += 1 {
@@ -64,6 +64,8 @@ setup :: proc(src: ^Source) {
 
 		last = current;
 	}
+
+	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil);	
 	
