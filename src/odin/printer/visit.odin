@@ -672,7 +672,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_opl(document, visit_expr(p, v.cond))
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 	case ^Case_Clause:
-		document := move_line(p, v.pos)
 		document = cons(document, text("case"))
 
 		if v.list != nil {
@@ -711,7 +710,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		} else {
 			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))
 		}
-		return cons(document, group(assign_document))
+		document = cons(document, group(assign_document))
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
