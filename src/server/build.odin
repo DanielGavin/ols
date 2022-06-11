@@ -141,57 +141,64 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		free_all(context.allocator)
 	}
 
-	//afterwards, I have to go through the files again to find all the references. Better to reload individually the files again to ensure we don't use too much memory.
-	
-	for fullpath in files {
-		data, ok := os.read_entire_file(fullpath, context.allocator)
+	indexer.static_index = make_memory_index(symbol_collection)
 
-		if !ok {
-			log.errorf("failed to read entire file for indexing %v", fullpath)
-			continue
+	if config.enable_references {
+		for fullpath in files {
+			data, ok := os.read_entire_file(fullpath, context.allocator)
+
+			if !ok {
+				log.errorf("failed to read entire file for indexing %v", fullpath)
+				continue
+			}
+
+			//TODO(daniel): Implement path code to handle whether paths are contained in core
+			if !config.enable_std_references && (strings.contains(fullpath, "Odin/core") || strings.contains(fullpath, "odin/core")) {
+				continue;
+			}
+
+			p := parser.Parser {
+				err = log_error_handler,
+				warn = log_warning_handler,
+				flags = {.Optional_Semicolons},
+			}
+
+			dir := filepath.base(filepath.dir(fullpath, context.allocator))
+
+			pkg := new(ast.Package)
+			pkg.kind = .Normal
+			pkg.fullpath = fullpath
+			pkg.name = dir
+
+			if dir == "runtime" {
+				pkg.kind = .Runtime
+			}
+
+			file := ast.File {
+				fullpath = fullpath,
+				src = string(data),
+				pkg = pkg,
+			}
+
+			ok = parser.parse_file(&p, &file)
+
+			if !ok {
+				log.info(pkg)
+				log.errorf("error in parse file for indexing %v", fullpath)
+			}
+
+			uri := common.create_uri(fullpath, context.allocator)
+
+			{
+				context.temp_allocator = context.allocator
+				collect_references(&symbol_collection, file, uri.uri)
+			}
+
+			free_all(context.allocator)
+
+			delete(fullpath, allocator)
 		}
-
-		p := parser.Parser {
-			err = log_error_handler,
-			warn = log_warning_handler,
-			flags = {.Optional_Semicolons},
-		}
-
-		dir := filepath.base(filepath.dir(fullpath, context.allocator))
-
-		pkg := new(ast.Package)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" {
-			pkg.kind = .Runtime
-		}
-
-		file := ast.File {
-			fullpath = fullpath,
-			src = string(data),
-			pkg = pkg,
-		}
-
-		ok = parser.parse_file(&p, &file)
-
-		if !ok {
-			log.info(pkg)
-			log.errorf("error in parse file for indexing %v", fullpath)
-		}
-
-		uri := common.create_uri(fullpath, context.allocator)
-
-		//collect_references(&symbol_collection, file, uri.uri)
-
-		free_all(context.allocator)
-
-		delete(fullpath, allocator)
 	}
-	
-
-	log.error(symbol_collection.references)
 
 	delete(files)
 	delete(temp_arena.data)

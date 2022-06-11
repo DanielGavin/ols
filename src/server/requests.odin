@@ -386,7 +386,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
 
 			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
-
 				ols_config := OlsConfig {
 					formatter = {
 						characters = 90,
@@ -515,8 +514,8 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					includeText = true,
 				},
 			},
-			renameProvider = true,
-			referencesProvider = true,
+			renameProvider = config.enable_rename,
+			referencesProvider = config.enable_references,
 			definitionProvider = true,
 			completionProvider = CompletionOptions {
 				resolveProvider = false,

@@ -28,7 +28,8 @@ foreign kernel32 {
 }
 
 get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocator) -> string {
-	file := win32.CreateFileW(&win32.utf8_to_utf16(path)[0], 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
+	wide := win32.utf8_to_utf16(path)
+	file := win32.CreateFileW(&wide[0], 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
 
 	if(file == win32.INVALID_HANDLE)
     {
@@ -40,7 +41,8 @@ get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocato
 
 	ret := win32.GetFinalPathNameByHandleW(file, &buffer[0], cast(u32)len(buffer), 0)
 
-	res, _ := win32.utf16_to_utf8(buffer, allocator)
+	res, _ := win32.utf16_to_utf8(buffer[4:], allocator)
+
 	return res
 }
 

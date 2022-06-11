@@ -840,8 +840,9 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 		ast_context.current_package = saved_package
 	}
 
-	if ast_context.recursion_counter > 15 {
-		log.error("Recursion passed 15 attempts - giving up")
+	if ast_context.recursion_counter > 200 {
+		log.error("Recursion passed 200 attempts - giving up", node)
+		assert(false)
 		return {}, false
 	}
 
@@ -1122,8 +1123,9 @@ get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) ->
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	using ast
 
-	if ast_context.recursion_counter > 15 {
-		log.error("Recursion passed 15 attempts - giving up")
+	if ast_context.recursion_counter > 200 {
+		log.error("Recursion passed 200 attempts - giving up", node)
+		assert(false)
 		return {}, false
 	}
 
@@ -1143,7 +1145,37 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		ast_context.current_package = pkg
 	}
 
-	if _, ok := ast_context.parameters[node.name]; ok {
+	if v, ok := common.keyword_map[node.name]; ok {
+		//keywords
+		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
+		ident.name = node.name
+
+		symbol: Symbol
+
+		switch ident.name {
+		case "true", "false":
+			symbol = Symbol {
+				type = .Keyword,
+				signature = node.name,
+				pkg = ast_context.current_package,
+				value = SymbolUntypedValue {
+					type = .Bool,	
+				},
+			}
+		case:
+			symbol = Symbol {
+				type = .Keyword,
+				signature = node.name,
+				name = ident.name,
+				pkg = ast_context.current_package,
+				value = SymbolBasicValue {
+					ident = ident,
+				},
+			}
+		}
+
+		return symbol, true
+	} else if _, ok := ast_context.parameters[node.name]; ok {
 		for imp in ast_context.imports {
 			if strings.compare(imp.base, node.name) == 0 {
 				symbol := Symbol {
@@ -1155,9 +1187,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				return symbol, true
 			}
 		}
-	}
-
-	//note(Daniel, if global and local ends up being 100% same just make a function that takes the map)
+	} 
+	
 	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
 		is_distinct := false
 
@@ -1173,6 +1204,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 		#partial switch v in local.derived {
 		case ^Ident:
+			if v.name == node.name {
+				return {}, false
+			}
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Union_Type:
 			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
@@ -1220,6 +1254,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 			return_symbol.type = .Variable
 		}
 
+		return_symbol.flags |= {.Local}
+
 		return return_symbol, ok
 
 	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
@@ -1237,6 +1273,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 		#partial switch v in global.expr.derived {
 		case ^Ident:
+			if v.name == node.name {
+				return {}, false
+			}
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Struct_Type:
 			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node.name), true
@@ -1293,36 +1332,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				return symbol, ok
 			}
 		}
-	} else if v, ok := common.keyword_map[node.name]; ok {
-		//keywords
-		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
-		ident.name = node.name
-
-		symbol: Symbol
-
-		switch ident.name {
-		case "true", "false":
-			symbol = Symbol {
-				type = .Keyword,
-				signature = node.name,
-				pkg = ast_context.current_package,
-				value = SymbolUntypedValue {
-					type = .Bool,	
-				},
-			}
-		case:
-			symbol = Symbol {
-				type = .Keyword,
-				signature = node.name,
-				name = ident.name,
-				pkg = ast_context.current_package,
-				value = SymbolBasicValue {
-					ident = ident,
-				},
-			}
-		}
-
-		return symbol, true
 	} else {
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
 		if strings.contains(node.name, "/") {
@@ -1850,10 +1859,12 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
 	for field in v.fields.list {
 		for n in field.names {
-			if identifier, ok := n.derived.(^ast.Ident); ok {
+			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
+				if identifier.name == "_" {
+					continue
+				}
 				append(&names, identifier.name)
 				append(&types, clone_type(field.type, ast_context.allocator, nil))
-
 				if .Using in field.flags {
 					usings[identifier.name] = true
 				}
@@ -2233,9 +2244,11 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 
 	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
 		if binary.op.kind == .Range_Half {
-			if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-				store_local(ast_context, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
-				ast_context.variables[ident.name] = true
+			if len(stmt.vals) >= 1 {
+				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+					store_local(ast_context, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+					ast_context.variables[ident.name] = true
+				}
 			}
 		}
 	}
@@ -2431,7 +2444,7 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings)
 }
 
-resolve_entire_file :: proc(document: ^common.Document, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
+resolve_entire_file :: proc(document: ^common.Document, skip_locals := false, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, allocator)
 
 	get_globals(document.ast, &ast_context)
@@ -2441,14 +2454,14 @@ resolve_entire_file :: proc(document: ^common.Document, allocator := context.all
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		resolve_entire_decl(&ast_context, decl, &symbols, allocator)
+		resolve_entire_decl(&ast_context, decl, &symbols, skip_locals, allocator)
 		clear(&ast_context.locals)
 	}
 
 	return symbols
 }
 
-resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: ^map[uintptr]SymbolAndNode, allocator := context.allocator) {
+resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: ^map[uintptr]SymbolAndNode, skip_locals := false, allocator := context.allocator) {
 	Scope :: struct {
 		offset: int,
 		id:     int,
@@ -2459,12 +2472,15 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 		symbols: ^map[uintptr]SymbolAndNode,
 		scopes: [dynamic]Scope,
 		id_counter: int,
+		last_visit: ^ast.Node,
+		skip_locals: bool,
 	}
 
 	data := Visit_Data {
 		ast_context = ast_context,
 		symbols = symbols,
 		scopes = make([dynamic]Scope, allocator),
+		skip_locals = skip_locals,
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -2475,6 +2491,8 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 		ast_context := data.ast_context
 		ast_context.use_locals = true
 		ast_context.use_globals = true
+
+		data.last_visit = node;
 
 		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
 		if len(data.scopes) > 0 {
@@ -2494,8 +2512,27 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 			}	
 		}
 
-		#partial switch v in node.derived {
-		case ^ast.If_Stmt, ^ast.For_Stmt, ^ast.Range_Stmt, ^ast.Inline_Range_Stmt, ^ast.Proc_Lit:
+		#partial done: switch v in node.derived {
+		case ^ast.Proc_Lit:
+			if v.body == nil {
+				break
+			}
+
+			scope: Scope
+			scope.id = data.id_counter
+			scope.offset = node.end.offset
+			data.id_counter += 1
+			ast_context.local_id = scope.id
+
+			append(&data.scopes, scope)
+			add_local_group(ast_context, scope.id)
+
+			position_context: DocumentPositionContext
+			position_context.position = node.end.offset
+
+			get_locals_proc_param_and_results(ast_context.file, v^, ast_context, &position_context)
+			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context)
+		case ^ast.If_Stmt, ^ast.For_Stmt, ^ast.Range_Stmt, ^ast.Inline_Range_Stmt:
 			scope: Scope
 			scope.id = data.id_counter
 			scope.offset = node.end.offset
@@ -2508,15 +2545,21 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 			position_context: DocumentPositionContext
 			position_context.position = node.end.offset
 			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context)
-		case ^ast.Ident:
+		case ^ast.Ident:	
 			if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
+				if .Local in symbol.flags && data.skip_locals {
+					break done
+				}
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node = v,
 					symbol = symbol,
 				}
-			} 
+			} 					
 		case ^ast.Selector_Expr:
 			if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
+				if .Local in symbol.flags && data.skip_locals {
+					break done
+				}
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node = v,
 					symbol = symbol,
@@ -2529,17 +2572,6 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 					symbol = symbol,
 				}
 			}	
-		}
-
-		#partial switch v in node.derived {
-		case ^ast.Proc_Lit:
-			if v.body == nil {
-				break
-			}
-
-			type_position_context: DocumentPositionContext
-			type_position_context.position = v.end.offset
-			get_locals_proc_param_and_results(ast_context.file, v^, ast_context, &type_position_context)
 		}
 
 		return visitor
@@ -2584,7 +2616,6 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 	}
 
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
-
 		if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 			return enum_value, true
 		}

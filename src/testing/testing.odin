@@ -17,12 +17,12 @@ Package :: struct {
 }
 
 Source :: struct {
-	main:            string,
-	packages:        [] Package,
-	document:        ^common.Document,
-	collections:     map[string]string,
-	config:          common.Config,
-	position:        common.Position,
+	main:        string,
+	packages:    [] Package,
+	document:    ^common.Document,
+	collections: map[string]string,
+	config:      common.Config,
+	position:    common.Position,
 }
 
 @(private)
@@ -89,9 +89,9 @@ setup :: proc(src: ^Source) {
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
 
 		pkg := new(ast.Package);
-		pkg.kind     = .Normal;
+		pkg.kind = .Normal;
 		pkg.fullpath = fullpath;
-		pkg.name     = dir;
+		pkg.name = dir;
 
 		if dir == "runtime" {
 			pkg.kind = .Runtime;
@@ -199,7 +199,6 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 			testing.errorf(t, "Expected completion detail %v, but received %v", expect_labels[i], completion_list.items);
 		}
 	}
-
 }
 
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
@@ -235,7 +234,6 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 			testing.errorf(t, "Expected completion label %v, but received %v", expect_details[i], completion_list.items);
 		}
 	}
-
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
@@ -255,7 +253,6 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	if !strings.contains(hover.contents.value, expect_hover_string) {
 		testing.errorf(t, "Expected hover string %v, but received %v", expect_hover_string, hover.contents.value);
 	}
-
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {

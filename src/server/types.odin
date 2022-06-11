@@ -300,7 +300,6 @@ CompletionItem :: struct {
 	tags:                []CompletionItemTag,
 	deprecated:          bool,
 	command:             Command,
-
 }
 
 CompletionItemTag :: enum {

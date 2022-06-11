@@ -55,6 +55,7 @@ document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 }
 
 document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
+	free_all(common.scratch_allocator(allocator))
 	append(&document_storage.free_allocators, allocator)
 }
 
@@ -226,7 +227,6 @@ document_close :: proc(uri_string: string) -> common.Error {
 		return .InvalidRequest
 	}
 
-	free_all(common.scratch_allocator(document.allocator))
 	document_free_allocator(document.allocator)
 
 	document.allocator = nil
@@ -330,18 +330,28 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	context.allocator = common.scratch_allocator(document.allocator)
 
-	//have to cheat the parser since it really wants to parse an entire package with the new changes...
+	when ODIN_OS == .Windows {
+		fullpath, _ := filepath.to_slash(common.get_case_sensitive_path(document.uri.path))
+	} else {
+		fullpath := document.uri.path
+	}
+
 	pkg := new(ast.Package)
 	pkg.kind     = .Normal
-	pkg.fullpath = document.uri.path
+	pkg.fullpath = fullpath
 
 	document.ast = ast.File {
-		fullpath = document.uri.path,
+		fullpath = fullpath,
 		src = string(document.text[:document.used_text]),
 		pkg = pkg,
 	}
 
 	parser.parse_file(&p, &document.ast)
+
+	if len(document.ast.decls) >= 1 {
+		log.error(document.ast.decls[0])
+	} 
+
 
 	parse_imports(document, config)
 
@@ -351,11 +361,17 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 	imports := make([dynamic]common.Package)
 
-	document.package_name = path.dir(document.uri.path)
-
+	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
-		forward, _ := filepath.to_slash(common.get_case_sensitive_path(document.package_name), context.temp_allocator)
-		document.package_name = strings.clone(forward)
+		package_name := path.dir(document.uri.path, context.temp_allocator)
+		forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
+		if forward == "" {
+			document.package_name = package_name
+		} else {
+			document.package_name = strings.clone(forward)
+		}
+	} else {
+		document.package_name = path.dir(document.uri.path)
 	}
 	
 	for imp, index in document.ast.imports {
@@ -365,7 +381,6 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
-
 			if len(imp.fullpath) < 2 {
 				continue
 			}

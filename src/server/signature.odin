@@ -44,7 +44,6 @@ SignatureInformation :: struct {
 
 ParameterInformation :: struct {
 	label: string,
-	activeParameter: int,
 }
 
 /*
@@ -176,15 +175,12 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
 		for symbol in value.symbols {
-
 			symbol := symbol
 
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
-
 				parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator)
 
-				for arg, i in value.arg_types {
-				
+				for arg, i in value.arg_types {		
 					if arg.type != nil {
 						if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
 							signature_help.activeParameter = min(i, signature_help.activeParameter)
@@ -192,7 +188,6 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 					}
 
 					parameters[i].label = common.node_to_string(arg)
-					parameters[i].activeParameter = i
 				}
 
 				build_procedure_symbol_signature(&symbol)
@@ -200,7 +195,6 @@ get_signature_information :: proc(document: ^common.Document, position: common.P
 				info := SignatureInformation {
 					label = concatenate_symbol_information(&ast_context, symbol, false),
 					documentation = symbol.doc,
-					parameters = parameters,
 				}	
 
 				append(&signature_information, info)
