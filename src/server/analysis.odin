@@ -2347,16 +2347,16 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
 		for block_stmt in block.stmts {
 			if cause, ok := block_stmt.derived.(^Case_Clause); ok && cause.pos.offset <= document_position.position && document_position.position <= cause.end.offset {
-				for b in cause.body {
-					get_locals_stmt(file, b, ast_context, document_position)
-				}
-
 				tag := stmt.tag.derived.(^Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
 					ident := tag.lhs[0].derived.(^Ident)
 					store_local(ast_context, cause.list[0], ident.pos.offset, ident.name, ast_context.local_id)
 					ast_context.variables[ident.name] = true
+				}
+
+				for b in cause.body {
+					get_locals_stmt(file, b, ast_context, document_position)
 				}
 			}
 		}

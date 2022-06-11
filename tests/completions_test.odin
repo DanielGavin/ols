@@ -1642,3 +1642,36 @@ ast_for_in_range_half_completion_2 :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"test.n: int"})
 }
+
+@(test)
+ast_for_in_switch_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+		My_Foo :: struct {
+			bar: int,
+		}
+
+		My_Struct :: struct {
+			my: []My_Foo,
+		}
+		
+		My_Union :: union {
+			My_Struct,
+		}
+		
+		main :: proc() {
+			my_union: My_Union
+			switch v in my_union {
+			case My_Struct:
+				for item in v.my {
+					item.*
+				}
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, ".", {"My_Foo.bar: int"})
+}
+

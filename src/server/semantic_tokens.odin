@@ -513,7 +513,7 @@ visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuil
 
 	if symbol_and_node, ok := builder.symbols[cast(uintptr)selector]; ok {
 		if symbol_and_node.symbol.type == .Variable {
-			write_semantic_node(builder, selector.field, ast_context.file.src, .Method, .None)
+			write_semantic_node(builder, selector.field, ast_context.file.src, .Property, .None)
 		}
 		#partial switch v in symbol_and_node.symbol.value { 
 		case SymbolPackageValue:

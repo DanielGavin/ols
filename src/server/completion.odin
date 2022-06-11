@@ -290,7 +290,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			expr_len = save
 
 			for k in swizzle_coord_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -308,7 +307,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 		if containsColor > 1 {
 			for k in swizzle_color_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -324,7 +322,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			}
 		} else if containsCoord > 1 {
 			for k in swizzle_coord_components {
-
 				if expr_len <= 0 {
 					break
 				}
