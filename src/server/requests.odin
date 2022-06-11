@@ -970,15 +970,21 @@ request_hover :: proc (params: json.Value, id: RequestId, config: ^common.Config
     }
 
 	hover: Hover
-	hover, ok = get_hover_information(document, hover_params.position)
+	valid: bool
+	hover, valid, ok = get_hover_information(document, hover_params.position)
 
 	if !ok {
 		return .InternalError
 	}
 
-	response := make_response_message(params = hover, id = id)
-
-	send_response(response, writer)
+	if valid {
+		response := make_response_message(params = hover, id = id)
+		send_response(response, writer)
+	} 
+	else {
+		response := make_response_message(params = nil, id = id)
+		send_response(response, writer)
+	}
 
 	return .None
 }

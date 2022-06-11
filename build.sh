@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [[ $1 == "CI" ]]
-then 
+then
     ODIN="Odin/odin"
 else
     ODIN="odin"
@@ -40,4 +40,4 @@ then
     cd ..
 fi
 
-${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -opt:2
+${ODIN} build src/ -show-timings  -collection:shared=src -out:ols -o:speed
