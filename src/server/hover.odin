@@ -73,7 +73,6 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 
 	if position_context.selector != nil && position_context.identifier != nil {
 		hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
-
 		ast_context.use_locals = true
 		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
@@ -114,8 +113,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			}
 		}
 
-		hover.range = common.get_token_range(position_context.identifier^, document.ast.src)
-
+	
 		#partial switch v in selector.value {
 		case SymbolStructValue:
 			for name, i in v.names {

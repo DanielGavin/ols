@@ -41,6 +41,14 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 	return {}, false
 }
 
+memory_reference_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Reference, bool) {
+	if pkg, ok := &index.collection.references[pkg]; ok {	
+		return pkg[name]
+	} 
+
+	return {}, false
+}
+
 memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 

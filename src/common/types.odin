@@ -30,6 +30,7 @@ Package :: struct {
 
 Document :: struct {
 	uri:              Uri,
+	fullpath:         string,
 	text:             []u8,
 	used_text:        int, //allow for the text to be reallocated with more data than needed
 	client_owned:     bool,

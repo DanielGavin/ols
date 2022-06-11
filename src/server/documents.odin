@@ -108,6 +108,8 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		document.used_text = len(document.text)
 		document.allocator = document_get_allocator()
 
+		document_setup(document)
+
 		if err := document_refresh(document, config, writer); err != .None {
 			return err
 		}
@@ -120,6 +122,8 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			allocator = document_get_allocator(),
 		}
 
+		document_setup(&document)
+
 		if err := document_refresh(&document, config, writer); err != .None {
 			return err
 		}
@@ -130,6 +134,34 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 	delete(uri_string)
 
 	return .None
+}
+
+document_setup :: proc(document: ^common.Document) {
+		//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
+		when ODIN_OS == .Windows {
+			package_name := path.dir(document.uri.path, context.temp_allocator)
+			forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
+			if forward == "" {
+				document.package_name = package_name
+			} else {
+				document.package_name = strings.clone(forward)
+			}
+		} else {
+			document.package_name = path.dir(document.uri.path)
+		}
+
+		when ODIN_OS == .Windows {
+			correct := common.get_case_sensitive_path(document.uri.path)
+			fullpath: string
+			if correct == "" {
+				//This is basically here to handle the tests where the physical file doesn't actual exist.
+				document.fullpath, _ = filepath.to_slash(document.uri.path)
+			} else {
+				document.fullpath, _ = filepath.to_slash(correct)
+			}
+		} else {
+			document.fullpath = document.uri.path
+		}	
 }
 
 /*
@@ -330,18 +362,12 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	context.allocator = common.scratch_allocator(document.allocator)
 
-	when ODIN_OS == .Windows {
-		fullpath, _ := filepath.to_slash(common.get_case_sensitive_path(document.uri.path))
-	} else {
-		fullpath := document.uri.path
-	}
-
 	pkg := new(ast.Package)
 	pkg.kind     = .Normal
-	pkg.fullpath = fullpath
+	pkg.fullpath = document.fullpath
 
 	document.ast = ast.File {
-		fullpath = fullpath,
+		fullpath = document.fullpath,
 		src = string(document.text[:document.used_text]),
 		pkg = pkg,
 	}
@@ -352,7 +378,6 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 		log.error(document.ast.decls[0])
 	} 
 
-
 	parse_imports(document, config)
 
 	return current_errors[:], true
@@ -360,19 +385,6 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 	imports := make([dynamic]common.Package)
-
-	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
-	when ODIN_OS == .Windows {
-		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
-		if forward == "" {
-			document.package_name = package_name
-		} else {
-			document.package_name = strings.clone(forward)
-		}
-	} else {
-		document.package_name = path.dir(document.uri.path)
-	}
 	
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {

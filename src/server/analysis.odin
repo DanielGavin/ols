@@ -1204,9 +1204,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 		#partial switch v in local.derived {
 		case ^Ident:
-			if v.name == node.name {
-				return {}, false
-			}
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Union_Type:
 			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
@@ -1273,9 +1270,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 		#partial switch v in global.expr.derived {
 		case ^Ident:
-			if v.name == node.name {
-				return {}, false
-			}
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Struct_Type:
 			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node.name), true

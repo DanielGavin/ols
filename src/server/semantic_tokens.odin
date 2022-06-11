@@ -170,10 +170,10 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
-			if symbol_and_node.symbol.type == .Variable {
+			if symbol_and_node.symbol.type == .Variable || symbol_and_node.symbol.type == .Constant {
 				write_semantic_node(builder, node, ast_context.file.src, .Variable, .None)
 				return
-			}
+			} 
 
 			#partial switch v in symbol_and_node.symbol.value { 
 			case SymbolPackageValue:
