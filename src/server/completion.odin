@@ -352,9 +352,9 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				}
 
 				if symbol.pkg == ast_context.document_package || base == "runtime" || base == "$builtin" {
-					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), common.node_to_string(type))
+					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), common.node_to_string(type, true))
 				} else {
-					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type))
+					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type, true))
 				}	
 
 				append(&items, item)
