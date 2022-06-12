@@ -867,6 +867,35 @@ contains_comments_in_range :: proc(p: ^Printer, pos: tokenizer.Pos, end: tokeniz
 }
 
 @(private)
+contains_do_in_expression :: proc(p: ^Printer, expr: ^ast.Expr) -> bool {
+	found_do := false
+	
+	visit_fn :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil {
+			return nil
+		}
+
+		found_do := cast(^bool)visitor.data
+		if block, ok := node.derived.(^ast.Block_Stmt); ok {
+			if block.uses_do == true {
+				found_do^ = true
+			}
+		}
+
+		return visitor
+	}
+
+	visit := ast.Visitor {
+		data  = &found_do,
+		visit = visit_fn,
+	}
+
+	ast.walk(&visit, expr)
+
+	return found_do
+}
+
+@(private)
 should_align_assignment_stmt :: proc(p: ^Printer, stmt: ast.Assign_Stmt) -> bool {
 	if len(stmt.rhs) == 0 {
 		return false
@@ -1120,6 +1149,11 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text("("))
 
 		contains_comments := contains_comments_in_range(p, v.open, v.close)
+		contains_do := false
+
+		for arg in v.args {
+			contains_do |= contains_do_in_expression(p, arg)
+		}
 
 		document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v))))
 		document = cons(document, cons(break_with(""), text(")")))
@@ -1127,6 +1161,8 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
 			document = enforce_break(document)
+		}  else if contains_do {
+			document = enforce_fit(document)
 		} else {
 			document = group(document)
 		}
