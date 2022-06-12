@@ -170,24 +170,6 @@ ast_range_array :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_range_array_2 :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package test
-		main :: proc() {
-			ints: []int
-		
-			for int_idx in 0..<len(ints) {
-				ints[int_idx] = int_i*
-			}
-		}
-		`,
-		packages = {},
-	};
-
-	test.expect_completion_details(t, &source, ".", {"test.int_idx: int"});
-}
-
-@(test)
 ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 
 	source := test.Source {
@@ -1022,6 +1004,26 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_value_decl_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Struct :: struct {
+			a: int,
+		}
+		main :: proc() {
+			my_struct := My_Struct {
+				a = 2,
+			}
+
+			my_struct.*
+		}
+		`,
+	};
+
+    test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"});
+}
+
+@(test)
 ast_multi_pointer_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
@@ -1268,6 +1270,22 @@ ast_maybe_second_value :: proc(t: ^testing.T) {
 	};
 
     test.expect_completion_details(t, &source, "", {"test.ok: bool"});
+}
+
+@(test)
+ast_maybe_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		My_Union :: union($T: typeid) #maybe {T}
+
+		main :: proc() {
+			m: My_Union([5]u8)
+    		m.*
+		}
+		`,
+	};
+
+    test.expect_completion_labels(t, &source, ".", {"([5]u8)"});
 }
 
 
@@ -1544,5 +1562,116 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.Foo: enum", "my_package.Bar: struct"})
+    test.expect_completion_details(t, &source, ".", {"My_package.Foo: enum", "My_package.Bar: struct"})
 }
+
+
+@(test)
+ast_index_enum_infer :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(&packages, test.Package {
+		pkg = "My_package",
+		source = `package My_package
+		Foo :: enum {
+			ONE,
+			TWO,
+		}
+		`,
+	})
+
+	source := test.Source {
+		main = `package main
+		import "My_package"
+		main :: proc() {
+			my_enum: My_package.Foo
+
+			if my_enum == *.
+	    }
+		`,
+		packages = packages[:],
+	}
+
+    test.expect_completion_details(t, &source, ".", {"ONE", "TWO"})
+}
+
+@(test)
+ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+		main :: proc() {
+			when ODIN_OS == .*
+		}
+		`,
+		packages = {},
+	};
+
+	test.expect_completion_details(t, &source, ".", {"Darwin"})
+}
+
+@(test)
+ast_for_in_range_half_completion_1 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			ints: []int
+		
+			for int_idx in 0..<len(ints) {
+				ints[int_idx] = int_i*
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, ".", {"test.int_idx: int"})
+}
+
+@(test)
+ast_for_in_range_half_completion_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+		advance_rune_n :: proc(t: ^Tokenizer, n: int) {
+			for in 0..<n {
+				advance_rune(n*)
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, ".", {"test.n: int"})
+}
+
+@(test)
+ast_for_in_switch_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+		My_Foo :: struct {
+			bar: int,
+		}
+
+		My_Struct :: struct {
+			my: []My_Foo,
+		}
+		
+		My_Union :: union {
+			My_Struct,
+		}
+		
+		main :: proc() {
+			my_union: My_Union
+			switch v in my_union {
+			case My_Struct:
+				for item in v.my {
+					item.*
+				}
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, ".", {"My_Foo.bar: int"})
+}
+

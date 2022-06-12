@@ -42,8 +42,8 @@ get_absolute_position :: proc(position: Position, document_text: []u8) -> (Absol
 	}
 
 	line_count := 0
-	index      := 1
-	last       := document_text[0]
+	index := 1
+	last := document_text[0]
 
 	if !get_index_at_line(&index, &line_count, &last, document_text, position.line) {
 		return absolute, false
@@ -64,7 +64,6 @@ get_relative_token_position :: proc(offset: int, document_text: []u8, current_st
 	position: Position
 
 	for i + start_index < offset {
-
 		r, w := utf8.decode_rune(data[i:])
 
 		if r == '\n' { //\r?
@@ -94,7 +93,6 @@ get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
 	range: Range
 
 	go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
-
 		index := offset
 
 		for index > 0 && document_text[index] != '\n' && document_text[index] != '\r' {
@@ -113,19 +111,18 @@ get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
 
 	offset := go_backwards_to_endline(pos_offset, transmute([]u8)document_text)
 
-	range.start.line      = node.pos.line - 1
+	range.start.line = node.pos.line - 1
 	range.start.character = get_character_offset_u8_to_u16(node.pos.column - 1, transmute([]u8)document_text[offset:])
 
-	offset = go_backwards_to_endline(end_offset, transmute([]u8)document_text)
+	offset = go_backwards_to_endline(end_offset - 1, transmute([]u8)document_text)
 
-	range.end.line      = node.end.line - 1
+	range.end.line = node.end.line - 1
 	range.end.character = get_character_offset_u8_to_u16(node.end.column - 1, transmute([]u8)document_text[offset:])
 
 	return range
 }
 
 get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange, bool) {
-
 	absolute: AbsoluteRange
 
 	if len(document_text) == 0 {
@@ -160,7 +157,6 @@ get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange,
 }
 
 get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, document_text: []u8, end_line: int) -> bool {
-
 	if end_line == 0 {
 		current_index^ = 0
 		return true
@@ -171,7 +167,6 @@ get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, do
 	}
 
 	for ; current_index^ < len(document_text); current_index^ += 1 {
-
 		current := document_text[current_index^]
 
 		if last^ == '\r' {
@@ -199,12 +194,10 @@ get_index_at_line :: proc(current_index: ^int, current_line: ^int, last: ^u8, do
 }
 
 get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: []u8) -> int {
-
 	utf8_idx  := 0
 	utf16_idx := 0
 
 	for utf16_idx < character_offset {
-
 		r, w := utf8.decode_rune(document_text[utf8_idx:])
 
 		if r == '\n' || r == '\r' {
@@ -224,12 +217,10 @@ get_character_offset_u16_to_u8 :: proc(character_offset: int, document_text: []u
 }
 
 get_character_offset_u8_to_u16 :: proc(character_offset: int, document_text: []u8) -> int {
-
 	utf8_idx  := 0
 	utf16_idx := 0
 
 	for utf8_idx < character_offset {
-
 		r, w := utf8.decode_rune(document_text[utf8_idx:])
 
 		if r == '\n' || r == '\r' {

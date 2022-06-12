@@ -16,6 +16,7 @@ import "core:path/filepath"
 import "core:intrinsics"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:time"
 
 import "shared:common"
 
@@ -261,6 +262,7 @@ call_map : map [string] proc(json.Value, RequestId, ^common.Config, ^Writer) -> 
 	"odin/inlayHints" = request_inlay_hint,
 	"textDocument/documentLink" = request_document_links,
 	"textDocument/rename" = request_rename,
+	"textDocument/references" = request_references,
 }
 
 notification_map: map [string] bool = {
@@ -339,19 +341,26 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 	root := value.(json.Object)
 	method := root["method"].(json.String)
 
-	if fn, ok := call_map[method]; !ok {
-		response := make_response_message_error(id = id, error = ResponseError {code = .MethodNotFound, message = ""})
-		send_error(response, writer)
-	} else {
-		err := fn(root["params"], id, config, writer)
-		if err != .None {
-			response := make_response_message_error(
-				id = id,
-				error = ResponseError {code = err, message = ""},
-			)
+	diff: time.Duration
+	{
+		time.SCOPED_TICK_DURATION(&diff)
+		
+		if fn, ok := call_map[method]; !ok {
+			response := make_response_message_error(id = id, error = ResponseError {code = .MethodNotFound, message = ""})
 			send_error(response, writer)
+		} else {
+			err := fn(root["params"], id, config, writer)
+			if err != .None {
+				response := make_response_message_error(
+					id = id,
+					error = ResponseError {code = err, message = ""},
+				)
+				send_error(response, writer)
+			}
 		}
 	}
+
+	log.infof("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
@@ -377,7 +386,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
 
 			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
-
 				ols_config := OlsConfig {
 					formatter = {
 						characters = 90,
@@ -451,6 +459,13 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		config.collections["vendor"] = path.join(elems = {forward_path, "vendor"}, allocator = context.allocator)
 	}
 
+	when ODIN_OS == .Windows {
+		for k, v in config.collections {
+			forward, _ := filepath.to_slash(common.get_case_sensitive_path(v), context.temp_allocator)
+			config.collections[k] = strings.clone(forward, context.allocator)
+		}
+	}
+
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
 			config.hover_support_md = true
@@ -499,7 +514,8 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					includeText = true,
 				},
 			},
-			renameProvider = true,
+			renameProvider = config.enable_rename,
+			referencesProvider = config.enable_references,
 			definitionProvider = true,
 			completionProvider = CompletionOptions {
 				resolveProvider = false,
@@ -510,7 +526,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 				retriggerCharacters = signatureRetriggerCharacters,
 			},
 			semanticTokensProvider = SemanticTokensOptions {
-				range = false,
+				range = config.enable_semantic_tokens,
 				full = config.enable_semantic_tokens,
 				legend = SemanticTokensLegend {
 					tokenTypes = token_types,
@@ -543,11 +559,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	*/
 
 	if core, ok := config.collections["core"]; ok {
-		when ODIN_OS == .Windows  {
-			append(&indexer.builtin_packages, path.join(strings.to_lower(core, context.temp_allocator), "runtime"))
-		} else {
-			append(&indexer.builtin_packages, path.join(core, "runtime"))
-		}
+		append(&indexer.builtin_packages, path.join(core, "runtime"))
 	}
 
 	log.info("Finished indexing")
@@ -1089,6 +1101,40 @@ request_rename :: proc (params: json.Value, id: RequestId, config: ^common.Confi
 	}
 
 	response := make_response_message(params = workspace_edit, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_references :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	reference_param: ReferenceParams
+
+	if unmarshal(params, reference_param, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(reference_param.textDocument.uri)
+
+    if document == nil {
+        return .InternalError
+    }
+
+	locations: []common.Location
+
+	locations, ok = get_references(document, reference_param.position)
+
+	if !ok {
+		return .InternalError
+	}
+
+	response := make_response_message(params = locations, id = id)
 
 	send_response(response, writer)
 

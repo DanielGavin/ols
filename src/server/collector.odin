@@ -43,6 +43,7 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 		allocator = allocator,
 		config = config,
 		packages = make(map[string]map[string]Symbol, 16, allocator),
+		references = make(map[string]map[string]Reference, 100, allocator),
 		unique_strings = make(map[string]string, 16, allocator),
 	}
 }
@@ -54,10 +55,13 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}	
 	}
 
-	for k, v in collection.references {
-		for k2, v2 in v {
-			common.free_ast(v2.identifiers, collection.allocator)
-			common.free_ast(v2.selectors, collection.allocator)
+	for _, pkg in collection.references {
+		for _, reference in pkg {
+			delete(reference.identifiers)
+			for _, field in reference.selectors {
+				delete(field)
+			}
+			delete(reference.selectors)
 		}
 	}
 
@@ -80,7 +84,7 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 
 collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.Proc_Type, arg_list: ^ast.Field_List, return_list: ^ast.Field_List, package_map: map[string]string) -> SymbolProcedureValue {
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
-	args    := make([dynamic]^ast.Field, 0, collection.allocator)
+	args := make([dynamic]^ast.Field, 0, collection.allocator)
 
 	if return_list != nil {
 		for ret in return_list.list {
@@ -107,8 +111,8 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
 }
 
 collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
-	names  := make([dynamic]string, 0, collection.allocator)
-	types  := make([dynamic]^ast.Expr, 0, collection.allocator)
+	names := make([dynamic]string, 0, collection.allocator)
+	types := make([dynamic]^ast.Expr, 0, collection.allocator)
 	usings := make(map[string]bool, 0, collection.allocator)
 
 	for field in struct_type.fields.list {
@@ -269,13 +273,7 @@ collect_generic :: proc(collection: ^SymbolCollection, expr: ^ast.Expr, package_
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
-
-	when ODIN_OS == .Windows {
-		directory := strings.to_lower(path.dir(forward, context.temp_allocator), context.temp_allocator)
-	} else {
-		directory := path.dir(forward, context.temp_allocator)
-	}
-
+	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 
 	exprs := common.collect_globals(file, true)
@@ -391,8 +389,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.type = token_type
 		symbol.doc = common.get_doc(expr.docs, collection.allocator)
 
-		if expr.builtin {
+		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
+		} else if strings.contains(uri, "builtin.odin") {
+			symbol.pkg = "$intrinsics"
 		} else {
 			symbol.pkg = get_index_unique_string(collection, directory)
 		}
@@ -409,12 +409,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.PrivatePackage}
 		}
 
-		when ODIN_OS == .Windows {
-			symbol.uri = get_index_unique_string(collection, strings.to_lower(uri, context.temp_allocator))
-		} else {
-			symbol.uri = get_index_unique_string(collection, uri)
-		}
-
+		symbol.uri = get_index_unique_string(collection, uri)
+		
 		pkg: ^map[string]Symbol
 		ok: bool
 
@@ -434,8 +430,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 }
 
 Reference :: struct {
-	identifiers: [dynamic]^ast.Ident, 
-	selectors: [dynamic]^ast.Selector_Expr, 
+	identifiers: [dynamic]common.Location, 
+	selectors: map[string][dynamic]common.Range, 
 }
 
 collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
@@ -452,13 +448,10 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 	document.uri = uri 
 	document.text = transmute([]u8)file.src
 	document.used_text = len(file.src)
-	document.allocator = document_get_allocator()
-
-	context.allocator = common.scratch_allocator(document.allocator)
 
 	parse_imports(&document, &common.config)
 
-	symbols_and_nodes := resolve_entire_file(&document, common.scratch_allocator(document.allocator))
+	symbols_and_nodes := resolve_entire_file(&document, true)
 
 	for k, v in symbols_and_nodes {
 		pkg: ^map[string]Reference
@@ -468,21 +461,27 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 			pkg = &collection.references[v.symbol.pkg]
 		} 
 
+		assert(pkg != nil)
+
 		ref: ^Reference
 
-		if ref, ok := &pkg[v.symbol.name]; !ok {
+		if ref, ok = &pkg[v.symbol.name]; !ok {
 			pkg[get_index_unique_string(collection, v.symbol.name)] = {}
 			ref = &pkg[v.symbol.name]
+			ref.identifiers = make([dynamic]common.Location, 100, collection.allocator)
+			ref.selectors = make(map[string][dynamic]common.Range, 100, collection.allocator)
 		}
+
+		assert(ref != nil)
 
 		if ident, ok := v.node.derived.(^ast.Ident); ok {
-			append(&ref.identifiers, cast(^ast.Ident)clone_type(ident, collection.allocator, nil))
+			range :=  common.get_token_range(ident, ident.name)
+			append(&ref.identifiers, common.Location { range = range, uri = get_index_unique_string(collection, ident.pos.file) })
+
 		} else if selector, ok := v.node.derived.(^ast.Selector_Expr); ok {
-			append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
+			//append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
 		}
 	}
-
-	document_free_allocator(document.allocator)
 
 	return .None
 }
@@ -508,11 +507,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 
 			name: string
 
-			when ODIN_OS == .Windows {
-				full := path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator)
-			} else {
-				full := path.join(elems = {dir, p}, allocator = context.temp_allocator)
-			}
+			full := path.join(elems = {dir, p}, allocator = context.temp_allocator)
 
 			if imp.name.text != "" {
 				name = imp.name.text
@@ -520,11 +515,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				name = path.base(full, false, context.temp_allocator)
 			}
 
-			when ODIN_OS == .Windows {
-				package_map[name] = strings.to_lower(full, context.temp_allocator)
-			} else {
-				package_map[name] = full
-			}
+			package_map[name] = full
 		} else {
 			name: string
 
@@ -537,11 +528,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				name = path.base(full, false, context.temp_allocator)
 			}
 
-			when ODIN_OS == .Windows {
-				package_map[name] = strings.to_lower(full, context.temp_allocator)
-			} else {
-				package_map[name] = full
-			}
+			package_map[name] = full
 		}
 	}
 

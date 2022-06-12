@@ -16,7 +16,6 @@ make_reader :: proc(reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
 }
 
 read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
-
 	value: [1]byte
 
 	read, err := reader.reader_fn(reader.reader_context, value[:])
@@ -29,7 +28,6 @@ read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
 }
 
 read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
-
 	for true {
 
 		value, success := read_u8(reader)

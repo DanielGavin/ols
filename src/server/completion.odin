@@ -120,7 +120,7 @@ get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 
 	list.isIncomplete = false
-
+	
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	/*
@@ -273,7 +273,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		if containsColor == 1 && containsCoord == 1 {
 			save := expr_len
 			for k in swizzle_color_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -291,7 +290,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			expr_len = save
 
 			for k in swizzle_coord_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -309,7 +307,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 		if containsColor > 1 {
 			for k in swizzle_color_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -325,7 +322,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			}
 		} else if containsCoord > 1 {
 			for k in swizzle_coord_components {
-
 				if expr_len <= 0 {
 					break
 				}
@@ -355,11 +351,11 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					documentation = symbol.doc,
 				}
 
-				if symbol.pkg == ast_context.document_package || base == "runtime" {
-					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), symbol.name)
+				if symbol.pkg == ast_context.document_package || base == "runtime" || base == "$builtin" {
+					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), common.node_to_string(type))
 				} else {
-					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), symbol.name)
-				}
+					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type))
+				}	
 
 				append(&items, item)
 			}
@@ -374,7 +370,6 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				kind = .EnumMember,
 				detail = fmt.tprintf("%v.%v", selector.name, name),
 			}
-
 			append(&items, item)
 		}
 
@@ -423,11 +418,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	case SymbolPackageValue:
 		list.isIncomplete = true
 
-		when ODIN_OS == .Windows {
-			pkg := strings.to_lower(selector.pkg)
-		} else {
-			pkg := selector.pkg
-		}
+		pkg := selector.pkg
 
 		if searched, ok := fuzzy_search(field, {pkg}); ok {
 			for search in searched {
@@ -474,7 +465,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 	selector: Symbol
  
-	ast_context.use_locals  = true
+	ast_context.use_locals = true
 	ast_context.use_globals = true
 
 	if selector.pkg != "" {
@@ -539,9 +530,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	if position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
 		//bitsets
 		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
-
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
-
 				for name in value.names {
 
 					item := CompletionItem {
@@ -563,9 +552,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		//bitsets
 		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
-
 				for name in value.names {
-
 					item := CompletionItem {
 						label = name,
 						kind = .EnumMember,
@@ -679,10 +666,10 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 		if position_in_node(position_context.binary.right, position_context.position) {
 			context_node = position_context.binary.right
-			enum_node    = position_context.binary.left
+			enum_node = position_context.binary.left
 		} else if position_in_node(position_context.binary.left, position_context.position) {
 			context_node = position_context.binary.left
-			enum_node    = position_context.binary.right
+			enum_node = position_context.binary.right
 		}
 
 		if context_node != nil && enum_node != nil {
@@ -729,8 +716,8 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			if enum_value, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
+						label  = name,
+						kind   = .EnumMember,
 						detail = name,
 					}
 
@@ -1120,7 +1107,6 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 
 	if !strings.contains(position_context.import_stmt.fullpath, "/") && !strings.contains(position_context.import_stmt.fullpath, ":") {
 		for key, _ in common.config.collections {
-
 			item := CompletionItem {
 				detail = "collection",
 				label = key,
@@ -1129,7 +1115,6 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 
 			append(&items, item)
 		}
-
 	}
 
 	for pkg in search_for_packages(absolute_path) {
@@ -1171,7 +1156,6 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 }
 
 get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 	list.isIncomplete = false
 

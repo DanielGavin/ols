@@ -115,6 +115,7 @@ SymbolFlag :: enum {
 	PrivatePackage,
 	Anonymous, //Usually applied to structs that are defined inline inside another struct
 	Variable, //Symbols that are variable, this means their value decl was mutable
+	Local,
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

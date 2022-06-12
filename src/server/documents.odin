@@ -7,6 +7,7 @@ import "core:os"
 import "core:odin/parser"
 import "core:odin/ast"
 import "core:odin/tokenizer"
+import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:mem"
 
@@ -54,6 +55,7 @@ document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 }
 
 document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
+	free_all(common.scratch_allocator(allocator))
 	append(&document_storage.free_allocators, allocator)
 }
 
@@ -106,6 +108,8 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		document.used_text = len(document.text)
 		document.allocator = document_get_allocator()
 
+		document_setup(document)
+
 		if err := document_refresh(document, config, writer); err != .None {
 			return err
 		}
@@ -118,6 +122,8 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			allocator = document_get_allocator(),
 		}
 
+		document_setup(&document)
+
 		if err := document_refresh(&document, config, writer); err != .None {
 			return err
 		}
@@ -128,6 +134,34 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 	delete(uri_string)
 
 	return .None
+}
+
+document_setup :: proc(document: ^common.Document) {
+		//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
+		when ODIN_OS == .Windows {
+			package_name := path.dir(document.uri.path, context.temp_allocator)
+			forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
+			if forward == "" {
+				document.package_name = package_name
+			} else {
+				document.package_name = strings.clone(forward)
+			}
+		} else {
+			document.package_name = path.dir(document.uri.path)
+		}
+
+		when ODIN_OS == .Windows {
+			correct := common.get_case_sensitive_path(document.uri.path)
+			fullpath: string
+			if correct == "" {
+				//This is basically here to handle the tests where the physical file doesn't actual exist.
+				document.fullpath, _ = filepath.to_slash(document.uri.path)
+			} else {
+				document.fullpath, _ = filepath.to_slash(correct)
+			}
+		} else {
+			document.fullpath = document.uri.path
+		}	
 }
 
 /*
@@ -225,7 +259,6 @@ document_close :: proc(uri_string: string) -> common.Error {
 		return .InvalidRequest
 	}
 
-	free_all(common.scratch_allocator(document.allocator))
 	document_free_allocator(document.allocator)
 
 	document.allocator = nil
@@ -329,13 +362,12 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	context.allocator = common.scratch_allocator(document.allocator)
 
-	//have to cheat the parser since it really wants to parse an entire package with the new changes...
 	pkg := new(ast.Package)
 	pkg.kind     = .Normal
-	pkg.fullpath = document.uri.path
+	pkg.fullpath = document.fullpath
 
 	document.ast = ast.File {
-		fullpath = document.uri.path,
+		fullpath = document.fullpath,
 		src = string(document.text[:document.used_text]),
 		pkg = pkg,
 	}
@@ -349,13 +381,7 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 	imports := make([dynamic]common.Package)
-
-	when ODIN_OS == .Windows  {
-		document.package_name = strings.to_lower(path.dir(document.uri.path, context.temp_allocator))
-	} else {
-		document.package_name = path.dir(document.uri.path)
-	}
-
+	
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue
@@ -363,7 +389,6 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
-
 			if len(imp.fullpath) < 2 {
 				continue
 			}
@@ -378,12 +403,7 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 			}
 
 			import_: common.Package
-
-			when ODIN_OS == .Windows  {
-				import_.name = strings.clone(path.join(elems = {strings.to_lower(dir, context.temp_allocator), p}, allocator = context.temp_allocator))
-			} else {
-				import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
-			}
+			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text

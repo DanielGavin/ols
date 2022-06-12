@@ -7,7 +7,64 @@ import "core:log"
 
 import win32 "core:sys/windows"
 
+FORMAT_MESSAGE_FROM_SYSTEM :: 0x00001000
+FORMAT_MESSAGE_IGNORE_INSERTS :: 0x00000200
+
+
 foreign import kernel32 "system:kernel32.lib"
+
+@(default_calling_convention = "std")
+foreign kernel32 {
+	@(link_name = "FormatMessageA")
+	format_message_a :: proc(
+		flags: u32,
+		source: rawptr,
+		message_id: u32,
+		langauge_id: u32,
+		buffer: cstring,
+		size: u32,
+		va: rawptr,
+	) -> u32 ---
+}
+
+get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocator) -> string {
+	wide := win32.utf8_to_utf16(path)
+	file := win32.CreateFileW(&wide[0], 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
+
+	if(file == win32.INVALID_HANDLE)
+    {
+		log_last_error()
+        return "";
+    }
+
+	buffer := make([]u16, 512, context.temp_allocator)
+
+	ret := win32.GetFinalPathNameByHandleW(file, &buffer[0], cast(u32)len(buffer), 0)
+
+	res, _ := win32.utf16_to_utf8(buffer[4:], allocator)
+
+	return res
+}
+
+log_last_error :: proc() {
+	err_text: [512]byte
+
+	err := win32.GetLastError()
+
+	error_string := cstring(&err_text[0])
+
+	if (format_message_a(
+		   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+		   nil,
+		   err,
+		   (1 << 10) | 0,
+		   error_string,
+		   len(err_text) - 1,
+		   nil,
+	   ) != 0) {
+		log.error(error_string)
+	}
+}
 
 
 run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) {

@@ -13,6 +13,7 @@ resolve_entire_file_cached :: proc(document: ^common.Document) -> map[uintptr]Sy
 	if document.uri.uri not_in file_resolve_cache.files {
 		file_resolve_cache.files[document.uri.uri] = resolve_entire_file(
 			document,
+			false,
 			common.scratch_allocator(document.allocator),
 		)
 	}	

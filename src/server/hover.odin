@@ -43,6 +43,10 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 	return content
 }
 
+builtin_identifier_hover: map[string]string = {
+	"context" = fmt.aprintf("```odin\n %v\n```\n%v", "runtime.context: Context", "This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention)."),
+}
+
 
 get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool, bool) {
 	hover := Hover {
@@ -68,12 +72,27 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
 				return hover, true, true
 			}
+
+			if str, ok := builtin_identifier_hover[ident.name]; ok {
+				hover.contents.kind = "markdown"
+				hover.contents.value = str
+				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
+				return hover, true
+			}
+		} 
+	}
+
+	if position_context.implicit_context != nil {
+		if str, ok := builtin_identifier_hover[position_context.implicit_context.tok.text]; ok {
+			hover.contents.kind = "markdown"
+			hover.contents.value = str
+			hover.range = common.get_token_range(position_context.implicit_context^, ast_context.file.src)
+			return hover, true
 		}
 	}
 
 	if position_context.selector != nil && position_context.identifier != nil {
 		hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
-
 		ast_context.use_locals = true
 		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
@@ -114,8 +133,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			}
 		}
 
-		hover.range = common.get_token_range(position_context.identifier^, document.ast.src)
-
+	
 		#partial switch v in selector.value {
 		case SymbolStructValue:
 			for name, i in v.names {

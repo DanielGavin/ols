@@ -16,6 +16,8 @@ import "shared:common"
 */
 MemoryIndex :: struct {
 	collection: SymbolCollection,
+	last_package_name: string,
+	last_package: ^map[string]Symbol,
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
@@ -25,7 +27,22 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 }
 
 memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
+	if index.last_package_name == pkg && index.last_package != nil {
+		return index.last_package[name]
+	}
+
+	index.last_package_name = pkg
+
 	if pkg, ok := &index.collection.packages[pkg]; ok {
+		index.last_package = pkg	
+		return pkg[name]
+	} 
+
+	return {}, false
+}
+
+memory_reference_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Reference, bool) {
+	if pkg, ok := &index.collection.references[pkg]; ok {	
 		return pkg[name]
 	} 
 

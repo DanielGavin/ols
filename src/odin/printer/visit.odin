@@ -876,8 +876,7 @@ should_align_assignment_stmt :: proc(p: ^Printer, stmt: ast.Assign_Stmt) -> bool
 		if _, ok := stmt.rhs[0].derived.(^ast.Binary_Expr); ok {
 			return true
 		}
-	}
-	
+	}	
 	return false
 }
 
@@ -1087,7 +1086,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 			document = cons(document, cons(newline(1), text_position(p, "}", v.end)))
 		}
-
+		
 		set_source_position(p, v.end)
 	case ^Proc_Lit:
 		document = empty()

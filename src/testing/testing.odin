@@ -17,12 +17,12 @@ Package :: struct {
 }
 
 Source :: struct {
-	main:            string,
-	packages:        [] Package,
-	document:        ^common.Document,
-	collections:     map[string]string,
-	config:          common.Config,
-	position:        common.Position,
+	main:        string,
+	packages:    [] Package,
+	document:    ^common.Document,
+	collections: map[string]string,
+	config:      common.Config,
+	position:    common.Position,
 }
 
 @(private)
@@ -39,7 +39,7 @@ setup :: proc(src: ^Source) {
 	common.scratch_allocator_init(src.document.allocator, mem.Kilobyte * 200, context.temp_allocator);
 
 	//no unicode in tests currently
-	current, last:                   u8;
+	current, last: u8;
 	current_line, current_character: int;
 
 	for current_index := 0; current_index < len(src.main); current_index += 1 {
@@ -65,15 +65,17 @@ setup :: proc(src: ^Source) {
 		last = current;
 	}
 
+	server.document_setup(src.document)
+
 	server.document_refresh(src.document, &src.config, nil);	
 	
 	/*
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
-	server.build_static_index(context.allocator, &common.config);
-
 	server.indexer.dynamic_index = server.make_memory_index(server.make_symbol_collection(context.allocator, &common.config));
+
+	server.build_static_index(context.allocator, &common.config);
 
 	for src_pkg in src.packages {
 		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator);
@@ -89,9 +91,9 @@ setup :: proc(src: ^Source) {
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator));
 
 		pkg := new(ast.Package);
-		pkg.kind     = .Normal;
+		pkg.kind = .Normal;
 		pkg.fullpath = fullpath;
-		pkg.name     = dir;
+		pkg.name = dir;
 
 		if dir == "runtime" {
 			pkg.kind = .Runtime;
@@ -119,6 +121,8 @@ setup :: proc(src: ^Source) {
 @private
 teardown :: proc(src: ^Source) {
 	server.free_static_index()
+	server.indexer.dynamic_index = {}
+	server.indexer.static_index = {}
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {
@@ -197,7 +201,6 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 			testing.errorf(t, "Expected completion detail %v, but received %v", expect_labels[i], completion_list.items);
 		}
 	}
-
 }
 
 expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
@@ -233,7 +236,6 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 			testing.errorf(t, "Expected completion label %v, but received %v", expect_details[i], completion_list.items);
 		}
 	}
-
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
@@ -253,7 +255,6 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	if !strings.contains(hover.contents.value, expect_hover_string) {
 		testing.errorf(t, "Expected hover string %v, but received %v", expect_hover_string, hover.contents.value);
 	}
-
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
