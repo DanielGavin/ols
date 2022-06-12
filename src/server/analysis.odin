@@ -31,6 +31,7 @@ DocumentPositionContext :: struct {
 	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
 	selector:         ^ast.Expr,     //used for completion
 	identifier:       ^ast.Node,
+	implicit_context: ^ast.Implicit,
 	tag:              ^ast.Node,
 	field:            ^ast.Expr,        //used for completion
 	call:             ^ast.Expr,        //used for signature help
@@ -3213,6 +3214,9 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^Ident:
 		position_context.identifier = node
 	case ^Implicit:
+		if n.tok.text == "context" {
+			position_context.implicit_context = n
+		}
 	case ^Undef:
 	case ^Basic_Lit:
 	case ^Ellipsis:

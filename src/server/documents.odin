@@ -374,10 +374,6 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 
 	parser.parse_file(&p, &document.ast)
 
-	if len(document.ast.decls) >= 1 {
-		log.error(document.ast.decls[0])
-	} 
-
 	parse_imports(document, config)
 
 	return current_errors[:], true
