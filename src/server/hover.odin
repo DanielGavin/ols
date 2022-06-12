@@ -77,7 +77,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 				hover.contents.kind = "markdown"
 				hover.contents.value = str
 				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
-				return hover, true
+				return hover, true, true
 			}
 		} 
 	}
@@ -87,7 +87,7 @@ get_hover_information :: proc(document: ^common.Document, position: common.Posit
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
 			hover.range = common.get_token_range(position_context.implicit_context^, ast_context.file.src)
-			return hover, true
+			return hover, true, true
 		}
 	}
 
