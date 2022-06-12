@@ -812,6 +812,11 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 		flags = {.Optional_Semicolons},
 	}
 
+	when ODIN_OS == .Windows {
+		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)	
+		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
+	} 	
+
 	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
 
 	pkg := new(ast.Package)
