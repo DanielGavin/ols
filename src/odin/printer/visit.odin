@@ -574,7 +574,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	#partial switch v in stmt.derived {
 	case ^Using_Stmt:
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
-		return document
 	case ^Block_Stmt:		
 		document = cons(document, visit_state_flags(p, v.state_flags))
 
