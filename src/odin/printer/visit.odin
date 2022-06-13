@@ -969,7 +969,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_nopl(document, text_token(p, v.op2))
 			document = cons_with_nopl(document, visit_expr(p, v.y))
 		} else {
-			document := visit_expr(p, v.cond)
+			document = visit_expr(p, v.cond)
 			document = cons_with_nopl(document, text_token(p, v.op1))
 			document = cons_with_nopl(document, visit_expr(p, v.x))
 			document = cons_with_nopl(document, text_token(p, v.op2))
@@ -993,9 +993,9 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, visit_exprs(p, v.call.args, {.Add_Comma}))
 		document = cons(document, text(")"))
 	case ^Ellipsis:
-		return cons(text(".."), visit_expr(p, v.expr))
+		document = cons(text(".."), visit_expr(p, v.expr))
 	case ^Relative_Type:
-		return cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
+		document = cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
 	case ^Slice_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons(document, text("["))
@@ -1118,7 +1118,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		
 		set_source_position(p, v.end)
 	case ^Proc_Lit:
-		document = empty()
 		switch v.inlining {
 		case .None:
 		case .Inline:
