@@ -997,7 +997,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Relative_Type:
 		return cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
 	case ^Slice_Expr:
-		document := visit_expr(p, v.expr)
+		document = visit_expr(p, v.expr)
 		document = cons(document, text("["))
 		document = cons(document, visit_expr(p, v.low))
 		document = cons(document, text(v.interval.text))
