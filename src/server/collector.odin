@@ -391,7 +391,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
-		} else if strings.contains(uri, "builtin.odin") {
+		} else if strings.contains(uri, "intrinsics.odin") {
 			symbol.pkg = "$intrinsics"
 		} else {
 			symbol.pkg = get_index_unique_string(collection, directory)

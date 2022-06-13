@@ -1431,7 +1431,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	symbol := symbol
 
 	if symbol.type == .Unresolved {
-		resolve_unresolved_symbol(ast_context, &symbol)
+		if !resolve_unresolved_symbol(ast_context, &symbol) {
+			return {}, false
+		}
 	}
 	
 	#partial switch v in &symbol.value {
@@ -1490,9 +1492,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	return symbol, true
 }
 
-resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) {
+resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) ->  bool {
 	if symbol.type != .Unresolved {
-		return
+		return true
 	}
 
 	#partial switch v in symbol.value {
@@ -1513,8 +1515,12 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) {
 		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
 			symbol.type = ret.type
 			symbol.signature = ret.signature
+		} else {
+			return false
 		}
 	}
+
+	return true
 }
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
