@@ -1093,7 +1093,17 @@ get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.E
 					if i - previous < 0 {
 						return nil
 					} else {
+						ret := local_stack[i - previous].expr
+						if ident, ok := ret.derived.(^ast.Ident); ok && ident.name == name {
+							if i - previous - 1 < 0 {
+								return nil
+							}
+
+							if _, ok := ast_context.parameters[ident.name]; ok {					
 						return local_stack[i - previous].expr
+							}
+						}
+						return ret;
 					}		
 				}
 			}

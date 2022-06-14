@@ -31,12 +31,14 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 		return index.last_package[name]
 	}
 
-	index.last_package_name = pkg
-
-	if pkg, ok := &index.collection.packages[pkg]; ok {
-		index.last_package = pkg	
-		return pkg[name]
-	} 
+	if _pkg, ok := &index.collection.packages[pkg]; ok {
+		index.last_package = _pkg	
+		index.last_package_name = pkg
+		return _pkg[name]
+	} else {
+		index.last_package = nil
+		index.last_package_name = ""
+	}
 
 	return {}, false
 }
