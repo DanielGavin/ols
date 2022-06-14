@@ -153,7 +153,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 			}
 
 			//TODO(daniel): Implement path code to handle whether paths are contained in core
-			if !config.enable_std_references && (strings.contains(fullpath, "Odin/core") || strings.contains(fullpath, "odin/core")) {
+			if !config.enable_std_references && (strings.contains(fullpath, "Odin/core") || strings.contains(fullpath, "odin/core") || strings.contains(fullpath, "Odin/vendor") || strings.contains(fullpath, "odin/vendor")) {
 				continue;
 			}
 

@@ -468,8 +468,8 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 		if ref, ok = &pkg[v.symbol.name]; !ok {
 			pkg[get_index_unique_string(collection, v.symbol.name)] = {}
 			ref = &pkg[v.symbol.name]
-			ref.identifiers = make([dynamic]common.Location, 100, collection.allocator)
-			ref.selectors = make(map[string][dynamic]common.Range, 100, collection.allocator)
+			ref.identifiers = make([dynamic]common.Location, 2, collection.allocator)
+			ref.selectors = make(map[string][dynamic]common.Range, 2, collection.allocator)
 		}
 
 		assert(ref != nil)

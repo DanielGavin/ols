@@ -350,6 +350,20 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder, ast_context:
 		visit(n.x, builder, ast_context)
 		write_semantic_token(builder, n.token, ast_context.file.src, .Keyword, .None)
 		visit(n.y, builder, ast_context)
+	case ^Ternary_If_Expr:
+		if n.op1.text == "if" {
+			visit(n.x, builder, ast_context)
+			visit(n.cond, builder, ast_context)
+			visit(n.y, builder, ast_context)
+		} else {
+			visit(n.cond, builder, ast_context)
+			visit(n.x, builder, ast_context)
+			visit(n.y, builder, ast_context)
+		}		
+	case ^Ternary_When_Expr:
+		visit(n.cond, builder, ast_context)
+		visit(n.x, builder, ast_context)
+		visit(n.y, builder, ast_context)
 	case:
 		//log.errorf("unhandled semantic token node %v", n);
 		//panic(fmt.tprintf("Missed semantic token handling %v", n));
