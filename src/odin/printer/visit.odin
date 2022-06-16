@@ -1607,13 +1607,15 @@ repeat_space :: proc(amount: int) -> ^Document {
 get_node_length :: proc(node: ^ast.Node) -> int {
 	#partial switch v in node.derived {
 	case ^ast.Ident:
-		return len(v.name)
+		return strings.rune_count(v.name)
 	case ^ast.Basic_Lit:
-		return len(v.tok.text)
+		return strings.rune_count(v.tok.text)
 	case ^ast.Implicit_Selector_Expr:
-		return len(v.field.name) + 1
+		return strings.rune_count(v.field.name) + 1
 	case ^ast.Binary_Expr:
 		return 0
+	case ^ast.Selector_Expr:
+		return get_node_length(v.expr) + strings.rune_count(v.op.text) + strings.rune_count(v.field.name) 
 	case: 
 		panic(fmt.aprintf("unhandled get_node_length case %v", node.derived))
 	}
