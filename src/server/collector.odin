@@ -435,7 +435,7 @@ Reference :: struct {
 }
 
 collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
-	document := common.Document {
+	document := Document {
 		ast = file,
 	}
 

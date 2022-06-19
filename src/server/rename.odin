@@ -5,7 +5,7 @@ import "shared:common"
 import "core:log"
 import "core:odin/ast"
 
-get_rename :: proc(document: ^common.Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
+get_rename :: proc(document: ^Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
 	workspace: WorkspaceEdit
 
 	document_changes := make([dynamic]TextDocumentEdit, context.temp_allocator)

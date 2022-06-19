@@ -32,7 +32,7 @@ Completion_Type :: enum {
 	Package,
 }
 
-get_completion_list :: proc(document: ^common.Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
+get_completion_list :: proc(document: ^Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
 	list: CompletionList
 
 	position_context, ok := get_document_position_context(document, position, .Completion)

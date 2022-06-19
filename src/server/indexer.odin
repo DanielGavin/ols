@@ -36,9 +36,8 @@ import "core:sort"
 
 
 Indexer :: struct {
-	builtin_packages: [dynamic]string,
-	static_index:      MemoryIndex,
-	dynamic_index:     MemoryIndex,
+	builtin_packages:  [dynamic]string,
+	index:             MemoryIndex,
 	dynamic_uri_owned: map[string]bool,
 }
 
@@ -50,12 +49,7 @@ FuzzyResult :: struct {
 }
 
 lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
-	if symbol, ok := memory_index_lookup(&indexer.dynamic_index, name, pkg); ok {
-		log.infof("lookup dynamic name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc)
-		return symbol, true
-	}
-
-	if symbol, ok := memory_index_lookup(&indexer.static_index, name, pkg); ok && symbol.uri not_in indexer.dynamic_uri_owned {
+	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok && symbol.uri not_in indexer.dynamic_uri_owned {
 		log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc)
 		return symbol, true
 	}
@@ -65,27 +59,18 @@ lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, b
 }
 
 lookup_reference :: proc(name: string, pkg: string) -> (Reference, bool) {
-	return memory_reference_lookup(&indexer.static_index, name, pkg)
+	return memory_reference_lookup(&indexer.index, name, pkg)
 }
 
 fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
-	dynamic_results, dynamic_ok := memory_index_fuzzy_search(&indexer.dynamic_index, name, pkgs)
-	static_results, static_ok := memory_index_fuzzy_search(&indexer.static_index, name, pkgs)
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs)
 	result := make([dynamic]FuzzyResult, context.temp_allocator)
 
-	if !dynamic_ok || !static_ok {
+	if !ok {
 		return {}, false
 	}
 
-	for r in dynamic_results {
-		append(&result, r)
-	}
-
-	for r in static_results {
-		if r.symbol.uri in indexer.dynamic_uri_owned {
-			continue
-		}
-
+	for r in results {
 		append(&result, r)
 	}
 

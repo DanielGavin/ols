@@ -35,7 +35,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 
 	if cat != "" {
 		content.kind = "markdown"
-		content.value = fmt.tprintf("```odin\n %v\n```\n%v", cat, symbol.doc)
+		content.value = fmt.tprintf("```odin\n%v\n```\n%v", cat, symbol.doc)
 	} else {
 		content.kind = "plaintext"
 	}
@@ -44,11 +44,11 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 }
 
 builtin_identifier_hover: map[string]string = {
-	"context" = fmt.aprintf("```odin\n %v\n```\n%v", "runtime.context: Context", "This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention)."),
+	"context" = fmt.aprintf("```odin\n%v\n```\n%v", "runtime.context: Context", "This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention)."),
 }
 
 
-get_hover_information :: proc(document: ^common.Document, position: common.Position) -> (Hover, bool, bool) {
+get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
 	hover := Hover {
 		contents = {
 			kind = "plaintext",

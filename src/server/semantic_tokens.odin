@@ -93,7 +93,7 @@ get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
 	}
 }
 
-get_semantic_tokens :: proc(document: ^common.Document, range: common.Range, symbols: map[uintptr]SymbolAndNode) -> SemanticTokens { 
+get_semantic_tokens :: proc(document: ^Document, range: common.Range, symbols: map[uintptr]SymbolAndNode) -> SemanticTokens { 
 	builder := make_token_builder()
 
 	if document.ast.pkg_decl != nil {

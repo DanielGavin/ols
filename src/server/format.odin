@@ -17,7 +17,7 @@ DocumentFormattingParams :: struct {
 	options:      FormattingOptions,
 }
 
-get_complete_format :: proc(document: ^common.Document, config: ^common.Config) -> ([]TextEdit, bool) {
+get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]TextEdit, bool) {
 	style := printer.default_style
 	style.max_characters = config.formatter.characters
 	style.tabs = config.formatter.tabs

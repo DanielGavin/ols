@@ -23,25 +23,5 @@ WorkspaceFolder :: struct {
 	uri:  string,
 }
 
-Package :: struct {
-	name: string, //the entire absolute path to the directory
-	base: string,
-}
-
-Document :: struct {
-	uri:              Uri,
-	fullpath:         string,
-	text:             []u8,
-	used_text:        int, //allow for the text to be reallocated with more data than needed
-	client_owned:     bool,
-	diagnosed_errors: bool,
-	ast:              ast.File,
-	imports:          []Package,
-	package_name:     string,
-	allocator:        ^Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
-	operating_on:     int, //atomic
-	version:          Maybe(int),
-}
-
 parser_warning_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }

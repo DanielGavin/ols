@@ -141,7 +141,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 		free_all(context.allocator)
 	}
 
-	indexer.static_index = make_memory_index(symbol_collection)
+	indexer.index = make_memory_index(symbol_collection)
 
 	if config.enable_references {
 		for fullpath in files {
@@ -203,7 +203,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 	delete(files)
 	delete(temp_arena.data)
 
-	indexer.static_index = make_memory_index(symbol_collection)
+	indexer.index = make_memory_index(symbol_collection)
 }
 
 free_static_index :: proc() {

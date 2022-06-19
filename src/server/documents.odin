@@ -23,8 +23,29 @@ ParserError :: struct {
 	offset:  int,
 }
 
+Package :: struct {
+	name: string, //the entire absolute path to the directory
+	base: string,
+}
+
+Document :: struct {
+	uri:              common.Uri,
+	fullpath:         string,
+	text:             []u8,
+	used_text:        int, //allow for the text to be reallocated with more data than needed
+	client_owned:     bool,
+	diagnosed_errors: bool,
+	ast:              ast.File,
+	imports:          []Package,
+	package_name:     string,
+	allocator:        ^common.Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
+	operating_on:     int, //atomic
+	version:          Maybe(int),
+}
+
+
 DocumentStorage :: struct {
-	documents:       map[string]common.Document,
+	documents:       map[string]Document,
 	free_allocators: [dynamic]^common.Scratch_Allocator,
 }
 
@@ -59,7 +80,7 @@ document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
 	append(&document_storage.free_allocators, allocator)
 }
 
-document_get :: proc(uri_string: string) -> ^common.Document {
+document_get :: proc(uri_string: string) -> ^Document {
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
@@ -78,7 +99,7 @@ document_get :: proc(uri_string: string) -> ^common.Document {
 	return document
 }
 
-document_release :: proc(document: ^common.Document) {
+document_release :: proc(document: ^Document) {
 	if document != nil {
 		intrinsics.atomic_sub(&document.operating_on, 1)
 	}
@@ -114,7 +135,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			return err
 		}
 	} else {
-		document := common.Document {
+		document := Document {
 			uri = uri,
 			text = transmute([]u8)text,
 			client_owned = true,
@@ -136,7 +157,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 	return .None
 }
 
-document_setup :: proc(document: ^common.Document) {
+document_setup :: proc(document: ^Document) {
 		//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 		when ODIN_OS == .Windows {
 			package_name := path.dir(document.uri.path, context.temp_allocator)
@@ -273,7 +294,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	return .None
 }
 
-document_refresh :: proc(document: ^common.Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
 	errors, ok := parse_document(document, config)
 
 	if !ok {
@@ -347,7 +368,7 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	append(&current_errors, error)
 }
 
-parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([]ParserError, bool) {
+parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
 	p := parser.Parser {
 		err = parser_error_handler,
 		warn = common.parser_warning_handler,
@@ -379,8 +400,8 @@ parse_document :: proc(document: ^common.Document, config: ^common.Config) -> ([
 	return current_errors[:], true
 }
 
-parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
-	imports := make([dynamic]common.Package)
+parse_imports :: proc(document: ^Document, config: ^common.Config) {
+	imports := make([dynamic]Package)
 	
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
@@ -402,7 +423,7 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 				continue
 			}
 
-			import_: common.Package
+			import_: Package
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 
 			if imp.name.text != "" {
@@ -418,7 +439,7 @@ parse_imports :: proc(document: ^common.Document, config: ^common.Config) {
 				continue
 			}
 
-			import_: common.Package
+			import_: Package
 			import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator)
 			import_.name = path.clean(import_.name)
 

@@ -16,7 +16,7 @@ import "core:os"
 
 import "shared:common"
 
-get_definition_location :: proc(document: ^common.Document, position: common.Position) -> ([]common.Location, bool) {
+get_definition_location :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	location: common.Location

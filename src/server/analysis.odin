@@ -70,7 +70,7 @@ AstContext :: struct {
 	usings:            [dynamic]string,
 	file:              ast.File,
 	allocator:         mem.Allocator,
-	imports:           []common.Package, //imports for the current document
+	imports:           []Package, //imports for the current document
 	current_package:   string,
 	document_package:  string,
 	use_globals:       bool,
@@ -84,7 +84,7 @@ AstContext :: struct {
 	recursion_counter: int, //Sometimes the ast is so malformed that it causes infinite recursion.
 }
 
-make_ast_context :: proc(file: ast.File, imports: []common.Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
 	ast_context := AstContext {
 		locals = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals = make(map[string]common.GlobalExpr, 0, allocator),
@@ -1875,7 +1875,11 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 					continue
 				}
 				append(&names, identifier.name)
-				append(&types, clone_type(field.type, ast_context.allocator, nil))
+				if v.poly_params != nil {
+					append(&types, clone_type(field.type, ast_context.allocator, nil))
+				} else {
+					append(&types, field.type)
+				}
 				if .Using in field.flags {
 					usings[identifier.name] = true
 				}
@@ -2455,7 +2459,7 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings)
 }
 
-resolve_entire_file :: proc(document: ^common.Document, skip_locals := false, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
+resolve_entire_file :: proc(document: ^Document, skip_locals := false, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, allocator)
 
 	get_globals(document.ast, &ast_context)
@@ -2787,7 +2791,7 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 /*
 	Parser gives ranges of expression, but not actually where the commas are placed.
 */
-get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^common.Document) {
+get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^Document) {
 	if position_context.call == nil {
 		return
 	}
@@ -2834,7 +2838,7 @@ type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 /*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
-get_document_position_context :: proc(document: ^common.Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
+get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
 	position_context: DocumentPositionContext
 
 	position_context.hint = hint
@@ -2911,7 +2915,7 @@ get_document_position_context :: proc(document: ^common.Document, position: comm
 }
 
 //terrible fallback code
-fallback_position_context_completion :: proc(document: ^common.Document, position: common.Position, position_context: ^DocumentPositionContext) {
+fallback_position_context_completion :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 	paren_count:   int
 	bracket_count: int
 	end:           int
@@ -3119,7 +3123,7 @@ fallback_position_context_completion :: proc(document: ^common.Document, positio
 	}
 }
 
-fallback_position_context_signature :: proc(document: ^common.Document, position: common.Position, position_context: ^DocumentPositionContext) {
+fallback_position_context_signature :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
 	end:   int
 	start: int
 	i := position_context.position - 1

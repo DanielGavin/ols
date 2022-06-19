@@ -252,8 +252,10 @@ get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string
 		}
 
 		if tmp != "" {
-			replaced, allocated := strings.replace_all(tmp, "//", "", context.temp_allocator)
-			return strings.clone(replaced, allocator)
+			no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
+			no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
+			no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
+			return strings.clone(no_end_comments, allocator)
 		}
 	}
 

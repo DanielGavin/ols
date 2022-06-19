@@ -49,7 +49,7 @@ RequestType :: enum {
 RequestInfo :: struct {
 	root:     json.Value,
 	params:   json.Value,
-	document: ^common.Document,
+	document: ^Document,
 	id:       RequestId,
 	config:   ^common.Config,
 	writer:   ^Writer,
@@ -360,7 +360,7 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		}
 	}
 
-	log.infof("time duration %v for %v", time.duration_milliseconds(diff), method)
+	log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
@@ -384,7 +384,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
-
 			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
 				ols_config := OlsConfig {
 					formatter = {
@@ -394,7 +393,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 				}
 
 				if unmarshal(value, ols_config, context.temp_allocator) == nil {
-
 					config.thread_count = ols_config.thread_pool_count
 					config.enable_document_symbols = ols_config.enable_document_symbols
 					config.enable_hover = ols_config.enable_hover
@@ -402,6 +400,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					config.enable_semantic_tokens = ols_config.enable_semantic_tokens
 					config.enable_procedure_context = ols_config.enable_procedure_context
 					config.enable_snippets = ols_config.enable_snippets
+					config.enable_references = false
 					config.verbose = ols_config.verbose
 					config.file_log = ols_config.file_log
 					config.formatter = ols_config.formatter
@@ -410,7 +409,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					config.enable_inlay_hints = ols_config.enable_inlay_hints
 					
 					for p in ols_config.collections {
-
 						forward_path, _ := filepath.to_slash(p.path, context.temp_allocator)
 
 						if filepath.is_abs(p.path) {
@@ -481,14 +479,14 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	config.enable_snippets &= initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
 	config.signature_offset_support = initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport
 
-	completionTriggerCharacters  := []string {".", ">", "#", "\"", "/", ":"}
-	signatureTriggerCharacters   := []string {"(", ","}
+	completionTriggerCharacters := []string {".", ">", "#", "\"", "/", ":"}
+	signatureTriggerCharacters := []string {"(", ","}
 	signatureRetriggerCharacters := []string {","}
 
-	token_type     := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
+	token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
 	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
 
-	token_types     := make([]string, len(token_type.names), context.temp_allocator)
+	token_types := make([]string, len(token_type.names), context.temp_allocator)
 	token_modifiers := make([]string, len(token_modifier.names), context.temp_allocator)
 
 	for name, i in token_type.names {
@@ -548,9 +546,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	/*
 		Temp index here, but should be some background thread that starts the indexing
 	*/
-
-	indexer.dynamic_index = make_memory_index(make_symbol_collection(context.allocator, config))
-	indexer.dynamic_uri_owned = make(map[string]bool, 200, context.allocator)
 
 	build_static_index(context.allocator, config)
 
@@ -820,9 +815,9 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
 
 	pkg := new(ast.Package)
-	pkg.kind     = .Normal
+	pkg.kind = .Normal
 	pkg.fullpath = fullpath
-	pkg.name     = dir
+	pkg.name = dir
 
 	if dir == "runtime" {
 		pkg.kind = .Runtime
@@ -839,7 +834,7 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	if !ok {
 		log.errorf("error in parse file for indexing %v", fullpath)
 	}
-
+	/*
 	for k, v in &indexer.dynamic_index.collection.packages {
 		for k2, v2 in &v {
 			if v2.uri == uri.uri {
@@ -854,7 +849,7 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	}
 
 	indexer.dynamic_uri_owned[uri.uri] = true
-
+	*/
 	check(uri, writer, config)
 
 	return .None

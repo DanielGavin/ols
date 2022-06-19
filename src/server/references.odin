@@ -9,7 +9,7 @@ import "core:encoding/json"
 import path "core:path/slashpath"
 import "core:log"
 
-get_references :: proc(document: ^common.Document, position: common.Position) -> ([]common.Location, bool) {
+get_references :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)

@@ -17,7 +17,7 @@ import "core:os"
 
 import "shared:common"
 
-get_document_links :: proc(document: ^common.Document) -> ([]DocumentLink, bool) {
+get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 	links := make([dynamic]DocumentLink, 0, context.temp_allocator)
 
 	for imp in document.ast.imports {

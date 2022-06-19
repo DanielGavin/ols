@@ -9,7 +9,7 @@ FileResolveCache :: struct {
 
 file_resolve_cache: FileResolveCache
 
-resolve_entire_file_cached :: proc(document: ^common.Document) -> map[uintptr]SymbolAndNode{
+resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAndNode{
 	if document.uri.uri not_in file_resolve_cache.files {
 		file_resolve_cache.files[document.uri.uri] = resolve_entire_file(
 			document,

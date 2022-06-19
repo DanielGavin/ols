@@ -110,7 +110,7 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 	}
 }
 
-get_signature_information :: proc(document: ^common.Document, position: common.Position) -> (SignatureHelp, bool) {
+get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
 	signature_help: SignatureHelp
 
 	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
