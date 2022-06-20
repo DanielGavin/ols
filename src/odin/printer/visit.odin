@@ -5,6 +5,7 @@ import "core:odin/tokenizer"
 import "core:strings"
 import "core:fmt"
 import "core:sort"
+import "core:strconv"
 
 //right now the attribute order is not linearly parsed(bug?)
 @(private)
@@ -1201,8 +1202,16 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_nopl(document, visit_expr(p, v.type))
 		}
 
-		//If we call from the value declartion, we want it to be nicely newlined and aligned
-		if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
+		if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && is_matrix_type_constant(matrix_type) {
+			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
+			
+			set_source_position(p, v.open)
+			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))))
+			set_source_position(p, v.end)
+
+			document = cons(document, cons(newline(1), text_position(p, "}", v.end)))		
+		}
+		else if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
 			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 			
 			set_source_position(p, v.open)
@@ -1232,11 +1241,11 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons(document, text(")"))
 		}
 	case ^Pointer_Type:
-		return cons(text("^"), visit_expr(p, v.elem))
+		document = cons(text("^"), visit_expr(p, v.elem))
 	case ^Multi_Pointer_Type:
-		return cons(text("[^]"), visit_expr(p, v.elem))
+		document = cons(text("[^]"), visit_expr(p, v.elem))
 	case ^Implicit:
-		return text_token(p, v.tok)
+		document = text_token(p, v.tok)
 	case ^Poly_Type:
 		document = cons(text("$"), visit_expr(p, v.type))
 
@@ -1264,7 +1273,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_count))
 		document = cons(document, text("]"))
-		document = cons(document, visit_expr(p, v.elem))
+		document = cons(group(document), visit_expr(p, v.elem))
 	case ^Matrix_Index_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons(document, text("["))
@@ -1278,6 +1287,43 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 	return cons(comments, document)
 }
+
+@(private)
+is_matrix_type_constant :: proc(matrix_type: ^ast.Matrix_Type) -> bool {
+	if row_count, is_lit := matrix_type.row_count.derived.(^ast.Basic_Lit); is_lit {
+		_, ok := strconv.parse_int(row_count.tok.text)
+		return ok
+	}
+
+	if column_count, is_lit := matrix_type.column_count.derived.(^ast.Basic_Lit); is_lit {
+		_, ok := strconv.parse_int(column_count.tok.text)
+		return ok
+	}
+
+	return false
+}
+
+@(private)
+visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type: ^ast.Matrix_Type) -> ^Document {
+	document := empty()
+
+	//these values have already been validated
+	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
+	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
+	
+	for row := 0; row < row_count; row += 1 {
+		for column := 0; column < column_count; column += 1 {
+			document = cons(document, visit_expr(p, comp_lit.elems[column + row * row_count]))
+			document = cons(document, text(", "))
+		}
+		if row != row_count - 1 {
+			document = cons(document, newline(1))
+		}
+	}
+
+	return document
+}
+
 
 @(private)
 visit_begin_brace :: proc(p: ^Printer, begin: tokenizer.Pos, type: Block_Type, count := 0, same_line_spaces_before := 1) -> ^Document {
