@@ -16,7 +16,6 @@ SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
 	packages:       map[string]map[string]Symbol,
-	references:     map[string]map[string]Reference,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
 }
 
@@ -43,7 +42,6 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 		allocator = allocator,
 		config = config,
 		packages = make(map[string]map[string]Symbol, 16, allocator),
-		references = make(map[string]map[string]Reference, 100, allocator),
 		unique_strings = make(map[string]string, 16, allocator),
 	}
 }
@@ -55,16 +53,6 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}	
 	}
 
-	for _, pkg in collection.references {
-		for _, reference in pkg {
-			delete(reference.identifiers)
-			for _, field in reference.selectors {
-				delete(field)
-			}
-			delete(reference.selectors)
-		}
-	}
-
 	for k, v in collection.unique_strings {
 		delete(v, collection.allocator)
 	}
@@ -73,11 +61,6 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		delete(v)
 	}
 
-	for k, v in collection.references {
-		delete(v)
-	}
-
-	delete(collection.references)
 	delete(collection.packages)
 	delete(collection.unique_strings)
 }
@@ -434,6 +417,7 @@ Reference :: struct {
 	selectors: map[string][dynamic]common.Range, 
 }
 
+/*
 collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	document := Document {
 		ast = file,
@@ -485,7 +469,7 @@ collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: s
 
 	return .None
 }
-
+*/
 
 /*
 	Gets the map from import alias to absolute package directory

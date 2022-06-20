@@ -22,6 +22,7 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
+	/*
 	if position_context.identifier != nil { 
 		ast_context.use_locals = true
 		ast_context.use_globals = true
@@ -40,7 +41,7 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 	
 
 	}
-
+	*/
 
 	return locations[:], true
 }

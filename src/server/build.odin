@@ -41,10 +41,9 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Freestanding = "freestanding",
 }
 
-
-walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
+walk_directory :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
 	if info.is_dir {
-		return 0, false
+		return 0, true
 	}
 
 	if filepath.ext(info.name) != ".odin" {
@@ -70,6 +69,23 @@ walk_static_index_build :: proc(info: os.File_Info, in_err: os.Errno) -> (err: o
 
 	return 0, false
 }
+
+/*
+try_build_package :: proc(pkg: string) {
+
+	
+	
+
+
+}
+
+evict_old_build_packages :: proc() {
+
+}
+*/
+
+/*
+
 
 build_static_index :: proc(allocator := context.allocator, config: ^common.Config) {
 	symbol_collection = make_symbol_collection(allocator, config)
@@ -205,7 +221,7 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 
 	indexer.index = make_memory_index(symbol_collection)
 }
-
+*/
 free_static_index :: proc() {
 	delete_symbol_collection(symbol_collection)
 }

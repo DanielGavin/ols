@@ -544,12 +544,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	send_response(response, writer)
 
 	/*
-		Temp index here, but should be some background thread that starts the indexing
-	*/
-
-	build_static_index(context.allocator, config)
-
-	/*
 		Add runtime package
 	*/
 
