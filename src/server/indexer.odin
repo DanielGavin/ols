@@ -6,39 +6,10 @@ import "core:strings"
 import "core:log"
 import "core:sort"
 
-/*
-	Concept ideas:
-
-	static indexing:
-
-	is responsible for implementing the indexing of symbols for static files.
-
-	This is to solve the scaling problem of large projects with many files and symbols, as most of these files will be static.
-
-	Possible scopes for static files:
-	global scope (we don't have hiarachy of namespaces and therefore only need to look at the global scope)
-
-	Scopes not part of the indexer:
-	function scope, file scope, package scope(these are only relevant for dynamic active files in your project, that use the ast instead of indexing)
-
-	Potential features:
-	Allow for saving the indexer, instead of recreating it everytime the lsp starts(but you would have to account for stale data).
-
-
-	dynamic indexing:
-
-	When the user modifies files we need some smaller index to handle everything the user is using right now. This will allow
-	us to rebuild parts of the index without too much of a performance hit.
-
-	This index is first searched and if nothing is found look in the static index.
-*/
-
-
 
 Indexer :: struct {
 	builtin_packages:  [dynamic]string,
 	index:             MemoryIndex,
-	dynamic_uri_owned: map[string]bool,
 }
 
 indexer: Indexer
@@ -49,7 +20,7 @@ FuzzyResult :: struct {
 }
 
 lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
-	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok && symbol.uri not_in indexer.dynamic_uri_owned {
+	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
 		log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc)
 		return symbol, true
 	}

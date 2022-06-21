@@ -29,7 +29,6 @@ platform_os: map[string]bool = {
 	"wasm32" = true,
 }
 
-
 os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Windows = "windows",
 	.Darwin = "darwin",
