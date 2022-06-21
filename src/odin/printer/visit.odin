@@ -1200,18 +1200,21 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 		if v.type != nil {
 			document = cons_with_nopl(document, visit_expr(p, v.type))
-		}
-
-		if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && is_matrix_type_constant(matrix_type) {
-			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 			
-			set_source_position(p, v.open)
-			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))))
-			set_source_position(p, v.end)
+			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && is_matrix_type_constant(matrix_type) {
+				document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 
-			document = cons(document, cons(newline(1), text_position(p, "}", v.end)))		
+				set_source_position(p, v.open)
+				document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))))
+				set_source_position(p, v.end)
+
+				document = cons(document, cons(newline(1), text_position(p, "}", v.end)))	
+				
+				break
+			}
 		}
-		else if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
+	
+		if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
 			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 			
 			set_source_position(p, v.open)
