@@ -21,6 +21,7 @@ get_complete_format :: proc(document: ^common.Document, config: ^common.Config) 
 	style := printer.default_style
 	style.max_characters = config.formatter.characters
 	style.tabs = config.formatter.tabs
+	style.spaces = config.formatter.spaces
 
 	prnt := printer.make_printer(style, context.temp_allocator)
 
