@@ -19,10 +19,16 @@ DocumentFormattingParams :: struct {
 
 get_complete_format :: proc(document: ^common.Document, config: ^common.Config) -> ([]TextEdit, bool) {
 	style := printer.default_style
-	style.max_characters = config.formatter.characters
 	style.tabs = config.formatter.tabs
-	style.spaces = config.formatter.spaces
 
+	if characters, ok := config.formatter.characters.(int); ok {
+		style.max_characters = characters
+	}
+
+	if spaces, ok := config.formatter.spaces.(int); ok {
+		style.spaces = spaces
+	} 
+	
 	prnt := printer.make_printer(style, context.temp_allocator)
 
 	if document.ast.syntax_error_count > 0 {
