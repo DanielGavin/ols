@@ -27,8 +27,8 @@ Config :: struct {
 
 Format_Config :: struct {
 	tabs: bool,
-	characters: int,
-	spaces: int,
+	characters: Maybe(int),
+	spaces: Maybe(int),
 }
 
 config: Config;
