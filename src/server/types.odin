@@ -142,10 +142,10 @@ GeneralClientCapabilities :: struct {
 
 CompletionItemCapabilities :: struct {
 	snippetSupport: bool,
+	documentationFormat: [dynamic]string,
 }
 
 CompletionClientCapabilities :: struct {
-	documentationFormat: [dynamic]string,
 	completionItem:      CompletionItemCapabilities,
 }
 
