@@ -59,7 +59,6 @@ Document_Align :: struct {
 Document_Group_Mode :: enum {
 	Flat,
 	Break,
-	Fill,
 	Fit,
 }
 
@@ -162,15 +161,6 @@ group :: proc(grouped_document: ^Document, allocator := context.allocator) -> ^D
 	return document
 }
 
-fill_group :: proc(grouped_document: ^Document, allocator := context.allocator) -> ^Document {
-	document := new(Document, allocator)
-	document^ = Document_Group {
-		document = grouped_document,
-		mode = .Fill,
-	}
-	return document
-}
-
 cons :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Cons {
@@ -251,8 +241,6 @@ fits :: proc(width: int, list: ^[dynamic]Tuple, consumed: ^int) -> bool {
 			if data.mode == .Break && v.newline {
 				consumed^ = start_width - width
 				return true
-			} else if data.mode == .Fill && v.newline && width > 0 {
-				return true
 			} else {
 				width -= len(v.value)
 			}
@@ -266,7 +254,8 @@ fits :: proc(width: int, list: ^[dynamic]Tuple, consumed: ^int) -> bool {
 	}
 
 	consumed^ = start_width - width
-	return true
+
+	return width <= 0
 }
 
 format_newline :: proc(indentation: int, alignment: int, consumed: ^int, builder: ^strings.Builder, p: ^Printer) {
@@ -318,11 +307,6 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		case Document_Break:
 			if data.mode == .Break && v.newline {
 				format_newline(data.indentation, data.alignment, &consumed, builder, p)
-			} else if data.mode == .Fill && consumed + len(v.value) < width {
-				strings.write_string(builder, v.value)
-				consumed += len(v.value)
-			} else if data.mode == .Fill && v.newline {
-				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
@@ -349,9 +333,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			else if fits(width-consumed, &l, &fits_consumed) && v.mode != .Break {
 				append(list, Tuple {indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment})
 			} else {
-				if v.mode == .Fill {
-					append(list, Tuple {indentation = data.indentation, mode = .Fill, document = v.document, alignment = data.alignment})
-				} else if v.mode == .Fit {
+				if v.mode == .Fit {
 					append(list, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
 				} else {
 					append(list, Tuple {indentation = data.indentation, mode = .Break, document = v.document, alignment = data.alignment})

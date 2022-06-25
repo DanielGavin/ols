@@ -307,11 +307,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		}
 
 		if len(v.values) > 0 {
-			if is_values_binary(p, v.values) {
-				return cons(document, fill_group(cons_with_opl(group(lhs), align(fill_group(rhs)))))
-			} else {
-				return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))
-			}		
+			return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))	
 		} else {
 			return cons(document, group(lhs))
 		}
@@ -320,16 +316,6 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	}
 
 	return empty()
-}
-
-@(private)
-is_values_binary :: proc(p: ^Printer, list: []^ast.Expr) -> bool {
-	for expr in list {
-		if _, bin := expr.derived.(^ast.Binary_Expr); bin {
-			return true
-		}
-	}
-	return false
 }
 
 @(private)
@@ -622,7 +608,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		if v.cond != nil {
-			if_document = cons_with_nopl(if_document, fill_group(visit_expr(p, v.cond)))
+			if_document = cons_with_nopl(if_document, group(visit_expr(p, v.cond)))
 		}
 
 		document = cons(document, group(hang(3, if_document)))
@@ -702,11 +688,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), text(v.op.text)))
 
 		if block_stmt {
-			if should_align_assignment_stmt(p, v^) {
-				assign_document = fill_group(cons(assign_document, align(cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
-			} else {
-				assign_document = fill_group(cons(assign_document, cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))))
-			}
+			assign_document = group(cons(assign_document, nest(p.indentation_count, cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
 		} else {
 			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))
 		}
@@ -731,7 +713,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		if v.cond != nil {
 			set_source_position(p, v.cond.pos)
-			for_document = cons_with_opl(for_document, fill_group(visit_expr(p, v.cond)))
+			for_document = cons_with_opl(for_document, group(visit_expr(p, v.cond)))
 		}
 
 		if v.post != nil {
@@ -893,20 +875,6 @@ contains_do_in_expression :: proc(p: ^Printer, expr: ^ast.Expr) -> bool {
 	ast.walk(&visit, expr)
 
 	return found_do
-}
-
-@(private)
-should_align_assignment_stmt :: proc(p: ^Printer, stmt: ast.Assign_Stmt) -> bool {
-	if len(stmt.rhs) == 0 {
-		return false
-	}
-
-	for expr in stmt.rhs {
-		if _, ok := stmt.rhs[0].derived.(^ast.Binary_Expr); ok {
-			return true
-		}
-	}	
-	return false
 }
 
 @(private)
@@ -1174,11 +1142,12 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Selector_Expr:
 		document = cons(visit_expr(p, v.expr), cons(text_token(p, v.op), visit_expr(p, v.field)))
 	case ^Paren_Expr:
-		document = cons(text("("), cons(visit_expr(p, v.expr), text(")")))
+		fmt.println(p.indentation_count)
+		document = group(cons(text("("), cons(nest(p.indentation_count, visit_expr(p, v.expr)), text(")"))))
 	case ^Index_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons(document, text("["))
-		document = cons(document, fill_group(align(visit_expr(p, v.index))))
+		document = cons(document, group(align(visit_expr(p, v.index))))
 		document = cons(document, text("]"))
 	case ^Proc_Group:
 		document = text_token(p, v.tok)
@@ -1512,25 +1481,64 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 }
 
 @(private)
-visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
-	lhs: ^Document
-	rhs: ^Document
-
+extract_binary_expr :: proc(list: ^[dynamic]any, binary: ast.Binary_Expr) {
 	if v, ok := binary.left.derived.(^ast.Binary_Expr); ok {
-		lhs = visit_binary_expr(p, v^)
+		extract_binary_expr(list, v^)
 	} else {
-		lhs = visit_expr(p, binary.left)
+		append(list, binary.left)
 	}
+
+	append(list, binary.op.text)
 
 	if v, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-		rhs = visit_binary_expr(p, v^)
+		extract_binary_expr(list, v^)
 	} else {
-		rhs = visit_expr(p, binary.right)
+		append(list, binary.right)
+	}
+}
+
+
+@(private)
+visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
+	list := make([dynamic]any)
+
+	extract_binary_expr(&list, binary)
+
+
+	first_order := empty()
+	second_order := empty()
+
+	last_op := ""
+
+	is_first_order :: proc(s: string) -> bool {
+		return s == "+" || s == "-"
 	}
 
-	op := text(binary.op.text)
+	for item, i in list {
+		switch v in item {
+			case ^ast.Expr:
+				if len(list) - 1 == i {
+					if is_first_order(last_op) {
+						first_order = cons(first_order, visit_expr(p, v))
+					} else {
+						second_order = cons(second_order, visit_expr(p, v))
+						first_order = cons(first_order, group(nest(p.indentation_count, second_order)))
+					}
+				} else {
+					last_op := list[i+1].(string) 
+	
+					if is_first_order(last_op) {
+						first_order = cons(first_order, group(nest(p.indentation_count, second_order)))
+						second_order = empty()
+						first_order = cons(first_order, cons_with_nopl(visit_expr(p, v), cons(text(last_op), break_with_space())))
+					} else {
+						second_order = cons(second_order, cons_with_nopl(visit_expr(p, v), cons(text(last_op), break_with_space())))
+					}
+				}
+		}
+	}
 
-	return cons_with_nopl(lhs, cons_with_opl(op, rhs))
+	return group(nest(p.indentation_count, first_order))
 }
 
 @(private)
@@ -1543,8 +1551,9 @@ visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 		if i == len(call_expr.args) - 1 && ellipsis {
 			document = cons(document, text(".."))
 		}
+
 		document = cons(document, group(visit_expr(p, expr)))
-		
+				
 		if i != len(call_expr.args) - 1 {
 			document = cons(document, text(","))
 
