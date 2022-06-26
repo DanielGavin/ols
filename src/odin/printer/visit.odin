@@ -1,6 +1,7 @@
 package odin_printer
 
 import "core:odin/ast"
+import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:strings"
 import "core:fmt"
@@ -307,7 +308,11 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		}
 
 		if len(v.values) > 0 {
-			return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))	
+			if is_values_binary(p, v.values) {
+				return cons(document, nest(p.indentation_count, group(cons_with_opl(group(lhs), group(rhs)))))
+			} else {
+				return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))	
+			}
 		} else {
 			return cons(document, group(lhs))
 		}
@@ -316,6 +321,16 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	}
 
 	return empty()
+}
+
+@(private)
+is_values_binary :: proc(p: ^Printer, list: []^ast.Expr) -> bool {
+	for expr in list {
+		if _, bin := expr.derived.(^ast.Binary_Expr); bin {
+			return true
+		}
+	}
+	return false
 }
 
 @(private)
@@ -688,11 +703,11 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), text(v.op.text)))
 
 		if block_stmt {
-			assign_document = group(cons(assign_document, nest(p.indentation_count, cons(break_with_space(), visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
+			assign_document = cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
 		} else {
-			assign_document = cons_with_nopl(assign_document, visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt))
+			assign_document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
 		}
-		document = cons(document, group(assign_document))
+		document = cons(document, group(nest(p.indentation_count, assign_document)))
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
@@ -1108,7 +1123,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Basic_Lit:
 		document = text_token(p, v.tok)
 	case ^Binary_Expr:
-		document = visit_binary_expr(p, v^)
+		document = visit_binary_expr(p, v^, true)
 	case ^Implicit_Selector_Expr:
 		document = cons(text("."), text_position(p, v.field.name, v.field.pos))
 	case ^Call_Expr:
@@ -1142,7 +1157,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Selector_Expr:
 		document = cons(visit_expr(p, v.expr), cons(text_token(p, v.op), visit_expr(p, v.field)))
 	case ^Paren_Expr:
-		fmt.println(p.indentation_count)
 		document = group(cons(text("("), cons(nest(p.indentation_count, visit_expr(p, v.expr)), text(")"))))
 	case ^Index_Expr:
 		document = visit_expr(p, v.expr)
@@ -1170,7 +1184,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		if v.type != nil {
 			document = cons_with_nopl(document, visit_expr(p, v.type))
 			
-			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && is_matrix_type_constant(matrix_type) {
+			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
 				document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
 
 				set_source_position(p, v.open)
@@ -1282,17 +1296,18 @@ visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type:
 	//these values have already been validated
 	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
 	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
-	
+
 	for row := 0; row < row_count; row += 1 {
 		for column := 0; column < column_count; column += 1 {
-			document = cons(document, visit_expr(p, comp_lit.elems[column + row * row_count]))
+			document = cons(document, visit_expr(p, comp_lit.elems[column + row * column_count]))
 			document = cons(document, text(", "))
 		}
-		if row != row_count - 1 {
+
+		if row_count - 1 != row {
 			document = cons(document, newline(1))
 		}
 	}
-
+	
 	return document
 }
 
@@ -1480,65 +1495,40 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 	return document
 }
 
-@(private)
-extract_binary_expr :: proc(list: ^[dynamic]any, binary: ast.Binary_Expr) {
-	if v, ok := binary.left.derived.(^ast.Binary_Expr); ok {
-		extract_binary_expr(list, v^)
-	} else {
-		append(list, binary.left)
-	}
-
-	append(list, binary.op.text)
-
-	if v, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-		extract_binary_expr(list, v^)
-	} else {
-		append(list, binary.right)
-	}
-}
-
 
 @(private)
-visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr) -> ^Document {
-	list := make([dynamic]any)
+visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) -> ^Document {
+	document := empty()
 
-	extract_binary_expr(&list, binary)
+	nest_first_expression := false
 
+	if binary.left != nil {		
+		if b, ok := binary.left.derived.(^ast.Binary_Expr); ok {
+			nest_first_expression = parser.token_precedence(nil,  b.op.kind) != parser.token_precedence(nil, binary.op.kind) 
+			document = cons(document, visit_binary_expr(p, b^))
+		} else {
+			document = cons(document, visit_expr(p, binary.left))
+		}
+	} 
 
-	first_order := empty()
-	second_order := empty()
-
-	last_op := ""
-
-	is_first_order :: proc(s: string) -> bool {
-		return s == "+" || s == "-"
+	if first {
+		if nest_first_expression {
+			document = nest(p.indentation_count, document)
+		}
+		document = group(document)
 	}
 
-	for item, i in list {
-		switch v in item {
-			case ^ast.Expr:
-				if len(list) - 1 == i {
-					if is_first_order(last_op) {
-						first_order = cons(first_order, visit_expr(p, v))
-					} else {
-						second_order = cons(second_order, visit_expr(p, v))
-						first_order = cons(first_order, group(nest(p.indentation_count, second_order)))
-					}
-				} else {
-					last_op := list[i+1].(string) 
-	
-					if is_first_order(last_op) {
-						first_order = cons(first_order, group(nest(p.indentation_count, second_order)))
-						second_order = empty()
-						first_order = cons(first_order, cons_with_nopl(visit_expr(p, v), cons(text(last_op), break_with_space())))
-					} else {
-						second_order = cons(second_order, cons_with_nopl(visit_expr(p, v), cons(text(last_op), break_with_space())))
-					}
-				}
+	document = cons_with_nopl(document, text(binary.op.text))
+
+	if binary.right != nil {
+		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
+			document = cons_with_opl(document, group(nest(p.indentation_count, visit_binary_expr(p, b^))))
+		} else {
+			document = cons_with_opl(document, group(nest(p.indentation_count, visit_expr(p, binary.right))))
 		}
 	}
 
-	return group(nest(p.indentation_count, first_order))
+	return document
 }
 
 @(private)
