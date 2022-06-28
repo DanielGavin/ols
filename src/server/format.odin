@@ -1,8 +1,9 @@
 package server
 
 import "shared:common"
-
 import "shared:odin/printer"
+
+import "core:log"
 
 FormattingOptions :: struct {
 	tabSize:                uint,
@@ -41,7 +42,9 @@ get_complete_format :: proc(document: ^common.Document, config: ^common.Config) 
 
 	src := printer.print(&prnt, &document.ast)
 
-	end_line     := 0
+	log.error(src)
+
+	end_line := 0
 	end_charcter := 0
 
 	last := document.text[0]

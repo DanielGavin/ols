@@ -1785,8 +1785,18 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 		symbol.name = "union"
 	}
 
+	types  := make([dynamic]^ast.Expr, ast_context.allocator)
+
+	for variant in v.variants {
+		if v.poly_params != nil {
+			append(&types, clone_type(variant, ast_context.allocator, nil))
+		} else {
+			append(&types, variant)
+		}
+	}
+
 	symbol.value = SymbolUnionValue {
-		types = v.variants,
+		types = types[:],
 	}
 
 	if v.poly_params != nil {

@@ -424,7 +424,7 @@ visit_union_exprs :: proc(p: ^Printer, union_type: ast.Union_Type, options := Li
 
 	for expr, i in union_type.variants {
 		if i == 0 && .Enforce_Newline in options {
-			comment, ok := visit_comments(p,  union_type.variants[i].pos)			
+			comment, ok := visit_comments(p, union_type.variants[i].pos)			
 			if _, is_nil := comment.(Document_Nil); !is_nil {
 				comment = cons(comment, newline(1))
 			}
@@ -532,6 +532,9 @@ visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos:
 visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document {
 	if .No_Bounds_Check in flags {
 		return cons(text("#no_bounds_check"), break_with_no_newline())
+	}
+	if .Bounds_Check in flags {
+		return cons(text("#bounds_check"), break_with_no_newline())
 	}
 	return empty()
 }
@@ -703,11 +706,18 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), text(v.op.text)))
 
 		if block_stmt {
-			assign_document = cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
+			if is_values_binary(p, v.rhs) {
+				document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
+			} else {
+				document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
+			}
 		} else {
-			assign_document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
+			if is_values_binary(p, v.rhs) {
+				document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
+			} else {
+				document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
+			}
 		}
-		document = cons(document, group(nest(p.indentation_count, assign_document)))
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
@@ -1251,7 +1261,10 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(document, text("]"))
 		document = cons(document, visit_expr(p, v.value))
 	case ^Helper_Type:
-		document = visit_expr(p, v.type)
+		if v.tok == .Hash {
+			document = cons(document, text("#type"))
+		}
+		document = cons_with_nopl(document, visit_expr(p, v.type))
 	case ^Matrix_Type:
 		document = text_position(p, "matrix", v.pos)
 		document = cons(document, text("["))
@@ -1442,6 +1455,29 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 }
 
 @(private)
+visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
+	document := empty()
+
+	if .Bounds_Check in proc_tags {
+		document = cons_with_opl(document, text("#bounds_check"))
+	}
+
+	if .No_Bounds_Check in proc_tags {
+		document = cons_with_opl(document, text("#no_bounds_check"))
+	}
+
+	if .Optional_Ok in proc_tags {
+		document = cons_with_opl(document, text("#optional_ok"))
+	}
+
+	if .Optional_Second in proc_tags {
+		document = cons_with_opl(document, text("#optional_second"))
+	}
+
+	return document
+}
+
+@(private)
 visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 	document := text("proc")
 
@@ -1492,6 +1528,8 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 		document = cons_with_nopl(document, text("!"))
 	}
 
+	document = cons_with_opl(document, visit_proc_tags(p, proc_type.tags))
+
 	return document
 }
 
@@ -1511,11 +1549,12 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) 
 		}
 	} 
 
-	if first {
+	if true {
 		if nest_first_expression {
 			document = nest(p.indentation_count, document)
+			document = group(document)
 		}
-		document = group(document)
+		
 	}
 
 	document = cons_with_nopl(document, text(binary.op.text))
