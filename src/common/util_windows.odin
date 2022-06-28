@@ -32,16 +32,18 @@ get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocato
 	file := win32.CreateFileW(&wide[0], 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
 
 	if(file == win32.INVALID_HANDLE)
-    {
+    	{
 		log_last_error()
-        return "";
-    }
+        	return "";
+    	}
 
 	buffer := make([]u16, 512, context.temp_allocator)
 
 	ret := win32.GetFinalPathNameByHandleW(file, &buffer[0], cast(u32)len(buffer), 0)
 
 	res, _ := win32.utf16_to_utf8(buffer[4:], allocator)
+
+	win32.CloseHandle(file)
 
 	return res
 }
