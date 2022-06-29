@@ -22,12 +22,12 @@ get_complete_format :: proc(document: ^common.Document, config: ^common.Config) 
 	style := printer.default_style
 	style.tabs = config.formatter.tabs
 
-	if characters, ok := config.formatter.characters.(int); ok {
-		style.max_characters = characters
+	if config.formatter.characters != 0 {
+		style.max_characters = config.formatter.characters
 	}
 
-	if spaces, ok := config.formatter.spaces.(int); ok {
-		style.spaces = spaces
+	if config.formatter.spaces != 0 {
+		style.spaces = config.formatter.spaces
 	} 
 	
 	prnt := printer.make_printer(style, context.temp_allocator)
