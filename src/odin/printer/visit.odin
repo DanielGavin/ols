@@ -308,7 +308,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		}
 
 		if len(v.values) > 0 {
-			if is_values_binary(p, v.values) {
+			if is_values_nestable_assign(v.values) {
 				return cons(document, nest(p.indentation_count, group(cons_with_opl(group(lhs), group(rhs)))))
 			} else {
 				return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))	
@@ -324,10 +324,11 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 }
 
 @(private)
-is_values_binary :: proc(p: ^Printer, list: []^ast.Expr) -> bool {
+is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 	for expr in list {
-		if _, bin := expr.derived.(^ast.Binary_Expr); bin {
-			return true
+		#partial switch v in expr.derived {
+		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Call_Expr, ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
+			return true	
 		}
 	}
 	return false
@@ -705,19 +706,13 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	case ^Assign_Stmt:
 		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), text(v.op.text)))
 
-		if block_stmt {
-			if is_values_binary(p, v.rhs) {
-				document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
-			} else {
-				document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
-			}
+		rhs := visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)
+		if is_values_nestable_assign(v.rhs) {
+			document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(rhs))))
 		} else {
-			if is_values_binary(p, v.rhs) {
-				document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))))
-			} else {
-				document = cons_with_nopl(assign_document, group(visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)))
-			}
+			document = group(cons_with_nopl(assign_document, group(rhs)))
 		}
+		
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
@@ -1048,7 +1043,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, text("}"))
 		} else {
-			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))		
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))		
 			set_source_position(p, v.variants[0].pos)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.pos), visit_union_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			set_source_position(p, v.end)
@@ -1177,7 +1172,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = text_token(p, v.tok)
 
 		if len(v.args) != 0 {
-			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.args[0].pos)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.args[0].pos), visit_exprs(p, v.args, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			document = cons(document, visit_end_brace(p, v.end, 1))
@@ -1195,7 +1190,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_nopl(document, visit_expr(p, v.type))
 			
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type); ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
-				document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
+				document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 
 				set_source_position(p, v.open)
 				document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))))
@@ -1208,13 +1203,13 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		}
 	
 		if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
-			document = cons_with_opl(document, visit_begin_brace(p, v.pos, .Generic))
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 			
 			set_source_position(p, v.open)
 			document = cons(document, nest(p.indentation_count, cons(newline_position(p, 1, v.elems[0].pos), visit_comp_lit_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}))))
 			set_source_position(p, v.end)
 
-			document = cons(document, cons(newline(1), text_position(p, "}", v.end)))			
+			document = cons(document, cons(newline(1), text_position(p, "}", v.end)))		
 		} else {
 			document = cons(document, text("{"))
 			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma, .Group}))))
