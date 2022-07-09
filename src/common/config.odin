@@ -28,6 +28,7 @@ Config :: struct {
 Format_Config :: struct {
 	tabs: bool,
 	characters: int,
+	spaces: int,
 }
 
 config: Config;

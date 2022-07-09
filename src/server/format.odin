@@ -1,8 +1,9 @@
 package server
 
 import "shared:common"
-
 import "shared:odin/printer"
+
+import "core:log"
 
 FormattingOptions :: struct {
 	tabSize:                uint,
@@ -19,9 +20,16 @@ DocumentFormattingParams :: struct {
 
 get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]TextEdit, bool) {
 	style := printer.default_style
-	style.max_characters = config.formatter.characters
 	style.tabs = config.formatter.tabs
 
+	if config.formatter.characters != 0 {
+		style.max_characters = config.formatter.characters
+	}
+
+	if config.formatter.spaces != 0 {
+		style.spaces = config.formatter.spaces
+	} 
+	
 	prnt := printer.make_printer(style, context.temp_allocator)
 
 	if document.ast.syntax_error_count > 0 {
@@ -34,7 +42,9 @@ get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]T
 
 	src := printer.print(&prnt, &document.ast)
 
-	end_line     := 0
+	log.error(src)
+
+	end_line := 0
 	end_charcter := 0
 
 	last := document.text[0]
