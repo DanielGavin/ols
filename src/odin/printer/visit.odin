@@ -1555,7 +1555,10 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) 
 
 	if binary.left != nil {		
 		if b, ok := binary.left.derived.(^ast.Binary_Expr); ok {
-			nest_first_expression = parser.token_precedence(nil,  b.op.kind) != parser.token_precedence(nil, binary.op.kind) 
+			pa := parser.Parser {
+				allow_in_expr = true,
+			}
+			nest_first_expression = parser.token_precedence(&pa,  b.op.kind) != parser.token_precedence(nil, binary.op.kind) 
 			document = cons(document, visit_binary_expr(p, b^))
 		} else {
 			document = cons(document, visit_expr(p, binary.left))
