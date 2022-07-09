@@ -1034,6 +1034,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 			case SymbolPackageValue:
 				ast_context.current_package = selector.pkg
 
+				try_build_package(ast_context.current_package)
+
 				if v.field != nil {
 						return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))	
 				} else {

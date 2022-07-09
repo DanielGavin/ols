@@ -106,17 +106,14 @@ try_build_package :: proc(pkg_name: string) {
 	} 
 }
 
-/*
-
-evict_old_build_packages :: proc() {
-
-}
-*/
-
 setup_index :: proc() {
 	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
 	symbol_collection := make_symbol_collection(context.allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
+
+	dir_exe := path.dir(os.args[0])
+
+	try_build_package(path.join(dir_exe, "builtin"))
 }
 
 free_index :: proc() {

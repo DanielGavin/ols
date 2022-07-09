@@ -799,18 +799,18 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 }
 
-CombinedResult :: struct {
-	score:     f32,
-	snippet:   Snippet_Info,	
-	name:      string,
-	type:      SymbolType,
-	doc:       string,
-	pkg:       string,
-	signature: string,
-	flags:     SymbolFlags,
-}
-
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+	CombinedResult :: struct {
+		score:     f32,
+		snippet:   Snippet_Info,	
+		name:      string,
+		type:      SymbolType,
+		doc:       string,
+		pkg:       string,
+		signature: string,
+		flags:     SymbolFlags,
+	}
+
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = true
@@ -1001,21 +1001,10 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 	}
 
-	for f in combined {
-		//log.error(f.name, " ")
-	}
-	
-	//log.error("sorting done \n")
-
 	slice.sort_by(combined[:], proc(i, j: CombinedResult) -> bool {
 		return j.score < i.score
 	})
 
-	for f in combined {
-		//log.error(f.name, " ")
-	}
-
-	
 	//hard code for now
 	top_results := combined[0:(min(50, len(combined)))]
 

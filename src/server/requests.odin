@@ -418,9 +418,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 						}
 					}
 
-					if ok := "" in config.collections; !ok {
-						config.collections[""] = strings.clone(uri.path)
-					}
 				} else {
 					log.errorf("Failed to unmarshal %v", file)
 				}
@@ -826,22 +823,23 @@ notification_did_save :: proc (params: json.Value, id: RequestId, config: ^commo
 	if !ok {
 		log.errorf("error in parse file for indexing %v", fullpath)
 	}
-	/*
-	for k, v in &indexer.dynamic_index.collection.packages {
+
+	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
+	
+	for k, v in &indexer.index.collection.packages {
 		for k2, v2 in &v {
-			if v2.uri == uri.uri {
-				free_symbol(v2, context.allocator)
+			if corrected_uri.uri == v2.uri {
+				free_symbol(v2, indexer.index.collection.allocator)
 				v[k2] = {}
 			} 
 		}
 	}
 
-	if ret := collect_symbols(&indexer.dynamic_index.collection, file, uri.uri); ret != .None {
+	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	indexer.dynamic_uri_owned[uri.uri] = true
-	*/
+	
 	check(uri, writer, config)
 
 	return .None
