@@ -22,8 +22,10 @@ Printer :: struct {
 	indentation:          string,
 	newline:              string,
 	indentation_count:    int,
+	indentation_width:    int,
 	disabled_lines:       map[int]Disabled_Info,
 	disabled_until_line:  int,
+	group_modes:          map[string]Document_Group_Mode,
 	src:                  string,
 }
 
@@ -37,6 +39,7 @@ Config :: struct {
 	spaces:               int,  //Spaces per indentation
 	newline_limit:        int,  //The limit of newlines between statements and declarations.
 	tabs:                 bool, //Enable or disable tabs
+	tabs_width:           int,
 	convert_do:           bool, //Convert all do statements to brace blocks
 	brace_style:          Brace_Style,
 	indent_cases:         bool,
@@ -77,6 +80,7 @@ when ODIN_OS ==  .Windows {
 		newline_limit        = 2,
 		convert_do           = false,
 		tabs                 = true,
+		tabs_width           = 4,
 		brace_style          = ._1TBS,
 		indent_cases         = false,
 		newline_style        = .CRLF,
@@ -88,6 +92,7 @@ when ODIN_OS ==  .Windows {
 		newline_limit        = 2,
 		convert_do           = false,
 		tabs                 = true,
+		tabs_width           = 4,
 		brace_style          = ._1TBS,
 		indent_cases         = false,
 		newline_style        = .LF,
@@ -164,9 +169,11 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	if p.config.tabs {
 		p.indentation = "\t"
 		p.indentation_count = 1
+		p.indentation_width = p.config.tabs_width
 	} else {
 		p.indentation_count = p.config.spaces
 		p.indentation = " "
+		p.indentation_width = 1
 	}
 
 	if p.config.newline_style == .CRLF {

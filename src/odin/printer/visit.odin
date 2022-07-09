@@ -309,7 +309,11 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 		if len(v.values) > 0 {
 			if is_values_nestable_assign(v.values) {
-				return cons(document, nest(p.indentation_count, group(cons_with_opl(group(lhs), group(rhs)))))
+				return cons(document, group(nest(p.indentation_count, cons_with_opl(lhs, group(rhs)))))
+			} else if is_values_nestable_if_break_assign(v.values) {
+				assignments := cons(lhs, group(nest(p.indentation_count, break_with_space()), Document_Group_Options { id = "assignments"}))		
+				assignments = cons(assignments, nest_if_break(p.indentation_count, group(rhs), "assignments"))
+				return cons(document, group(assignments))
 			} else {
 				return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))	
 			}
@@ -327,7 +331,19 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 	for expr in list {
 		#partial switch v in expr.derived {
-		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Call_Expr, ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
+		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
+			return true	
+		}
+	}
+	return false
+}
+
+
+@(private)
+is_values_nestable_if_break_assign :: proc(list: []^ast.Expr) -> bool {
+	for expr in list {
+		#partial switch v in expr.derived {
+		case ^ast.Call_Expr, ^ast.Comp_Lit:	
 			return true	
 		}
 	}
@@ -343,7 +359,6 @@ visit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}, c
 	document := empty()
 
 	for expr, i in list {
-
 		p.source_position = expr.pos
 
 		if .Enforce_Newline in options {
@@ -704,15 +719,18 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		document = cons_with_nopl(document, visit_stmt(p, v.tag))
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 	case ^Assign_Stmt:
-		assign_document := group(cons_with_nopl(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), text(v.op.text)))
+		assign_document := group(cons(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), cons(text(" "), text(v.op.text))))
 
 		rhs := visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)
 		if is_values_nestable_assign(v.rhs) {
 			document = group(nest(p.indentation_count, cons_with_opl(assign_document, group(rhs))))
+		} else if is_values_nestable_if_break_assign(v.rhs) {
+			document = cons(assign_document, group(nest(p.indentation_count, break_with_space()), Document_Group_Options { id = "assignments"}))		
+			document = cons(document, nest_if_break(p.indentation_count, group(rhs), "assignments"))
+			document = group(document)
 		} else {
-			document = group(cons_with_nopl(assign_document, group(rhs)))
+			document = group(cons_with_opl(assign_document, group(rhs)))
 		}
-		
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
