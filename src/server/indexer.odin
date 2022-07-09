@@ -21,11 +21,9 @@ FuzzyResult :: struct {
 
 lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
-		log.infof("lookup name: %v pkg: %v, symbol %v location %v", name, pkg, symbol, loc)
 		return symbol, true
 	}
 
-	log.infof("lookup failed name: %v pkg: %v location %v", name, pkg, loc)
 	return {}, false
 }
 

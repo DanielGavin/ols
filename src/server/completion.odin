@@ -79,9 +79,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 	}
 
 	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
-
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
-
 			ast_context.use_globals = true
 			ast_context.use_locals = true
 
@@ -163,7 +161,6 @@ get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 }
 
 get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	if position_context.parent_comp_lit.type == nil {
@@ -815,7 +812,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	list.isIncomplete = true
 
-	combined := make([dynamic]CombinedResult)
+	combined := make([dynamic]CombinedResult, context.temp_allocator)
 
 	lookup_name := ""
 
@@ -1062,7 +1059,6 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 }
 
 get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = false

@@ -49,8 +49,8 @@ try_build_package :: proc(pkg_name: string) {
 
 	temp_arena: mem.Arena
 
-	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*25))
-
+	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*25, runtime.default_allocator()))
+	
 	{
 		context.allocator = mem.arena_allocator(&temp_arena)
 
@@ -89,6 +89,7 @@ try_build_package :: proc(pkg_name: string) {
 
 			if !ok {
 				log.errorf("error in parse file for indexing %v", fullpath)
+				continue
 			}
 
 			uri := common.create_uri(fullpath, context.allocator)
@@ -112,7 +113,7 @@ setup_index :: proc() {
 	indexer.index = make_memory_index(symbol_collection)
 
 	dir_exe := path.dir(os.args[0])
-
+	
 	try_build_package(path.join(dir_exe, "builtin"))
 }
 

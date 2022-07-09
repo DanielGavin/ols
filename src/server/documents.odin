@@ -53,6 +53,8 @@ document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
+		common.scratch_allocator_destroy(v.allocator)
+		free(v.allocator)
 		delete(k)
 	}
 
@@ -207,7 +209,6 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 	for change in changes {
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
-
 			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text])
 
 			if !ok {
@@ -245,7 +246,6 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 				copy(document.text[len(lower):], middle)
 			}
 		} else {
-
 			document.used_text = len(change.text)
 
 			if document.used_text > len(document.text) {
@@ -384,7 +384,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 	context.allocator = common.scratch_allocator(document.allocator)
 
 	pkg := new(ast.Package)
-	pkg.kind     = .Normal
+	pkg.kind = .Normal
 	pkg.fullpath = document.fullpath
 
 	document.ast = ast.File {
