@@ -53,6 +53,8 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	request_thread = thread.create_and_start_with_data(cast(rawptr)&request_thread_data, server.thread_request_main)
 
+	server.setup_index();
+	
 	for common.config.running {
 		if common.config.file_log {
 			if !file_logger_init {
@@ -80,7 +82,7 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	server.document_storage_shutdown()
 
-	server.free_static_index()
+	server.free_index()
 }
 
 end :: proc() {
@@ -96,6 +98,6 @@ main :: proc() {
 	context.logger = verbose_logger
 
 	init_global_temporary_allocator(mem.Megabyte*100)
-
+	
 	run(&reader, &writer)
 }

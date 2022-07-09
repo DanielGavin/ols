@@ -11,13 +11,9 @@ import "core:odin/tokenizer"
 import "core:strings"
 import "core:mem"
 import "core:runtime"
+import "core:time"
 
 import "shared:common"
-
-
-symbol_collection: SymbolCollection
-
-files: [dynamic]string
 
 platform_os: map[string]bool = {
 	"windows" = true,
@@ -40,136 +36,30 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Freestanding = "freestanding",
 }
 
-walk_directory :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
-	if info.is_dir {
-		return 0, true
+try_build_package :: proc(pkg_name: string) {
+	if pkg, ok := build_cache.loaded_pkgs[pkg_name]; ok {
+		return
 	}
 
-	if filepath.ext(info.name) != ".odin" {
-		return 0, false
+	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
+
+	if err != .None {
+		log.errorf("Failed to glob %v for indexing package", pkg_name)
 	}
-
-	last_underscore_index := strings.last_index(info.name, "_")
-	last_dot_index := strings.last_index(info.name, ".")
-
-	if last_underscore_index + 1 < last_dot_index {
-		name_between := info.name[last_underscore_index + 1:last_dot_index]
-
-		if _, ok := platform_os[name_between]; ok {
-			if name_between != os_enum_to_string[ODIN_OS] {	
-				return 0, false
-			}
-		}
-	}
-
-	forward, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
-
-	append(&files, strings.clone(forward, context.allocator))
-
-	return 0, false
-}
-
-/*
-try_build_package :: proc(pkg: string) {
-
-	
-	
-
-
-}
-
-evict_old_build_packages :: proc() {
-
-}
-*/
-
-/*
-
-
-build_static_index :: proc(allocator := context.allocator, config: ^common.Config) {
-	symbol_collection = make_symbol_collection(allocator, config)
-
-	files = make([dynamic]string, context.allocator)
-
-	for k, v in config.collections {
-		filepath.walk(v, walk_static_index_build)
-	}
-
-	when ODIN_OS == .Windows {
-		slashed, _ := filepath.to_slash(os.get_current_directory(context.temp_allocator), context.temp_allocator)
-	} else {
-		slashed, _ := filepath.to_slash(os.get_current_directory(), context.temp_allocator)
-	}
-
-	builtin_package := path.join(elems = {slashed, "builtin"}, allocator = context.allocator)
-
-	filepath.walk(builtin_package, walk_static_index_build)
 
 	temp_arena: mem.Arena
 
-	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*100))
+	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*25))
 
-	context.allocator = mem.arena_allocator(&temp_arena)
+	{
+		context.allocator = mem.arena_allocator(&temp_arena)
 
-	for fullpath in files {
-		data, ok := os.read_entire_file(fullpath, context.allocator)
-
-		if !ok {
-			log.errorf("failed to read entire file for indexing %v", fullpath)
-			continue
-		}
-
-		p := parser.Parser {
-			err = log_error_handler,
-			warn = log_warning_handler,
-			flags = {.Optional_Semicolons},
-		}
-
-		dir := filepath.base(filepath.dir(fullpath, context.allocator))
-
-		pkg := new(ast.Package)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" {
-			pkg.kind = .Runtime
-		}
-
-		file := ast.File {
-			fullpath = fullpath,
-			src = string(data),
-			pkg = pkg,
-		}
-
-		ok = parser.parse_file(&p, &file)
-
-		if !ok {
-			log.info(pkg)
-			log.errorf("error in parse file for indexing %v", fullpath)
-		}
-
-		uri := common.create_uri(fullpath, context.allocator)
-
-		collect_symbols(&symbol_collection, file, uri.uri)
-
-		free_all(context.allocator)
-	}
-
-	indexer.index = make_memory_index(symbol_collection)
-
-	if config.enable_references {
-		for fullpath in files {
+		for fullpath in matches {
 			data, ok := os.read_entire_file(fullpath, context.allocator)
 
 			if !ok {
 				log.errorf("failed to read entire file for indexing %v", fullpath)
 				continue
-			}
-
-			//TODO(daniel): Implement path code to handle whether paths are contained in core
-			if !config.enable_std_references && (strings.contains(fullpath, "Odin/core") || strings.contains(fullpath, "odin/core") || strings.contains(fullpath, "Odin/vendor") || strings.contains(fullpath, "odin/vendor")) {
-				continue;
 			}
 
 			p := parser.Parser {
@@ -198,31 +88,39 @@ build_static_index :: proc(allocator := context.allocator, config: ^common.Confi
 			ok = parser.parse_file(&p, &file)
 
 			if !ok {
-				log.info(pkg)
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 
 			uri := common.create_uri(fullpath, context.allocator)
 
-			{
-				context.temp_allocator = context.allocator
-				collect_references(&symbol_collection, file, uri.uri)
-			}
+			collect_symbols(&indexer.index.collection, file, uri.uri)
 
 			free_all(context.allocator)
-
-			delete(fullpath, allocator)
 		}
 	}
 
-	delete(files)
 	delete(temp_arena.data)
 
-	indexer.index = make_memory_index(symbol_collection)
+	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
+		timestamp = time.now(),
+	} 
+}
+
+/*
+
+evict_old_build_packages :: proc() {
+
 }
 */
-free_static_index :: proc() {
-	delete_symbol_collection(symbol_collection)
+
+setup_index :: proc() {
+	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
+	symbol_collection := make_symbol_collection(context.allocator, &common.config)
+	indexer.index = make_memory_index(symbol_collection)
+}
+
+free_index :: proc() {
+	delete_symbol_collection(indexer.index.collection)
 }
 
 log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {

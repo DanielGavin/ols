@@ -100,7 +100,7 @@ get_semantic_tokens :: proc(document: ^Document, range: common.Range, symbols: m
 		write_semantic_token(&builder, document.ast.pkg_token, document.ast.src, .Keyword, .None)
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
 
 	builder.symbols = symbols
 

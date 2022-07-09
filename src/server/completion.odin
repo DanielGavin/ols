@@ -45,7 +45,7 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 		return list, true
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
 
 	get_globals(document.ast, &ast_context)
 
@@ -662,7 +662,7 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	
 	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
 		context_node: ^ast.Expr
-		enum_node:    ^ast.Expr
+		enum_node: ^ast.Expr
 
 		if position_in_node(position_context.binary.right, position_context.position) {
 			context_node = position_context.binary.right
@@ -799,39 +799,21 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 }
 
+CombinedResult :: struct {
+	score:     f32,
+	snippet:   Snippet_Info,	
+	name:      string,
+	type:      SymbolType,
+	doc:       string,
+	pkg:       string,
+	signature: string,
+	flags:     SymbolFlags,
+}
+
 get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = true
-
-	CombinedResult :: struct {
-		score:     f32,
-		snippet:   Snippet_Info,	
-		name:      string,
-		type:      SymbolType,
-		doc:       string,
-		pkg:       string,
-		signature: string,
-		flags:     SymbolFlags,
-	}
-
-	combined_sort_interface :: proc(s: ^[dynamic]CombinedResult) -> sort.Interface {
-		return sort.Interface {
-			collection = rawptr(s),
-			len = proc(it: sort.Interface) -> int {
-				s := (^[dynamic]CombinedResult)(it.collection)
-				return len(s^)
-			},
-			less = proc(it: sort.Interface, i, j: int) -> bool {
-				s := (^[dynamic]CombinedResult)(it.collection)
-				return s[i].score > s[j].score
-			},
-			swap = proc(it: sort.Interface, i, j: int) {
-				s := (^[dynamic]CombinedResult)(it.collection)
-				s[i], s[j] = s[j], s[i]
-			},
-		}
-	}
 
 	combined := make([dynamic]CombinedResult)
 
@@ -853,13 +835,15 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	append(&pkgs, ast_context.document_package)
 	append(&pkgs, "$builtin")
-
+	
 	if results, ok := fuzzy_search(lookup_name, pkgs[:]); ok {
 		for r in results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)
 			build_procedure_symbol_signature(&r.symbol)
-			if r.symbol.uri != ast_context.uri {
+
+			uri, _ := common.parse_uri(r.symbol.uri, context.temp_allocator)
+			if uri.path != ast_context.fullpath {
 				append(&combined, CombinedResult {
 					score = r.score, 
 					type = r.symbol.type,
@@ -989,7 +973,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			})
 		}
 	}
-
+	
 	for keyword, _ in language_keywords {
 		symbol := Symbol {
 			name = keyword,
@@ -1017,8 +1001,21 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 	}
 
-	sort.sort(combined_sort_interface(&combined))
+	for f in combined {
+		//log.error(f.name, " ")
+	}
+	
+	//log.error("sorting done \n")
 
+	slice.sort_by(combined[:], proc(i, j: CombinedResult) -> bool {
+		return j.score < i.score
+	})
+
+	for f in combined {
+		//log.error(f.name, " ")
+	}
+
+	
 	//hard code for now
 	top_results := combined[0:(min(50, len(combined)))]
 

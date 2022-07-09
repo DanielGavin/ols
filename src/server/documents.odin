@@ -182,7 +182,7 @@ document_setup :: proc(document: ^Document) {
 			}
 		} else {
 			document.fullpath = document.uri.path
-		}	
+		}
 }
 
 /*
@@ -452,6 +452,12 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			append(&imports, import_)
 		}
 	}
+
+	for imp in imports {
+		try_build_package(imp.name)
+	}
+
+	try_build_package(document.package_name)
 
 	document.imports = imports[:]
 }

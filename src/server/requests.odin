@@ -360,7 +360,7 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		}
 	}
 
-	log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
+	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
@@ -550,8 +550,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	if core, ok := config.collections["core"]; ok {
 		append(&indexer.builtin_packages, path.join(core, "runtime"))
 	}
-
-	log.info("Finished indexing")
 
 	return .None
 }

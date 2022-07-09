@@ -21,7 +21,7 @@ CodeLens :: struct {
 }
 
 get_code_lenses :: proc(document: ^Document, position: common.Position) -> ([]CodeLens, bool) {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
 
 	get_globals(document.ast, &ast_context)
 

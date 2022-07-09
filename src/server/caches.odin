@@ -2,6 +2,8 @@ package server
 
 import "shared:common"
 
+import "core:time"
+
 //Used in semantic tokens and inlay hints to handle the entire file being resolved.
 FileResolveCache :: struct {
 	files: map[string]map[uintptr]SymbolAndNode,
@@ -20,3 +22,14 @@ resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAnd
 
 	return file_resolve_cache.files[document.uri.uri];
 }
+
+
+BuildCache :: struct {
+	loaded_pkgs: map[string]PackageCacheInfo,
+}
+
+PackageCacheInfo :: struct {
+	timestamp: time.Time,
+}
+
+build_cache: BuildCache

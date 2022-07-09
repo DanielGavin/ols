@@ -81,10 +81,11 @@ AstContext :: struct {
 	value_decl:        ^ast.Value_Decl,
 	field_name:        string,
 	uri:               string,
+	fullpath:          string,
 	recursion_counter: int, //Sometimes the ast is so malformed that it causes infinite recursion.
 }
 
-make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, fullpath: string, allocator := context.temp_allocator) -> AstContext {
 	ast_context := AstContext {
 		locals = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals = make(map[string]common.GlobalExpr, 0, allocator),
@@ -99,6 +100,7 @@ make_ast_context :: proc(file: ast.File, imports: []Package, package_name: strin
 		document_package = package_name,
 		current_package = package_name,
 		uri = uri,
+		fullpath = fullpath,
 		allocator = allocator,
 	}
 
@@ -2470,7 +2472,7 @@ clear_locals :: proc(ast_context: ^AstContext) {
 }
 
 resolve_entire_file :: proc(document: ^Document, skip_locals := false, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, allocator)
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath, allocator)
 
 	get_globals(document.ast, &ast_context)
 

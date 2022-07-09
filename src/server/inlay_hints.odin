@@ -8,7 +8,7 @@ import "shared:common"
 get_inlay_hints :: proc(document: ^Document, symbols: map[uintptr]SymbolAndNode) -> ([]InlayHint, bool) {
 	hints := make([dynamic]InlayHint, context.temp_allocator)
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri)
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
 
 	Visit_Data :: struct {
 		calls: [dynamic]^ast.Node,

@@ -19,7 +19,7 @@ Package :: struct {
 Source :: struct {
 	main:        string,
 	packages:    [] Package,
-	document:    ^common.Document,
+	document:    ^server.Document,
 	collections: map[string]string,
 	config:      common.Config,
 	position:    common.Position,
@@ -28,7 +28,7 @@ Source :: struct {
 @(private)
 setup :: proc(src: ^Source) {
 	src.main = strings.clone(src.main);
-	src.document = new(common.Document, context.temp_allocator);
+	src.document = new(server.Document, context.temp_allocator);
 	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator);
 	src.document.client_owned = true;
 	src.document.text = transmute([]u8)src.main;
@@ -65,6 +65,8 @@ setup :: proc(src: ^Source) {
 		last = current;
 	}
 
+	server.setup_index()
+	
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil);	
@@ -73,9 +75,6 @@ setup :: proc(src: ^Source) {
 		There is a lot code here that is used in the real code, then i'd like to see.
 	*/
 
-	server.indexer.dynamic_index = server.make_memory_index(server.make_symbol_collection(context.allocator, &common.config));
-
-	server.build_static_index(context.allocator, &common.config);
 
 	for src_pkg in src.packages {
 		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator);
@@ -112,7 +111,7 @@ setup :: proc(src: ^Source) {
 			panic("Parser error in test package source");
 		}
 
-		if ret := server.collect_symbols(&server.indexer.static_index.collection, file, uri.uri); ret != .None {
+		if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
 			return;
 		}
 	}
@@ -120,9 +119,8 @@ setup :: proc(src: ^Source) {
 
 @private
 teardown :: proc(src: ^Source) {
-	server.free_static_index()
-	server.indexer.dynamic_index = {}
-	server.indexer.static_index = {}
+	server.free_index()
+	server.indexer.index = {}
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {

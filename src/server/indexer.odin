@@ -4,12 +4,12 @@ import "core:odin/ast"
 import "core:fmt"
 import "core:strings"
 import "core:log"
-import "core:sort"
+import "core:slice"
 
 
 Indexer :: struct {
-	builtin_packages:  [dynamic]string,
-	index:             MemoryIndex,
+	builtin_packages: [dynamic]string,
+	index: MemoryIndex,
 }
 
 indexer: Indexer
@@ -41,25 +41,9 @@ fuzzy_search :: proc(name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
 		append(&result, r)
 	}
 
-	sort.sort(fuzzy_sort_interface(&result))
+	slice.sort_by(result[:], proc(i, j: FuzzyResult) -> bool {
+		return j.score < i.score
+	})
 
 	return result[:], true
-}
-
-fuzzy_sort_interface :: proc(s: ^[dynamic]FuzzyResult) -> sort.Interface {
-	return sort.Interface {
-		collection = rawptr(s),
-		len = proc(it: sort.Interface) -> int {
-			s := (^[dynamic]FuzzyResult)(it.collection)
-			return len(s^)
-		},
-		less = proc(it: sort.Interface, i, j: int) -> bool {
-			s := (^[dynamic]FuzzyResult)(it.collection)
-			return s[i].score > s[j].score
-		},
-		swap = proc(it: sort.Interface, i, j: int) {
-			s := (^[dynamic]FuzzyResult)(it.collection)
-			s[i], s[j] = s[j], s[i]
-		},
-	}
 }

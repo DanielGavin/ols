@@ -4,16 +4,10 @@ import "core:hash"
 import "core:strings"
 import "core:fmt"
 import "core:log"
-import "core:sort"
+import "core:slice"
 
 import "shared:common"
 
-/*
-	This is a in memory index designed for the dynamic indexing of symbols and files.
-	Designed for few files and should be fast at rebuilding.
-
-	Right now the implementation is extremely naive.
-*/
 MemoryIndex :: struct {
 	collection: SymbolCollection,
 	last_package_name: string,
@@ -65,7 +59,9 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 		} 
 	}
 
-	sort.sort(fuzzy_sort_interface(&symbols))
+	slice.sort_by(symbols[:], proc(i, j: FuzzyResult) -> bool {
+		return j.score < i.score
+	})
 
 	if name == "" {
 		return symbols[:], true
