@@ -548,6 +548,10 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 		append(&indexer.builtin_packages, path.join(core, "runtime"))
 	}
 
+	for pkg in indexer.builtin_packages {
+		try_build_package(pkg)
+	}
+
 	return .None
 }
 
@@ -1049,7 +1053,6 @@ request_document_links :: proc (params: json.Value, id: RequestId, config: ^comm
     }
 
 	links: []DocumentLink
-
 	links, ok = get_document_links(document)
 
 	if !ok {
@@ -1083,7 +1086,6 @@ request_rename :: proc (params: json.Value, id: RequestId, config: ^common.Confi
     }
 
 	workspace_edit: WorkspaceEdit
-
 	workspace_edit, ok = get_rename(document, rename_param.newName, rename_param.position)
 
 	if !ok {
@@ -1117,7 +1119,6 @@ request_references :: proc (params: json.Value, id: RequestId, config: ^common.C
     }
 
 	locations: []common.Location
-
 	locations, ok = get_references(document, reference_param.position)
 
 	if !ok {

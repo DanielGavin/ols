@@ -418,60 +418,6 @@ Reference :: struct {
 }
 
 /*
-collect_references :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
-	document := Document {
-		ast = file,
-	}
-
-	uri, ok := common.parse_uri(uri, context.temp_allocator) 
-
-	if !ok {
-		return .ParseError
-	}
-
-	document.uri = uri 
-	document.text = transmute([]u8)file.src
-	document.used_text = len(file.src)
-
-	parse_imports(&document, &common.config)
-
-	symbols_and_nodes := resolve_entire_file(&document, true)
-
-	for k, v in symbols_and_nodes {
-		pkg: ^map[string]Reference
-
-		if pkg, ok = &collection.references[v.symbol.pkg]; !ok {
-			collection.references[get_index_unique_string(collection, v.symbol.pkg)] = make(map[string]Reference, 100, collection.allocator)
-			pkg = &collection.references[v.symbol.pkg]
-		} 
-
-		assert(pkg != nil)
-
-		ref: ^Reference
-
-		if ref, ok = &pkg[v.symbol.name]; !ok {
-			pkg[get_index_unique_string(collection, v.symbol.name)] = {}
-			ref = &pkg[v.symbol.name]
-			ref.identifiers = make([dynamic]common.Location, 2, collection.allocator)
-			ref.selectors = make(map[string][dynamic]common.Range, 2, collection.allocator)
-		}
-
-		assert(ref != nil)
-
-		if ident, ok := v.node.derived.(^ast.Ident); ok {
-			range :=  common.get_token_range(ident, ident.name)
-			append(&ref.identifiers, common.Location { range = range, uri = get_index_unique_string(collection, ident.pos.file) })
-
-		} else if selector, ok := v.node.derived.(^ast.Selector_Expr); ok {
-			//append(&ref.selectors, cast(^ast.Selector_Expr)clone_type(selector, collection.allocator, nil))
-		}
-	}
-
-	return .None
-}
-*/
-
-/*
 	Gets the map from import alias to absolute package directory
 */
 get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: string) -> map[string]string {

@@ -15,7 +15,8 @@ resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAnd
 	if document.uri.uri not_in file_resolve_cache.files {
 		file_resolve_cache.files[document.uri.uri] = resolve_entire_file(
 			document,
-			false,
+			"",
+			.None,
 			common.scratch_allocator(document.allocator),
 		)
 	}	
