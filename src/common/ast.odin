@@ -712,7 +712,7 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 */
 
 node_to_string :: proc(node: ^ast.Node, remove_pointers := false) -> string {
-	builder := strings.make_builder(context.temp_allocator)
+	builder := strings.builder_make(context.temp_allocator)
 
 	build_string(node, &builder, remove_pointers)
 

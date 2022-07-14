@@ -158,13 +158,13 @@ thread_request_main :: proc(data: rawptr) {
 read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
 	header: Header
 
-	builder := strings.make_builder(context.temp_allocator)
+	builder := strings.builder_make(context.temp_allocator)
 	
 	found_content_length := false
 
 	for true {
 
-		strings.reset_builder(&builder)
+		strings.builder_reset(&builder)
 
 		if !read_until_delimiter(reader, '\n', &builder) {
 			log.error("Failed to read with delimiter")

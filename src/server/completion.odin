@@ -1187,7 +1187,7 @@ get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^
 }
 
 get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: string) -> (TextEdit, bool) {
-	builder := strings.make_builder(context.temp_allocator)
+	builder := strings.builder_make(context.temp_allocator)
 
 	for imp in ast_context.imports {
 		if imp.base == pkg {

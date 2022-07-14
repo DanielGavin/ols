@@ -31,7 +31,7 @@ when ODIN_OS == .Windows {
 		code: u32
 		ok: bool
 
-		collection_builder := strings.make_builder(context.temp_allocator)
+		collection_builder := strings.builder_make(context.temp_allocator)
 
 		for k, v in common.config.collections {
 			if k == "" || k == "core" || k == "vendor" {

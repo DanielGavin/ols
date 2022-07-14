@@ -118,7 +118,7 @@ make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator)
 
 fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
 
-	builder := strings.make_builder(context.temp_allocator)
+	builder := strings.builder_make(context.temp_allocator)
 
 	if len(word) <= 1 {
 		return "", false

@@ -146,7 +146,7 @@ print :: proc {
 print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
 	p.document = empty();
 	p.document = cons(p.document, visit_expr(p, expr))
-	p.string_builder = strings.make_builder(p.allocator)
+	p.string_builder = strings.builder_make(p.allocator)
 	context.allocator = p.allocator
 
 	list := make([dynamic]Tuple, p.allocator)
@@ -163,7 +163,7 @@ print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
 
 print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.comments = file.comments
-	p.string_builder = strings.make_builder(p.allocator)
+	p.string_builder = strings.builder_make(p.allocator)
 	p.src = file.src
 	context.allocator = p.allocator
 	

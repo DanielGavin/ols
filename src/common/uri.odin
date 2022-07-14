@@ -48,7 +48,7 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 	path_forward, _ := filepath.to_slash(path, context.temp_allocator)
 
-	builder := strings.make_builder(allocator)
+	builder := strings.builder_make(allocator)
 
 	//bad
 	when ODIN_OS == .Windows {
@@ -79,7 +79,7 @@ delete_uri :: proc(uri: Uri) {
 }
 
 encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
-	builder := strings.make_builder(allocator)
+	builder := strings.builder_make(allocator)
 
 	data := transmute([]u8)value
 	index: int
@@ -119,7 +119,7 @@ starts_with :: proc(value: string, starts_with: string) -> bool {
 
 @(private)
 decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
-	builder := strings.make_builder(allocator)
+	builder := strings.builder_make(allocator)
 
 	for i := 0; i < len(value); i += 1 {
 		if value[i] == '%' {
@@ -127,7 +127,7 @@ decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool
 				v, ok := strconv.parse_i64_of_base(value[i + 1:i + 3], 16)
 
 				if !ok {
-					strings.destroy_builder(&builder)
+					strings.builder_destroy(&builder)
 					return "", false
 				}
 
@@ -135,7 +135,7 @@ decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool
 
 				i += 2
 			} else {
-				strings.destroy_builder(&builder)
+				strings.builder_destroy(&builder)
 				return "", false
 			}
 		} else {

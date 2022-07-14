@@ -51,7 +51,7 @@ ParameterInformation :: struct {
 */
 build_procedure_symbol_signature :: proc(symbol: ^Symbol) {
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
-		builder := strings.make_builder(context.temp_allocator)
+		builder := strings.builder_make(context.temp_allocator)
 	
 		strings.write_string(&builder, "proc")
 		strings.write_string(&builder, "(")
