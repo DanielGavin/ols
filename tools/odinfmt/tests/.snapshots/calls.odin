@@ -1,4 +1,4 @@
-package odin_fmt_tests
+package odinfmt_test
 
 
 calls :: proc() {

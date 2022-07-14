@@ -206,7 +206,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	if decl.pos.line in p.disabled_lines {
 		return visit_disabled(p, decl)
 	}
-	
+
 	#partial switch v in decl.derived {
 	case ^Expr_Stmt:
 		document := move_line(p, decl.pos)
@@ -325,6 +325,19 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	}
 
 	return empty()
+}
+
+@(private)
+is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
+
+	if len(list) == 1 {
+		if _, is_comp := list[0].derived.(^ast.Comp_Lit); is_comp {
+			return false
+		}
+	}
+
+	
+	return true
 }
 
 @(private)
@@ -495,7 +508,11 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_comp_lit_alignment(p, comp_lit.elems)
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
-				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
+				align := empty()
+				if should_align_comp_lit(p, comp_lit) {
+					align = repeat_space(alignment - get_node_length(value.field))
+				}
+				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(align, text_position(p, "=", value.sep)), visit_expr(p, value.value))))
 			} else {
 				document = group(cons(document, visit_expr(p, expr, .Generic, options)))
 			}
@@ -860,6 +877,24 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 @(private)
 should_align_comp_lit :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
+	if len(comp_lit.elems) == 0 {
+		return false
+	}
+
+	for expr in comp_lit.elems {
+		if field, ok := expr.derived.(^ast.Field_Value); ok {
+			#partial switch v in field.value.derived {
+				case ^ast.Proc_Type, ^ast.Proc_Lit:
+					return false
+			}
+		}
+	}
+	
+	return true
+}
+
+@(private)
+comp_lit_contains_fields :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
 
 	if len(comp_lit.elems) == 0 {
 		return false
@@ -868,6 +903,24 @@ should_align_comp_lit :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
 	for expr in comp_lit.elems {
 		if _, ok := expr.derived.(^ast.Field_Value); ok {
 			return true
+		}
+	}
+	
+	return false
+}
+
+@(private)
+comp_lit_contains_blocks :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
+	if len(comp_lit.elems) == 0 {
+		return false
+	}
+
+	for expr in comp_lit.elems {
+		if field, ok := expr.derived.(^ast.Field_Value); ok {
+			#partial switch v in field.value.derived {
+				case ^ast.Proc_Type, ^ast.Proc_Lit:
+					return true
+			}
 		}
 	}
 	
@@ -1160,7 +1213,12 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			contains_do |= contains_do_in_expression(p, arg)
 		}
 
-		document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v))))
+		if is_call_expr_nestable(v.args) {
+			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v))))
+		} else {
+			document = cons(document, cons(break_with(""), visit_call_exprs(p, v)))
+		}
+	
 		document = cons(document, cons(break_with(""), text(")")))
 
 		//We enforce a break if comments exists inside the call args
@@ -1219,8 +1277,12 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 				break
 			}
 		}
+
+		should_newline := comp_lit_contains_fields(p, v^) || contains_comments_in_range(p, v.pos, v.end)
+		should_newline &= (called_from == .Value_Decl || called_from == .Assignment_Stmt || (called_from == .Call_Expr && comp_lit_contains_blocks(p, v^)))
+		should_newline &= len(v.elems) != 0
 	
-		if (should_align_comp_lit(p, v^) || contains_comments_in_range(p, v.pos, v.end)) && (called_from == .Value_Decl || called_from == .Assignment_Stmt) && len(v.elems) != 0 {
+		if should_newline {
 			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 			
 			set_source_position(p, v.open)
@@ -1565,12 +1627,9 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) 
 		}
 	} 
 
-	if true {
-		if nest_first_expression {
-			document = nest(p.indentation_count, document)
-			document = group(document)
-		}
-		
+	if nest_first_expression {
+		document = nest(p.indentation_count, document)
+		document = group(document)
 	}
 
 	document = cons_with_nopl(document, text(binary.op.text))
@@ -1597,7 +1656,7 @@ visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 			document = cons(document, text(".."))
 		}
 
-		document = cons(document, group(visit_expr(p, expr)))
+		document = cons(document, group(visit_expr(p, expr, .Call_Expr)))
 				
 		if i != len(call_expr.args) - 1 {
 			document = cons(document, text(","))

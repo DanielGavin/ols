@@ -66,6 +66,7 @@ Expr_Called_Type :: enum {
 	Generic,
 	Value_Decl,
 	Assignment_Stmt,
+	Call_Expr,
 }
 
 Newline_Style :: enum {

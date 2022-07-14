@@ -233,7 +233,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 
 	if len(list) == 0 {
 		return true
-	} else if width < 0 {
+	} else if width <= 0 {
 		return false
 	}
 
@@ -276,7 +276,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment})
 			}
 		case Document_Group:
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment})		
+			append(list, Tuple {indentation = data.indentation, mode = (v.mode == .Break ? .Break : data.mode), document = v.document, alignment = data.alignment})		
 		}
 	}
 
@@ -300,6 +300,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 	assert(builder != nil)
 
 	consumed := 0
+	recalculate := false;
 
 	for len(list) != 0 {
 		data: Tuple = pop(list)
@@ -318,7 +319,11 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 					strings.write_string(builder, " ")
 				}
 				consumed = data.indentation * p.indentation_width + data.alignment
-			}
+
+				if data.mode == .Flat {
+					recalculate = true
+				}
+			}	
 		case Document_Cons:
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
@@ -349,14 +354,21 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment})
 			}
 		case Document_Group:
-			l := make([dynamic]Tuple, 0, len(list))
+			if data.mode == .Flat && !recalculate {
+				append(list, Tuple {indentation = data.indentation, mode = v.mode, document = v.document, alignment = data.alignment})
+				break
+			}
 
+			l := make([dynamic]Tuple, 0, len(list))
+	
 			for element in list {
 				append(&l, element)
-			}	
+			}
 
-			append(&l, Tuple {indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment})
-		
+			append(&l, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
+
+			recalculate = false
+
 			if data.mode == .Fit {
 				append(list, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
 			}

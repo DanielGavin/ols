@@ -60,7 +60,7 @@ snapshot_file :: proc(path: string) -> bool {
 	if os.exists(snapshot_path) {
 		if snapshot_data, ok := os.read_entire_file(snapshot_path, context.temp_allocator); ok {
 			if cast(string)snapshot_data != formatted {
-				fmt.eprintf("Formatted file was different from snapshot file: %v", snapshot_path)
+				fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
 				os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
 				return false
 			}
