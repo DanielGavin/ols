@@ -78,7 +78,6 @@ char_types: []u8 = {
 }
 
 make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator) -> ^FuzzyMatcher {
-
 	matcher := new(FuzzyMatcher, allocator)
 
 	matcher.pattern_count = min(len(pattern), max_pattern)
@@ -117,7 +116,6 @@ make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator)
 }
 
 fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
-
 	builder := strings.builder_make(context.temp_allocator)
 
 	if len(word) <= 1 {
@@ -226,7 +224,6 @@ fuzzy_packed_lookup :: proc(data: $A/[]$T, i: uint) -> T {
 }
 
 fuzzy_init :: proc(matcher: ^FuzzyMatcher, word: string) -> bool {
-
 	matcher.word       = word
 	matcher.word_count = min(max_word, len(matcher.word))
 
@@ -260,7 +257,6 @@ fuzzy_init :: proc(matcher: ^FuzzyMatcher, word: string) -> bool {
 }
 
 fuzzy_skip_penalty :: proc(matcher: ^FuzzyMatcher, w: int) -> int {
-
 	if w == 0 { // Skipping the first character.
 		return 3
 	}
@@ -273,7 +269,6 @@ fuzzy_skip_penalty :: proc(matcher: ^FuzzyMatcher, w: int) -> int {
 }
 
 fuzzy_build_graph :: proc(matcher: ^FuzzyMatcher) {
-
 	for w := 0; w < matcher.word_count; w += 1 {
 
 		s: FuzzyScoreInfo
@@ -294,7 +289,6 @@ fuzzy_build_graph :: proc(matcher: ^FuzzyMatcher) {
 	}
 
 	for p := 0; p < matcher.pattern_count; p += 1 {
-
 		for w := p; w < matcher.word_count; w += 1 {
 			score    := &matcher.scores[p + 1][w + 1]
 			pre_miss := &matcher.scores[p + 1][w]
@@ -341,7 +335,6 @@ fuzzy_build_graph :: proc(matcher: ^FuzzyMatcher) {
 }
 
 fuzzy_match_bonus :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> int {
-
 	assert(matcher.lower_pattern[p] == matcher.lower_word[w])
 
 	s := 1
@@ -390,7 +383,6 @@ fuzzy_match_bonus :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> 
 }
 
 fuzzy_allow_match :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> bool {
-
 	if matcher.lower_pattern[p] != matcher.lower_word[w] {
 		return false
 	}
