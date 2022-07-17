@@ -134,11 +134,12 @@ enforce_fit :: proc(fitted_document: ^Document, allocator := context.allocator) 
 	return document
 }
 
-enforce_break :: proc(fitted_document: ^Document, allocator := context.allocator) -> ^Document {
+enforce_break :: proc(fitted_document: ^Document, options := Document_Group_Options{}, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Group { 
 		document = fitted_document,
 		mode = .Break,
+		options = options,
 	}
 	return document
 }
