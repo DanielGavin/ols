@@ -329,7 +329,6 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 @(private)
 is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
-
 	if len(list) == 1 {
 		if _, is_comp := list[0].derived.(^ast.Comp_Lit); is_comp {
 			return false
@@ -1216,18 +1215,18 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		if is_call_expr_nestable(v.args) {
 			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v))))
 		} else {
-			document = cons(document, cons(break_with(""), visit_call_exprs(p, v)))
+			document = cons(document, nest_if_break(p.indentation_count, cons(break_with(""), visit_call_exprs(p, v)), "call_expr"))
 		}
 	
 		document = cons(document, cons(break_with(""), text(")")))
 
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
-			document = enforce_break(document)
+			document = enforce_break(document, Document_Group_Options { id = "call_expr" })
 		}  else if contains_do {
 			document = enforce_fit(document)
 		} else {
-			document = group(document)
+			document = group(document, Document_Group_Options { id = "call_expr" })
 		}
 	case ^Typeid_Type:
 		document = text("typeid")
