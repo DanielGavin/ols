@@ -981,7 +981,7 @@ push_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
 @(private)
 visit_poly_params :: proc(p: ^Printer, poly_params: ^ast.Field_List) -> ^Document {
 	if poly_params != nil {
-		return cons(text("("), cons(visit_signature_list(p, poly_params), text(")")))
+		return cons(text("("), cons(visit_signature_list(p, poly_params, true, false), text(")")))
 	} else {
 		return empty()
 	}
@@ -1186,7 +1186,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons(document, text("#force_no_inline"))
 		}
 
-		document = cons_with_nopl(document, visit_proc_type(p, v.type^))
+		document = cons_with_nopl(document, visit_proc_type(p, v.type^, v.body != nil))
 		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
 
 		if v.body != nil {
@@ -1196,7 +1196,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_nopl(document, text("---"))
 		}
 	case ^Proc_Type:
-		document = group(visit_proc_type(p, v^))
+		document = group(visit_proc_type(p, v^, false))
 	case ^Basic_Lit:
 		document = text_token(p, v.tok)
 	case ^Binary_Expr:
@@ -1554,7 +1554,7 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 }
 
 @(private)
-visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
+visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bool) -> ^Document {
 	document := text("proc")
 
 	explicit_calling := false
@@ -1570,7 +1570,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 		document = cons(document, text("("))
 	}
 
-	document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.params, false))))
+	document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.params, contains_body, false))))
 	document = group(cons(document, cons(break_with(""), text(")"))))
 
 	if proc_type.results != nil && len(proc_type.results.list) > 0 {
@@ -1593,10 +1593,10 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type) -> ^Document {
 
 		if use_parens {
 			document = cons_with_nopl(document, text("("))
-			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.results))))
+			document = cons(document, nest(p.indentation_count, cons(break_with(""), visit_signature_list(p, proc_type.results, contains_body, true))))
 			document = group(cons(document, cons(break_with(""), text(")"))))
 		} else {
-			document = cons(document, group(nest(p.indentation_count, cons(break_with(" "), group(visit_signature_list(p, proc_type.results))))))
+			document = cons(document, group(nest(p.indentation_count, cons(break_with(" "), group(visit_signature_list(p, proc_type.results, contains_body, true))))))
 		}
 	} else if proc_type.diverging {
 		document = cons_with_nopl(document, text("-"))
@@ -1700,7 +1700,7 @@ visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 }
 
 @(private)
-visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank := true) -> ^Document {
+visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, contains_body: bool, remove_blank: bool) -> ^Document {
 	document := empty()
 
 	for field, i in list.list {
@@ -1709,7 +1709,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 		if i != len(list.list) - 1 {
 			document = cons(document, cons(text(","), break_with_space()))
 		} else {
-			document = len(list.list) > 1 ? cons(document, if_break(",")) : document
+			document = len(list.list) > 1 || contains_body ? cons(document, if_break(",")) : document
 		}	
 	}
 
