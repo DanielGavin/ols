@@ -116,10 +116,10 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document)
 			return 1, empty()
 		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
-			return newlines_before_comment, cons_with_nopl(document, text(comment.text))
+			return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text))
 		} else {
 			p.source_position = comment.pos
-			return newlines_before_comment, cons(document, text(comment.text))
+			return newlines_before_comment, cons(document, line_suffix(comment.text))
 		}
 	} else {		
 		newlines := strings.count(comment.text, "\n")
@@ -329,12 +329,14 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 @(private)
 is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
-	if len(list) == 1 {
-		if _, is_comp := list[0].derived.(^ast.Comp_Lit); is_comp {
-			return false
-		}
+	if len(list) == 0 {
+		return true
 	}
 
+	#partial switch v in list[len(list)-1].derived {
+	case ^ast.Comp_Lit, ^ast.Proc_Type, ^ast.Proc_Lit:
+		return false
+	}
 	
 	return true
 }
@@ -1707,7 +1709,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, remove_blank :=
 		if i != len(list.list) - 1 {
 			document = cons(document, cons(text(","), break_with_space()))
 		} else {
-			document = cons(document, if_break(","))
+			document = len(list.list) > 1 ? cons(document, if_break(",")) : document
 		}	
 	}
 

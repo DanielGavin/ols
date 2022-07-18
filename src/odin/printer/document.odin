@@ -14,6 +14,8 @@ Document :: union {
 	Document_If_Break,
 	Document_Align,
 	Document_Nest_If_Break,
+	Document_Break_Parent,
+	Document_Line_Suffix,
 }
 
 Document_Nil :: struct {
@@ -25,6 +27,10 @@ Document_Newline :: struct {
 }
 
 Document_Text :: struct {
+	value: string,
+}
+
+Document_Line_Suffix :: struct {
 	value: string,
 }
 
@@ -73,6 +79,9 @@ Document_Group_Mode :: enum {
 
 Document_Group_Options :: struct {
 	id: string,
+}
+
+Document_Break_Parent :: struct {
 }
 
 empty :: proc(allocator := context.allocator) -> ^Document {
@@ -169,6 +178,21 @@ break_with :: proc(value: string, newline := true, allocator := context.allocato
 	return document
 }
 
+break_parent :: proc(allocator := context.allocator) -> ^Document {
+	document := new(Document, allocator)
+	document^ = Document_Break_Parent {
+	}
+	return document
+}
+
+line_suffix :: proc(value: string, allocator := context.allocator) -> ^Document {
+	document := new(Document, allocator)
+	document^ = Document_Line_Suffix {
+		value = value,
+	}
+	return document
+}
+
 break_with_space :: proc(allocator := context.allocator) -> ^Document {
 	return break_with(" ", true, allocator)
 }
@@ -247,6 +271,9 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 
 		switch v in data.document {
 		case Document_Nil:
+		case Document_Line_Suffix:
+		case Document_Break_Parent:
+			return false
 		case Document_Newline:
 			if v.amount > 0 {
 				return true
@@ -296,6 +323,11 @@ format_newline :: proc(indentation: int, alignment: int, consumed: ^int, builder
 	consumed^ = indentation * p.indentation_width + alignment
 }
 
+flush_line_suffix :: proc(builder: ^strings.Builder, suffix_builder: ^strings.Builder) {
+	strings.write_string(builder, strings.to_string(suffix_builder^))
+	strings.builder_reset(suffix_builder)
+}
+
 format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: ^Printer) {
 	assert(list != nil)
 	assert(builder != nil)
@@ -303,13 +335,19 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 	consumed := 0
 	recalculate := false;
 
+	suffix_builder := strings.builder_make()
+
 	for len(list) != 0 {
 		data: Tuple = pop(list)
 
 		switch v in data.document {
 		case Document_Nil:
+        	case Document_Line_Suffix:
+                	strings.write_string(&suffix_builder, v.value) 
+		case Document_Break_Parent:
 		case Document_Newline:
 			if v.amount > 0 {
+				flush_line_suffix(builder, &suffix_builder)
 				for i := 0; i < v.amount; i += 1 {
 					strings.write_string(builder, p.newline)
 				}
@@ -337,12 +375,13 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			consumed += len(v.value)
 		case Document_Break:
 			if data.mode == .Break && v.newline {
+				flush_line_suffix(builder, &suffix_builder)
 				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
 			}		
-	    case Document_If_Break:
+		case Document_If_Break:
 			if data.mode == .Break {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)

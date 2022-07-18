@@ -2,8 +2,6 @@ package odinfmt_test
 
 
 calls :: proc() {
-
-
 	aaaaaaaaaaaaa44444444777aaesult :=
 		vk.CreateInsaaaaaadafaddddadwadawdwadawdawddgddaaaknce(
 			my_really_cool_call(
@@ -13,7 +11,6 @@ calls :: proc() {
 				ddddddddddddddddddddddddddddddddddddd,
 			),
 		)
-
 
 	aaaaaaaaaaaaa44444444777aaesult =
 		vk.CreateInsaaaaaadafaddddadwadawdwadawdawddgddaaaknce(
@@ -34,7 +31,6 @@ calls :: proc() {
 		),
 	)
 
-
 	result = vk.CreateInsance(
 		my_really_cool_call(
 			aaaaaaaaaaaaaaaaaaaaa,
@@ -43,7 +39,6 @@ calls :: proc() {
 			ddddddddddddddddddddddddddddddddddddd,
 		),
 	)
-
 
 	test_2(
 		Foo{
@@ -57,6 +52,10 @@ calls :: proc() {
 			field8 = 1,
 		},
 	)
+
+	slice.sort_by(fis, proc(a, b: os.File_Info) -> bool {
+		return a.name < b.name
+	})
 
 
 }
