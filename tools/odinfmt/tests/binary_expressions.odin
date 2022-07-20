@@ -31,6 +31,5 @@ binary :: proc() {
 
 	b = my_cool_function(aaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbb, ccccccccccccccccccc) + 11111111111111111111111111111111111111
 
-
-
+	incidentFace = (((incidentFace + 1) < incData.vertexCount) ? (incidentFace + 1) : 0)
 }

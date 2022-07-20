@@ -360,7 +360,7 @@ is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 
 	for expr in list {
 		#partial switch v in expr.derived {
-		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, 
+		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, ^ast.Paren_Expr,
 		     ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
 			return true	
 		}
@@ -1032,17 +1032,17 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
 	case ^Ternary_If_Expr:
 		if v.op1.text == "if" {
-			document = visit_expr(p, v.x)
+			document = group(visit_expr(p, v.x))
 			document = cons_with_nopl(document, text_token(p, v.op1))
-			document = cons_with_nopl(document, visit_expr(p, v.cond))		
+			document = cons_with_opl(document, group(visit_expr(p, v.cond)))
 			document = cons_with_nopl(document, text_token(p, v.op2))
-			document = cons_with_nopl(document, visit_expr(p, v.y))
+			document = cons_with_opl(document, group(visit_expr(p, v.y)))
 		} else {
-			document = visit_expr(p, v.cond)
+			document = group(visit_expr(p, v.cond))
 			document = cons_with_nopl(document, text_token(p, v.op1))
-			document = cons_with_nopl(document, visit_expr(p, v.x))
+			document = cons_with_opl(document, group(visit_expr(p, v.x)))
 			document = cons_with_nopl(document, text_token(p, v.op2))
-			document = cons_with_nopl(document, visit_expr(p, v.y))
+			document = cons_with_opl(document, group(visit_expr(p, v.y)))
 		}		
 	case ^Ternary_When_Expr:
 		document = visit_expr(p, v.cond)
