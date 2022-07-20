@@ -67,6 +67,7 @@ Expr_Called_Type :: enum {
 	Value_Decl,
 	Assignment_Stmt,
 	Call_Expr,
+	Binary_Expr,
 }
 
 Newline_Style :: enum {

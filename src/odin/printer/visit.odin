@@ -328,6 +328,17 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 }
 
 @(private)
+exprs_contain_empty_idents :: proc(list: []^ast.Expr) -> bool {
+	for expr in list {
+		if ident, ok := expr.derived.(^ast.Ident); ok && ident.name == "_" {
+			continue
+		} 
+		return false
+	}
+	return true
+}
+
+@(private)
 is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
 	if len(list) == 0 {
 		return true
@@ -343,9 +354,14 @@ is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
 
 @(private)
 is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
+	if len(list) > 1 {
+		return true
+	}
+
 	for expr in list {
 		#partial switch v in expr.derived {
-		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
+		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, 
+		     ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
 			return true	
 		}
 	}
@@ -607,15 +623,13 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		return visit_decl(p, cast(^Decl)stmt, true)
 	}
 
-	document := empty()
+	document := visit_state_flags(p, stmt.state_flags)
 	comments := move_line(p, stmt.pos)
 
 	#partial switch v in stmt.derived {
 	case ^Using_Stmt:
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^Block_Stmt:		
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		uses_do := v.uses_do
 
 		if v.label != nil {
@@ -647,8 +661,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, visit_end_brace(p, v.end))
 		}
 	case ^If_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -687,8 +699,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 		document = enforce_fit_if_do(v.body, document)
 	case ^Switch_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -723,8 +733,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			document = cons(document, nest(p.indentation_count,  cons(newline(1), visit_block_stmts(p, v.body))))
 		}
 	case ^Type_Switch_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -734,10 +742,17 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		document = cons(document, text("switch"))
-		document = cons_with_nopl(document, visit_stmt(p, v.tag))
+		document = cons_with_nopl(document, visit_stmt(p, v.tag, .Switch_Stmt))
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 	case ^Assign_Stmt:
-		assign_document := group(cons(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), cons(text(" "), text(v.op.text))))
+		assign_document: ^Document
+
+		//If the switch contains `switch in v`
+		if exprs_contain_empty_idents(v.lhs) &&	block_type == .Switch_Stmt {
+			assign_document = cons(document, text(v.op.text))
+		} else {
+			assign_document = cons(document, group(cons(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), cons(text(" "), text(v.op.text)))))
+		}
 
 		rhs := visit_exprs(p, v.rhs, {.Add_Comma}, .Assignment_Stmt)
 		if is_values_nestable_assign(v.rhs) {
@@ -752,8 +767,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -788,8 +801,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = enforce_fit_if_do(v.body, document)
 	case ^Inline_Range_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -813,8 +824,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = enforce_fit_if_do(v.body, document)
 	case ^Range_Stmt:
-		document = cons(document, visit_state_flags(p, v.state_flags))
-
 		if v.label != nil {
 			document = cons(document, cons(visit_expr(p, v.label), cons(text(":"), break_with_space())))
 		}
@@ -1200,7 +1209,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 	case ^Basic_Lit:
 		document = text_token(p, v.tok)
 	case ^Binary_Expr:
-		document = visit_binary_expr(p, v^, true)
+		document = visit_binary_expr(p, v^)
 	case ^Implicit_Selector_Expr:
 		document = cons(text("."), text_position(p, v.field.name, v.field.pos))
 	case ^Call_Expr:
@@ -1221,6 +1230,11 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		}
 	
 		document = cons(document, cons(break_with(""), text(")")))
+
+		//Binary expression are nested on operators, and therefore undo the nesting in the call expression.
+		if called_from == .Binary_Expr {
+			document = nest(-p.indentation_count, document)
+		}
 
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
@@ -1611,24 +1625,24 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 
 
 @(private)
-visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) -> ^Document {
+visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false) -> ^Document {
 	document := empty()
 
-	nest_first_expression := false
+	nest_expression := false
 
 	if binary.left != nil {		
 		if b, ok := binary.left.derived.(^ast.Binary_Expr); ok {
 			pa := parser.Parser {
 				allow_in_expr = true,
 			}
-			nest_first_expression = parser.token_precedence(&pa,  b.op.kind) != parser.token_precedence(&pa, binary.op.kind) 
-			document = cons(document, visit_binary_expr(p, b^))
+			nest_expression = parser.token_precedence(&pa,  b.op.kind) != parser.token_precedence(&pa, binary.op.kind) 
+			document = cons(document, visit_binary_expr(p, b^, nest_expression))
 		} else {
-			document = cons(document, visit_expr(p, binary.left))
+			document = cons(document, visit_expr(p, binary.left, nested ? .Binary_Expr : .Generic))
 		}
 	} 
 
-	if nest_first_expression {
+	if nest_expression {
 		document = nest(p.indentation_count, document)
 		document = group(document)
 	}
@@ -1637,9 +1651,9 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, first := false) 
 
 	if binary.right != nil {
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-			document = cons_with_opl(document, group(nest(p.indentation_count, visit_binary_expr(p, b^))))
+			document = cons_with_opl(document, group(nest(p.indentation_count, visit_binary_expr(p, b^, true))))
 		} else {
-			document = cons_with_opl(document, group(nest(p.indentation_count, visit_expr(p, binary.right))))
+			document = cons_with_opl(document, group(nest(p.indentation_count, visit_expr(p, binary.right, nested ? .Binary_Expr : .Generic))))
 		}
 	}
 

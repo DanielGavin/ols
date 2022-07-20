@@ -21,5 +21,16 @@ binary :: proc() {
 
 	logical_operator_2 = 111111111111111111111111 == 22222222222222222222232323222 && 111123432411123232311 == 3333332323232432333333333333333333
 
+	b = my_cool_function(
+                aaaaaaaaaaaaaaaaaaaaaaaaaa,
+                bbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
+        ) *
+            234234 +
+        223423423
+
+
+	b = my_cool_function(aaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbb, ccccccccccccccccccc) + 11111111111111111111111111111111111111
+
+
 
 }
