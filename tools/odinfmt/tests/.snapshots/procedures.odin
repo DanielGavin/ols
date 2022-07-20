@@ -1,8 +1,9 @@
 package odinfmt_test
 
 
-GetPhysicsBody :: proc(index: int) ->
-	ReallllllllllllllllllllllllllllllllllllllyThiccccccccccccccccccccccccPhysicsBody
+GetPhysicsBody :: proc(
+	index: int
+) -> ReallllllllllllllllllllllllllllllllllllllyThiccccccccccccccccccccccccPhysicsBody
 
 
 tracking_allocator_check_leaks :: proc(

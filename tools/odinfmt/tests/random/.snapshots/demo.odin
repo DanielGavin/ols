@@ -1023,8 +1023,11 @@ parametric_polymorphism :: proc() {
 			return table.slots[index].value, true
 		}
 
-		find_index :: proc(table: ^Table($Key, $Value), key: Key, hash: u32) ->
-			int {
+		find_index :: proc(
+			table: ^Table($Key, $Value),
+			key: Key,
+			hash: u32,
+		) -> int {
 			if len(table.slots) <= 0 {
 				return -1
 			}

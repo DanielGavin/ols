@@ -1585,7 +1585,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 	}
 
 	document = cons(document, nest(cons(break_with(""), visit_signature_list(p, proc_type.params, contains_body, false))))
-	document = group(cons(document, cons(break_with(""), text(")"))))
+	document = cons(document, cons(break_with(""), text(")")))
 
 	if proc_type.results != nil && len(proc_type.results.list) > 0 {
 		document = cons_with_nopl(document, text("-"))
@@ -1608,9 +1608,9 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 		if use_parens {
 			document = cons_with_nopl(document, text("("))
 			document = cons(document, nest(cons(break_with(""), visit_signature_list(p, proc_type.results, contains_body, true))))
-			document = group(cons(document, cons(break_with(""), text(")"))))
+			document = cons(document, cons(break_with(""), text(")")))
 		} else {
-			document = cons(document, group(nest(cons(break_with(" "), group(visit_signature_list(p, proc_type.results, contains_body, true))))))
+			document = cons_with_nopl(document, nest(group(visit_signature_list(p, proc_type.results, contains_body, true))))
 		}
 	} else if proc_type.diverging {
 		document = cons_with_nopl(document, text("-"))
@@ -1620,7 +1620,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 
 	document = cons_with_opl(document, visit_proc_tags(p, proc_type.tags))
 
-	return document
+	return group(document)
 }
 
 

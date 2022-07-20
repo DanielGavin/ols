@@ -160,8 +160,10 @@ enforce_break :: proc(
 	return document
 }
 
-align :: proc(aligned_document: ^Document, allocator := context.allocator) ->
-	^Document {
+align :: proc(
+	aligned_document: ^Document,
+	allocator := context.allocator,
+) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Align {
 		document = aligned_document,
@@ -211,8 +213,11 @@ group :: proc(
 	return document
 }
 
-cons :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) ->
-	^Document {
+cons :: proc(
+	lhs: ^Document,
+	rhs: ^Document,
+	allocator := context.allocator,
+) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Cons {
 		lhs = lhs,
