@@ -35,14 +35,12 @@ Document_Line_Suffix :: struct {
 }
 
 Document_Nest :: struct {
-	indentation: int,
-	alignment: int,
+	alignment: int, //Is only used when hanging a document
+	negate: bool,
 	document: ^Document,
 }
 
 Document_Nest_If_Break :: struct {
-	indentation: int,
-	alignment: int,
 	document: ^Document,
 	group_id: string,
 }
@@ -106,19 +104,26 @@ newline :: proc(amount: int, allocator := context.allocator) -> ^Document {
 	return document
 }
 
-nest :: proc(level: int, nested_document: ^Document, allocator := context.allocator) -> ^Document {
+nest :: proc(nested_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nest {
-		indentation = level,
 		document = nested_document,
 	}
 	return document
 }
 
-nest_if_break :: proc(level: int, nested_document: ^Document, group_id := "", allocator := context.allocator) -> ^Document {
+escape_nest :: proc(nested_document: ^Document, allocator := context.allocator) -> ^Document {
+	document := new(Document, allocator)
+	document^ = Document_Nest {
+		document = nested_document,
+		negate = true,
+	}
+	return document
+}
+
+nest_if_break :: proc(nested_document: ^Document, group_id := "", allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nest_If_Break {
-		indentation = level,
 		document = nested_document,
 		group_id = group_id,
 	}
@@ -284,7 +289,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Align:
 			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width})
 		case Document_Nest:
-			append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
 		case Document_Text:
 			width -= len(v.value)
 		case Document_Break:
@@ -299,7 +304,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			}
 		case Document_Nest_If_Break:
 			if data.mode == .Break {
-				append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+				append(list, Tuple {indentation = data.indentation + 1, mode = data.mode, document = v.document, alignment = data.alignment})
 			} else {
 				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment})
 			}
@@ -367,7 +372,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
 		case Document_Nest:
-			append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
 		case Document_Align:
 			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = consumed})
 		case Document_Text:
@@ -389,7 +394,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		case Document_Nest_If_Break:
 			mode := v.group_id != "" ? p.group_modes[v.group_id] : data.mode
 			if mode == .Break {
-				append(list, Tuple {indentation = data.indentation + v.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+				append(list, Tuple {indentation = data.indentation + 1, mode = data.mode, document = v.document, alignment = data.alignment})
 			} else {
 				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment})
 			}

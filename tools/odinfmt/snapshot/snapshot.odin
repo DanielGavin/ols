@@ -63,7 +63,8 @@ snapshot_file :: proc(path: string) -> bool {
 				fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
 				os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
 				return false
-			}
+			} 
+			os.remove(fmt.tprintf("%v_failed", snapshot_path))
 		} else {
 			fmt.eprintf("Failed to read snapshot file %v", snapshot_path)
 			return false

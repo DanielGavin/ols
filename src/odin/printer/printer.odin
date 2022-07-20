@@ -21,7 +21,6 @@ Printer :: struct {
 	document:             ^Document,
 	indentation:          string,
 	newline:              string,
-	indentation_count:    int,
 	indentation_width:    int,
 	disabled_lines:       map[int]Disabled_Info,
 	disabled_until_line:  int,
@@ -170,12 +169,10 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	
 	if p.config.tabs {
 		p.indentation = "\t"
-		p.indentation_count = 1
 		p.indentation_width = p.config.tabs_width
 	} else {
-		p.indentation_count = p.config.spaces
-		p.indentation = " "
-		p.indentation_width = 1
+		p.indentation = strings.repeat(" ", p.config.spaces)
+		p.indentation_width = p.config.spaces
 	}
 
 	if p.config.newline_style == .CRLF {
