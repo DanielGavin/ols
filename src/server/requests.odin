@@ -545,7 +545,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	*/
 
 	if core, ok := config.collections["core"]; ok {
-		append(&indexer.builtin_packages, path.join(core, "runtime"))
+		append(&indexer.builtin_packages, path.join({core, "runtime"}))
 	}
 
 	for pkg in indexer.builtin_packages {
