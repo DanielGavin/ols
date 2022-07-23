@@ -58,7 +58,6 @@ RequestInfo :: struct {
 
 
 make_response_message :: proc (id: RequestId, params: ResponseParams) -> ResponseMessage {
-
 	return ResponseMessage {
 		jsonrpc = "2.0",
 		id = id,
@@ -67,7 +66,6 @@ make_response_message :: proc (id: RequestId, params: ResponseParams) -> Respons
 }
 
 make_response_message_error :: proc (id: RequestId, error: ResponseError) -> ResponseMessageError {
-
 	return ResponseMessageError {
 		jsonrpc = "2.0",
 		id = id,
@@ -163,7 +161,6 @@ read_and_parse_header :: proc (reader: ^Reader) -> (Header, bool) {
 	found_content_length := false
 
 	for true {
-
 		strings.builder_reset(&builder)
 
 		if !read_until_delimiter(reader, '\n', &builder) {
@@ -366,9 +363,9 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object)
 	
-    if !ok {
-        return .ParseError
-    }
+    	if !ok {
+		return .ParseError
+	}
 
 	initialize_params: RequestInitializeParams
 
@@ -410,6 +407,14 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					
 					for p in ols_config.collections {
 						forward_path, _ := filepath.to_slash(p.path, context.temp_allocator)
+
+						//Support a basic use of '~'
+						when ODIN_OS != .Windows {
+							if forward_path[0] == '~' {
+								home := os.get_env("HOME", context.temp_allocator)
+								strings.replace(forward_path, "~", home, 1, context.temp_allocator)
+							}
+						}
 
 						if filepath.is_abs(p.path) {
 							config.collections[strings.clone(p.name)] = strings.clone(forward_path)
