@@ -113,7 +113,7 @@ setup_index :: proc() {
 
 	dir_exe := path.dir(os.args[0])
 	
-	try_build_package(path.join(dir_exe, "builtin"))
+	try_build_package(path.join({dir_exe, "builtin"}))
 }
 
 free_index :: proc() {
