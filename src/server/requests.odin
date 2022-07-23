@@ -449,6 +449,12 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 
+	if odin_core_env == "" && "core" not_in config.collections {
+		if exe_path, ok := common.lookup_in_path("odin"); ok {
+			odin_core_env = path.dir(exe_path, context.temp_allocator)
+		}
+	}
+
 	if "core" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 		config.collections["core"] = path.join(elems = {forward_path, "core"}, allocator = context.allocator)
