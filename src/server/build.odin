@@ -50,6 +50,7 @@ try_build_package :: proc(pkg_name: string) {
 	temp_arena: mem.Arena
 
 	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*25, runtime.default_allocator()))
+	defer delete(temp_arena.data)
 	
 	{
 		context.allocator = mem.arena_allocator(&temp_arena)
@@ -99,8 +100,6 @@ try_build_package :: proc(pkg_name: string) {
 			free_all(context.allocator)
 		}
 	}
-
-	delete(temp_arena.data)
 
 	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
 		timestamp = time.now(),
