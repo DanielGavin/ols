@@ -15,7 +15,7 @@ when ODIN_OS == .Windows {
 File_Mode_User_Executable :: os.File_Mode(1 << 8)
 
 lookup_in_path :: proc(name: string) -> (string, bool) {
-	path := os.get_env("path", context.temp_allocator)
+	path := os.get_env("PATH", context.temp_allocator)
 
 	for directory in strings.split_iterator(&path, delimiter) {
 		when ODIN_OS == .Windows {
