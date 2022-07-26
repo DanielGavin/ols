@@ -11,7 +11,10 @@ import "core:thread"
 import "core:encoding/json"
 import "core:reflect"
 import "core:sync"
-import "core:mem/virtual"
+
+when ODIN_OS != .Darwin {
+	import "core:mem/virtual"
+}
 
 import "core:intrinsics"
 
