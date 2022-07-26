@@ -101,9 +101,12 @@ main :: proc() {
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
 
-	growing_arena: virtual.Growing_Arena
+	when ODIN_OS == .Darwin {
+		init_global_temporary_allocator(mem.Megabyte*100)
+	} else {
+		growing_arena: virtual.Growing_Arena
+		context.temp_allocator = virtual.growing_arena_allocator(&growing_arena)
+	}
 
-	context.temp_allocator = virtual.growing_arena_allocator(&growing_arena)
-	
 	run(&reader, &writer)
 }
