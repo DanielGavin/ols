@@ -11,6 +11,7 @@ import "core:thread"
 import "core:encoding/json"
 import "core:reflect"
 import "core:sync"
+import "core:mem/virtual"
 
 import "core:intrinsics"
 
@@ -99,7 +100,10 @@ main :: proc() {
 	
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
-	init_global_temporary_allocator(mem.Megabyte*10)
+
+	growing_arena: virtual.Growing_Arena
+
+	context.temp_allocator = virtual.growing_arena_allocator(&growing_arena)
 	
 	run(&reader, &writer)
 }

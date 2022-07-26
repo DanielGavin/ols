@@ -271,7 +271,8 @@ notification_map: map [string] bool = {
 }
 
 consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
-	temp_requests := make([dynamic]Request, 0, context.temp_allocator)
+	temp_requests := make([dynamic]Request, 0, context.allocator)
+	defer delete(temp_requests)
 
 	sync.mutex_lock(&requests_mutex)
 
@@ -301,6 +302,7 @@ consume_requests :: proc (config: ^common.Config, writer: ^Writer) -> bool {
 		request := temp_requests[request_index]
 		call(request.value, request.id, writer, config)
 		json.destroy_value(request.value)
+		free_all(context.temp_allocator)
 	}
 	
 	sync.mutex_lock(&requests_mutex)
