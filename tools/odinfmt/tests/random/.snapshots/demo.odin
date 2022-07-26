@@ -2367,7 +2367,6 @@ arbitrary_precision_mathematics :: proc() {
 
 
 	// Pick another random big Int, not necesssarily prime.
-
 	err = big.random(b, 2048)
 	print_bigint("\n2048 bit random number: ", b)
 

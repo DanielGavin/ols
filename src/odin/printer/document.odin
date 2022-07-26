@@ -1,7 +1,6 @@
 package odin_printer
 
 import "core:strings"
-import "core:fmt"
 
 Document :: union {
 	Document_Nil,
@@ -289,7 +288,12 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Align:
 			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width})
 		case Document_Nest:
-			append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			if v.alignment != 0 {
+				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+
+			} else {
+				append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			}
 		case Document_Text:
 			width -= len(v.value)
 		case Document_Break:
@@ -372,7 +376,12 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
 			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
 		case Document_Nest:
-			append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			if v.alignment != 0 {
+				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+
+			} else {
+				append(list, Tuple {indentation = data.indentation + (v.negate ? -1 : 1), mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
+			}
 		case Document_Align:
 			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = consumed})
 		case Document_Text:

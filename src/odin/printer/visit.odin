@@ -106,9 +106,10 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document)
 		return 0, document
 	}
 	
-	newlines_before_comment := min(comment.pos.line - p.source_position.line, p.config.newline_limit + 1)
+	newlines_before_comment := comment.pos.line - p.source_position.line
+	newlines_before_comment_limited := min(newlines_before_comment, p.config.newline_limit + 1)
 
-	document = cons(document, newline(newlines_before_comment))
+	document = cons(document, newline(newlines_before_comment_limited))
 
 	if comment.text[:2] != "/*" {
 		if comment.pos.line in p.disabled_lines {
@@ -150,7 +151,7 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos) -> (^Document, int) {
 	for comment_before_position(p, pos) {
 		comment_group := p.comments[p.latest_comment_index]
 
-		for comment, i in comment_group.list {
+		for comment in comment_group.list {
 			newlined, tmp_document := visit_comment(p, comment)
 			lines += newlined
 			document = cons(document, tmp_document)
@@ -404,10 +405,10 @@ visit_exprs :: proc(p: ^Printer, list: []^ast.Expr, options := List_Options{}, c
 		}
 
 		if (i != len(list) - 1 && .Enforce_Newline in options) {
-			comment, ok := visit_comments(p, list[i+1].pos)
+			comment, _ := visit_comments(p, list[i+1].pos)
 			document = cons(document, cons(comment, newline(1)))
 		} else if .Enforce_Newline in options {
-			comment, ok := visit_comments(p, list[i].end)
+			comment, _ := visit_comments(p, list[i].end)
 			document = cons(document, comment)
 		}
 	}
@@ -425,7 +426,7 @@ visit_enum_exprs :: proc(p: ^Printer, enum_type: ast.Enum_Type, options := List_
 
 	for expr, i in enum_type.fields {
 		if i == 0 && .Enforce_Newline in options {
-			comment, ok := visit_comments(p, enum_type.fields[i].pos)			
+			comment, _ := visit_comments(p, enum_type.fields[i].pos)			
 			if _, is_nil := comment.(Document_Nil); !is_nil {
 				comment = cons(comment, newline(1))
 			}
@@ -433,7 +434,7 @@ visit_enum_exprs :: proc(p: ^Printer, enum_type: ast.Enum_Type, options := List_
 		}
 
 		if (.Enforce_Newline in options) {
-			alignment := get_possible_enum_alignment(p, enum_type.fields)
+			alignment := get_possible_enum_alignment(enum_type.fields)
 
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
@@ -449,10 +450,10 @@ visit_enum_exprs :: proc(p: ^Printer, enum_type: ast.Enum_Type, options := List_
 		}
 
 		if (i != len(enum_type.fields) - 1 && .Enforce_Newline in options) {
-			comment, ok := visit_comments(p, enum_type.fields[i+1].pos)
+			comment, _ := visit_comments(p, enum_type.fields[i+1].pos)
 			document = cons(document, cons(comment, newline(1)))
 		} else if .Enforce_Newline in options {
-			comment, ok := visit_comments(p, enum_type.end)
+			comment, _ := visit_comments(p, enum_type.end)
 			document = cons(document, comment)
 		}
 	}
@@ -470,7 +471,7 @@ visit_union_exprs :: proc(p: ^Printer, union_type: ast.Union_Type, options := Li
 
 	for expr, i in union_type.variants {
 		if i == 0 && .Enforce_Newline in options {
-			comment, ok := visit_comments(p, union_type.variants[i].pos)			
+			comment, _ := visit_comments(p, union_type.variants[i].pos)			
 			if _, is_nil := comment.(Document_Nil); !is_nil {
 				comment = cons(comment, newline(1))
 			}
@@ -478,7 +479,7 @@ visit_union_exprs :: proc(p: ^Printer, union_type: ast.Union_Type, options := Li
 		}
 
 		if (.Enforce_Newline in options) {
-			alignment := get_possible_enum_alignment(p, union_type.variants)
+			alignment := get_possible_enum_alignment(union_type.variants)
 
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				document = cons(document, cons_with_nopl(visit_expr(p, value.field), cons_with_nopl(cons(repeat_space(alignment - get_node_length(value.field)), text_position(p, "=", value.sep)), visit_expr(p, value.value))))
@@ -494,10 +495,10 @@ visit_union_exprs :: proc(p: ^Printer, union_type: ast.Union_Type, options := Li
 		}
 
 		if (i != len(union_type.variants) - 1 && .Enforce_Newline in options) {
-			comment, ok := visit_comments(p, union_type.variants[i+1].pos)
+			comment, _ := visit_comments(p, union_type.variants[i+1].pos)
 			document = cons(document, cons(comment, newline(1)))
 		} else if .Enforce_Newline in options {
-			comment, ok := visit_comments(p, union_type.end)
+			comment, _ := visit_comments(p, union_type.end)
 			document = cons(document, comment)
 		}
 	}
@@ -515,7 +516,7 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 
 	for expr, i in comp_lit.elems {
 		if i == 0 && .Enforce_Newline in options {
-			comment, ok := visit_comments(p,  comp_lit.elems[i].pos)			
+			comment, _ := visit_comments(p,  comp_lit.elems[i].pos)			
 			if _, is_nil := comment.(Document_Nil); !is_nil {
 				comment = cons(comment, newline(1))
 			}
@@ -523,7 +524,7 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 		}
 
 		if (.Enforce_Newline in options) {
-			alignment := get_possible_comp_lit_alignment(p, comp_lit.elems)
+			alignment := get_possible_comp_lit_alignment(comp_lit.elems)
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				align := empty()
 				if should_align_comp_lit(p, comp_lit) {
@@ -542,10 +543,10 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 		}
 
 		if (i != len(comp_lit.elems) - 1 && .Enforce_Newline in options) {
-			comment, ok := visit_comments(p, comp_lit.elems[i+1].pos)
+			comment, _ := visit_comments(p, comp_lit.elems[i+1].pos)
 			document = cons(document, cons(comment, newline(1)))
 		} else if .Enforce_Newline in options {
-			comment, ok := visit_comments(p, comp_lit.end)
+			comment, _ := visit_comments(p, comp_lit.end)
 			document = cons(document, comment)
 		}
 	}
@@ -672,7 +673,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		if v.cond != nil {
-			if_document = cons_with_nopl(if_document, group(visit_expr(p, v.cond)))
+			if_document = cons_with_opl(if_document, group(visit_expr(p, v.cond)))
 		}
 
 		document = cons(document, group(hang(3, if_document)))
@@ -684,7 +685,6 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-
 			if p.config.brace_style == .Allman || p.config.brace_style == .Stroustrup {
 				document = cons(document, newline(1))
 			}
@@ -1498,7 +1498,7 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 		name_options := List_Options{.Add_Comma}
 
 		if (.Enforce_Newline in options) {
-			alignment := get_possible_field_alignment(p, list.list)
+			alignment := get_possible_field_alignment(list.list)
 
 			if alignment > 0 {
 				length := 0
@@ -1534,10 +1534,10 @@ visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Opt
 		}
 
 		if i != len(list.list) - 1 && .Enforce_Newline in options {
-			comment, ok := visit_comments(p, list.list[i+1].pos)
+			comment, _ := visit_comments(p, list.list[i+1].pos)
 			document = cons(document, cons(comment, newline(1)))
 		} else {
-			comment, ok := visit_comments(p, list.end)
+			comment, _ := visit_comments(p, list.end)
 			document = cons(document, comment)
 		}
 	}
@@ -1799,7 +1799,7 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 }
 
 @(private)
-get_possible_field_alignment :: proc(p: ^Printer, fields: []^ast.Field) -> int {
+get_possible_field_alignment :: proc(fields: []^ast.Field) -> int {
 	longest_name := 0
 
 	for field in fields {
@@ -1819,17 +1819,17 @@ get_possible_field_alignment :: proc(p: ^Printer, fields: []^ast.Field) -> int {
 }
 
 @(private)
-get_possible_comp_lit_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int {
+get_possible_comp_lit_alignment :: proc(exprs: []^ast.Expr) -> int {
 	longest_name := 0
 
 	for expr in exprs {
-		value, ok := expr.derived.(^ast.Field_Value)
+		value, is_field_value := expr.derived.(^ast.Field_Value)
 
-		if !ok {
+		if !is_field_value {
 			return 0
 		}
 
-		if _, ok := value.value.derived.(^ast.Comp_Lit); ok {
+		if _, is_comp := value.value.derived.(^ast.Comp_Lit); is_comp {
 			return 0
 		}
 
@@ -1840,7 +1840,7 @@ get_possible_comp_lit_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int 
 }
 
 @(private)
-get_possible_enum_alignment :: proc(p: ^Printer, exprs: []^ast.Expr) -> int {
+get_possible_enum_alignment :: proc(exprs: []^ast.Expr) -> int {
 	longest_name := 0
 
 	for expr in exprs {
