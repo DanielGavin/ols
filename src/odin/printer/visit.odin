@@ -1584,7 +1584,7 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 		document = cons(document, text("("))
 	}
 
-	document = cons(document, nest(cons(break_with(""), visit_signature_list(p, proc_type.params, contains_body, false))))
+	document = cons(document, nest(cons(break_with(""), visit_signature_list(p, proc_type.params, true, false))))
 	document = cons(document, cons(break_with(""), text(")")))
 
 	if proc_type.results != nil && len(proc_type.results.list) > 0 {
