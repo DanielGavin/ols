@@ -64,11 +64,11 @@ snapshot_file :: proc(path: string) -> bool {
 			scanner.init(&snapshot_scanner, string(snapshot_data))
 			formatted_scanner := scanner.Scanner {}
 			scanner.init(&formatted_scanner, string(formatted))
-			cmp: for {
+			for {
 				s_ch := scanner.next(&snapshot_scanner)
 				f_ch := scanner.next(&formatted_scanner)
 				if s_ch == scanner.EOF || f_ch == scanner.EOF {
-					break cmp
+					break
 				}
 
 				if s_ch == '\r' {
