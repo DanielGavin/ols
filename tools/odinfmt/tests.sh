@@ -1,4 +1,3 @@
-echo off
-cd /D "%~dp0"
+cd "${0%/*}"
 odin run tests.odin -file -show-timings  -collection:shared=../../src -out:tests.exe 
-if %errorlevel% neq 0 exit 1
+if ([ $? -ne 0 ]) then exit 1 fi
