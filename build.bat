@@ -1,10 +1,11 @@
-@echo on
+@echo off
 
 
 if "%1" == "CI" (
     set "PATH=%cd%\Odin;%PATH%"
-    rem "Odin/odin.exe" test tests -collection:shared=src -debug
-    rem if %errorlevel% neq 0 exit 1
+
+    odin test tests -collection:shared=src -debug
+    if %errorlevel% neq 0 exit 1
     
     odin build src\ -show-timings -collection:shared=src -out:ols.exe -o:speed
 
