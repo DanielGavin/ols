@@ -7,7 +7,7 @@ if "%1" == "CI" (
     rem odin test tests -collection:shared=src 
     rem if %errorlevel% neq 0 exit 1
     
-    odin build src\ -show-timings -collection:shared=src -out:ols.exe -o:speed
+    odin build src\ -collection:shared=src -out:ols.exe -o:speed
 
     call "tools/odinfmt/tests.bat"
     if %errorlevel% neq 0 exit 1

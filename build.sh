@@ -42,4 +42,4 @@ then
     cd ..
 fi
 
-odin build src/ -show-timings  -collection:shared=src -out:ols -o:speed
+odin build src/ -collection:shared=src -out:ols -o:speed
