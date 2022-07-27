@@ -4,6 +4,7 @@ import "core:testing"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:text/scanner"
 import "core:fmt"
 
 import "shared:odin/format"
@@ -59,11 +60,34 @@ snapshot_file :: proc(path: string) -> bool {
 
 	if os.exists(snapshot_path) {
 		if snapshot_data, ok := os.read_entire_file(snapshot_path, context.temp_allocator); ok {
-			if cast(string)snapshot_data != formatted {
-				fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
-				os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
-				return false
-			} 
+			snapshot_scanner := scanner.Scanner {}
+			scanner.init(&snapshot_scanner, string(snapshot_data))
+			formatted_scanner := scanner.Scanner {}
+			scanner.init(&formatted_scanner, string(formatted))
+			cmp: for {
+				s_ch := scanner.next(&snapshot_scanner)
+				f_ch := scanner.next(&formatted_scanner)
+				if s_ch == scanner.EOF || f_ch == scanner.EOF {
+					break cmp
+				}
+
+				if s_ch == '\r' {
+					if scanner.peek(&snapshot_scanner) == '\n' {
+						s_ch = scanner.next(&snapshot_scanner)
+					}
+				} 
+				if f_ch == '\r' {
+					if scanner.peek(&formatted_scanner) == '\n' {
+						f_ch = scanner.next(&formatted_scanner)
+					}
+				}
+
+				if s_ch != f_ch {
+					fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
+					os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
+					return false
+				}
+			}
 			os.remove(fmt.tprintf("%v_failed", snapshot_path))
 		} else {
 			fmt.eprintf("Failed to read snapshot file %v", snapshot_path)
