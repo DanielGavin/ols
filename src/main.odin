@@ -103,8 +103,10 @@ main :: proc() {
 	when ODIN_OS == .Darwin {
 		init_global_temporary_allocator(mem.Megabyte*100)
 	} else {
-		growing_arena: common.Growing_Arena
-		context.temp_allocator = common.growing_arena_allocator(&growing_arena)
+		init_global_temporary_allocator(mem.Megabyte*100)
+		//Gives weird allocation errors
+		//growing_arena: common.Growing_Arena
+		//context.temp_allocator = common.growing_arena_allocator(&growing_arena)
 	}
 
 	run(&reader, &writer)
