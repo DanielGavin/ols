@@ -12,10 +12,6 @@ import "core:encoding/json"
 import "core:reflect"
 import "core:sync"
 
-when ODIN_OS != .Darwin {
-	import "core:mem/virtual"
-}
-
 import "core:intrinsics"
 
 import "shared:server"
@@ -107,8 +103,8 @@ main :: proc() {
 	when ODIN_OS == .Darwin {
 		init_global_temporary_allocator(mem.Megabyte*100)
 	} else {
-		growing_arena: virtual.Growing_Arena
-		context.temp_allocator = virtual.growing_arena_allocator(&growing_arena)
+		growing_arena: common.Growing_Arena
+		context.temp_allocator = common.growing_arena_allocator(&growing_arena)
 	}
 
 	run(&reader, &writer)
