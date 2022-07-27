@@ -17,7 +17,7 @@ then
 
     cd ..
 
-    ./tools/odinfmt/tests.bat
+    tools/odinfmt/tests.sh
 
     if ([ $? -ne 0 ])
     then
