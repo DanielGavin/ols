@@ -7,6 +7,7 @@ import "shared:common"
 
 import test "shared:testing"
 
+/*
 @(test)
 ast_goto_untyped_value :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -40,6 +41,7 @@ ast_goto_untyped_value :: proc(t: ^testing.T) {
 
     test.expect_definition_locations(t, &source, {location});
 }
+*/
 
 /*
 @(test)

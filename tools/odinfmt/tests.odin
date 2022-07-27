@@ -10,5 +10,9 @@ import "snapshot"
 
 main :: proc() {
 	init_global_temporary_allocator(mem.Megabyte*100)
-	snapshot.snapshot_directory("tests")
+	
+	if !snapshot.snapshot_directory("tests") {
+		os.exit(1)
+	} 
+
 }
