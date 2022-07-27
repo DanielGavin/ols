@@ -39,7 +39,6 @@ jobs:
     - name: Build ols
       shell: cmd
       run: |
-        dir
         ./build.bat CI
   build_linux:
     runs-on: ubuntu-latest
