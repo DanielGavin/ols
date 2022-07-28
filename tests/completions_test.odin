@@ -1349,6 +1349,26 @@ ast_new_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_new_clone_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		new_clone :: proc(data: $T) -> (^T, Allocator_Error) #optional_second {
+		}
+
+		Foo :: struct {}
+
+		main :: proc() {
+			adzz := new_clone(Foo{});
+			adzz*
+		}
+
+		`,
+	};
+
+    test.expect_completion_details(t, &source, "", {"test.adzz: Foo"});
+}
+
+@(test)
 ast_rawtr_cast_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
