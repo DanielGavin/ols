@@ -149,6 +149,8 @@ get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
 	#partial switch v in node.derived {
 	case ^Ident:
 		return cast(^Expr)node
+	case ^Comp_Lit:
+		return v.type
 	case:
 		log.warnf("Unhandled poly to node kind %v", v)
 	}
