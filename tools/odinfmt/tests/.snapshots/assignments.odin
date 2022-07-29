@@ -11,3 +11,8 @@ assignments :: proc() {
 		&big.Int{}
 
 }
+
+ternary_when_assignment :: proc() {
+	a := WGL_CONTEXT_FLAGS_ARB when ODIN_DEBUG else 0
+	b := ODIN_DEBUG ? WGL_CONTEXT_FLAGS_ARB : 0
+}
