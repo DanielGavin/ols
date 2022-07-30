@@ -57,5 +57,33 @@ calls :: proc() {
 		return a.name < b.name
 	})
 
+	test3(
+		Foo{
+			field1 = 1,
+			field2 = "hello",
+			field3 = 1,
+			field4 = "world",
+			field5 = 1,
+			field6 = "!",
+			field7 = 1,
+			field8 = 1,
+		},
+	) or_return
 
+	ab := short_call(10, false) or_return
+
+	resuuuuuuuuult := add_to_long_list_of_values(
+		fooooooooooooo,
+		Foo{
+			field1 = 1,
+			field2 = "hello",
+			field3 = 1,
+			field4 = "world",
+			field5 = 1,
+			field6 = "!",
+			field7 = 1,
+			field8 = 1,
+		},
+		true,
+	) or_return
 }

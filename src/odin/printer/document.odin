@@ -60,8 +60,7 @@ Document_Group :: struct {
 }
 
 Document_Cons :: struct {
-	lhs: ^Document,
-	rhs: ^Document,
+	elements: []^Document,
 }
 
 Document_Align :: struct {
@@ -214,12 +213,15 @@ group :: proc(grouped_document: ^Document, options := Document_Group_Options{}, 
 	return document
 }
 
-cons :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
+cons :: proc(elems: ..^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Cons {
-		lhs = lhs,
-		rhs = rhs,
+	c := Document_Cons {
+		elements = make([]^Document, len(elems), allocator),
 	}
+	for elem, i in elems {
+		c.elements[i] = elem
+	}
+	document^ = c
 	return document
 }
 
@@ -232,7 +234,7 @@ cons_with_opl :: proc(lhs: ^Document, rhs: ^Document, allocator := context.alloc
 		return lhs
 	}
 
-	return cons(lhs, cons(break_with_space(allocator), rhs), allocator)
+	return cons(elems = {lhs, break_with_space(allocator), rhs}, allocator = allocator)
 }
 
 cons_with_nopl:: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
@@ -244,7 +246,7 @@ cons_with_nopl:: proc(lhs: ^Document, rhs: ^Document, allocator := context.alloc
 		return lhs
 	}
 
-	return cons(lhs, cons(break_with_no_newline(allocator), rhs), allocator)
+	return cons(elems = {lhs, break_with_no_newline(allocator), rhs}, allocator = allocator)
 }
 
 Tuple :: struct {
@@ -283,8 +285,9 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 				return true
 			}
 		case Document_Cons:
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
+			for i := len(v.elements) - 1; i >= 0; i -= 1 {
+				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.elements[i], alignment = data.alignment})
+			}
 		case Document_Align:
 			append(list, Tuple {indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width})
 		case Document_Nest:
@@ -373,8 +376,9 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 				}
 			}	
 		case Document_Cons:
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.rhs, alignment = data.alignment})
-			append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.lhs, alignment = data.alignment})
+			for i := len(v.elements) - 1; i >= 0; i -= 1 {
+				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.elements[i], alignment = data.alignment})
+			}
 		case Document_Nest:
 			if v.alignment != 0 {
 				append(list, Tuple {indentation = data.indentation, mode = data.mode, document = v.document, alignment = data.alignment + v.alignment})
