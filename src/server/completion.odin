@@ -431,7 +431,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					documentation = symbol.doc,
 				}
 
-				if symbol.type == .Function {
+				if symbol.type == .Function && common.config.enable_snippets {
 					item.insertText = fmt.tprintf("%v($0)", item.label)
 					item.insertTextFormat = .Snippet
 					item.command.command = "editor.action.triggerParameterHints"
@@ -1003,7 +1003,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 	})
 
 	//hard code for now
-	top_results := combined[0:(min(50, len(combined)))]
+	top_results := combined[0:(min(100, len(combined)))]
 
 	for result in top_results {
 		result := result
@@ -1042,7 +1042,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 			item.kind = cast(CompletionItemKind)result.type
 
-			if result.type == .Function {
+			if result.type == .Function && common.config.enable_snippets {
 				item.insertText = fmt.tprintf("%v($0)", item.label)
 				item.insertTextFormat = .Snippet
 				item.deprecated =  .Deprecated in result.flags
