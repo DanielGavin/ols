@@ -362,7 +362,7 @@ is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 	for expr in list {
 		#partial switch v in expr.derived {
 		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, ^ast.Paren_Expr,
-		     ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr, ^ast.Or_Return_Expr:	
+		     ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr:	
 			return true	
 		}
 	}
@@ -374,7 +374,7 @@ is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 is_values_nestable_if_break_assign :: proc(list: []^ast.Expr) -> bool {
 	for expr in list {
 		#partial switch v in expr.derived {
-		case ^ast.Call_Expr, ^ast.Comp_Lit:	
+		case ^ast.Call_Expr, ^ast.Comp_Lit, ^ast.Or_Return_Expr:	
 			return true	
 		}
 	}
@@ -1055,7 +1055,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons_with_opl(document, text_token(p, v.token))
 		document = cons_with_opl(document, visit_expr(p, v.y))
 	case ^Or_Return_Expr:
-		document = cons_with_opl(visit_expr(p, v.expr), text_token(p, v.token))
+		document = cons_with_nopl(visit_expr(p, v.expr), text_token(p, v.token))
 	case ^Selector_Call_Expr:
 		document = visit_expr(p, v.call.expr)
 		document = cons(document, text("("))
