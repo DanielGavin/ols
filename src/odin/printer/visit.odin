@@ -1045,9 +1045,9 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 			document = cons_with_opl(document, group(visit_expr(p, v.y)))
 		}		
 	case ^Ternary_When_Expr:
-		document = visit_expr(p, v.cond)
+		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.op1))
-		document = cons_with_nopl(document, visit_expr(p, v.x))
+		document = cons_with_nopl(document, visit_expr(p, v.cond))
 		document = cons_with_nopl(document, text_token(p, v.op2))
 		document = cons_with_nopl(document, visit_expr(p, v.y))
 	case ^Or_Else_Expr:
