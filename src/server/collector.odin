@@ -93,10 +93,11 @@ collect_procedure_fields :: proc(collection: ^SymbolCollection, proc_type: ^ast.
 	return value
 }
 
-collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string) -> SymbolStructValue {
+collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.Struct_Type, package_map: map[string]string, file: ast.File) -> SymbolStructValue {
 	names := make([dynamic]string, 0, collection.allocator)
 	types := make([dynamic]^ast.Expr, 0, collection.allocator)
 	usings := make(map[string]bool, 0, collection.allocator)
+	ranges := make([dynamic]common.Range, 0, collection.allocator)
 
 	for field in struct_type.fields.list {
 		for n in field.names {
@@ -110,12 +111,15 @@ collect_struct_fields :: proc(collection: ^SymbolCollection, struct_type: ast.St
 			if .Using in field.flags {
 				usings[names[len(names) - 1]] = true
 			}
+
+			append(&ranges, common.get_token_range(n, file.src))
 		}
 	}
 
 	value := SymbolStructValue {
 		names = names[:],
 		types = types[:],
+		ranges = ranges[:],
 		usings = usings,
 		poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings),
 	}
@@ -304,7 +308,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Struct_Type:
 			token = v^
 			token_type = .Struct
-			symbol.value = collect_struct_fields(collection, v^, package_map)
+			symbol.value = collect_struct_fields(collection, v^, package_map, file)
 			symbol.signature = "struct"
 		case ^ast.Enum_Type:
 			token = v^
@@ -367,7 +371,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = expr.expr
 		}
 
-		symbol.range = common.get_token_range(token, file.src)
+		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
 		symbol.doc = common.get_doc(expr.docs, collection.allocator)

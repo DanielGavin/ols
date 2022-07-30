@@ -16,10 +16,11 @@ SymbolAndNode :: struct {
 }
 
 SymbolStructValue :: struct {
-	names:   []string,
-	types:   []^ast.Expr,
-	usings:  map[string]bool,
-	poly: ^ast.Field_List,
+	names:  []string,
+	ranges: []common.Range,
+	types:  []^ast.Expr,
+	usings: map[string]bool,
+	poly:   ^ast.Field_List,
 }
 
 SymbolPackageValue :: struct {}

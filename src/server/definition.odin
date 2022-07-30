@@ -38,7 +38,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	if position_context.selector != nil {
+	if position_context.selector_expr != nil {
 		//if the base selector is the client wants to go to.
 		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
@@ -62,51 +62,9 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 			}
 		}
 
-		//otherwise it's the field the client wants to go to.
-
-		selector: Symbol
-
-		ast_context.use_locals = true
-		ast_context.use_globals = true
-		ast_context.current_package = ast_context.document_package
-
-		selector, ok = resolve_type_expression(&ast_context, position_context.selector)
-
-		if !ok {
-			return {}, false
-		}
-
-		field: string
-
-		if position_context.field != nil {
-			#partial switch v in position_context.field.derived {
-			case ^ast.Ident:
-				field = v.name
-			}
-		}
-
-		uri = selector.uri
-
-		#partial switch v in selector.value {
-		case SymbolEnumValue:
-			location.range = selector.range
-		case SymbolStructValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					location.range = common.get_token_range(v.types[i]^, document.ast.src)
-				}
-			}
-		case SymbolPackageValue:
-			if symbol, ok := lookup(field, selector.pkg); ok {
-				location.range = symbol.range
-				uri = symbol.uri
-			} else {
-				return {}, false
-			}
-		}
-
-		if !ok {
-			return {}, false
+		if resolved, ok := resolve_location_selector(&ast_context, position_context.selector_expr); ok {
+			location.range = resolved.range
+			uri = resolved.uri
 		}
 	} else if position_context.identifier != nil {
 		if resolved, ok := resolve_location_identifier(&ast_context, position_context.identifier.derived.(^ast.Ident)^); ok {

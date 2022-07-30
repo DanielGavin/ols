@@ -147,7 +147,7 @@ CompletionItemCapabilities :: struct {
 CompletionClientCapabilities :: struct {
 	documentationFormat: [dynamic]string,
 	completionItem:      CompletionItemCapabilities,
-}
+}	
 
 ParameterInformationCapabilities :: struct {
 	labelOffsetSupport: bool,

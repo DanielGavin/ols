@@ -26,16 +26,28 @@ walk_directories :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno
 	}
 
 	if strings.contains(info.name, ".odin") {
-		append(&fullpaths, strings.clone(info.fullpath, runtime.default_allocator()))
+		append(&fullpaths, strings.clone(info.fullpath, context.allocator))
 	}
 
 	return 0, false
 }
 
+position_in_struct_names :: proc(position_context: ^DocumentPositionContext, type: ^ast.Struct_Type) -> bool {
+	for field in type.fields.list {
+		for name in field.names {
+			if position_in_node(name, position_context.position) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 
 resolve_references :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> ([]common.Location, bool)  {
-	locations := make([dynamic]common.Location, 0, context.allocator)
-	fullpaths = make([dynamic]string, 10, context.allocator)
+	locations := make([dynamic]common.Location, 0, ast_context.allocator)
+	fullpaths = make([dynamic]string, 10, ast_context.allocator)
 
 	resolve_flag: ResolveReferenceFlag
 	reference := ""
@@ -43,41 +55,54 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 	ok: bool
 	pkg := ""
 
-	if position_context.selector != nil {
+	walker_arena: mem.Arena
+	mem.init_arena(&walker_arena, make([]byte, mem.Megabyte*5))
+	
+	{
+		context.temp_allocator = mem.arena_allocator(&walker_arena)
+		filepath.walk(filepath.dir(os.args[0], context.allocator), walk_directories)
+	}
 
-	} else if position_context.call != nil {
-
+	if position_context.struct_type != nil && position_in_struct_names(position_context, position_context.struct_type) {
+		return {}, true
+	} else if position_context.enum_type != nil {
+		return {}, true
+	} else if position_context.bitset_type != nil {
+		return {}, true
+	} else if position_context.union_type != nil {
+		return {}, true
+	} else if position_context.selector_expr != nil {
+		return {}, true
 	} else if position_context.identifier != nil {
-		resolve_flag = .Identifier
 		ident := position_context.identifier.derived.(^ast.Ident)
+
+		if resolved, ok := resolve_type_identifier(ast_context, ident^); ok {
+			if resolved.type == .Variable {
+				resolve_flag = .Variable
+			} else {
+				resolve_flag = .Constant
+			}
+		}
+
 		reference = ident.name
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
 
 		location := common.Location {
 			range = common.get_token_range(position_context.identifier^, string(ast_context.file.src)),
-			uri = strings.clone(symbol.uri, runtime.default_allocator()),
-		} 
+			uri = strings.clone(symbol.uri, ast_context.allocator),
+		}
+
 		append(&locations, location)
 	}
 	
 	if !ok {
-		return {}, false
+		return {}, true
 	}
 
-	symbol_uri := strings.clone(symbol.uri, context.allocator)
-	symbol_pkg := strings.clone(symbol.pkg, context.allocator)
-	symbol_range := symbol.range
+	resolve_arena: mem.Arena
+	mem.init_arena(&resolve_arena, make([]byte, mem.Megabyte*25))
 
-	temp_arena: mem.Arena
-
-	mem.init_arena(&temp_arena, make([]byte, mem.Megabyte*25, runtime.default_allocator()))
-
-	context.allocator = mem.arena_allocator(&temp_arena)
-
-	{
-		context.temp_allocator = context.allocator
-		filepath.walk(filepath.dir(os.args[0], context.temp_allocator), walk_directories)
-	}
+	context.allocator = mem.arena_allocator(&resolve_arena)
 
 	for fullpath in fullpaths {
 		data, ok := os.read_entire_file(fullpath, context.allocator)
@@ -134,7 +159,7 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 		in_pkg := false
 
 		for pkg in document.imports {
-			if pkg.name == symbol_pkg || symbol.pkg == ast_context.document_package {
+			if pkg.name == symbol.pkg || symbol.pkg == ast_context.document_package {
 				in_pkg = true
 			}
 		}
@@ -143,33 +168,32 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 			symbols_and_nodes := resolve_entire_file(&document, reference, resolve_flag, context.allocator)
 
 			for k, v in symbols_and_nodes {
-				if v.symbol.uri  == symbol_uri && v.symbol.range == symbol_range {
+				if v.symbol.uri  == symbol.uri && v.symbol.range == symbol.range {
 					location := common.Location {
 						range = common.get_token_range(v.node^, string(document.text)),
-						uri = strings.clone(v.symbol.uri, runtime.default_allocator()),
+						uri = strings.clone(v.symbol.uri, ast_context.allocator),
 					} 
 					append(&locations, location)
 				}
 			}
 		}
 
-		
-
-		delete(fullpath)
 		free_all(context.allocator)
 	}
-
-	delete(fullpaths)
-	delete(temp_arena.data)
-	delete(symbol_uri)
-
-
 
 	return locations[:], true
 }
 
 get_references :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+	data := make([]byte, mem.Megabyte*55, runtime.default_allocator())
+	//defer delete(data)
+	
+	arena: mem.Arena
+	mem.init_arena(&arena, data)
+	
+	context.allocator = mem.arena_allocator(&arena)
+
+	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath, context.allocator)
 
 	position_context, ok := get_document_position_context(document, position, .Hover)
 
@@ -181,5 +205,17 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	return resolve_references(&ast_context, &position_context)
+	locations, ok2 := resolve_references(&ast_context, &position_context)
+
+	temp_locations := make([dynamic]common.Location, 0, context.temp_allocator)
+
+	for location in locations {
+		temp_location := common.Location {
+			range = location.range,
+			uri = strings.clone(location.uri, context.temp_allocator),
+		}
+		append(&temp_locations, temp_location)
+	}
+
+	return temp_locations[:], ok2
 }

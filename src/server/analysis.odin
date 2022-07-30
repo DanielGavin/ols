@@ -30,6 +30,7 @@ DocumentPositionContext :: struct {
 	line:             int,
 	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
 	selector:         ^ast.Expr,     //used for completion
+	selector_expr:    ^ast.Selector_Expr,
 	identifier:       ^ast.Node,
 	implicit_context: ^ast.Implicit,
 	tag:              ^ast.Node,
@@ -38,6 +39,10 @@ DocumentPositionContext :: struct {
 	returns:          ^ast.Return_Stmt, //used for completion
 	comp_lit:         ^ast.Comp_Lit,    //used for completion
 	parent_comp_lit:  ^ast.Comp_Lit,    //used for completion
+	struct_type:      ^ast.Struct_Type,
+	union_type:       ^ast.Union_Type,
+	bitset_type:      ^ast.Bit_Set_Type,
+	enum_type:        ^ast.Enum_Type,
 	field_value:      ^ast.Field_Value,
 	implicit:         bool,             //used for completion
 	arrow:            bool,
@@ -80,7 +85,7 @@ AstContext :: struct {
 	call:              ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
 	position:          common.AbsolutePosition,
 	value_decl:        ^ast.Value_Decl,
-	field_name:        string,
+	field_name:        ast.Ident,
 	uri:               string,
 	fullpath:          string,
 	recursion_counter: int, //Sometimes the ast is so malformed that it causes infinite recursion.
@@ -846,7 +851,6 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 
 	if ast_context.recursion_counter > 200 {
 		log.error("Recursion passed 200 attempts - giving up", node)
-		assert(false)
 		return {}, false
 	}
 
@@ -1026,7 +1030,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 
 				for name, i in s.names {
 					if v.field != nil && name == v.field.name {
-						ast_context.field_name = v.field.name
+						ast_context.field_name = v.field^
 						symbol, ok := resolve_type_expression(ast_context, s.types[i])
 						symbol.type = .Variable
 						return symbol, ok
@@ -1146,7 +1150,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 	if ast_context.recursion_counter > 200 {
 		log.error("Recursion passed 200 attempts - giving up", node)
-		assert(false)
 		return {}, false
 	}
 
@@ -1227,33 +1230,33 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		case ^Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !v.type.generic {
-				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true
+				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node), true
 			} else {
 				if return_symbol, ok = resolve_generic_function(ast_context, v^); !ok {
-					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node.name), true
+					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node), true
 				}
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
@@ -1293,33 +1296,33 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		case ^Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !v.type.generic {
-				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true
+				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node), true
 			} else {
 				if return_symbol, ok = resolve_generic_function(ast_context, v^); !ok {
-					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node.name), true
+					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node), true
 				}
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node.name), true
+			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
@@ -1407,6 +1410,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: SymbolStructValue) -> SymbolStructValue {
 	names := slice.to_dynamic(value.names, ast_context.allocator)
 	types := slice.to_dynamic(value.types, ast_context.allocator)
+	ranges := slice.to_dynamic(value.ranges, ast_context.allocator)
 
 	for k, v in value.usings {
 		ast_context.current_package = symbol.pkg
@@ -1433,6 +1437,10 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 				for type in struct_value.types {
 					append(&types, type)
 				}
+
+				for range in struct_value.ranges {
+					append(&ranges, range)
+				}		
 			}
 		}
 	}
@@ -1440,6 +1448,7 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 	return {
 		names = names[:],
 		types = types[:],
+		ranges = ranges[:],
 	}
 }
 
@@ -1575,6 +1584,46 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	return {}, false
 }
 
+resolve_location_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selector_Expr) -> (Symbol, bool) {
+	ast_context.use_locals = true
+	ast_context.use_globals = true
+	ast_context.current_package = ast_context.document_package
+
+	symbol, ok := resolve_type_expression(ast_context, selector.expr)
+
+	if !ok {
+		return {}, false
+	}
+
+	field: string
+
+	if selector.field != nil {
+		#partial switch v in selector.field.derived {
+		case ^ast.Ident:
+			field = v.name
+		}
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolStructValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolPackageValue:
+		if pkg, ok := lookup(field, symbol.pkg); ok {
+			symbol.range = pkg.range
+			symbol.uri = pkg.uri
+		} else {
+			return {}, false
+		}
+	}
+
+	return symbol, true
+}
+
+
 resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (Symbol, bool) {
 	//Fairly simple function to find the earliest identifier symbol in binary expression.
 
@@ -1669,12 +1718,12 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	return usings
 }
 
-make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: string) -> Symbol {
+make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: ast.Ident) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
 		type = .Function,
 		pkg = get_package_from_node(n^),
-		name = name,
+		name = name.name,
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -1692,7 +1741,7 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 		}
 	}
 
-	if expr, ok := ast_context.globals[name]; ok {
+	if expr, ok := ast_context.globals[name.name]; ok {
 		if expr.deprecated {
 			symbol.flags |= {.Distinct}
 		}
@@ -1701,17 +1750,18 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 	symbol.value = SymbolProcedureValue {
 		return_types = return_types[:],
 		arg_types = arg_types[:],
+		generic = v.generic,
 	}
 
 	return symbol
 }
 
-make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, name: string) -> Symbol {
+make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, name: ast.Ident) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
-		name = name,
+		name = name.name,
 	}
 
 	if v.len != nil {
@@ -1728,12 +1778,12 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 	return symbol
 }
 
-make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type, name: string) -> Symbol {
+make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type, name: ast.Ident) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
-		name = name,
+		name = name.name,
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
@@ -1743,12 +1793,12 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 	return symbol
 }
 
-make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Multi_Pointer_Type, name: string) -> Symbol {
+make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Multi_Pointer_Type, name: ast.Ident) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
-		name = name,
+		name = name.name,
 	}
 
 	symbol.value = SymbolMultiPointer {
@@ -1758,12 +1808,12 @@ make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Mult
 	return symbol
 }
 
-make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name: string) -> Symbol {
+make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name: ast.Ident) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
 		type = .Variable,
 		pkg = get_package_from_node(v.node),
-		name = name,
+		name = name.name,
 	}
 
 	symbol.value = SymbolMapValue {
@@ -1788,12 +1838,12 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 	return symbol
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: string, inlined := false) -> Symbol {
+make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident, inlined := false) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Union,
 		pkg = get_package_from_node(v.node),
-		name = ident,
+		name = ident.name,
 	}
 
 	if inlined {
@@ -1822,11 +1872,11 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 	return symbol
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: string, inlined := false) -> Symbol {
+make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident, inlined := false) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
-		name = ident,
+		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	}
 
@@ -1857,11 +1907,11 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 	return symbol
 }
 
-make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: string, inlined := false) -> Symbol {
+make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident, inlined := false) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Enum,
-		name = ident,
+		name = ident.name,
 		pkg = get_package_from_node(v.node),
 	}
 
@@ -1877,12 +1927,12 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 	return symbol
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: string, inlined := false) -> Symbol {
+make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident, inlined := false) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type = .Struct,
 		pkg = get_package_from_node(v.node),
-		name = ident,
+		name = ident.name,
 	}
 
 	if inlined {
@@ -1890,9 +1940,10 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 		symbol.name = "struct"
 	}
 
-	names  := make([dynamic]string, ast_context.allocator)
-	types  := make([dynamic]^ast.Expr, ast_context.allocator)
+	names := make([dynamic]string, ast_context.allocator)
+	types := make([dynamic]^ast.Expr, ast_context.allocator)
 	usings := make(map[string]bool, 0, ast_context.allocator)
+	ranges := make([dynamic]common.Range, 0, ast_context.allocator)
 
 	for field in v.fields.list {
 		for n in field.names {
@@ -1909,6 +1960,8 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 				if .Using in field.flags {
 					usings[identifier.name] = true
 				}
+
+				append(&ranges, common.get_token_range(n, ast_context.file.src))
 			}
 		}
 	}
@@ -1916,6 +1969,7 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 	symbol.value = SymbolStructValue {
 		names = names[:],
 		types = types[:],
+		ranges = ranges[:],
 		usings = usings,
 	}
 
@@ -2487,8 +2541,9 @@ clear_locals :: proc(ast_context: ^AstContext) {
 
 ResolveReferenceFlag :: enum {
 	None,
-	Identifier,
-	Call,
+	Variable,
+	Constant,
+	StructElement,
 }
 
 resolve_entire_file :: proc(document: ^Document, reference := "", flag := ResolveReferenceFlag.None, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
@@ -2501,14 +2556,14 @@ resolve_entire_file :: proc(document: ^Document, reference := "", flag := Resolv
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		resolve_entire_decl(&ast_context, decl, &symbols, reference, flag, allocator)
+		resolve_entire_decl(&ast_context, document, decl, &symbols, reference, flag, allocator)
 		clear(&ast_context.locals)
 	}
 
 	return symbols
 }
 
-resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: ^map[uintptr]SymbolAndNode, reference := "", flag := ResolveReferenceFlag.None, allocator := context.allocator) {
+resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl: ^ast.Node, symbols: ^map[uintptr]SymbolAndNode, reference := "", flag := ResolveReferenceFlag.None, allocator := context.allocator) {
 	Scope :: struct {
 		offset: int,
 		id:     int,
@@ -2522,6 +2577,7 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 		last_visit: ^ast.Node,
 		resolve_flag: ResolveReferenceFlag,
 		reference: string,
+		document: ^Document,
 	}
 
 	data := Visit_Data {
@@ -2530,6 +2586,7 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 		scopes = make([dynamic]Scope, allocator),
 		resolve_flag = flag,
 		reference = reference,
+		document = document,
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -2622,16 +2679,37 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, decl: ^ast.Node, symbols: 
 			}
 		} else {
 			#partial done: switch v in node.derived { 
+			case ^ast.Selector_Expr:
+				document : ^Document = data.document
+
+				position_context := DocumentPositionContext {
+					position = v.pos.offset,
+				}
+
+				get_document_position_decls(document.ast.decls[:], &position_context)
+
+				if symbol, ok := resolve_location_selector(ast_context, v); ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
+						symbol = symbol,
+					}
+				} 
 			case ^ast.Ident:	
-				if data.resolve_flag != .Identifier {
+				if data.resolve_flag == .Variable && v.name != data.reference {
 					break done
 				}
 
-				if v.name != data.reference {
-					break done
+				document : ^Document = data.document
+
+				position_context := DocumentPositionContext {
+					position = v.pos.offset,
 				}
 
-				//get_document_position()
+				get_document_position_decls(document.ast.decls[:], &position_context)
+
+				if position_context.field_value != nil && position_in_node(position_context.field_value.field, v.pos.offset) {
+					break done
+				}
 
 				if symbol, ok := resolve_location_identifier(ast_context, v^); ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
@@ -2888,6 +2966,22 @@ type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 	return  common.node_to_string(expr)
 }
 
+get_document_position_decls :: proc(decls: []^ast.Stmt, position_context: ^DocumentPositionContext) -> bool {
+	exists_in_decl := false
+	for decl in decls {
+		if position_in_node(decl, position_context.position) {
+			get_document_position(decl, position_context)
+			exists_in_decl = true
+			#partial switch v in decl.derived {
+			case ^ast.Expr_Stmt:
+				position_context.global_lhs_stmt = true
+			}
+			break
+		}
+	}
+	return exists_in_decl
+}
+
 /*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
@@ -2907,19 +3001,7 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 	position_context.position = absolute_position
 
-	exists_in_decl := false
-
-	for decl in document.ast.decls {
-		if position_in_node(decl, position_context.position) {
-			get_document_position(decl, &position_context)
-			exists_in_decl = true
-			#partial switch v in decl.derived {
-			case ^ast.Expr_Stmt:
-				position_context.global_lhs_stmt = true
-			}
-			break
-		}
-	}
+	exists_in_decl := get_document_position_decls(document.ast.decls[:], &position_context)
 
 	for import_stmt in document.ast.imports {
 		if position_in_node(import_stmt, position_context.position) {
@@ -3340,6 +3422,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		} else if (position_context.hint == .Definition || position_context.hint == .Hover) && n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
+			position_context.selector_expr = cast(^Selector_Expr)node
 			get_document_position(n.expr, position_context)
 			get_document_position(n.field, position_context)
 		} else {
@@ -3495,17 +3578,21 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
 	case ^Struct_Type:
+		position_context.struct_type = cast(^Struct_Type)node
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Union_Type:
+		position_context.union_type = cast(^Union_Type)node
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.variants, position_context)
 	case ^Enum_Type:
+		position_context.enum_type = cast(^Enum_Type)node
 		get_document_position(n.base_type, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Bit_Set_Type:
+		position_context.bitset_type = cast(^Bit_Set_Type)node
 		get_document_position(n.elem, position_context)
 		get_document_position(n.underlying, position_context)
 	case ^Map_Type:

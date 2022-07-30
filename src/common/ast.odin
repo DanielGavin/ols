@@ -67,6 +67,7 @@ keyword_map: map[string]bool = {
 
 GlobalExpr :: struct {
 	name:            string,
+	name_expr:       ^ast.Expr,
 	expr:            ^ast.Expr,
 	mutable:         bool,
 	docs:            ^ast.Comment_Group,
@@ -142,6 +143,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 			if value_decl.type != nil {
 				append(exprs, GlobalExpr {
 					name = str, 
+					name_expr = name,
 					expr = value_decl.type, 
 					mutable = value_decl.is_mutable, 
 					docs = value_decl.docs, 
@@ -153,6 +155,7 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 				if len(value_decl.values) > i {
 					append(exprs, GlobalExpr {
 						name = str,
+						name_expr = name,
 						expr = value_decl.values[i], 
 						mutable = value_decl.is_mutable, 
 						docs = value_decl.docs, 
