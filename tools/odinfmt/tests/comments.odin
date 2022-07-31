@@ -33,3 +33,10 @@ line_comments_one_line_seperation :: proc() {
 
 
 //More comments YAY
+
+bracket_comments_alignment :: proc() {
+    {   // Describe block
+        a := 10
+        // etc..
+    }
+}

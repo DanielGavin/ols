@@ -215,11 +215,19 @@ group :: proc(grouped_document: ^Document, options := Document_Group_Options{}, 
 
 cons :: proc(elems: ..^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	c := Document_Cons {
-		elements = make([]^Document, len(elems), allocator),
+	elements := make([dynamic]^Document, allocator)
+	for elem in elems {
+		#partial switch e in elem {
+		case Document_Nil:
+			continue
+		case Document_Cons:
+			append(&elements, ..e.elements)
+		case:
+			append(&elements, elem)
+		}
 	}
-	for elem, i in elems {
-		c.elements[i] = elem
+	c := Document_Cons {
+		elements = elements[:],
 	}
 	document^ = c
 	return document
