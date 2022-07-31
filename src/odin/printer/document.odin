@@ -215,17 +215,12 @@ group :: proc(grouped_document: ^Document, options := Document_Group_Options{}, 
 
 cons :: proc(elems: ..^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	elements := make([dynamic]^Document, allocator)
+	elements := make([dynamic]^Document, 0, len(elems), allocator)
+
 	for elem in elems {
-		#partial switch e in elem {
-		case Document_Nil:
-			continue
-		case Document_Cons:
-			append(&elements, ..e.elements)
-		case:
-			append(&elements, elem)
-		}
+		append(&elements, elem)
 	}
+	
 	c := Document_Cons {
 		elements = elements[:],
 	}
@@ -263,6 +258,8 @@ Tuple :: struct {
 	mode: Document_Group_Mode,
 	document: ^Document,
 }
+
+list_fits: [dynamic]Tuple
 
 fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 	assert(list != nil)
@@ -357,6 +354,8 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 
 	suffix_builder := strings.builder_make()
 
+	list_fits = make([dynamic]Tuple, 0, 100, p.allocator)
+
 	for len(list) != 0 {
 		data: Tuple = pop(list)
 
@@ -425,20 +424,20 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 				break
 			}
 
-			l := make([dynamic]Tuple, 0, len(list))
+			clear(&list_fits)
 	
 			for element in list {
-				append(&l, element)
+				append(&list_fits, element)
 			}
 
-			append(&l, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
+			append(&list_fits, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
 
 			recalculate = false
 
 			if data.mode == .Fit {
 				append(list, Tuple {indentation = data.indentation, mode = .Fit, document = v.document, alignment = data.alignment})
 			}
-			else if fits(width-consumed, &l) && v.mode != .Break {			
+			else if fits(width-consumed, &list_fits) && v.mode != .Break {			
 				append(list, Tuple {indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment})
 			} else {
 				if v.mode == .Fit {

@@ -174,7 +174,7 @@ print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
 
 print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.comments = file.comments
-	p.string_builder = strings.builder_make(p.allocator)
+	p.string_builder = strings.builder_make(0, len(file.src)*2, p.allocator)
 	p.src = file.src
 	context.allocator = p.allocator
 	

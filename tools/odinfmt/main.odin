@@ -64,9 +64,8 @@ walk_files :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip
 }
 
 main :: proc() {
-
 	arena: mem.Arena;
-	mem.init_arena(&arena, make([]byte, 20 * mem.Megabyte));
+	mem.init_arena(&arena, make([]byte, 50 * mem.Megabyte));
 
 	arena_allocator := mem.arena_allocator(&arena);
 
@@ -87,6 +86,8 @@ main :: proc() {
 	tick_time := time.tick_now();
 
 	write_failure := false;
+
+	watermark := 0
 
 	if os.is_file(path) {
 		if _, ok := args.write.(bool); ok {
@@ -118,7 +119,6 @@ main :: proc() {
 			defer delete(backup_path);
 
 			if data, ok := format_file(file, arena_allocator); ok {
-
 				if _, ok := args.write.(bool); ok {
 					os.rename(file, backup_path);
 
@@ -133,10 +133,13 @@ main :: proc() {
 				write_failure = true;
 			}
 
+			watermark = max(watermark, arena.offset)
+
 			free_all(arena_allocator);
 		}
-
-		fmt.printf("formatted %v files in %vms", len(files), time.duration_milliseconds(time.tick_lap_time(&tick_time)));
+		
+		fmt.printf("formatted %v files in %vms \n", len(files), time.duration_milliseconds(time.tick_lap_time(&tick_time)));
+		fmt.printf("peak used memory: %v \n", watermark / mem.Megabyte)
 	} else {
 		fmt.eprintf("%v is neither a directory nor a file \n", path);
 		os.exit(1);
