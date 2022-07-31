@@ -117,7 +117,7 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document)
 			return 1, empty()
 		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
-			if comment.pos.line in p.comments_option {
+			if comment_option, exist := p.comments_option[comment.pos.line]; exist && comment_option == .Indent {
 				delete_key(&p.comments_option, comment.pos.line)
 				return newlines_before_comment, cons_with_nopl(document, cons(text(p.indentation), line_suffix(comment.text)))
 			} else {
