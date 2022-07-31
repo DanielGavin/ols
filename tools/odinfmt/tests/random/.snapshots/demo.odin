@@ -42,7 +42,7 @@ import "core:math/big"
 the_basics :: proc() {
 	fmt.println("\n# the basics")
 
-	{ // The Basics
+	{ 	// The Basics
 		fmt.println("Hellope")
 
 		// Lexical elements and literals
@@ -136,7 +136,7 @@ the_basics :: proc() {
 
 control_flow :: proc() {
 	fmt.println("\n# control flow")
-	{ // Control flow
+	{ 	// Control flow
 		// For loop
 		// Odin has only one loop statement, the `for` loop
 
@@ -182,7 +182,7 @@ control_flow :: proc() {
 
 		// Certain built-in types can be iterated over
 		some_string := "Hello, 世界"
-		for character in some_string { // Strings are assumed to be UTF-8
+		for character in some_string { 	// Strings are assumed to be UTF-8
 			fmt.println(character)
 		}
 
@@ -315,7 +315,7 @@ control_flow :: proc() {
 		}
 	}
 
-	{ // Defer statement
+	{ 	// Defer statement
 		// A defer statement defers the execution of a statement until the end of
 		// the scope it is in.
 
@@ -365,7 +365,7 @@ control_flow :: proc() {
 		}
 	}
 
-	{ // When statement
+	{ 	// When statement
 		/*
 			The when statement is almost identical to the if statement but with some differences:
 
@@ -391,7 +391,7 @@ control_flow :: proc() {
 		// it is type checked.
 	}
 
-	{ // Branch statements
+	{ 	// Branch statements
 		cond, cond1, cond2 := false, false, false
 		one_step :: proc() {fmt.println("one_step")}
 		beyond :: proc() {fmt.println("beyond")}
@@ -930,7 +930,7 @@ parametric_polymorphism :: proc() {
 	fmt.println(double_params(12, 1.345))
 
 
-	{ // Polymorphic Types and Type Specialization
+	{ 	// Polymorphic Types and Type Specialization
 		Table_Slot :: struct($Key, $Value: typeid) {
 			occupied: bool,
 			hash:     u32,
@@ -1048,7 +1048,7 @@ parametric_polymorphism :: proc() {
 			return -1
 		}
 
-		get_hash :: proc(s: string) -> u32 { // fnv32a
+		get_hash :: proc(s: string) -> u32 { 	// fnv32a
 			h: u32 = 0x811c9dc5
 			for i in 0 ..< len(s) {
 				h = (h ~ u32(s[i])) * 0x01000193
@@ -1075,7 +1075,7 @@ parametric_polymorphism :: proc() {
 		// the hashing procedure with the table
 	}
 
-	{ // Parametric polymorphic union
+	{ 	// Parametric polymorphic union
 		Error :: enum {
 			Foo0,
 			Foo1,
@@ -1096,7 +1096,7 @@ parametric_polymorphism :: proc() {
 		fmt.println(r)
 	}
 
-	{ // Polymorphic names
+	{ 	// Polymorphic names
 		foo :: proc($N: $I, $T: typeid) -> (res: [N]T) {
 			// `N` is the constant value passed
 			// `I` is the type of N
@@ -1151,7 +1151,7 @@ threading_example :: proc() {
 		return ok && res == false
 	}
 
-	{ // Basic Threads
+	{ 	// Basic Threads
 		fmt.println("\n## Basic Threads")
 		worker_proc :: proc(t: ^thread.Thread) {
 			for iteration in 1 ..= 5 {
@@ -1195,12 +1195,12 @@ threading_example :: proc() {
 		}
 	}
 
-	{ // Thread Pool
+	{ 	// Thread Pool
 		fmt.println("\n## Thread Pool")
 		task_proc :: proc(t: thread.Task) {
 			index := t.user_index % len(prefix_table)
 			for iteration in 1 ..= 5 {
-				for !did_acquire(&print_mutex) {thread.yield()} // Allow one thread to print at a time.
+				for !did_acquire(&print_mutex) {thread.yield()} 	// Allow one thread to print at a time.
 
 				fmt.printf(
 					"Worker Task %d is on iteration %d\n",
@@ -1368,7 +1368,7 @@ implicit_selector_expression :: proc() {
 
 partial_switch :: proc() {
 	fmt.println("\n# partial_switch")
-	{ // enum
+	{ 	// enum
 		Foo :: enum {
 			A,
 			B,
@@ -1397,7 +1397,7 @@ partial_switch :: proc() {
 			fmt.println("D")
 		}
 	}
-	{ // union
+	{ 	// union
 		Foo :: union {
 			int,
 			bool,
@@ -1558,7 +1558,7 @@ quaternions :: proc() {
 	// Not just an April Fool's Joke any more, but a fully working thing!
 	fmt.println("\n# quaternions")
 
-	{ // Quaternion operations
+	{ 	// Quaternion operations
 		q := 1 + 2i + 3j + 4k
 		r := quaternion(5, 6, 7, 8)
 		t := q * r
@@ -1570,13 +1570,13 @@ quaternions :: proc() {
 		s := q - r
 		fmt.printf("(%v) - (%v) = %v\n", q, r, s)
 	}
-	{ // The quaternion types
+	{ 	// The quaternion types
 		q128: quaternion128 // 4xf32
 		q256: quaternion256 // 4xf64
 		q128 = quaternion(1, 0, 0, 0)
 		q256 = 1 // quaternion(1, 0, 0, 0)
 	}
-	{ // Built-in procedures
+	{ 	// Built-in procedures
 		q := 1 + 2i + 3j + 4k
 		fmt.println("q =", q)
 		fmt.println("real(q) =", real(q))
@@ -1586,13 +1586,13 @@ quaternions :: proc() {
 		fmt.println("conj(q) =", conj(q))
 		fmt.println("abs(q)  =", abs(q))
 	}
-	{ // Conversion of a complex type to a quaternion type
+	{ 	// Conversion of a complex type to a quaternion type
 		c := 1 + 2i
 		q := quaternion256(c)
 		fmt.println(c)
 		fmt.println(q)
 	}
-	{ // Memory layout of Quaternions
+	{ 	// Memory layout of Quaternions
 		q := 1 + 2i + 3j + 4k
 		a := transmute([4]f64)q
 		fmt.println("Quaternion memory layout: xyzw/(ijkr)")
@@ -1639,13 +1639,13 @@ unroll_for_statement :: proc() {
 where_clauses :: proc() {
 	fmt.println("\n#procedure 'where' clauses")
 
-	{ // Sanity checks
+	{ 	// Sanity checks
 		simple_sanity_check :: proc(x: [2]int) where len(x) > 1,
 			type_of(x) == [2]int {
 			fmt.println(x)
 		}
 	}
-	{ // Parametric polymorphism checks
+	{ 	// Parametric polymorphism checks
 		cross_2d :: proc(a, b: $T/[2]$E) -> E where intrinsics.type_is_numeric(
 				E,
 			) {
@@ -1675,7 +1675,7 @@ where_clauses :: proc() {
 
 	}
 
-	{ // Procedure groups usage
+	{ 	// Procedure groups usage
 		foo :: proc(x: [$N]int) -> bool where N > 2 {
 			fmt.println(#procedure, "was called with the parameter", x)
 			return true
@@ -1700,7 +1700,7 @@ where_clauses :: proc() {
 		assert(ok_y == false)
 	}
 
-	{ // Record types
+	{ 	// Record types
 		Foo :: struct($T: typeid, $N: int) where intrinsics.type_is_integer(T),
 			N > 2 {
 			x: [N]T,
@@ -1761,11 +1761,11 @@ foreign_system :: proc() {
 
 ranged_fields_for_array_compound_literals :: proc() {
 	fmt.println("\n#ranged fields for array compound literals")
-	{ // Normal Array Literal
+	{ 	// Normal Array Literal
 		foo := [?]int{1, 4, 9, 16}
 		fmt.println(foo)
 	}
-	{ // Indexed
+	{ 	// Indexed
 		foo := [?]int {
 			3 = 16,
 			1 = 4,
@@ -1774,7 +1774,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		}
 		fmt.println(foo)
 	}
-	{ // Ranges
+	{ 	// Ranges
 		i := 2
 		foo := [?]int {
 			0 = 123,
@@ -1784,7 +1784,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		#assert(len(foo) == 16)
 		fmt.println(foo) // [123, 0, 0, 0, 0, 54, 54, 54, 54, 54, 8, 8, 8, 8, 8]
 	}
-	{ // Slice and Dynamic Array support
+	{ 	// Slice and Dynamic Array support
 		i := 2
 		foo_slice := []int {
 			0 = 123,
@@ -1968,7 +1968,7 @@ soa_struct_layout :: proc() {
 		fmt.println(cap(d))
 		fmt.println(d[:])
 	}
-	{ // soa_zip and soa_unzip
+	{ 	// soa_zip and soa_unzip
 		fmt.println("\nsoa_zip and soa_unzip")
 
 		x := []i32{1, 3, 9}
@@ -2416,7 +2416,7 @@ matrix_type :: proc() {
 
 	}
 
-	{ // Matrices support multiplication between matrices
+	{ 	// Matrices support multiplication between matrices
 		a := matrix[2, 3]f32 {
 			2, 3, 1, 
 			4, 5, 0, 
@@ -2436,7 +2436,7 @@ matrix_type :: proc() {
 		fmt.tprintln("c = a * b", c)
 	}
 
-	{ // Matrices support multiplication between matrices and arrays
+	{ 	// Matrices support multiplication between matrices and arrays
 		m := matrix[4, 4]f32 {
 			1, 2, 3, 4, 
 			5, 5, 4, 2, 
@@ -2453,7 +2453,7 @@ matrix_type :: proc() {
 		fmt.println("v * m", v * m)
 
 		// Support with non-square matrices
-		s := matrix[2, 4]f32 { // [4][2]f32
+		s := matrix[2, 4]f32 { 	// [4][2]f32
 			2, 4, 3, 1, 
 			7, 8, 6, 5, 
 		}
@@ -2463,7 +2463,7 @@ matrix_type :: proc() {
 		fmt.println("r", r)
 	}
 
-	{ // Component-wise operations 
+	{ 	// Component-wise operations 
 		// if the element type supports it
 		// Not support for '/', '%', or '%%' operations
 
@@ -2498,7 +2498,7 @@ matrix_type :: proc() {
 		fmt.println("hadamard_product(a, b)", c6)
 	}
 
-	{ // Submatrix casting square matrices
+	{ 	// Submatrix casting square matrices
 		// Casting a square matrix to another square matrix with same element type
 		// is supported. 
 		// If the cast is to a smaller matrix type, the top-left submatrix is taken.
@@ -2523,7 +2523,7 @@ matrix_type :: proc() {
 		fmt.println("b4", matrix_flatten(b4))
 	}
 
-	{ // Casting non-square matrices
+	{ 	// Casting non-square matrices
 		// Casting a matrix to another matrix is allowed as long as they share 
 		// the same element type and the number of elements (rows*columns).
 		// Matrices in Odin are stored in column-major order, which means

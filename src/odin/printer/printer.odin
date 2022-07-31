@@ -10,6 +10,7 @@ Printer :: struct {
 	string_builder:       strings.Builder,
 	config:               Config,
 	comments:             [dynamic]^ast.Comment_Group,
+	comments_option:      map[int]Line_Suffix_Option,
 	latest_comment_index: int,
 	allocator:            mem.Allocator,
 	file:                 ^ast.File,
@@ -74,6 +75,11 @@ Newline_Style :: enum {
 	LF,
 }
 
+Line_Suffix_Option :: enum {
+	Default,
+	Indent,
+}
+
 
 when ODIN_OS ==  .Windows {
 	default_style := Config {
@@ -136,6 +142,11 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 			}
 		}
 	}
+}
+
+@private
+set_comment_option :: proc(p: ^Printer, line: int, option: Line_Suffix_Option) {
+	p.comments_option[line] = option
 }
 
 print :: proc {

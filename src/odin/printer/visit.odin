@@ -117,7 +117,12 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document)
 			return 1, empty()
 		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
-			return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text))
+			if comment_option, exist := p.comments_option[comment.pos.line]; exist && comment_option == .Indent {
+				delete_key(&p.comments_option, comment.pos.line)
+				return newlines_before_comment, cons_with_nopl(document, cons(text(p.indentation), line_suffix(comment.text)))
+			} else {
+				return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text))
+			}
 		} else {
 			p.source_position = comment.pos
 			return newlines_before_comment, cons(document, line_suffix(comment.text))
@@ -1460,6 +1465,7 @@ visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type:
 @(private)
 visit_begin_brace :: proc(p: ^Printer, begin: tokenizer.Pos, type: Block_Type, count := 0, same_line_spaces_before := 1) -> ^Document {
 	set_source_position(p, begin)
+	set_comment_option(p, begin.line, .Indent)
 
 	newline_braced := p.config.brace_style == .Allman
 	newline_braced |= p.config.brace_style == .K_And_R && type == .Proc
