@@ -853,11 +853,33 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 
 		document = enforce_fit_if_do(v.body, document)
 	case ^Return_Stmt:
-		document = cons(document, text("return"))
+		if v.results == nil {
+			document = cons(document, text("return"))
+			break
+		}
 
-		if v.results != nil {
+		if len(v.results) == 1 {
+			result := v.results[0]
+
+			if paren, is_paren := result.derived.(^ast.Paren_Expr); is_paren {
+				result = paren.expr
+			}
+
+			document = cons(
+				text("return"),
+				if_break("("),
+				break_with(" "),
+				visit_expr(p, result),
+			)
+
+			document = nest(document)	
+			document = group(cons(document, if_break(" \\"), break_with(""), if_break(")")))
+		} else {
+			document = cons(document, text("return"))
 			document = cons_with_nopl(document, visit_exprs(p, v.results, {.Add_Comma}))
 		}
+
+
 	case ^Defer_Stmt:
 		document = cons(document, text("defer"))
 		document = cons_with_nopl(document, visit_stmt(p, v.stmt))
@@ -1701,7 +1723,7 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false)
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
 			document = cons_with_opl(document, group(nest(visit_binary_expr(p, b^, true))))
 		} else {
-			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, nested ? .Binary_Expr : .Generic))))
+			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, .Binary_Expr))))
 		}
 	}
 
