@@ -2155,7 +2155,6 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 		}
 	case ^Type_Assertion:
 		if v.type != nil {
-			//This is the unique .? that can only be used with maybe
 			if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.kind == .Question {
 				append(results, cast(^ast.Expr)&v.node)
 			} else {

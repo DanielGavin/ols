@@ -1156,8 +1156,6 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		)
 
 		#partial switch v.kind {
-		case .maybe:
-			document = cons_with_opl(document, text("#maybe"))
 		case .no_nil:
 			document = cons_with_opl(document, text("#no_nil"))
 		case .shared_nil:

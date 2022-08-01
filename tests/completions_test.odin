@@ -1228,7 +1228,7 @@ ast_union_identifier_completion :: proc(t: ^testing.T) {
 ast_union_poly :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		My_Union :: union($T: typeid) #maybe {T}
+		My_Union :: union($T: typeid) {T}
 
 		main :: proc() {
 			m: My_Union(int)
@@ -1244,7 +1244,7 @@ ast_union_poly :: proc(t: ^testing.T) {
 ast_maybe_first_value :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		Maybe :: union($T: typeid) #maybe {T}
+		Maybe :: union($T: typeid) {T}
 
 		main :: proc() {
 			m: Maybe(int)
@@ -1276,7 +1276,7 @@ ast_maybe_second_value :: proc(t: ^testing.T) {
 ast_maybe_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
-		My_Union :: union($T: typeid) #maybe {T}
+		My_Union :: union($T: typeid) {T}
 
 		main :: proc() {
 			m: My_Union([5]u8)
@@ -1296,7 +1296,7 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 	append(&packages, test.Package {
 		pkg = "my_package",
 		source = `package my_package
-		Maybe :: union($T: typeid) #maybe {T}
+		Maybe :: union($T: typeid) {T}
 		`,
 	});
 
