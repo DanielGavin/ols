@@ -322,7 +322,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 					},
 				},
 				severity = DiagnosticSeverity.Error,
-				code = "test",
+				code = "Syntax",
 				message = error.message,
 			}
 		}

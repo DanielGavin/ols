@@ -46,7 +46,16 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		command = "odin"
 	}
 
-	if code, ok, buffer = common.run_executable(fmt.tprintf("%v check %s %s -no-entry-point %s 2>&1", command, path.dir(uri.path, context.temp_allocator), strings.to_string(collection_builder), config.checker_args), &data); !ok {
+	if code, ok, buffer = common.run_executable(
+		fmt.tprintf("%v check %s %s -no-entry-point %s %s", 
+			command, 
+			path.dir(uri.path, context.temp_allocator), 
+			strings.to_string(collection_builder), 
+			config.checker_args,
+			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+	    ), 
+		&data
+	); !ok {
 		log.errorf("Odin check failed with code %v for file %v", code, uri.path)
 		return
 	} 
