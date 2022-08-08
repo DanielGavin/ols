@@ -3,11 +3,50 @@ package odin_format
 import "shared:odin/printer"
 import "core:odin/parser"
 import "core:odin/ast"
+import "core:encoding/json"
+import "core:os" 
+import "core:path/filepath"
+import "core:fmt"
 
 default_style := printer.default_style
 
 simplify :: proc(file: ^ast.File) {
 
+}
+
+find_config_file_or_default :: proc(path: string) -> printer.Config {
+	//go up the directory until we find odinfmt.json
+	path := path
+
+	ok: bool
+	if path, ok = filepath.abs(path); !ok {
+		return default_style
+	}
+
+	name := fmt.tprintf("%v/odinfmt.json", path)
+	found := false
+	config := default_style
+
+	if (os.exists(name)) {
+		if data, ok := os.read_entire_file(name, context.temp_allocator); ok {
+			if json.unmarshal(data, &config) == nil {
+				found = true
+			}
+		}
+	} else {
+		new_path := filepath.join(elems = {path, ".."}, allocator = context.temp_allocator)
+		//Currently the filepath implementation seems to stop at the root level, this might not be the best solution.
+		if new_path == path {
+			return default_style
+		}
+		return find_config_file_or_default(new_path)
+	}
+
+	if !found {
+		return default_style
+	}
+
+	return config
 }
 
 format :: proc(filepath: string, source: string, config: printer.Config, parser_flags := parser.Flags{.Optional_Semicolons}, allocator := context.allocator) -> (string, bool) {

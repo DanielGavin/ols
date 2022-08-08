@@ -384,13 +384,8 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
 			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true); err == .None {
-				ols_config := OlsConfig {
-					formatter = {
-						characters = 90,
-						tabs = true,
-					},
-				}
-
+				ols_config: OlsConfig 
+				
 				if unmarshal(value, ols_config, context.temp_allocator) == nil {
 					config.thread_count = ols_config.thread_pool_count
 					config.enable_document_symbols = ols_config.enable_document_symbols
@@ -402,7 +397,6 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					config.enable_references = false
 					config.verbose = ols_config.verbose
 					config.file_log = ols_config.file_log
-					config.formatter = ols_config.formatter
 					config.odin_command = strings.clone(ols_config.odin_command, context.allocator)
 					config.checker_args = ols_config.checker_args
 					config.enable_inlay_hints = ols_config.enable_inlay_hints

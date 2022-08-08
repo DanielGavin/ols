@@ -329,7 +329,6 @@ OlsConfig :: struct {
 	enable_inlay_hints:       bool,
 	verbose:                  bool,
 	file_log:                 bool,
-	formatter:                common.Format_Config,
 	odin_command:             string,
 	checker_args:             string,
 }

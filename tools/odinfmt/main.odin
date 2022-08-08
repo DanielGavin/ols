@@ -2,12 +2,14 @@ package odinfmt
 
 import "core:os"
 import "core:odin/tokenizer"
+import "shared:odin/printer"
 import "shared:odin/format"
 import "core:fmt"
 import "core:strings"
 import "core:path/filepath"
 import "core:time"
 import "core:mem"
+import "core:encoding/json"
 import "flag"
 
 Args :: struct {
@@ -39,9 +41,10 @@ print_arg_error :: proc(args: []string, error: flag.Flag_Error) {
 	}
 }
 
-format_file :: proc(filepath: string, allocator := context.allocator) -> (string, bool) {
+
+format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
-		return format.format(filepath, string(data), format.default_style, {.Optional_Semicolons}, allocator);
+		return format.format(filepath, string(data), config, {.Optional_Semicolons}, allocator);
 	} else {
 		return "", false;
 	}
@@ -69,6 +72,8 @@ main :: proc() {
 
 	arena_allocator := mem.arena_allocator(&arena);
 
+	init_global_temporary_allocator(mem.Megabyte*20) //enough space for the walk
+
 	args: Args;
 
 	if len(os.args) < 2 {
@@ -90,26 +95,28 @@ main :: proc() {
 	watermark := 0
 
 	if os.is_file(path) {
+		config := format.find_config_file_or_default(path);
 		if _, ok := args.write.(bool); ok {
 			backup_path := strings.concatenate({path, "_bk"});
 			defer delete(backup_path);
 
-			if data, ok := format_file(path, arena_allocator); ok {
+			if data, ok := format_file(path, config, arena_allocator); ok {
 				os.rename(path, backup_path);
 
 				if os.write_entire_file(path, transmute([]byte)data) {
 					os.remove(backup_path);
 				}
 			} else {
-				fmt.eprintf("failed to write %v", path);
+				fmt.eprintf("Failed to write %v", path);
 				write_failure = true;
 			}
 		} else {
-			if data, ok := format_file(path, arena_allocator); ok {
+			if data, ok := format_file(path, config, arena_allocator); ok {
 				fmt.println(data);
 			}
 		}
 	} else if os.is_dir(path) {
+		config := format.find_config_file_or_default(path);
 		filepath.walk(path, walk_files);
 
 		for file in files {
@@ -118,7 +125,7 @@ main :: proc() {
 			backup_path := strings.concatenate({file, "_bk"});
 			defer delete(backup_path);
 
-			if data, ok := format_file(file, arena_allocator); ok {
+			if data, ok := format_file(file, config, arena_allocator); ok {
 				if _, ok := args.write.(bool); ok {
 					os.rename(file, backup_path);
 
@@ -129,7 +136,7 @@ main :: proc() {
 					fmt.println(data);
 				}
 			} else {
-				fmt.eprintf("failed to format %v", file);
+				fmt.eprintf("Failed to format %v", file);
 				write_failure = true;
 			}
 
@@ -138,8 +145,8 @@ main :: proc() {
 			free_all(arena_allocator);
 		}
 		
-		fmt.printf("formatted %v files in %vms \n", len(files), time.duration_milliseconds(time.tick_lap_time(&tick_time)));
-		fmt.printf("peak used memory: %v \n", watermark / mem.Megabyte)
+		fmt.printf("Formatted %v files in %vms \n", len(files), time.duration_milliseconds(time.tick_lap_time(&tick_time)));
+		fmt.printf("Peak memory used: %v \n", watermark / mem.Megabyte)
 	} else {
 		fmt.eprintf("%v is neither a directory nor a file \n", path);
 		os.exit(1);

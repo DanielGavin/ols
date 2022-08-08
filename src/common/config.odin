@@ -20,15 +20,8 @@ Config :: struct {
 	enable_std_references:    bool,
 	thread_count:             int,
 	file_log:                 bool,
-	formatter:                Format_Config,
 	odin_command:             string,
 	checker_args:             string,
-}
-
-Format_Config :: struct {
-	tabs: bool,
-	characters: int,
-	spaces: int,
 }
 
 config: Config;

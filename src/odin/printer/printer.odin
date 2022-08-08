@@ -35,7 +35,7 @@ Disabled_Info :: struct {
 }
 
 Config :: struct {
-	max_characters:       int,
+	character_width:      int,
 	spaces:               int,  //Spaces per indentation
 	newline_limit:        int,  //The limit of newlines between statements and declarations.
 	tabs:                 bool, //Enable or disable tabs
@@ -91,7 +91,7 @@ when ODIN_OS ==  .Windows {
 		brace_style          = ._1TBS,
 		indent_cases         = false,
 		newline_style        = .CRLF,
-		max_characters       = 100,
+		character_width       = 100,
 	}
 } else {
 	default_style := Config {
@@ -103,7 +103,7 @@ when ODIN_OS ==  .Windows {
 		brace_style          = ._1TBS,
 		indent_cases         = false,
 		newline_style        = .LF,
-		max_characters       = 100,
+		character_width       = 100,
 	}
 }
 
@@ -167,7 +167,7 @@ print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
 		indentation = 0,
 	})
 
-	format(p.config.max_characters, &list, &p.string_builder, p)
+	format(p.config.character_width, &list, &p.string_builder, p)
 
 	return strings.to_string(p.string_builder)
 }
@@ -220,7 +220,7 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 		indentation = 0,
 	})
 
-	format(p.config.max_characters, &list, &p.string_builder, p)
+	format(p.config.character_width, &list, &p.string_builder, p)
 
 	return strings.to_string(p.string_builder)
 }

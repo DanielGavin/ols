@@ -2,6 +2,8 @@ package server
 
 import "shared:common"
 import "shared:odin/printer"
+import "shared:odin/format"
+import "core:path/filepath"
 
 import "core:log"
 
@@ -19,19 +21,6 @@ DocumentFormattingParams :: struct {
 }
 
 get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]TextEdit, bool) {
-	style := printer.default_style
-	style.tabs = config.formatter.tabs
-
-	if config.formatter.characters != 0 {
-		style.max_characters = config.formatter.characters
-	}
-
-	if config.formatter.spaces != 0 {
-		style.spaces = config.formatter.spaces
-	} 
-	
-	prnt := printer.make_printer(style, context.temp_allocator)
-
 	if document.ast.syntax_error_count > 0 {
 		return {}, true
 	}
@@ -39,6 +28,9 @@ get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]T
 	if len(document.text) == 0 {
 		return {}, true
 	}
+
+	style := format.find_config_file_or_default(filepath.dir(document.fullpath, context.temp_allocator))
+	prnt := printer.make_printer(style, context.temp_allocator)
 
 	src := printer.print(&prnt, &document.ast)
 
