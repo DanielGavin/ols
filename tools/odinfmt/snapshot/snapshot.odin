@@ -11,7 +11,7 @@ import "shared:odin/format"
 
 format_file :: proc(filepath: string, allocator := context.allocator) -> (string, bool) {
 	style := format.default_style
-	style.max_characters = 80
+	style.character_width = 80
 	style.newline_style = .LF //We want to make sure it works on linux and windows.
 
 	if data, ok := os.read_entire_file(filepath, allocator); ok {	

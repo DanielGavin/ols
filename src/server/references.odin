@@ -56,7 +56,7 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 	pkg := ""
 
 	walker_arena: mem.Arena
-	mem.init_arena(&walker_arena, make([]byte, mem.Megabyte*5))
+	mem.arena_init(&walker_arena, make([]byte, mem.Megabyte*5))
 	
 	{
 		context.temp_allocator = mem.arena_allocator(&walker_arena)
@@ -100,7 +100,7 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 	}
 
 	resolve_arena: mem.Arena
-	mem.init_arena(&resolve_arena, make([]byte, mem.Megabyte*25))
+	mem.arena_init(&resolve_arena, make([]byte, mem.Megabyte*25))
 
 	context.allocator = mem.arena_allocator(&resolve_arena)
 
@@ -189,7 +189,7 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 	//defer delete(data)
 	
 	arena: mem.Arena
-	mem.init_arena(&arena, data)
+	mem.arena_init(&arena, data)
 	
 	context.allocator = mem.arena_allocator(&arena)
 
