@@ -89,7 +89,7 @@ main :: proc() {
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
 
-	context.logger = server.create_lsp_logger(&writer, log.Level.Error)
+	context.logger = server.create_lsp_logger(&writer, log.Level.Info)
 	/*
 	fh, err := os.open("log.txt", os.O_RDWR|os.O_CREATE) 
 	

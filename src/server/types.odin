@@ -49,7 +49,7 @@ ResponseError :: struct {
 }
 
 NotificationLoggingParams :: struct {
-	type:    int,
+	type:    DiagnosticSeverity,
 	message: string,
 }
 
