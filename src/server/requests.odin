@@ -398,7 +398,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					config.verbose = ols_config.verbose
 					config.file_log = ols_config.file_log
 					config.odin_command = strings.clone(ols_config.odin_command, context.allocator)
-					config.checker_args = ols_config.checker_args
+					config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 					config.enable_inlay_hints = ols_config.enable_inlay_hints
 					
 					for p in ols_config.collections {
