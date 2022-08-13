@@ -1858,8 +1858,10 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 		return strings.rune_count(v.field.name) + 1
 	case ^ast.Binary_Expr:
 		return 0
+	case ^ast.Paren_Expr:
+		return 1 + get_node_length(v.expr) + 1
 	case ^ast.Selector_Expr:
-		return get_node_length(v.expr) + strings.rune_count(v.op.text) + strings.rune_count(v.field.name) 
+		return get_node_length(v.expr) + strings.rune_count(v.op.text) + strings.rune_count(v.field.name)
 	case: 
 		panic(fmt.aprintf("unhandled get_node_length case %v", node.derived))
 	}
