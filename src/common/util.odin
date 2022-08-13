@@ -22,12 +22,12 @@ lookup_in_path :: proc(name: string) -> (string, bool) {
 
 	for directory in strings.split_iterator(&path, delimiter) {
 		when ODIN_OS == .Windows {
-			name := fmt.tprintf("%v/%v.exe", directory, name)
+			name := filepath.join(elems = {directory, fmt.tprintf("%v.exe", name)}, allocator = context.temp_allocator)
 			if os.exists(name) {
 				return name, true
 			}
 		} else {
-			name := fmt.tprintf("%v/%v", directory, name)
+			name := filepath.join(elems = {directory, name}, allocator = context.temp_allocator)
 			if os.exists(name) {
 				if info, err := os.stat(name, context.temp_allocator); err == os.ERROR_NONE && (File_Mode_User_Executable & info.mode) != 0 {
 					return name, true
