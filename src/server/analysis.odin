@@ -1361,25 +1361,28 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				value = SymbolPackageValue {},
 			}
 
-			return symbol, true
-		} else {
-			//part of the ast so we check the imports of the document
-			for imp in ast_context.imports {
-				if strings.compare(imp.base, node.name) == 0 {
-					symbol := Symbol {
-						type = .Package,
-						pkg = imp.name,
-						value = SymbolPackageValue {},
-					}
+			try_build_package(symbol.pkg)
 
-					return symbol, true
-				}
-			}
-		}
+			return symbol, true
+		} 
 
 		//last option is to check the index
 		if symbol, ok := lookup(node.name, ast_context.current_package); ok {
 			return resolve_symbol_return(ast_context, symbol)
+		}
+
+		for imp in ast_context.imports {
+			if strings.compare(imp.base, node.name) == 0 {
+				symbol := Symbol {
+					type = .Package,
+					pkg = imp.name,
+					value = SymbolPackageValue {},
+				}
+
+				try_build_package(symbol.pkg)
+
+				return symbol, true
+			}
 		}
 
 		//If we are resolving a symbol that is in the document package, then we'll check the builtin packages.

@@ -43,7 +43,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
 
-			if ident.name == base.name {
+			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_location_identifier(&ast_context, ident^); ok {
 					location.range = resolved.range
 

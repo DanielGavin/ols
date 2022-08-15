@@ -98,11 +98,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		ast_context.current_package = ast_context.document_package
 
 		//if the base selector is the client wants to go to.
-		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil && position_in_node(position_context.selector, position_context.position) {
+		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)^
 
-			if ident.name == base.name {
-
+			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {				
 					resolved.signature = get_signature(&ast_context, ident, resolved)
 					resolved.name = ident.name
@@ -133,11 +132,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			}
 		}
 
-	
+		ast_context.current_package = selector.pkg
+
 		#partial switch v in selector.value {
 		case SymbolStructValue:
 			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
+				if name == field {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name = name //TODO refractor - never set symbol name after creation - change writer_hover_content
 						symbol.pkg = selector.name
@@ -150,7 +150,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		case SymbolPackageValue:
 			if position_context.field != nil {
 				if ident, ok := position_context.field.derived.(^ast.Ident); ok {
-					ast_context.current_package = selector.pkg
 					if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
