@@ -34,11 +34,19 @@ lsp_logger_proc :: proc(logger_data: rawptr, level: log.Level, text: string, opt
 
 	message := fmt.tprintf("%s", text)
 
+	message_type: DiagnosticSeverity
+	switch level {
+		case .Debug: message_type = DiagnosticSeverity.Hint
+		case .Info: message_type = DiagnosticSeverity.Information
+		case .Warning: message_type = DiagnosticSeverity.Warning
+		case .Error, .Fatal: message_type = DiagnosticSeverity.Error
+	}
+	
 	notification := Notification {
 		jsonrpc = "2.0",
 		method = "window/logMessage",
 		params = NotificationLoggingParams {
-			type = 1,
+			type = message_type,
 			message = message,
 		},
 	}
