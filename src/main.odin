@@ -59,6 +59,16 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	server.setup_index();
 
 	for common.config.running {
+		logger: log.Logger
+
+		if common.config.verbose {
+			logger = server.create_lsp_logger(writer, log.Level.Info)
+		} else {
+			logger = server.create_lsp_logger(writer, log.Level.Error)
+		}
+
+		context.logger = logger
+
 		server.consume_requests(&common.config, writer)
 	}
 
@@ -84,12 +94,14 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 end :: proc() {
 }
 
+
+
 main :: proc() {
 
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
 
-	context.logger = server.create_lsp_logger(&writer, log.Level.Info)
+
 	/*
 	fh, err := os.open("log.txt", os.O_RDWR|os.O_CREATE) 
 	
@@ -100,6 +112,8 @@ main :: proc() {
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
 
+	//pdb.SetUnhandledExceptionFilter(pdb.dump_stack_trace_on_exception)
+
 	when ODIN_OS == .Darwin {
 		init_global_temporary_allocator(mem.Megabyte*100)
 	} else {
@@ -108,6 +122,7 @@ main :: proc() {
 		//growing_arena: common.Growing_Arena
 		//context.temp_allocator = common.growing_arena_allocator(&growing_arena)
 	}
+
 
 	run(&reader, &writer)
 }

@@ -32,19 +32,56 @@ Example of ols.json:
 {
   "collections": [{ "name": "core", "path": "c:/path/to/Odin/core" },
                   { "name": "shared", "path": "c:/path/to/MyProject/src" }],
-  "thread_pool_count": 4,
   "enable_semantic_tokens": false,
   "enable_document_symbols": true,
   "enable_hover": true,
-  "enable_format": true,
   "enable_snippets": true,
-  "formatter": {
-  	"tabs": true,
-	"characters": 90
-  }
 }
 
 ```
+
+
+Options:
+
+`enable_hover`: Enables hover feature
+
+`enable_snippets`: Turns on builtin snippets
+
+`enable_semantic_tokens`: Turn on syntax highlighting, and is only supported on few editors. It is also cause of many crashes.
+
+`odin_command`: Allows you to specifiy your Odin location, instead of just relying on the environment path.
+
+`checker_args`: Pass custom arguments to ```odin check```.
+
+`verbose`: Logs warnings instead of just errors.
+
+
+
+
+### Odinfmt configurations
+Odinfmt reads configuration through `odinfmt.json`.
+
+Example:
+
+```
+{
+	"character_width": 80,
+	"tabs": true,
+	"tabs_width": 4
+}
+```
+
+Options:
+
+`character_width`: How many characters it takes before it line breaks it.
+
+`spaces`: How many spaces is in one indentation.
+
+`newline_limit`: The limit of newlines between statements and declarations.
+
+`tabs`: Tabs or spaces.
+
+`tabs_width`: The many characters one tab represents
 
 ## Features
   Support Language server features:
@@ -109,4 +146,17 @@ Configuration of the LSP:
                   :server-id 'ols
                   :multi-root t)) ;; This is just so lsp-mode sends the "workspaceFolders" param to the server.
 (add-hook 'odin-mode-hook #'lsp)
+```
+
+### Helix
+```
+[[language]]
+name = "odin"
+scope = "scope.odin"
+file-types = ["odin"]
+comment-token = "//"
+indent = { tab-width = 2, unit = " " }
+language-server = { command = "ols" }
+injection-regex = "odin"
+roots = ["ols.json"]
 ```
