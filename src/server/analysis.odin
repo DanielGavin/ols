@@ -920,7 +920,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 	case ^Ellipsis:
 		return resolve_type_expression(ast_context, v.expr)
 	case ^Implicit:
-		ident := new_type(Ident, v.node.pos, v.node.end, context.temp_allocator)
+		ident := new_type(Ident, v.node.pos, v.node.end, ast_context.allocator)
 		ident.name = v.tok.text
 		return resolve_type_identifier(ast_context, ident^)
 	case ^Type_Assertion:
@@ -1018,7 +1018,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				}
 			case SymbolProcedureValue:
 				if len(s.return_types) == 1 {
-					selector_expr := new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, context.temp_allocator)
+					selector_expr := new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, ast_context.allocator)
 					selector_expr.expr = s.return_types[0].type
 					selector_expr.field = v.field
 					return resolve_type_expression(ast_context, selector_expr)
@@ -2281,9 +2281,9 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 				}
 			case SymbolStructValue:
 				for name, i in v.names {
-					selector := new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, context.temp_allocator)
+					selector := new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, ast_context.allocator)
 					selector.expr = u
-					selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, context.temp_allocator)
+					selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 					selector.field.name = name
 					store_local(ast_context, u, selector, 0, name, ast_context.local_id)
 					ast_context.variables[name] = true

@@ -33,6 +33,8 @@ os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 
 request_thread: ^thread.Thread
 
+logger: log.Logger
+
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	common.config.collections = make(map[string]string)
 
@@ -59,8 +61,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	server.setup_index();
 
 	for common.config.running {
-		logger: log.Logger
-
 		if common.config.verbose {
 			logger = server.create_lsp_logger(writer, log.Level.Info)
 		} else {
@@ -112,7 +112,7 @@ main :: proc() {
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
 
-	//pdb.SetUnhandledExceptionFilter(pdb.dump_stack_trace_on_exception)
+	set_stacktrace()
 
 	when ODIN_OS == .Darwin {
 		init_global_temporary_allocator(mem.Megabyte*100)
