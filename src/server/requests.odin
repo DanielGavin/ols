@@ -388,9 +388,8 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 				
 				if unmarshal(value, ols_config, context.temp_allocator) == nil {
 					config.thread_count = ols_config.thread_pool_count
-					config.enable_document_symbols = ols_config.enable_document_symbols
-					config.enable_hover = ols_config.enable_hover
-					config.enable_format = true // ols_config.enable_format;
+					config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else true
+					config.enable_hover = ols_config.enable_hover.(bool) or_else true		
 					config.enable_semantic_tokens = ols_config.enable_semantic_tokens
 					config.enable_procedure_context = ols_config.enable_procedure_context
 					config.enable_snippets = ols_config.enable_snippets
@@ -400,6 +399,7 @@ request_initialize :: proc (params: json.Value, id: RequestId, config: ^common.C
 					config.odin_command = strings.clone(ols_config.odin_command, context.allocator)
 					config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 					config.enable_inlay_hints = ols_config.enable_inlay_hints
+					config.enable_format = true
 					
 					for p in ols_config.collections {
 						forward_path, _ := filepath.to_slash(p.path, context.temp_allocator)

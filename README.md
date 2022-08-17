@@ -47,7 +47,9 @@ Options:
 
 `enable_snippets`: Turns on builtin snippets
 
-`enable_semantic_tokens`: Turn on syntax highlighting, and is only supported on few editors. It is also cause of many crashes.
+`enable_semantic_tokens`: Turns on syntax highlighting.
+
+`enable_document_symbols`: Turns on outline of all your global declarations in your document. 
 
 `odin_command`: Allows you to specifiy your Odin location, instead of just relying on the environment path.
 
@@ -81,7 +83,7 @@ Options:
 
 `tabs`: Tabs or spaces.
 
-`tabs_width`: The many characters one tab represents
+`tabs_width`: How many characters one tab represents
 
 ## Features
   Support Language server features:

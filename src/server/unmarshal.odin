@@ -46,10 +46,6 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 			}
 
 		case Type_Info_Union:
-
-			//Note(Daniel, THIS IS REALLY SCUFFED. Need to talk to gingerbill about unmarshalling unions)
-
-			//This only works for unions with one object - made to handle optionals
 			tag_ptr := uintptr(v.data) + variant.tag_offset
 			tag_any := any {rawptr(tag_ptr), variant.tag_type.id}
 
@@ -145,9 +141,21 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		}
 	case json.Null:
 	case json.Boolean:
-		if _, ok := type_info.variant.(Type_Info_Boolean); ok {
-			tmp := bool(j)
-			mem.copy(v.data, &tmp, type_info.size)
+		#partial switch variant in &type_info.variant {
+			case Type_Info_Boolean:
+				tmp := bool(j)
+				mem.copy(v.data, &tmp, type_info.size)
+			case Type_Info_Union:
+				tag_ptr := uintptr(v.data) + variant.tag_offset
+				tag_any := any {rawptr(tag_ptr), variant.tag_type.id}
+	
+				not_optional := 1
+	
+				mem.copy(cast(rawptr)tag_ptr, &not_optional, size_of(variant.tag_type))
+	
+				id := variant.variants[0].id
+	
+				unmarshal(json_value, any {v.data, id}, allocator)
 		}
 	case:
 		return .Unsupported_Type
