@@ -1,8 +1,8 @@
 @echo off
 
-
+setlocal enabledelayedexpansion
 if "%1" == "CI" (
-    set "PATH=%cd%\Odin;%PATH%"
+    set "PATH=%cd%\Odin;!PATH!"
 
     rem odin test tests -collection:shared=src 
     rem if %errorlevel% neq 0 exit 1
