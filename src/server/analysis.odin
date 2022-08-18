@@ -331,9 +331,8 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 					}
 				}
 			}
-		} else { //indexed
+		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { //indexed
 			if s, ok := current_symbol.value.(SymbolStructValue); ok {
-
 				if len(s.types) <= element_index {
 					return {}, {}, false
 				}
@@ -343,7 +342,7 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 					if _, ok := symbol.value.(SymbolBitSetValue); ok {
 						return current_symbol, current_comp_lit, true
 					}
-					return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value)
+					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
 				}
 			}
 		}
