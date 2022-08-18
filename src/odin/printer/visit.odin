@@ -1763,15 +1763,27 @@ visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 
 	if .Auto_Cast in flags {
 		document = cons_with_nopl(document, text("#auto_cast"))
-	} 
+	}
 
 	if .Any_Int in flags {
 		document = cons_with_nopl(document, text("#any_int"))
-	} 
+	}
 
 	if .C_Vararg in flags {
 		document = cons_with_nopl(document, text("#c_vararg"))
-	} 
+	}
+
+	if .No_Alias in flags {
+		document = cons_with_nopl(document, text("#no_alias"))
+	}
+
+	if .Subtype in flags {
+		document = cons_with_nopl(document, text("#subtype"))
+	}
+
+	if .By_Ptr in flags {
+		document = cons_with_nopl(document, text("#by_ptr"))
+	}
 
 	if .Using in flags {
 		document = cons_with_nopl(document, text("using"))
