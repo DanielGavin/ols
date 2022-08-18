@@ -1241,12 +1241,12 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 		if v.fields != nil && len(v.fields.list) == 0 {
 			document = cons_with_nopl(document, text("{"))
-			document = cons(document, visit_field_list(p, v.fields, {.Add_Comma}), text("}"))
+			document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
 		} else if v.fields != nil {
 			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 			
 			set_source_position(p, v.fields.pos)
-			document = cons(document, nest(cons(newline_position(p, 1, v.fields.open), visit_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline}))))			
+			document = cons(document, nest(cons(newline_position(p, 1, v.fields.open), visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline}))))			
 			set_source_position(p, v.fields.end)
 
 			document = cons(document, newline(1), text_position(p, "}", v.end))
@@ -1564,7 +1564,7 @@ List_Option :: enum u8 {
 List_Options :: distinct bit_set[List_Option]
 
 @(private)
-visit_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Options{}) -> ^Document {
+visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Options{}) -> ^Document {
 	document := empty()
 	if list.list == nil {
 		return document
@@ -1782,7 +1782,7 @@ visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 }
 
 @(private)
-visit_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
+visit_signature_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 	document := empty()
 
 	if .Auto_Cast in flags {
@@ -1821,7 +1821,7 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, contains_body: 
 	document := empty()
 
 	for field, i in list.list {
-		document = cons(document, visit_field(p, field, remove_blank))
+		document = cons(document, visit_signature_field(p, field, remove_blank))
 
 		if i != len(list.list) - 1 {
 			document = cons(document, text(","), break_with_space())
@@ -1834,9 +1834,9 @@ visit_signature_list :: proc(p: ^Printer, list: ^ast.Field_List, contains_body: 
 }
 
 @(private)
-visit_field :: proc(p: ^Printer, field: ^ast.Field, remove_blank := true) -> ^Document {
+visit_signature_field :: proc(p: ^Printer, field: ^ast.Field, remove_blank := true) -> ^Document {
 	document := empty()
-	flag := visit_field_flag(p, field.flags)
+	flag := visit_signature_field_flag(p, field.flags)
 
 	named := false
 
