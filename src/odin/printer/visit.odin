@@ -374,6 +374,28 @@ is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 	return false
 }
 
+//Should the return stmt list behave like a call expression.
+@(private)
+is_values_return_stmt_callable :: proc(list: []^ast.Expr) -> bool {
+	if len(list) > 1 {
+		return false
+	}
+
+	for expr in list {
+		result := expr
+		if paren, is_paren := expr.derived.(^ast.Paren_Expr); is_paren {
+			result = paren.expr
+		}
+
+		#partial switch v in result.derived {
+		case ^ast.Call_Expr:	
+			return false	
+		}
+	}
+	return true
+}
+
+
 
 @(private)
 is_values_nestable_if_break_assign :: proc(list: []^ast.Expr) -> bool {
@@ -677,8 +699,10 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			if_document = cons_with_nopl(if_document, cons(group(visit_stmt(p, v.init)), text(";")))
 		}
 
-		if v.cond != nil {
+		if v.cond != nil && v.init != nil {
 			if_document = cons_with_opl(if_document, group(visit_expr(p, v.cond)))
+		} else if v.cond != nil {
+			if_document = cons_with_nopl(if_document, group(visit_expr(p, v.cond)))
 		}
 
 		document = cons(document, group(hang(3, if_document)))
@@ -858,7 +882,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 			break
 		}
 
-		if len(v.results) == 1 {
+		if is_values_return_stmt_callable(v.results) {
 			result := v.results[0]
 
 			if paren, is_paren := result.derived.(^ast.Paren_Expr); is_paren {

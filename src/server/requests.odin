@@ -889,8 +889,8 @@ request_semantic_token_full :: proc (params: json.Value, id: RequestId, config: 
 	if config.enable_semantic_tokens {
 		resolve_entire_file_cached(document)
 
-		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(document, range, cache_symbols)
+		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
+			symbols = get_semantic_tokens(document, range, file.symbols)
 		}
 	}
 
@@ -923,8 +923,8 @@ request_semantic_token_range :: proc (params: json.Value, id: RequestId, config:
 	symbols: SemanticTokens
 
 	if config.enable_semantic_tokens {
-		if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(document, semantic_params.range, cache_symbols)
+		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
+			symbols = get_semantic_tokens(document, semantic_params.range, file.symbols)
 		}
 	}
 
@@ -1025,8 +1025,8 @@ request_inlay_hint :: proc (params: json.Value, id: RequestId, config: ^common.C
 
 	resolve_entire_file_cached(document)
 
-	if cache_symbols, ok := file_resolve_cache.files[document.uri.uri]; ok {
-		hints, ok = get_inlay_hints(document, cache_symbols)
+	if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
+		hints, ok = get_inlay_hints(document, file.symbols)
 	}
 
 	if !ok {

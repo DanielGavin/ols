@@ -378,9 +378,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 	current_errors = make([dynamic]ParserError, context.temp_allocator)
 
 	if document.uri.uri in file_resolve_cache.files {
-		key := file_resolve_cache.files[document.uri.uri]
 		delete_key(&file_resolve_cache.files, document.uri.uri)
-		delete(key)	
 	}
 
 	free_all(common.scratch_allocator(document.allocator))
