@@ -67,7 +67,7 @@ snapshot_file :: proc(path: string) -> bool {
 			for {
 				s_ch := scanner.next(&snapshot_scanner)
 				f_ch := scanner.next(&formatted_scanner)
-				if s_ch == scanner.EOF || f_ch == scanner.EOF {
+				if s_ch == scanner.EOF && f_ch == scanner.EOF {
 					break
 				}
 

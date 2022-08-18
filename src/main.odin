@@ -112,7 +112,7 @@ main :: proc() {
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
 
-	when ODIN_DEBUG {
+	when ODIN_DEBUG && ODIN_OS == .Windows {
 		set_stacktrace()
 	}
 

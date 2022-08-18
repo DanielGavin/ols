@@ -1089,18 +1089,35 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
 	case ^Ternary_If_Expr:
 		if v.op1.text == "if" {
-			document = group(visit_expr(p, v.x))
-			document = cons_with_nopl(document, text_token(p, v.op1))
-			document = cons_with_opl(document, group(visit_expr(p, v.cond)))
-			document = cons_with_nopl(document, text_token(p, v.op2))
-			document = cons_with_opl(document, group(visit_expr(p, v.y)))
+			document = cons(
+				group(visit_expr(p, v.x)),
+				if_break(" \\"),
+				break_with_space(),
+				text_token(p, v.op1),
+				break_with_no_newline(),
+				group(visit_expr(p, v.cond)),
+				if_break(" \\"),
+				break_with_space(),
+				text_token(p, v.op2),
+				break_with_no_newline(),
+				group(visit_expr(p, v.y)),
+			)
 		} else {
-			document = group(visit_expr(p, v.cond))
-			document = cons_with_nopl(document, text_token(p, v.op1))
-			document = cons_with_opl(document, group(visit_expr(p, v.x)))
-			document = cons_with_nopl(document, text_token(p, v.op2))
-			document = cons_with_opl(document, group(visit_expr(p, v.y)))
-		}		
+			document = cons(
+				group(visit_expr(p, v.cond)),
+				if_break(" \\"),
+				break_with_space(),
+				text_token(p, v.op1),
+				break_with_no_newline(),
+				group(visit_expr(p,v.x)),
+				if_break(" \\"),
+				break_with_space(),
+				text_token(p, v.op2),
+				break_with_no_newline(),
+				group(visit_expr(p, v.y)),
+			)
+		}
+		document = group(document)		
 	case ^Ternary_When_Expr:
 		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.op1))
@@ -1264,6 +1281,7 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 
 		document = cons_with_nopl(document, visit_proc_type(p, v.type^, v.body != nil))
 		document = cons_with_nopl(document, push_where_clauses(p, v.where_clauses))
+		document = cons_with_opl(document, visit_proc_tags(p, v.tags))
 
 		if v.body != nil {
 			set_source_position(p, v.body.pos)
@@ -1709,8 +1727,6 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 		document = cons(document, text(">"))
 		document = cons_with_nopl(document, text("!"))
 	}
-
-	document = cons_with_opl(document, visit_proc_tags(p, proc_type.tags))
 
 	return group(document)
 }
