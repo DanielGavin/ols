@@ -1605,6 +1605,10 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 			document = cons(document, text("using"), break_with_no_newline())
 		}
 
+		if .Subtype in field.flags {
+			document = cons(document, text("#subtype"), break_with_no_newline())
+		}
+
 		name_options := List_Options{.Add_Comma}
 
 		if (.Enforce_Newline in options) {
@@ -1616,6 +1620,9 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 					length += get_node_length(name) + 2
 					if .Using in field.flags {
 						length += 6
+					}
+					if .Subtype in field.flags {
+						length += 9
 					}
 				}
 				align = repeat_space(alignment - length)
