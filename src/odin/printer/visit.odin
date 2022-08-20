@@ -700,7 +700,7 @@ visit_stmt :: proc(p: ^Printer, stmt: ^ast.Stmt, block_type: Block_Type = .Gener
 		}
 
 		if v.cond != nil && v.init != nil {
-			if_document = cons_with_opl(if_document, group(visit_expr(p, v.cond)))
+			if_document = cons(if_document, group(cons(break_with_space(), visit_expr(p, v.cond))))
 		} else if v.cond != nil {
 			if_document = cons_with_nopl(if_document, group(visit_expr(p, v.cond)))
 		}
@@ -1342,7 +1342,14 @@ visit_expr :: proc(p: ^Printer, expr: ^ast.Expr, called_from: Expr_Called_Type =
 		document = cons(
 			visit_expr(p, v.expr), 
 			text("["),
-			group(align(visit_expr(p, v.index))),
+			nest(
+				cons(
+					break_with("", true),
+					group(visit_expr(p, v.index)),
+					if_break(" \\"),
+				),
+			),
+			break_with("", true),
 			text("]"),
 		)
 	case ^Proc_Group:
