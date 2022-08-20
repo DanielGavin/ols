@@ -8,61 +8,61 @@ import "core:strings"
 import path "core:path/slashpath"
 
 keyword_map: map[string]bool = {
-	"int" = true,
-	"uint" = true,
-	"string" = true,
-	"cstring" = true,
-	"u64" = true,
-	"f32" = true,
-	"f64" = true,
-	"i64" = true,
-	"i128" = true,
-	"i32" = true,
-	"i16" = true,
-	"u16" = true,
-	"bool" = true,
-	"rawptr" = true,
-	"any" = true,
-	"u32" = true,
-	"u128" = true,
-	"b32" = true,
-	"b64" = true,
-	"true" = true,
-	"false" = true,
-	"nil" = true,
-	"byte" = true,
-	"u8" = true,
-	"i8" = true,
-	"rune" = true,
-	"f16be" = true, 
-	"f16le" = true, 
-	"f32be" = true, 
-	"f32le" = true, 
-	"f64be" = true, 
-	"f64le" = true, 
-	"i16be" = true, 
-	"i16le" = true, 
-	"i32be" = true, 
-	"i32le" = true, 
-	"i64be" = true, 
-	"i64le" = true, 
-	"u16be" = true, 
-	"u16le" = true, 
-	"u32be" = true, 
-	"u32le" = true, 
-	"u64be" = true, 
-	"u64le" = true, 
-	"i128be" = true,
-	"i128le" = true,
-	"u128be" = true,
-	"u128le" = true,
-	"complex32" = true,
-    "complex64" = true,
-    "complex128" = true,
-    "quaternion64" = true,  
-    "quaternion128" = true,
-    "quaternion256" = true,      
-	"uintptr" = true,
+	"int"           = true,
+	"uint"          = true,
+	"string"        = true,
+	"cstring"       = true,
+	"u64"           = true,
+	"f32"           = true,
+	"f64"           = true,
+	"i64"           = true,
+	"i128"          = true,
+	"i32"           = true,
+	"i16"           = true,
+	"u16"           = true,
+	"bool"          = true,
+	"rawptr"        = true,
+	"any"           = true,
+	"u32"           = true,
+	"u128"          = true,
+	"b32"           = true,
+	"b64"           = true,
+	"true"          = true,
+	"false"         = true,
+	"nil"           = true,
+	"byte"          = true,
+	"u8"            = true,
+	"i8"            = true,
+	"rune"          = true,
+	"f16be"         = true,
+	"f16le"         = true,
+	"f32be"         = true,
+	"f32le"         = true,
+	"f64be"         = true,
+	"f64le"         = true,
+	"i16be"         = true,
+	"i16le"         = true,
+	"i32be"         = true,
+	"i32le"         = true,
+	"i64be"         = true,
+	"i64le"         = true,
+	"u16be"         = true,
+	"u16le"         = true,
+	"u32be"         = true,
+	"u32le"         = true,
+	"u64be"         = true,
+	"u64le"         = true,
+	"i128be"        = true,
+	"i128le"        = true,
+	"u128be"        = true,
+	"u128le"        = true,
+	"complex32"     = true,
+	"complex64"     = true,
+	"complex128"    = true,
+	"quaternion64"  = true,
+	"quaternion128" = true,
+	"quaternion256" = true,
+	"uintptr"       = true,
 }
 
 GlobalExpr :: struct {
@@ -99,7 +99,12 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 	return {}, false
 }
 
-collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^ast.Node, skip_private: bool) {
+collect_value_decl :: proc(
+	exprs: ^[dynamic]GlobalExpr,
+	file: ast.File,
+	stmt: ^ast.Node,
+	skip_private: bool,
+) {
 	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
 		is_deprecated := false
 		is_private_file := false
@@ -112,7 +117,8 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 					if ident, ok := value.field.derived.(^ast.Ident); ok {
 						switch ident.name {
 						case "private":
-							if val, ok := value.value.derived.(^ast.Basic_Lit); ok {
+							if val, ok := value.value.derived.(^ast.Basic_Lit);
+							   ok {
 								switch val.tok.text {
 								case "\"file\"":
 									is_private_file = true
@@ -141,35 +147,44 @@ collect_value_decl :: proc(exprs: ^[dynamic]GlobalExpr, file: ast.File, stmt: ^a
 			str := get_ast_node_string(name, file.src)
 
 			if value_decl.type != nil {
-				append(exprs, GlobalExpr {
-					name = str, 
-					name_expr = name,
-					expr = value_decl.type, 
-					mutable = value_decl.is_mutable, 
-					docs = value_decl.docs, 
-					attributes = value_decl.attributes[:],
-					deprecated = is_deprecated,
-					builtin = is_builtin,
-				})
-			} else {
-				if len(value_decl.values) > i {
-					append(exprs, GlobalExpr {
+				append(
+					exprs,
+					GlobalExpr{
 						name = str,
 						name_expr = name,
-						expr = value_decl.values[i], 
-						mutable = value_decl.is_mutable, 
-						docs = value_decl.docs, 
+						expr = value_decl.type,
+						mutable = value_decl.is_mutable,
+						docs = value_decl.docs,
 						attributes = value_decl.attributes[:],
 						deprecated = is_deprecated,
 						builtin = is_builtin,
-					})
+					},
+				)
+			} else {
+				if len(value_decl.values) > i {
+					append(
+						exprs,
+						GlobalExpr{
+							name = str,
+							name_expr = name,
+							expr = value_decl.values[i],
+							mutable = value_decl.is_mutable,
+							docs = value_decl.docs,
+							attributes = value_decl.attributes[:],
+							deprecated = is_deprecated,
+							builtin = is_builtin,
+						},
+					)
 				}
 			}
 		}
 	}
 }
 
-collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
+collect_globals :: proc(
+	file: ast.File,
+	skip_private := false,
+) -> []GlobalExpr {
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 
 	for decl in file.decls {
@@ -205,16 +220,29 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 				}
 
 				if ident != nil && implicit != nil {
-					if ident.name == "ODIN_OS" && implicit.tok.text == fmt.tprint(ODIN_OS) {
-						if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
+					if ident.name == "ODIN_OS" &&
+					   implicit.tok.text == fmt.tprint(ODIN_OS) {
+						if block, ok := when_decl.body.derived.(^ast.Block_Stmt);
+						   ok {
 							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, stmt, skip_private)
+								collect_value_decl(
+									&exprs,
+									file,
+									stmt,
+									skip_private,
+								)
 							}
 						}
 					} else if ident.name != "ODIN_OS" {
-						if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
+						if block, ok := when_decl.body.derived.(^ast.Block_Stmt);
+						   ok {
 							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, stmt, skip_private)
+								collect_value_decl(
+									&exprs,
+									file,
+									stmt,
+									skip_private,
+								)
 							}
 						}
 					}
@@ -226,7 +254,8 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 					}
 				}
 			}
-		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
+		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl);
+		   ok {
 			if foreign_decl.body == nil {
 				continue
 			}
@@ -246,18 +275,39 @@ get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset])
 }
 
-get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
+get_doc :: proc(
+	comment: ^ast.Comment_Group,
+	allocator: mem.Allocator,
+) -> string {
 	if comment != nil {
 		tmp: string
 
 		for doc in comment.list {
-			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+			tmp = strings.concatenate(
+				{tmp, "\n", doc.text},
+				context.temp_allocator,
+			)
 		}
 
 		if tmp != "" {
-			no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
-			no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
-			no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
+			no_lines, _ := strings.replace_all(
+				tmp,
+				"//",
+				"",
+				context.temp_allocator,
+			)
+			no_begin_comments, _ := strings.replace_all(
+				no_lines,
+				"/*",
+				"",
+				context.temp_allocator,
+			)
+			no_end_comments, _ := strings.replace_all(
+				no_begin_comments,
+				"*/",
+				"",
+				context.temp_allocator,
+			)
 			return strings.clone(no_end_comments, allocator)
 		}
 	}
@@ -265,7 +315,7 @@ get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string
 	return ""
 }
 
-free_ast :: proc{
+free_ast :: proc {
 	free_ast_node,
 	free_ast_array,
 	free_ast_dynamic_array,
@@ -291,7 +341,10 @@ free_ast_array :: proc(array: $A/[]^$T, allocator: mem.Allocator) {
 	delete(array, allocator)
 }
 
-free_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator) {
+free_ast_dynamic_array :: proc(
+	array: $A/[dynamic]^$T,
+	allocator: mem.Allocator,
+) {
 	for elem, i in array {
 		free_ast(elem, allocator)
 	}
@@ -307,195 +360,195 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	}
 
 	if node.derived != nil do #partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
-	case ^Implicit:
-	case ^Undef:
-	case ^Basic_Directive:
-	case ^Basic_Lit:
-	case ^Ellipsis:
-		free_ast(n.expr, allocator)
-	case ^Proc_Lit:
-		free_ast(n.type, allocator)
-		free_ast(n.body, allocator)
-		free_ast(n.where_clauses, allocator)
-	case ^Comp_Lit:
-		free_ast(n.type, allocator)
-		free_ast(n.elems, allocator)
-	case ^Tag_Expr:
-		free_ast(n.expr, allocator)
-	case ^Unary_Expr:
-		free_ast(n.expr, allocator)
-	case ^Binary_Expr:
-		free_ast(n.left, allocator)
-		free_ast(n.right, allocator)
-	case ^Paren_Expr:
-		free_ast(n.expr, allocator)
-	case ^Call_Expr:
-		free_ast(n.expr, allocator)
-		free_ast(n.args, allocator)
-	case ^Selector_Expr:
-		free_ast(n.expr, allocator)
-		free_ast(n.field, allocator)
-	case ^Implicit_Selector_Expr:
-		free_ast(n.field, allocator)
-	case ^Index_Expr:
-		free_ast(n.expr, allocator)
-		free_ast(n.index, allocator)
-	case ^Deref_Expr:
-		free_ast(n.expr, allocator)
-	case ^Slice_Expr:
-		free_ast(n.expr, allocator)
-		free_ast(n.low, allocator)
-		free_ast(n.high, allocator)
-	case ^Field_Value:
-		free_ast(n.field, allocator)
-		free_ast(n.value, allocator)
-	case ^Ternary_If_Expr:
-		free_ast(n.x, allocator)
-		free_ast(n.cond, allocator)
-		free_ast(n.y, allocator)
-	case ^Ternary_When_Expr:
-		free_ast(n.x, allocator)
-		free_ast(n.cond, allocator)
-		free_ast(n.y, allocator)
-	case ^Type_Assertion:
-		free_ast(n.expr, allocator)
-		free_ast(n.type, allocator)
-	case ^Type_Cast:
-		free_ast(n.type, allocator)
-		free_ast(n.expr, allocator)
-	case ^Auto_Cast:
-		free_ast(n.expr, allocator)
-	case ^Bad_Stmt:
-	case ^Empty_Stmt:
-	case ^Expr_Stmt:
-		free_ast(n.expr, allocator)
-	case ^Tag_Stmt:
-		r := cast(^Expr_Stmt)node
-		free_ast(r.expr, allocator)
-	case ^Assign_Stmt:
-		free_ast(n.lhs, allocator)
-		free_ast(n.rhs, allocator)
-	case ^Block_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.stmts, allocator)
-	case ^If_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.init, allocator)
-		free_ast(n.cond, allocator)
-		free_ast(n.body, allocator)
-		free_ast(n.else_stmt, allocator)
-	case ^When_Stmt:
-		free_ast(n.cond, allocator)
-		free_ast(n.body, allocator)
-		free_ast(n.else_stmt, allocator)
-	case ^Return_Stmt:
-		free_ast(n.results, allocator)
-	case ^Defer_Stmt:
-		free_ast(n.stmt, allocator)
-	case ^For_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.init, allocator)
-		free_ast(n.cond, allocator)
-		free_ast(n.post, allocator)
-		free_ast(n.body, allocator)
-	case ^Range_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.vals, allocator)
-		free_ast(n.expr, allocator)
-		free_ast(n.body, allocator)
-	case ^Case_Clause:
-		free_ast(n.list, allocator)
-		free_ast(n.body, allocator)
-	case ^Switch_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.init, allocator)
-		free_ast(n.cond, allocator)
-		free_ast(n.body, allocator)
-	case ^Type_Switch_Stmt:
-		free_ast(n.label, allocator)
-		free_ast(n.tag, allocator)
-		free_ast(n.expr, allocator)
-		free_ast(n.body, allocator)
-	case ^Branch_Stmt:
-		free_ast(n.label, allocator)
-	case ^Using_Stmt:
-		free_ast(n.list, allocator)
-	case ^Bad_Decl:
-	case ^Value_Decl:
-		free_ast(n.attributes, allocator)
-		free_ast(n.names, allocator)
-		free_ast(n.type, allocator)
-		free_ast(n.values, allocator)
-	case ^Package_Decl:
-	case ^Import_Decl:
-	case ^Foreign_Block_Decl:
-		free_ast(n.attributes, allocator)
-		free_ast(n.foreign_library, allocator)
-		free_ast(n.body, allocator)
-	case ^Foreign_Import_Decl:
-		free_ast(n.name, allocator)
-		free_ast(n.attributes, allocator)
-	case ^Proc_Group:
-		free_ast(n.args, allocator)
-	case ^Attribute:
-		free_ast(n.elems, allocator)
-	case ^Field:
-		free_ast(n.names, allocator)
-		free_ast(n.type, allocator)
-		free_ast(n.default_value, allocator)
-			//free_ast(n.docs);
-			//free_ast(n.comment);
-	case ^Field_List:
-		free_ast(n.list, allocator)
-	case ^Typeid_Type:
-		free_ast(n.specialization, allocator)
-	case ^Helper_Type:
-		free_ast(n.type, allocator)
-	case ^Distinct_Type:
-		free_ast(n.type, allocator)
-	case ^Poly_Type:
-		free_ast(n.type, allocator)
-		free_ast(n.specialization, allocator)
-	case ^Proc_Type:
-		free_ast(n.params, allocator)
-		free_ast(n.results, allocator)
-	case ^Pointer_Type:
-		free_ast(n.elem, allocator)
-	case ^Array_Type:
-		free_ast(n.len, allocator)
-		free_ast(n.elem, allocator)
-		free_ast(n.tag, allocator)
-	case ^Dynamic_Array_Type:
-		free_ast(n.elem, allocator)
-		free_ast(n.tag, allocator)
-	case ^Struct_Type:
-		free_ast(n.poly_params, allocator)
-		free_ast(n.align, allocator)
-		free_ast(n.fields, allocator)
-		free_ast(n.where_clauses, allocator)
-	case ^Union_Type:
-		free_ast(n.poly_params, allocator)
-		free_ast(n.align, allocator)
-		free_ast(n.variants, allocator)
-		free_ast(n.where_clauses, allocator)
-	case ^Enum_Type:
-		free_ast(n.base_type, allocator)
-		free_ast(n.fields, allocator)
-	case ^Bit_Set_Type:
-		free_ast(n.elem, allocator)
-		free_ast(n.underlying, allocator)
-	case ^Map_Type:
-		free_ast(n.key, allocator)
-		free_ast(n.value, allocator)
-	case ^Multi_Pointer_Type:
-		free_ast(n.elem, allocator)
-	case ^Matrix_Type:
-		free_ast(n.elem, allocator)
-	case:
-		panic(fmt.aprintf("free Unhandled node kind: %T", n))
-	}
+		case ^Bad_Expr:
+		case ^Ident:
+		case ^Implicit:
+		case ^Undef:
+		case ^Basic_Directive:
+		case ^Basic_Lit:
+		case ^Ellipsis:
+			free_ast(n.expr, allocator)
+		case ^Proc_Lit:
+			free_ast(n.type, allocator)
+			free_ast(n.body, allocator)
+			free_ast(n.where_clauses, allocator)
+		case ^Comp_Lit:
+			free_ast(n.type, allocator)
+			free_ast(n.elems, allocator)
+		case ^Tag_Expr:
+			free_ast(n.expr, allocator)
+		case ^Unary_Expr:
+			free_ast(n.expr, allocator)
+		case ^Binary_Expr:
+			free_ast(n.left, allocator)
+			free_ast(n.right, allocator)
+		case ^Paren_Expr:
+			free_ast(n.expr, allocator)
+		case ^Call_Expr:
+			free_ast(n.expr, allocator)
+			free_ast(n.args, allocator)
+		case ^Selector_Expr:
+			free_ast(n.expr, allocator)
+			free_ast(n.field, allocator)
+		case ^Implicit_Selector_Expr:
+			free_ast(n.field, allocator)
+		case ^Index_Expr:
+			free_ast(n.expr, allocator)
+			free_ast(n.index, allocator)
+		case ^Deref_Expr:
+			free_ast(n.expr, allocator)
+		case ^Slice_Expr:
+			free_ast(n.expr, allocator)
+			free_ast(n.low, allocator)
+			free_ast(n.high, allocator)
+		case ^Field_Value:
+			free_ast(n.field, allocator)
+			free_ast(n.value, allocator)
+		case ^Ternary_If_Expr:
+			free_ast(n.x, allocator)
+			free_ast(n.cond, allocator)
+			free_ast(n.y, allocator)
+		case ^Ternary_When_Expr:
+			free_ast(n.x, allocator)
+			free_ast(n.cond, allocator)
+			free_ast(n.y, allocator)
+		case ^Type_Assertion:
+			free_ast(n.expr, allocator)
+			free_ast(n.type, allocator)
+		case ^Type_Cast:
+			free_ast(n.type, allocator)
+			free_ast(n.expr, allocator)
+		case ^Auto_Cast:
+			free_ast(n.expr, allocator)
+		case ^Bad_Stmt:
+		case ^Empty_Stmt:
+		case ^Expr_Stmt:
+			free_ast(n.expr, allocator)
+		case ^Tag_Stmt:
+			r := cast(^Expr_Stmt)node
+			free_ast(r.expr, allocator)
+		case ^Assign_Stmt:
+			free_ast(n.lhs, allocator)
+			free_ast(n.rhs, allocator)
+		case ^Block_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.stmts, allocator)
+		case ^If_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.init, allocator)
+			free_ast(n.cond, allocator)
+			free_ast(n.body, allocator)
+			free_ast(n.else_stmt, allocator)
+		case ^When_Stmt:
+			free_ast(n.cond, allocator)
+			free_ast(n.body, allocator)
+			free_ast(n.else_stmt, allocator)
+		case ^Return_Stmt:
+			free_ast(n.results, allocator)
+		case ^Defer_Stmt:
+			free_ast(n.stmt, allocator)
+		case ^For_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.init, allocator)
+			free_ast(n.cond, allocator)
+			free_ast(n.post, allocator)
+			free_ast(n.body, allocator)
+		case ^Range_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.vals, allocator)
+			free_ast(n.expr, allocator)
+			free_ast(n.body, allocator)
+		case ^Case_Clause:
+			free_ast(n.list, allocator)
+			free_ast(n.body, allocator)
+		case ^Switch_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.init, allocator)
+			free_ast(n.cond, allocator)
+			free_ast(n.body, allocator)
+		case ^Type_Switch_Stmt:
+			free_ast(n.label, allocator)
+			free_ast(n.tag, allocator)
+			free_ast(n.expr, allocator)
+			free_ast(n.body, allocator)
+		case ^Branch_Stmt:
+			free_ast(n.label, allocator)
+		case ^Using_Stmt:
+			free_ast(n.list, allocator)
+		case ^Bad_Decl:
+		case ^Value_Decl:
+			free_ast(n.attributes, allocator)
+			free_ast(n.names, allocator)
+			free_ast(n.type, allocator)
+			free_ast(n.values, allocator)
+		case ^Package_Decl:
+		case ^Import_Decl:
+		case ^Foreign_Block_Decl:
+			free_ast(n.attributes, allocator)
+			free_ast(n.foreign_library, allocator)
+			free_ast(n.body, allocator)
+		case ^Foreign_Import_Decl:
+			free_ast(n.name, allocator)
+			free_ast(n.attributes, allocator)
+		case ^Proc_Group:
+			free_ast(n.args, allocator)
+		case ^Attribute:
+			free_ast(n.elems, allocator)
+		case ^Field:
+			free_ast(n.names, allocator)
+			free_ast(n.type, allocator)
+			free_ast(n.default_value, allocator)
+		//free_ast(n.docs);
+		//free_ast(n.comment);
+		case ^Field_List:
+			free_ast(n.list, allocator)
+		case ^Typeid_Type:
+			free_ast(n.specialization, allocator)
+		case ^Helper_Type:
+			free_ast(n.type, allocator)
+		case ^Distinct_Type:
+			free_ast(n.type, allocator)
+		case ^Poly_Type:
+			free_ast(n.type, allocator)
+			free_ast(n.specialization, allocator)
+		case ^Proc_Type:
+			free_ast(n.params, allocator)
+			free_ast(n.results, allocator)
+		case ^Pointer_Type:
+			free_ast(n.elem, allocator)
+		case ^Array_Type:
+			free_ast(n.len, allocator)
+			free_ast(n.elem, allocator)
+			free_ast(n.tag, allocator)
+		case ^Dynamic_Array_Type:
+			free_ast(n.elem, allocator)
+			free_ast(n.tag, allocator)
+		case ^Struct_Type:
+			free_ast(n.poly_params, allocator)
+			free_ast(n.align, allocator)
+			free_ast(n.fields, allocator)
+			free_ast(n.where_clauses, allocator)
+		case ^Union_Type:
+			free_ast(n.poly_params, allocator)
+			free_ast(n.align, allocator)
+			free_ast(n.variants, allocator)
+			free_ast(n.where_clauses, allocator)
+		case ^Enum_Type:
+			free_ast(n.base_type, allocator)
+			free_ast(n.fields, allocator)
+		case ^Bit_Set_Type:
+			free_ast(n.elem, allocator)
+			free_ast(n.underlying, allocator)
+		case ^Map_Type:
+			free_ast(n.key, allocator)
+			free_ast(n.value, allocator)
+		case ^Multi_Pointer_Type:
+			free_ast(n.elem, allocator)
+		case ^Matrix_Type:
+			free_ast(n.elem, allocator)
+		case:
+			panic(fmt.aprintf("free Unhandled node kind: %T", n))
+		}
 
 	mem.free(node, allocator)
 }
@@ -516,7 +569,7 @@ free_ast_file :: proc(file: ast.File, allocator := context.allocator) {
 	delete(file.decls)
 }
 
-node_equal :: proc{
+node_equal :: proc {
 	node_equal_node,
 	node_equal_array,
 	node_equal_dynamic_array,
@@ -722,37 +775,52 @@ node_to_string :: proc(node: ^ast.Node, remove_pointers := false) -> string {
 	return strings.to_string(builder)
 }
 
-build_string :: proc{
+build_string :: proc {
 	build_string_ast_array,
 	build_string_dynamic_array,
 	build_string_node,
 }
 
-build_string_dynamic_array :: proc(array: $A/[]^$T, builder: ^strings.Builder, remove_pointers: bool) {
+build_string_dynamic_array :: proc(
+	array: $A/[]^$T,
+	builder: ^strings.Builder,
+	remove_pointers: bool,
+) {
 	for elem, i in array {
 		build_string(elem, builder, remove_pointers)
 	}
 }
 
-build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder, remove_pointers: bool) {
+build_string_ast_array :: proc(
+	array: $A/[dynamic]^$T,
+	builder: ^strings.Builder,
+	remove_pointers: bool,
+) {
 	for elem, i in array {
 		build_string(elem, builder, remove_pointers)
 	}
 }
 
-build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool) {
-	
+build_string_node :: proc(
+	node: ^ast.Node,
+	builder: ^strings.Builder,
+	remove_pointers: bool,
+) {
+
 	using ast
-	
+
 	if node == nil {
 		return
 	}
-	
+
 	#partial switch n in node.derived {
 	case ^Bad_Expr:
 	case ^Ident:
 		if strings.contains(n.name, "/") {
-			strings.write_string(builder, path.base(n.name, false, context.temp_allocator))
+			strings.write_string(
+				builder,
+				path.base(n.name, false, context.temp_allocator),
+			)
 		} else {
 			strings.write_string(builder, n.name)
 		}
@@ -760,7 +828,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		strings.write_string(builder, n.tok.text)
 	case ^Undef:
 	case ^Basic_Lit:
-	    strings.write_string(builder, n.tok.text)
+		strings.write_string(builder, n.tok.text)
 	case ^Basic_Directive:
 		strings.write_string(builder, n.name)
 	case ^Implicit_Selector_Expr:
@@ -850,7 +918,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		} else {
 			build_string(n.type, builder, remove_pointers)
 		}
-		
+
 		build_string(n.default_value, builder, remove_pointers)
 	case ^Field_List:
 		for field, i in n.list {
@@ -919,7 +987,11 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 	}
 }
 
-repeat :: proc(value: string, count: int, allocator := context.allocator) -> string {
+repeat :: proc(
+	value: string,
+	count: int,
+	allocator := context.allocator,
+) -> string {
 	if count == 0 {
 		return ""
 	}

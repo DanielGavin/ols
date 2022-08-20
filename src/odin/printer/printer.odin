@@ -30,20 +30,20 @@ Printer :: struct {
 }
 
 Disabled_Info :: struct {
-	text: string,
+	text:     string,
 	end_line: int,
 }
 
 Config :: struct {
-	character_width:      int,
-	spaces:               int,  //Spaces per indentation
-	newline_limit:        int,  //The limit of newlines between statements and declarations.
-	tabs:                 bool, //Enable or disable tabs
-	tabs_width:           int,
-	convert_do:           bool, //Convert all do statements to brace blocks
-	brace_style:          Brace_Style,
-	indent_cases:         bool,
-	newline_style:        Newline_Style,
+	character_width: int,
+	spaces:          int, //Spaces per indentation
+	newline_limit:   int, //The limit of newlines between statements and declarations.
+	tabs:            bool, //Enable or disable tabs
+	tabs_width:      int,
+	convert_do:      bool, //Convert all do statements to brace blocks
+	brace_style:     Brace_Style,
+	indent_cases:    bool,
+	newline_style:   Newline_Style,
 }
 
 Brace_Style :: enum {
@@ -81,41 +81,41 @@ Line_Suffix_Option :: enum {
 }
 
 
-when ODIN_OS ==  .Windows {
+when ODIN_OS == .Windows {
 	default_style := Config {
-		spaces               = 4,
-		newline_limit        = 2,
-		convert_do           = false,
-		tabs                 = true,
-		tabs_width           = 4,
-		brace_style          = ._1TBS,
-		indent_cases         = false,
-		newline_style        = .CRLF,
-		character_width       = 100,
+		spaces          = 4,
+		newline_limit   = 2,
+		convert_do      = false,
+		tabs            = true,
+		tabs_width      = 4,
+		brace_style     = ._1TBS,
+		indent_cases    = false,
+		newline_style   = .CRLF,
+		character_width = 100,
 	}
 } else {
 	default_style := Config {
-		spaces               = 4,
-		newline_limit        = 2,
-		convert_do           = false,
-		tabs                 = true,
-		tabs_width           = 4,
-		brace_style          = ._1TBS,
-		indent_cases         = false,
-		newline_style        = .LF,
-		character_width       = 100,
+		spaces          = 4,
+		newline_limit   = 2,
+		convert_do      = false,
+		tabs            = true,
+		tabs_width      = 4,
+		brace_style     = ._1TBS,
+		indent_cases    = false,
+		newline_style   = .LF,
+		character_width = 100,
 	}
 }
 
-make_printer :: proc(config: Config, allocator := context.allocator) -> Printer {
-	return {
-		config = config,
-		allocator = allocator,
-	}
+make_printer :: proc(
+	config: Config,
+	allocator := context.allocator,
+) -> Printer {
+	return {config = config, allocator = allocator}
 }
 
 
-@private
+@(private)
 build_disabled_lines_info :: proc(p: ^Printer) {
 	found_disable := false
 	disable_position: tokenizer.Pos
@@ -125,27 +125,34 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 			if strings.contains(comment.text[:], "//odinfmt: disable") {
 				found_disable = true
 				disable_position = comment.pos
-			} else if strings.contains(comment.text[:], "//odinfmt: enable") && found_disable {
+			} else if strings.contains(comment.text[:], "//odinfmt: enable") &&
+			   found_disable {
 				begin := disable_position.offset - (comment.pos.column - 1)
-				end := comment.pos.offset+len(comment.text)
+				end := comment.pos.offset + len(comment.text)
 
 				disabled_info := Disabled_Info {
 					end_line = comment.pos.line,
-					text = p.src[begin:end],
+					text     = p.src[begin:end],
 				}
 
-				for line := disable_position.line; line <= comment.pos.line; line += 1 {
+				for line := disable_position.line;
+				    line <= comment.pos.line;
+				    line += 1 {
 					p.disabled_lines[line] = disabled_info
 				}
-				
+
 				found_disable = false
 			}
 		}
 	}
 }
 
-@private
-set_comment_option :: proc(p: ^Printer, line: int, option: Line_Suffix_Option) {
+@(private)
+set_comment_option :: proc(
+	p: ^Printer,
+	line: int,
+	option: Line_Suffix_Option,
+) {
 	p.comments_option[line] = option
 }
 
@@ -155,17 +162,14 @@ print :: proc {
 }
 
 print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
-	p.document = empty();
+	p.document = empty()
 	p.document = cons(p.document, visit_expr(p, expr))
 	p.string_builder = strings.builder_make(p.allocator)
 	context.allocator = p.allocator
 
 	list := make([dynamic]Tuple, p.allocator)
 
-	append(&list, Tuple {
-		document = p.document,
-		indentation = 0,
-	})
+	append(&list, Tuple{document = p.document, indentation = 0})
 
 	format(p.config.character_width, &list, &p.string_builder, p)
 
@@ -174,10 +178,10 @@ print_expr :: proc(p: ^Printer, expr: ^ast.Expr) -> string {
 
 print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.comments = file.comments
-	p.string_builder = strings.builder_make(0, len(file.src)*2, p.allocator)
+	p.string_builder = strings.builder_make(0, len(file.src) * 2, p.allocator)
 	p.src = file.src
 	context.allocator = p.allocator
-	
+
 	if p.config.tabs {
 		p.indentation = "\t"
 		p.indentation_width = p.config.tabs_width
@@ -193,12 +197,15 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	}
 
 	build_disabled_lines_info(p)
-	
+
 	p.source_position.line = 1
 	p.source_position.column = 1
 
 	p.document = move_line(p, file.pkg_token.pos)
-	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))
+	p.document = cons(
+		p.document,
+		cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)),
+	)
 
 	for decl in file.decls {
 		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
@@ -215,13 +222,9 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 
 	list := make([dynamic]Tuple, p.allocator)
 
-	append(&list, Tuple {
-		document = p.document,
-		indentation = 0,
-	})
+	append(&list, Tuple{document = p.document, indentation = 0})
 
 	format(p.config.character_width, &list, &p.string_builder, p)
 
 	return strings.to_string(p.string_builder)
 }
-

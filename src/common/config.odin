@@ -11,7 +11,7 @@ Config :: struct {
 	enable_format:            bool,
 	enable_hover:             bool,
 	enable_document_symbols:  bool,
-	enable_semantic_tokens:   bool, 
+	enable_semantic_tokens:   bool,
 	enable_inlay_hints:       bool,
 	enable_procedure_context: bool,
 	enable_snippets:          bool,
@@ -24,4 +24,4 @@ Config :: struct {
 	checker_args:             string,
 }
 
-config: Config;
+config: Config

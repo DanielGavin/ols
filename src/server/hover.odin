@@ -15,17 +15,24 @@ import "core:slice"
 
 import "shared:common"
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
+write_hover_content :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+) -> MarkupContent {
 	content: MarkupContent
 
 	symbol := symbol
 
 	if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
 		switch untyped.type {
-		case .String:  symbol.signature = "string"
-		case .Bool:	   symbol.signature = "bool"
-		case .Float:   symbol.signature = "float"
-		case .Integer: symbol.signature = "int"
+		case .String:
+			symbol.signature = "string"
+		case .Bool:
+			symbol.signature = "bool"
+		case .Float:
+			symbol.signature = "float"
+		case .Integer:
+			symbol.signature = "int"
 		}
 	}
 
@@ -44,80 +51,133 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 }
 
 builtin_identifier_hover: map[string]string = {
-	"context" = fmt.aprintf("```odin\n%v\n```\n%v", "runtime.context: Context", "This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention)."),
+	"context" = fmt.aprintf(
+		"```odin\n%v\n```\n%v",
+		"runtime.context: Context",
+		"This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
+	),
 }
 
 
-get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
+get_hover_information :: proc(
+	document: ^Document,
+	position: common.Position,
+) -> (
+	Hover,
+	bool,
+	bool,
+) {
 	hover := Hover {
-		contents = {
-			kind = "plaintext",
-		},
+		contents = {kind = "plaintext"},
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
 
-	position_context, ok := get_document_position_context(document, position, .Hover)
+	position_context, ok := get_document_position_context(
+		document,
+		position,
+		.Hover,
+	)
 
 	get_globals(document.ast, &ast_context)
 
 	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
+		get_locals(
+			document.ast,
+			position_context.function,
+			&ast_context,
+			&position_context,
+		)
 	}
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			if _, ok := common.keyword_map[ident.name]; ok {
 				hover.contents.kind = "plaintext"
-				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
+				hover.range = common.get_token_range(
+					position_context.identifier^,
+					ast_context.file.src,
+				)
 				return hover, true, true
 			}
 
 			if str, ok := builtin_identifier_hover[ident.name]; ok {
 				hover.contents.kind = "markdown"
 				hover.contents.value = str
-				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
+				hover.range = common.get_token_range(
+					position_context.identifier^,
+					ast_context.file.src,
+				)
 				return hover, true, true
 			}
-		} 
+		}
 	}
 
 	if position_context.implicit_context != nil {
-		if str, ok := builtin_identifier_hover[position_context.implicit_context.tok.text]; ok {
+		if str, ok :=
+			   builtin_identifier_hover[
+				   position_context.implicit_context.tok.text \
+			   ]; ok {
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
-			hover.range = common.get_token_range(position_context.implicit_context^, ast_context.file.src)
+			hover.range = common.get_token_range(
+				position_context.implicit_context^,
+				ast_context.file.src,
+			)
 			return hover, true, true
 		}
 	}
 
 	if position_context.selector != nil && position_context.identifier != nil {
-		hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
+		hover.range = common.get_token_range(
+			position_context.identifier^,
+			ast_context.file.src,
+		)
 		ast_context.use_locals = true
 		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
 
 		//if the base selector is the client wants to go to.
-		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
+		if base, ok := position_context.selector.derived.(^ast.Ident);
+		   ok && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)^
 
 			if position_in_node(base, position_context.position) {
-				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {				
-					resolved.signature = get_signature(&ast_context, ident, resolved)
+				if resolved, ok := resolve_type_identifier(
+					   &ast_context,
+					   ident,
+				   ); ok {
+					resolved.signature = get_signature(
+						&ast_context,
+						ident,
+						resolved,
+					)
 					resolved.name = ident.name
 
 					if resolved.type == .Variable {
 						resolved.pkg = ast_context.document_package
 					}
 
-					hover.contents = write_hover_content(&ast_context, resolved)
+					hover.contents = write_hover_content(
+						&ast_context,
+						resolved,
+					)
 					return hover, true, true
 				}
 			}
 		}
 
 		selector: Symbol
-		selector, ok = resolve_type_expression(&ast_context, position_context.selector)
+		selector, ok = resolve_type_expression(
+			&ast_context,
+			position_context.selector,
+		)
 
 		if !ok {
 			return hover, false, true
@@ -138,20 +198,33 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		case SymbolStructValue:
 			for name, i in v.names {
 				if name == field {
-					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+					if symbol, ok := resolve_type_expression(
+						   &ast_context,
+						   v.types[i],
+					   ); ok {
 						symbol.name = name //TODO refractor - never set symbol name after creation - change writer_hover_content
 						symbol.pkg = selector.name
 						symbol.signature = common.node_to_string(v.types[i])
-						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.contents = write_hover_content(
+							&ast_context,
+							symbol,
+						)
 						return hover, true, true
 					}
 				}
 			}
 		case SymbolPackageValue:
 			if position_context.field != nil {
-				if ident, ok := position_context.field.derived.(^ast.Ident); ok {
-					if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
-						hover.contents = write_hover_content(&ast_context, symbol)
+				if ident, ok := position_context.field.derived.(^ast.Ident);
+				   ok {
+					if symbol, ok := resolve_type_identifier(
+						   &ast_context,
+						   ident^,
+					   ); ok {
+						hover.contents = write_hover_content(
+							&ast_context,
+							symbol,
+						)
 						return hover, true, true
 					}
 				}
@@ -164,9 +237,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		ident := position_context.identifier.derived.(^ast.Ident)^
 
-		hover.range = common.get_token_range(position_context.identifier^, document.ast.src)
+		hover.range = common.get_token_range(
+			position_context.identifier^,
+			document.ast.src,
+		)
 
-		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {	
+		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
 			resolved.signature = get_signature(&ast_context, ident, resolved)
 			resolved.name = ident.name
 

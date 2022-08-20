@@ -1,4 +1,4 @@
-package server 
+package server
 
 
 import "shared:common"
@@ -16,7 +16,13 @@ import "core:runtime"
 
 fullpaths: [dynamic]string
 
-walk_directories :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
+walk_directories :: proc(
+	info: os.File_Info,
+	in_err: os.Errno,
+) -> (
+	err: os.Errno,
+	skip_dir: bool,
+) {
 	if info.is_dir {
 		return 0, false
 	}
@@ -32,7 +38,10 @@ walk_directories :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno
 	return 0, false
 }
 
-position_in_struct_names :: proc(position_context: ^DocumentPositionContext, type: ^ast.Struct_Type) -> bool {
+position_in_struct_names :: proc(
+	position_context: ^DocumentPositionContext,
+	type: ^ast.Struct_Type,
+) -> bool {
 	for field in type.fields.list {
 		for name in field.names {
 			if position_in_node(name, position_context.position) {
@@ -45,7 +54,13 @@ position_in_struct_names :: proc(position_context: ^DocumentPositionContext, typ
 }
 
 
-resolve_references :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> ([]common.Location, bool)  {
+resolve_references :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	[]common.Location,
+	bool,
+) {
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
 	fullpaths = make([dynamic]string, 10, ast_context.allocator)
 
@@ -56,14 +71,21 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 	pkg := ""
 
 	walker_arena: mem.Arena
-	mem.arena_init(&walker_arena, make([]byte, mem.Megabyte*5))
-	
+	mem.arena_init(&walker_arena, make([]byte, mem.Megabyte * 5))
+
 	{
 		context.temp_allocator = mem.arena_allocator(&walker_arena)
-		filepath.walk(filepath.dir(os.args[0], context.allocator), walk_directories)
+		filepath.walk(
+			filepath.dir(os.args[0], context.allocator),
+			walk_directories,
+		)
 	}
 
-	if position_context.struct_type != nil && position_in_struct_names(position_context, position_context.struct_type) {
+	if position_context.struct_type != nil &&
+	   position_in_struct_names(
+		   position_context,
+		   position_context.struct_type,
+	   ) {
 		return {}, true
 	} else if position_context.enum_type != nil {
 		return {}, true
@@ -88,19 +110,22 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
 
 		location := common.Location {
-			range = common.get_token_range(position_context.identifier^, string(ast_context.file.src)),
-			uri = strings.clone(symbol.uri, ast_context.allocator),
+			range = common.get_token_range(
+				position_context.identifier^,
+				string(ast_context.file.src),
+			),
+			uri   = strings.clone(symbol.uri, ast_context.allocator),
 		}
 
 		append(&locations, location)
 	}
-	
+
 	if !ok {
 		return {}, true
 	}
 
 	resolve_arena: mem.Arena
-	mem.arena_init(&resolve_arena, make([]byte, mem.Megabyte*25))
+	mem.arena_init(&resolve_arena, make([]byte, mem.Megabyte * 25))
 
 	context.allocator = mem.arena_allocator(&resolve_arena)
 
@@ -131,8 +156,8 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 
 		file := ast.File {
 			fullpath = fullpath,
-			src = string(data),
-			pkg = pkg,
+			src      = string(data),
+			pkg      = pkg,
 		}
 
 		ok = parser.parse_file(&p, &file)
@@ -148,7 +173,7 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 			ast = file,
 		}
 
-		document.uri = uri 
+		document.uri = uri
 		document.text = transmute([]u8)file.src
 		document.used_text = len(file.src)
 
@@ -159,20 +184,33 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 		in_pkg := false
 
 		for pkg in document.imports {
-			if pkg.name == symbol.pkg || symbol.pkg == ast_context.document_package {
+			if pkg.name == symbol.pkg ||
+			   symbol.pkg == ast_context.document_package {
 				in_pkg = true
 			}
 		}
 
 		if in_pkg {
-			symbols_and_nodes := resolve_entire_file(&document, reference, resolve_flag, context.allocator)
+			symbols_and_nodes := resolve_entire_file(
+				&document,
+				reference,
+				resolve_flag,
+				context.allocator,
+			)
 
 			for k, v in symbols_and_nodes {
-				if v.symbol.uri  == symbol.uri && v.symbol.range == symbol.range {
+				if v.symbol.uri == symbol.uri &&
+				   v.symbol.range == symbol.range {
 					location := common.Location {
-						range = common.get_token_range(v.node^, string(document.text)),
-						uri = strings.clone(v.symbol.uri, ast_context.allocator),
-					} 
+						range = common.get_token_range(
+							v.node^,
+							string(document.text),
+						),
+						uri   = strings.clone(
+							v.symbol.uri,
+							ast_context.allocator,
+						),
+					}
 					append(&locations, location)
 				}
 			}
@@ -184,25 +222,47 @@ resolve_references :: proc(ast_context: ^AstContext, position_context: ^Document
 	return locations[:], true
 }
 
-get_references :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
-	data := make([]byte, mem.Megabyte*55, runtime.default_allocator())
+get_references :: proc(
+	document: ^Document,
+	position: common.Position,
+) -> (
+	[]common.Location,
+	bool,
+) {
+	data := make([]byte, mem.Megabyte * 55, runtime.default_allocator())
 	//defer delete(data)
-	
+
 	arena: mem.Arena
 	mem.arena_init(&arena, data)
-	
+
 	context.allocator = mem.arena_allocator(&arena)
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath, context.allocator)
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		context.allocator,
+	)
 
-	position_context, ok := get_document_position_context(document, position, .Hover)
+	position_context, ok := get_document_position_context(
+		document,
+		position,
+		.Hover,
+	)
 
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
 	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
+		get_locals(
+			document.ast,
+			position_context.function,
+			&ast_context,
+			&position_context,
+		)
 	}
 
 	locations, ok2 := resolve_references(&ast_context, &position_context)
@@ -212,7 +272,7 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 	for location in locations {
 		temp_location := common.Location {
 			range = location.range,
-			uri = strings.clone(location.uri, context.temp_allocator),
+			uri   = strings.clone(location.uri, context.temp_allocator),
 		}
 		append(&temp_locations, temp_location)
 	}

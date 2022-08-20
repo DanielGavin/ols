@@ -12,7 +12,7 @@ Reader :: struct {
 }
 
 make_reader :: proc(reader_fn: ReaderFn, reader_context: rawptr) -> Reader {
-	return Reader {reader_context = reader_context, reader_fn = reader_fn}
+	return Reader{reader_context = reader_context, reader_fn = reader_fn}
 }
 
 read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
@@ -27,7 +27,11 @@ read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
 	return value[0], true
 }
 
-read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
+read_until_delimiter :: proc(
+	reader: ^Reader,
+	delimiter: u8,
+	builder: ^strings.Builder,
+) -> bool {
 	for true {
 
 		value, success := read_u8(reader)

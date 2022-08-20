@@ -29,30 +29,30 @@ DocumentPositionContext :: struct {
 	position:         common.AbsolutePosition,
 	line:             int,
 	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
-	selector:         ^ast.Expr,     //used for completion
+	selector:         ^ast.Expr, //used for completion
 	selector_expr:    ^ast.Selector_Expr,
 	identifier:       ^ast.Node,
 	implicit_context: ^ast.Implicit,
 	tag:              ^ast.Node,
-	field:            ^ast.Expr,        //used for completion
-	call:             ^ast.Expr,        //used for signature help
+	field:            ^ast.Expr, //used for completion
+	call:             ^ast.Expr, //used for signature help
 	returns:          ^ast.Return_Stmt, //used for completion
-	comp_lit:         ^ast.Comp_Lit,    //used for completion
-	parent_comp_lit:  ^ast.Comp_Lit,    //used for completion
+	comp_lit:         ^ast.Comp_Lit, //used for completion
+	parent_comp_lit:  ^ast.Comp_Lit, //used for completion
 	struct_type:      ^ast.Struct_Type,
 	union_type:       ^ast.Union_Type,
 	bitset_type:      ^ast.Bit_Set_Type,
 	enum_type:        ^ast.Enum_Type,
 	field_value:      ^ast.Field_Value,
-	implicit:         bool,             //used for completion
+	implicit:         bool, //used for completion
 	arrow:            bool,
-	binary:           ^ast.Binary_Expr,      //used for completion
-	parent_binary:    ^ast.Binary_Expr,      //used for completion
-	assign:           ^ast.Assign_Stmt,      //used for completion
-	switch_stmt:      ^ast.Switch_Stmt,      //used for completion
+	binary:           ^ast.Binary_Expr, //used for completion
+	parent_binary:    ^ast.Binary_Expr, //used for completion
+	assign:           ^ast.Assign_Stmt, //used for completion
+	switch_stmt:      ^ast.Switch_Stmt, //used for completion
 	switch_type_stmt: ^ast.Type_Switch_Stmt, //used for completion
-	case_clause:      ^ast.Case_Clause,      //used for completion
-	value_decl:       ^ast.Value_Decl,       //used for completion
+	case_clause:      ^ast.Case_Clause, //used for completion
+	value_decl:       ^ast.Value_Decl, //used for completion
 	abort_completion: bool,
 	hint:             DocumentPositionContextHint,
 	global_lhs_stmt:  bool,
@@ -61,10 +61,10 @@ DocumentPositionContext :: struct {
 }
 
 DocumentLocal :: struct {
-	lhs:   ^ast.Expr,
-	rhs:   ^ast.Expr,
+	lhs:    ^ast.Expr,
+	rhs:    ^ast.Expr,
 	offset: int,
-	id: int, //Id that can used to connect the local to something, i.e. for stmt begin offset
+	id:     int, //Id that can used to connect the local to something, i.e. for stmt begin offset
 }
 
 AstContext :: struct {
@@ -81,7 +81,7 @@ AstContext :: struct {
 	document_package:  string,
 	use_globals:       bool,
 	use_locals:        bool,
-	local_id:          int, 
+	local_id:          int,
 	call:              ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
 	position:          common.AbsolutePosition,
 	value_decl:        ^ast.Value_Decl,
@@ -91,23 +91,34 @@ AstContext :: struct {
 	recursion_counter: int, //Sometimes the ast is so malformed that it causes infinite recursion.
 }
 
-make_ast_context :: proc(file: ast.File, imports: []Package, package_name: string, uri: string, fullpath: string, allocator := context.temp_allocator) -> AstContext {
+make_ast_context :: proc(
+	file: ast.File,
+	imports: []Package,
+	package_name: string,
+	uri: string,
+	fullpath: string,
+	allocator := context.temp_allocator,
+) -> AstContext {
 	ast_context := AstContext {
-		locals = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
-		globals = make(map[string]common.GlobalExpr, 0, allocator),
-		variables = make(map[string]bool, 0, allocator),
-		usings = make([dynamic]string, allocator),
-		parameters = make(map[string]bool, 0, allocator),
-		in_package = make(map[string]string, 0, allocator),
-		file = file,
-		imports = imports,
-		use_locals = true,
-		use_globals = true,
+		locals           = make(
+			map[int]map[string][dynamic]DocumentLocal,
+			0,
+			allocator,
+		),
+		globals          = make(map[string]common.GlobalExpr, 0, allocator),
+		variables        = make(map[string]bool, 0, allocator),
+		usings           = make([dynamic]string, allocator),
+		parameters       = make(map[string]bool, 0, allocator),
+		in_package       = make(map[string]string, 0, allocator),
+		file             = file,
+		imports          = imports,
+		use_locals       = true,
+		use_globals      = true,
 		document_package = package_name,
-		current_package = package_name,
-		uri = uri,
-		fullpath = fullpath,
-		allocator = allocator,
+		current_package  = package_name,
+		uri              = uri,
+		fullpath         = fullpath,
+		allocator        = allocator,
 	}
 
 	add_local_group(&ast_context, 0)
@@ -128,7 +139,12 @@ resolve_poly_spec :: proc {
 	resolve_poly_spec_dynamic_array,
 }
 
-resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, spec_array: $D/[]^$K, poly_map: ^map[string]^ast.Expr) {
+resolve_poly_spec_array :: proc(
+	ast_context: ^AstContext,
+	call_array: $A/[]^$T,
+	spec_array: $D/[]^$K,
+	poly_map: ^map[string]^ast.Expr,
+) {
 	if len(call_array) != len(spec_array) {
 		return
 	}
@@ -138,7 +154,12 @@ resolve_poly_spec_array :: proc(ast_context: ^AstContext, call_array: $A/[]^$T, 
 	}
 }
 
-resolve_poly_spec_dynamic_array :: proc(ast_context: ^AstContext, call_array: $A/[dynamic]^$T, spec_array: $D/[dynamic]^$K, poly_map: ^map[string]^ast.Expr) {
+resolve_poly_spec_dynamic_array :: proc(
+	ast_context: ^AstContext,
+	call_array: $A/[dynamic]^$T,
+	spec_array: $D/[dynamic]^$K,
+	poly_map: ^map[string]^ast.Expr,
+) {
 	if len(call_array) != len(spec_array) {
 		return
 	}
@@ -163,7 +184,12 @@ get_poly_node_to_expr :: proc(node: ^ast.Node) -> ^ast.Expr {
 	return nil
 }
 
-resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, spec_node: ^ast.Node, poly_map: ^map[string]^ast.Expr) {
+resolve_poly_spec_node :: proc(
+	ast_context: ^AstContext,
+	call_node: ^ast.Node,
+	spec_node: ^ast.Node,
+	poly_map: ^map[string]^ast.Expr,
+) {
 	using ast
 
 	if call_node == nil || spec_node == nil {
@@ -176,7 +202,7 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 	case ^Implicit:
 	case ^Undef:
 	case ^Basic_Lit:
-	case ^Poly_Type:	
+	case ^Poly_Type:
 		if expr := get_poly_node_to_expr(call_node); expr != nil {
 			poly_map[m.type.name] = expr
 		}
@@ -236,7 +262,12 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 		}
 	case ^Struct_Type:
 		if n, ok := call_node.derived.(^Struct_Type); ok {
-			resolve_poly_spec(ast_context, n.poly_params, m.poly_params, poly_map)
+			resolve_poly_spec(
+				ast_context,
+				n.poly_params,
+				m.poly_params,
+				poly_map,
+			)
 			resolve_poly_spec(ast_context, n.align, m.align, poly_map)
 			resolve_poly_spec(ast_context, n.fields, m.fields, poly_map)
 		}
@@ -244,7 +275,12 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 		if n, ok := call_node.derived.(^Field); ok {
 			resolve_poly_spec(ast_context, n.names, m.names, poly_map)
 			resolve_poly_spec(ast_context, n.type, m.type, poly_map)
-			resolve_poly_spec(ast_context, n.default_value, m.default_value, poly_map)
+			resolve_poly_spec(
+				ast_context,
+				n.default_value,
+				m.default_value,
+				poly_map,
+			)
 		}
 	case ^Field_List:
 		if n, ok := call_node.derived.(^Field_List); ok {
@@ -257,7 +293,12 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 		}
 	case ^Union_Type:
 		if n, ok := call_node.derived.(^Union_Type); ok {
-			resolve_poly_spec(ast_context, n.poly_params, m.poly_params, poly_map)
+			resolve_poly_spec(
+				ast_context,
+				n.poly_params,
+				m.poly_params,
+				poly_map,
+			)
 			resolve_poly_spec(ast_context, n.align, m.align, poly_map)
 			resolve_poly_spec(ast_context, n.variants, m.variants, poly_map)
 		}
@@ -269,7 +310,12 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 	case ^Bit_Set_Type:
 		if n, ok := call_node.derived.(^Bit_Set_Type); ok {
 			resolve_poly_spec(ast_context, n.elem, m.elem, poly_map)
-			resolve_poly_spec(ast_context, n.underlying, m.underlying, poly_map)
+			resolve_poly_spec(
+				ast_context,
+				n.underlying,
+				m.underlying,
+				poly_map,
+			)
 		}
 	case ^Map_Type:
 		if n, ok := call_node.derived.(^Map_Type); ok {
@@ -283,14 +329,28 @@ resolve_poly_spec_node :: proc(ast_context: ^AstContext, call_node: ^ast.Node, s
 		}
 	case ^Typeid_Type:
 		if n, ok := call_node.derived.(^Typeid_Type); ok {
-			resolve_poly_spec(ast_context, n.specialization, m.specialization, poly_map)
+			resolve_poly_spec(
+				ast_context,
+				n.specialization,
+				m.specialization,
+				poly_map,
+			)
 		}
 	case:
 		log.error("Unhandled poly node kind: %T", m)
 	}
 }
 
-resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, current_symbol: Symbol, current_comp_lit: ^ast.Comp_Lit) -> (Symbol, ^ast.Comp_Lit, bool) {
+resolve_type_comp_literal :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	current_symbol: Symbol,
+	current_comp_lit: ^ast.Comp_Lit,
+) -> (
+	Symbol,
+	^ast.Comp_Lit,
+	bool,
+) {
 	if position_context.comp_lit == current_comp_lit {
 		return current_symbol, current_comp_lit, true
 	} else if current_comp_lit == nil {
@@ -301,7 +361,7 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 
 	prev_package := ast_context.current_package
 	ast_context.current_package = current_symbol.pkg
-	 
+
 	defer ast_context.current_package = prev_package
 
 	for elem, i in current_comp_lit.elems {
@@ -314,35 +374,53 @@ resolve_type_comp_literal :: proc(ast_context: ^AstContext, position_context: ^D
 		if !position_in_node(elem, position_context.position) {
 			continue
 		}
-		
-		if field_value, ok := elem.derived.(^ast.Field_Value); ok { //named
+
+		if field_value, ok := elem.derived.(^ast.Field_Value); ok { 	//named
 			if comp_lit, ok := field_value.value.derived.(^ast.Comp_Lit); ok {
 				if s, ok := current_symbol.value.(SymbolStructValue); ok {
 					for name, i in s.names {
-						if name == field_value.field.derived.(^ast.Ident).name {
-							if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+						if name ==
+						   field_value.field.derived.(^ast.Ident).name {
+							if symbol, ok := resolve_type_expression(
+								   ast_context,
+								   s.types[i],
+							   ); ok {
 								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
-								if _, ok := symbol.value.(SymbolBitSetValue); ok {
+								if _, ok := symbol.value.(SymbolBitSetValue);
+								   ok {
 									return current_symbol, current_comp_lit, true
 								}
-								return resolve_type_comp_literal(ast_context, position_context, symbol, cast(^ast.Comp_Lit)field_value.value)
+								return resolve_type_comp_literal(
+									ast_context,
+									position_context,
+									symbol,
+									cast(^ast.Comp_Lit)field_value.value,
+								)
 							}
 						}
 					}
 				}
 			}
-		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { //indexed
+		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { 	//indexed
 			if s, ok := current_symbol.value.(SymbolStructValue); ok {
 				if len(s.types) <= element_index {
 					return {}, {}, false
 				}
 
-				if symbol, ok := resolve_type_expression(ast_context, s.types[element_index]); ok {
+				if symbol, ok := resolve_type_expression(
+					   ast_context,
+					   s.types[element_index],
+				   ); ok {
 					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
 					if _, ok := symbol.value.(SymbolBitSetValue); ok {
 						return current_symbol, current_comp_lit, true
 					}
-					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
+					return resolve_type_comp_literal(
+						ast_context,
+						position_context,
+						symbol,
+						comp_value,
+					)
 				}
 			}
 		}
@@ -356,7 +434,14 @@ resolve_generic_function :: proc {
 	resolve_generic_function_symbol,
 }
 
-resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast.Field, results: []^ast.Field) -> (Symbol, bool) {
+resolve_generic_function_symbol :: proc(
+	ast_context: ^AstContext,
+	params: []^ast.Field,
+	results: []^ast.Field,
+) -> (
+	Symbol,
+	bool,
+) {
 	if params == nil {
 		return {}, false
 	}
@@ -372,7 +457,7 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 	call_expr := ast_context.call
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
 	i := 0
-	count_required_params := 0	
+	count_required_params := 0
 
 	for param in params {
 		if param.default_value == nil {
@@ -393,18 +478,29 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 			}
 
 			if type_id, ok := param.type.derived.(^ast.Typeid_Type); ok {
-				if type_id.specialization != nil && !common.node_equal(call_expr.args[i], type_id.specialization)  {
+				if type_id.specialization != nil &&
+				   !common.node_equal(
+						   call_expr.args[i],
+						   type_id.specialization,
+					   ) {
 					return {}, false
 				}
 			}
 
-			resolve_poly_spec_node(ast_context, call_expr.args[i], param.type, &poly_map)	
+			resolve_poly_spec_node(
+				ast_context,
+				call_expr.args[i],
+				param.type,
+				&poly_map,
+			)
 
 			i += 1
 		}
 	}
 
-	if count_required_params > len(call_expr.args) || count_required_params == 0 || len(call_expr.args) == 0 {
+	if count_required_params > len(call_expr.args) ||
+	   count_required_params == 0 ||
+	   len(call_expr.args) == 0 {
 		return {}, false
 	}
 
@@ -423,8 +519,8 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 	symbol := Symbol {
 		range = function_range,
-		type = .Function,
-		name = function_name,
+		type  = .Function,
+		name  = function_name,
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -439,7 +535,11 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 		if ok {
 			if m, ok := poly_map[ident.name]; ok {
-				field := cast(^ast.Field)clone_node(result, ast_context.allocator, nil)
+				field := cast(^ast.Field)clone_node(
+					result,
+					ast_context.allocator,
+					nil,
+				)
 				field.type = m
 				append(&return_types, field)
 			} else {
@@ -456,9 +556,14 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 		}
 
 		//check the name for poly
-		if poly_type, ok := param.names[0].derived.(^ast.Poly_Type); ok && param.type != nil {
+		if poly_type, ok := param.names[0].derived.(^ast.Poly_Type);
+		   ok && param.type != nil {
 			if m, ok := poly_map[poly_type.type.name]; ok {
-				field := cast(^ast.Field)clone_node(param, ast_context.allocator, nil)
+				field := cast(^ast.Field)clone_node(
+					param,
+					ast_context.allocator,
+					nil,
+				)
 				field.type = m
 				append(&argument_types, field)
 			}
@@ -469,55 +574,78 @@ resolve_generic_function_symbol :: proc(ast_context: ^AstContext, params: []^ast
 
 	symbol.value = SymbolProcedureValue {
 		return_types = return_types[:],
-		arg_types = argument_types[:],
+		arg_types    = argument_types[:],
 	}
 
 	return symbol, true
 }
 
-resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
+resolve_generic_function_ast :: proc(
+	ast_context: ^AstContext,
+	proc_lit: ast.Proc_Lit,
+) -> (
+	Symbol,
+	bool,
+) {
 
 	using ast
 
 	if proc_lit.type.params == nil {
-		return Symbol {}, false
+		return Symbol{}, false
 	}
 
 	if proc_lit.type.results == nil {
-		return Symbol {}, false
+		return Symbol{}, false
 	}
 
 	if ast_context.call == nil {
-		return Symbol {}, false
+		return Symbol{}, false
 	}
 
-	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list)
+	return resolve_generic_function_symbol(
+		ast_context,
+		proc_lit.type.params.list,
+		proc_lit.type.results.list,
+	)
 }
 
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
+is_symbol_same_typed :: proc(
+	ast_context: ^AstContext,
+	a,
+	b: Symbol,
+	flags: ast.Field_Flags = {},
+) -> bool {
 	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
 	if untyped, ok := a.value.(SymbolUntypedValue); ok {
 		if basic, ok := b.value.(SymbolBasicValue); ok {
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
-				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16": return true
-				case: return false
+				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
+					return true
+				case:
+					return false
 				}
 			case .Bool:
 				switch basic.ident.name {
-				case "bool", "b32", "b64": return true
-				case: return false
+				case "bool", "b32", "b64":
+					return true
+				case:
+					return false
 				}
 			case .String:
 				switch basic.ident.name {
-				case "string", "cstring": return true
-				case: return false
+				case "string", "cstring":
+					return true
+				case:
+					return false
 				}
 			case .Float:
 				switch basic.ident.name {
-				case "f32", "f64": return true
-				case: return false
+				case "f32", "f64":
+					return true
+				case:
+					return false
 				}
 			}
 		}
@@ -538,12 +666,12 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		return false
 	}
 
-	if .Distinct in a.flags == .Distinct in b.flags && 
+	if .Distinct in a.flags == .Distinct in b.flags &&
 	   .Distinct in a.flags &&
 	   a.name == b.name &&
 	   a.pkg == b.pkg {
 		return true
-	} 
+	}
 
 	#partial switch b_value in b.value {
 	case SymbolBasicValue:
@@ -553,9 +681,10 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 			//Temporary - make a function that finds the base type of basic values 
 			//This code only works with non distinct ints
 			switch a.name {
-				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16": return true
+			case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
+				return true
 			}
-		} 
+		}
 	}
 
 	#partial switch a_value in a.value {
@@ -664,32 +793,47 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 			return false
 		}
 
-		a_value_symbol, ok = resolve_type_expression(ast_context, a_value.value)
+		a_value_symbol, ok = resolve_type_expression(
+			ast_context,
+			a_value.value,
+		)
 
 		if !ok {
 			return false
 		}
 
-		b_value_symbol, ok = resolve_type_expression(ast_context, b_value.value)
+		b_value_symbol, ok = resolve_type_expression(
+			ast_context,
+			b_value.value,
+		)
 
 		if !ok {
 			return false
 		}
 
-		return is_symbol_same_typed(ast_context, a_key_symbol, b_key_symbol) && is_symbol_same_typed(ast_context, a_value_symbol, b_value_symbol) 
+		return(
+			is_symbol_same_typed(ast_context, a_key_symbol, b_key_symbol) &&
+			is_symbol_same_typed(ast_context, a_value_symbol, b_value_symbol) \
+		)
 	}
-	
+
 	return false
 }
 
-get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (int, bool) {
+get_field_list_name_index :: proc(
+	name: string,
+	field_list: []^ast.Field,
+) -> (
+	int,
+	bool,
+) {
 	for field, i in field_list {
 		for field_name in field.names {
 			if ident, ok := field_name.derived.(^ast.Ident); ok {
 				if name == ident.name {
 					return i, true
 				}
-			}		
+			}
 		}
 	}
 
@@ -699,7 +843,13 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
-resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (Symbol, bool) {
+resolve_function_overload :: proc(
+	ast_context: ^AstContext,
+	group: ast.Proc_Group,
+) -> (
+	Symbol,
+	bool,
+) {
 	using ast
 
 	call_expr := ast_context.call
@@ -707,7 +857,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr); ok {
+		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
+		   ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
@@ -730,8 +881,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					ast_context.use_locals = true
 
 					call_symbol: Symbol
-					arg_symbol:  Symbol
-					ok:          bool
+					arg_symbol: Symbol
+					ok: bool
 					i := i
 
 					if _, ok = arg.derived.(^ast.Bad_Expr); ok {
@@ -739,22 +890,33 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					}
 
 					//named parameter
-					if field, is_field := arg.derived.(^ast.Field_Value); is_field {
-						call_symbol, ok = resolve_type_expression(ast_context, field.value)
+					if field, is_field := arg.derived.(^ast.Field_Value);
+					   is_field {
+						call_symbol, ok = resolve_type_expression(
+							ast_context,
+							field.value,
+						)
 						if !ok {
 							break next_fn
 						}
 
-						if ident, is_ident := field.field.derived.(^ast.Ident); is_ident {
-							i, ok = get_field_list_name_index(field.field.derived.(^ast.Ident).name, procedure.arg_types)
+						if ident, is_ident := field.field.derived.(^ast.Ident);
+						   is_ident {
+							i, ok = get_field_list_name_index(
+								field.field.derived.(^ast.Ident).name,
+								procedure.arg_types,
+							)
 						} else {
 							break next_fn
 						}
 					} else {
-						call_symbol, ok = resolve_type_expression(ast_context, arg)
+						call_symbol, ok = resolve_type_expression(
+							ast_context,
+							arg,
+						)
 					}
 
-					if !ok {	
+					if !ok {
 						break next_fn
 					}
 
@@ -762,48 +924,66 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						if len(p.return_types) != 1 {
 							break next_fn
 						}
-						if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
+						if s, ok := resolve_type_expression(
+							   ast_context,
+							   p.return_types[0].type,
+						   ); ok {
 							call_symbol = s
 						}
 					}
 
 					if procedure.arg_types[i].type != nil {
-						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type)
-					} else {					
-						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].default_value)
+						arg_symbol, ok = resolve_type_expression(
+							ast_context,
+							procedure.arg_types[i].type,
+						)
+					} else {
+						arg_symbol, ok = resolve_type_expression(
+							ast_context,
+							procedure.arg_types[i].default_value,
+						)
 					}
 
-					if !ok {			
+					if !ok {
 						break next_fn
 					}
 
-					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, procedure.arg_types[i].flags) {	
+					if !is_symbol_same_typed(
+						   ast_context,
+						   call_symbol,
+						   arg_symbol,
+						   procedure.arg_types[i].flags,
+					   ) {
 						break next_fn
-					} 
+					}
 				}
-	
+
 				append(&candidates, f)
 			}
 		}
 	}
 
 	if len(candidates) > 1 {
-		return Symbol {
+		return Symbol{
 			type = candidates[0].type,
 			name = candidates[0].name,
 			pkg = candidates[0].pkg,
-			value = SymbolAggregateValue {
-				symbols = candidates[:],
-			},
+			value = SymbolAggregateValue{symbols = candidates[:]},
 		}, true
 	} else if len(candidates) == 1 {
 		return candidates[0], true
 	}
 
-	return Symbol {}, false
+	return Symbol{}, false
 }
 
-resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (Symbol, bool) {
+resolve_basic_lit :: proc(
+	ast_context: ^AstContext,
+	basic_lit: ast.Basic_Lit,
+) -> (
+	Symbol,
+	bool,
+) {
 	symbol := Symbol {
 		type = .Constant,
 	}
@@ -826,10 +1006,22 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 	return symbol, true
 }
 
-resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_Directive, a := #caller_location) -> (Symbol, bool) {
+resolve_basic_directive :: proc(
+	ast_context: ^AstContext,
+	directive: ast.Basic_Directive,
+	a := #caller_location,
+) -> (
+	Symbol,
+	bool,
+) {
 	switch directive.name {
 	case "caller_location":
-		ident := new_type(ast.Ident, directive.pos, directive.end, ast_context.allocator)
+		ident := new_type(
+			ast.Ident,
+			directive.pos,
+			directive.end,
+			ast_context.allocator,
+		)
 		ident.name = "Source_Code_Location"
 		ast_context.current_package = ast_context.document_package
 		return resolve_type_identifier(ast_context, ident^)
@@ -839,7 +1031,13 @@ resolve_basic_directive :: proc(ast_context: ^AstContext, directive: ast.Basic_D
 }
 
 
-resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+resolve_type_expression :: proc(
+	ast_context: ^AstContext,
+	node: ^ast.Expr,
+) -> (
+	Symbol,
+	bool,
+) {
 	if node == nil {
 		return {}, false
 	}
@@ -865,33 +1063,74 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 
 	#partial switch v in node.derived {
 	case ^Union_Type:
-		return make_symbol_union_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return make_symbol_union_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+			true,
+		), true
 	case ^Enum_Type:
-		return make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return make_symbol_enum_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+			true,
+		), true
 	case ^Struct_Type:
-		return make_symbol_struct_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return make_symbol_struct_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+			true,
+		), true
 	case ^Bit_Set_Type:
-		return make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return make_symbol_bitset_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+			true,
+		), true
 	case ^Array_Type:
-		return make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
+		return make_symbol_array_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+		), true
 	case ^Dynamic_Array_Type:
-		return make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
+		return make_symbol_dynamic_array_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+		), true
 	case ^Multi_Pointer_Type:
-		return make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
+		return make_symbol_multi_pointer_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+		), true
 	case ^Map_Type:
-		return make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
+		return make_symbol_map_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+		), true
 	case ^Proc_Type:
-		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name), true
+		return make_symbol_procedure_from_ast(
+			ast_context,
+			node,
+			v^,
+			ast_context.field_name,
+		), true
 	case ^Basic_Directive:
 		return resolve_basic_directive(ast_context, v^)
 	case ^Binary_Expr:
-		return resolve_first_symbol_from_binary_expression(ast_context, v) 
+		return resolve_first_symbol_from_binary_expression(ast_context, v)
 	case ^Ident:
 		return resolve_type_identifier(ast_context, v^)
 	case ^Basic_Lit:
 		return resolve_basic_lit(ast_context, v^)
 	case ^Type_Cast:
-			return resolve_type_expression(ast_context, v.type)
+		return resolve_type_expression(ast_context, v.type)
 	case ^Auto_Cast:
 		return resolve_type_expression(ast_context, v.expr)
 	case ^Comp_Lit:
@@ -925,22 +1164,29 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 	case ^Type_Assertion:
 		if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
 			if unary.op.kind == .Question {
-				if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
+				if symbol, ok := resolve_type_expression(ast_context, v.expr);
+				   ok {
 					if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 						if len(union_value.types) != 1 {
 							return {}, false
 						}
-						return resolve_type_expression(ast_context, union_value.types[0])
+						return resolve_type_expression(
+							ast_context,
+							union_value.types[0],
+						)
 					}
 				}
 			}
 		} else {
 			return resolve_type_expression(ast_context, v.type)
-		}	
+		}
 	case ^Proc_Lit:
 		if v.type.results != nil {
 			if len(v.type.results.list) == 1 {
-				return resolve_type_expression(ast_context, v.type.results.list[0].type)
+				return resolve_type_expression(
+					ast_context,
+					v.type.results.list[0].type,
+				)
 			}
 		}
 	case ^Pointer_Type:
@@ -976,7 +1222,7 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 		ast_context.call = cast(^Call_Expr)node
 		return resolve_type_expression(ast_context, v.expr)
 	case ^Implicit_Selector_Expr:
-		return Symbol {}, false
+		return Symbol{}, false
 	case ^Selector_Call_Expr:
 		return resolve_type_expression(ast_context, v.expr)
 	case ^Selector_Expr:
@@ -987,8 +1233,14 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 			case SymbolFixedArrayValue:
 				components_count := 0
 				for c in v.field.name {
-					if c == 'x' || c == 'y' || c == 'z'  || c == 'w' ||
-					   c == 'r' || c == 'g' || c == 'b'  || c == 'a' {
+					if c == 'x' ||
+					   c == 'y' ||
+					   c == 'z' ||
+					   c == 'w' ||
+					   c == 'r' ||
+					   c == 'g' ||
+					   c == 'b' ||
+					   c == 'a' {
 						components_count += 1
 					}
 				}
@@ -1001,7 +1253,8 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 					if selector.pkg != "" {
 						ast_context.current_package = selector.pkg
 					} else {
-						ast_context.current_package = ast_context.document_package
+						ast_context.current_package =
+							ast_context.document_package
 					}
 					symbol, ok := resolve_type_expression(ast_context, s.expr)
 					symbol.type = .Variable
@@ -1009,7 +1262,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				} else {
 					value := SymbolFixedArrayValue {
 						expr = s.expr,
-						len = make_int_basic_value(ast_context, components_count),
+						len  = make_int_basic_value(
+							ast_context,
+							components_count,
+						),
 					}
 					selector.value = value
 					selector.type = .Variable
@@ -1017,7 +1273,12 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				}
 			case SymbolProcedureValue:
 				if len(s.return_types) == 1 {
-					selector_expr := new_type(ast.Selector_Expr, s.return_types[0].node.pos, s.return_types[0].node.end, ast_context.allocator)
+					selector_expr := new_type(
+						ast.Selector_Expr,
+						s.return_types[0].node.pos,
+						s.return_types[0].node.end,
+						ast_context.allocator,
+					)
 					selector_expr.expr = s.return_types[0].type
 					selector_expr.field = v.field
 					return resolve_type_expression(ast_context, selector_expr)
@@ -1032,7 +1293,10 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				for name, i in s.names {
 					if v.field != nil && name == v.field.name {
 						ast_context.field_name = v.field^
-						symbol, ok := resolve_type_expression(ast_context, s.types[i])
+						symbol, ok := resolve_type_expression(
+							ast_context,
+							s.types[i],
+						)
 						symbol.type = .Variable
 						return symbol, ok
 					}
@@ -1043,13 +1307,16 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 				try_build_package(ast_context.current_package)
 
 				if v.field != nil {
-						return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))	
+					return resolve_symbol_return(
+						ast_context,
+						lookup(v.field.name, selector.pkg),
+					)
 				} else {
-					return Symbol {}, false
+					return Symbol{}, false
 				}
 			}
 		} else {
-			return Symbol {}, false
+			return Symbol{}, false
 		}
 	case:
 		log.warnf("default node kind, resolve_type_expression: %T", v)
@@ -1058,10 +1325,17 @@ resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (S
 		}
 	}
 
-	return Symbol {}, false
+	return Symbol{}, false
 }
 
-store_local :: proc(ast_context: ^AstContext, lhs: ^ast.Expr, rhs: ^ast.Expr, offset: int, name: string, id := 0) {
+store_local :: proc(
+	ast_context: ^AstContext,
+	lhs: ^ast.Expr,
+	rhs: ^ast.Expr,
+	offset: int,
+	name: string,
+	id := 0,
+) {
 	local_stack := &ast_context.locals[id][name]
 
 	if local_stack == nil {
@@ -1070,18 +1344,32 @@ store_local :: proc(ast_context: ^AstContext, lhs: ^ast.Expr, rhs: ^ast.Expr, of
 		local_stack = &locals[name]
 	}
 
-	append(local_stack, DocumentLocal {lhs = lhs, rhs = rhs, offset = offset, id = id})
+	append(
+		local_stack,
+		DocumentLocal{lhs = lhs, rhs = rhs, offset = offset, id = id},
+	)
 }
 
 add_local_group :: proc(ast_context: ^AstContext, id: int) {
-	ast_context.locals[id] = make(map[string][dynamic]DocumentLocal, 100, ast_context.allocator)
+	ast_context.locals[id] = make(
+		map[string][dynamic]DocumentLocal,
+		100,
+		ast_context.allocator,
+	)
 }
 
 clear_local_group :: proc(ast_context: ^AstContext, id: int) {
 	ast_context.locals[id] = {}
 }
 
-get_local_lhs_and_rhs :: proc(ast_context: ^AstContext, offset: int, name: string) -> (^ast.Expr, ^ast.Expr) {
+get_local_lhs_and_rhs :: proc(
+	ast_context: ^AstContext,
+	offset: int,
+	name: string,
+) -> (
+	^ast.Expr,
+	^ast.Expr,
+) {
 	previous := 0
 
 	//is the local we are getting being declared?
@@ -1104,31 +1392,43 @@ get_local_lhs_and_rhs :: proc(ast_context: ^AstContext, offset: int, name: strin
 						return nil, nil
 					} else {
 						ret := local_stack[i - previous].rhs
-						if ident, ok := ret.derived.(^ast.Ident); ok && ident.name == name {
+						if ident, ok := ret.derived.(^ast.Ident);
+						   ok && ident.name == name {
 							if i - previous - 1 < 0 {
 								return nil, nil
 							}
 
-							if _, ok := ast_context.parameters[ident.name]; ok {					
-								return local_stack[i - previous].lhs, local_stack[i - previous].rhs
+							if _, ok := ast_context.parameters[ident.name];
+							   ok {
+								return local_stack[i -
+									previous].lhs, local_stack[i - previous].rhs
 							}
 						}
-						return local_stack[i - previous].lhs, local_stack[i - previous].rhs;
-					}		
+						return local_stack[i -
+							previous].lhs, local_stack[i - previous].rhs
+					}
 				}
 			}
 		}
 	}
-	
+
 	return nil, nil
 }
 
-get_local :: proc(ast_context: ^AstContext, offset: int, name: string) -> ^ast.Expr {
+get_local :: proc(
+	ast_context: ^AstContext,
+	offset: int,
+	name: string,
+) -> ^ast.Expr {
 	lhs, rhs := get_local_lhs_and_rhs(ast_context, offset, name)
 	return rhs
 }
 
-get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) -> int {
+get_local_offset :: proc(
+	ast_context: ^AstContext,
+	offset: int,
+	name: string,
+) -> int {
 	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
@@ -1137,7 +1437,7 @@ get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) ->
 						return -1
 					} else {
 						return local_stack[i].offset
-					}		
+					}
 				}
 			}
 		}
@@ -1146,7 +1446,13 @@ get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) ->
 	return -1
 }
 
-resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
+resolve_type_identifier :: proc(
+	ast_context: ^AstContext,
+	node: ast.Ident,
+) -> (
+	Symbol,
+	bool,
+) {
 	using ast
 
 	if ast_context.recursion_counter > 200 {
@@ -1183,9 +1489,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				type = .Keyword,
 				signature = node.name,
 				pkg = ast_context.current_package,
-				value = SymbolUntypedValue {
-					type = .Bool,	
-				},
+				value = SymbolUntypedValue{type = .Bool},
 			}
 		case:
 			symbol = Symbol {
@@ -1193,9 +1497,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				signature = node.name,
 				name = ident.name,
 				pkg = ast_context.current_package,
-				value = SymbolBasicValue {
-					ident = ident,
-				},
+				value = SymbolBasicValue{ident = ident},
 			}
 		}
 
@@ -1206,20 +1508,21 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				symbol := Symbol {
 					type = .Package,
 					pkg = imp.name,
-					value = SymbolPackageValue {},
+					value = SymbolPackageValue{},
 				}
 
 				return symbol, true
 			}
 		}
-	} 
-	
-	if local := get_local(ast_context, node.pos.offset, node.name); local != nil && ast_context.use_locals {
+	}
+
+	if local := get_local(ast_context, node.pos.offset, node.name);
+	   local != nil && ast_context.use_locals {
 		is_distinct := false
 
 		if dist, ok := local.derived.(^ast.Distinct_Type); ok {
 			if dist.type != nil {
-				local = dist.type 
+				local = dist.type
 				is_distinct = true
 			}
 		}
@@ -1231,37 +1534,62 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		case ^Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_union_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_struct_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !v.type.generic {
-				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node), true
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						local,
+						v.type^,
+						node,
+					),
+					true
 			} else {
-				if return_symbol, ok = resolve_generic_function(ast_context, v^); !ok {
-					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, local, v.type^, node), true
+				if return_symbol, ok = resolve_generic_function(
+					   ast_context,
+					   v^,
+				   ); !ok {
+					return_symbol, ok =
+						make_symbol_procedure_from_ast(
+							ast_context,
+							local,
+							v.type^,
+							node,
+						),
+						true
 				}
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_array_from_ast(ast_context, v^, node), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_map_from_ast(ast_context, v^, node), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
-			return_symbol.type = ast_context.variables[node.name] ? .Variable : .Constant
+			return_symbol.type =
+				ast_context.variables[node.name] ? .Variable : .Constant
 		case:
 			return_symbol, ok = resolve_type_expression(ast_context, local)
 		}
@@ -1271,7 +1599,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 			return_symbol.flags |= {.Distinct}
 		}
 
-		if is_variable, ok := ast_context.variables[node.name]; ok && is_variable {
+		if is_variable, ok := ast_context.variables[node.name];
+		   ok && is_variable {
 			//return_symbol.name = node.name
 			return_symbol.type = .Variable
 		}
@@ -1280,7 +1609,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 		return return_symbol, ok
 
-	} else if global, ok := ast_context.globals[node.name]; ast_context.use_globals && ok {
+	} else if global, ok := ast_context.globals[node.name];
+	   ast_context.use_globals && ok {
 		is_distinct := false
 
 		if dist, ok := global.expr.derived.(^ast.Distinct_Type); ok {
@@ -1297,39 +1627,66 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		case ^Ident:
 			return_symbol, ok = resolve_type_identifier(ast_context, v^)
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_struct_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_union_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !v.type.generic {
-				return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node), true
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						global.expr,
+						v.type^,
+						node,
+					),
+					true
 			} else {
-				if return_symbol, ok = resolve_generic_function(ast_context, v^); !ok {
-					return_symbol, ok = make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node), true
+				if return_symbol, ok = resolve_generic_function(
+					   ast_context,
+					   v^,
+				   ); !ok {
+					return_symbol, ok =
+						make_symbol_procedure_from_ast(
+							ast_context,
+							global.expr,
+							v.type^,
+							node,
+						),
+						true
 				}
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
 		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_array_from_ast(ast_context, v^, node), true
 		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
+			return_symbol, ok =
+				make_symbol_map_from_ast(ast_context, v^, node), true
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
 			return_symbol.type = global.mutable ? .Variable : .Constant
 		case:
-			return_symbol, ok = resolve_type_expression(ast_context, global.expr)
+			return_symbol, ok = resolve_type_expression(
+				ast_context,
+				global.expr,
+			)
 		}
 
 		if is_distinct {
@@ -1337,7 +1694,8 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 			return_symbol.flags |= {.Distinct}
 		}
 
-		if is_variable, ok := ast_context.variables[node.name]; ok && is_variable {
+		if is_variable, ok := ast_context.variables[node.name];
+		   ok && is_variable {
 			return_symbol.type = .Variable
 		}
 
@@ -1357,13 +1715,13 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 			symbol := Symbol {
 				type = .Package,
 				pkg = node.name,
-				value = SymbolPackageValue {},
+				value = SymbolPackageValue{},
 			}
 
 			try_build_package(symbol.pkg)
 
 			return symbol, true
-		} 
+		}
 
 		//last option is to check the index
 		if symbol, ok := lookup(node.name, ast_context.current_package); ok {
@@ -1375,7 +1733,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 				symbol := Symbol {
 					type = .Package,
 					pkg = imp.name,
-					value = SymbolPackageValue {},
+					value = SymbolPackageValue{},
 				}
 
 				try_build_package(symbol.pkg)
@@ -1408,10 +1766,14 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 		}
 	}
 
-	return Symbol {}, false
+	return Symbol{}, false
 }
 
-expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: SymbolStructValue) -> SymbolStructValue {
+expand_struct_usings :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	value: SymbolStructValue,
+) -> SymbolStructValue {
 	names := slice.to_dynamic(value.names, ast_context.allocator)
 	types := slice.to_dynamic(value.types, ast_context.allocator)
 	ranges := slice.to_dynamic(value.ranges, ast_context.allocator)
@@ -1444,19 +1806,22 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 
 				for range in struct_value.ranges {
 					append(&ranges, range)
-				}		
+				}
 			}
 		}
 	}
 
-	return {
-		names = names[:],
-		types = types[:],
-		ranges = ranges[:],
-	}
+	return {names = names[:], types = types[:], ranges = ranges[:]}
 }
 
-resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := true) -> (Symbol, bool) {
+resolve_symbol_return :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	ok := true,
+) -> (
+	Symbol,
+	bool,
+) {
 	if !ok {
 		return symbol, ok
 	}
@@ -1468,17 +1833,24 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			return {}, false
 		}
 	}
-	
+
 	#partial switch v in &symbol.value {
 	case SymbolProcedureGroupValue:
-		if symbol, ok := resolve_function_overload(ast_context, v.group.derived.(^ast.Proc_Group)^); ok {
+		if symbol, ok := resolve_function_overload(
+			   ast_context,
+			   v.group.derived.(^ast.Proc_Group)^,
+		   ); ok {
 			return symbol, true
 		} else {
 			return symbol, false
 		}
 	case SymbolProcedureValue:
 		if v.generic {
-			if resolved_symbol, ok := resolve_generic_function(ast_context, v.arg_types, v.return_types); ok {
+			if resolved_symbol, ok := resolve_generic_function(
+				   ast_context,
+				   v.arg_types,
+				   v.return_types,
+			   ); ok {
 				return resolved_symbol, ok
 			} else {
 				return symbol, true
@@ -1512,7 +1884,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			expanded.value = expand_struct_usings(ast_context, symbol, v)
 			return expanded, true
 		} else {
-			return symbol, true 
+			return symbol, true
 		}
 	case SymbolGenericValue:
 		ret, ok := resolve_type_expression(ast_context, v.expr)
@@ -1525,7 +1897,10 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	return symbol, true
 }
 
-resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) ->  bool {
+resolve_unresolved_symbol :: proc(
+	ast_context: ^AstContext,
+	symbol: ^Symbol,
+) -> bool {
 	if symbol.type != .Unresolved {
 		return true
 	}
@@ -1533,15 +1908,15 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 	#partial switch v in symbol.value {
 	case SymbolStructValue:
 		symbol.type = .Struct
-    case SymbolPackageValue:
+	case SymbolPackageValue:
 		symbol.type = .Package
-    case SymbolProcedureValue, SymbolProcedureGroupValue:
+	case SymbolProcedureValue, SymbolProcedureGroupValue:
 		symbol.type = .Function
-    case SymbolUnionValue:
+	case SymbolUnionValue:
 		symbol.type = .Enum
-    case SymbolEnumValue:
+	case SymbolEnumValue:
 		symbol.type = .Enum
-    case SymbolBitSetValue:
+	case SymbolBitSetValue:
 		symbol.type = .Enum
 	case SymbolGenericValue:
 		ast_context.current_package = symbol.pkg
@@ -1556,17 +1931,30 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 	return true
 }
 
-resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
+resolve_location_identifier :: proc(
+	ast_context: ^AstContext,
+	node: ast.Ident,
+) -> (
+	Symbol,
+	bool,
+) {
 	symbol: Symbol
 
-	if local, _ := get_local_lhs_and_rhs(ast_context, node.pos.offset, node.name); local != nil {
+	if local, _ := get_local_lhs_and_rhs(
+		   ast_context,
+		   node.pos.offset,
+		   node.name,
+	   ); local != nil {
 		symbol.range = common.get_token_range(local, ast_context.file.src)
 		uri := common.create_uri(local.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
 		symbol.uri = uri.uri
 		return symbol, true
 	} else if global, ok := ast_context.globals[node.name]; ok {
-		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
+		symbol.range = common.get_token_range(
+			global.expr,
+			ast_context.file.src,
+		)
 		uri := common.create_uri(global.expr.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
 		symbol.uri = uri.uri
@@ -1588,7 +1976,13 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	return {}, false
 }
 
-resolve_location_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selector_Expr) -> (Symbol, bool) {
+resolve_location_selector :: proc(
+	ast_context: ^AstContext,
+	selector: ^ast.Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
 	ast_context.use_locals = true
 	ast_context.use_globals = true
 	ast_context.current_package = ast_context.document_package
@@ -1628,7 +2022,13 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selec
 }
 
 
-resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_Expr) -> (Symbol, bool) {
+resolve_first_symbol_from_binary_expression :: proc(
+	ast_context: ^AstContext,
+	binary: ^ast.Binary_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
 	//Fairly simple function to find the earliest identifier symbol in binary expression.
 
 	if binary.left != nil {
@@ -1638,7 +2038,10 @@ resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, bi
 				return s, ok
 			}
 		} else if _, ok := binary.left.derived.(^ast.Binary_Expr); ok {
-			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.left); ok {
+			if s, ok := resolve_first_symbol_from_binary_expression(
+				   ast_context,
+				   cast(^ast.Binary_Expr)binary.left,
+			   ); ok {
 				return s, ok
 			}
 		}
@@ -1650,7 +2053,10 @@ resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, bi
 				return s, ok
 			}
 		} else if _, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-			if s, ok := resolve_first_symbol_from_binary_expression(ast_context, cast(^ast.Binary_Expr)binary.right); ok {
+			if s, ok := resolve_first_symbol_from_binary_expression(
+				   ast_context,
+				   cast(^ast.Binary_Expr)binary.right,
+			   ); ok {
 				return s, ok
 			}
 		}
@@ -1659,7 +2065,13 @@ resolve_first_symbol_from_binary_expression :: proc(ast_context: ^AstContext, bi
 	return {}, false
 }
 
-find_position_in_call_param :: proc(ast_context: ^AstContext, call: ast.Call_Expr) -> (int, bool) {
+find_position_in_call_param :: proc(
+	ast_context: ^AstContext,
+	call: ast.Call_Expr,
+) -> (
+	int,
+	bool,
+) {
 	if call.args == nil {
 		return 0, false
 	}
@@ -1673,8 +2085,16 @@ find_position_in_call_param :: proc(ast_context: ^AstContext, call: ast.Call_Exp
 	return len(call.args) - 1, true
 }
 
-make_pointer_ast :: proc(ast_context: ^AstContext, elem: ^ast.Expr) -> ^ast.Pointer_Type {
-	pointer := new_type(ast.Pointer_Type, elem.pos, elem.end, ast_context.allocator)
+make_pointer_ast :: proc(
+	ast_context: ^AstContext,
+	elem: ^ast.Expr,
+) -> ^ast.Pointer_Type {
+	pointer := new_type(
+		ast.Pointer_Type,
+		elem.pos,
+		elem.end,
+		ast_context.allocator,
+	)
 	pointer.elem = elem
 	return pointer
 }
@@ -1691,10 +2111,13 @@ make_int_ast :: proc(ast_context: ^AstContext) -> ^ast.Ident {
 	return ident
 }
 
-make_int_basic_value :: proc(ast_context: ^AstContext, n: int) -> ^ast.Basic_Lit {
+make_int_basic_value :: proc(
+	ast_context: ^AstContext,
+	n: int,
+) -> ^ast.Basic_Lit {
 	basic := new_type(ast.Basic_Lit, {}, {}, ast_context.allocator)
 	basic.tok.text = fmt.tprintf("%v", n)
-	return basic 
+	return basic
 }
 
 get_package_from_node :: proc(node: ast.Node) -> string {
@@ -1722,16 +2145,21 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	return usings
 }
 
-make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ast.Proc_Type, name: ast.Ident) -> Symbol {
+make_symbol_procedure_from_ast :: proc(
+	ast_context: ^AstContext,
+	n: ^ast.Node,
+	v: ast.Proc_Type,
+	name: ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
-		type = .Function,
-		pkg = get_package_from_node(n^),
-		name = name.name,
+		type  = .Function,
+		pkg   = get_package_from_node(n^),
+		name  = name.name,
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
-	arg_types    := make([dynamic]^ast.Field, ast_context.allocator)
+	arg_types := make([dynamic]^ast.Field, ast_context.allocator)
 
 	if v.results != nil {
 		for ret in v.results.list {
@@ -1753,25 +2181,29 @@ make_symbol_procedure_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v
 
 	symbol.value = SymbolProcedureValue {
 		return_types = return_types[:],
-		arg_types = arg_types[:],
-		generic = v.generic,
+		arg_types    = arg_types[:],
+		generic      = v.generic,
 	}
 
 	return symbol
 }
 
-make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, name: ast.Ident) -> Symbol {
+make_symbol_array_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Array_Type,
+	name: ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type = .Variable,
-		pkg = get_package_from_node(v.node),
-		name = name.name,
+		type  = .Variable,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
 	}
 
 	if v.len != nil {
 		symbol.value = SymbolFixedArrayValue {
 			expr = v.elem,
-			len = v.len,
+			len  = v.len,
 		}
 	} else {
 		symbol.value = SymbolSliceValue {
@@ -1782,12 +2214,16 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 	return symbol
 }
 
-make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dynamic_Array_Type, name: ast.Ident) -> Symbol {
+make_symbol_dynamic_array_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Dynamic_Array_Type,
+	name: ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type = .Variable,
-		pkg = get_package_from_node(v.node),
-		name = name.name,
+		type  = .Variable,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
@@ -1797,12 +2233,16 @@ make_symbol_dynamic_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Dyna
 	return symbol
 }
 
-make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Multi_Pointer_Type, name: ast.Ident) -> Symbol {
+make_symbol_multi_pointer_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Multi_Pointer_Type,
+	name: ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type = .Variable,
-		pkg = get_package_from_node(v.node),
-		name = name.name,
+		type  = .Variable,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
 	}
 
 	symbol.value = SymbolMultiPointer {
@@ -1812,27 +2252,35 @@ make_symbol_multi_pointer_from_ast :: proc(ast_context: ^AstContext, v: ast.Mult
 	return symbol
 }
 
-make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name: ast.Ident) -> Symbol {
+make_symbol_map_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Map_Type,
+	name: ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type = .Variable,
-		pkg = get_package_from_node(v.node),
-		name = name.name,
+		type  = .Variable,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
 	}
 
 	symbol.value = SymbolMapValue {
-		key = v.key,
+		key   = v.key,
 		value = v.value,
 	}
 
 	return symbol
 }
 
-make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, v: ^ast.Ident) -> Symbol {
+make_symbol_basic_type_from_ast :: proc(
+	ast_context: ^AstContext,
+	n: ^ast.Node,
+	v: ^ast.Ident,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
-		type = .Variable,
-		pkg = get_package_from_node(n^),
+		type  = .Variable,
+		pkg   = get_package_from_node(n^),
 	}
 
 	symbol.value = SymbolBasicValue {
@@ -1842,12 +2290,17 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Node, 
 	return symbol
 }
 
-make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, ident: ast.Ident, inlined := false) -> Symbol {
+make_symbol_union_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Union_Type,
+	ident: ast.Ident,
+	inlined := false,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
-		type = .Union,
-		pkg = get_package_from_node(v.node),
-		name = ident.name,
+		type  = .Union,
+		pkg   = get_package_from_node(v.node),
+		name  = ident.name,
 	}
 
 	if inlined {
@@ -1855,7 +2308,7 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 		symbol.name = "union"
 	}
 
-	types  := make([dynamic]^ast.Expr, ast_context.allocator)
+	types := make([dynamic]^ast.Expr, ast_context.allocator)
 
 	for variant in v.variants {
 		if v.poly_params != nil {
@@ -1876,12 +2329,17 @@ make_symbol_union_from_ast :: proc(ast_context: ^AstContext, v: ast.Union_Type, 
 	return symbol
 }
 
-make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, ident: ast.Ident, inlined := false) -> Symbol {
+make_symbol_enum_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Enum_Type,
+	ident: ast.Ident,
+	inlined := false,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
-		type = .Enum,
-		name = ident.name,
-		pkg = get_package_from_node(v.node),
+		type  = .Enum,
+		name  = ident.name,
+		pkg   = get_package_from_node(v.node),
 	}
 
 	if inlined {
@@ -1898,9 +2356,10 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 		} else if field, ok := n.derived.(^ast.Field_Value); ok {
 			if ident, ok := field.field.derived.(^ast.Ident); ok {
 				append(&names, ident.name)
-			} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
+			} else if binary, ok := field.field.derived.(^ast.Binary_Expr);
+			   ok {
 				append(&names, binary.left.derived.(^ast.Ident).name)
-			}	
+			}
 		}
 	}
 
@@ -1911,12 +2370,17 @@ make_symbol_enum_from_ast :: proc(ast_context: ^AstContext, v: ast.Enum_Type, id
 	return symbol
 }
 
-make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Type, ident: ast.Ident, inlined := false) -> Symbol {
+make_symbol_bitset_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Bit_Set_Type,
+	ident: ast.Ident,
+	inlined := false,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
-		type = .Enum,
-		name = ident.name,
-		pkg = get_package_from_node(v.node),
+		type  = .Enum,
+		name  = ident.name,
+		pkg   = get_package_from_node(v.node),
 	}
 
 	if inlined {
@@ -1931,12 +2395,17 @@ make_symbol_bitset_from_ast :: proc(ast_context: ^AstContext, v: ast.Bit_Set_Typ
 	return symbol
 }
 
-make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type, ident: ast.Ident, inlined := false) -> Symbol {
+make_symbol_struct_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Struct_Type,
+	ident: ast.Ident,
+	inlined := false,
+) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
-		type = .Struct,
-		pkg = get_package_from_node(v.node),
-		name = ident.name,
+		type  = .Struct,
+		pkg   = get_package_from_node(v.node),
+		name  = ident.name,
 	}
 
 	if inlined {
@@ -1951,13 +2420,17 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
 	for field in v.fields.list {
 		for n in field.names {
-			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
+			if identifier, ok := n.derived.(^ast.Ident);
+			   ok && field.type != nil {
 				if identifier.name == "_" {
 					continue
 				}
 				append(&names, identifier.name)
 				if v.poly_params != nil {
-					append(&types, clone_type(field.type, ast_context.allocator, nil))
+					append(
+						&types,
+						clone_type(field.type, ast_context.allocator, nil),
+					)
 				} else {
 					append(&types, field.type)
 				}
@@ -1965,14 +2438,17 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 					usings[identifier.name] = true
 				}
 
-				append(&ranges, common.get_token_range(n, ast_context.file.src))
+				append(
+					&ranges,
+					common.get_token_range(n, ast_context.file.src),
+				)
 			}
 		}
 	}
 
 	symbol.value = SymbolStructValue {
-		names = names[:],
-		types = types[:],
+		names  = names[:],
+		types  = types[:],
 		ranges = ranges[:],
 		usings = usings,
 	}
@@ -1983,13 +2459,21 @@ make_symbol_struct_from_ast :: proc(ast_context: ^AstContext, v: ast.Struct_Type
 
 	//TODO change the expand to not double copy the array, but just pass the dynamic arrays
 	if len(usings) > 0 {
-		symbol.value = expand_struct_usings(ast_context, symbol, symbol.value.(SymbolStructValue))
+		symbol.value = expand_struct_usings(
+			ast_context,
+			symbol,
+			symbol.value.(SymbolStructValue),
+		)
 	}
 
 	return symbol
 }
 
-resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
+resolve_poly_union :: proc(
+	ast_context: ^AstContext,
+	poly_params: ^ast.Field_List,
+	symbol: ^Symbol,
+) {
 	if ast_context.call == nil {
 		return
 	}
@@ -2013,11 +2497,11 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 			if param.type == nil {
 				continue
 			}
-			
+
 			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i]
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok { 
+				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
 					if poly.type != nil {
 						poly_map[poly.type.name] = ast_context.call.args[i]
 					}
@@ -2027,7 +2511,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 			i += 1
 		}
 	}
-	
+
 	for type, i in symbol_value.types {
 		if ident, ok := type.derived.(^ast.Ident); ok {
 			if expr, ok := poly_map[ident.name]; ok {
@@ -2049,7 +2533,11 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	}
 }
 
-resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
+resolve_poly_struct :: proc(
+	ast_context: ^AstContext,
+	poly_params: ^ast.Field_List,
+	symbol: ^Symbol,
+) {
 	if ast_context.call == nil {
 		return
 	}
@@ -2073,11 +2561,11 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 			if param.type == nil {
 				continue
 			}
-			
+
 			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i]
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok { 
+				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
 					if poly.type != nil {
 						poly_map[poly.type.name] = ast_context.call.args[i]
 					}
@@ -2087,7 +2575,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 			i += 1
 		}
 	}
-	
+
 	for type, i in symbol_value.types {
 		if ident, ok := type.derived.(^ast.Ident); ok {
 			if expr, ok := poly_map[ident.name]; ok {
@@ -2120,7 +2608,12 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 	}
 }
 
-get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^AstContext, results: ^[dynamic]^ast.Expr) {
+get_generic_assignment :: proc(
+	file: ast.File,
+	value: ^ast.Expr,
+	ast_context: ^AstContext,
+	results: ^[dynamic]^ast.Expr,
+) {
 	using ast
 
 	ast_context.use_locals = true
@@ -2131,7 +2624,7 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 		get_generic_assignment(file, v.expr, ast_context, results)
 	case ^Call_Expr:
 		ast_context.call = cast(^ast.Call_Expr)value
-	
+
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 				for ret in procedure.return_types {
@@ -2157,7 +2650,8 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 		}
 	case ^Type_Assertion:
 		if v.type != nil {
-			if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.kind == .Question {
+			if unary, ok := v.type.derived.(^ast.Unary_Expr);
+			   ok && unary.op.kind == .Question {
 				append(results, cast(^ast.Expr)&v.node)
 			} else {
 				append(results, v.type)
@@ -2173,7 +2667,11 @@ get_generic_assignment :: proc(file: ast.File, value: ^ast.Expr, ast_context: ^A
 	}
 }
 
-get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
+get_locals_value_decl :: proc(
+	file: ast.File,
+	value_decl: ast.Value_Decl,
+	ast_context: ^AstContext,
+) {
 	using ast
 
 	if len(value_decl.names) <= 0 {
@@ -2184,7 +2682,14 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		for name, i in value_decl.names {
 			str := common.get_ast_node_string(value_decl.names[i], file.src)
 			ast_context.variables[str] = value_decl.is_mutable
-			store_local(ast_context, name, value_decl.type, value_decl.end.offset, str, ast_context.local_id)
+			store_local(
+				ast_context,
+				name,
+				value_decl.type,
+				value_decl.end.offset,
+				str,
+				ast_context.local_id,
+			)
 		}
 		return
 	}
@@ -2200,15 +2705,28 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for name, i in value_decl.names {
-		result_i := min(len(results)-1, i)
+		result_i := min(len(results) - 1, i)
 		str := common.get_ast_node_string(name, file.src)
 		ast_context.in_package[str] = get_package_from_node(results[result_i]^)
-		store_local(ast_context, name, results[result_i], value_decl.end.offset, str, ast_context.local_id)
+		store_local(
+			ast_context,
+			name,
+			results[result_i],
+			value_decl.end.offset,
+			str,
+			ast_context.local_id,
+		)
 		ast_context.variables[str] = value_decl.is_mutable
 	}
 }
 
-get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext, save_assign := false) {
+get_locals_stmt :: proc(
+	file: ast.File,
+	stmt: ^ast.Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+	save_assign := false,
+) {
 	ast_context.use_locals = true
 	ast_context.use_globals = true
 	ast_context.current_package = ast_context.document_package
@@ -2256,12 +2774,18 @@ get_locals_stmt :: proc(file: ast.File, stmt: ^ast.Stmt, ast_context: ^AstContex
 			get_locals_stmt(file, stmt, ast_context, document_position)
 		}
 	case:
-			//log.debugf("default node local stmt %v", v);
+	//log.debugf("default node local stmt %v", v);
 	}
 }
 
-get_locals_block_stmt :: proc(file: ast.File, block: ast.Block_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
-	if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
+get_locals_block_stmt :: proc(
+	file: ast.File,
+	block: ast.Block_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(block.pos.offset <= document_position.position &&
+		   document_position.position <= block.end.offset) {
 		return
 	}
 
@@ -2280,11 +2804,28 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 				}
 			case SymbolStructValue:
 				for name, i in v.names {
-					selector := new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, ast_context.allocator)
+					selector := new_type(
+						ast.Selector_Expr,
+						v.types[i].pos,
+						v.types[i].end,
+						ast_context.allocator,
+					)
 					selector.expr = u
-					selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
+					selector.field = new_type(
+						ast.Ident,
+						v.types[i].pos,
+						v.types[i].end,
+						ast_context.allocator,
+					)
 					selector.field.name = name
-					store_local(ast_context, u, selector, 0, name, ast_context.local_id)
+					store_local(
+						ast_context,
+						u,
+						selector,
+						0,
+						name,
+						ast_context.local_id,
+					)
 					ast_context.variables[name] = true
 				}
 			}
@@ -2292,7 +2833,11 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 	}
 }
 
-get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
+get_locals_assign_stmt :: proc(
+	file: ast.File,
+	stmt: ast.Assign_Stmt,
+	ast_context: ^AstContext,
+) {
 	using ast
 
 	if stmt.lhs == nil || stmt.rhs == nil {
@@ -2311,14 +2856,27 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 
 	for lhs, i in stmt.lhs {
 		if ident, ok := lhs.derived.(^ast.Ident); ok {
-			store_local(ast_context, lhs, results[i], ident.pos.offset, ident.name, ast_context.local_id)
+			store_local(
+				ast_context,
+				lhs,
+				results[i],
+				ident.pos.offset,
+				ident.name,
+				ast_context.local_id,
+			)
 			ast_context.variables[ident.name] = true
 		}
 	}
 }
 
-get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
-	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+get_locals_if_stmt :: proc(
+	file: ast.File,
+	stmt: ast.If_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(stmt.pos.offset <= document_position.position &&
+		   document_position.position <= stmt.end.offset) {
 		return
 	}
 
@@ -2327,10 +2885,16 @@ get_locals_if_stmt :: proc(file: ast.File, stmt: ast.If_Stmt, ast_context: ^AstC
 	get_locals_stmt(file, stmt.else_stmt, ast_context, document_position)
 }
 
-get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_for_range_stmt :: proc(
+	file: ast.File,
+	stmt: ast.Range_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
 	using ast
 
-	if !(stmt.body.pos.offset <= document_position.position && document_position.position <= stmt.body.end.offset) {
+	if !(stmt.body.pos.offset <= document_position.position &&
+		   document_position.position <= stmt.body.end.offset) {
 		return
 	}
 
@@ -2344,7 +2908,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		if binary.op.kind == .Range_Half {
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-					store_local(ast_context, ident, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						make_int_ast(ast_context),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 				}
 			}
@@ -2356,14 +2927,28 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case SymbolMapValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-					store_local(ast_context, ident, v.key, ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						v.key,
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
-					store_local(ast_context, ident, v.value, ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						v.value,
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
@@ -2371,14 +2956,28 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case SymbolDynamicArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-					store_local(ast_context, ident, v.expr, ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						v.expr,
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
-					store_local(ast_context, ident, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						make_int_ast(ast_context),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
@@ -2386,7 +2985,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case SymbolFixedArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-					store_local(ast_context, ident, v.expr, ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						v.expr,
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
@@ -2394,7 +3000,14 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
-					store_local(ast_context, ident, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						make_int_ast(ast_context),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
@@ -2402,26 +3015,46 @@ get_locals_for_range_stmt :: proc(file: ast.File, stmt: ast.Range_Stmt, ast_cont
 		case SymbolSliceValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
-					store_local(ast_context, ident, v.expr, ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						v.expr,
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
-					store_local(ast_context, ident, make_int_ast(ast_context), ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						make_int_ast(ast_context),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 		}
 	}
-	
+
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 }
 
-get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
-	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+get_locals_for_stmt :: proc(
+	file: ast.File,
+	stmt: ast.For_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(stmt.pos.offset <= document_position.position &&
+		   document_position.position <= stmt.end.offset) {
 		return
 	}
 
@@ -2429,18 +3062,30 @@ get_locals_for_stmt :: proc(file: ast.File, stmt: ast.For_Stmt, ast_context: ^As
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 }
 
-get_locals_switch_stmt :: proc(file: ast.File, stmt: ast.Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
-	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+get_locals_switch_stmt :: proc(
+	file: ast.File,
+	stmt: ast.Switch_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(stmt.pos.offset <= document_position.position &&
+		   document_position.position <= stmt.end.offset) {
 		return
 	}
 
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 }
 
-get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_type_switch_stmt :: proc(
+	file: ast.File,
+	stmt: ast.Type_Switch_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
 	using ast
 
-	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
+	if !(stmt.pos.offset <= document_position.position &&
+		   document_position.position <= stmt.end.offset) {
 		return
 	}
 
@@ -2450,12 +3095,22 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 
 	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
 		for block_stmt in block.stmts {
-			if cause, ok := block_stmt.derived.(^Case_Clause); ok && cause.pos.offset <= document_position.position && document_position.position <= cause.end.offset {
+			if cause, ok := block_stmt.derived.(^Case_Clause);
+			   ok &&
+			   cause.pos.offset <= document_position.position &&
+			   document_position.position <= cause.end.offset {
 				tag := stmt.tag.derived.(^Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
 					ident := tag.lhs[0].derived.(^Ident)
-					store_local(ast_context, ident, cause.list[0], ident.pos.offset, ident.name, ast_context.local_id)
+					store_local(
+						ast_context,
+						ident,
+						cause.list[0],
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+					)
 					ast_context.variables[ident.name] = true
 				}
 
@@ -2467,7 +3122,12 @@ get_locals_type_switch_stmt :: proc(file: ast.File, stmt: ast.Type_Switch_Stmt, 
 	}
 }
 
-get_locals_proc_param_and_results :: proc(file: ast.File, function: ast.Proc_Lit, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals_proc_param_and_results :: proc(
+	file: ast.File,
+	function: ast.Proc_Lit,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
 	proc_lit, ok := function.derived.(^ast.Proc_Lit)
 
 	if !ok || proc_lit.body == nil {
@@ -2479,19 +3139,37 @@ get_locals_proc_param_and_results :: proc(file: ast.File, function: ast.Proc_Lit
 			for name in arg.names {
 				if arg.type != nil {
 					str := common.get_ast_node_string(name, file.src)
-					store_local(ast_context, name, arg.type, name.pos.offset, str, ast_context.local_id)
+					store_local(
+						ast_context,
+						name,
+						arg.type,
+						name.pos.offset,
+						str,
+						ast_context.local_id,
+					)
 					ast_context.variables[str] = true
 					ast_context.parameters[str] = true
 
 					if .Using in arg.flags {
 						using_stmt: ast.Using_Stmt
-						using_stmt.list = make([]^ast.Expr, 1, context.temp_allocator)
+						using_stmt.list = make(
+							[]^ast.Expr,
+							1,
+							context.temp_allocator,
+						)
 						using_stmt.list[0] = arg.type
 						get_locals_using_stmt(using_stmt, ast_context)
 					}
 				} else {
 					str := common.get_ast_node_string(name, file.src)
-					store_local(ast_context, name, arg.default_value, name.pos.offset, str, ast_context.local_id)
+					store_local(
+						ast_context,
+						name,
+						arg.default_value,
+						name.pos.offset,
+						str,
+						ast_context.local_id,
+					)
 					ast_context.variables[str] = true
 					ast_context.parameters[str] = true
 				}
@@ -2504,7 +3182,14 @@ get_locals_proc_param_and_results :: proc(file: ast.File, function: ast.Proc_Lit
 			for name in result.names {
 				if result.type != nil {
 					str := common.get_ast_node_string(name, file.src)
-					store_local(ast_context, name, result.type, name.pos.offset, str, ast_context.local_id)
+					store_local(
+						ast_context,
+						name,
+						result.type,
+						name.pos.offset,
+						str,
+						ast_context.local_id,
+					)
 					ast_context.variables[str] = true
 					ast_context.parameters[str] = true
 				}
@@ -2513,14 +3198,24 @@ get_locals_proc_param_and_results :: proc(file: ast.File, function: ast.Proc_Lit
 	}
 }
 
-get_locals :: proc(file: ast.File, function: ^ast.Node, ast_context: ^AstContext, document_position: ^DocumentPositionContext) {
+get_locals :: proc(
+	file: ast.File,
+	function: ^ast.Node,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
 	proc_lit, ok := function.derived.(^ast.Proc_Lit)
 
 	if !ok || proc_lit.body == nil {
 		return
 	}
 
-	get_locals_proc_param_and_results(file, proc_lit^, ast_context, document_position)
+	get_locals_proc_param_and_results(
+		file,
+		proc_lit^,
+		ast_context,
+		document_position,
+	)
 
 	block: ^ast.Block_Stmt
 	block, ok = proc_lit.body.derived.(^ast.Block_Stmt)
@@ -2549,8 +3244,20 @@ ResolveReferenceFlag :: enum {
 	StructElement,
 }
 
-resolve_entire_file :: proc(document: ^Document, reference := "", flag := ResolveReferenceFlag.None, allocator := context.allocator) -> map[uintptr]SymbolAndNode {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath, allocator)
+resolve_entire_file :: proc(
+	document: ^Document,
+	reference := "",
+	flag := ResolveReferenceFlag.None,
+	allocator := context.allocator,
+) -> map[uintptr]SymbolAndNode {
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		allocator,
+	)
 
 	get_globals(document.ast, &ast_context)
 
@@ -2559,37 +3266,53 @@ resolve_entire_file :: proc(document: ^Document, reference := "", flag := Resolv
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		resolve_entire_decl(&ast_context, document, decl, &symbols, reference, flag, allocator)
+		resolve_entire_decl(
+			&ast_context,
+			document,
+			decl,
+			&symbols,
+			reference,
+			flag,
+			allocator,
+		)
 		clear(&ast_context.locals)
 	}
 
 	return symbols
 }
 
-resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl: ^ast.Node, symbols: ^map[uintptr]SymbolAndNode, reference := "", flag := ResolveReferenceFlag.None, allocator := context.allocator) {
+resolve_entire_decl :: proc(
+	ast_context: ^AstContext,
+	document: ^Document,
+	decl: ^ast.Node,
+	symbols: ^map[uintptr]SymbolAndNode,
+	reference := "",
+	flag := ResolveReferenceFlag.None,
+	allocator := context.allocator,
+) {
 	Scope :: struct {
 		offset: int,
 		id:     int,
 	}
-	
+
 	Visit_Data :: struct {
-		ast_context: ^AstContext,
-		symbols: ^map[uintptr]SymbolAndNode,
-		scopes: [dynamic]Scope,
-		id_counter: int,
-		last_visit: ^ast.Node,
+		ast_context:  ^AstContext,
+		symbols:      ^map[uintptr]SymbolAndNode,
+		scopes:       [dynamic]Scope,
+		id_counter:   int,
+		last_visit:   ^ast.Node,
 		resolve_flag: ResolveReferenceFlag,
-		reference: string,
-		document: ^Document,
+		reference:    string,
+		document:     ^Document,
 	}
 
 	data := Visit_Data {
-		ast_context = ast_context,
-		symbols = symbols,
-		scopes = make([dynamic]Scope, allocator),
+		ast_context  = ast_context,
+		symbols      = symbols,
+		scopes       = make([dynamic]Scope, allocator),
 		resolve_flag = flag,
-		reference = reference,
-		document = document,
+		reference    = reference,
+		document     = document,
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -2601,11 +3324,11 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl:
 		ast_context.use_locals = true
 		ast_context.use_globals = true
 
-		data.last_visit = node;
+		data.last_visit = node
 
 		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
 		if len(data.scopes) > 0 {
-			current_scope := data.scopes[len(data.scopes)-1]
+			current_scope := data.scopes[len(data.scopes) - 1]
 
 			if current_scope.offset < node.end.offset {
 				clear_local_group(ast_context, current_scope.id)
@@ -2613,12 +3336,12 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl:
 				pop(&data.scopes)
 
 				if len(data.scopes) > 0 {
-					current_scope = data.scopes[len(data.scopes)-1]
+					current_scope = data.scopes[len(data.scopes) - 1]
 					ast_context.local_id = current_scope.id
 				} else {
 					ast_context.local_id = 0
 				}
-			}	
+			}
 		}
 
 		#partial switch v in node.derived {
@@ -2639,8 +3362,18 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl:
 			position_context: DocumentPositionContext
 			position_context.position = node.end.offset
 
-			get_locals_proc_param_and_results(ast_context.file, v^, ast_context, &position_context)
-			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context)
+			get_locals_proc_param_and_results(
+				ast_context.file,
+				v^,
+				ast_context,
+				&position_context,
+			)
+			get_locals_stmt(
+				ast_context.file,
+				cast(^ast.Stmt)node,
+				ast_context,
+				&position_context,
+			)
 		case ^ast.If_Stmt, ^ast.For_Stmt, ^ast.Range_Stmt, ^ast.Inline_Range_Stmt:
 			scope: Scope
 			scope.id = data.id_counter
@@ -2653,73 +3386,92 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl:
 
 			position_context: DocumentPositionContext
 			position_context.position = node.end.offset
-			get_locals_stmt(ast_context.file, cast(^ast.Stmt)node, ast_context, &position_context)
+			get_locals_stmt(
+				ast_context.file,
+				cast(^ast.Stmt)node,
+				ast_context,
+				&position_context,
+			)
 		}
 
 		if data.resolve_flag == .None {
-			#partial switch v in node.derived { 
-			case ^ast.Ident:	
+			#partial switch v in node.derived {
+			case ^ast.Ident:
 				if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
+						node   = v,
 						symbol = symbol,
 					}
-				} 					
+				}
 			case ^ast.Selector_Expr:
-				if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
+				if symbol, ok := resolve_type_expression(ast_context, &v.node);
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
+						node   = v,
 						symbol = symbol,
 					}
 				}
 			case ^ast.Call_Expr:
-				if symbol, ok := resolve_type_expression(ast_context, &v.node); ok {
+				if symbol, ok := resolve_type_expression(ast_context, &v.node);
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
+						node   = v,
 						symbol = symbol,
 					}
-				}	
+				}
 			}
 		} else {
-			#partial done: switch v in node.derived { 
+			#partial done: switch v in node.derived {
 			case ^ast.Selector_Expr:
-				document : ^Document = data.document
+				document: ^Document = data.document
 
 				position_context := DocumentPositionContext {
 					position = v.pos.offset,
 				}
 
-				get_document_position_decls(document.ast.decls[:], &position_context)
+				get_document_position_decls(
+					document.ast.decls[:],
+					&position_context,
+				)
 
-				if symbol, ok := resolve_location_selector(ast_context, v); ok {
+				if symbol, ok := resolve_location_selector(ast_context, v);
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
+						node   = v,
 						symbol = symbol,
 					}
-				} 
-			case ^ast.Ident:	
+				}
+			case ^ast.Ident:
 				if data.resolve_flag == .Variable && v.name != data.reference {
 					break done
 				}
 
-				document : ^Document = data.document
+				document: ^Document = data.document
 
 				position_context := DocumentPositionContext {
 					position = v.pos.offset,
 				}
 
-				get_document_position_decls(document.ast.decls[:], &position_context)
+				get_document_position_decls(
+					document.ast.decls[:],
+					&position_context,
+				)
 
-				if position_context.field_value != nil && position_in_node(position_context.field_value.field, v.pos.offset) {
+				if position_context.field_value != nil &&
+				   position_in_node(
+					   position_context.field_value.field,
+					   v.pos.offset,
+				   ) {
 					break done
 				}
 
-				if symbol, ok := resolve_location_identifier(ast_context, v^); ok {
+				if symbol, ok := resolve_location_identifier(ast_context, v^);
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
+						node   = v,
 						symbol = symbol,
 					}
-				} 
+				}
 			}
 		}
 
@@ -2727,7 +3479,7 @@ resolve_entire_decl :: proc(ast_context: ^AstContext, document: ^Document, decl:
 	}
 
 	visitor := ast.Visitor {
-		data = &data,
+		data  = &data,
 		visit = visit,
 	}
 
@@ -2739,11 +3491,29 @@ concatenate_symbol_information :: proc {
 	concatenate_raw_string_information,
 }
 
-concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol, is_completion: bool) -> string {
-	return concatenate_raw_string_information(ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.type, is_completion)
+concatenate_raw_symbol_information :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	is_completion: bool,
+) -> string {
+	return concatenate_raw_string_information(
+		ast_context,
+		symbol.pkg,
+		symbol.name,
+		symbol.signature,
+		symbol.type,
+		is_completion,
+	)
 }
 
-concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string, name: string, signature: string, type: SymbolType, is_completion: bool) -> string {
+concatenate_raw_string_information :: proc(
+	ast_context: ^AstContext,
+	pkg: string,
+	name: string,
+	signature: string,
+	type: SymbolType,
+	is_completion: bool,
+) -> string {
 	pkg := path.base(pkg, false, context.temp_allocator)
 
 	if type == .Package {
@@ -2759,7 +3529,13 @@ concatenate_raw_string_information :: proc(ast_context: ^AstContext, pkg: string
 	}
 }
 
-unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumValue, bool) {
+unwrap_enum :: proc(
+	ast_context: ^AstContext,
+	node: ^ast.Expr,
+) -> (
+	SymbolEnumValue,
+	bool,
+) {
 	if node == nil {
 		return {}, false
 	}
@@ -2773,7 +3549,13 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 	return {}, false
 }
 
-unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolUnionValue, bool) {
+unwrap_union :: proc(
+	ast_context: ^AstContext,
+	node: ^ast.Expr,
+) -> (
+	SymbolUnionValue,
+	bool,
+) {
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
 		if union_value, ok := union_symbol.value.(SymbolUnionValue); ok {
 			return union_value, true
@@ -2783,9 +3565,18 @@ unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolUnionV
 	return {}, false
 }
 
-unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: Symbol) -> (SymbolEnumValue, bool) {
+unwrap_bitset :: proc(
+	ast_context: ^AstContext,
+	bitset_symbol: Symbol,
+) -> (
+	SymbolEnumValue,
+	bool,
+) {
 	if bitset_value, ok := bitset_symbol.value.(SymbolBitSetValue); ok {
-		if enum_symbol, ok := resolve_type_expression(ast_context, bitset_value.expr); ok {
+		if enum_symbol, ok := resolve_type_expression(
+			   ast_context,
+			   bitset_value.expr,
+		   ); ok {
 			if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 				return enum_value, true
 			}
@@ -2795,7 +3586,12 @@ unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: Symbol) -> (Symbo
 	return {}, false
 }
 
-get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol, was_variable := false) -> string {
+get_signature :: proc(
+	ast_context: ^AstContext,
+	ident: ast.Ident,
+	symbol: Symbol,
+	was_variable := false,
+) -> string {
 	if symbol.type == .Function {
 		return symbol.signature
 	}
@@ -2814,51 +3610,79 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 	case SymbolEnumValue:
 		if is_variable {
 			return symbol.name
-		}
-		else {
+		} else {
 			return "enum"
 		}
 	case SymbolMapValue:
-		return strings.concatenate(a = {"map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)}, allocator = ast_context.allocator)
+		return strings.concatenate(
+			a = {
+				"map[",
+				common.node_to_string(v.key),
+				"]",
+				common.node_to_string(v.value),
+			},
+			allocator = ast_context.allocator,
+		)
 	case SymbolProcedureValue:
 		return "proc"
 	case SymbolStructValue:
 		if is_variable {
 			return symbol.name
-		}
-		else {
+		} else {
 			return "struct"
 		}
 	case SymbolUnionValue:
 		if is_variable {
 			return symbol.name
-		}
-		else {
+		} else {
 			return "union"
 		}
 	case SymbolMultiPointer:
-		return strings.concatenate(a = {"[^]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
+		return strings.concatenate(
+			a = {"[^]", common.node_to_string(v.expr)},
+			allocator = ast_context.allocator,
+		)
 	case SymbolDynamicArrayValue:
-		return strings.concatenate(a = {"[dynamic]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
+		return strings.concatenate(
+			a = {"[dynamic]", common.node_to_string(v.expr)},
+			allocator = ast_context.allocator,
+		)
 	case SymbolSliceValue:
-		return strings.concatenate(a = {"[]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
+		return strings.concatenate(
+			a = {"[]", common.node_to_string(v.expr)},
+			allocator = ast_context.allocator,
+		)
 	case SymbolFixedArrayValue:
-		return strings.concatenate(a = {"[", common.node_to_string(v.len), "]", common.node_to_string(v.expr)}, allocator = ast_context.allocator)
+		return strings.concatenate(
+			a = {
+				"[",
+				common.node_to_string(v.len),
+				"]",
+				common.node_to_string(v.expr),
+			},
+			allocator = ast_context.allocator,
+		)
 	case SymbolPackageValue:
 		return "package"
 	case SymbolUntypedValue:
 		switch v.type {
-		case .Float:   return "float"
-		case .String:  return "string"
-		case .Bool:    return "bool"
-		case .Integer: return "int"
+		case .Float:
+			return "float"
+		case .String:
+			return "string"
+		case .Bool:
+			return "bool"
+		case .Integer:
+			return "int"
 		}
 	}
-	
+
 	return ""
 }
 
-position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+position_in_proc_decl :: proc(
+	position_context: ^DocumentPositionContext,
+) -> bool {
 	if position_context.value_decl == nil {
 		return false
 	}
@@ -2867,12 +3691,16 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 		return false
 	}
 
-	if _, ok := position_context.value_decl.values[0].derived.(^ast.Proc_Type); ok {
+	if _, ok := position_context.value_decl.values[0].derived.(^ast.Proc_Type);
+	   ok {
 		return true
 	}
 
-	if proc_lit, ok := position_context.value_decl.values[0].derived.(^ast.Proc_Lit); ok {
-		if proc_lit.type != nil && position_in_node(proc_lit.type, position_context.position) {
+	if proc_lit, ok := position_context.value_decl.values[
+		   0 \
+	   ].derived.(^ast.Proc_Lit); ok {
+		if proc_lit.type != nil &&
+		   position_in_node(proc_lit.type, position_context.position) {
 			return true
 		}
 	}
@@ -2906,7 +3734,10 @@ is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 	return true
 }
 
-field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool {
+field_exists_in_comp_lit :: proc(
+	comp_lit: ^ast.Comp_Lit,
+	name: string,
+) -> bool {
 	for elem in comp_lit.elems {
 		if field, ok := elem.derived.(^ast.Field_Value); ok {
 			if field.field != nil {
@@ -2925,7 +3756,10 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 /*
 	Parser gives ranges of expression, but not actually where the commas are placed.
 */
-get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^Document) {
+get_call_commas :: proc(
+	position_context: ^DocumentPositionContext,
+	document: ^Document,
+) {
 	if position_context.call == nil {
 		return
 	}
@@ -2942,12 +3776,18 @@ get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^D
 		}
 		for i := call.open.offset; i < call.close.offset; i += 1 {
 			switch document.text[i] {
-			case '[': paren_count += 1
-			case ']': paren_count -= 1
-			case '{': brace_count += 1
-			case '}': brace_count -= 1
-			case '(': paren_count += 1
-			case ')': paren_count -= 1
+			case '[':
+				paren_count += 1
+			case ']':
+				paren_count -= 1
+			case '{':
+				brace_count += 1
+			case '}':
+				brace_count -= 1
+			case '(':
+				paren_count += 1
+			case ')':
+				paren_count -= 1
 			case ',':
 				if paren_count == 0 && brace_count == 0 && bracket_count == 0 {
 					append(&commas, i)
@@ -2966,10 +3806,13 @@ type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 		}
 	}
 
-	return  common.node_to_string(expr)
+	return common.node_to_string(expr)
 }
 
-get_document_position_decls :: proc(decls: []^ast.Stmt, position_context: ^DocumentPositionContext) -> bool {
+get_document_position_decls :: proc(
+	decls: []^ast.Stmt,
+	position_context: ^DocumentPositionContext,
+) -> bool {
 	exists_in_decl := false
 	for decl in decls {
 		if position_in_node(decl, position_context.position) {
@@ -2988,14 +3831,24 @@ get_document_position_decls :: proc(decls: []^ast.Stmt, position_context: ^Docum
 /*
 	Figure out what exactly is at the given position and whether it is in a function, struct, etc.
 */
-get_document_position_context :: proc(document: ^Document, position: common.Position, hint: DocumentPositionContextHint) -> (DocumentPositionContext, bool) {
+get_document_position_context :: proc(
+	document: ^Document,
+	position: common.Position,
+	hint: DocumentPositionContextHint,
+) -> (
+	DocumentPositionContext,
+	bool,
+) {
 	position_context: DocumentPositionContext
 
 	position_context.hint = hint
 	position_context.file = document.ast
 	position_context.line = position.line
 
-	absolute_position, ok := common.get_absolute_position(position, document.text)
+	absolute_position, ok := common.get_absolute_position(
+		position,
+		document.text,
+	)
 
 	if !ok {
 		log.error("failed to get absolute position")
@@ -3004,7 +3857,10 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 
 	position_context.position = absolute_position
 
-	exists_in_decl := get_document_position_decls(document.ast.decls[:], &position_context)
+	exists_in_decl := get_document_position_decls(
+		document.ast.decls[:],
+		&position_context,
+	)
 
 	for import_stmt in document.ast.imports {
 		if position_in_node(import_stmt, position_context.position) {
@@ -3017,11 +3873,17 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 		position_context.abort_completion = true
 	}
 
-	if !position_in_node(position_context.comp_lit, position_context.position) {
+	if !position_in_node(
+		   position_context.comp_lit,
+		   position_context.position,
+	   ) {
 		position_context.comp_lit = nil
 	}
 
-	if !position_in_node(position_context.parent_comp_lit, position_context.position) {
+	if !position_in_node(
+		   position_context.parent_comp_lit,
+		   position_context.position,
+	   ) {
 		position_context.parent_comp_lit = nil
 	}
 
@@ -3033,16 +3895,30 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 		position_context.binary = nil
 	}
 
-	if !position_in_node(position_context.parent_binary, position_context.position) {
+	if !position_in_node(
+		   position_context.parent_binary,
+		   position_context.position,
+	   ) {
 		position_context.parent_binary = nil
 	}
 
-	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
-		fallback_position_context_completion(document, position, &position_context)
+	if hint == .Completion &&
+	   position_context.selector == nil &&
+	   position_context.field == nil {
+		fallback_position_context_completion(
+			document,
+			position,
+			&position_context,
+		)
 	}
 
-	if (hint == .SignatureHelp || hint == .Completion) && position_context.call == nil {
-		fallback_position_context_signature(document, position, &position_context)
+	if (hint == .SignatureHelp || hint == .Completion) &&
+	   position_context.call == nil {
+		fallback_position_context_signature(
+			document,
+			position,
+			&position_context,
+		)
 	}
 
 	if hint == .SignatureHelp {
@@ -3053,16 +3929,20 @@ get_document_position_context :: proc(document: ^Document, position: common.Posi
 }
 
 //terrible fallback code
-fallback_position_context_completion :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
-	paren_count:   int
+fallback_position_context_completion :: proc(
+	document: ^Document,
+	position: common.Position,
+	position_context: ^DocumentPositionContext,
+) {
+	paren_count: int
 	bracket_count: int
-	end:           int
-	start:         int
-	empty_dot:     bool
-	empty_arrow:   bool
-	last_dot:      bool
-	last_arrow:    bool
-	dots_seen:     int
+	end: int
+	start: int
+	empty_dot: bool
+	empty_arrow: bool
+	last_dot: bool
+	last_arrow: bool
+	dots_seen: int
 	partial_arrow: bool
 
 	i := position_context.position - 1
@@ -3110,11 +3990,21 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		}
 
 		//yeah..
-		if c == ' ' || c == '{' || c == ',' ||
-		c == '}' || c == '^' || c == ':' ||
-		c == '\n' || c == '\r' || c == '=' ||
-		c == '<' || c == '-' || c == '!' ||
-		c == '+' || c == '&'|| c == '|' {
+		if c == ' ' ||
+		   c == '{' ||
+		   c == ',' ||
+		   c == '}' ||
+		   c == '^' ||
+		   c == ':' ||
+		   c == '\n' ||
+		   c == '\r' ||
+		   c == '=' ||
+		   c == '<' ||
+		   c == '-' ||
+		   c == '!' ||
+		   c == '+' ||
+		   c == '&' ||
+		   c == '|' {
 			start = i + 1
 			break
 		} else if c == '>' {
@@ -3130,14 +4020,16 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 	if i >= 0 && position_context.file.src[end] == '.' {
 		empty_dot = true
 		end -= 1
-	} else if i >= 0 && position_context.file.src[max(0, end - 1)] == '-' && position_context.file.src[end] == '>' {
+	} else if i >= 0 &&
+	   position_context.file.src[max(0, end - 1)] == '-' &&
+	   position_context.file.src[end] == '>' {
 		empty_arrow = true
 		end -= 2
 		position_context.arrow = true
 	}
 
 	begin_offset := max(0, start)
-	end_offset   := max(start, end + 1)
+	end_offset := max(start, end + 1)
 	line_offset := begin_offset
 
 	if line_offset < len(position_context.file.src) {
@@ -3176,17 +4068,22 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 	}
 
 	p := parser.Parser {
-		err = common.parser_warning_handler,  //empty
+		err = common.parser_warning_handler, //empty
 		warn = common.parser_warning_handler, //empty
 		flags = {.Optional_Semicolons},
 		file = &position_context.file,
 	}
 
-	tokenizer.init(&p.tok, str, position_context.file.fullpath, common.parser_warning_handler)
+	tokenizer.init(
+		&p.tok,
+		str,
+		position_context.file.fullpath,
+		common.parser_warning_handler,
+	)
 
 	p.tok.ch = ' '
 	p.tok.line_count = position.line + 1
-	p.tok.line_offset =  line_offset
+	p.tok.line_offset = line_offset
 	p.tok.offset = begin_offset
 	p.tok.read_offset = begin_offset
 
@@ -3215,18 +4112,28 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 		//this is most likely because of use of 'in', 'context', etc.
 		//try to go back one dot.
 
-		src_with_dot := string(position_context.file.src[0:min(len(position_context.file.src), end_offset + 1)])
-		last_dot     := strings.last_index(src_with_dot, ".")
+		src_with_dot := string(
+			position_context.file.src[0:min(
+				len(position_context.file.src),
+				end_offset + 1,
+			)],
+		)
+		last_dot := strings.last_index(src_with_dot, ".")
 
 		if last_dot == -1 {
 			return
 		}
 
-		tokenizer.init(&p.tok, position_context.file.src[0:last_dot], position_context.file.fullpath, common.parser_warning_handler)
+		tokenizer.init(
+			&p.tok,
+			position_context.file.src[0:last_dot],
+			position_context.file.fullpath,
+			common.parser_warning_handler,
+		)
 
 		p.tok.ch = ' '
 		p.tok.line_count = position.line + 1
-		p.tok.line_offset =  line_offset
+		p.tok.line_offset = line_offset
 		p.tok.offset = begin_offset
 		p.tok.read_offset = begin_offset
 
@@ -3261,8 +4168,12 @@ fallback_position_context_completion :: proc(document: ^Document, position: comm
 	}
 }
 
-fallback_position_context_signature :: proc(document: ^Document, position: common.Position, position_context: ^DocumentPositionContext) {
-	end:   int
+fallback_position_context_signature :: proc(
+	document: ^Document,
+	position: common.Position,
+	position_context: ^DocumentPositionContext,
+) {
+	end: int
 	start: int
 	i := position_context.position - 1
 	end = i
@@ -3290,7 +4201,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 	end -= 1
 
 	begin_offset := max(0, start)
-	end_offset   := max(start, end + 1)
+	end_offset := max(start, end + 1)
 
 	if end_offset - begin_offset <= 1 {
 		return
@@ -3299,12 +4210,17 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 	str := position_context.file.src[0:end_offset]
 
 	p := parser.Parser {
-		err = common.parser_warning_handler,  //empty
+		err  = common.parser_warning_handler, //empty
 		warn = common.parser_warning_handler, //empty
 		file = &position_context.file,
 	}
 
-	tokenizer.init(&p.tok, str, position_context.file.fullpath, common.parser_warning_handler)
+	tokenizer.init(
+		&p.tok,
+		str,
+		position_context.file.fullpath,
+		common.parser_warning_handler,
+	)
 
 	p.tok.ch = ' '
 	p.tok.line_count = position.line
@@ -3326,7 +4242,7 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 	if _, ok := position_context.call.derived.(^ast.Proc_Type); ok {
 		position_context.call = nil
 	}
-	
+
 	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 }
 
@@ -3334,29 +4250,45 @@ fallback_position_context_signature :: proc(document: ^Document, position: commo
 	All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
 */
 
-get_document_position ::proc {
+get_document_position :: proc {
 	get_document_position_array,
 	get_document_position_dynamic_array,
 	get_document_position_node,
 }
 
-get_document_position_array :: proc(array: $A/[]^$T, position_context: ^DocumentPositionContext) {
+get_document_position_array :: proc(
+	array: $A/[]^$T,
+	position_context: ^DocumentPositionContext,
+) {
 	for elem, i in array {
 		get_document_position(elem, position_context)
 	}
 }
 
-get_document_position_dynamic_array :: proc(array: $A/[dynamic]^$T, position_context: ^DocumentPositionContext) {
+get_document_position_dynamic_array :: proc(
+	array: $A/[dynamic]^$T,
+	position_context: ^DocumentPositionContext,
+) {
 	for elem, i in array {
 		get_document_position(elem, position_context)
 	}
 }
 
-position_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> bool {
-	return node != nil && node.pos.offset <= position && position <= node.end.offset
+position_in_node :: proc(
+	node: ^ast.Node,
+	position: common.AbsolutePosition,
+) -> bool {
+	return(
+		node != nil &&
+		node.pos.offset <= position &&
+		position <= node.end.offset \
+	)
 }
 
-get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentPositionContext) {
+get_document_position_node :: proc(
+	node: ^ast.Node,
+	position_context: ^DocumentPositionContext,
+) {
 	using ast
 
 	if node == nil {
@@ -3385,7 +4317,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		if position_in_node(n.body, position_context.position) {
 			position_context.function = cast(^Proc_Lit)node
 			get_document_position(n.body, position_context)
-		}  
+		}
 	case ^Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
 		if position_context.parent_comp_lit == nil {
@@ -3410,19 +4342,23 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^Paren_Expr:
 		get_document_position(n.expr, position_context)
 	case ^Call_Expr:
-		if position_context.hint == .SignatureHelp || position_context.hint == .Completion {
+		if position_context.hint == .SignatureHelp ||
+		   position_context.hint == .Completion {
 			position_context.call = cast(^Expr)node
 		}
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
 	case ^Selector_Expr:
 		if position_context.hint == .Completion {
-			if n.field != nil && n.field.pos.line - 1 == position_context.line {
+			if n.field != nil &&
+			   n.field.pos.line - 1 == position_context.line {
 				//The parser is not fault tolerant enough, relying on the fallback as the main completion parsing for now
 				//position_context.selector = n.expr;
 				//position_context.field = n.field;
 			}
-		} else if (position_context.hint == .Definition || position_context.hint == .Hover) && n.field != nil {
+		} else if (position_context.hint == .Definition ||
+			   position_context.hint == .Hover) &&
+		   n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
 			position_context.selector_expr = cast(^Selector_Expr)node
@@ -3533,7 +4469,8 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.attributes, position_context)
 
 		for name in n.names {
-			if position_in_node(name, position_context.position) && n.end.line - 1 == position_context.line {
+			if position_in_node(name, position_context.position) &&
+			   n.end.line - 1 == position_context.line {
 				position_context.abort_completion = true
 				break
 			}

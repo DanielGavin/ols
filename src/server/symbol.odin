@@ -12,7 +12,7 @@ import "shared:common"
 
 SymbolAndNode :: struct {
 	symbol: Symbol,
-	node: ^ast.Node,
+	node:   ^ast.Node,
 }
 
 SymbolStructValue :: struct {
@@ -46,7 +46,7 @@ SymbolEnumValue :: struct {
 
 SymbolUnionValue :: struct {
 	types: []^ast.Expr,
-	poly: ^ast.Field_List,
+	poly:  ^ast.Field_List,
 }
 
 SymbolDynamicArrayValue :: struct {
@@ -75,7 +75,12 @@ SymbolBitSetValue :: struct {
 }
 
 SymbolUntypedValue :: struct {
-	type: enum {Integer, Float, String, Bool},
+	type: enum {
+		Integer,
+		Float,
+		String,
+		Bool,
+	},
 }
 
 SymbolMapValue :: struct {
@@ -122,16 +127,16 @@ SymbolFlag :: enum {
 SymbolFlags :: bit_set[SymbolFlag]
 
 Symbol :: struct {
-	range:      common.Range, //the range of the symbol in the file
-	uri:        string, //uri of the file the symbol resides
-	pkg:        string, //absolute directory path where the symbol resides
-	name:       string, //name of the symbol
-	doc:        string,
-	signature:  string, //type signature
-	type:       SymbolType,
-	value:      SymbolValue,
-	pointers:   int, //how many `^` are applied to the symbol
-	flags:      SymbolFlags,
+	range:     common.Range, //the range of the symbol in the file
+	uri:       string, //uri of the file the symbol resides
+	pkg:       string, //absolute directory path where the symbol resides
+	name:      string, //name of the symbol
+	doc:       string,
+	signature: string, //type signature
+	type:      SymbolType,
+	value:     SymbolValue,
+	pointers:  int, //how many `^` are applied to the symbol
+	flags:     SymbolFlags,
 }
 
 SymbolType :: enum {
@@ -148,7 +153,10 @@ SymbolType :: enum {
 	Unresolved = 1, //Use text if not being able to resolve it.
 }
 
-new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symbol) {
+new_clone_symbol :: proc(
+	data: Symbol,
+	allocator := context.allocator,
+) -> ^Symbol {
 	new_symbol := new(Symbol, allocator)
 	new_symbol^ = data
 	new_symbol.value = data.value
@@ -156,8 +164,10 @@ new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> (^Symb
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
-	if symbol.signature != "" && symbol.signature != "struct" &&
-	   symbol.signature != "union" && symbol.signature != "enum" &&
+	if symbol.signature != "" &&
+	   symbol.signature != "struct" &&
+	   symbol.signature != "union" &&
+	   symbol.signature != "enum" &&
 	   symbol.signature != "bitset" {
 		delete(symbol.signature, allocator)
 	}

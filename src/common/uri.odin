@@ -14,7 +14,6 @@ Uri :: struct {
 }
 
 //Note(Daniel, This is an extremely incomplete uri parser and for now ignores fragment and query and only handles file schema)
-
 parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 	uri: Uri
 
@@ -57,7 +56,10 @@ create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 		strings.write_string(&builder, "file://")
 	}
 
-	strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator))
+	strings.write_string(
+		&builder,
+		encode_percent(path_forward, context.temp_allocator),
+	)
 
 	uri: Uri
 
@@ -89,8 +91,13 @@ encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
 
 		if r > 127 || r == ':' {
 			for i := 0; i < w; i += 1 {
-				strings.write_string(&builder, strings.concatenate({"%", fmt.tprintf("%X", data[index + i])},
-				                   context.temp_allocator))
+				strings.write_string(
+					&builder,
+					strings.concatenate(
+						{"%", fmt.tprintf("%X", data[index + i])},
+						context.temp_allocator,
+					),
+				)
 			}
 		} else {
 			strings.write_byte(&builder, data[index])
@@ -118,7 +125,13 @@ starts_with :: proc(value: string, starts_with: string) -> bool {
 }
 
 @(private)
-decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
+decode_percent :: proc(
+	value: string,
+	allocator: mem.Allocator,
+) -> (
+	string,
+	bool,
+) {
 	builder := strings.builder_make(allocator)
 
 	for i := 0; i < len(value); i += 1 {

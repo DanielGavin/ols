@@ -27,19 +27,34 @@ foreign kernel32 {
 	) -> u32 ---
 }
 
-get_case_sensitive_path :: proc(path: string, allocator := context.temp_allocator) -> string {
+get_case_sensitive_path :: proc(
+	path: string,
+	allocator := context.temp_allocator,
+) -> string {
 	wide := win32.utf8_to_utf16(path)
-	file := win32.CreateFileW(&wide[0], 0, win32.FILE_SHARE_READ, nil, win32.OPEN_EXISTING, win32.FILE_FLAG_BACKUP_SEMANTICS, nil)
+	file := win32.CreateFileW(
+		&wide[0],
+		0,
+		win32.FILE_SHARE_READ,
+		nil,
+		win32.OPEN_EXISTING,
+		win32.FILE_FLAG_BACKUP_SEMANTICS,
+		nil,
+	)
 
-	if(file == win32.INVALID_HANDLE)
-    	{
+	if (file == win32.INVALID_HANDLE) {
 		log_last_error()
-        	return "";
-    	}
+		return ""
+	}
 
 	buffer := make([]u16, 512, context.temp_allocator)
 
-	ret := win32.GetFinalPathNameByHandleW(file, &buffer[0], cast(u32)len(buffer), 0)
+	ret := win32.GetFinalPathNameByHandleW(
+		file,
+		&buffer[0],
+		cast(u32)len(buffer),
+		0,
+	)
 
 	res, _ := win32.utf16_to_utf8(buffer[4:], allocator)
 
@@ -56,21 +71,29 @@ log_last_error :: proc() {
 	error_string := cstring(&err_text[0])
 
 	if (format_message_a(
-		   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		   nil,
-		   err,
-		   (1 << 10) | 0,
-		   error_string,
-		   len(err_text) - 1,
-		   nil,
-	   ) != 0) {
+			   FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+			   nil,
+			   err,
+			   (1 << 10) | 0,
+			   error_string,
+			   len(err_text) - 1,
+			   nil,
+		   ) !=
+		   0) {
 		log.error(error_string)
 	}
 }
 
 
-run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) {
-	stdout_read:  win32.HANDLE
+run_executable :: proc(
+	command: string,
+	stdout: ^[]byte,
+) -> (
+	u32,
+	bool,
+	[]byte,
+) {
+	stdout_read: win32.HANDLE
 	stdout_write: win32.HANDLE
 
 	attributes: win32.SECURITY_ATTRIBUTES
@@ -95,21 +118,38 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 	startup_info.hStdOutput = stdout_write
 	startup_info.dwFlags |= win32.STARTF_USESTDHANDLES
 
-	if !win32.CreateProcessW(nil, &win32.utf8_to_utf16(command)[0], nil, nil, true, 0, nil, nil, &startup_info, &process_info) {
+	if !win32.CreateProcessW(
+		   nil,
+		   &win32.utf8_to_utf16(command)[0],
+		   nil,
+		   nil,
+		   true,
+		   0,
+		   nil,
+		   nil,
+		   &startup_info,
+		   &process_info,
+	   ) {
 		return 0, false, stdout[0:]
 	}
 
 	win32.CloseHandle(stdout_write)
 
 	index: int
-	read:  u32
+	read: u32
 
 	read_buffer: [50]byte
 
 	success: win32.BOOL = true
 
 	for success {
-		success = win32.ReadFile(stdout_read, &read_buffer[0], len(read_buffer), &read, nil)
+		success = win32.ReadFile(
+			stdout_read,
+			&read_buffer[0],
+			len(read_buffer),
+			&read,
+			nil,
+		)
 
 		if read > 0 && index + cast(int)read <= len(stdout) {
 			mem.copy(&stdout[index], &read_buffer[0], cast(int)read)

@@ -32,20 +32,38 @@ Completion_Type :: enum {
 	Package,
 }
 
-get_completion_list :: proc(document: ^Document, position: common.Position, completion_context: CompletionContext) -> (CompletionList, bool) {
+get_completion_list :: proc(
+	document: ^Document,
+	position: common.Position,
+	completion_context: CompletionContext,
+) -> (
+	CompletionList,
+	bool,
+) {
 	list: CompletionList
 
-	position_context, ok := get_document_position_context(document, position, .Completion)
+	position_context, ok := get_document_position_context(
+		document,
+		position,
+		.Completion,
+	)
 
 	if !ok || position_context.abort_completion {
 		return list, true
 	}
 
-	if position_context.import_stmt == nil && strings.contains_any(completion_context.triggerCharacter, "/:\"") {
+	if position_context.import_stmt == nil &&
+	   strings.contains_any(completion_context.triggerCharacter, "/:\"") {
 		return list, true
 	}
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
 
 	get_globals(document.ast, &ast_context)
 
@@ -53,7 +71,12 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 	ast_context.value_decl = position_context.value_decl
 
 	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
+		get_locals(
+			document.ast,
+			position_context.function,
+			&ast_context,
+			&position_context,
+		)
 	}
 
 	completion_type: Completion_Type = .Identifier
@@ -78,12 +101,17 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 		completion_type = .Package
 	}
 
-	if position_context.switch_type_stmt != nil && position_context.case_clause != nil {
-		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
+	if position_context.switch_type_stmt != nil &&
+	   position_context.case_clause != nil {
+		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
+		   ok && assign.rhs != nil && len(assign.rhs) == 1 {
 			ast_context.use_globals = true
 			ast_context.use_locals = true
 
-			if symbol, ok := resolve_type_expression(&ast_context, assign.rhs[0]); ok {
+			if symbol, ok := resolve_type_expression(
+				   &ast_context,
+				   assign.rhs[0],
+			   ); ok {
 				if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 					completion_type = .Switch_Type
 				}
@@ -111,21 +139,29 @@ get_completion_list :: proc(document: ^Document, position: common.Position, comp
 	return list, true
 }
 
-get_attribute_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
-	
+get_attribute_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
+
 }
 
-get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_directive_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 
 	list.isIncomplete = false
-	
+
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	/*
 		Right now just return all the possible completions, but later on I should give the context specific ones
 	*/
 
-	directive_list := []string {
+	directive_list := []string{
 		"file",
 		"line",
 		"packed",
@@ -150,8 +186,8 @@ get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 	for elem in directive_list {
 		item := CompletionItem {
 			detail = elem,
-			label = elem,
-			kind = .Constant,
+			label  = elem,
+			kind   = .Constant,
 		}
 
 		append(&items, item)
@@ -160,30 +196,53 @@ get_directive_completion :: proc(ast_context: ^AstContext, position_context: ^Do
 	list.items = items[:]
 }
 
-get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_comp_lit_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	if position_context.parent_comp_lit.type == nil {
 		return
 	}
 
-	if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-		if comp_symbol, _, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
-			ast_context.current_package = comp_symbol.pkg;
+	if symbol, ok := resolve_type_expression(
+		   ast_context,
+		   position_context.parent_comp_lit.type,
+	   ); ok {
+		if comp_symbol, _, ok := resolve_type_comp_literal(
+			   ast_context,
+			   position_context,
+			   symbol,
+			   position_context.parent_comp_lit,
+		   ); ok {
+			ast_context.current_package = comp_symbol.pkg
 			#partial switch v in comp_symbol.value {
 			case SymbolStructValue:
 				for name, i in v.names {
 					ast_context.current_package = comp_symbol.pkg
 
-					if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-						if field_exists_in_comp_lit(position_context.comp_lit, name) {
+					if resolved, ok := resolve_type_expression(
+						   ast_context,
+						   v.types[i],
+					   ); ok {
+						if field_exists_in_comp_lit(
+							   position_context.comp_lit,
+							   name,
+						   ) {
 							continue
 						}
 
 						item := CompletionItem {
-							label = name,
-							kind = .Field,
-							detail = fmt.tprintf("%v.%v: %v", comp_symbol.name, name, common.node_to_string(v.types[i])),  
+							label         = name,
+							kind          = .Field,
+							detail        = fmt.tprintf(
+								"%v.%v: %v",
+								comp_symbol.name,
+								name,
+								common.node_to_string(v.types[i]),
+							),
 							documentation = resolved.doc,
 						}
 
@@ -197,7 +256,11 @@ get_comp_lit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	list.items = items[:]
 }
 
-get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_selector_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	ast_context.current_package = ast_context.document_package
@@ -208,13 +271,18 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	ast_context.use_locals = true
 	ast_context.use_globals = true
 
-	selector, ok = resolve_type_expression(ast_context, position_context.selector)
+	selector, ok = resolve_type_expression(
+		ast_context,
+		position_context.selector,
+	)
 
 	if !ok {
 		return
 	}
 
-	if selector.type != .Variable && selector.type != .Package && selector.type != .Enum {
+	if selector.type != .Variable &&
+	   selector.type != .Package &&
+	   selector.type != .Enum {
 		return
 	}
 
@@ -235,7 +303,10 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
-			if selector, ok = resolve_type_expression(ast_context, s.return_types[0].type); !ok {
+			if selector, ok = resolve_type_expression(
+				   ast_context,
+				   s.return_types[0].type,
+			   ); !ok {
 				return
 			}
 		}
@@ -265,7 +336,7 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					containsCoord += 1
 				}
 			}
-		} 
+		}
 
 		if containsColor == 1 && containsCoord == 1 {
 			save := expr_len
@@ -277,13 +348,18 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				expr_len -= 1
 
 				item := CompletionItem {
-					label = fmt.tprintf("%v%c", field, k),
-					kind = .Property,
-					detail = fmt.tprintf("%v%c: %v", field, k, common.node_to_string(v.expr)),
+					label  = fmt.tprintf("%v%c", field, k),
+					kind   = .Property,
+					detail = fmt.tprintf(
+						"%v%c: %v",
+						field,
+						k,
+						common.node_to_string(v.expr),
+					),
 				}
 				append(&items, item)
 			}
-			
+
 			expr_len = save
 
 			for k in swizzle_coord_components {
@@ -294,13 +370,18 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				expr_len -= 1
 
 				item := CompletionItem {
-					label = fmt.tprintf("%v%c", field, k),
-					kind = .Property,
-					detail = fmt.tprintf("%v%c: %v", field, k, common.node_to_string(v.expr)),
+					label  = fmt.tprintf("%v%c", field, k),
+					kind   = .Property,
+					detail = fmt.tprintf(
+						"%v%c: %v",
+						field,
+						k,
+						common.node_to_string(v.expr),
+					),
 				}
 				append(&items, item)
 			}
-		} 
+		}
 
 		if containsColor > 1 {
 			for k in swizzle_color_components {
@@ -311,9 +392,15 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				expr_len -= 1
 
 				item := CompletionItem {
-					label = fmt.tprintf("%v%c", field, k),
-					kind = .Property,
-					detail = fmt.tprintf("%v%c: [%v]%v", field, k, containsColor, common.node_to_string(v.expr)),
+					label  = fmt.tprintf("%v%c", field, k),
+					kind   = .Property,
+					detail = fmt.tprintf(
+						"%v%c: [%v]%v",
+						field,
+						k,
+						containsColor,
+						common.node_to_string(v.expr),
+					),
 				}
 				append(&items, item)
 			}
@@ -326,13 +413,19 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				expr_len -= 1
 
 				item := CompletionItem {
-					label = fmt.tprintf("%v%c", field, k),
-					kind = .Property,
-					detail = fmt.tprintf("%v%c: [%v]%v", field, k, containsCoord, common.node_to_string(v.expr)),
+					label  = fmt.tprintf("%v%c", field, k),
+					kind   = .Property,
+					detail = fmt.tprintf(
+						"%v%c: [%v]%v",
+						field,
+						k,
+						containsCoord,
+						common.node_to_string(v.expr),
+					),
 				}
 				append(&items, item)
 			}
-		} 
+		}
 	case SymbolUnionValue:
 		list.isIncomplete = false
 
@@ -343,16 +436,35 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				base := path.base(symbol.pkg, false, context.temp_allocator)
 
 				item := CompletionItem {
-					kind = .EnumMember,
-					detail = fmt.tprintf("%v", selector.name),
+					kind          = .EnumMember,
+					detail        = fmt.tprintf("%v", selector.name),
 					documentation = symbol.doc,
 				}
 
-				if symbol.pkg == ast_context.document_package || base == "runtime" || base == "$builtin" {
-					item.label = fmt.aprintf("(%v%v)", common.repeat("^", symbol.pointers, context.temp_allocator), common.node_to_string(type, true))
+				if symbol.pkg == ast_context.document_package ||
+				   base == "runtime" ||
+				   base == "$builtin" {
+					item.label = fmt.aprintf(
+						"(%v%v)",
+						common.repeat(
+							"^",
+							symbol.pointers,
+							context.temp_allocator,
+						),
+						common.node_to_string(type, true),
+					)
 				} else {
-					item.label = fmt.aprintf("(%v%v.%v)", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), common.node_to_string(type, true))
-				}	
+					item.label = fmt.aprintf(
+						"(%v%v.%v)",
+						common.repeat(
+							"^",
+							symbol.pointers,
+							context.temp_allocator,
+						),
+						path.base(symbol.pkg, false, context.temp_allocator),
+						common.node_to_string(type, true),
+					)
+				}
 
 				append(&items, item)
 			}
@@ -363,8 +475,8 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 		for name in v.names {
 			item := CompletionItem {
-				label = name,
-				kind = .EnumMember,
+				label  = name,
+				kind   = .EnumMember,
 				detail = fmt.tprintf("%v.%v", selector.name, name),
 			}
 			append(&items, item)
@@ -380,8 +492,10 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				ast_context.current_package = ast_context.document_package
 			}
 
-			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
+			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
+			   ok {
+				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr);
+				   ok {
 					if expr.op.text == "->" && symbol.type != .Function {
 						continue
 					}
@@ -392,9 +506,14 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				}
 
 				item := CompletionItem {
-					label = name,
-					kind = .Field,
-					detail = fmt.tprintf("%v.%v: %v", selector.name, name, type_to_string(ast_context, v.types[i])),
+					label         = name,
+					kind          = .Field,
+					detail        = fmt.tprintf(
+						"%v.%v: %v",
+						selector.name,
+						name,
+						type_to_string(ast_context, v.types[i]),
+					),
 					documentation = symbol.doc,
 				}
 
@@ -402,9 +521,13 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			} else {
 				//just give some generic symbol with name.
 				item := CompletionItem {
-					label = symbol.name,
-					kind = .Field,
-					detail = fmt.tprintf("%v: %v", name, common.node_to_string(v.types[i])),
+					label         = symbol.name,
+					kind          = .Field,
+					detail        = fmt.tprintf(
+						"%v: %v",
+						name,
+						common.node_to_string(v.types[i]),
+					),
 					documentation = symbol.doc,
 				}
 
@@ -423,45 +546,62 @@ get_selector_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 				resolve_unresolved_symbol(ast_context, &symbol)
 				build_procedure_symbol_signature(&symbol)
-				
+
 				item := CompletionItem {
-					label = symbol.name,
-					kind = cast(CompletionItemKind)symbol.type,
-					detail = concatenate_symbol_information(ast_context, symbol, true),
+					label         = symbol.name,
+					kind          = cast(CompletionItemKind)symbol.type,
+					detail        = concatenate_symbol_information(
+						ast_context,
+						symbol,
+						true,
+					),
 					documentation = symbol.doc,
 				}
 
 				if symbol.type == .Function && common.config.enable_snippets {
 					item.insertText = fmt.tprintf("%v($0)", item.label)
 					item.insertTextFormat = .Snippet
-					item.command.command = "editor.action.triggerParameterHints"
-					item.deprecated = .Deprecated in symbol.flags			
+					item.command.command =
+					"editor.action.triggerParameterHints"
+					item.deprecated = .Deprecated in symbol.flags
 				}
 
 				append(&items, item)
 			}
 		} else {
-			log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg)
+			log.errorf(
+				"Failed to fuzzy search, field: %v, package: %v",
+				field,
+				selector.pkg,
+			)
 			return
 		}
 	case SymbolDynamicArrayValue:
 		list.isIncomplete = false
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_dynamic_array_completion(
+			position_context,
+			selector,
+			&items,
+		)
 	case SymbolMapValue:
-		list.isIncomplete = false 
+		list.isIncomplete = false
 		append_magic_map_completion(position_context, selector, &items)
 	}
 
 	list.items = items[:]
 }
 
-get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_implicit_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = false
 
 	selector: Symbol
- 
+
 	ast_context.use_locals = true
 	ast_context.use_globals = true
 
@@ -472,12 +612,16 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 
 	//value decl infer a : My_Enum = .*
-	if position_context.value_decl != nil && position_context.value_decl.type != nil {
-		if enum_value, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
+	if position_context.value_decl != nil &&
+	   position_context.value_decl.type != nil {
+		if enum_value, ok := unwrap_enum(
+			   ast_context,
+			   position_context.value_decl.type,
+		   ); ok {
 			for name in enum_value.names {
 				item := CompletionItem {
-					label = name,
-					kind = .EnumMember,
+					label  = name,
+					kind   = .EnumMember,
 					detail = name,
 				}
 				append(&items, item)
@@ -489,14 +633,18 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 
 	//enum switch infer
-	if position_context.switch_stmt != nil && position_context.case_clause != nil && position_context.switch_stmt.cond != nil {
+	if position_context.switch_stmt != nil &&
+	   position_context.case_clause != nil &&
+	   position_context.switch_stmt.cond != nil {
 		used_enums := make(map[string]bool, 5, context.temp_allocator)
 
-		if block, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt); ok {
+		if block, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt);
+		   ok {
 			for stmt in block.stmts {
 				if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 					for name in case_clause.list {
-						if implicit, ok := name.derived.(^ast.Implicit_Selector_Expr); ok {
+						if implicit, ok := name.derived.(^ast.Implicit_Selector_Expr);
+						   ok {
 							used_enums[implicit.field.name] = true
 						}
 					}
@@ -504,15 +652,18 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			}
 		}
 
-		if enum_value, ok := unwrap_enum(ast_context, position_context.switch_stmt.cond); ok {
+		if enum_value, ok := unwrap_enum(
+			   ast_context,
+			   position_context.switch_stmt.cond,
+		   ); ok {
 			for name in enum_value.names {
 				if name in used_enums {
 					continue
 				}
 
 				item := CompletionItem {
-					label = name,
-					kind = .EnumMember,
+					label  = name,
+					kind   = .EnumMember,
 					detail = name,
 				}
 
@@ -524,15 +675,21 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 	}
 
-	if position_context.assign != nil && position_context.assign.lhs != nil && len(position_context.assign.lhs) == 1 && is_bitset_assignment_operator(position_context.assign.op.text) {
+	if position_context.assign != nil &&
+	   position_context.assign.lhs != nil &&
+	   len(position_context.assign.lhs) == 1 &&
+	   is_bitset_assignment_operator(position_context.assign.op.text) {
 		//bitsets
-		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
+		if symbol, ok := resolve_type_expression(
+			   ast_context,
+			   position_context.assign.lhs[0],
+		   ); ok {
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 
 					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
+						label  = name,
+						kind   = .EnumMember,
 						detail = name,
 					}
 
@@ -545,14 +702,19 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 	}
 
-	if position_context.comp_lit != nil && position_context.parent_binary != nil && is_bitset_binary_operator(position_context.binary.op.text) {
+	if position_context.comp_lit != nil &&
+	   position_context.parent_binary != nil &&
+	   is_bitset_binary_operator(position_context.binary.op.text) {
 		//bitsets
-		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
+		if symbol, ok := resolve_first_symbol_from_binary_expression(
+			   ast_context,
+			   position_context.parent_binary,
+		   ); ok {
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
+						label  = name,
+						kind   = .EnumMember,
 						detail = name,
 					}
 
@@ -574,17 +736,26 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		field_name: string
 
 		if position_context.field_value != nil {
-			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+			if field, ok := position_context.field_value.field.derived.(^ast.Ident);
+			   ok {
 				field_name = field.name
 			} else {
 				return
-			}		
+			}
 		}
 
-		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(ast_context, position_context, symbol, position_context.parent_comp_lit); ok {
+		if symbol, ok := resolve_type_expression(
+			   ast_context,
+			   position_context.parent_comp_lit.type,
+		   ); ok {
+			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
+				   ast_context,
+				   position_context,
+				   symbol,
+				   position_context.parent_comp_lit,
+			   ); ok {
 				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
-					ast_context.current_package = comp_symbol.pkg;
+					ast_context.current_package = comp_symbol.pkg
 
 					//We can either have the final 
 					elem_index := -1
@@ -600,21 +771,21 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 					for name, i in s.names {
 						if name != field_name {
 							continue
-						} 
+						}
 
 						type = s.types[i]
 						break
 					}
 
-					if type == nil && len(s.types) > elem_index  {
+					if type == nil && len(s.types) > elem_index {
 						type = s.types[elem_index]
 					}
 
 					if enum_value, ok := unwrap_enum(ast_context, type); ok {
 						for enum_name in enum_value.names {
 							item := CompletionItem {
-								label = enum_name,
-								kind = .EnumMember,
+								label  = enum_name,
+								kind   = .EnumMember,
 								detail = enum_name,
 							}
 
@@ -623,27 +794,34 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 						list.items = items[:]
 						return
-					} else if bitset_symbol, ok := resolve_type_expression(ast_context, type); ok {
-						if value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
+					} else if bitset_symbol, ok := resolve_type_expression(
+						   ast_context,
+						   type,
+					   ); ok {
+						if value, ok := unwrap_bitset(
+							   ast_context,
+							   bitset_symbol,
+						   ); ok {
 							for name in value.names {
-			
+
 								item := CompletionItem {
-									label = name,
-									kind = .EnumMember,
+									label  = name,
+									kind   = .EnumMember,
 									detail = name,
 								}
-			
+
 								append(&items, item)
-							}			
+							}
 							list.items = items[:]
 							return
 						}
 					}
-				} else if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
+				} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
+				   ok {
 					for enum_name in s.names {
 						item := CompletionItem {
-							label = enum_name,
-							kind = .EnumMember,
+							label  = enum_name,
+							kind   = .EnumMember,
 							detail = enum_name,
 						}
 
@@ -655,16 +833,24 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				}
 			}
 		}
-	} 
-	
-	if position_context.binary != nil && (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
+	}
+
+	if position_context.binary != nil &&
+	   (position_context.binary.op.text == "==" ||
+			   position_context.binary.op.text == "!=") {
 		context_node: ^ast.Expr
 		enum_node: ^ast.Expr
 
-		if position_in_node(position_context.binary.right, position_context.position) {
+		if position_in_node(
+			   position_context.binary.right,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.right
 			enum_node = position_context.binary.left
-		} else if position_in_node(position_context.binary.left, position_context.position) {
+		} else if position_in_node(
+			   position_context.binary.left,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.left
 			enum_node = position_context.binary.right
 		}
@@ -673,8 +859,8 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 			if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
+						label  = name,
+						kind   = .EnumMember,
 						detail = name,
 					}
 
@@ -687,7 +873,9 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 	}
 
-	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
+	if position_context.assign != nil &&
+	   position_context.assign.rhs != nil &&
+	   position_context.assign.lhs != nil {
 		rhs_index: int
 
 		for elem in position_context.assign.rhs {
@@ -695,8 +883,10 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 				break
 			} else {
 				//procedures are the only types that can return more than one value
-				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
-					if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
+				if symbol, ok := resolve_type_expression(ast_context, elem);
+				   ok {
+					if procedure, ok := symbol.value.(SymbolProcedureValue);
+					   ok {
 						if procedure.return_types == nil {
 							return
 						}
@@ -710,7 +900,10 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 
 		if len(position_context.assign.lhs) > rhs_index {
-			if enum_value, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
+			if enum_value, ok := unwrap_enum(
+				   ast_context,
+				   position_context.assign.lhs[rhs_index],
+			   ); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
@@ -750,11 +943,16 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
-			if enum_value, ok := unwrap_enum(ast_context, position_context.function.type.results.list[return_index].type); ok {
+			if enum_value, ok := unwrap_enum(
+				   ast_context,
+				   position_context.function.type.results.list[
+					   return_index \
+				   ].type,
+			   ); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
-						label = name,
-						kind = .EnumMember,
+						label  = name,
+						kind   = .EnumMember,
 						detail = name,
 					}
 
@@ -769,18 +967,25 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-			parameter_index, parameter_ok := find_position_in_call_param(ast_context, call^)
-			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
+			parameter_index, parameter_ok := find_position_in_call_param(
+				ast_context,
+				call^,
+			)
+			if symbol, ok := resolve_type_expression(ast_context, call.expr);
+			   ok && parameter_ok {
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
 					}
 
-					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
+					if enum_value, ok := unwrap_enum(
+						   ast_context,
+						   proc_value.arg_types[parameter_index].type,
+					   ); ok {
 						for name in enum_value.names {
 							item := CompletionItem {
-								label = name,
-								kind = .EnumMember,
+								label  = name,
+								kind   = .EnumMember,
 								detail = name,
 							}
 
@@ -796,10 +1001,14 @@ get_implicit_completion :: proc(ast_context: ^AstContext, position_context: ^Doc
 	}
 }
 
-get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_identifier_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	CombinedResult :: struct {
 		score:     f32,
-		snippet:   Snippet_Info,	
+		snippet:   Snippet_Info,
 		name:      string,
 		type:      SymbolType,
 		doc:       string,
@@ -832,7 +1041,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 	append(&pkgs, ast_context.document_package)
 	append(&pkgs, "$builtin")
-	
+
 	if results, ok := fuzzy_search(lookup_name, pkgs[:]); ok {
 		for r in results {
 			r := r
@@ -841,15 +1050,18 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 
 			uri, _ := common.parse_uri(r.symbol.uri, context.temp_allocator)
 			if uri.path != ast_context.fullpath {
-				append(&combined, CombinedResult {
-					score = r.score, 
-					type = r.symbol.type,
-					name = r.symbol.name,
-					doc = r.symbol.doc,
-					flags = r.symbol.flags,
-					signature = r.symbol.signature,
-					pkg = r.symbol.pkg,
-				})
+				append(
+					&combined,
+					CombinedResult{
+						score = r.score,
+						type = r.symbol.type,
+						name = r.symbol.name,
+						doc = r.symbol.doc,
+						flags = r.symbol.flags,
+						signature = r.symbol.signature,
+						pkg = r.symbol.pkg,
+					},
+				)
 			}
 		}
 	}
@@ -872,24 +1084,32 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		ast_context.use_globals = true
 		ast_context.current_package = ast_context.document_package
 
-		ident := new_type(ast.Ident, v.expr.pos, v.expr.end, context.temp_allocator)
+		ident := new_type(
+			ast.Ident,
+			v.expr.pos,
+			v.expr.end,
+			context.temp_allocator,
+		)
 		ident.name = k
 
-		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {	
+		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 			symbol.signature = get_signature(ast_context, ident^, symbol)
 
 			build_procedure_symbol_signature(&symbol)
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-				append(&combined, CombinedResult {
-					score = score * 1.1, 
-					type = symbol.type,
-					name = ident.name,
-					doc = symbol.doc,
-					flags = symbol.flags, 
-					pkg = symbol.pkg,
-					signature = symbol.signature,
-				})
+				append(
+					&combined,
+					CombinedResult{
+						score = score * 1.1,
+						type = symbol.type,
+						name = ident.name,
+						doc = symbol.doc,
+						flags = symbol.flags,
+						pkg = symbol.pkg,
+						signature = symbol.signature,
+					},
+				)
 			}
 		}
 	}
@@ -900,30 +1120,43 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 				break
 			}
 
-			local_offset := get_local_offset(ast_context, position_context.position, k)
+			local_offset := get_local_offset(
+				ast_context,
+				position_context.position,
+				k,
+			)
 
 			ast_context.use_locals = true
 			ast_context.use_globals = true
 			ast_context.current_package = ast_context.document_package
 
-			ident := new_type(ast.Ident, {offset = local_offset}, {offset = local_offset}, context.temp_allocator)
+			ident := new_type(
+				ast.Ident,
+				{offset = local_offset},
+				{offset = local_offset},
+				context.temp_allocator,
+			)
 			ident.name = k
 
-			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {		
+			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 				symbol.signature = get_signature(ast_context, ident^, symbol)
 
 				build_procedure_symbol_signature(&symbol)
 
-				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-					append(&combined, CombinedResult {
-						score = score * 1.7, 
-						type = symbol.type,
-						name = ident.name,
-						doc = symbol.doc,
-						flags = symbol.flags,
-						pkg = symbol.pkg,
-						signature = symbol.signature,
-					})
+				if score, ok := common.fuzzy_match(matcher, ident.name);
+				   ok == 1 {
+					append(
+						&combined,
+						CombinedResult{
+							score = score * 1.7,
+							type = symbol.type,
+							name = ident.name,
+							doc = symbol.doc,
+							flags = symbol.flags,
+							pkg = symbol.pkg,
+							signature = symbol.signature,
+						},
+					)
 				}
 			}
 		}
@@ -940,15 +1173,18 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-			append(&combined, CombinedResult {
-				score = score * 1.1, 
-				type = symbol.type,
-				name = symbol.name,
-				doc = symbol.doc,
-				flags = symbol.flags,
-				signature = symbol.signature,
-				pkg = symbol.pkg,
-			})
+			append(
+				&combined,
+				CombinedResult{
+					score = score * 1.1,
+					type = symbol.type,
+					name = symbol.name,
+					doc = symbol.doc,
+					flags = symbol.flags,
+					signature = symbol.signature,
+					pkg = symbol.pkg,
+				},
+			)
 		}
 	}
 
@@ -959,18 +1195,21 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult {
-				score = score, 
-				type = symbol.type,
-				name = symbol.name,
-				doc = symbol.doc,
-				flags = symbol.flags,
-				signature = symbol.signature,
-				pkg = symbol.pkg,
-			})
+			append(
+				&combined,
+				CombinedResult{
+					score = score,
+					type = symbol.type,
+					name = symbol.name,
+					doc = symbol.doc,
+					flags = symbol.flags,
+					signature = symbol.signature,
+					pkg = symbol.pkg,
+				},
+			)
 		}
 	}
-	
+
 	for keyword, _ in language_keywords {
 		symbol := Symbol {
 			name = keyword,
@@ -978,22 +1217,28 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult {
-				score = score * 1.1, 
-				type = symbol.type,
-				name = symbol.name,
-				doc = symbol.doc,
-				flags = symbol.flags,
-				signature = symbol.signature,
-				pkg = symbol.pkg,
-			})
+			append(
+				&combined,
+				CombinedResult{
+					score = score * 1.1,
+					type = symbol.type,
+					name = symbol.name,
+					doc = symbol.doc,
+					flags = symbol.flags,
+					signature = symbol.signature,
+					pkg = symbol.pkg,
+				},
+			)
 		}
 	}
 
 	if common.config.enable_snippets {
 		for k, v in snippets {
 			if score, ok := common.fuzzy_match(matcher, k); ok == 1 {
-				append(&combined, CombinedResult {score = score * 1.1, snippet = v, name = k})
+				append(
+					&combined,
+					CombinedResult{score = score * 1.1, snippet = v, name = k},
+				)
 			}
 		}
 	}
@@ -1009,23 +1254,28 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 		result := result
 
 		//Skip procedures when the position is in proc decl
-		if position_in_proc_decl(position_context) && result.type == .Function && common.config.enable_procedure_context {
+		if position_in_proc_decl(position_context) &&
+		   result.type == .Function &&
+		   common.config.enable_procedure_context {
 			continue
 		}
 
 		if result.snippet.insert != "" {
 			item := CompletionItem {
-				label = result.name,
-				insertText = result.snippet.insert,
-				kind = .Snippet,
-				detail = result.snippet.detail,
+				label            = result.name,
+				insertText       = result.snippet.insert,
+				kind             = .Snippet,
+				detail           = result.snippet.detail,
 				insertTextFormat = .Snippet,
 			}
 
 			edits := make([dynamic]TextEdit, context.temp_allocator)
 
 			for pkg in result.snippet.packages {
-				edit, ok := get_core_insert_package_if_non_existent(ast_context, pkg)
+				edit, ok := get_core_insert_package_if_non_existent(
+					ast_context,
+					pkg,
+				)
 				if ok {
 					append(&edits, edit)
 				}
@@ -1036,7 +1286,7 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			append(&items, item)
 		} else {
 			item := CompletionItem {
-				label = result.name,
+				label         = result.name,
 				documentation = result.doc,
 			}
 
@@ -1045,11 +1295,18 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 			if result.type == .Function && common.config.enable_snippets {
 				item.insertText = fmt.tprintf("%v($0)", item.label)
 				item.insertTextFormat = .Snippet
-				item.deprecated =  .Deprecated in result.flags
+				item.deprecated = .Deprecated in result.flags
 				item.command.command = "editor.action.triggerParameterHints"
 			}
-			
-			item.detail = concatenate_symbol_information(ast_context, result.pkg, result.name, result.signature, result.type, true)
+
+			item.detail = concatenate_symbol_information(
+				ast_context,
+				result.pkg,
+				result.name,
+				result.signature,
+				result.type,
+				true,
+			)
 
 			append(&items, item)
 		}
@@ -1058,7 +1315,11 @@ get_identifier_completion :: proc(ast_context: ^AstContext, position_context: ^D
 	list.items = items[:]
 }
 
-get_package_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_package_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
 	list.isIncomplete = false
@@ -1069,30 +1330,47 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 		return
 	}
 
-	without_quotes := position_context.import_stmt.fullpath[1:fullpath_length-1]
+	without_quotes := position_context.import_stmt.fullpath[1:fullpath_length -
+	1]
 	absolute_path := without_quotes
 	colon_index := strings.index(without_quotes, ":")
 
 	if colon_index >= 0 {
 		c := without_quotes[0:colon_index]
 
-		if colon_index+1 < len(without_quotes) {
-			absolute_path = filepath.join(elems = {common.config.collections[c], filepath.dir(without_quotes[colon_index+1:], context.temp_allocator)}, allocator = context.temp_allocator)
+		if colon_index + 1 < len(without_quotes) {
+			absolute_path = filepath.join(
+				elems = {
+					common.config.collections[c],
+					filepath.dir(
+						without_quotes[colon_index + 1:],
+						context.temp_allocator,
+					),
+				},
+				allocator = context.temp_allocator,
+			)
 		} else {
 			absolute_path = common.config.collections[c]
 		}
 	} else {
-		import_file_dir := filepath.dir(position_context.import_stmt.pos.file, context.temp_allocator)
+		import_file_dir := filepath.dir(
+			position_context.import_stmt.pos.file,
+			context.temp_allocator,
+		)
 		import_dir := filepath.dir(without_quotes, context.temp_allocator)
-		absolute_path = filepath.join(elems = {import_file_dir, import_dir}, allocator = context.temp_allocator)
+		absolute_path = filepath.join(
+			elems = {import_file_dir, import_dir},
+			allocator = context.temp_allocator,
+		)
 	}
 
-	if !strings.contains(position_context.import_stmt.fullpath, "/") && !strings.contains(position_context.import_stmt.fullpath, ":") {
+	if !strings.contains(position_context.import_stmt.fullpath, "/") &&
+	   !strings.contains(position_context.import_stmt.fullpath, ":") {
 		for key, _ in common.config.collections {
 			item := CompletionItem {
 				detail = "collection",
-				label = key,
-				kind = .Module,
+				label  = key,
+				kind   = .Module,
 			}
 
 			append(&items, item)
@@ -1102,8 +1380,8 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 	for pkg in search_for_packages(absolute_path) {
 		item := CompletionItem {
 			detail = pkg,
-			label = filepath.base(pkg),
-			kind = .Folder,
+			label  = filepath.base(pkg),
+			kind   = .Folder,
 		}
 
 		if item.label[0] == '.' {
@@ -1116,7 +1394,7 @@ get_package_completion :: proc(ast_context: ^AstContext, position_context: ^Docu
 	list.items = items[:]
 }
 
-search_for_packages :: proc(fullpath: string) -> [] string {
+search_for_packages :: proc(fullpath: string) -> []string {
 	packages := make([dynamic]string, context.temp_allocator)
 
 	fh, err := os.open(fullpath)
@@ -1137,13 +1415,18 @@ search_for_packages :: proc(fullpath: string) -> [] string {
 	return packages[:]
 }
 
-get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext, list: ^CompletionList) {
+get_type_switch_completion :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	list: ^CompletionList,
+) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 	list.isIncomplete = false
 
 	used_unions := make(map[string]bool, 5, context.temp_allocator)
 
-	if block, ok := position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt); ok {
+	if block, ok := position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt);
+	   ok {
 		for stmt in block.stmts {
 			if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 				for name in case_clause.list {
@@ -1155,26 +1438,51 @@ get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^
 		}
 	}
 
-	ast_context.use_locals  = true
+	ast_context.use_locals = true
 	ast_context.use_globals = true
 
-	if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt); ok && assign.rhs != nil && len(assign.rhs) == 1 {
+	if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
+	   ok && assign.rhs != nil && len(assign.rhs) == 1 {
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
-				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
+				if symbol, ok := resolve_type_expression(
+					   ast_context,
+					   union_value.types[i],
+				   ); ok {
 					name := symbol.name
 					if name in used_unions {
 						continue
 					}
-					
+
 					item := CompletionItem {
 						kind = .EnumMember,
 					}
-					
+
 					if symbol.pkg == ast_context.document_package {
-						item.label = fmt.aprintf("%v%v", common.repeat("^", symbol.pointers, context.temp_allocator), name)
+						item.label = fmt.aprintf(
+							"%v%v",
+							common.repeat(
+								"^",
+								symbol.pointers,
+								context.temp_allocator,
+							),
+							name,
+						)
 					} else {
-						item.label = fmt.aprintf("%v%v.%v", common.repeat("^", symbol.pointers, context.temp_allocator), path.base(symbol.pkg, false, context.temp_allocator), name)
+						item.label = fmt.aprintf(
+							"%v%v.%v",
+							common.repeat(
+								"^",
+								symbol.pointers,
+								context.temp_allocator,
+							),
+							path.base(
+								symbol.pkg,
+								false,
+								context.temp_allocator,
+							),
+							name,
+						)
 					}
 
 					append(&items, item)
@@ -1186,7 +1494,13 @@ get_type_switch_completion :: proc(ast_context: ^AstContext, position_context: ^
 	list.items = items[:]
 }
 
-get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: string) -> (TextEdit, bool) {
+get_core_insert_package_if_non_existent :: proc(
+	ast_context: ^AstContext,
+	pkg: string,
+) -> (
+	TextEdit,
+	bool,
+) {
 	builder := strings.builder_make(context.temp_allocator)
 
 	for imp in ast_context.imports {
@@ -1212,9 +1526,17 @@ get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: s
 	}, true
 }
 
-get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositionContext) -> (common.Range, bool) {
+get_range_from_selection_start_to_dot :: proc(
+	position_context: ^DocumentPositionContext,
+) -> (
+	common.Range,
+	bool,
+) {
 	if position_context.selector != nil {
-		range := common.get_token_range(position_context.selector, position_context.file.src)
+		range := common.get_token_range(
+			position_context.selector,
+			position_context.file.src,
+		)
 		range.end.character += 1
 		return range, true
 	}
@@ -1222,20 +1544,24 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	return {}, false
 }
 
-append_magic_map_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_map_completion :: proc(
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+	items: ^[dynamic]CompletionItem,
+) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
-		return 
+		return
 	}
 
 	remove_range := common.Range {
 		start = range.start,
-		end = range.end,
+		end   = range.end,
 	}
 
 	remove_edit := TextEdit {
-		range = remove_range,
+		range   = remove_range,
 		newText = "",
 	}
 
@@ -1249,37 +1575,41 @@ append_magic_map_completion :: proc(position_context: ^DocumentPositionContext, 
 			kind = .Snippet,
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit {
-				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", symbol.name),
-				range = {
-					start = range.end,
-					end = range.end,
-				},
+			textEdit = TextEdit{
+				newText = fmt.tprintf(
+					"for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}",
+					symbol.name,
+				),
+				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
 			InsertTextMode = .adjustIndentation,
 		}
-		
+
 		append(items, item)
 	}
 
 
 }
 
-append_magic_dynamic_array_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_dynamic_array_completion :: proc(
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+	items: ^[dynamic]CompletionItem,
+) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
-		return 
+		return
 	}
 
 	remove_range := common.Range {
 		start = range.start,
-		end = range.end,
+		end   = range.end,
 	}
 
 	remove_edit := TextEdit {
-		range = remove_range,
+		range   = remove_range,
 		newText = "",
 	}
 
@@ -1294,12 +1624,9 @@ append_magic_dynamic_array_completion :: proc(position_context: ^DocumentPositio
 			label = "len",
 			kind = .Function,
 			detail = "len",
-			textEdit = TextEdit {
+			textEdit = TextEdit{
 				newText = text,
-				range = {
-					start = range.end,
-					end = range.end,
-				},
+				range = {start = range.end, end = range.end},
 			},
 			additionalTextEdits = additionalTextEdits,
 		}
@@ -1314,42 +1641,46 @@ append_magic_dynamic_array_completion :: proc(position_context: ^DocumentPositio
 			kind = .Snippet,
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit {
-				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", symbol.name),
-				range = {
-					start = range.end,
-					end = range.end,
-				},
+			textEdit = TextEdit{
+				newText = fmt.tprintf(
+					"for i in %v {{\n\t$0 \n}}",
+					symbol.name,
+				),
+				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
 			InsertTextMode = .adjustIndentation,
 		}
-		
+
 		append(items, item)
 	}
-	
+
 }
 
-append_magic_union_completion :: proc(position_context: ^DocumentPositionContext, symbol: Symbol, items: ^[dynamic]CompletionItem) {
+append_magic_union_completion :: proc(
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+	items: ^[dynamic]CompletionItem,
+) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
-		return 
+		return
 	}
 
 	remove_range := common.Range {
 		start = range.start,
-		end = range.end,
+		end   = range.end,
 	}
 
 	remove_edit := TextEdit {
-		range = remove_range,
+		range   = remove_range,
 		newText = "",
 	}
 
 	additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
 	additionalTextEdits[0] = remove_edit
-	
+
 	//switch
 	{
 		item := CompletionItem {
@@ -1357,28 +1688,28 @@ append_magic_union_completion :: proc(position_context: ^DocumentPositionContext
 			kind = .Snippet,
 			detail = "switch",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit {
-				newText = fmt.tprintf("switch v in %v {{\n\t$0 \n}}", symbol.name),
-				range = {
-					start = range.end,
-					end = range.end,
-				},
+			textEdit = TextEdit{
+				newText = fmt.tprintf(
+					"switch v in %v {{\n\t$0 \n}}",
+					symbol.name,
+				),
+				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
 			InsertTextMode = .adjustIndentation,
 		}
-		
+
 		append(items, item)
 	}
 
 }
 
 bitset_operators: map[string]bool = {
-	"|" = true,
-	"&" = true,
-	"~" = true,
-	"<" = true,
-	">" = true,
+	"|"  = true,
+	"&"  = true,
+	"~"  = true,
+	"<"  = true,
+	">"  = true,
 	"==" = true,
 }
 
@@ -1388,7 +1719,7 @@ bitset_assignment_operators: map[string]bool = {
 	"~=" = true,
 	"<=" = true,
 	">=" = true,
-	"=" = true,
+	"="  = true,
 	"+=" = true,
 }
 
@@ -1445,9 +1776,9 @@ language_keywords: []string = {
 }
 
 swizzle_color_components: map[u8]bool = {
-	'r' = true, 
-	'g' = true, 
-	'b' = true, 
+	'r' = true,
+	'g' = true,
+	'b' = true,
 	'a' = true,
 }
 
@@ -1456,4 +1787,4 @@ swizzle_coord_components: map[u8]bool = {
 	'y' = true,
 	'z' = true,
 	'w' = true,
-};
+}

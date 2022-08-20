@@ -119,7 +119,7 @@ HoverClientCapabilities :: struct {
 }
 
 DocumentSymbolClientCapabilities :: struct {
-	symbolKind: struct {
+	symbolKind:                        struct {
 		valueSet: [dynamic]SymbolKind,
 	},
 	hierarchicalDocumentSymbolSupport: bool,
@@ -147,7 +147,7 @@ CompletionItemCapabilities :: struct {
 CompletionClientCapabilities :: struct {
 	documentationFormat: [dynamic]string,
 	completionItem:      CompletionItemCapabilities,
-}	
+}
 
 ParameterInformationCapabilities :: struct {
 	labelOffsetSupport: bool,
@@ -155,7 +155,7 @@ ParameterInformationCapabilities :: struct {
 
 ClientCapabilities :: struct {
 	textDocument: TextDocumentClientCapabilities,
-	general: GeneralClientCapabilities,
+	general:      GeneralClientCapabilities,
 }
 
 RangeOptional :: union {
@@ -283,7 +283,7 @@ InsertTextFormat :: enum {
 }
 
 InsertTextMode :: enum {
-	asIs = 1,
+	asIs              = 1,
 	adjustIndentation = 2,
 }
 
@@ -410,8 +410,8 @@ DocumentLinkParams :: struct {
 }
 
 DocumentLink :: struct {
-	range: common.Range,
-	target: string,
+	range:   common.Range,
+	target:  string,
 	tooltip: string,
 }
 
@@ -424,9 +424,9 @@ PrepareSupportDefaultBehavior :: enum {
 }
 
 RenameClientCapabilities :: struct {
-	prepareSupport: bool,
+	prepareSupport:                bool,
 	prepareSupportDefaultBehavior: PrepareSupportDefaultBehavior,
-	honorsChangeAnnotations: bool,
+	honorsChangeAnnotations:       bool,
 }
 
 RenameParams :: struct {
@@ -447,10 +447,9 @@ OptionalVersionedTextDocumentIdentifier :: struct {
 
 TextDocumentEdit :: struct {
 	textDocument: OptionalVersionedTextDocumentIdentifier,
-	edits: []TextEdit,
+	edits:        []TextEdit,
 }
 
 WorkspaceEdit :: struct {
 	documentChanges: []TextDocumentEdit,
 }
-

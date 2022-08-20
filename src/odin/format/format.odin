@@ -4,7 +4,7 @@ import "shared:odin/printer"
 import "core:odin/parser"
 import "core:odin/ast"
 import "core:encoding/json"
-import "core:os" 
+import "core:os"
 import "core:path/filepath"
 import "core:fmt"
 
@@ -34,7 +34,10 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 			}
 		}
 	} else {
-		new_path := filepath.join(elems = {path, ".."}, allocator = context.temp_allocator)
+		new_path := filepath.join(
+			elems = {path, ".."},
+			allocator = context.temp_allocator,
+		)
 		//Currently the filepath implementation seems to stop at the root level, this might not be the best solution.
 		if new_path == path {
 			return default_style
@@ -49,7 +52,16 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 	return config
 }
 
-format :: proc(filepath: string, source: string, config: printer.Config, parser_flags := parser.Flags{.Optional_Semicolons}, allocator := context.allocator) -> (string, bool) {
+format :: proc(
+	filepath: string,
+	source: string,
+	config: printer.Config,
+	parser_flags := parser.Flags{.Optional_Semicolons},
+	allocator := context.allocator,
+) -> (
+	string,
+	bool,
+) {
 	config := config
 
 	pkg := ast.Package {
@@ -57,8 +69,8 @@ format :: proc(filepath: string, source: string, config: printer.Config, parser_
 	}
 
 	file := ast.File {
-		pkg = &pkg,
-		src = source,
+		pkg      = &pkg,
+		src      = source,
 		fullpath = filepath,
 	}
 
@@ -69,7 +81,7 @@ format :: proc(filepath: string, source: string, config: printer.Config, parser_
 
 	ok := parser.parse_file(&p, &file)
 
-	if !ok || file.syntax_error_count > 0  {
+	if !ok || file.syntax_error_count > 0 {
 		return {}, false
 	}
 

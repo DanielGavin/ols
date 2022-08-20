@@ -19,11 +19,11 @@ import "core:text/scanner"
 import "shared:common"
 
 is_package :: proc(file: string, pkg: string) {
-	
+
 }
 
 check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
-	data := make([]byte, mem.Kilobyte*10, context.temp_allocator)
+	data := make([]byte, mem.Kilobyte * 10, context.temp_allocator)
 
 	buffer: []byte
 	code: u32
@@ -35,7 +35,10 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		if k == "" || k == "core" || k == "vendor" {
 			continue
 		}
-		strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=%v ", k, v))
+		strings.write_string(
+			&collection_builder,
+			fmt.aprintf("-collection:%v=%v ", k, v),
+		)
 	}
 
 	command: string
@@ -47,32 +50,37 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	}
 
 	if code, ok, buffer = common.run_executable(
-		fmt.tprintf("%v check %s %s -no-entry-point %s %s", 
-			command, 
-			path.dir(uri.path, context.temp_allocator), 
-			strings.to_string(collection_builder), 
-			config.checker_args,
-			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
-	    ), 
-		&data
-	); !ok {
-		log.errorf("Odin check failed with code %v for file %v", code, uri.path)
+		   fmt.tprintf(
+			   "%v check %s %s -no-entry-point %s %s",
+			   command,
+			   path.dir(uri.path, context.temp_allocator),
+			   strings.to_string(collection_builder),
+			   config.checker_args,
+			   ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+		   ),
+		   &data,
+	   ); !ok {
+		log.errorf(
+			"Odin check failed with code %v for file %v",
+			code,
+			uri.path,
+		)
 		return
-	} 
+	}
 
 	s: scanner.Scanner
 
 	scanner.init(&s, string(buffer))
 
-	s.whitespace = {'\t', ' '} 
+	s.whitespace = {'\t', ' '}
 
 	current: rune
 
 	ErrorSeperator :: struct {
 		message: string,
-		line: int,
-		column: int,
-		uri: string,
+		line:    int,
+		column:  int,
+		uri:     string,
 	}
 
 	error_seperators := make([dynamic]ErrorSeperator, context.temp_allocator)
@@ -93,10 +101,10 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 
 			if n == scanner.EOF {
 				break loop
-			} 
+			}
 		}
 
-		error.uri = string(buffer[source_pos:s.src_pos-1])
+		error.uri = string(buffer[source_pos:s.src_pos - 1])
 
 		left_paren := scanner.scan(&s)
 
@@ -123,7 +131,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 
 		if seperator != ':' {
 			break loop
-		} 
+		}
 
 		rhs_digit := scanner.scan(&s)
 
@@ -157,7 +165,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 			continue
 		}
 
-		error.message = string(buffer[source_pos:s.src_pos-1])
+		error.message = string(buffer[source_pos:s.src_pos - 1])
 		error.column = column
 		error.line = line
 
@@ -169,32 +177,34 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	for error in error_seperators {
 
 		if error.uri not_in errors {
-			errors[error.uri] = make([dynamic]Diagnostic, context.temp_allocator)
+			errors[error.uri] = make(
+				[dynamic]Diagnostic,
+				context.temp_allocator,
+			)
 		}
 
-		append(&errors[error.uri], Diagnostic {
-			code = "checker",
-			severity = .Error,
-			range = {
-				start = {
-					character = 0,
-					line = error.line - 1,
+		append(
+			&errors[error.uri],
+			Diagnostic{
+				code = "checker",
+				severity = .Error,
+				range = {
+					start = {character = 0, line = error.line - 1},
+					end = {character = 0, line = error.line},
 				},
-				end = {
-					character = 0,
-					line = error.line,
-				},
+				message = error.message,
 			},
-			message = error.message,
-		})
+		)
 	}
 
-	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)))
+	matches, err := filepath.glob(
+		fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)),
+	)
 
 	if err == .None {
 		for match in matches {
 			uri := common.create_uri(match, context.temp_allocator)
-				
+
 			params := NotificationPublishDiagnosticsParams {
 				uri = uri.uri,
 				diagnostics = {},
@@ -202,8 +212,8 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 
 			notifaction := Notification {
 				jsonrpc = "2.0",
-				method = "textDocument/publishDiagnostics",
-				params = params,
+				method  = "textDocument/publishDiagnostics",
+				params  = params,
 			}
 
 			if writer != nil {
@@ -216,14 +226,14 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		uri := common.create_uri(k, context.temp_allocator)
 
 		params := NotificationPublishDiagnosticsParams {
-			uri = uri.uri,
+			uri         = uri.uri,
 			diagnostics = v[:],
 		}
 
 		notifaction := Notification {
 			jsonrpc = "2.0",
-			method = "textDocument/publishDiagnostics",
-			params = params,
+			method  = "textDocument/publishDiagnostics",
+			params  = params,
 		}
 
 		if writer != nil {

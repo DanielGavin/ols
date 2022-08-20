@@ -52,6 +52,7 @@ FuzzyMatcher :: struct {
 	word_role:        [max_word]FuzzyCharRole,
 }
 
+//odinfmt: disable
 char_roles: []u8 = {
 	// clang-format off
 	//         Curr= Empty Lower Upper Separ
@@ -76,6 +77,8 @@ char_types: []u8 = {
 	0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
 	0x55,0x55,0x55,0x55,0x55,0x55,0x55,0x55,
 }
+//odinfmt: enable
+
 
 make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator) -> ^FuzzyMatcher {
 	matcher := new(FuzzyMatcher, allocator)

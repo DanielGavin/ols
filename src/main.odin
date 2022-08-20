@@ -18,13 +18,13 @@ import "shared:server"
 import "shared:common"
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr  := cast(^os.Handle)handle
+	ptr := cast(^os.Handle)handle
 	a, b := os.read(ptr^, data)
 	return a, cast(int)b
 }
 
 os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr  := cast(^os.Handle)handle
+	ptr := cast(^os.Handle)handle
 	a, b := os.write(ptr^, data)
 	return a, cast(int)b
 }
@@ -56,9 +56,12 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	server.requests = make([dynamic]server.Request, context.allocator)
 	server.deletings = make([dynamic]server.Request, context.allocator)
 
-	request_thread = thread.create_and_start_with_data(cast(rawptr)&request_thread_data, server.thread_request_main)
+	request_thread = thread.create_and_start_with_data(
+		cast(rawptr)&request_thread_data,
+		server.thread_request_main,
+	)
 
-	server.setup_index();
+	server.setup_index()
 
 	for common.config.running {
 		if common.config.verbose {
@@ -95,7 +98,6 @@ end :: proc() {
 }
 
 
-
 main :: proc() {
 
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
@@ -117,9 +119,9 @@ main :: proc() {
 	}
 
 	when ODIN_OS == .Darwin {
-		init_global_temporary_allocator(mem.Megabyte*100)
+		init_global_temporary_allocator(mem.Megabyte * 100)
 	} else {
-		init_global_temporary_allocator(mem.Megabyte*100)
+		init_global_temporary_allocator(mem.Megabyte * 100)
 		//Gives weird allocation errors
 		//growing_arena: common.Growing_Arena
 		//context.temp_allocator = common.growing_arena_allocator(&growing_arena)

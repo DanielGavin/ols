@@ -72,7 +72,7 @@ document_get_allocator :: proc() -> ^common.Scratch_Allocator {
 		return pop(&document_storage.free_allocators)
 	} else {
 		allocator := new(common.Scratch_Allocator)
-		common.scratch_allocator_init(allocator, mem.Megabyte*3)
+		common.scratch_allocator_init(allocator, mem.Megabyte * 3)
 		return allocator
 	}
 }
@@ -111,7 +111,12 @@ document_release :: proc(document: ^Document) {
 	Client opens a document with transferred text
 */
 
-document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_open :: proc(
+	uri_string: string,
+	text: string,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 
 	if !parsed_ok {
@@ -121,7 +126,10 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 	if document := &document_storage.documents[uri.path]; document != nil {
 		if document.client_owned {
-			log.errorf("Client called open on an already open document: %v ", document.uri.path)
+			log.errorf(
+				"Client called open on an already open document: %v ",
+				document.uri.path,
+			)
 			return .InvalidRequest
 		}
 
@@ -138,11 +146,11 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		}
 	} else {
 		document := Document {
-			uri = uri,
-			text = transmute([]u8)text,
+			uri          = uri,
+			text         = transmute([]u8)text,
 			client_owned = true,
-			used_text = len(text),
-			allocator = document_get_allocator(),
+			used_text    = len(text),
+			allocator    = document_get_allocator(),
 		}
 
 		document_setup(&document)
@@ -160,37 +168,46 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 }
 
 document_setup :: proc(document: ^Document) {
-		//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
-		when ODIN_OS == .Windows {
-			package_name := path.dir(document.uri.path, context.temp_allocator)
-			forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
-			if forward == "" {
-				document.package_name = package_name
-			} else {
-				document.package_name = strings.clone(forward)
-			}
+	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
+	when ODIN_OS == .Windows {
+		package_name := path.dir(document.uri.path, context.temp_allocator)
+		forward, _ := filepath.to_slash(
+			common.get_case_sensitive_path(package_name),
+			context.temp_allocator,
+		)
+		if forward == "" {
+			document.package_name = package_name
 		} else {
-			document.package_name = path.dir(document.uri.path)
+			document.package_name = strings.clone(forward)
 		}
+	} else {
+		document.package_name = path.dir(document.uri.path)
+	}
 
-		when ODIN_OS == .Windows {
-			correct := common.get_case_sensitive_path(document.uri.path)
-			fullpath: string
-			if correct == "" {
-				//This is basically here to handle the tests where the physical file doesn't actual exist.
-				document.fullpath, _ = filepath.to_slash(document.uri.path)
-			} else {
-				document.fullpath, _ = filepath.to_slash(correct)
-			}
+	when ODIN_OS == .Windows {
+		correct := common.get_case_sensitive_path(document.uri.path)
+		fullpath: string
+		if correct == "" {
+			//This is basically here to handle the tests where the physical file doesn't actual exist.
+			document.fullpath, _ = filepath.to_slash(document.uri.path)
 		} else {
-			document.fullpath = document.uri.path
+			document.fullpath, _ = filepath.to_slash(correct)
 		}
+	} else {
+		document.fullpath = document.uri.path
+	}
 }
 
 /*
 	Function that applies changes to the given document through incremental syncronization
 */
-document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumentContentChangeEvent, version: Maybe(int), config: ^common.Config, writer: ^Writer) -> common.Error {
+document_apply_changes :: proc(
+	uri_string: string,
+	changes: [dynamic]TextDocumentContentChangeEvent,
+	version: Maybe(int),
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
@@ -202,14 +219,20 @@ document_apply_changes :: proc(uri_string: string, changes: [dynamic]TextDocumen
 	document.version = version
 
 	if !document.client_owned {
-		log.errorf("Client called change on an document not opened: %v ", document.uri.path)
+		log.errorf(
+			"Client called change on an document not opened: %v ",
+			document.uri.path,
+		)
 		return .InvalidRequest
 	}
 
 	for change in changes {
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
-			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text])
+			absolute_range, ok := common.get_absolute_range(
+				range,
+				document.text[:document.used_text],
+			)
 
 			if !ok {
 				return .ParseError
@@ -276,7 +299,10 @@ document_close :: proc(uri_string: string) -> common.Error {
 	document := &document_storage.documents[uri.path]
 
 	if document == nil || !document.client_owned {
-		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path)
+		log.errorf(
+			"Client called close on a document that was never opened: %v ",
+			document.uri.path,
+		)
 		return .InvalidRequest
 	}
 
@@ -294,7 +320,11 @@ document_close :: proc(uri_string: string) -> common.Error {
 	return .None
 }
 
-document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+document_refresh :: proc(
+	document: ^Document,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	errors, ok := parse_document(document, config)
 
 	if !ok {
@@ -305,32 +335,33 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		document.diagnosed_errors = true
 
 		params := NotificationPublishDiagnosticsParams {
-			uri = document.uri.uri,
-			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
+			uri         = document.uri.uri,
+			diagnostics = make(
+				[]Diagnostic,
+				len(errors),
+				context.temp_allocator,
+			),
 		}
 
 		for error, i in errors {
 			params.diagnostics[i] = Diagnostic {
-				range = common.Range {
-					start = common.Position {
+				range = common.Range{
+					start = common.Position{
 						line = error.line - 1,
 						character = 0,
 					},
-					end = common.Position {
-						line = error.line,
-						character = 0,
-					},
+					end = common.Position{line = error.line, character = 0},
 				},
 				severity = DiagnosticSeverity.Error,
 				code = "Syntax",
 				message = error.message,
 			}
 		}
- 
+
 		notifaction := Notification {
 			jsonrpc = "2.0",
-			method = "textDocument/publishDiagnostics",
-			params = params,
+			method  = "textDocument/publishDiagnostics",
+			params  = params,
 		}
 
 		send_notification(notifaction, writer)
@@ -343,9 +374,13 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 			notifaction := Notification {
 				jsonrpc = "2.0",
 				method = "textDocument/publishDiagnostics",
-				params = NotificationPublishDiagnosticsParams {
+				params = NotificationPublishDiagnosticsParams{
 					uri = document.uri.uri,
-					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
+					diagnostics = make(
+						[]Diagnostic,
+						len(errors),
+						context.temp_allocator,
+					),
 				},
 			}
 
@@ -362,13 +397,22 @@ current_errors: [dynamic]ParserError
 
 parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	error := ParserError {
-		line = pos.line,column = pos.column,file = pos.file,
-		offset = pos.offset,message = fmt.tprintf(msg, ..args),
+		line    = pos.line,
+		column  = pos.column,
+		file    = pos.file,
+		offset  = pos.offset,
+		message = fmt.tprintf(msg, ..args),
 	}
 	append(&current_errors, error)
 }
 
-parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
+parse_document :: proc(
+	document: ^Document,
+	config: ^common.Config,
+) -> (
+	[]ParserError,
+	bool,
+) {
 	p := parser.Parser {
 		err = parser_error_handler,
 		warn = common.parser_warning_handler,
@@ -391,8 +435,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	document.ast = ast.File {
 		fullpath = document.fullpath,
-		src = string(document.text[:document.used_text]),
-		pkg = pkg,
+		src      = string(document.text[:document.used_text]),
+		pkg      = pkg,
 	}
 
 	parser.parse_file(&p, &document.ast)
@@ -404,14 +448,15 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 parse_imports :: proc(document: ^Document, config: ^common.Config) {
 	imports := make([dynamic]Package)
-	
+
 	for imp, index in document.ast.imports {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue
 		}
 
 		//collection specified
-		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
+		if i := strings.index(imp.fullpath, ":");
+		   i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
 			if len(imp.fullpath) < 2 {
 				continue
 			}
@@ -426,14 +471,19 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			}
 
 			import_: Package
-			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
+			import_.name = strings.clone(
+				path.join(
+					elems = {dir, p},
+					allocator = context.temp_allocator,
+				),
+			)
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
 			} else {
 				import_.base = path.base(import_.name, false)
 			}
-			
+
 			append(&imports, import_)
 		} else {
 			//relative
@@ -442,7 +492,13 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			}
 
 			import_: Package
-			import_.name = path.join(elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]}, allocator = context.temp_allocator)
+			import_.name = path.join(
+				elems = {
+					document.package_name,
+					imp.fullpath[1:len(imp.fullpath) - 1],
+				},
+				allocator = context.temp_allocator,
+			)
 			import_.name = path.clean(import_.name)
 
 			if imp.name.text != "" {

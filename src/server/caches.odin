@@ -17,7 +17,9 @@ FileResolveCache :: struct {
 
 file_resolve_cache: FileResolveCache
 
-resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAndNode{
+resolve_entire_file_cached :: proc(
+	document: ^Document,
+) -> map[uintptr]SymbolAndNode {
 	if document.uri.uri not_in file_resolve_cache.files {
 		file_resolve_cache.files[document.uri.uri] = FileResolve {
 			symbols = resolve_entire_file(
@@ -27,9 +29,9 @@ resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAnd
 				common.scratch_allocator(document.allocator),
 			),
 		}
-	}	
+	}
 
-	 return file_resolve_cache.files[document.uri.uri].symbols;
+	return file_resolve_cache.files[document.uri.uri].symbols
 }
 
 BuildCache :: struct {

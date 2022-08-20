@@ -9,24 +9,29 @@ import "core:slice"
 import "shared:common"
 
 MemoryIndex :: struct {
-	collection: SymbolCollection,
+	collection:        SymbolCollection,
 	last_package_name: string,
-	last_package: ^map[string]Symbol,
+	last_package:      ^map[string]Symbol,
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
-	return MemoryIndex {
-		collection = collection,
-	}
+	return MemoryIndex{collection = collection}
 }
 
-memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (Symbol, bool) {
+memory_index_lookup :: proc(
+	index: ^MemoryIndex,
+	name: string,
+	pkg: string,
+) -> (
+	Symbol,
+	bool,
+) {
 	if index.last_package_name == pkg && index.last_package != nil {
 		return index.last_package[name]
 	}
 
 	if _pkg, ok := &index.collection.packages[pkg]; ok {
-		index.last_package = _pkg	
+		index.last_package = _pkg
 		index.last_package_name = pkg
 		return _pkg[name]
 	} else {
@@ -37,7 +42,14 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 	return {}, false
 }
 
-memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
+memory_index_fuzzy_search :: proc(
+	index: ^MemoryIndex,
+	name: string,
+	pkgs: []string,
+) -> (
+	[]FuzzyResult,
+	bool,
+) {
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 
 	fuzzy_matcher := common.make_fuzzy_matcher(name)
@@ -47,16 +59,17 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg {
-				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
+				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name);
+				   ok == 1 {
 					result := FuzzyResult {
 						symbol = symbol,
-						score = score,
+						score  = score,
 					}
-		
+
 					append(&symbols, result)
 				}
 			}
-		} 
+		}
 	}
 
 	slice.sort_by(symbols[:], proc(i, j: FuzzyResult) -> bool {
@@ -69,4 +82,3 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 		return symbols[:min(top, len(symbols))], true
 	}
 }
-

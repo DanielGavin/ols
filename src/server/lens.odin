@@ -15,13 +15,25 @@ CodeLensOptions :: struct {
 }
 
 CodeLens :: struct {
-	range: common.Range,
+	range:   common.Range,
 	command: Command,
-	data: string,
+	data:    string,
 }
 
-get_code_lenses :: proc(document: ^Document, position: common.Position) -> ([]CodeLens, bool) {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+get_code_lenses :: proc(
+	document: ^Document,
+	position: common.Position,
+) -> (
+	[]CodeLens,
+	bool,
+) {
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
 
 	get_globals(document.ast, &ast_context)
 
@@ -33,18 +45,16 @@ get_code_lenses :: proc(document: ^Document, position: common.Position) -> ([]Co
 
 	for name, global in ast_context.globals {
 
-		
+
 		if proc_lit, ok := global.expr.derived.(^ast.Proc_Lit); ok {
 
-			
 
 		}
 
 
 	}
-	
+
 
 	return {}, false
 
 }
-

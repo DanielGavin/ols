@@ -1,14 +1,26 @@
-package server 
+package server
 
 import "core:odin/ast"
 import "core:fmt"
 
 import "shared:common"
 
-get_inlay_hints :: proc(document: ^Document, symbols: map[uintptr]SymbolAndNode) -> ([]InlayHint, bool) {
+get_inlay_hints :: proc(
+	document: ^Document,
+	symbols: map[uintptr]SymbolAndNode,
+) -> (
+	[]InlayHint,
+	bool,
+) {
 	hints := make([dynamic]InlayHint, context.temp_allocator)
 
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
 
 	Visit_Data :: struct {
 		calls: [dynamic]^ast.Node,
@@ -33,7 +45,7 @@ get_inlay_hints :: proc(document: ^Document, symbols: map[uintptr]SymbolAndNode)
 	}
 
 	visitor := ast.Visitor {
-		data = &data,
+		data  = &data,
 		visit = visit,
 	}
 
@@ -53,7 +65,8 @@ get_inlay_hints :: proc(document: ^Document, symbols: map[uintptr]SymbolAndNode)
 		}
 
 		if symbol_and_node, ok := symbols[cast(uintptr)node_call]; ok {
-			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue); ok {
+			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue);
+			   ok {
 				for arg in symbol_call.arg_types {
 					for name in arg.names {
 						if symbol_arg_count >= len(call.args) {
@@ -62,12 +75,15 @@ get_inlay_hints :: proc(document: ^Document, symbols: map[uintptr]SymbolAndNode)
 
 						if ident, ok := name.derived.(^ast.Ident); ok {
 							hint := InlayHint {
-								kind = "parameter",
+								kind  = "parameter",
 								label = fmt.tprintf("%v = ", ident.name),
-								range = common.get_token_range(call.args[symbol_arg_count], string(document.text)),
+								range = common.get_token_range(
+									call.args[symbol_arg_count],
+									string(document.text),
+								),
 							}
 							append(&hints, hint)
-						} 
+						}
 						symbol_arg_count += 1
 					}
 				}

@@ -25,7 +25,11 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 			continue
 		}
 
-		e := strings.split(imp.relpath.text[1:len(imp.relpath.text)-1], ":", context.temp_allocator)
+		e := strings.split(
+			imp.relpath.text[1:len(imp.relpath.text) - 1],
+			":",
+			context.temp_allocator,
+		)
 
 		if len(e) != 2 {
 			continue
@@ -43,7 +47,7 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 				line = imp.relpath.pos.line,
 			},
 			end = {
-				offset = imp.relpath.pos.offset + len(imp.relpath.text) - 1, 
+				offset = imp.relpath.pos.offset + len(imp.relpath.text) - 1,
 				column = imp.relpath.pos.column + len(imp.relpath.text) - 1,
 				line = imp.relpath.pos.line,
 			},
@@ -52,8 +56,12 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 		range := common.get_token_range(node, string(document.text))
 
 		link := DocumentLink {
-			range = range,
-			target = fmt.tprintf("https://pkg.odin-lang.org/%v/%v", e[0], e[1]),
+			range   = range,
+			target  = fmt.tprintf(
+				"https://pkg.odin-lang.org/%v/%v",
+				e[0],
+				e[1],
+			),
 			tooltip = "Documentation",
 		}
 

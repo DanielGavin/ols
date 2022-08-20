@@ -15,7 +15,10 @@ Writer :: struct {
 }
 
 make_writer :: proc(writer_fn: WriterFn, writer_context: rawptr) -> Writer {
-	writer := Writer {writer_context = writer_context, writer_fn = writer_fn}
+	writer := Writer {
+		writer_context = writer_context,
+		writer_fn      = writer_fn,
+	}
 	return writer
 }
 

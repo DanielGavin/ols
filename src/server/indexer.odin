@@ -9,7 +9,7 @@ import "core:slice"
 
 Indexer :: struct {
 	builtin_packages: [dynamic]string,
-	index: MemoryIndex,
+	index:            MemoryIndex,
 }
 
 indexer: Indexer
@@ -19,7 +19,14 @@ FuzzyResult :: struct {
 	score:  f32,
 }
 
-lookup :: proc(name: string, pkg: string, loc := #caller_location) -> (Symbol, bool) {
+lookup :: proc(
+	name: string,
+	pkg: string,
+	loc := #caller_location,
+) -> (
+	Symbol,
+	bool,
+) {
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
 		return symbol, true
 	}

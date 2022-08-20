@@ -1,4 +1,4 @@
-package odinfmt_testing 
+package odinfmt_testing
 
 import "core:testing"
 import "core:os"
@@ -9,15 +9,27 @@ import "core:fmt"
 
 import "shared:odin/format"
 
-format_file :: proc(filepath: string, allocator := context.allocator) -> (string, bool) {
+format_file :: proc(
+	filepath: string,
+	allocator := context.allocator,
+) -> (
+	string,
+	bool,
+) {
 	style := format.default_style
 	style.character_width = 80
 	style.newline_style = .LF //We want to make sure it works on linux and windows.
 
-	if data, ok := os.read_entire_file(filepath, allocator); ok {	
-		return format.format(filepath, string(data), style, {.Optional_Semicolons}, allocator);
+	if data, ok := os.read_entire_file(filepath, allocator); ok {
+		return format.format(
+			filepath,
+			string(data),
+			style,
+			{.Optional_Semicolons},
+			allocator,
+		)
 	} else {
-		return "", false;
+		return "", false
 	}
 }
 
@@ -28,7 +40,7 @@ snapshot_directory :: proc(directory: string) -> bool {
 		fmt.eprintf("Error in globbing directory: %v", directory)
 	}
 
-	for match in matches {	
+	for match in matches {
 		if strings.contains(match, ".odin") {
 			snapshot_file(match) or_return
 		}
@@ -49,20 +61,30 @@ snapshot_file :: proc(path: string) -> bool {
 	fmt.printf("Testing snapshot %v", path)
 
 
-	snapshot_path := filepath.join(elems = {filepath.dir(path, context.temp_allocator), "/.snapshots", filepath.base(path)}, allocator = context.temp_allocator);
+	snapshot_path := filepath.join(
+		elems = {
+			filepath.dir(path, context.temp_allocator),
+			"/.snapshots",
+			filepath.base(path),
+		},
+		allocator = context.temp_allocator,
+	)
 
 	formatted, ok := format_file(path, context.temp_allocator)
 
 	if !ok {
-		fmt.eprintf("Format failed on file %v", path) 
+		fmt.eprintf("Format failed on file %v", path)
 		return false
 	}
 
 	if os.exists(snapshot_path) {
-		if snapshot_data, ok := os.read_entire_file(snapshot_path, context.temp_allocator); ok {
-			snapshot_scanner := scanner.Scanner {}
+		if snapshot_data, ok := os.read_entire_file(
+			   snapshot_path,
+			   context.temp_allocator,
+		   ); ok {
+			snapshot_scanner := scanner.Scanner{}
 			scanner.init(&snapshot_scanner, string(snapshot_data))
-			formatted_scanner := scanner.Scanner {}
+			formatted_scanner := scanner.Scanner{}
 			scanner.init(&formatted_scanner, string(formatted))
 			for {
 				s_ch := scanner.next(&snapshot_scanner)
@@ -75,7 +97,7 @@ snapshot_file :: proc(path: string) -> bool {
 					if scanner.peek(&snapshot_scanner) == '\n' {
 						s_ch = scanner.next(&snapshot_scanner)
 					}
-				} 
+				}
 				if f_ch == '\r' {
 					if scanner.peek(&formatted_scanner) == '\n' {
 						f_ch = scanner.next(&formatted_scanner)
@@ -83,8 +105,14 @@ snapshot_file :: proc(path: string) -> bool {
 				}
 
 				if s_ch != f_ch {
-					fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
-					os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
+					fmt.eprintf(
+						"\nFormatted file was different from snapshot file: %v",
+						snapshot_path,
+					)
+					os.write_entire_file(
+						fmt.tprintf("%v_failed", snapshot_path),
+						transmute([]u8)formatted,
+					)
 					return false
 				}
 			}

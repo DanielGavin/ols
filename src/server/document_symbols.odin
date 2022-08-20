@@ -18,7 +18,13 @@ import "core:os"
 import "shared:common"
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
-	ast_context := make_ast_context(document.ast, document.imports, document.package_name, document.uri.uri, document.fullpath)
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
 
 	get_globals(document.ast, &ast_context)
 
@@ -31,11 +37,13 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	}
 
 	package_symbol.kind = .Package
-	package_symbol.name = path.base(document.package_name, false, context.temp_allocator)
+	package_symbol.name = path.base(
+		document.package_name,
+		false,
+		context.temp_allocator,
+	)
 	package_symbol.range = {
-		start = {
-			line = document.ast.decls[0].pos.line,
-		},
+		start = {line = document.ast.decls[0].pos.line},
 		end = {
 			line = document.ast.decls[len(document.ast.decls) - 1].end.line,
 		},
@@ -47,7 +55,10 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	for k, global in ast_context.globals {
 
 		symbol: DocumentSymbol
-		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
+		symbol.range = common.get_token_range(
+			global.expr,
+			ast_context.file.src,
+		)
 		symbol.selectionRange = symbol.range
 		symbol.name = k
 
