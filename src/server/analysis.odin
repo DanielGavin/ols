@@ -1400,12 +1400,14 @@ get_local_lhs_and_rhs :: proc(
 
 							if _, ok := ast_context.parameters[ident.name];
 							   ok {
-								return local_stack[i -
-									previous].lhs, local_stack[i - previous].rhs
+								return local_stack[
+									i - previous \
+								].lhs, local_stack[i - previous].rhs
 							}
 						}
-						return local_stack[i -
-							previous].lhs, local_stack[i - previous].rhs
+						return local_stack[
+							i - previous \
+						].lhs, local_stack[i - previous].rhs
 					}
 				}
 			}
@@ -4348,6 +4350,14 @@ get_document_position_node :: proc(
 		}
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
+	case ^Selector_Call_Expr:
+		if position_context.hint == .Definition || position_context.hint == .Hover {
+			position_context.selector = n.expr
+			position_context.field = n.call
+			position_context.selector_expr = cast(^Selector_Expr)node
+			get_document_position(n.expr, position_context)
+			get_document_position(n.call, position_context)
+		}
 	case ^Selector_Expr:
 		if position_context.hint == .Completion {
 			if n.field != nil &&
@@ -4356,9 +4366,8 @@ get_document_position_node :: proc(
 				//position_context.selector = n.expr;
 				//position_context.field = n.field;
 			}
-		} else if (position_context.hint == .Definition ||
-			   position_context.hint == .Hover) &&
-		   n.field != nil {
+		} else if position_context.hint == .Definition ||
+		   position_context.hint == .Hover && n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
 			position_context.selector_expr = cast(^Selector_Expr)node

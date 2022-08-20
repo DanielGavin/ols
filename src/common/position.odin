@@ -107,28 +107,29 @@ get_relative_token_position :: proc(
 	return position
 }
 
+go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
+	index := offset
+
+	for
+	    index > 0 &&
+	    document_text[index] != '\n' &&
+	    document_text[index] != '\r' {
+		index -= 1
+	}
+
+	if index == 0 {
+		return 0
+	}
+
+	return index + 1
+}
+
 /*
 	Get the range of a token in utf16 space
 */
 get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
 	range: Range
 
-	go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
-		index := offset
-
-		for
-		    index > 0 &&
-		    document_text[index] != '\n' &&
-		    document_text[index] != '\r' {
-			index -= 1
-		}
-
-		if index == 0 {
-			return 0
-		}
-
-		return index + 1
-	}
 
 	pos_offset := min(len(document_text) - 1, node.pos.offset)
 	end_offset := min(len(document_text) - 1, node.end.offset)
@@ -310,4 +311,24 @@ get_character_offset_u8_to_u16 :: proc(
 	}
 
 	return utf16_idx
+}
+
+get_document_range :: proc(document_text: []u8) -> (range: Range) {
+	for current_index := 0; current_index < len(document_text); {
+		r, w := utf8.decode_rune(document_text[current_index:])
+
+		if r == '\n' {
+			range.end.line += 1
+			range.end.character = 0
+		} else if w == 0 {
+			return
+		} else if r < 0x10000 {
+			range.end.character += 1
+		} else {
+			range.end.character += 2
+		}
+		current_index += w
+	}
+
+	return
 }

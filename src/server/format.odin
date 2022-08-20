@@ -42,35 +42,9 @@ get_complete_format :: proc(
 
 	src := printer.print(&prnt, &document.ast)
 
-	log.error(src)
-
-	end_line := 0
-	end_charcter := 0
-
-	last := document.text[0]
-	line := 0
-
-	for current_index := 0;
-	    current_index < len(document.text);
-	    current_index += 1 {
-		current := document.text[current_index]
-
-		if last == '\r' && current == '\n' {
-			line += 1
-			current_index += 1
-		} else if current == '\n' {
-			line += 1
-		}
-
-		last = current
-	}
-
 	edit := TextEdit {
 		newText = src,
-		range = {
-			start = {character = 0, line = 0},
-			end = {character = 1, line = line + 1},
-		},
+		range = common.get_document_range(document.text[0:document.used_text]),
 	}
 
 	edits := make([dynamic]TextEdit, context.temp_allocator)

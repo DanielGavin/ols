@@ -1218,11 +1218,9 @@ visit_stmt :: proc(
 			document = cons(document, text("return"))
 			document = cons_with_nopl(
 				document,
-				visit_exprs(p, v.results, {.Add_Comma}),
+				visit_exprs(p, v.results, {.Add_Comma, .Group}),
 			)
 		}
-
-
 	case ^Defer_Stmt:
 		document = cons(document, text("defer"))
 		document = cons_with_nopl(document, visit_stmt(p, v.stmt))
