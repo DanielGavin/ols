@@ -17,7 +17,12 @@ Language server for Odin. This project is still in early development.
 
  ```
  cd ols
- ./build.bat
+
+ //for windows
+ ./build.bat 
+
+ //for linux
+ ./build.sh
  ```
 
 ### Configuration

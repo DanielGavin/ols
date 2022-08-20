@@ -26,3 +26,19 @@ returns_with_call_expression :: proc() {
 		cast(^ast.Comp_Lit)field_value.value,
 	)
 }
+
+
+return_with_multiple_identifiers :: proc() {
+	return aaaaaaaaaaaaaaaaaa,
+		bbbbbbbbbbbbbbbbbbbb,
+		cccccccccccccccccccc,
+		dddddddddddddddddddddddddd
+}
+
+
+return_with_call_expression_in_the_end :: proc() {
+	return newlines_before_comment, cons_with_nopl(
+		document,
+		cons(text(p.indentation), line_suffix(comment.text)),
+	)
+}

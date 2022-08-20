@@ -114,9 +114,10 @@ move_line_limit :: proc(
 	p.source_position = pos
 
 	return cons(
-		document,
-		newline(max(min(lines - comments_newlined, limit), 0)),
-	), lines > 0
+			document,
+			newline(max(min(lines - comments_newlined, limit), 0)),
+		),
+		lines > 0
 }
 
 @(private)
@@ -482,6 +483,19 @@ is_values_return_stmt_callable :: proc(list: []^ast.Expr) -> bool {
 		}
 	}
 	return true
+}
+
+@(private)
+is_return_stmt_ending_with_call_expr :: proc(list: []^ast.Expr) -> bool {
+	if len(list) == 0 {
+		return false
+	}
+
+	if _, is_call := list[len(list) - 1].derived.(^ast.Call_Expr); is_call {
+		return true
+	}
+
+	return false
 }
 
 
@@ -975,7 +989,7 @@ visit_stmt :: proc(
 			}
 		}
 		document = enforce_fit_if_do(v.body, document)
-	case ^Switch_Stmt:		
+	case ^Switch_Stmt:
 		if v.partial {
 			document = cons(document, text("#partial"), break_with_space())
 		}
@@ -1103,8 +1117,9 @@ visit_stmt :: proc(
 
 		if v.cond != nil {
 			set_source_position(p, v.cond.pos)
-			for_document = cons_with_opl(
+			for_document = cons(
 				for_document,
+				v.init != nil ? break_with_space() : break_with_no_newline(),
 				group(visit_expr(p, v.cond)),
 			)
 		}
@@ -1216,10 +1231,21 @@ visit_stmt :: proc(
 			)
 		} else {
 			document = cons(document, text("return"))
-			document = cons_with_nopl(
-				document,
-				visit_exprs(p, v.results, {.Add_Comma, .Group}),
-			)
+
+
+			if !is_return_stmt_ending_with_call_expr(v.results) {
+				document = cons_with_nopl(
+					document,
+					group(
+						nest(visit_exprs(p, v.results, {.Add_Comma, .Group})),
+					),
+				)
+			} else {
+				document = cons_with_nopl(
+					document,
+					visit_exprs(p, v.results, {.Add_Comma}),
+				)
+			}
 		}
 	case ^Defer_Stmt:
 		document = cons(document, text("defer"))

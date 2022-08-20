@@ -110,8 +110,7 @@ get_relative_token_position :: proc(
 go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
 	index := offset
 
-	for
-	    index > 0 &&
+	for index > 0 &&
 	    document_text[index] != '\n' &&
 	    document_text[index] != '\r' {
 		index -= 1
