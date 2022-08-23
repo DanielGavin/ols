@@ -518,7 +518,7 @@ request_initialize :: proc(
 
 	if odin_core_env == "" && "core" not_in config.collections {
 		if exe_path, ok := common.lookup_in_path("odin"); ok {
-			odin_core_env = path.dir(exe_path, context.temp_allocator)
+			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
 		}
 	}
 
