@@ -318,6 +318,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 	for ; request_index < len(temp_requests); request_index += 1 {
 		request := temp_requests[request_index]
 		call(request.value, request.id, writer, config)
+		clear_index_cache()
 		json.destroy_value(request.value)
 		free_all(context.temp_allocator)
 	}
@@ -438,9 +439,10 @@ request_initialize :: proc(
 					config.enable_procedure_context =
 						ols_config.enable_procedure_context
 					config.enable_snippets = ols_config.enable_snippets
-					config.enable_references = false
+					config.enable_references = ols_config.enable_references
 					config.verbose = ols_config.verbose
 					config.file_log = ols_config.file_log
+					config.enable_rename = ols_config.enable_references
 					config.odin_command = strings.clone(
 						ols_config.odin_command,
 						context.allocator,
@@ -613,7 +615,7 @@ request_initialize :: proc(
 					change = 2,
 					save = {includeText = true},
 				},
-				renameProvider = config.enable_rename,//incremental
+				renameProvider = config.enable_rename,
 				referencesProvider = config.enable_references,
 				definitionProvider = true,
 				completionProvider = CompletionOptions{

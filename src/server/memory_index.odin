@@ -18,6 +18,11 @@ make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
 	return MemoryIndex{collection = collection}
 }
 
+memory_index_clear_cache :: proc(index: ^MemoryIndex) {
+	index.last_package_name = ""
+	index.last_package = nil
+}
+
 memory_index_lookup :: proc(
 	index: ^MemoryIndex,
 	name: string,

@@ -32,7 +32,7 @@ walk_directories :: proc(
 	}
 
 	if strings.contains(info.name, ".odin") {
-		append(&fullpaths, strings.clone(info.fullpath, context.allocator))
+		append(&fullpaths, strings.clone(info.fullpath))
 	}
 
 	return 0, false
@@ -62,7 +62,7 @@ resolve_references :: proc(
 	bool,
 ) {
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
-	fullpaths = make([dynamic]string, 10, ast_context.allocator)
+	fullpaths = make([dynamic]string, 0, ast_context.allocator)
 
 	resolve_flag: ResolveReferenceFlag
 	reference := ""
@@ -70,16 +70,13 @@ resolve_references :: proc(
 	ok: bool
 	pkg := ""
 
-	walker_arena: mem.Arena
-	mem.arena_init(&walker_arena, make([]byte, mem.Megabyte * 5))
+	filepath.walk(
+		filepath.dir(os.args[0], context.allocator),
+		walk_directories,
+	)
 
-	{
-		context.temp_allocator = mem.arena_allocator(&walker_arena)
-		filepath.walk(
-			filepath.dir(os.args[0], context.allocator),
-			walk_directories,
-		)
-	}
+	ast_context.use_locals = true
+	ast_context.use_globals = true
 
 	if position_context.struct_type != nil &&
 	   position_in_struct_names(
@@ -94,7 +91,31 @@ resolve_references :: proc(
 	} else if position_context.union_type != nil {
 		return {}, true
 	} else if position_context.selector_expr != nil {
-		return {}, true
+		if resolved, ok := resolve_type_expression(
+			   ast_context,
+			   position_context.selector,
+		   ); ok {
+			if _, is_package := resolved.value.(SymbolPackageValue);
+			   !is_package {
+				return {}, true
+			}
+			resolve_flag = .Constant
+		}
+
+		symbol, ok = resolve_location_selector(
+			ast_context,
+			position_context.selector_expr,
+		)
+
+		if !ok {
+			return {}, true
+		}
+
+		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
+			reference = ident.name
+		} else {
+			return {}, true
+		}
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 
@@ -104,20 +125,20 @@ resolve_references :: proc(
 			} else {
 				resolve_flag = .Constant
 			}
+		} else {
+			log.errorf(
+				"Failed to resolve identifier for indexing: %v",
+				ident.name,
+			)
+			return {}, true
 		}
 
 		reference = ident.name
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
 
-		location := common.Location {
-			range = common.get_token_range(
-				position_context.identifier^,
-				string(ast_context.file.src),
-			),
-			uri   = strings.clone(symbol.uri, ast_context.allocator),
+		if !ok {
+			return {}, true
 		}
-
-		append(&locations, location)
 	}
 
 	if !ok {
@@ -143,14 +164,16 @@ resolve_references :: proc(
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath, context.allocator))
+		dir := filepath.dir(fullpath)
+		base := filepath.base(dir)
+		forward_dir, _ := filepath.to_slash(dir)
 
 		pkg := new(ast.Package)
 		pkg.kind = .Normal
 		pkg.fullpath = fullpath
-		pkg.name = dir
+		pkg.name = base
 
-		if dir == "runtime" {
+		if base == "runtime" {
 			pkg.kind = .Runtime
 		}
 
@@ -184,9 +207,9 @@ resolve_references :: proc(
 		in_pkg := false
 
 		for pkg in document.imports {
-			if pkg.name == symbol.pkg ||
-			   symbol.pkg == ast_context.document_package {
+			if pkg.name == symbol.pkg || forward_dir == symbol.pkg {
 				in_pkg = true
+				continue
 			}
 		}
 
@@ -201,13 +224,18 @@ resolve_references :: proc(
 			for k, v in symbols_and_nodes {
 				if v.symbol.uri == symbol.uri &&
 				   v.symbol.range == symbol.range {
+					node_uri := common.create_uri(
+						v.node.pos.file,
+						ast_context.allocator,
+					)
+
 					location := common.Location {
 						range = common.get_token_range(
 							v.node^,
 							string(document.text),
 						),
 						uri   = strings.clone(
-							v.symbol.uri,
+							node_uri.uri,
 							ast_context.allocator,
 						),
 					}
@@ -230,7 +258,7 @@ get_references :: proc(
 	bool,
 ) {
 	data := make([]byte, mem.Megabyte * 55, runtime.default_allocator())
-	//defer delete(data)
+	defer delete(data)
 
 	arena: mem.Arena
 	mem.arena_init(&arena, data)

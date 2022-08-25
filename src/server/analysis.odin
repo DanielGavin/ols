@@ -1970,7 +1970,7 @@ resolve_location_identifier :: proc(
 		return symbol, true
 	} else if global, ok := ast_context.globals[node.name]; ok {
 		symbol.range = common.get_token_range(
-			global.expr,
+			global.name_expr,
 			ast_context.file.src,
 		)
 		uri := common.create_uri(global.expr.pos.file, ast_context.allocator)
@@ -2170,7 +2170,7 @@ make_symbol_procedure_from_ast :: proc(
 	name: ast.Ident,
 ) -> Symbol {
 	symbol := Symbol {
-		range = common.get_token_range(n^, ast_context.file.src),
+		range = common.get_token_range(name, ast_context.file.src),
 		type  = .Function,
 		pkg   = get_package_from_node(n^),
 		name  = name.name,
@@ -2856,7 +2856,6 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 					name,
 					ast_context.local_id,
 				)
-				log.error(name)
 				ast_context.variables[name] = true
 			}
 		}
@@ -3473,7 +3472,7 @@ resolve_entire_decl :: proc(
 				if symbol, ok := resolve_location_selector(ast_context, v);
 				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v,
+						node   = v.field,
 						symbol = symbol,
 					}
 				}

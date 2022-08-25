@@ -19,6 +19,10 @@ FuzzyResult :: struct {
 	score:  f32,
 }
 
+clear_index_cache :: proc() {
+	memory_index_clear_cache(&indexer.index)
+}
+
 lookup :: proc(
 	name: string,
 	pkg: string,
@@ -27,6 +31,10 @@ lookup :: proc(
 	Symbol,
 	bool,
 ) {
+	if name == "" {
+		return {}, false
+	}
+
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
 		return symbol, true
 	}
