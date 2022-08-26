@@ -100,8 +100,8 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 			for name in arg.names {
 				field: ^ast.Field = new_type(
 					ast.Field,
-					{},
-					{},
+					arg.pos,
+					arg.end,
 					context.temp_allocator,
 				)
 				field.names = make([]^ast.Expr, 1, context.temp_allocator)
@@ -164,6 +164,10 @@ get_signature_information :: proc(
 		} else if position_context.position == comma {
 			signature_help.activeParameter = i
 		}
+	}
+
+	if position_context.arrow {
+		signature_help.activeParameter += 1
 	}
 
 	call: Symbol

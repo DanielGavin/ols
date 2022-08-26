@@ -237,6 +237,11 @@ get_hover_information :: proc(
 
 		ident := position_context.identifier.derived.(^ast.Ident)^
 
+		if position_context.value_decl != nil {
+			ident.pos = position_context.value_decl.end
+			ident.end = position_context.value_decl.end
+		}
+
 		hover.range = common.get_token_range(
 			position_context.identifier^,
 			document.ast.src,

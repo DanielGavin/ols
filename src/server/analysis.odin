@@ -1283,6 +1283,8 @@ resolve_type_expression :: proc(
 						len  = make_int_basic_value(
 							ast_context,
 							components_count,
+							s.len.pos,
+							s.len.end,
 						),
 					}
 					selector.value = value
@@ -2117,14 +2119,22 @@ make_pointer_ast :: proc(
 	return pointer
 }
 
-make_bool_ast :: proc(ast_context: ^AstContext) -> ^ast.Ident {
-	ident := new_type(ast.Ident, {}, {}, ast_context.allocator)
+make_bool_ast :: proc(
+	ast_context: ^AstContext,
+	pos: tokenizer.Pos,
+	end: tokenizer.Pos,
+) -> ^ast.Ident {
+	ident := new_type(ast.Ident, pos, end, ast_context.allocator)
 	ident.name = "bool"
 	return ident
 }
 
-make_int_ast :: proc(ast_context: ^AstContext) -> ^ast.Ident {
-	ident := new_type(ast.Ident, {}, {}, ast_context.allocator)
+make_int_ast :: proc(
+	ast_context: ^AstContext,
+	pos: tokenizer.Pos,
+	end: tokenizer.Pos,
+) -> ^ast.Ident {
+	ident := new_type(ast.Ident, pos, end, ast_context.allocator)
 	ident.name = "int"
 	return ident
 }
@@ -2132,8 +2142,10 @@ make_int_ast :: proc(ast_context: ^AstContext) -> ^ast.Ident {
 make_int_basic_value :: proc(
 	ast_context: ^AstContext,
 	n: int,
+	pos: tokenizer.Pos,
+	end: tokenizer.Pos,
 ) -> ^ast.Basic_Lit {
-	basic := new_type(ast.Basic_Lit, {}, {}, ast_context.allocator)
+	basic := new_type(ast.Basic_Lit, pos, end, ast_context.allocator)
 	basic.tok.text = fmt.tprintf("%v", n)
 	return basic
 }
@@ -2646,7 +2658,11 @@ get_generic_assignment :: proc(
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 				for ret in procedure.return_types {
-					append(results, ret.type)
+					if ret.type != nil {
+						append(results, ret.type)
+					} else if ret.default_value != nil {
+						append(results, ret.default_value)
+					}
 				}
 			}
 		}
@@ -2675,8 +2691,8 @@ get_generic_assignment :: proc(
 				append(results, v.type)
 			}
 
-			b := make_bool_ast(ast_context)
-			b.pos.file = v.type.pos.file
+			b := make_bool_ast(ast_context, v.type.pos, v.type.end)
+
 			append(results, b)
 		}
 	case:
@@ -2946,7 +2962,7 @@ get_locals_for_range_stmt :: proc(
 					store_local(
 						ast_context,
 						ident,
-						make_int_ast(ast_context),
+						make_int_ast(ast_context, ident.pos, ident.end),
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
@@ -3008,7 +3024,7 @@ get_locals_for_range_stmt :: proc(
 					store_local(
 						ast_context,
 						ident,
-						make_int_ast(ast_context),
+						make_int_ast(ast_context, ident.pos, ident.end),
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
@@ -3038,7 +3054,7 @@ get_locals_for_range_stmt :: proc(
 					store_local(
 						ast_context,
 						ident,
-						make_int_ast(ast_context),
+						make_int_ast(ast_context, ident.pos, ident.end),
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
@@ -3067,7 +3083,7 @@ get_locals_for_range_stmt :: proc(
 					store_local(
 						ast_context,
 						ident,
-						make_int_ast(ast_context),
+						make_int_ast(ast_context, ident.pos, ident.end),
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
@@ -3227,6 +3243,18 @@ get_locals_proc_param_and_results :: proc(
 					)
 					ast_context.variables[str] = true
 					ast_context.parameters[str] = true
+				} else {
+					str := common.get_ast_node_string(name, file.src)
+					store_local(
+						ast_context,
+						name,
+						result.default_value,
+						name.pos.offset,
+						str,
+						ast_context.local_id,
+					)
+					ast_context.variables[str] = true
+					ast_context.parameters[str] = true
 				}
 			}
 		}
@@ -3277,6 +3305,7 @@ ResolveReferenceFlag :: enum {
 	Variable,
 	Constant,
 	StructElement,
+	EnumElement,
 }
 
 resolve_entire_file :: proc(
@@ -3497,6 +3526,12 @@ resolve_entire_decl :: proc(
 					   position_context.field_value.field,
 					   v.pos.offset,
 				   ) {
+					break done
+				} else if position_context.struct_type != nil &&
+				   data.resolve_flag != .StructElement {
+					break done
+				} else if position_context.enum_type != nil &&
+				   data.resolve_flag != .EnumElement {
 					break done
 				}
 
@@ -4433,12 +4468,17 @@ get_document_position_node :: proc(
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
 		if position_context.hint == .Definition ||
-		   position_context.hint == .Hover {
+		   position_context.hint == .Hover ||
+		   position_context.hint == .SignatureHelp {
 			position_context.selector = n.expr
 			position_context.field = n.call
 			position_context.selector_expr = cast(^Selector_Expr)node
 			get_document_position(n.expr, position_context)
 			get_document_position(n.call, position_context)
+
+			if position_context.hint == .SignatureHelp {
+				position_context.arrow = true
+			}
 		}
 	case ^Selector_Expr:
 		if position_context.hint == .Completion {
