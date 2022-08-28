@@ -22,9 +22,14 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -44,9 +49,14 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -66,9 +76,14 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -89,9 +104,14 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -112,9 +132,14 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -138,9 +163,14 @@ ast_range_map :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -164,9 +194,14 @@ ast_range_array :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
 }
 
 @(test)
@@ -193,9 +228,14 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.group_function: proc"});
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.group_function: proc"},
+	)
 }
 
 @(test)
@@ -215,9 +255,9 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct"});
+	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct"})
 }
 
 @(test)
@@ -239,9 +279,9 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.value: string"});
+	test.expect_completion_details(t, &source, "", {"test.value: string"})
 }
 
 @(test)
@@ -266,29 +306,37 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Foo.a: int", "My_Foo.b: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Foo.a: int", "My_Foo.b: int"},
+	)
 }
 
 @(test)
 index_package_completion :: proc(t: ^testing.T) {
 
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		My_Struct :: struct {
 			one: int,
 			two: int,
 			three: int,
 		}
 		`,
-	});
+		},
+	)
 
-    source := test.Source {
-		main = `package test
+	source := test.Source {
+		main     = `package test
 
 		import "my_package"
 
@@ -297,9 +345,14 @@ index_package_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"my_package.My_Struct: struct"},
+	)
 }
 
 import "core:odin/ast"
@@ -329,9 +382,14 @@ ast_generic_make_slice :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_slice: []My_Struct"});
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.my_slice: []My_Struct"},
+	)
 }
 
 @(test)
@@ -353,9 +411,9 @@ ast_named_procedure_1 :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"});
+	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"})
 }
 
 @(test)
@@ -376,9 +434,9 @@ ast_named_procedure_2 :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"});
+	test.expect_completion_details(t, &source, "", {"test.my_bool: bool"})
 }
 
 @(test)
@@ -391,9 +449,23 @@ ast_swizzle_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"x: f32", "y: f32", "z: f32", "w: f32", "r: f32", "g: f32", "b: f32", "a: f32"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{
+			"x: f32",
+			"y: f32",
+			"z: f32",
+			"w: f32",
+			"r: f32",
+			"g: f32",
+			"b: f32",
+			"a: f32",
+		},
+	)
 }
 
 @(test)
@@ -406,9 +478,14 @@ ast_swizzle_completion_one_component :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"xx: [2]f32", "xy: [2]f32", "xz: [2]f32", "xw: [2]f32"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"xx: [2]f32", "xy: [2]f32", "xz: [2]f32", "xw: [2]f32"},
+	)
 }
 
 @(test)
@@ -421,9 +498,14 @@ ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"xx: [2]f32", "xy: [2]f32"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"xx: [2]f32", "xy: [2]f32"},
+	)
 }
 
 
@@ -438,9 +520,9 @@ ast_swizzle_resolve_one_components :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_swizzle: f32"});
+	test.expect_completion_details(t, &source, "", {"test.my_swizzle: f32"})
 }
 
 @(test)
@@ -454,9 +536,9 @@ ast_swizzle_resolve_two_components :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_swizzle: [2]f32"});
+	test.expect_completion_details(t, &source, "", {"test.my_swizzle: [2]f32"})
 }
 
 @(test)
@@ -473,9 +555,14 @@ ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int"},
+	)
 }
 
 @(test)
@@ -499,11 +586,16 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 		
 		}
 		`,
-	packages = {},
-	};
+		packages = {},
+	}
 
 
-	test.expect_completion_details(t, &source, "", {"test.my_element: My_Struct"});
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.my_element: My_Struct"},
+	)
 }
 
 @(test)
@@ -521,10 +613,10 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 			pass.*
 		}
 		`,
-	packages = {},
-	};
+		packages = {},
+	}
 
-	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"});
+	test.expect_completion_details(t, &source, "", {"RenderPass.list: ^int"})
 }
 
 @(test)
@@ -561,9 +653,9 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"})
 }
 
 @(test)
@@ -601,9 +693,9 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"});
+	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"})
 }
 
 @(test)
@@ -631,9 +723,9 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-	};
+	}
 
-	test.expect_completion_details(t, &source, ".", {"Window.height: int"});
+	test.expect_completion_details(t, &source, ".", {"Window.height: int"})
 }
 
 @(test)
@@ -657,9 +749,9 @@ ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"})
 }
 
 
@@ -684,9 +776,9 @@ ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"})
 }
 
 @(test)
@@ -710,9 +802,9 @@ ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_completion_details(t, &source, "", {"test.my_value: bool"});
+	test.expect_completion_details(t, &source, "", {"test.my_value: bool"})
 }
 
 
@@ -745,11 +837,13 @@ ast_completion_in_between_struct :: proc(t: ^testing.T) {
 
 @(test)
 ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		my_group :: proc{
 			with_any_int,
 			with_bool,
@@ -759,10 +853,11 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		with_bool :: proc($T: typeid/[dynamic]$E, a: bool) -> int {
 		}
 		`,
-	});
+		},
+	)
 
-    source := test.Source {
-		main = `package test
+	source := test.Source {
+		main     = `package test
 
 		import "my_package"
 
@@ -773,26 +868,34 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.my_value: bool"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"my_package.my_value: bool"},
+	)
 }
 
 
 @(test)
 ast_package_procedure_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		my_proc :: proc() -> bool {
 		}
 		`,
-	});
+		},
+	)
 
-    source := test.Source {
-		main = `package test
+	source := test.Source {
+		main     = `package test
 
 		import "my_package"
 
@@ -801,14 +904,19 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"my_package.my_proc: proc() -> bool"},
+	)
 }
 
 @(test)
 ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
-    source := test.Source {
+	source := test.Source {
 		main = `package test
 	
 		My_Struct :: struct {
@@ -824,15 +932,15 @@ ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
 	//FIXME
-    //test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
+	//test.expect_completion_details(t, &source, ".", {"my_package.my_proc: proc() -> bool"});
 }
 
 @(test)
 ast_global_struct_completion :: proc(t: ^testing.T) {
-    source := test.Source {
+	source := test.Source {
 		main = `package main
 
 		Foo :: struct { x: int }
@@ -842,9 +950,9 @@ ast_global_struct_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"Foo.x: int"});
+	test.expect_completion_details(t, &source, ".", {"Foo.x: int"})
 }
 
 @(test)
@@ -858,9 +966,9 @@ ast_global_non_mutable_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {});
+	test.expect_completion_details(t, &source, ".", {})
 }
 
 @(test)
@@ -874,9 +982,9 @@ ast_basic_value_untyped_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.xaa: int"});
+	test.expect_completion_details(t, &source, "", {"test.xaa: int"})
 }
 
 @(test)
@@ -891,85 +999,94 @@ ast_basic_value_binary_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.xb2: int"});
+	test.expect_completion_details(t, &source, "", {"test.xb2: int"})
 }
 
 @(test)
 ast_file_private_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 
 		@(private="file") my_proc :: proc() -> bool {
 		}
 		`,
-	});
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		main :: proc() {
 			my_package.*
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {});
+	test.expect_completion_details(t, &source, ".", {})
 }
 
 @(test)
 ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		My_Struct :: struct { a: int }
 		Im :: My_Struct;
 		`,
-	});
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		main :: proc() {
 			my_package.*
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"});
+	test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"})
 }
 
 @(test)
 ast_mutable_variable_struct_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		My_Struct :: struct { a: int }
 		var: My_Struct;
 		`,
-	});
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		main :: proc() {
 			my_package.var.*
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"});
+	test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"})
 }
 
 @(test)
@@ -983,9 +1100,9 @@ ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
 			aab*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {});
+	test.expect_completion_details(t, &source, "", {})
 }
 
 @(test)
@@ -998,9 +1115,9 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 			yaaa*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.yaaaa: string"});
+	test.expect_completion_details(t, &source, "", {"test.yaaaa: string"})
 }
 
 @(test)
@@ -1018,9 +1135,9 @@ ast_value_decl_comp_lit :: proc(t: ^testing.T) {
 			my_struct.*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"});
+	test.expect_completion_details(t, &source, ".", {"My_Struct.a: int"})
 }
 
 @(test)
@@ -1032,9 +1149,9 @@ ast_multi_pointer_completion :: proc(t: ^testing.T) {
 			fa*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.faa: [^]int"});
+	test.expect_completion_details(t, &source, "", {"test.faa: [^]int"})
 }
 
 @(test)
@@ -1047,9 +1164,9 @@ ast_multi_pointer_indexed_completion :: proc(t: ^testing.T) {
 			sa*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.sap: int"});
+	test.expect_completion_details(t, &source, "", {"test.sap: int"})
 }
 
 @(test)
@@ -1068,9 +1185,9 @@ ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+	test.expect_completion_details(t, &source, ".", {"A", "B", "C"})
 }
 
 @(test)
@@ -1090,9 +1207,9 @@ ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-	};
-	
-    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+	}
+
+	test.expect_completion_details(t, &source, ".", {"A", "B", "C"})
 }
 
 @(test)
@@ -1112,9 +1229,9 @@ ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-	};
-	
-    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+	}
+
+	test.expect_completion_details(t, &source, ".", {"A", "B", "C"})
 }
 
 @(test)
@@ -1138,8 +1255,8 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	
-    test.expect_completion_details(t, &source, ".", {"A", "B", "C"});
+
+	test.expect_completion_details(t, &source, ".", {"A", "B", "C"})
 }
 
 @(test)
@@ -1164,7 +1281,12 @@ ast_comp_lit_in_complit_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"My_Struct_2.aab: int", "My_Struct_2.aaa: int"})
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"My_Struct_2.aab: int", "My_Struct_2.aaa: int"},
+	)
 }
 
 @(test)
@@ -1184,8 +1306,13 @@ ast_inlined_struct :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	
-    test.expect_completion_details(t, &source, ".", {"struct.a: int", "struct.b: int"})
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"struct.a: int", "struct.b: int"},
+	)
 }
 
 @(test)
@@ -1202,9 +1329,14 @@ ast_inlined_union :: proc(t: ^testing.T) {
 			inst.*
 		}
 		`,
-	};
-	
-    test.expect_completion_details(t, &source, ".", {"My_Struct.variant: union"});
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.variant: union"},
+	)
 }
 
 @(test)
@@ -1219,9 +1351,9 @@ ast_union_identifier_completion :: proc(t: ^testing.T) {
 			a: My_*
 		}
 		`,
-	};
-	
-    test.expect_completion_details(t, &source, ".", {"test.My_Union: union"});
+	}
+
+	test.expect_completion_details(t, &source, ".", {"test.My_Union: union"})
 }
 
 @(test)
@@ -1235,9 +1367,9 @@ ast_union_poly :: proc(t: ^testing.T) {
     		m.*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_labels(t, &source, ".", {"(int)"});
+	test.expect_completion_labels(t, &source, ".", {"(int)"})
 }
 
 @(test)
@@ -1252,9 +1384,9 @@ ast_maybe_first_value :: proc(t: ^testing.T) {
 			v*
 		}
 		`,
-	};
-	
-    test.expect_completion_details(t, &source, "", {"test.v: int"});
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.v: int"})
 }
 
 @(test)
@@ -1267,9 +1399,9 @@ ast_maybe_second_value :: proc(t: ^testing.T) {
 			ok*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.ok: bool"});
+	test.expect_completion_details(t, &source, "", {"test.ok: bool"})
 }
 
 @(test)
@@ -1283,25 +1415,28 @@ ast_maybe_array :: proc(t: ^testing.T) {
     		m.*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_labels(t, &source, ".", {"([5]u8)"});
+	test.expect_completion_labels(t, &source, ".", {"([5]u8)"})
 }
 
 
 @(test)
 ast_maybe_index_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		Maybe :: union($T: typeid) {T}
 		`,
-	});
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		main :: proc() {
 			m: my_package.Maybe(int)
@@ -1309,9 +1444,9 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_completion_labels(t, &source, ".", {"(my_package.int)"});
+	test.expect_completion_labels(t, &source, ".", {"(my_package.int)"})
 }
 
 @(test)
@@ -1325,9 +1460,9 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 			d*
 		}
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"});
+	test.expect_completion_details(t, &source, "", {"test.d: Distinct_Type"})
 }
 
 @(test)
@@ -1343,9 +1478,9 @@ ast_new_completion :: proc(t: ^testing.T) {
 		}
 
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.adzz: int"});
+	test.expect_completion_details(t, &source, "", {"test.adzz: int"})
 }
 
 @(test)
@@ -1363,9 +1498,9 @@ ast_new_clone_completion :: proc(t: ^testing.T) {
 		}
 
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.adzz: Foo"});
+	test.expect_completion_details(t, &source, "", {"test.adzz: Foo"})
 }
 
 @(test)
@@ -1380,9 +1515,9 @@ ast_rawtr_cast_completion :: proc(t: ^testing.T) {
 		}
 
 		`,
-	};
+	}
 
-    test.expect_completion_details(t, &source, "", {"test.my_int: int"});
+	test.expect_completion_details(t, &source, "", {"test.my_int: int"})
 }
 
 ast_overload_with_procedure_return :: proc(t: ^testing.T) {
@@ -1408,26 +1543,29 @@ ast_overload_with_procedure_return :: proc(t: ^testing.T) {
 		`,
 	}
 
-    test.expect_completion_details(t, &source, "", {"test.my_in: []int"})
+	test.expect_completion_details(t, &source, "", {"test.my_in: []int"})
 }
 
 
 @(test)
 ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		My_Struct :: struct {
 			a: int,
 			b: int,
 		}
 		`,
-	})
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		f :: proc(param: my_package.My_Struct) {
 			para*
@@ -1436,7 +1574,12 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"my_package.param: My_Struct"})
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"my_package.param: My_Struct"},
+	)
 }
 
 @(test)
@@ -1454,7 +1597,7 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 	}
 
 	//TODO(Add proper completion support, but right now it's just to ensure no crashes)
-    test.expect_completion_details(t, &source, ".", {})
+	test.expect_completion_details(t, &source, ".", {})
 }
 
 @(test)
@@ -1468,7 +1611,7 @@ ast_implicit_enum_value_decl_type :: proc(t: ^testing.T) {
 		`,
 	}
 
-    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
 
 @(test)
@@ -1483,7 +1626,7 @@ ast_implicit_bitset_value_decl :: proc(t: ^testing.T) {
 		`,
 	}
 
-    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
 
 @(test)
@@ -1499,7 +1642,7 @@ ast_implicit_bitset_add :: proc(t: ^testing.T) {
 		`,
 	}
 
-    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
 
 @(test)
@@ -1513,7 +1656,7 @@ ast_enum_complete :: proc(t: ^testing.T) {
 		`,
 	}
 
-    test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
 
 
@@ -1521,9 +1664,11 @@ ast_enum_complete :: proc(t: ^testing.T) {
 ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		Foo :: enum {
 			ONE,
 			TWO,
@@ -1535,10 +1680,11 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 			c: Foo,
 		}
 		`,
-	})
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 		main :: proc() {
 			a := my_package.Bar {
@@ -1549,16 +1695,18 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"TWO", "ONE"})
+	test.expect_completion_details(t, &source, ".", {"TWO", "ONE"})
 }
 
 @(test)
 ast_package_uppercase_test :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "My_package",
-		source = `package My_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "My_package",
+			source = `package My_package
 		Foo :: enum {
 			ONE,
 			TWO,
@@ -1570,10 +1718,11 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 			c: Foo,
 		}
 		`,
-	})
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "My_package"
 		main :: proc() {
 			My_package.*
@@ -1582,7 +1731,12 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"My_package.Foo: enum", "My_package.Bar: struct"})
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_package.Foo: enum", "My_package.Bar: struct"},
+	)
 }
 
 
@@ -1590,18 +1744,21 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 ast_index_enum_infer :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "My_package",
-		source = `package My_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "My_package",
+			source = `package My_package
 		Foo :: enum {
 			ONE,
 			TWO,
 		}
 		`,
-	})
+		},
+	)
 
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "My_package"
 		main :: proc() {
 			my_enum: My_package.Foo
@@ -1612,7 +1769,7 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-    test.expect_completion_details(t, &source, ".", {"ONE", "TWO"})
+	test.expect_completion_details(t, &source, ".", {"ONE", "TWO"})
 }
 
 @(test)
@@ -1624,7 +1781,7 @@ ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
 	test.expect_completion_details(t, &source, ".", {"Darwin"})
 }
@@ -1695,3 +1852,19 @@ ast_for_in_switch_type :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"My_Foo.bar: int"})
 }
 
+@(test)
+ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+		test :: proc() {
+		Int :: int
+		
+		my_procedure_two :: proc() {
+			b : In*
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, "", {"Int"})
+}

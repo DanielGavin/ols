@@ -13,9 +13,9 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 		main :: proc(*)
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {});
+	test.expect_signature_labels(t, &source, {})
 }
 
 @(test)
@@ -35,9 +35,9 @@ ast_naked_parens :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {});
+	test.expect_signature_labels(t, &source, {})
 }
 
 @(test)
@@ -52,9 +52,13 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.cool_function: proc(a: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.cool_function: proc(a: int)"},
+	)
 }
 
 @(test)
@@ -69,9 +73,13 @@ ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.cool_function: proc(a: int, b := context.allocator)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.cool_function: proc(a: int, b := context.allocator)"},
+	)
 }
 
 @(test)
@@ -86,9 +94,9 @@ ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 1);
+	test.expect_signature_parameter_position(t, &source, 1)
 }
 
 @(test)
@@ -103,9 +111,9 @@ ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 0);
+	test.expect_signature_parameter_position(t, &source, 0)
 }
 
 
@@ -121,9 +129,9 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 1);
+	test.expect_signature_parameter_position(t, &source, 1)
 }
 
 @(test)
@@ -138,9 +146,9 @@ ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 1);
+	test.expect_signature_parameter_position(t, &source, 1)
 }
 
 @(test)
@@ -155,9 +163,9 @@ ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 2);
+	test.expect_signature_parameter_position(t, &source, 2)
 }
 
 @(test)
@@ -172,9 +180,9 @@ ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_parameter_position(t, &source, 0);
+	test.expect_signature_parameter_position(t, &source, 0)
 }
 
 @(test)
@@ -197,9 +205,16 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int)", "test.bool_function: proc(a: bool)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{
+			"test.int_function: proc(a: int)",
+			"test.bool_function: proc(a: bool)",
+		},
+	)
 }
 
 @(test)
@@ -217,9 +232,15 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{
+			"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A",
+		},
+	)
 }
 
 @(test)
@@ -242,9 +263,13 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.int_function: proc(a: int, b: bool, c: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.int_function: proc(a: int, b: bool, c: int)"},
+	)
 }
 
 
@@ -274,9 +299,13 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.distinct_function: proc(a: My_Int, c: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.distinct_function: proc(a: My_Int, c: int)"},
+	)
 }
 
 @(test)
@@ -314,26 +343,33 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.struct_function: proc(a: int, b: My_Struct, c: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.struct_function: proc(a: int, b: My_Struct, c: int)"},
+	)
 }
 
 @(test)
 index_simple_signature :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		my_function :: proc(a: int, b := context.allocator) {
 
 		}
 		`,
-	});
+		},
+	)
 
-    source := test.Source {
-		main = `package test
+	source := test.Source {
+		main     = `package test
 
 		import "my_package"
 
@@ -342,9 +378,13 @@ index_simple_signature :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_signature_labels(t, &source, {"my_package.my_function: proc(a: int, b := context.allocator)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"my_package.my_function: proc(a: int, b := context.allocator)"},
+	)
 }
 
 @(test)
@@ -356,9 +396,13 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"$builtin.len: proc(array: Array_Type) -> int"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"$builtin.len: proc(array: Array_Type) -> int"},
+	)
 }
 
 @(test)
@@ -371,9 +415,9 @@ ast_signature_on_invalid_package :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {});
+	test.expect_signature_labels(t, &source, {})
 }
 
 @(test)
@@ -391,9 +435,9 @@ ast_signature_variable_pointer :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"});
+	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"})
 
 }
 
@@ -413,27 +457,30 @@ ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"});
+	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"})
 }
 
 @(test)
 index_variable_pointer_signature :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package);
+	packages := make([dynamic]test.Package)
 
-	append(&packages, test.Package {
-		pkg = "my_package",
-		source = `package my_package
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
 		My_Fun :: proc(a: int) {
 		}
 
 		my_fun_ptr: My_Fun;
 		`,
-	});
+		},
+	)
 
-    source := test.Source {
-		main = `package test
+	source := test.Source {
+		main     = `package test
 
 		import "my_package"
 		main :: proc() {		
@@ -441,14 +488,18 @@ index_variable_pointer_signature :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = packages[:],
-	};
+	}
 
-    test.expect_signature_labels(t, &source, {"my_package.My_Fun: proc(a: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"my_package.My_Fun: proc(a: int)"},
+	)
 }
 
 @(test)
 shared_value_decl_type_signature :: proc(t: ^testing.T) {
-    source := test.Source {
+	source := test.Source {
 		main = `package test
 
 		my_function :: proc(a, b: int) {
@@ -460,14 +511,18 @@ shared_value_decl_type_signature :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_signature_labels(t, &source, {"test.my_function: proc(a: int, b: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.my_function: proc(a: int, b: int)"},
+	)
 }
 
 @(test)
 proc_with_struct_poly :: proc(t: ^testing.T) {
-    source := test.Source {
+	source := test.Source {
 		main = `package test
 		U :: struct(N: int, E: typetid) {
 			t: [N]E,
@@ -481,14 +536,14 @@ proc_with_struct_poly :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"});
+	test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"})
 }
 
 @(test)
 proc_signature_move_outside :: proc(t: ^testing.T) {
-    source := test.Source {
+	source := test.Source {
 		main = `package test	
 		my_cool_function :: proc(aa: int, ba: int, c: int) {
 
@@ -498,12 +553,14 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
-	};
+	}
 
-    test.expect_signature_labels(t, &source, {"test.my_cool_function: proc(aa: int, ba: int, c: int)"});
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.my_cool_function: proc(aa: int, ba: int, c: int)"},
+	)
 }
-
-
 
 
 /*

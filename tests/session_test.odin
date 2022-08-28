@@ -282,86 +282,89 @@ initialize_request := `
         }
     ]
     }
-}`;
+}`
 
 shutdown_request := `{
 "jsonrpc":"2.0",
 "id":0,
 "method":"shutdown"
-}`;
+}`
 
 exit_notification := `{
 "jsonrpc":"2.0",
 "id":0,
 "method":"exit"
-}`;
-
+}`
 
 
 TestReadBuffer :: struct {
-    index: int,
-    data: [] byte,
-};
+	index: int,
+	data:  []byte,
+}
 
-test_read :: proc(handle: rawptr, data: [] byte) -> (int, int)
-{
-    buffer := cast(^TestReadBuffer)handle;
+test_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
+	buffer := cast(^TestReadBuffer)handle
 
-    if len(buffer.data) <= len(data) + buffer.index {
-        dst := data[:];
-        src := buffer.data[buffer.index:len(buffer.data)];
+	if len(buffer.data) <= len(data) + buffer.index {
+		dst := data[:]
+		src := buffer.data[buffer.index:len(buffer.data)]
 
-        copy(dst, src);
+		copy(dst, src)
 
-        buffer.index += len(src);
-        return len(src), 0;
-    }
-    else {
-        dst := data[:];
-        src := buffer.data[buffer.index:];
+		buffer.index += len(src)
+		return len(src), 0
+	} else {
+		dst := data[:]
+		src := buffer.data[buffer.index:]
 
-        copy(dst, src);
+		copy(dst, src)
 
-        buffer.index += len(dst);
-        return len(dst), 0;
-    }
+		buffer.index += len(dst)
+		return len(dst), 0
+	}
 }
 
 make_request :: proc(request: string) -> string {
-    return fmt.tprintf("Content-Length: %v\r\n\r\n%v", len(request), request);
+	return fmt.tprintf("Content-Length: %v\r\n\r\n%v", len(request), request)
 }
 
 main :: proc() {
 
 
-
-
 	buffer := TestReadBuffer {
-        data = transmute([]byte) strings.join({make_request(initialize_request), make_request(shutdown_request), make_request(exit_notification)}, "", context.allocator),
-    };
+		data = transmute([]byte)strings.join(
+			{
+				make_request(initialize_request),
+				make_request(shutdown_request),
+				make_request(exit_notification),
+			},
+			"",
+			context.allocator,
+		),
+	}
 
-	reader := server.make_reader(test_read, &buffer);
-    writer := server.make_writer(src.os_write, cast(rawptr)&os.stdout);
+	reader := server.make_reader(test_read, &buffer)
+	writer := server.make_writer(src.os_write, cast(rawptr)&os.stdout)
 
-	tracking_allocator: mem.Tracking_Allocator;
+	tracking_allocator: mem.Tracking_Allocator
 
-	mem.tracking_allocator_init(&tracking_allocator, context.allocator);
-	context.allocator = mem.tracking_allocator(&tracking_allocator);
+	mem.tracking_allocator_init(&tracking_allocator, context.allocator)
+	context.allocator = mem.tracking_allocator(&tracking_allocator)
 
 
-	init_global_temporary_allocator(mem.Megabyte * 5);
+	init_global_temporary_allocator(mem.Megabyte * 5)
 
-	src.run(&reader, &writer);
+	src.run(&reader, &writer)
 
-    //delete(buffer.data);
+	//delete(buffer.data);
 
 	for k in tracking_allocator.bad_free_array {
 		if k.memory == nil {
-			continue;
+			continue
 		}
-		
-		fmt.println(k);
+
+		fmt.println(k)
 	}
 
-	fmt.println("finished");
+	fmt.println("finished")
 }

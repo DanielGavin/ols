@@ -29,6 +29,7 @@ DocumentPositionContext :: struct {
 	position:         common.AbsolutePosition,
 	line:             int,
 	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
+	functions:        [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
 	selector:         ^ast.Expr, //used for completion
 	selector_expr:    ^ast.Selector_Expr,
 	identifier:       ^ast.Node,
@@ -89,6 +90,7 @@ AstContext :: struct {
 	uri:               string,
 	fullpath:          string,
 	recursion_counter: int, //Sometimes the ast is so malformed that it causes infinite recursion.
+	non_mutable_only:  bool,
 }
 
 make_ast_context :: proc(
@@ -2834,7 +2836,14 @@ get_locals_block_stmt :: proc(
 	}
 
 	for stmt in block.stmts {
-		get_locals_stmt(file, stmt, ast_context, document_position)
+		if ast_context.non_mutable_only {
+			if value_decl, ok := stmt.derived.(^ast.Value_Decl);
+			   ok && !value_decl.is_mutable {
+				get_locals_stmt(file, stmt, ast_context, document_position)
+			}
+		} else {
+			get_locals_stmt(file, stmt, ast_context, document_position)
+		}
 	}
 }
 
@@ -3291,6 +3300,11 @@ get_locals :: proc(
 	for stmt in block.stmts {
 		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
+
+	for function in document_position.functions {
+		ast_context.non_mutable_only = true
+		get_locals_stmt(file, function.body, ast_context, document_position)
+	}
 }
 
 clear_locals :: proc(ast_context: ^AstContext) {
@@ -3504,6 +3518,14 @@ resolve_entire_decl :: proc(
 						node   = v.field,
 						symbol = symbol,
 					}
+				}
+
+				if _, is_ident := v.field.derived.(^ast.Ident); is_ident {
+					if data.resolve_flag == .Constant ||
+					   data.resolve_flag == .Variable {
+						return nil
+					}
+
 				}
 			case ^ast.Ident:
 				if data.resolve_flag == .Variable && v.name != data.reference {
@@ -3962,6 +3984,11 @@ get_document_position_context :: proc(
 	position_context.hint = hint
 	position_context.file = document.ast
 	position_context.line = position.line
+
+	position_context.functions = make(
+		[dynamic]^ast.Proc_Lit,
+		context.temp_allocator,
+	)
 
 	absolute_position, ok := common.get_absolute_position(
 		position,
@@ -4434,6 +4461,7 @@ get_document_position_node :: proc(
 
 		if position_in_node(n.body, position_context.position) {
 			position_context.function = cast(^Proc_Lit)node
+			append(&position_context.functions, position_context.function)
 			get_document_position(n.body, position_context)
 		}
 	case ^Comp_Lit:
