@@ -36,6 +36,23 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Freestanding = "freestanding",
 }
 
+skip_file :: proc(filename: string) -> bool {
+	last_underscore_index := strings.last_index(filename, "_")
+	last_dot_index := strings.last_index(filename, ".")
+
+	if last_underscore_index + 1 < last_dot_index {
+		name_between := filename[last_underscore_index + 1:last_dot_index]
+
+		if _, ok := platform_os[name_between]; ok {
+			if name_between != os_enum_to_string[ODIN_OS] {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 try_build_package :: proc(pkg_name: string) {
 	if pkg, ok := build_cache.loaded_pkgs[pkg_name]; ok {
 		return
@@ -62,6 +79,10 @@ try_build_package :: proc(pkg_name: string) {
 		context.allocator = mem.arena_allocator(&temp_arena)
 
 		for fullpath in matches {
+			if skip_file(filepath.base(fullpath)) {
+				continue
+			}
+
 			data, ok := os.read_entire_file(fullpath, context.allocator)
 
 			if !ok {
