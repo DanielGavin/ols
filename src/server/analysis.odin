@@ -65,6 +65,7 @@ DocumentLocal :: struct {
 	lhs:    ^ast.Expr,
 	rhs:    ^ast.Expr,
 	offset: int,
+	global: bool, //Some locals have already been resolved and are now in global space
 	id:     int, //Id that can used to connect the local to something, i.e. for stmt begin offset
 }
 
@@ -1357,6 +1358,7 @@ store_local :: proc(
 	offset: int,
 	name: string,
 	id := 0,
+	global := false,
 ) {
 	local_stack := &ast_context.locals[id][name]
 
@@ -1368,7 +1370,13 @@ store_local :: proc(
 
 	append(
 		local_stack,
-		DocumentLocal{lhs = lhs, rhs = rhs, offset = offset, id = id},
+		DocumentLocal{
+			lhs = lhs,
+			rhs = rhs,
+			offset = offset,
+			id = id,
+			global = global,
+		},
 	)
 }
 
@@ -1391,59 +1399,51 @@ get_local_lhs_and_rhs :: proc(
 ) -> (
 	^ast.Expr,
 	^ast.Expr,
+	bool,
 ) {
-	previous := 0
-
-	//is the local we are getting being declared?
-	if ast_context.value_decl != nil {
-		for value_decl_name in ast_context.value_decl.names {
-			if ident, ok := value_decl_name.derived.(^ast.Ident); ok {
-				if ident.name == name {
-					previous = 1
-					break
-				}
-			}
-		}
-	}
-
 	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
 				if local_stack[i].offset <= offset {
-					if i - previous < 0 {
-						return nil, nil
+					if i < 0 {
+						return nil, nil, false
 					} else {
-						ret := local_stack[i - previous].rhs
+						ret := local_stack[i].rhs
 						if ident, ok := ret.derived.(^ast.Ident);
 						   ok && ident.name == name {
-							if i - previous - 1 < 0 {
-								return nil, nil
+							if i - 1 < 0 {
+								return nil, nil, false
 							}
 
 							if _, ok := ast_context.parameters[ident.name];
 							   ok {
-								return local_stack[i - previous].lhs,
-									local_stack[i - previous].rhs
+								return local_stack[i].lhs,
+									local_stack[i].rhs,
+									local_stack[i].global
 							}
 						}
-						return local_stack[i - previous].lhs,
-							local_stack[i - previous].rhs
+						return local_stack[i].lhs,
+							local_stack[i].rhs,
+							local_stack[i].global
 					}
 				}
 			}
 		}
 	}
 
-	return nil, nil
+	return nil, nil, false
 }
 
 get_local :: proc(
 	ast_context: ^AstContext,
 	offset: int,
 	name: string,
-) -> ^ast.Expr {
-	lhs, rhs := get_local_lhs_and_rhs(ast_context, offset, name)
-	return rhs
+) -> (
+	^ast.Expr,
+	bool,
+) {
+	lhs, rhs, global := get_local_lhs_and_rhs(ast_context, offset, name)
+	return rhs, global
 }
 
 get_local_offset :: proc(
@@ -1538,9 +1538,17 @@ resolve_type_identifier :: proc(
 		}
 	}
 
-	if local := get_local(ast_context, node.pos.offset, node.name);
-	   local != nil && ast_context.use_locals {
+	if local, is_global_space := get_local(
+		   ast_context,
+		   node.pos.offset,
+		   node.name,
+	   ); local != nil && ast_context.use_locals {
 		is_distinct := false
+
+		//Sometimes the locals are semi resolved and can no longer use the locals
+		if is_global_space {
+			ast_context.use_locals = false
+		}
 
 		if dist, ok := local.derived.(^ast.Distinct_Type); ok {
 			if dist.type != nil {
@@ -1634,6 +1642,7 @@ resolve_type_identifier :: proc(
 	} else if global, ok := ast_context.globals[node.name];
 	   ast_context.use_globals && ok {
 		is_distinct := false
+		ast_context.use_locals = false
 
 		if dist, ok := global.expr.derived.(^ast.Distinct_Type); ok {
 			if dist.type != nil {
@@ -1962,7 +1971,7 @@ resolve_location_identifier :: proc(
 ) {
 	symbol: Symbol
 
-	if local, _ := get_local_lhs_and_rhs(
+	if local, _, _ := get_local_lhs_and_rhs(
 		   ast_context,
 		   node.pos.offset,
 		   node.name,
@@ -2645,6 +2654,7 @@ get_generic_assignment :: proc(
 	value: ^ast.Expr,
 	ast_context: ^AstContext,
 	results: ^[dynamic]^ast.Expr,
+	calls: ^map[int]bool,
 ) {
 	using ast
 
@@ -2653,7 +2663,7 @@ get_generic_assignment :: proc(
 
 	#partial switch v in value.derived {
 	case ^Or_Return_Expr:
-		get_generic_assignment(file, v.expr, ast_context, results)
+		get_generic_assignment(file, v.expr, ast_context, results, calls)
 	case ^Call_Expr:
 		ast_context.call = cast(^ast.Call_Expr)value
 
@@ -2661,8 +2671,10 @@ get_generic_assignment :: proc(
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 				for ret in procedure.return_types {
 					if ret.type != nil {
+						calls[len(results)] = true
 						append(results, ret.type)
 					} else if ret.default_value != nil {
+						calls[len(results)] = true
 						append(results, ret.default_value)
 					}
 				}
@@ -2741,9 +2753,10 @@ get_locals_value_decl :: proc(
 	}
 
 	results := make([dynamic]^Expr, context.temp_allocator)
+	calls := make(map[int]bool, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
 
 	for value in value_decl.values {
-		get_generic_assignment(file, value, ast_context, &results)
+		get_generic_assignment(file, value, ast_context, &results, &calls)
 	}
 
 	if len(results) == 0 {
@@ -2754,6 +2767,8 @@ get_locals_value_decl :: proc(
 		result_i := min(len(results) - 1, i)
 		str := common.get_ast_node_string(name, file.src)
 		ast_context.in_package[str] = get_package_from_node(results[result_i]^)
+		call := false
+
 		store_local(
 			ast_context,
 			name,
@@ -2761,6 +2776,7 @@ get_locals_value_decl :: proc(
 			value_decl.end.offset,
 			str,
 			ast_context.local_id,
+			calls[result_i] or_else false,
 		)
 		ast_context.variables[str] = value_decl.is_mutable
 	}
@@ -2905,9 +2921,10 @@ get_locals_assign_stmt :: proc(
 	}
 
 	results := make([dynamic]^Expr, context.temp_allocator)
+	calls := make(map[int]bool, 0, context.temp_allocator)
 
 	for rhs in stmt.rhs {
-		get_generic_assignment(file, rhs, ast_context, &results)
+		get_generic_assignment(file, rhs, ast_context, &results, &calls)
 	}
 
 	if len(stmt.lhs) != len(results) {
@@ -3326,6 +3343,7 @@ resolve_entire_file :: proc(
 	document: ^Document,
 	reference := "",
 	flag := ResolveReferenceFlag.None,
+	save_unresolved := false,
 	allocator := context.allocator,
 ) -> map[uintptr]SymbolAndNode {
 	ast_context := make_ast_context(
@@ -3351,6 +3369,7 @@ resolve_entire_file :: proc(
 			&symbols,
 			reference,
 			flag,
+			save_unresolved,
 			allocator,
 		)
 		clear(&ast_context.locals)
@@ -3366,6 +3385,7 @@ resolve_entire_decl :: proc(
 	symbols: ^map[uintptr]SymbolAndNode,
 	reference := "",
 	flag := ResolveReferenceFlag.None,
+	save_unresolved := false,
 	allocator := context.allocator,
 ) {
 	Scope :: struct {
@@ -3374,23 +3394,25 @@ resolve_entire_decl :: proc(
 	}
 
 	Visit_Data :: struct {
-		ast_context:  ^AstContext,
-		symbols:      ^map[uintptr]SymbolAndNode,
-		scopes:       [dynamic]Scope,
-		id_counter:   int,
-		last_visit:   ^ast.Node,
-		resolve_flag: ResolveReferenceFlag,
-		reference:    string,
-		document:     ^Document,
+		ast_context:     ^AstContext,
+		symbols:         ^map[uintptr]SymbolAndNode,
+		scopes:          [dynamic]Scope,
+		id_counter:      int,
+		last_visit:      ^ast.Node,
+		resolve_flag:    ResolveReferenceFlag,
+		reference:       string,
+		save_unresolved: bool,
+		document:        ^Document,
 	}
 
 	data := Visit_Data {
-		ast_context  = ast_context,
-		symbols      = symbols,
-		scopes       = make([dynamic]Scope, allocator),
-		resolve_flag = flag,
-		reference    = reference,
-		document     = document,
+		ast_context     = ast_context,
+		symbols         = symbols,
+		scopes          = make([dynamic]Scope, allocator),
+		resolve_flag    = flag,
+		reference       = reference,
+		document        = document,
+		save_unresolved = save_unresolved,
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -3477,24 +3499,39 @@ resolve_entire_decl :: proc(
 			case ^ast.Ident:
 				if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v,
-						symbol = symbol,
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
 					}
 				}
 			case ^ast.Selector_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
 				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v,
-						symbol = symbol,
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
 					}
 				}
 			case ^ast.Call_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
 				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v,
-						symbol = symbol,
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
 					}
 				}
 			}
@@ -3525,7 +3562,6 @@ resolve_entire_decl :: proc(
 					   data.resolve_flag == .Variable {
 						return nil
 					}
-
 				}
 			case ^ast.Ident:
 				if data.resolve_flag == .Variable && v.name != data.reference {
