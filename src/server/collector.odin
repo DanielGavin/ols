@@ -550,7 +550,6 @@ collect_symbols :: proc(
 			path, _ = filepath.to_slash(path, context.temp_allocator)
 
 			symbol.pkg = get_index_unique_string(collection, path)
-			log.error(symbol.pkg)
 		} else {
 			symbol.pkg = get_index_unique_string(collection, directory)
 		}
