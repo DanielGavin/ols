@@ -218,6 +218,7 @@ resolve_references :: proc(
 				&document,
 				reference,
 				resolve_flag,
+				false,
 				context.allocator,
 			)
 

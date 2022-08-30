@@ -11,8 +11,9 @@ import "core:slice"
 import "shared:common"
 
 SymbolAndNode :: struct {
-	symbol: Symbol,
-	node:   ^ast.Node,
+	symbol:      Symbol,
+	node:        ^ast.Node,
+	is_resolved: bool,
 }
 
 SymbolStructValue :: struct {

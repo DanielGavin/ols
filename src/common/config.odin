@@ -18,6 +18,7 @@ Config :: struct {
 	enable_references:        bool,
 	enable_rename:            bool,
 	enable_std_references:    bool,
+	enable_import_fixer:      bool,
 	thread_count:             int,
 	file_log:                 bool,
 	odin_command:             string,

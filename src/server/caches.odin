@@ -26,6 +26,7 @@ resolve_entire_file_cached :: proc(
 				document,
 				"",
 				.None,
+				false,
 				common.scratch_allocator(document.allocator),
 			),
 		}

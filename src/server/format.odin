@@ -35,6 +35,10 @@ get_complete_format :: proc(
 		return {}, true
 	}
 
+	if config.enable_import_fixer {
+		fix_imports(document)
+	}
+
 	style := format.find_config_file_or_default(
 		filepath.dir(document.fullpath, context.temp_allocator),
 	)
@@ -44,7 +48,9 @@ get_complete_format :: proc(
 
 	edit := TextEdit {
 		newText = src,
-		range = common.get_document_range(document.text[0:document.used_text]),
+		range   = common.get_document_range(
+			document.text[0:document.used_text],
+		),
 	}
 
 	edits := make([dynamic]TextEdit, context.temp_allocator)
