@@ -654,6 +654,8 @@ request_initialize :: proc(
 		append(&indexer.builtin_packages, path.join({core, "runtime"}))
 	}
 
+	setup_index()
+
 	for pkg in indexer.builtin_packages {
 		try_build_package(pkg)
 	}

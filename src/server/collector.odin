@@ -542,7 +542,15 @@ collect_symbols :: proc(
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
 		} else if strings.contains(uri, "intrinsics.odin") {
-			symbol.pkg = "$intrinsics"
+			path := filepath.join(
+				elems = {common.config.collections["core"], "/intrinsics"},
+				allocator = context.temp_allocator,
+			)
+
+			path, _ = filepath.to_slash(path, context.temp_allocator)
+
+			symbol.pkg = get_index_unique_string(collection, path)
+			log.error(symbol.pkg)
 		} else {
 			symbol.pkg = get_index_unique_string(collection, directory)
 		}

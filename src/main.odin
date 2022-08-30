@@ -61,8 +61,6 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		server.thread_request_main,
 	)
 
-	server.setup_index()
-
 	for common.config.running {
 		if common.config.verbose {
 			logger = server.create_lsp_logger(writer, log.Level.Info)
