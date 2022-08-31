@@ -38,7 +38,7 @@ Document :: struct {
 	ast:              ast.File,
 	imports:          []Package,
 	package_name:     string,
-	allocator:        ^common.Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
+	allocator:        ^mem.Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
 	version:          Maybe(int),
 }
@@ -46,20 +46,20 @@ Document :: struct {
 
 DocumentStorage :: struct {
 	documents:       map[string]Document,
-	free_allocators: [dynamic]^common.Scratch_Allocator,
+	free_allocators: [dynamic]^mem.Scratch_Allocator,
 }
 
 document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		common.scratch_allocator_destroy(v.allocator)
+		mem.scratch_allocator_destroy(v.allocator)
 		free(v.allocator)
 		delete(k)
 	}
 
 	for alloc in document_storage.free_allocators {
-		common.scratch_allocator_destroy(alloc)
+		mem.scratch_allocator_destroy(alloc)
 		free(alloc)
 	}
 
@@ -67,18 +67,18 @@ document_storage_shutdown :: proc() {
 	delete(document_storage.documents)
 }
 
-document_get_allocator :: proc() -> ^common.Scratch_Allocator {
+document_get_allocator :: proc() -> ^mem.Scratch_Allocator {
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators)
 	} else {
-		allocator := new(common.Scratch_Allocator)
-		common.scratch_allocator_init(allocator, mem.Megabyte * 3)
+		allocator := new(mem.Scratch_Allocator)
+		mem.scratch_allocator_init(allocator, mem.Megabyte * 3)
 		return allocator
 	}
 }
 
-document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
-	free_all(common.scratch_allocator(allocator))
+document_free_allocator :: proc(allocator: ^mem.Scratch_Allocator) {
+	free_all(mem.scratch_allocator(allocator))
 	append(&document_storage.free_allocators, allocator)
 }
 
@@ -425,9 +425,9 @@ parse_document :: proc(
 		delete_key(&file_resolve_cache.files, document.uri.uri)
 	}
 
-	free_all(common.scratch_allocator(document.allocator))
+	free_all(mem.scratch_allocator(document.allocator))
 
-	context.allocator = common.scratch_allocator(document.allocator)
+	context.allocator = mem.scratch_allocator(document.allocator)
 
 	pkg := new(ast.Package)
 	pkg.kind = .Normal

@@ -36,10 +36,10 @@ setup :: proc(src: ^Source) {
 	src.document.client_owned = true
 	src.document.text = transmute([]u8)src.main
 	src.document.used_text = len(src.document.text)
-	src.document.allocator = new(common.Scratch_Allocator)
+	src.document.allocator = new(mem.Scratch_Allocator)
 	src.document.package_name = "test"
 
-	common.scratch_allocator_init(
+	mem.scratch_allocator_init(
 		src.document.allocator,
 		mem.Kilobyte * 200,
 		context.temp_allocator,

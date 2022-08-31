@@ -1,7 +1,8 @@
 package server
 
-import "shared:common"
+// import "shared:common"
 
+import "core:mem"
 import "core:time"
 
 //Used in semantic tokens and inlay hints to handle the entire file being resolved.
@@ -27,7 +28,7 @@ resolve_entire_file_cached :: proc(
 				"",
 				.None,
 				false,
-				common.scratch_allocator(document.allocator),
+				mem.scratch_allocator(document.allocator),
 			),
 		}
 	}
