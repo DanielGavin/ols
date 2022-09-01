@@ -205,23 +205,29 @@ collect_globals :: proc(
 				}
 
 				ident: ^ast.Ident
-				implicit: ^ast.Implicit
+				implicit: ^ast.Implicit_Selector_Expr
 
 				if t, ok := binary.left.derived.(^ast.Ident); ok {
 					ident = cast(^ast.Ident)binary.left
-				} else if t, ok := binary.left.derived.(^ast.Basic_Lit); ok {
-					implicit = cast(^ast.Implicit)binary.left
+				} else if t, ok := binary.left.derived.(^ast.Implicit_Selector_Expr);
+				   ok {
+					implicit = cast(^ast.Implicit_Selector_Expr)binary.left
 				}
 
 				if t, ok := binary.right.derived.(^ast.Ident); ok {
 					ident = cast(^ast.Ident)binary.right
-				} else if t, ok := binary.right.derived.(^ast.Basic_Lit); ok {
-					implicit = cast(^ast.Implicit)binary.right
+				} else if t, ok := binary.right.derived.(^ast.Implicit_Selector_Expr);
+				   ok {
+					implicit = cast(^ast.Implicit_Selector_Expr)binary.right
 				}
 
 				if ident != nil && implicit != nil {
-					if ident.name == "ODIN_OS" &&
-					   implicit.tok.text == fmt.tprint(ODIN_OS) {
+					allowed :=
+						ident.name == "ODIN_OS" &&
+							implicit.field.name == fmt.tprint(ODIN_OS) ||
+						ident.name == "ODIN_ARCH" &&
+							implicit.field.name == fmt.tprint(ODIN_ARCH)
+					if allowed {
 						if block, ok := when_decl.body.derived.(^ast.Block_Stmt);
 						   ok {
 							for stmt in block.stmts {
@@ -233,7 +239,8 @@ collect_globals :: proc(
 								)
 							}
 						}
-					} else if ident.name != "ODIN_OS" {
+					} else if ident.name != "ODIN_OS" &&
+					   ident.name != "ODIN_ARCH" {
 						if block, ok := when_decl.body.derived.(^ast.Block_Stmt);
 						   ok {
 							for stmt in block.stmts {
