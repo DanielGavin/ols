@@ -450,6 +450,24 @@ is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
 }
 
 @(private)
+is_value_decl_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
+
+	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
+		if len(value_decl.values) == 0 {
+			return false
+		}
+
+		#partial switch v in
+			value_decl.values[len(value_decl.values) - 1].derived {
+		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
+			return true
+		}
+	}
+
+	return false
+}
+
+@(private)
 is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 	if len(list) > 1 {
 		return true
@@ -960,7 +978,11 @@ visit_stmt :: proc(
 			)
 		}
 
-		document = cons(document, group(hang(3, if_document)))
+		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) {
+			document = cons(document, group(if_document))
+		} else {
+			document = cons(document, group(hang(3, if_document)))
+		}
 
 		set_source_position(p, v.body.pos)
 
