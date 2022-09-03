@@ -87,7 +87,7 @@ walk_files :: proc(
 
 main :: proc() {
 	arena: mem.Arena
-	mem.init_arena(&arena, make([]byte, 50 * mem.Megabyte))
+	mem.arena_init(&arena, make([]byte, 50 * mem.Megabyte))
 
 	arena_allocator := mem.arena_allocator(&arena)
 
