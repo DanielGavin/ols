@@ -421,10 +421,10 @@ request_initialize :: proc(
 	) {
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
 			if value, err := json.parse(
-				   data = data,
-				   allocator = context.temp_allocator,
-				   parse_integers = true,
-			   ); err == .None {
+				data = data,
+				allocator = context.temp_allocator,
+				parse_integers = true,
+			); err == .None {
 				ols_config: OlsConfig
 
 				if unmarshal(value, ols_config, context.temp_allocator) ==
@@ -518,7 +518,7 @@ request_initialize :: proc(
 
 	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 
-	if odin_core_env == "" && "core" not_in config.collections {
+	if odin_core_env == "" {
 		if exe_path, ok := common.lookup_in_path("odin"); ok {
 			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
 		}
@@ -884,11 +884,11 @@ notification_did_open :: proc(
 	}
 
 	if n := document_open(
-		   open_params.textDocument.uri,
-		   open_params.textDocument.text,
-		   config,
-		   writer,
-	   ); n != .None {
+		open_params.textDocument.uri,
+		open_params.textDocument.text,
+		config,
+		writer,
+	); n != .None {
 		return .InternalError
 	}
 
@@ -1027,10 +1027,10 @@ notification_did_save :: proc(
 	}
 
 	if ret := collect_symbols(
-		   &indexer.index.collection,
-		   file,
-		   corrected_uri.uri,
-	   ); ret != .None {
+		&indexer.index.collection,
+		file,
+		corrected_uri.uri,
+	); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
