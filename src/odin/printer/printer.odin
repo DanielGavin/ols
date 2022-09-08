@@ -31,6 +31,8 @@ Printer :: struct {
 
 Disabled_Info :: struct {
 	text:     string,
+	empty:    bool,
+	start_line: int,
 	end_line: int,
 }
 
@@ -119,11 +121,13 @@ make_printer :: proc(
 build_disabled_lines_info :: proc(p: ^Printer) {
 	found_disable := false
 	disable_position: tokenizer.Pos
+	empty := true
 
 	for group in p.comments {
 		for comment in group.list {
 			if strings.contains(comment.text[:], "//odinfmt: disable") {
 				found_disable = true
+				empty = true
 				disable_position = comment.pos
 			} else if strings.contains(comment.text[:], "//odinfmt: enable") &&
 			   found_disable {
@@ -131,8 +135,10 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 				end := comment.pos.offset + len(comment.text)
 
 				disabled_info := Disabled_Info {
+					start_line = disable_position.line,
 					end_line = comment.pos.line,
 					text     = p.src[begin:end],
+					empty = empty,
 				}
 
 				for line := disable_position.line;
@@ -144,6 +150,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 				found_disable = false
 			}
 		}
+		empty = false
 	}
 }
 

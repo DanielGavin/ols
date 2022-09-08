@@ -40,3 +40,9 @@ bracket_comments_alignment :: proc() {
 		// etc..
 	}
 }
+
+empty_odin_fmt_block :: proc() {
+	//odinfmt: disable
+	//a := 10
+	//odinfmt: enable
+}
