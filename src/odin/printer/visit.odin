@@ -142,8 +142,11 @@ visit_comment :: proc(
 	document = cons(document, newline(newlines_before_comment_limited))
 
 	if comment.text[:2] != "/*" {
-		if comment.pos.line in p.disabled_lines {
+		if info, is_disabled := p.disabled_lines[comment.pos.line]; is_disabled {
 			p.source_position = comment.pos
+			if info.start_line == comment.pos.line && info.empty {
+				return info.end_line - info.start_line, cons(escape_nest(document), text(info.text))
+			}
 			return 1, empty()
 		} else if comment.pos.line == p.source_position.line &&
 		   p.source_position.column != 1 {
