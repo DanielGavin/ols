@@ -315,7 +315,15 @@ visit_decl :: proc(
 			document,
 			cons_with_opl(text("foreign"), visit_expr(p, v.foreign_library)),
 		)
-		document = cons_with_nopl(document, visit_stmt(p, v.body))
+
+		if v.body != nil && is_foreign_block_only_procedures(v.body) {
+			p.force_statement_fit = true
+			document = cons_with_nopl(document, visit_stmt(p, v.body))
+			p.force_statement_fit = false
+		} else {
+			document = cons_with_nopl(document, visit_stmt(p, v.body))
+		}
+
 		return document
 	case ^Import_Decl:
 		document := move_line(p, decl.pos)
@@ -445,6 +453,25 @@ is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
 	case ^ast.Comp_Lit, ^ast.Proc_Type, ^ast.Proc_Lit:
 		return false
 	}
+
+	return true
+}
+
+@(private)
+is_foreign_block_only_procedures :: proc(stmt: ^ast.Stmt) -> bool {
+
+	/*
+	if block, ok := stmt.derived.(^ast.Block_Stmt); ok {
+
+		for stmt in block.stmts {
+
+
+
+
+		}
+
+	}
+	*/
 
 	return true
 }
@@ -2158,7 +2185,18 @@ visit_block_stmts :: proc(
 		if stmts[last_index].end.line == stmt.pos.line && i != 0 {
 			document = cons(document, break_with(";"))
 		}
-		document = cons(document, visit_stmt(p, stmt, .Generic, false, true))
+
+		if p.force_statement_fit {
+			document = cons(
+				document,
+				enforce_fit(visit_stmt(p, stmt, .Generic, false, true)),
+			)
+		} else {
+			document = cons(
+				document,
+				visit_stmt(p, stmt, .Generic, false, true),
+			)
+		}
 	}
 
 	return document
@@ -2288,8 +2326,8 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 		document = cons_with_opl(document, text("#optional_ok"))
 	}
 
-	if .Optional_Second in proc_tags {
-		document = cons_with_opl(document, text("#optional_second"))
+	if .Optional_Allocator_Error in proc_tags {
+		document = cons_with_opl(document, text("#optional_allocator_error"))
 	}
 
 	return document

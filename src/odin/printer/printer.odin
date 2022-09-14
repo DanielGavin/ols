@@ -26,6 +26,7 @@ Printer :: struct {
 	disabled_lines:       map[int]Disabled_Info,
 	disabled_until_line:  int,
 	group_modes:          map[string]Document_Group_Mode,
+	force_statement_fit:  bool,
 	src:                  string,
 }
 
