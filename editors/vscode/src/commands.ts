@@ -1,13 +1,10 @@
 import * as vscode from 'vscode';
-import * as lc from 'vscode-languageclient';
 
 import { Ctx, Cmd } from './ctx';
-import { execFile, spawnSync } from 'child_process';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { execFile } from 'child_process';
 import path = require('path');
+import fs = require('fs');
 import { getDebugConfiguration } from './debug';
-import { getPathForExecutable } from './toolchain';
-import { promises as fs, PathLike, constants, writeFileSync} from "fs";
 
 export function runDebugTest(ctx: Ctx): Cmd {
     return async(debugConfig: any) => {
@@ -44,19 +41,40 @@ export function runDebugTest(ctx: Ctx): Cmd {
             }
         });
  
-        const executableName = path.join(workspaceFolder, pkg);
-
         odinExecution.on("exit", (code) => {
 
             if(code !== 0) {
                 throw Error("Odin test failed!");
             }
 
-            vscode.debug.startDebugging(undefined, getDebugConfiguration(ctx.config, executableName)).then(r => console.log("Result", r));
+            const possibleExecutables = [
+                path.join(workspaceFolder, pkg),
+                path.join(workspaceFolder, pkg) + '.bin'
+            ];
+
+            let promises : Promise<string | null>[] = [];
+            possibleExecutables.forEach((executable) => {
+                promises.push(new Promise<string | null>((resolve) => {
+                    fs.stat(executable, (exists) => {
+                        resolve(exists === null ? executable : null);
+                    });
+                }));
+            });
+
+            Promise.all(promises).then(results => {
+                let found = false;
+                results.forEach((r) => {
+                    if (r !== null && !found) {
+                        found = true;
+                        vscode.debug.startDebugging(undefined, getDebugConfiguration(ctx.config, r)).then(r => console.log("Result", r));
+                    }
+                });
+                if (!found) {
+                    throw Error("Not possible to find executable, candidates are: " + possibleExecutables);
+                }
+            });
         });
-
     };
-
 }
 
 export function runTest(ctx: Ctx): Cmd {
