@@ -2,7 +2,7 @@
 	"name": "ols",
 	"publisher": "DanielGavin",
 	"displayName": "ols",
-	"description": "Odin intellisense",
+	"description": "Odin language support",
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
@@ -110,6 +110,7 @@
 		"languages": [
 			{
 				"id": "odin",
+				"aliases": ["odin", "Odin"],
 				"icon_PROPOSED": "odin-fileicon",
 				"extensions": [
 					".odin"
@@ -123,6 +124,11 @@
 				"scopeName": "source.odin",
 				"path": "./syntaxes/odin.tmLanguage.json"
 			}
+		], 
+		"breakpoints": [
+		  {
+			  "language": "odin"
+		  }
 		],
 		"colors": [
 			{

@@ -2329,10 +2329,6 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 		document = cons_with_opl(document, text("#optional_ok"))
 	}
 
-	if .Optional_Allocator_Error in proc_tags {
-		document = cons_with_opl(document, text("#optional_allocator_error"))
-	}
-
 	return document
 }
 
