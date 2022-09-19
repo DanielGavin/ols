@@ -86,32 +86,14 @@
 				}
 			}
 		},
-		"icons_PROPOSED": [
-			{
-				"id": "odin-fileicon",
-				"description": "Odin file icon",
-				"default": {
-					"fontId": "odin-icon-font",
-					"fontCharacter": "\\E000"
-				}
-			}
-		],
-		"iconFonts_PROPOSED": [
-			{
-				"id": "odin-icon-font",
-				"src": [
-					{
-						"path": "./fileicons/odin_file.svg",
-						"format": "svg"
-					}
-				]
-			}
-		],
 		"languages": [
 			{
 				"id": "odin",
 				"aliases": ["odin", "Odin"],
-				"icon_PROPOSED": "odin-fileicon",
+				"icon": {
+					"light": "./fileicons/odin-file.svg",
+					"dark": "./fileicons/odin-file.svg"
+				},
 				"extensions": [
 					".odin"
 				],

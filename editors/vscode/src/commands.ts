@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { Ctx, Cmd } from './ctx';
 import { execFile } from 'child_process';
 import path = require('path');
-import fs = require('fs');
+import { promises as fs } from "fs";
 import { getDebugConfiguration } from './debug';
 
 export function runDebugTest(ctx: Ctx): Cmd {
@@ -55,8 +55,10 @@ export function runDebugTest(ctx: Ctx): Cmd {
             let promises : Promise<string | null>[] = [];
             possibleExecutables.forEach((executable) => {
                 promises.push(new Promise<string | null>((resolve) => {
-                    fs.stat(executable, (exists) => {
-                        resolve(exists === null ? executable : null);
+                    fs.stat(executable).then((stats) => {
+                        resolve(executable);
+                    }).catch((error) => {
+                        resolve(null);
                     });
                 }));
             });
