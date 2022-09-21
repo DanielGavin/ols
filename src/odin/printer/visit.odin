@@ -5,30 +5,8 @@ import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:strings"
 import "core:fmt"
-import "core:sort"
 import "core:strconv"
-
-//right now the attribute order is not linearly parsed(bug?)
-@(private)
-sort_attribute :: proc(s: ^[dynamic]^ast.Attribute) -> sort.Interface {
-	return(
-		sort.Interface{
-			collection = rawptr(s),
-			len = proc(it: sort.Interface) -> int {
-				s := (^[dynamic]^ast.Attribute)(it.collection)
-				return len(s^)
-			},
-			less = proc(it: sort.Interface, i, j: int) -> bool {
-				s := (^[dynamic]^ast.Attribute)(it.collection)
-				return s[i].pos.offset < s[j].pos.offset
-			},
-			swap = proc(it: sort.Interface, i, j: int) {
-				s := (^[dynamic]^ast.Attribute)(it.collection)
-				s[i], s[j] = s[j], s[i]
-			},
-		} \
-	)
-}
+import "core:slice"
 
 @(private)
 comment_before_position :: proc(p: ^Printer, pos: tokenizer.Pos) -> bool {
@@ -142,7 +120,8 @@ visit_comment :: proc(
 	document = cons(document, newline(newlines_before_comment_limited))
 
 	if comment.text[:2] != "/*" {
-		if info, is_disabled := p.disabled_lines[comment.pos.line]; is_disabled {
+		if info, is_disabled := p.disabled_lines[comment.pos.line];
+		   is_disabled {
 			p.source_position = comment.pos
 			if info.start_line == comment.pos.line && info.empty {
 				return info.end_line - info.start_line, cons(escape_nest(document), text(info.text))
@@ -841,7 +820,10 @@ visit_attributes :: proc(
 		return document
 	}
 
-	sort.sort(sort_attribute(attributes))
+	slice.sort_by(attributes[:], proc(i, j: ^ast.Attribute) -> bool {
+		return j.pos.offset < i.pos.offset
+	})
+
 	document = cons(document, move_line(p, attributes[0].pos))
 
 	for attribute, i in attributes {

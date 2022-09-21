@@ -612,7 +612,7 @@ format :: proc(
 				&list_fits,
 				Tuple{
 					indentation = data.indentation,
-					mode = .Fit,
+					mode = .Flat,
 					document = v.document,
 					alignment = data.alignment,
 				},
@@ -630,7 +630,7 @@ format :: proc(
 						alignment = data.alignment,
 					},
 				)
-			} else if fits(width - consumed, &list_fits) && v.mode != .Break {
+			} else if fits(width - consumed, &list_fits) && v.mode != .Break && v.mode != .Fit {
 				append(
 					list,
 					Tuple{
