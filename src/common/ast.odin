@@ -863,6 +863,9 @@ build_string_node :: proc(
 		build_string(n.expr, builder, remove_pointers)
 	case ^Binary_Expr:
 		build_string(n.left, builder, remove_pointers)
+		strings.write_string(builder, " ")
+		strings.write_string(builder, n.op.text)
+		strings.write_string(builder, " ")
 		build_string(n.right, builder, remove_pointers)
 	case ^Paren_Expr:
 		strings.write_string(builder, "(")

@@ -102,16 +102,18 @@ get_completion_list :: proc(
 	}
 
 	if position_context.switch_type_stmt != nil &&
-	   position_context.case_clause != nil {
+	   position_context.case_clause != nil &&
+	   position_context.switch_type_stmt.pos.offset >
+		   position_context.switch_stmt.pos.offset {
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 		   ok && assign.rhs != nil && len(assign.rhs) == 1 {
 			ast_context.use_globals = true
 			ast_context.use_locals = true
 
 			if symbol, ok := resolve_type_expression(
-				   &ast_context,
-				   assign.rhs[0],
-			   ); ok {
+				&ast_context,
+				assign.rhs[0],
+			); ok {
 				if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 					completion_type = .Switch_Type
 				}
@@ -208,15 +210,15 @@ get_comp_lit_completion :: proc(
 	}
 
 	if symbol, ok := resolve_type_expression(
-		   ast_context,
-		   position_context.parent_comp_lit.type,
-	   ); ok {
+		ast_context,
+		position_context.parent_comp_lit.type,
+	); ok {
 		if comp_symbol, _, ok := resolve_type_comp_literal(
-			   ast_context,
-			   position_context,
-			   symbol,
-			   position_context.parent_comp_lit,
-		   ); ok {
+			ast_context,
+			position_context,
+			symbol,
+			position_context.parent_comp_lit,
+		); ok {
 			ast_context.current_package = comp_symbol.pkg
 			#partial switch v in comp_symbol.value {
 			case SymbolStructValue:
@@ -224,13 +226,13 @@ get_comp_lit_completion :: proc(
 					ast_context.current_package = comp_symbol.pkg
 
 					if resolved, ok := resolve_type_expression(
-						   ast_context,
-						   v.types[i],
-					   ); ok {
+						ast_context,
+						v.types[i],
+					); ok {
 						if field_exists_in_comp_lit(
-							   position_context.comp_lit,
-							   name,
-						   ) {
+							position_context.comp_lit,
+							name,
+						) {
 							continue
 						}
 
@@ -493,7 +495,7 @@ get_selector_completion :: proc(
 			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
-			   ok {
+			ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr);
 				   ok {
 					if expr.op.text == "->" && symbol.type != .Function {
@@ -615,9 +617,9 @@ get_implicit_completion :: proc(
 	if position_context.value_decl != nil &&
 	   position_context.value_decl.type != nil {
 		if enum_value, ok := unwrap_enum(
-			   ast_context,
-			   position_context.value_decl.type,
-		   ); ok {
+			ast_context,
+			position_context.value_decl.type,
+		); ok {
 			for name in enum_value.names {
 				item := CompletionItem {
 					label  = name,
@@ -653,9 +655,9 @@ get_implicit_completion :: proc(
 		}
 
 		if enum_value, ok := unwrap_enum(
-			   ast_context,
-			   position_context.switch_stmt.cond,
-		   ); ok {
+			ast_context,
+			position_context.switch_stmt.cond,
+		); ok {
 			for name in enum_value.names {
 				if name in used_enums {
 					continue
@@ -681,9 +683,9 @@ get_implicit_completion :: proc(
 	   is_bitset_assignment_operator(position_context.assign.op.text) {
 		//bitsets
 		if symbol, ok := resolve_type_expression(
-			   ast_context,
-			   position_context.assign.lhs[0],
-		   ); ok {
+			ast_context,
+			position_context.assign.lhs[0],
+		); ok {
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 
@@ -707,9 +709,9 @@ get_implicit_completion :: proc(
 	   is_bitset_binary_operator(position_context.binary.op.text) {
 		//bitsets
 		if symbol, ok := resolve_first_symbol_from_binary_expression(
-			   ast_context,
-			   position_context.parent_binary,
-		   ); ok {
+			ast_context,
+			position_context.parent_binary,
+		); ok {
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 					item := CompletionItem {
@@ -745,15 +747,15 @@ get_implicit_completion :: proc(
 		}
 
 		if symbol, ok := resolve_type_expression(
-			   ast_context,
-			   position_context.parent_comp_lit.type,
-		   ); ok {
+			ast_context,
+			position_context.parent_comp_lit.type,
+		); ok {
 			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
-				   ast_context,
-				   position_context,
-				   symbol,
-				   position_context.parent_comp_lit,
-			   ); ok {
+				ast_context,
+				position_context,
+				symbol,
+				position_context.parent_comp_lit,
+			); ok {
 				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
 					ast_context.current_package = comp_symbol.pkg
 
@@ -795,13 +797,13 @@ get_implicit_completion :: proc(
 						list.items = items[:]
 						return
 					} else if bitset_symbol, ok := resolve_type_expression(
-						   ast_context,
-						   type,
-					   ); ok {
+						ast_context,
+						type,
+					); ok {
 						if value, ok := unwrap_bitset(
-							   ast_context,
-							   bitset_symbol,
-						   ); ok {
+							ast_context,
+							bitset_symbol,
+						); ok {
 							for name in value.names {
 
 								item := CompletionItem {
@@ -817,7 +819,7 @@ get_implicit_completion :: proc(
 						}
 					}
 				} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
-				   ok {
+				ok {
 					for enum_name in s.names {
 						item := CompletionItem {
 							label  = enum_name,
@@ -842,15 +844,15 @@ get_implicit_completion :: proc(
 		enum_node: ^ast.Expr
 
 		if position_in_node(
-			   position_context.binary.right,
-			   position_context.position,
-		   ) {
+			position_context.binary.right,
+			position_context.position,
+		) {
 			context_node = position_context.binary.right
 			enum_node = position_context.binary.left
 		} else if position_in_node(
-			   position_context.binary.left,
-			   position_context.position,
-		   ) {
+			position_context.binary.left,
+			position_context.position,
+		) {
 			context_node = position_context.binary.left
 			enum_node = position_context.binary.right
 		}
@@ -884,7 +886,7 @@ get_implicit_completion :: proc(
 			} else {
 				//procedures are the only types that can return more than one value
 				if symbol, ok := resolve_type_expression(ast_context, elem);
-				   ok {
+				ok {
 					if procedure, ok := symbol.value.(SymbolProcedureValue);
 					   ok {
 						if procedure.return_types == nil {
@@ -901,9 +903,9 @@ get_implicit_completion :: proc(
 
 		if len(position_context.assign.lhs) > rhs_index {
 			if enum_value, ok := unwrap_enum(
-				   ast_context,
-				   position_context.assign.lhs[rhs_index],
-			   ); ok {
+				ast_context,
+				position_context.assign.lhs[rhs_index],
+			); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
@@ -944,11 +946,9 @@ get_implicit_completion :: proc(
 
 		if len(position_context.function.type.results.list) > return_index {
 			if enum_value, ok := unwrap_enum(
-				   ast_context,
-				   position_context.function.type.results.list[
-					   return_index \
-				   ].type,
-			   ); ok {
+				ast_context,
+				position_context.function.type.results.list[return_index].type,
+			); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
@@ -972,16 +972,16 @@ get_implicit_completion :: proc(
 				call^,
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
-			   ok && parameter_ok {
+			ok && parameter_ok {
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
 					}
 
 					if enum_value, ok := unwrap_enum(
-						   ast_context,
-						   proc_value.arg_types[parameter_index].type,
-					   ); ok {
+						ast_context,
+						proc_value.arg_types[parameter_index].type,
+					); ok {
 						for name in enum_value.names {
 							item := CompletionItem {
 								label  = name,
@@ -1144,7 +1144,7 @@ get_identifier_completion :: proc(
 				build_procedure_symbol_signature(&symbol)
 
 				if score, ok := common.fuzzy_match(matcher, ident.name);
-				   ok == 1 {
+				ok == 1 {
 					append(
 						&combined,
 						CombinedResult{
@@ -1446,9 +1446,9 @@ get_type_switch_completion :: proc(
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
 				if symbol, ok := resolve_type_expression(
-					   ast_context,
-					   union_value.types[i],
-				   ); ok {
+					ast_context,
+					union_value.types[i],
+				); ok {
 					name := symbol.name
 					if name in used_unions {
 						continue
@@ -1512,18 +1512,19 @@ get_core_insert_package_if_non_existent :: proc(
 	strings.write_string(&builder, fmt.tprintf("import \"core:%v\"", pkg))
 
 	return {
-		newText = strings.to_string(builder),
-		range = {
-			start = {
-				line = ast_context.file.pkg_decl.end.line + 1,
-				character = 0,
-			},
-			end = {
-				line = ast_context.file.pkg_decl.end.line + 1,
-				character = 0,
+			newText = strings.to_string(builder),
+			range = {
+				start = {
+					line = ast_context.file.pkg_decl.end.line + 1,
+					character = 0,
+				},
+				end = {
+					line = ast_context.file.pkg_decl.end.line + 1,
+					character = 0,
+				},
 			},
 		},
-	}, true
+		true
 }
 
 get_range_from_selection_start_to_dot :: proc(

@@ -1857,14 +1857,41 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test	
 		test :: proc() {
-		Int :: int
-		
-		my_procedure_two :: proc() {
-			b : In*
+			Int :: int
+			
+			my_procedure_two :: proc() {
+				b : In*
+			}
 		}
 		`,
 		packages = {},
 	}
 
 	test.expect_completion_details(t, &source, "", {"Int"})
+}
+
+@(test)
+ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test	
+			Maybe :: union($T: typeid) {T}
+
+			My_Enum :: enum {
+				One,
+				Two,
+			}
+			main :: proc(a: Maybe(My_Enum)) {
+				switch v in a {
+					case My_Enum:
+						switch v {
+							case .*
+						}
+						
+				}
+			}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, ".", {"One", "Two"})
 }

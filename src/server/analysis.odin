@@ -385,9 +385,9 @@ resolve_type_comp_literal :: proc(
 						if name ==
 						   field_value.field.derived.(^ast.Ident).name {
 							if symbol, ok := resolve_type_expression(
-								   ast_context,
-								   s.types[i],
-							   ); ok {
+								ast_context,
+								s.types[i],
+							); ok {
 								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
 								if _, ok := symbol.value.(SymbolBitSetValue);
 								   ok {
@@ -413,9 +413,9 @@ resolve_type_comp_literal :: proc(
 				}
 
 				if symbol, ok := resolve_type_expression(
-					   ast_context,
-					   s.types[element_index],
-				   ); ok {
+					ast_context,
+					s.types[element_index],
+				); ok {
 					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
 					if _, ok := symbol.value.(SymbolBitSetValue); ok {
 						return current_symbol, current_comp_lit, true
@@ -616,8 +616,7 @@ resolve_generic_function_ast :: proc(
 
 is_symbol_same_typed :: proc(
 	ast_context: ^AstContext,
-	a,
-	b: Symbol,
+	a, b: Symbol,
 	flags: ast.Field_Flags = {},
 ) -> bool {
 	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
@@ -863,7 +862,7 @@ resolve_function_overload :: proc(
 
 	for arg_expr in group.args {
 		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
-		   ok {
+		ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
@@ -930,9 +929,9 @@ resolve_function_overload :: proc(
 							break next_fn
 						}
 						if s, ok := resolve_type_expression(
-							   ast_context,
-							   p.return_types[0].type,
-						   ); ok {
+							ast_context,
+							p.return_types[0].type,
+						); ok {
 							call_symbol = s
 						}
 					}
@@ -954,11 +953,11 @@ resolve_function_overload :: proc(
 					}
 
 					if !is_symbol_same_typed(
-						   ast_context,
-						   call_symbol,
-						   arg_symbol,
-						   procedure.arg_types[i].flags,
-					   ) {
+						ast_context,
+						call_symbol,
+						arg_symbol,
+						procedure.arg_types[i].flags,
+					) {
 						break next_fn
 					}
 				}
@@ -1186,7 +1185,7 @@ resolve_type_expression :: proc(
 		if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
 			if unary.op.kind == .Question {
 				if symbol, ok := resolve_type_expression(ast_context, v.expr);
-				   ok {
+				ok {
 					if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 						if len(union_value.types) != 1 {
 							return {}, false
@@ -1539,10 +1538,10 @@ resolve_type_identifier :: proc(
 	}
 
 	if local, is_global_space := get_local(
-		   ast_context,
-		   node.pos.offset,
-		   node.name,
-	   ); local != nil && ast_context.use_locals {
+		ast_context,
+		node.pos.offset,
+		node.name,
+	); local != nil && ast_context.use_locals {
 		is_distinct := false
 
 		//Sometimes the locals are semi resolved and can no longer use the locals
@@ -1868,9 +1867,9 @@ resolve_symbol_return :: proc(
 	#partial switch v in &symbol.value {
 	case SymbolProcedureGroupValue:
 		if symbol, ok := resolve_function_overload(
-			   ast_context,
-			   v.group.derived.(^ast.Proc_Group)^,
-		   ); ok {
+			ast_context,
+			v.group.derived.(^ast.Proc_Group)^,
+		); ok {
 			return symbol, true
 		} else {
 			return symbol, false
@@ -1878,10 +1877,10 @@ resolve_symbol_return :: proc(
 	case SymbolProcedureValue:
 		if v.generic {
 			if resolved_symbol, ok := resolve_generic_function(
-				   ast_context,
-				   v.arg_types,
-				   v.return_types,
-			   ); ok {
+				ast_context,
+				v.arg_types,
+				v.return_types,
+			); ok {
 				return resolved_symbol, ok
 			} else {
 				return symbol, true
@@ -1972,10 +1971,10 @@ resolve_location_identifier :: proc(
 	symbol: Symbol
 
 	if local, _, _ := get_local_lhs_and_rhs(
-		   ast_context,
-		   node.pos.offset,
-		   node.name,
-	   ); local != nil {
+		ast_context,
+		node.pos.offset,
+		node.name,
+	); local != nil {
 		symbol.range = common.get_token_range(local, ast_context.file.src)
 		uri := common.create_uri(local.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
@@ -2070,9 +2069,9 @@ resolve_first_symbol_from_binary_expression :: proc(
 			}
 		} else if _, ok := binary.left.derived.(^ast.Binary_Expr); ok {
 			if s, ok := resolve_first_symbol_from_binary_expression(
-				   ast_context,
-				   cast(^ast.Binary_Expr)binary.left,
-			   ); ok {
+				ast_context,
+				cast(^ast.Binary_Expr)binary.left,
+			); ok {
 				return s, ok
 			}
 		}
@@ -2085,9 +2084,9 @@ resolve_first_symbol_from_binary_expression :: proc(
 			}
 		} else if _, ok := binary.right.derived.(^ast.Binary_Expr); ok {
 			if s, ok := resolve_first_symbol_from_binary_expression(
-				   ast_context,
-				   cast(^ast.Binary_Expr)binary.right,
-			   ); ok {
+				ast_context,
+				cast(^ast.Binary_Expr)binary.right,
+			); ok {
 				return s, ok
 			}
 		}
@@ -2865,9 +2864,9 @@ get_locals_block_stmt :: proc(
 
 get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 	if symbol, expr, ok := unwrap_procedure_until_struct_or_package(
-		   ast_context,
-		   expr,
-	   ); ok {
+		ast_context,
+		expr,
+	); ok {
 		#partial switch v in symbol.value {
 		case SymbolPackageValue:
 			if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -3510,7 +3509,7 @@ resolve_entire_decl :: proc(
 				}
 			case ^ast.Selector_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				   ok {
+				ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node        = v,
 						symbol      = symbol,
@@ -3523,7 +3522,7 @@ resolve_entire_decl :: proc(
 				}
 			case ^ast.Call_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				   ok {
+				ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node        = v,
 						symbol      = symbol,
@@ -3550,7 +3549,7 @@ resolve_entire_decl :: proc(
 				)
 
 				if symbol, ok := resolve_location_selector(ast_context, v);
-				   ok {
+				ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = v.field,
 						symbol = symbol,
@@ -3594,7 +3593,7 @@ resolve_entire_decl :: proc(
 				}
 
 				if symbol, ok := resolve_location_identifier(ast_context, v^);
-				   ok {
+				ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = v,
 						symbol = symbol,
@@ -3750,9 +3749,9 @@ unwrap_bitset :: proc(
 ) {
 	if bitset_value, ok := bitset_symbol.value.(SymbolBitSetValue); ok {
 		if enum_symbol, ok := resolve_type_expression(
-			   ast_context,
-			   bitset_value.expr,
-		   ); ok {
+			ast_context,
+			bitset_value.expr,
+		); ok {
 			if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 				return enum_value, true
 			}
@@ -4055,16 +4054,16 @@ get_document_position_context :: proc(
 	}
 
 	if !position_in_node(
-		   position_context.comp_lit,
-		   position_context.position,
-	   ) {
+		position_context.comp_lit,
+		position_context.position,
+	) {
 		position_context.comp_lit = nil
 	}
 
 	if !position_in_node(
-		   position_context.parent_comp_lit,
-		   position_context.position,
-	   ) {
+		position_context.parent_comp_lit,
+		position_context.position,
+	) {
 		position_context.parent_comp_lit = nil
 	}
 
@@ -4077,9 +4076,9 @@ get_document_position_context :: proc(
 	}
 
 	if !position_in_node(
-		   position_context.parent_binary,
-		   position_context.position,
-	   ) {
+		position_context.parent_binary,
+		position_context.position,
+	) {
 		position_context.parent_binary = nil
 	}
 
@@ -4179,6 +4178,7 @@ fallback_position_context_completion :: proc(
 		   c == ':' ||
 		   c == '\n' ||
 		   c == '\r' ||
+		   c == '\t' ||
 		   c == '=' ||
 		   c == '<' ||
 		   c == '-' ||
@@ -4234,7 +4234,6 @@ fallback_position_context_completion :: proc(
 	s := string(position_context.file.src[begin_offset:end_offset])
 
 	if !partial_arrow {
-
 		only_whitespaces := true
 
 		for r in s {

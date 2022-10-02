@@ -460,7 +460,6 @@ is_foreign_block_only_procedures :: proc(stmt: ^ast.Stmt) -> bool {
 
 @(private)
 is_value_decl_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
-
 	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
 		if len(value_decl.values) == 0 {
 			return false
@@ -475,6 +474,22 @@ is_value_decl_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
 
 	return false
 }
+
+@(private)
+is_value_expression_call :: proc(expr: ^ast.Expr) -> bool {
+	#partial switch v in expr.derived {
+	case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
+		return true
+	case ^ast.Unary_Expr:
+		#partial switch v2 in v.expr.derived {
+		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
+			return true
+		}
+	}
+
+	return false
+}
+
 
 @(private)
 is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
@@ -991,6 +1006,10 @@ visit_stmt :: proc(
 		}
 
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) {
+			document = cons(document, group(if_document))
+		} else if v.cond != nil &&
+		   v.init == nil &&
+		   is_value_expression_call(v.cond) {
 			document = cons(document, group(if_document))
 		} else {
 			document = cons(document, group(hang(3, if_document)))
@@ -2600,7 +2619,7 @@ visit_signature_field :: proc(
 		document = cons(document, text("="))
 		document = cons_with_nopl(document, visit_expr(p, field.default_value))
 	}
-	return document
+	return group(document)
 }
 
 @(private)
