@@ -22,6 +22,12 @@ async function runOnce() {
   core.info(`name: ${name}`);
   core.info(`token: ${token}`);
 
+  const options = {
+    request: {
+      timeout: 30000,
+    }
+  };
+  
   const octokit = github.getOctokit(token, options);
 
   // Delete the previous release since we can't overwrite one. This may happen
