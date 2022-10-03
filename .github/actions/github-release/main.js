@@ -22,7 +22,7 @@ async function runOnce() {
   core.info(`name: ${name}`);
   core.info(`token: ${token}`);
 
-  const octokit = new github.GitHub(token);
+  const octokit = github.getOctokit(token, options);
 
   // Delete the previous release since we can't overwrite one. This may happen
   // due to retrying an upload or it may happen because we're doing the dev
