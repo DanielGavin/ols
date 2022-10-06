@@ -19,6 +19,12 @@
 	],
 	"main": "./out/extension.js",
 	"contributes": {
+		"snippets": [
+			{
+			  "language": "odin",
+			  "path": "./snippets/snippets.json"
+			}
+		],
 		"commands": [
 			{
 				"command": "ols.start",

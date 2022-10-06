@@ -1,0 +1,80 @@
+{
+	"Println": {
+		"prefix": "pl",
+		"body": [
+			"fmt.println($0)"
+		],
+		"description": "Print to stdout with newline"
+	},
+	"Printf": {
+		"prefix": "pf",
+		"body": [
+			"fmt.printf(\"$0\")"
+		],
+		"description": "Print to stdout according to format string"
+	},
+	"If": {
+		"prefix": "if",
+		"body": [
+			"if $1 {",
+			"\t$0",
+			"}"
+		],
+		"description": "If statement"
+	},
+	"For": {
+		"prefix": "for",
+		"body": [
+			"for $1 {",
+			"\t$0",
+			"}"
+		],
+		"description": "For loop on a variable"
+	},
+	"For Index": {
+		"prefix": "fori",
+		"body": [
+			"for $1 := $2; $1 < $3; $1+=1 {",
+			"\t$0",
+			"}"
+		],
+		"description": "For loop on a variable"
+	},
+	"For Range": {
+		"prefix": "forr",
+		"body": [
+			"for $2 in $1 {",
+			"\t$0",
+			"}"
+		],
+		"description": "For loop on an range/iterable"
+	},
+	"Main": {
+		"prefix": "main",
+		"body": [
+			"main :: proc() {",
+			"\t$0",
+			"}"
+		],
+		"description": "Main procedure"
+	},
+	"New Proc": {
+		"prefix": "proc",
+		"body": [
+			"$1 :: proc() {",
+			"\t$0",
+			"}"
+		],
+		"description": "New procedure"
+	},
+	"New Struct": {
+		"prefix": "st",
+		"body": [
+			"$1 :: struct {",
+			"\t$2: $3,",
+			"\t$0",
+			"}"
+		],
+		"description": "New struct"
+	}
+}
