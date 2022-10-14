@@ -40,14 +40,14 @@ async function runOnce() {
     }
     const release_id = release.id;
     core.info(`deleting release ${release_id}`);
-    await octokit.repos.deleteRelease({ owner, repo, release_id });
+    await octokit.rest.repos.deleteRelease({ owner, repo, release_id });
   }
 
   // We also need to update the `dev` tag while we're at it on the `dev` branch.
   if (name == 'nightly') {
     try {
       core.info(`updating nightly tag`);
-      await octokit.git.updateRef({
+      await octokit.rest.git.updateRef({
           owner,
           repo,
           ref: 'tags/nightly',
@@ -57,7 +57,7 @@ async function runOnce() {
     } catch (e) {
       console.log("ERROR: ", JSON.stringify(e, null, 2));
       core.info(`creating nightly tag`);
-      await octokit.git.createTag({
+      await octokit.rest.git.createTag({
         owner,
         repo,
         tag: 'nightly',
@@ -71,7 +71,7 @@ async function runOnce() {
   // Creates an official GitHub release for this `tag`, and if this is `dev`
   // then we know that from the previous block this should be a fresh release.
   core.info(`creating a release`);
-  const release = await octokit.repos.createRelease({
+  const release = await octokit.rest.repos.createRelease({
     owner,
     repo,
     name,
@@ -88,7 +88,7 @@ async function runOnce() {
     core.info(`upload ${file}`);
     core.info(`name ${name}`);
     core.info(`uri ${uri}`);
-    await octokit.repos.uploadReleaseAsset({
+    await octokit.rest.repos.uploadReleaseAsset({
       owner,
       repo,
       data: fs.createReadStream(file),
