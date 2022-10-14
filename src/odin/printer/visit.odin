@@ -1559,12 +1559,7 @@ visit_expr :: proc(
 			text_token(p, v.token),
 		)
 	case ^Selector_Call_Expr:
-		document = cons(
-			visit_expr(p, v.call.expr),
-			text("("),
-			visit_exprs(p, v.call.args, {.Add_Comma}),
-			text(")"),
-		)
+		document = visit_expr(p, v.call)
 	case ^Ellipsis:
 		document = cons(text(".."), visit_expr(p, v.expr))
 	case ^Relative_Type:
@@ -2067,6 +2062,14 @@ visit_expr :: proc(
 		document = cons_with_opl(document, visit_expr(p, v.column_count))
 		document = cons(document, text("]"))
 		document = cons(group(document), visit_expr(p, v.elem))
+	case ^ast.Tag_Expr:
+		document = cons(
+			text(v.op.text),
+			break_with_no_newline(),
+			text(v.name),
+			break_with_no_newline(),
+			visit_expr(p, v.expr),
+		)
 	case ^Matrix_Index_Expr:
 		document = cons(
 			visit_expr(p, v.expr),
