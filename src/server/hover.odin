@@ -139,8 +139,9 @@ get_hover_information :: proc(
 			position_context.identifier^,
 			ast_context.file.src,
 		)
-		ast_context.use_locals = true
-		ast_context.use_globals = true
+
+		reset_ast_context(&ast_context)
+
 		ast_context.current_package = ast_context.document_package
 
 		//if the base selector is the client wants to go to.
@@ -150,9 +151,9 @@ get_hover_information :: proc(
 
 			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_type_identifier(
-					   &ast_context,
-					   ident,
-				   ); ok {
+					&ast_context,
+					ident,
+				); ok {
 					resolved.signature = get_signature(
 						&ast_context,
 						ident,
@@ -199,9 +200,9 @@ get_hover_information :: proc(
 			for name, i in v.names {
 				if name == field {
 					if symbol, ok := resolve_type_expression(
-						   &ast_context,
-						   v.types[i],
-					   ); ok {
+						&ast_context,
+						v.types[i],
+					); ok {
 						symbol.name = name //TODO refractor - never set symbol name after creation - change writer_hover_content
 						symbol.pkg = selector.name
 						symbol.signature = common.node_to_string(v.types[i])
@@ -218,9 +219,9 @@ get_hover_information :: proc(
 				if ident, ok := position_context.field.derived.(^ast.Ident);
 				   ok {
 					if symbol, ok := resolve_type_identifier(
-						   &ast_context,
-						   ident^,
-					   ); ok {
+						&ast_context,
+						ident^,
+					); ok {
 						hover.contents = write_hover_content(
 							&ast_context,
 							symbol,
@@ -231,8 +232,8 @@ get_hover_information :: proc(
 			}
 		}
 	} else if position_context.identifier != nil {
-		ast_context.use_locals = true
-		ast_context.use_globals = true
+		reset_ast_context(&ast_context)
+
 		ast_context.current_package = ast_context.document_package
 
 		ident := position_context.identifier.derived.(^ast.Ident)^

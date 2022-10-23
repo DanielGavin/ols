@@ -101,10 +101,15 @@ get_completion_list :: proc(
 		completion_type = .Package
 	}
 
-	if position_context.switch_type_stmt != nil &&
-	   position_context.case_clause != nil &&
-	   position_context.switch_type_stmt.pos.offset >
-		   position_context.switch_stmt.pos.offset {
+	done: if position_context.switch_type_stmt != nil &&
+	   position_context.case_clause != nil {
+
+		if position_context.switch_stmt != nil &&
+		   position_context.switch_type_stmt.pos.offset >
+			   position_context.switch_stmt.pos.offset {
+			break done
+		}
+
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 		   ok && assign.rhs != nil && len(assign.rhs) == 1 {
 			ast_context.use_globals = true
@@ -270,8 +275,7 @@ get_selector_completion :: proc(
 	selector: Symbol
 	ok: bool
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	selector, ok = resolve_type_expression(
 		ast_context,
@@ -604,8 +608,7 @@ get_implicit_completion :: proc(
 
 	selector: Symbol
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	if selector.pkg != "" {
 		ast_context.current_package = selector.pkg
@@ -1080,8 +1083,7 @@ get_identifier_completion :: proc(
 			}
 		}
 
-		ast_context.use_locals = true
-		ast_context.use_globals = true
+		reset_ast_context(ast_context)
 		ast_context.current_package = ast_context.document_package
 
 		ident := new_type(
@@ -1126,8 +1128,8 @@ get_identifier_completion :: proc(
 				k,
 			)
 
-			ast_context.use_locals = true
-			ast_context.use_globals = true
+			reset_ast_context(ast_context)
+
 			ast_context.current_package = ast_context.document_package
 
 			ident := new_type(
@@ -1438,8 +1440,7 @@ get_type_switch_completion :: proc(
 		}
 	}
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 	   ok && assign.rhs != nil && len(assign.rhs) == 1 {

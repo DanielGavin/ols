@@ -95,12 +95,10 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 end :: proc() {
 }
 
-
 main :: proc() {
 
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
-
 
 	/*
 	fh, err := os.open("log.txt", os.O_RDWR|os.O_CREATE) 
@@ -116,14 +114,7 @@ main :: proc() {
 		set_stacktrace()
 	}
 
-	when ODIN_OS == .Darwin {
-		init_global_temporary_allocator(mem.Megabyte * 100)
-	} else {
-		init_global_temporary_allocator(mem.Megabyte * 100)
-		//Gives weird allocation errors
-		//growing_arena: common.Growing_Arena
-		//context.temp_allocator = common.growing_arena_allocator(&growing_arena)
-	}
+	init_global_temporary_allocator(mem.Megabyte * 100)
 
 
 	run(&reader, &writer)

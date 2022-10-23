@@ -10,4 +10,5 @@
 *.exp
 *.sqlite
 *.suo
+*node_modules
 

@@ -90,7 +90,7 @@
 				},
 				{
 					"name": "keyword.control.odin",
-					"match": "\\b(if|else|or_else|when|for|in|defer|switch|return|or_return)\\b"
+					"match": "\\b(if|else|or_else|when|for|in|not_in|defer|switch|return|or_return)\\b"
 				},
 				{
 					"name": "keyword.control.odin",
