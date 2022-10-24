@@ -31,10 +31,10 @@ Printer :: struct {
 }
 
 Disabled_Info :: struct {
-	text:     string,
-	empty:    bool,
+	text:       string,
+	empty:      bool,
 	start_line: int,
-	end_line: int,
+	end_line:   int,
 }
 
 Config :: struct {
@@ -137,9 +137,9 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 
 				disabled_info := Disabled_Info {
 					start_line = disable_position.line,
-					end_line = comment.pos.line,
-					text     = p.src[begin:end],
-					empty = empty,
+					end_line   = comment.pos.line,
+					text       = p.src[begin:end],
+					empty      = empty,
 				}
 
 				for line := disable_position.line;

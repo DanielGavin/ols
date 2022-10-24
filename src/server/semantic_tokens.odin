@@ -260,6 +260,21 @@ visit_node :: proc(
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
+
+			if .Distinct in symbol_and_node.symbol.flags &&
+			   symbol_and_node.symbol.type == .Constant {
+				log.error(symbol_and_node.symbol)
+				write_semantic_node(
+					builder,
+					node,
+					ast_context.file.src,
+					.Type,
+					.None,
+				)
+				return
+			}
+
+
 			if symbol_and_node.symbol.type == .Variable ||
 			   symbol_and_node.symbol.type == .Constant {
 				write_semantic_node(

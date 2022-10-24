@@ -500,11 +500,6 @@ collect_symbols :: proc(
 				package_map,
 				uri,
 			)
-			if expr.mutable {
-				token_type = .Variable
-			} else {
-				token_type = .Constant
-			}
 		case ^ast.Ident:
 			token = v^
 			symbol.value = collect_generic(
@@ -513,11 +508,6 @@ collect_symbols :: proc(
 				package_map,
 				uri,
 			)
-			if expr.mutable {
-				token_type = .Variable
-			} else {
-				token_type = .Unresolved
-			}
 		case:
 			// default
 			symbol.value = collect_generic(
@@ -526,12 +516,13 @@ collect_symbols :: proc(
 				package_map,
 				uri,
 			)
-			if expr.mutable {
-				token_type = .Variable
-			} else {
-				token_type = .Unresolved
-			}
 			token = expr.expr
+		}
+
+		if expr.mutable {
+			token_type = .Variable
+		} else {
+			token_type = .Constant
 		}
 
 		symbol.range = common.get_token_range(expr.name_expr, file.src)

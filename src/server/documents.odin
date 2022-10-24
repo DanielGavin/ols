@@ -456,7 +456,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":");
-		i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
+		   i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
 			if len(imp.fullpath) < 2 {
 				continue
 			}

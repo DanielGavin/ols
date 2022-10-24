@@ -499,7 +499,7 @@ get_selector_completion :: proc(
 			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
-			ok {
+			   ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr);
 				   ok {
 					if expr.op.text == "->" && symbol.type != .Function {
@@ -822,7 +822,7 @@ get_implicit_completion :: proc(
 						}
 					}
 				} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
-				ok {
+				   ok {
 					for enum_name in s.names {
 						item := CompletionItem {
 							label  = enum_name,
@@ -847,15 +847,15 @@ get_implicit_completion :: proc(
 		enum_node: ^ast.Expr
 
 		if position_in_node(
-			position_context.binary.right,
-			position_context.position,
-		) {
+			   position_context.binary.right,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.right
 			enum_node = position_context.binary.left
 		} else if position_in_node(
-			position_context.binary.left,
-			position_context.position,
-		) {
+			   position_context.binary.left,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.left
 			enum_node = position_context.binary.right
 		}
@@ -889,7 +889,7 @@ get_implicit_completion :: proc(
 			} else {
 				//procedures are the only types that can return more than one value
 				if symbol, ok := resolve_type_expression(ast_context, elem);
-				ok {
+				   ok {
 					if procedure, ok := symbol.value.(SymbolProcedureValue);
 					   ok {
 						if procedure.return_types == nil {
@@ -975,7 +975,7 @@ get_implicit_completion :: proc(
 				call^,
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
-			ok && parameter_ok {
+			   ok && parameter_ok {
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
@@ -1146,7 +1146,7 @@ get_identifier_completion :: proc(
 				build_procedure_symbol_signature(&symbol)
 
 				if score, ok := common.fuzzy_match(matcher, ident.name);
-				ok == 1 {
+				   ok == 1 {
 					append(
 						&combined,
 						CombinedResult{
@@ -1590,8 +1590,6 @@ append_magic_map_completion :: proc(
 
 		append(items, item)
 	}
-
-
 }
 
 append_magic_dynamic_array_completion :: proc(

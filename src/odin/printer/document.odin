@@ -43,8 +43,8 @@ Document_Break :: struct {
 
 Document_If_Break_Or :: struct {
 	break_document: ^Document,
-	fit_document: ^Document,
-	group_id: string,
+	fit_document:   ^Document,
+	group_id:       string,
 }
 
 Document_Group :: struct {
@@ -181,10 +181,7 @@ align :: proc(
 	return document
 }
 
-if_break :: proc(
-	value: string,
-	allocator := context.allocator,
-) -> ^Document {
+if_break :: proc(value: string, allocator := context.allocator) -> ^Document {
 	return if_break_or_document(text(value, allocator), nil, "", allocator)
 }
 
@@ -199,7 +196,12 @@ if_break_or_string :: proc(
 	group_id := "",
 	allocator := context.allocator,
 ) -> ^Document {
-	return if_break_or_document(text(break_value, allocator), text(fit_value, allocator), group_id, allocator)
+	return if_break_or_document(
+		text(break_value, allocator),
+		text(fit_value, allocator),
+		group_id,
+		allocator,
+	)
 }
 
 if_break_or_document :: proc(
@@ -211,8 +213,8 @@ if_break_or_document :: proc(
 	document := new(Document, allocator)
 	document^ = Document_If_Break_Or {
 		break_document = break_document,
-		fit_document = fit_document,
-		group_id = group_id,
+		fit_document   = fit_document,
+		group_id       = group_id,
 	}
 	return document
 }

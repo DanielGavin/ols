@@ -990,7 +990,13 @@ visit_stmt :: proc(
 		if v.init != nil {
 			begin_document = cons_with_nopl(
 				begin_document,
-				cons(group(visit_stmt(p, v.init), Document_Group_Options {id = "init"}), text(";")),
+				cons(
+					group(
+						visit_stmt(p, v.init),
+						Document_Group_Options{id = "init"},
+					),
+					text(";"),
+				),
 			)
 		}
 
@@ -1006,14 +1012,26 @@ visit_stmt :: proc(
 		}
 
 
-
-		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) || 
-		   v.cond != nil &&
-		   v.init == nil && 
-		   is_value_expression_call(v.cond)  {
-			document = cons(document, group(cons(begin_document, if_break_or(end_document, hang(3, end_document), "init"))))
-		}  else {
-			document = cons(document, group(hang(3, cons(begin_document, end_document))))
+		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
+		   v.cond != nil && v.init == nil && is_value_expression_call(v.cond) {
+			document = cons(
+				document,
+				group(
+					cons(
+						begin_document,
+						if_break_or(
+							end_document,
+							hang(3, end_document),
+							"init",
+						),
+					),
+				),
+			)
+		} else {
+			document = cons(
+				document,
+				group(hang(3, cons(begin_document, end_document))),
+			)
 		}
 
 		set_source_position(p, v.body.pos)

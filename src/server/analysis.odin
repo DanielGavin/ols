@@ -1088,7 +1088,7 @@ internal_resolve_type_expression :: proc(
 	}
 
 	if check_node_recursion(ast_context, node) {
-		log.error("Recursion detected")
+		//log.error("Recursion detected")
 		return {}, false
 	}
 
@@ -1530,7 +1530,7 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
-		log.error("Recursion detected")
+		//log.error("Recursion detected")
 		return {}, false
 	}
 
@@ -2287,7 +2287,7 @@ make_symbol_array_from_ast :: proc(
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type  = .Variable,
+		type  = .Constant,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
 	}
@@ -2313,7 +2313,7 @@ make_symbol_dynamic_array_from_ast :: proc(
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type  = .Variable,
+		type  = .Constant,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
 	}
@@ -2332,7 +2332,7 @@ make_symbol_multi_pointer_from_ast :: proc(
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type  = .Variable,
+		type  = .Constant,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
 	}
@@ -2351,7 +2351,7 @@ make_symbol_map_from_ast :: proc(
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v.node, ast_context.file.src),
-		type  = .Variable,
+		type  = .Constant,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
 	}
