@@ -41,10 +41,10 @@ unmarshal :: proc(
 				//TEMP most likely have to rewrite the entire unmarshal using tags instead, because i sometimes have to support names like 'context', which can't be written like that
 				if field[len(field) - 1] == '_' {
 					if ret := unmarshal(
-						   j[field[:len(field) - 1]],
-						   a,
-						   allocator,
-					   ); ret != nil {
+						j[field[:len(field) - 1]],
+						a,
+						allocator,
+					); ret != nil {
 						return ret
 					}
 				} else {

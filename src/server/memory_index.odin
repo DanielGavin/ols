@@ -65,7 +65,7 @@ memory_index_fuzzy_search :: proc(
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg {
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name);
-				   ok == 1 {
+				ok == 1 {
 					result := FuzzyResult {
 						symbol = symbol,
 						score  = score,

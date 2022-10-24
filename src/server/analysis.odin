@@ -868,8 +868,10 @@ resolve_function_overload :: proc(
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
-		ok {
+		next_fn: if f, ok := internal_resolve_type_expression(
+			ast_context,
+			arg_expr,
+		); ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
@@ -903,7 +905,7 @@ resolve_function_overload :: proc(
 					//named parameter
 					if field, is_field := arg.derived.(^ast.Field_Value);
 					   is_field {
-						call_symbol, ok = resolve_type_expression(
+						call_symbol, ok = internal_resolve_type_expression(
 							ast_context,
 							field.value,
 						)
@@ -921,7 +923,7 @@ resolve_function_overload :: proc(
 							break next_fn
 						}
 					} else {
-						call_symbol, ok = resolve_type_expression(
+						call_symbol, ok = internal_resolve_type_expression(
 							ast_context,
 							arg,
 						)
@@ -935,7 +937,7 @@ resolve_function_overload :: proc(
 						if len(p.return_types) != 1 {
 							break next_fn
 						}
-						if s, ok := resolve_type_expression(
+						if s, ok := internal_resolve_type_expression(
 							ast_context,
 							p.return_types[0].type,
 						); ok {
@@ -944,12 +946,12 @@ resolve_function_overload :: proc(
 					}
 
 					if procedure.arg_types[i].type != nil {
-						arg_symbol, ok = resolve_type_expression(
+						arg_symbol, ok = internal_resolve_type_expression(
 							ast_context,
 							procedure.arg_types[i].type,
 						)
 					} else {
-						arg_symbol, ok = resolve_type_expression(
+						arg_symbol, ok = internal_resolve_type_expression(
 							ast_context,
 							procedure.arg_types[i].default_value,
 						)
@@ -1172,7 +1174,8 @@ internal_resolve_type_expression :: proc(
 	case ^Binary_Expr:
 		return resolve_first_symbol_from_binary_expression(ast_context, v)
 	case ^Ident:
-		return resolve_type_identifier(ast_context, v^)
+		delete_key(&ast_context.recursion_map, v)
+		return internal_resolve_type_identifier(ast_context, v^)
 	case ^Basic_Lit:
 		return resolve_basic_lit(ast_context, v^)
 	case ^Type_Cast:
@@ -1514,7 +1517,6 @@ resolve_type_identifier :: proc(
 	Symbol,
 	bool,
 ) {
-	clear(&ast_context.recursion_map)
 	return internal_resolve_type_identifier(ast_context, node)
 }
 
@@ -3557,7 +3559,7 @@ resolve_entire_decl :: proc(
 				}
 			case ^ast.Selector_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				ok {
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node        = v,
 						symbol      = symbol,
@@ -3570,7 +3572,7 @@ resolve_entire_decl :: proc(
 				}
 			case ^ast.Call_Expr:
 				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				ok {
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node        = v,
 						symbol      = symbol,
@@ -3597,7 +3599,7 @@ resolve_entire_decl :: proc(
 				)
 
 				if symbol, ok := resolve_location_selector(ast_context, v);
-				ok {
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = v.field,
 						symbol = symbol,
@@ -3641,7 +3643,7 @@ resolve_entire_decl :: proc(
 				}
 
 				if symbol, ok := resolve_location_identifier(ast_context, v^);
-				ok {
+				   ok {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = v,
 						symbol = symbol,

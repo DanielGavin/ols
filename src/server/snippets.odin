@@ -17,7 +17,11 @@ snippets: map[string]Snippet_Info = {
 		packages = []string{"fmt"},
 		detail = "println",
 	},
-	"if" = {insert = "if ${1} {\n\t${0}\n}", packages = {}, detail = "if statement"},
+	"if" = {
+		insert = "if ${1} {\n\t${0}\n}",
+		packages = {},
+		detail = "if statement",
+	},
 	"forr" = {
 		insert = "for ${2:elem} in ${1:range} {\n\t${0}\n}",
 		packages = {},
