@@ -105,7 +105,7 @@ get_completion_list :: proc(
 	   position_context.case_clause != nil {
 
 		if position_context.switch_stmt != nil &&
-		   position_context.switch_type_stmt.pos.offset >
+		   position_context.switch_type_stmt.pos.offset <=
 			   position_context.switch_stmt.pos.offset {
 			break done
 		}

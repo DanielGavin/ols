@@ -519,9 +519,9 @@ collect_symbols :: proc(
 			token = expr.expr
 		}
 
-		if expr.mutable {
+		if expr.mutable && token_type == .Constant || token_type == .Variable {
 			token_type = .Variable
-		} else {
+		} else if token_type == .Constant || token_type == .Variable {
 			token_type = .Constant
 		}
 
