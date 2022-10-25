@@ -512,7 +512,7 @@ collect_symbols :: proc(
 			if expr.mutable {
 				token_type = .Variable
 			} else {
-				token_type = .Constant
+				token_type = .Unresolved
 			}
 		case:
 			// default
