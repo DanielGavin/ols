@@ -260,7 +260,6 @@ visit_node :: proc(
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
-
 			if .Distinct in symbol_and_node.symbol.flags &&
 			   symbol_and_node.symbol.type == .Constant {
 				log.error(symbol_and_node.symbol)
@@ -273,7 +272,6 @@ visit_node :: proc(
 				)
 				return
 			}
-
 
 			if symbol_and_node.symbol.type == .Variable ||
 			   symbol_and_node.symbol.type == .Constant {
@@ -717,6 +715,48 @@ visit_node :: proc(
 		visit(n.cond, builder, ast_context)
 		visit(n.x, builder, ast_context)
 		visit(n.y, builder, ast_context)
+	case ^Union_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"union",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit(n.variants, builder, ast_context)
+	case ^ast.Enum_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"enum",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_enum_fields(n^, builder, ast_context)
+	case ^Proc_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"proc",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_proc_type(n, builder, ast_context)
+	case ^Proc_Lit:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"proc",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_proc_type(n.type, builder, ast_context)
+
+		visit(n.body, builder, ast_context)
 	case:
 	//log.errorf("unhandled semantic token node %v", n);
 	//panic(fmt.tprintf("Missed semantic token handling %v", n));
@@ -793,15 +833,7 @@ visit_value_decl :: proc(
 				.Enum,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"union",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit(v.variants, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Struct_Type:
 			write_semantic_node(
 				builder,
@@ -810,15 +842,7 @@ visit_value_decl :: proc(
 				.Struct,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"struct",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit_struct_fields(v^, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Enum_Type:
 			write_semantic_node(
 				builder,
@@ -827,15 +851,7 @@ visit_value_decl :: proc(
 				.Enum,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"enum",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit_enum_fields(v^, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Proc_Group:
 			write_semantic_node(
 				builder,
@@ -871,6 +887,8 @@ visit_value_decl :: proc(
 				.Function,
 				.None,
 			)
+			visit(value_decl.values[0], builder, ast_context)
+		case ^ast.Proc_Type:
 			write_semantic_string(
 				builder,
 				v.pos,
@@ -879,9 +897,7 @@ visit_value_decl :: proc(
 				.Keyword,
 				.None,
 			)
-			visit_proc_type(v.type, builder, ast_context)
-
-			visit(v.body, builder, ast_context)
+			visit_proc_type(v, builder, ast_context)
 		case:
 			for name in value_decl.names {
 				write_semantic_node(
