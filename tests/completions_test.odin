@@ -1896,6 +1896,7 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"One", "Two"})
 }
 
+@(test)
 ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
