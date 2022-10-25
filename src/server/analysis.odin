@@ -868,10 +868,8 @@ resolve_function_overload :: proc(
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := internal_resolve_type_expression(
-			ast_context,
-			arg_expr,
-		); ok {
+		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
+		   ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
@@ -905,7 +903,7 @@ resolve_function_overload :: proc(
 					//named parameter
 					if field, is_field := arg.derived.(^ast.Field_Value);
 					   is_field {
-						call_symbol, ok = internal_resolve_type_expression(
+						call_symbol, ok = resolve_type_expression(
 							ast_context,
 							field.value,
 						)
@@ -923,7 +921,7 @@ resolve_function_overload :: proc(
 							break next_fn
 						}
 					} else {
-						call_symbol, ok = internal_resolve_type_expression(
+						call_symbol, ok = resolve_type_expression(
 							ast_context,
 							arg,
 						)
@@ -937,7 +935,7 @@ resolve_function_overload :: proc(
 						if len(p.return_types) != 1 {
 							break next_fn
 						}
-						if s, ok := internal_resolve_type_expression(
+						if s, ok := resolve_type_expression(
 							ast_context,
 							p.return_types[0].type,
 						); ok {
@@ -946,12 +944,12 @@ resolve_function_overload :: proc(
 					}
 
 					if procedure.arg_types[i].type != nil {
-						arg_symbol, ok = internal_resolve_type_expression(
+						arg_symbol, ok = resolve_type_expression(
 							ast_context,
 							procedure.arg_types[i].type,
 						)
 					} else {
-						arg_symbol, ok = internal_resolve_type_expression(
+						arg_symbol, ok = resolve_type_expression(
 							ast_context,
 							procedure.arg_types[i].default_value,
 						)
@@ -1088,6 +1086,7 @@ internal_resolve_type_expression :: proc(
 	}
 
 	if check_node_recursion(ast_context, node) {
+		fmt.println("recursion expr")
 		//log.error("Recursion detected")
 		return {}, false
 	}
@@ -1530,6 +1529,7 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+		fmt.println("recursion ident")
 		//log.error("Recursion detected")
 		return {}, false
 	}
