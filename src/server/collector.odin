@@ -508,6 +508,12 @@ collect_symbols :: proc(
 				package_map,
 				uri,
 			)
+
+			if expr.mutable {
+				token_type = .Variable
+			} else {
+				token_type = .Constant
+			}
 		case:
 			// default
 			symbol.value = collect_generic(
@@ -516,14 +522,16 @@ collect_symbols :: proc(
 				package_map,
 				uri,
 			)
+
+			if expr.mutable {
+				token_type = .Variable
+			} else {
+				token_type = .Unresolved
+			}
+
 			token = expr.expr
 		}
 
-		if expr.mutable && token_type == .Constant || token_type == .Variable {
-			token_type = .Variable
-		} else if token_type == .Constant || token_type == .Variable {
-			token_type = .Constant
-		}
 
 		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
