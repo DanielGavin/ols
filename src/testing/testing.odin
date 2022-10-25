@@ -92,9 +92,9 @@ setup :: proc(src: ^Source) {
 		fullpath := uri.path
 
 		p := parser.Parser {
-			//err = parser.default_error_handler,
-			err  = server.log_error_handler,
-			warn = server.log_warning_handler,
+			err = parser.default_error_handler,
+			warn = parser.default_error_handler,
+			flags = {.Optional_Semicolons},
 		}
 
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
@@ -122,11 +122,10 @@ setup :: proc(src: ^Source) {
 		}
 
 		if ret := server.collect_symbols(
-			   &server.indexer.index.collection,
-			   file,
-			   uri.uri,
-		   );
-		   ret != .None {
+			&server.indexer.index.collection,
+			file,
+			uri.uri,
+		); ret != .None {
 			return
 		}
 	}

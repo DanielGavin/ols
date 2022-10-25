@@ -1895,3 +1895,36 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"One", "Two"})
 }
+
+ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package	
+			My_Int :: int
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		My_Union :: union { 
+			bool, 
+			my_package.My_Int,
+		}
+
+		main :: proc() {
+			my_union: My_Union
+			my_union.* 
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"(my_package.My_Int)"})
+}

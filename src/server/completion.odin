@@ -447,9 +447,13 @@ get_selector_completion :: proc(
 					documentation = symbol.doc,
 				}
 
+				//Might be a hack...
+				_, is_selector := type.derived.(^ast.Selector_Expr)
+
 				if symbol.pkg == ast_context.document_package ||
 				   base == "runtime" ||
-				   base == "$builtin" {
+				   base == "$builtin" ||
+				   is_selector {
 					item.label = fmt.aprintf(
 						"(%v%v)",
 						common.repeat(
