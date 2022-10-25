@@ -1086,7 +1086,6 @@ internal_resolve_type_expression :: proc(
 	}
 
 	if check_node_recursion(ast_context, node) {
-		fmt.println("recursion expr")
 		//log.error("Recursion detected")
 		return {}, false
 	}
@@ -1529,7 +1528,6 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
-		fmt.println("recursion ident")
 		//log.error("Recursion detected")
 		return {}, false
 	}
