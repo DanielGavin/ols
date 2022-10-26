@@ -16,15 +16,7 @@ foreign import kernel32 "system:kernel32.lib"
 @(default_calling_convention = "std")
 foreign kernel32 {
 	@(link_name = "FormatMessageA")
-	format_message_a :: proc(
-		flags: u32,
-		source: rawptr,
-		message_id: u32,
-		langauge_id: u32,
-		buffer: cstring,
-		size: u32,
-		va: rawptr,
-	) -> u32 ---
+	format_message_a :: proc(flags: u32, source: rawptr, message_id: u32, langauge_id: u32, buffer: cstring, size: u32, va: rawptr) -> u32 ---
 }
 
 get_case_sensitive_path :: proc(
@@ -43,6 +35,7 @@ get_case_sensitive_path :: proc(
 	)
 
 	if (file == win32.INVALID_HANDLE) {
+		log.errorf("Failed on get_case_sensitive_path(%v)", path)
 		log_last_error()
 		return ""
 	}
