@@ -37,7 +37,7 @@ get_case_sensitive_path :: proc(
 	if (file == win32.INVALID_HANDLE) {
 		log.errorf("Failed on get_case_sensitive_path(%v)", path)
 		log_last_error()
-		return ""
+		return path
 	}
 
 	buffer := make([]u16, 512, context.temp_allocator)
