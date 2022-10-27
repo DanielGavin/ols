@@ -10,7 +10,7 @@ import test "shared:testing"
 ast_declare_proc_signature :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
-		main :: proc(*)
+		main :: proc({*})
 		`,
 		packages = {},
 	}
@@ -28,7 +28,7 @@ ast_naked_parens :: proc(t: ^testing.T) {
 				return;
 			}
 
-			(*)
+			({*})
 			switch n in node.derived {
 
 			}
@@ -48,7 +48,7 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(*)
+			cool_function({*})
 		}
 		`,
 		packages = {},
@@ -69,7 +69,7 @@ ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(*)
+			cool_function({*})
 		}
 		`,
 		packages = {},
@@ -90,7 +90,7 @@ ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(2,*
+			cool_function(2,{*}
 		}
 		`,
 		packages = {},
@@ -107,7 +107,7 @@ ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(2*,)
+			cool_function(2{*},)
 		}
 		`,
 		packages = {},
@@ -125,7 +125,7 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(2,3*, 3);
+			cool_function(2,3{*}, 3);
 		}
 		`,
 		packages = {},
@@ -142,7 +142,7 @@ ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(a(2,5,b(3,sdf[2],{})), *);
+			cool_function(a(2,5,b(3,sdf[2],{})), {*});
 		}
 		`,
 		packages = {},
@@ -159,7 +159,7 @@ ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(2,3, 3*
+			cool_function(2,3, 3{*}
 		}
 		`,
 		packages = {},
@@ -176,7 +176,7 @@ ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() { 
-			cool_function(3, 4, 5*)
+			cool_function(3, 4, 5{*})
 		}
 		`,
 		packages = {},
@@ -201,7 +201,7 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 		};
 
 		main :: proc() {
-			group_function(*)
+			group_function({*})
 		}
 		`,
 		packages = {},
@@ -228,7 +228,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 		}
 	  
 		main :: proc() {
-			clone_array(*)
+			clone_array({*})
 		}
 		`,
 		packages = {},
@@ -259,7 +259,7 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 		};
 
 		main :: proc() {
-			group_function(2, true, *)
+			group_function(2, true, {*})
 		}
 		`,
 		packages = {},
@@ -295,7 +295,7 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 
 			a: My_Int;
 
-			group_function(a, *)
+			group_function(a, {*})
 		}
 		`,
 		packages = {},
@@ -339,7 +339,7 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 		main :: proc() {
 			a: int;
 			b: My_Struct;
-			group_function(a, b, *)
+			group_function(a, b, {*})
 		}
 		`,
 		packages = {},
@@ -374,7 +374,7 @@ index_simple_signature :: proc(t: ^testing.T) {
 		import "my_package"
 
 		main :: proc() {	
-            my_package.my_function(*)
+            my_package.my_function({*})
 		}
 		`,
 		packages = packages[:],
@@ -392,7 +392,7 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test	
 		main :: proc() {
-			len(*)
+			len({*})
 		}
 		`,
 		packages = {},
@@ -411,7 +411,7 @@ ast_signature_on_invalid_package :: proc(t: ^testing.T) {
 		main = `package test	
 		import "core:totallyReal"
 		main :: proc() {
-			a := totallyReal.read_cycle_counter(*)
+			a := totallyReal.read_cycle_counter({*})
 		}
 		`,
 		packages = {},
@@ -431,7 +431,7 @@ ast_signature_variable_pointer :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_fun_ptr: My_Fun;
-			my_fun_ptr(*)
+			my_fun_ptr({*})
 		}
 		`,
 		packages = {},
@@ -453,7 +453,7 @@ ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
 		my_fun_ptr: My_Fun;
 
 		main :: proc() {		
-			my_fun_ptr(*)
+			my_fun_ptr({*})
 		}
 		`,
 		packages = {},
@@ -484,7 +484,7 @@ index_variable_pointer_signature :: proc(t: ^testing.T) {
 
 		import "my_package"
 		main :: proc() {		
-			my_package.my_fun_ptr(*)
+			my_package.my_fun_ptr({*})
 		}
 		`,
 		packages = packages[:],
@@ -507,7 +507,7 @@ shared_value_decl_type_signature :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {		
-			my_function(*)
+			my_function({*})
 		}
 		`,
 		packages = {},
@@ -532,7 +532,7 @@ proc_with_struct_poly :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {		
-			uf(*)
+			uf({*})
 		}
 		`,
 		packages = {},
@@ -549,7 +549,7 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 
 		}
 		main :: proc() {		
-			my_cool_function()*
+			my_cool_function(){*}
 		}
 		`,
 		packages = {},
@@ -562,7 +562,6 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 	)
 }
 
-
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {
@@ -574,7 +573,7 @@ signature_function_inside_when :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {		
-			ProcAllocationFunction(*)
+			ProcAllocationFunction({*})
 		}
 		`,
 		packages = {},

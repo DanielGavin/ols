@@ -58,9 +58,9 @@ setup :: proc(src: ^Source) {
 		} else if current == '\n' {
 			current_line += 1
 			current_character = 0
-		} else if current == '*' {
+		} else if src.main[current_index:current_index + 3] == "{*}" {
 			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 1:]
+			src_slice := transmute([]u8)src.main[current_index + 3:]
 			copy(dst_slice, src_slice)
 			src.position.character = current_character
 			src.position.line = current_line

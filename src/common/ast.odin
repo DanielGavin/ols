@@ -1003,7 +1003,7 @@ repeat :: proc(
 	count: int,
 	allocator := context.allocator,
 ) -> string {
-	if count == 0 {
+	if count <= 0 {
 		return ""
 	}
 	return strings.repeat(value, count, allocator)

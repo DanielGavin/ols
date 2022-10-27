@@ -126,7 +126,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(struct|enum|union|map|set|bit_set|typeid)\\b"
+					"match": "\\b(struct|enum|union|map|set|bit_set|typeid|matrix)\\b"
 				},
 				{
 					"name": "keyword.function.odin",
@@ -267,7 +267,7 @@
 				},
 				{
 					"name": "support.type.odin",
-					"match": "\\b((f16|f32|f64)|(complex32|complex64|complex128))\\b"
+					"match": "\\b((f16|f32|f64)|(complex32|complex64|complex128)|(quaternion64|quaternion128|quaternion256))\\b"
 				},
 				{
 					"name": "support.type.odin",

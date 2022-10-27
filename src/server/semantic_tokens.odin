@@ -262,7 +262,6 @@ visit_node :: proc(
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
 			if .Distinct in symbol_and_node.symbol.flags &&
 			   symbol_and_node.symbol.type == .Constant {
-				log.error(symbol_and_node.symbol)
 				write_semantic_node(
 					builder,
 					node,
@@ -273,8 +272,7 @@ visit_node :: proc(
 				return
 			}
 
-			if symbol_and_node.symbol.type == .Variable ||
-			   symbol_and_node.symbol.type == .Constant {
+			if symbol_and_node.symbol.type == .Variable {
 				write_semantic_node(
 					builder,
 					node,
@@ -350,6 +348,14 @@ visit_node :: proc(
 					.Type,
 					.None,
 				)
+			case SymbolMatrixValue:
+				write_semantic_node(
+					builder,
+					node,
+					ast_context.file.src,
+					.Type,
+					.None,
+				)
 			case:
 			//log.errorf("Unexpected symbol value: %v", symbol.value);
 			//panic(fmt.tprintf("Unexpected symbol value: %v", symbol.value));
@@ -386,6 +392,22 @@ visit_node :: proc(
 		visit(n.stmts, builder, ast_context)
 	case ^Expr_Stmt:
 		visit(n.expr, builder, ast_context)
+	case ^Matrix_Type:
+		write_semantic_string(
+			builder,
+			n.tok_pos,
+			"matrix",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit(n.row_count, builder, ast_context)
+		visit(n.column_count, builder, ast_context)
+		visit(n.elem, builder, ast_context)
+	case ^ast.Matrix_Index_Expr:
+		visit(n.expr, builder, ast_context)
+		visit(n.row_index, builder, ast_context)
+		visit(n.column_index, builder, ast_context)
 	case ^Branch_Stmt:
 		write_semantic_token(
 			builder,

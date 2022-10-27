@@ -320,6 +320,36 @@ collect_dynamic_array :: proc(
 	return SymbolDynamicArrayValue{expr = elem}
 }
 
+collect_matrix :: proc(
+	collection: ^SymbolCollection,
+	mat: ast.Matrix_Type,
+	package_map: map[string]string,
+) -> SymbolMatrixValue {
+	elem := clone_type(
+		mat.elem,
+		collection.allocator,
+		&collection.unique_strings,
+	)
+
+	y := clone_type(
+		mat.column_count,
+		collection.allocator,
+		&collection.unique_strings,
+	)
+
+	x := clone_type(
+		mat.row_count,
+		collection.allocator,
+		&collection.unique_strings,
+	)
+
+	replace_package_alias(elem, package_map, collection)
+	replace_package_alias(x, package_map, collection)
+	replace_package_alias(y, package_map, collection)
+
+	return SymbolMatrixValue{expr = elem, x = x, y = y}
+}
+
 collect_multi_pointer :: proc(
 	collection: ^SymbolCollection,
 	array: ast.Multi_Pointer_Type,
@@ -335,6 +365,7 @@ collect_multi_pointer :: proc(
 
 	return SymbolMultiPointer{expr = elem}
 }
+
 
 collect_generic :: proc(
 	collection: ^SymbolCollection,
@@ -410,6 +441,10 @@ collect_symbols :: proc(
 		}
 
 		#partial switch v in col_expr.derived {
+		case ^ast.Matrix_Type:
+			token = v^
+			token_type = .Variable
+			symbol.value = collect_matrix(collection, v^, package_map)
 		case ^ast.Proc_Lit:
 			token = v^
 			token_type = .Function

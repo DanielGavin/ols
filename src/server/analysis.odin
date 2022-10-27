@@ -1142,6 +1142,13 @@ internal_resolve_type_expression :: proc(
 				ast_context.field_name,
 			),
 			true
+	case ^Matrix_Type:
+		return make_symbol_matrix_from_ast(
+				ast_context,
+				v^,
+				ast_context.field_name,
+			),
+			true
 	case ^Dynamic_Array_Type:
 		return make_symbol_dynamic_array_from_ast(
 				ast_context,
@@ -1174,7 +1181,7 @@ internal_resolve_type_expression :: proc(
 	case ^Basic_Directive:
 		return resolve_basic_directive(ast_context, v^)
 	case ^Binary_Expr:
-		return resolve_first_symbol_from_binary_expression(ast_context, v)
+		return resolve_binary_expression(ast_context, v)
 	case ^Ident:
 		delete_key(&ast_context.recursion_map, v)
 		return internal_resolve_type_identifier(ast_context, v^)
@@ -1246,6 +1253,13 @@ internal_resolve_type_expression :: proc(
 		symbol, ok := internal_resolve_type_expression(ast_context, v.elem)
 		symbol.pointers += 1
 		return symbol, ok
+	case ^Matrix_Index_Expr:
+		if symbol, ok := internal_resolve_type_expression(ast_context, v.expr);
+		   ok {
+			if mat, ok := symbol.value.(SymbolMatrixValue); ok {
+				return internal_resolve_type_expression(ast_context, mat.expr)
+			}
+		}
 	case ^Index_Expr:
 		indexed, ok := internal_resolve_type_expression(ast_context, v.expr)
 
@@ -1663,6 +1677,9 @@ internal_resolve_type_identifier :: proc(
 		case ^Dynamic_Array_Type:
 			return_symbol, ok =
 				make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+		case ^Matrix_Type:
+			return_symbol, ok =
+				make_symbol_matrix_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
 			return_symbol, ok =
 				make_symbol_map_from_ast(ast_context, v^, node), true
@@ -1760,6 +1777,9 @@ internal_resolve_type_identifier :: proc(
 		case ^Dynamic_Array_Type:
 			return_symbol, ok =
 				make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+		case ^Matrix_Type:
+			return_symbol, ok =
+				make_symbol_matrix_from_ast(ast_context, v^, node), true
 		case ^Map_Type:
 			return_symbol, ok =
 				make_symbol_map_from_ast(ast_context, v^, node), true
@@ -2113,10 +2133,7 @@ resolve_first_symbol_from_binary_expression :: proc(
 	Symbol,
 	bool,
 ) {
-	//Fairly simple function to find the earliest identifier symbol in binary expression.
-
 	if binary.left != nil {
-
 		if ident, ok := binary.left.derived.(^ast.Ident); ok {
 			if s, ok := resolve_type_identifier(ast_context, ident^); ok {
 				return s, ok
@@ -2147,6 +2164,72 @@ resolve_first_symbol_from_binary_expression :: proc(
 	}
 
 	return {}, false
+}
+
+resolve_binary_expression :: proc(
+	ast_context: ^AstContext,
+	binary: ^ast.Binary_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
+	if binary.left == nil || binary.right == nil {
+		return {}, false
+	}
+
+	symbol_a, symbol_b: Symbol
+	ok_a, ok_b: bool
+
+	if expr, ok := binary.left.derived.(^ast.Binary_Expr); ok {
+		symbol_a, ok_a = resolve_binary_expression(ast_context, expr)
+	} else {
+		ast_context.use_locals = true
+		symbol_a, ok_a = resolve_type_expression(ast_context, binary.left)
+	}
+
+	if expr, ok := binary.right.derived.(^ast.Binary_Expr); ok {
+		symbol_b, ok_b = resolve_binary_expression(ast_context, expr)
+	} else {
+		ast_context.use_locals = true
+		symbol_b, ok_b = resolve_type_expression(ast_context, binary.right)
+	}
+
+	if !ok_a || !ok_b {
+		return {}, false
+	}
+
+	matrix_value_a, is_matrix_a := symbol_a.value.(SymbolMatrixValue)
+	matrix_value_b, is_matrix_b := symbol_b.value.(SymbolMatrixValue)
+
+	vector_value_a, is_vector_a := symbol_a.value.(SymbolFixedArrayValue)
+	vector_value_b, is_vector_b := symbol_b.value.(SymbolFixedArrayValue)
+
+	//Handle matrix multication specially because it can actual change the return type dimension
+	if is_matrix_a && is_matrix_b && binary.op.kind == .Mul {
+		symbol_a.value = SymbolMatrixValue {
+			expr = matrix_value_a.expr,
+			x    = matrix_value_a.x,
+			y    = matrix_value_b.y,
+		}
+		return symbol_a, true
+	} else if is_matrix_a && is_vector_b && binary.op.kind == .Mul {
+		symbol_a.value = SymbolFixedArrayValue {
+			expr = matrix_value_a.expr,
+			len  = matrix_value_a.y,
+		}
+		return symbol_a, true
+
+	} else if is_vector_a && is_matrix_b && binary.op.kind == .Mul {
+		symbol_a.value = SymbolFixedArrayValue {
+			expr = matrix_value_b.expr,
+			len  = matrix_value_b.x,
+		}
+		return symbol_a, true
+	}
+
+
+	//Otherwise just choose the first type, we do not handle error cases - that is done with the checker
+	return symbol_a, ok_a
 }
 
 find_position_in_call_param :: proc(
@@ -2326,6 +2409,28 @@ make_symbol_dynamic_array_from_ast :: proc(
 
 	return symbol
 }
+
+make_symbol_matrix_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Matrix_Type,
+	name: ast.Ident,
+) -> Symbol {
+	symbol := Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		type  = .Constant,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
+	}
+
+	symbol.value = SymbolMatrixValue {
+		expr = v.elem,
+		x    = v.row_count,
+		y    = v.column_count,
+	}
+
+	return symbol
+}
+
 
 make_symbol_multi_pointer_from_ast :: proc(
 	ast_context: ^AstContext,
@@ -3865,13 +3970,19 @@ get_signature :: proc(
 		return "proc"
 	case SymbolStructValue:
 		if is_variable {
-			return symbol.name
+			return strings.concatenate(
+				{pointer_prefix, symbol.name},
+				ast_context.allocator,
+			)
 		} else {
 			return "struct"
 		}
 	case SymbolUnionValue:
 		if is_variable {
-			return symbol.name
+			return strings.concatenate(
+				{pointer_prefix, symbol.name},
+				ast_context.allocator,
+			)
 		} else {
 			return "union"
 		}
@@ -3896,6 +4007,20 @@ get_signature :: proc(
 				pointer_prefix,
 				"[",
 				common.node_to_string(v.len),
+				"]",
+				common.node_to_string(v.expr),
+			},
+			allocator = ast_context.allocator,
+		)
+	case SymbolMatrixValue:
+		return strings.concatenate(
+			a = {
+				pointer_prefix,
+				"matrix",
+				"[",
+				common.node_to_string(v.x),
+				",",
+				common.node_to_string(v.y),
 				"]",
 				common.node_to_string(v.expr),
 			},
@@ -4553,6 +4678,14 @@ get_document_position_node :: proc(
 		}
 	case ^Undef:
 	case ^Basic_Lit:
+	case ^Matrix_Index_Expr:
+		get_document_position(n.expr, position_context)
+		get_document_position(n.row_index, position_context)
+		get_document_position(n.column_index, position_context)
+	case ^Matrix_Type:
+		get_document_position(n.row_count, position_context)
+		get_document_position(n.column_count, position_context)
+		get_document_position(n.elem, position_context)
 	case ^Ellipsis:
 		get_document_position(n.expr, position_context)
 	case ^Proc_Lit:

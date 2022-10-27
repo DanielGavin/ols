@@ -89,6 +89,12 @@ SymbolMapValue :: struct {
 	value: ^ast.Expr,
 }
 
+SymbolMatrixValue :: struct {
+	x:    ^ast.Expr,
+	y:    ^ast.Expr,
+	expr: ^ast.Expr,
+}
+
 /*
 	Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
 */
@@ -113,6 +119,7 @@ SymbolValue :: union {
 	SymbolSliceValue,
 	SymbolBasicValue,
 	SymbolUntypedValue,
+	SymbolMatrixValue,
 }
 
 SymbolFlag :: enum {
@@ -178,6 +185,10 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	}
 
 	switch v in symbol.value {
+	case SymbolMatrixValue:
+		common.free_ast(v.expr, allocator)
+		common.free_ast(v.x, allocator)
+		common.free_ast(v.y, allocator)
 	case SymbolMultiPointer:
 		common.free_ast(v.expr, allocator)
 	case SymbolProcedureValue:
