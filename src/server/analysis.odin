@@ -3828,9 +3828,20 @@ get_signature :: proc(
 
 	is_variable := symbol.type == .Variable
 
+
+	pointer_prefix := common.repeat(
+		"^",
+		symbol.pointers,
+		context.temp_allocator,
+	)
+
+
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
-		return common.node_to_string(v.ident)
+		return strings.concatenate(
+			{pointer_prefix, common.node_to_string(v.ident)},
+			ast_context.allocator,
+		)
 	case SymbolBitSetValue:
 		return common.node_to_string(v.expr)
 	case SymbolEnumValue:
@@ -3842,6 +3853,7 @@ get_signature :: proc(
 	case SymbolMapValue:
 		return strings.concatenate(
 			a = {
+				pointer_prefix,
 				"map[",
 				common.node_to_string(v.key),
 				"]",
@@ -3865,22 +3877,23 @@ get_signature :: proc(
 		}
 	case SymbolMultiPointer:
 		return strings.concatenate(
-			a = {"[^]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[^]", common.node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolDynamicArrayValue:
 		return strings.concatenate(
-			a = {"[dynamic]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[dynamic]", common.node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolSliceValue:
 		return strings.concatenate(
-			a = {"[]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[]", common.node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolFixedArrayValue:
 		return strings.concatenate(
 			a = {
+				pointer_prefix,
 				"[",
 				common.node_to_string(v.len),
 				"]",
