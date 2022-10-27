@@ -1093,6 +1093,10 @@ internal_resolve_type_expression :: proc(
 	using ast
 
 	#partial switch v in node.derived {
+	case ^ast.Typeid_Type:
+		ident := new_type(ast.Ident, v.pos, v.end, context.temp_allocator)
+		ident.name = "typeid"
+		return make_symbol_basic_type_from_ast(ast_context, ident), true
 	case ^ast.Value_Decl:
 		if v.type != nil {
 			return internal_resolve_type_expression(ast_context, v.type)
@@ -2364,8 +2368,7 @@ make_symbol_map_from_ast :: proc(
 
 make_symbol_basic_type_from_ast :: proc(
 	ast_context: ^AstContext,
-	n: ^ast.Node,
-	v: ^ast.Ident,
+	n: ^ast.Ident,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(n^, ast_context.file.src),
@@ -2374,7 +2377,7 @@ make_symbol_basic_type_from_ast :: proc(
 	}
 
 	symbol.value = SymbolBasicValue {
-		ident = v,
+		ident = n,
 	}
 
 	return symbol

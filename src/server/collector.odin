@@ -492,6 +492,15 @@ collect_symbols :: proc(
 			token = v^
 			token_type = .Variable
 			symbol.value = collect_multi_pointer(collection, v^, package_map)
+		case ^ast.Typeid_Type:
+			if v.specialization == nil {
+				continue
+			}
+
+			ident := new_type(ast.Ident, v.pos, v.end, context.temp_allocator)
+			ident.name = "typeid"
+
+			symbol.value = collect_generic(collection, ident, package_map, uri)
 		case ^ast.Basic_Lit:
 			token = v^
 			symbol.value = collect_generic(

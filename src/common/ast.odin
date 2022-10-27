@@ -8,6 +8,7 @@ import "core:strings"
 import path "core:path/slashpath"
 
 keyword_map: map[string]bool = {
+	"typeid"        = true,
 	"int"           = true,
 	"uint"          = true,
 	"string"        = true,
@@ -938,7 +939,7 @@ build_string_node :: proc(
 			}
 		}
 	case ^Typeid_Type:
-		strings.write_string(builder, "$")
+		strings.write_string(builder, "typeid")
 		build_string(n.specialization, builder, remove_pointers)
 	case ^Helper_Type:
 		build_string(n.type, builder, remove_pointers)

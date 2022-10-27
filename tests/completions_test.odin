@@ -1929,3 +1929,21 @@ ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {"(my_package.My_Int)"})
 }
+
+@(test)
+ast_completion_union_with_typeid :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		Maybe :: union($T: typeid) {T}
+
+		main :: proc() {
+			my_maybe: Maybe(typeid)
+			my_maybe.*
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"(typeid)"})
+}
