@@ -327,6 +327,7 @@ OlsConfig :: struct {
 	enable_snippets:          bool,
 	enable_inlay_hints:       bool,
 	enable_references:        bool,
+	disable_parser_errors:    bool,
 	verbose:                  bool,
 	file_log:                 bool,
 	odin_command:             string,

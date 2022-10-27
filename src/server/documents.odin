@@ -331,7 +331,7 @@ document_refresh :: proc(
 		return .ParseError
 	}
 
-	if writer != nil && len(errors) > 0 {
+	if writer != nil && len(errors) > 0 && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
 		params := NotificationPublishDiagnosticsParams {

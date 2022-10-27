@@ -429,6 +429,8 @@ request_initialize :: proc(
 
 				if unmarshal(value, ols_config, context.temp_allocator) ==
 				   nil {
+					config.disable_parser_errors =
+						ols_config.disable_parser_errors
 					config.thread_count = ols_config.thread_pool_count
 					config.enable_document_symbols =
 						ols_config.enable_document_symbols.(bool) or_else true
