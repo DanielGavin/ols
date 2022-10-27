@@ -1958,5 +1958,5 @@ ast_completion_with_pointer :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(&t, &source, "", {"test.my_pointer: ^int"})
+	test.expect_completion_details(t, &source, "", {"test.my_pointer: ^int"})
 }
