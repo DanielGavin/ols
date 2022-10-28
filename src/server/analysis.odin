@@ -2225,6 +2225,26 @@ resolve_binary_expression :: proc(
 			len  = matrix_value_b.x,
 		}
 		return symbol_a, true
+	} else if is_vector_a &&
+	   !is_matrix_b &&
+	   !is_vector_b &&
+	   binary.op.kind == .Mul {
+		return symbol_a, true
+	} else if is_vector_b &&
+	   !is_matrix_a &&
+	   !is_vector_a &&
+	   binary.op.kind == .Mul {
+		return symbol_b, true
+	} else if is_matrix_a &&
+	   !is_matrix_b &&
+	   !is_vector_b &&
+	   binary.op.kind == .Mul {
+		return symbol_a, true
+	} else if is_matrix_b &&
+	   !is_matrix_a &&
+	   !is_vector_a &&
+	   binary.op.kind == .Mul {
+		return symbol_b, true
 	}
 
 
