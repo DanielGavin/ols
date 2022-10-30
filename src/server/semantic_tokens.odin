@@ -32,11 +32,12 @@ SemanticTokenTypes :: enum {
 	Method,
 }
 
-SemanticTokenModifiers :: enum (u32) {
+SemanticTokenModifiers :: enum (u8) {
 	None        = 0,
-	Declaration = 2,
-	Definition  = 4,
-	Deprecated  = 8,
+	Declaration = 1,
+	Definition  = 2,
+	Deprecated  = 4,
+	ReadOnly    = 8,
 }
 
 SemanticTokensClientCapabilities :: struct {
@@ -84,7 +85,7 @@ SemanticTokenBuilder :: struct {
 make_token_builder :: proc(
 	allocator := context.temp_allocator,
 ) -> SemanticTokenBuilder {
-	return {tokens = make([dynamic]u32, 1000, context.temp_allocator)}
+	return {tokens = make([dynamic]u32, 10000, context.temp_allocator)}
 }
 
 get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
@@ -259,7 +260,14 @@ visit_node :: proc(
 		)
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
+		modifier: SemanticTokenModifiers
+
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
+			if symbol_and_node.symbol.type == .Constant ||
+			   symbol_and_node.symbol.type != .Variable {
+				//modifier = .ReadOnly
+			}
+
 			if .Distinct in symbol_and_node.symbol.flags &&
 			   symbol_and_node.symbol.type == .Constant {
 				write_semantic_node(
@@ -280,7 +288,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Variable,
-					.None,
+					modifier,
 				)
 				return
 			}
@@ -300,7 +308,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Struct,
-					.None,
+					modifier,
 				)
 			case SymbolEnumValue:
 				write_semantic_node(
@@ -308,7 +316,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Enum,
-					.None,
+					modifier,
 				)
 			case SymbolUnionValue:
 				write_semantic_node(
@@ -316,7 +324,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Enum,
-					.None,
+					modifier,
 				)
 			case SymbolProcedureValue:
 				write_semantic_node(
@@ -324,7 +332,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Function,
-					.None,
+					modifier,
 				)
 			case SymbolProcedureGroupValue:
 				write_semantic_node(
@@ -332,7 +340,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Function,
-					.None,
+					modifier,
 				)
 			case SymbolUntypedValue:
 				write_semantic_node(
@@ -340,7 +348,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Type,
-					.None,
+					modifier,
 				)
 			case SymbolBasicValue:
 				write_semantic_node(
@@ -348,7 +356,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Type,
-					.None,
+					modifier,
 				)
 			case SymbolMatrixValue:
 				write_semantic_node(
@@ -356,7 +364,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Type,
-					.None,
+					modifier,
 				)
 			case:
 			//log.errorf("Unexpected symbol value: %v", symbol.value);
