@@ -272,7 +272,9 @@ visit_node :: proc(
 				return
 			}
 
-			if symbol_and_node.symbol.type == .Variable {
+			_, is_proc := symbol_and_node.symbol.value.(SymbolProcedureValue)
+
+			if symbol_and_node.symbol.type == .Variable && !is_proc {
 				write_semantic_node(
 					builder,
 					node,
