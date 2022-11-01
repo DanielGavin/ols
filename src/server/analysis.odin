@@ -2198,6 +2198,31 @@ resolve_binary_expression :: proc(
 		return {}, false
 	}
 
+	if symbol, ok := symbol_a.value.(SymbolProcedureValue);
+	   ok && len(symbol.return_types) > 0 {
+		symbol_a, ok_a = resolve_type_expression(
+			ast_context,
+			symbol.return_types[0].type != nil \
+			? symbol.return_types[0].type \
+			: symbol.return_types[0].default_value,
+		)
+	}
+
+	if symbol, ok := symbol_b.value.(SymbolProcedureValue);
+	   ok && len(symbol.return_types) > 0 {
+		symbol_b, ok_b = resolve_type_expression(
+			ast_context,
+			symbol.return_types[0].type != nil \
+			? symbol.return_types[0].type \
+			: symbol.return_types[0].default_value,
+		)
+	}
+
+	if !ok_a || !ok_b {
+		return {}, false
+	}
+
+
 	matrix_value_a, is_matrix_a := symbol_a.value.(SymbolMatrixValue)
 	matrix_value_b, is_matrix_b := symbol_b.value.(SymbolMatrixValue)
 
