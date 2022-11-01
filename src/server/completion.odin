@@ -101,10 +101,15 @@ get_completion_list :: proc(
 		completion_type = .Package
 	}
 
-	if position_context.switch_type_stmt != nil &&
-	   position_context.case_clause != nil &&
-	   position_context.switch_type_stmt.pos.offset >
-		   position_context.switch_stmt.pos.offset {
+	done: if position_context.switch_type_stmt != nil &&
+	   position_context.case_clause != nil {
+
+		if position_context.switch_stmt != nil &&
+		   position_context.switch_type_stmt.pos.offset <=
+			   position_context.switch_stmt.pos.offset {
+			break done
+		}
+
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 		   ok && assign.rhs != nil && len(assign.rhs) == 1 {
 			ast_context.use_globals = true
@@ -270,8 +275,7 @@ get_selector_completion :: proc(
 	selector: Symbol
 	ok: bool
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	selector, ok = resolve_type_expression(
 		ast_context,
@@ -443,9 +447,13 @@ get_selector_completion :: proc(
 					documentation = symbol.doc,
 				}
 
+				//Might be a hack...
+				_, is_selector := type.derived.(^ast.Selector_Expr)
+
 				if symbol.pkg == ast_context.document_package ||
 				   base == "runtime" ||
-				   base == "$builtin" {
+				   base == "$builtin" ||
+				   is_selector {
 					item.label = fmt.aprintf(
 						"(%v%v)",
 						common.repeat(
@@ -495,7 +503,7 @@ get_selector_completion :: proc(
 			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
-			ok {
+			   ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr);
 				   ok {
 					if expr.op.text == "->" && symbol.type != .Function {
@@ -604,8 +612,7 @@ get_implicit_completion :: proc(
 
 	selector: Symbol
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	if selector.pkg != "" {
 		ast_context.current_package = selector.pkg
@@ -819,7 +826,7 @@ get_implicit_completion :: proc(
 						}
 					}
 				} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
-				ok {
+				   ok {
 					for enum_name in s.names {
 						item := CompletionItem {
 							label  = enum_name,
@@ -844,15 +851,15 @@ get_implicit_completion :: proc(
 		enum_node: ^ast.Expr
 
 		if position_in_node(
-			position_context.binary.right,
-			position_context.position,
-		) {
+			   position_context.binary.right,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.right
 			enum_node = position_context.binary.left
 		} else if position_in_node(
-			position_context.binary.left,
-			position_context.position,
-		) {
+			   position_context.binary.left,
+			   position_context.position,
+		   ) {
 			context_node = position_context.binary.left
 			enum_node = position_context.binary.right
 		}
@@ -886,7 +893,7 @@ get_implicit_completion :: proc(
 			} else {
 				//procedures are the only types that can return more than one value
 				if symbol, ok := resolve_type_expression(ast_context, elem);
-				ok {
+				   ok {
 					if procedure, ok := symbol.value.(SymbolProcedureValue);
 					   ok {
 						if procedure.return_types == nil {
@@ -972,7 +979,7 @@ get_implicit_completion :: proc(
 				call^,
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
-			ok && parameter_ok {
+			   ok && parameter_ok {
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
@@ -1080,8 +1087,7 @@ get_identifier_completion :: proc(
 			}
 		}
 
-		ast_context.use_locals = true
-		ast_context.use_globals = true
+		reset_ast_context(ast_context)
 		ast_context.current_package = ast_context.document_package
 
 		ident := new_type(
@@ -1126,8 +1132,8 @@ get_identifier_completion :: proc(
 				k,
 			)
 
-			ast_context.use_locals = true
-			ast_context.use_globals = true
+			reset_ast_context(ast_context)
+
 			ast_context.current_package = ast_context.document_package
 
 			ident := new_type(
@@ -1144,7 +1150,7 @@ get_identifier_completion :: proc(
 				build_procedure_symbol_signature(&symbol)
 
 				if score, ok := common.fuzzy_match(matcher, ident.name);
-				ok == 1 {
+				   ok == 1 {
 					append(
 						&combined,
 						CombinedResult{
@@ -1438,8 +1444,7 @@ get_type_switch_completion :: proc(
 		}
 	}
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 	   ok && assign.rhs != nil && len(assign.rhs) == 1 {
@@ -1589,8 +1594,6 @@ append_magic_map_completion :: proc(
 
 		append(items, item)
 	}
-
-
 }
 
 append_magic_dynamic_array_completion :: proc(

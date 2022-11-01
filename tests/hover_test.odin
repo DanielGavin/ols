@@ -11,7 +11,7 @@ ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 		main = `package test
 
 		my_function :: proc(a := false) {
-			b := a*;
+			b := a{*};
 		}
 
 		`,
@@ -29,7 +29,7 @@ ast_hover_default_parameter_enum :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {
-			procedure*
+			procedure{*}
 		}
 		`,
 		packages = {},
@@ -47,7 +47,7 @@ ast_hover_parameter :: proc(t: ^testing.T) {
 		main = `package test
 
 		main :: proc(cool: int) {
-			cool*
+			cool{*}
 		}
 		`,
 		packages = {},
@@ -77,7 +77,7 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 		main     = `package test
 		import "my_package"
 		main :: proc(cool: my_package.My_Struct) {
-			cool*
+			cool{*}
 		}
 		`,
 		packages = packages[:],
@@ -106,7 +106,7 @@ ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		import "my_package"
-		main :: proc(cool: my_packa*ge.My_Struct) {
+		main :: proc(cool: my_packa{*}ge.My_Struct) {
 			
 		}
 		`,
@@ -127,7 +127,7 @@ ast_hover_procedure_with_default_comp_lit :: proc(t: ^testing.T) {
 			a: int,
 		}
 
-		fa* :: proc(color_ : Color = { 255, 255, 255, 255 })
+		fa{*} :: proc(color_ : Color = { 255, 255, 255, 255 })
 
 		`,
 	}
@@ -149,7 +149,7 @@ ast_hover_same_name_in_selector_and_field :: proc(t: ^testing.T) {
 
 		f :: proc() {
 			color: Color
-			color.colo*r
+			color.colo{*}r
 		}
 		`,
 	}

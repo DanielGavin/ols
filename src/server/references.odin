@@ -75,8 +75,7 @@ resolve_references :: proc(
 		walk_directories,
 	)
 
-	ast_context.use_locals = true
-	ast_context.use_globals = true
+	reset_ast_context(ast_context)
 
 	if position_context.struct_type != nil &&
 	   position_in_struct_names(
@@ -92,9 +91,9 @@ resolve_references :: proc(
 		return {}, true
 	} else if position_context.selector_expr != nil {
 		if resolved, ok := resolve_type_expression(
-			   ast_context,
-			   position_context.selector,
-		   ); ok {
+			ast_context,
+			position_context.selector,
+		); ok {
 			if _, is_package := resolved.value.(SymbolPackageValue);
 			   !is_package {
 				return {}, true

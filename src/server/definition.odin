@@ -67,9 +67,9 @@ get_definition_location :: proc(
 
 			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_location_identifier(
-					   &ast_context,
-					   ident^,
-				   ); ok {
+					&ast_context,
+					ident^,
+				); ok {
 					location.range = resolved.range
 
 					if resolved.uri == "" {
@@ -88,17 +88,17 @@ get_definition_location :: proc(
 		}
 
 		if resolved, ok := resolve_location_selector(
-			   &ast_context,
-			   position_context.selector_expr,
-		   ); ok {
+			&ast_context,
+			position_context.selector_expr,
+		); ok {
 			location.range = resolved.range
 			uri = resolved.uri
 		}
 	} else if position_context.identifier != nil {
 		if resolved, ok := resolve_location_identifier(
-			   &ast_context,
-			   position_context.identifier.derived.(^ast.Ident)^,
-		   ); ok {
+			&ast_context,
+			position_context.identifier.derived.(^ast.Ident)^,
+		); ok {
 			location.range = resolved.range
 			uri = resolved.uri
 		} else {

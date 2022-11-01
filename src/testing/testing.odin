@@ -58,9 +58,9 @@ setup :: proc(src: ^Source) {
 		} else if current == '\n' {
 			current_line += 1
 			current_character = 0
-		} else if current == '*' {
+		} else if src.main[current_index:current_index + 3] == "{*}" {
 			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 1:]
+			src_slice := transmute([]u8)src.main[current_index + 3:]
 			copy(dst_slice, src_slice)
 			src.position.character = current_character
 			src.position.line = current_line
@@ -92,9 +92,9 @@ setup :: proc(src: ^Source) {
 		fullpath := uri.path
 
 		p := parser.Parser {
-			//err = parser.default_error_handler,
-			err  = server.log_error_handler,
-			warn = server.log_warning_handler,
+			err = parser.default_error_handler,
+			warn = parser.default_error_handler,
+			flags = {.Optional_Semicolons},
 		}
 
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
@@ -122,11 +122,10 @@ setup :: proc(src: ^Source) {
 		}
 
 		if ret := server.collect_symbols(
-			   &server.indexer.index.collection,
-			   file,
-			   uri.uri,
-		   );
-		   ret != .None {
+			&server.indexer.index.collection,
+			file,
+			uri.uri,
+		); ret != .None {
 			return
 		}
 	}

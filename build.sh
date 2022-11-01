@@ -7,7 +7,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:shared=../src -opt:2
+    odin test ../tests -collection:shared=../src -o:speed
 
     if ([ $? -ne 0 ])
     then

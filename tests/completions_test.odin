@@ -18,7 +18,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_struct: My_Struct;
-			my_struct.*
+			my_struct.{*}
 		}
 		`,
 		packages = {},
@@ -45,7 +45,7 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_struct: [] My_Struct;
-			my_struct[2].*
+			my_struct[2].{*}
 		}
 		`,
 		packages = {},
@@ -72,7 +72,7 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_struct: ^My_Struct;
-			my_struct.*
+			my_struct.{*}
 		}
 		`,
 		packages = {},
@@ -100,7 +100,7 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_struct: My_Struct;
 			my_pointer := &my_struct;
-			my_pointer.*
+			my_pointer.{*}
 		}
 		`,
 		packages = {},
@@ -128,7 +128,7 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_struct: ^^My_Struct;
 			my_deref := my_struct^;
-			my_deref.*
+			my_deref.{*}
 		}
 		`,
 		packages = {},
@@ -157,7 +157,7 @@ ast_range_map :: proc(t: ^testing.T) {
 			my_map: map[int]My_Struct;
 			
 			for key, value in my_map {
-				value.*
+				value.{*}
 			}
 
 		}
@@ -188,7 +188,7 @@ ast_range_array :: proc(t: ^testing.T) {
 			my_array: []My_Struct;
 			
 			for value in my_array {
-				value.*
+				value.{*}
 			}
 
 		}
@@ -224,7 +224,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 		};
 
 		main :: proc() {
-			grou*
+			grou{*}
 		}
 		`,
 		packages = {},
@@ -250,7 +250,7 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {
-			my_comp := My_* {
+			my_comp := My_{*} {
 			};
 		}
 		`,
@@ -274,7 +274,7 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 			my_struct: My_Struct;
 	
 			for value in my_struct.array {
-				val*
+				val{*}
 			}
 		}
 		`,
@@ -286,7 +286,6 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 
@@ -302,7 +301,7 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_struct: My_Struct;
 	
-			my_struct.array[len(my_struct.array)-1].*
+			my_struct.array[len(my_struct.array)-1].{*}
 		}
 		`,
 		packages = {},
@@ -341,7 +340,7 @@ index_package_completion :: proc(t: ^testing.T) {
 		import "my_package"
 
 		main :: proc() {	
-            my_package.*
+            my_package.{*}
 		}
 		`,
 		packages = packages[:],
@@ -378,7 +377,7 @@ ast_generic_make_slice :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_slice := make_slice([]My_Struct, 23);
-			my_slic*
+			my_slic{*}
 		}
 		`,
 		packages = {},
@@ -407,7 +406,7 @@ ast_named_procedure_1 :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_bool := my_group(b = false, a = 2);
-			my_boo*
+			my_boo{*}
 		}
 		`,
 		packages = {},
@@ -430,7 +429,7 @@ ast_named_procedure_2 :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			my_bool := my_group(b = false);
-			my_boo*
+			my_boo{*}
 		}
 		`,
 		packages = {},
@@ -445,7 +444,7 @@ ast_swizzle_completion :: proc(t: ^testing.T) {
 		main = `package test
 		main :: proc() {
 			my_array: [4] f32;
-			my_array.*
+			my_array.{*}
 		}
 		`,
 		packages = {},
@@ -474,7 +473,7 @@ ast_swizzle_completion_one_component :: proc(t: ^testing.T) {
 		main = `package test
 		main :: proc() {
 			my_array: [4] f32;
-			my_array.x*
+			my_array.x{*}
 		}
 		`,
 		packages = {},
@@ -494,7 +493,7 @@ ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 		main = `package test
 		main :: proc() {
 			my_array: [2] f32;
-			my_array.x*
+			my_array.x{*}
 		}
 		`,
 		packages = {},
@@ -516,7 +515,7 @@ ast_swizzle_resolve_one_components :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_array: [4]f32;
 			my_swizzle := my_array.x;
-			my_swizz*
+			my_swizz{*}
 		}
 		`,
 		packages = {},
@@ -532,7 +531,7 @@ ast_swizzle_resolve_two_components :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_array: [4]f32;
 			my_swizzle := my_array.xx;
-			my_swizz*
+			my_swizz{*}
 		}
 		`,
 		packages = {},
@@ -551,7 +550,7 @@ ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 		};
 		main :: proc() {
 			my_array: [4] My_Struct;
-			my_array.x.*
+			my_array.x.{*}
 		}
 		`,
 		packages = {},
@@ -581,7 +580,7 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 		
 		
 			for my_element in my_array {
-				my_elem*
+				my_elem{*}
 			}
 		
 		}
@@ -610,7 +609,7 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 		}		
 		
 		execute_lighting_pass2 :: proc(pass : RenderPass(LightingAccumPass2)) {
-			pass.*
+			pass.{*}
 		}
 		`,
 		packages = {},
@@ -649,7 +648,7 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			allocator: Allocator;
 			my_array := make([dynamic]My_Struct, 343);
-			my_array[2].*
+			my_array[2].{*}
 		}
 		`,
 		packages = {},
@@ -689,7 +688,7 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 		main :: proc() {
 			allocator: Allocator;
 			my_array := make([]My_Struct, 343);
-			my_array[2].*
+			my_array[2].{*}
 		}
 		`,
 		packages = {},
@@ -718,7 +717,7 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 			switch (message) {
 			case win32.WM_SIZE:
 				for w in platform_context.windows {
-					w.*
+					w.{*}
 				}
 			}
 		}
@@ -745,7 +744,7 @@ ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_uint: uint = 0;
 			my_value := my_group(my_uint);
-			my_val*
+			my_val{*}
 		}
 		`,
 		packages = {},
@@ -772,7 +771,7 @@ ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_uint: uint = 0;
 			my_value := my_group(my_uint);
-			my_val*
+			my_val{*}
 		}
 		`,
 		packages = {},
@@ -798,7 +797,7 @@ ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_uint: uint = 0;
 			my_value := my_group([dynamic]f32, my_uint);
-			my_val*
+			my_val{*}
 		}
 		`,
 		packages = {},
@@ -821,7 +820,7 @@ ast_completion_in_between_struct :: proc(t: ^testing.T) {
 			current_token: ^Format_Token,
 			previous_token: ^Format_Token,
 			line: ^Unwrapped_Line,
-			a*
+			a{*}
 			indent: int,
 			width: int,
 			penalty: f32,
@@ -864,7 +863,7 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_uint: uint = 0;
 			my_value := my_package.my_group([dynamic]f32, my_uint);
-			my_val*
+			my_val{*}
 		}
 		`,
 		packages = packages[:],
@@ -900,7 +899,7 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 		import "my_package"
 
 		main :: proc() {
-			my_package.*
+			my_package.{*}
 		}
 		`,
 		packages = packages[:],
@@ -928,7 +927,7 @@ ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			t := new_type(My_Struct, {}, {})
-			t.*
+			t.{*}
 		}
 		`,
 		packages = {},
@@ -946,7 +945,7 @@ ast_global_struct_completion :: proc(t: ^testing.T) {
 		Foo :: struct { x: int }
 		foo := Foo{}
 		main :: proc() {
-			x := foo.*
+			x := foo.{*}
 		}
 		`,
 		packages = {},
@@ -962,7 +961,7 @@ ast_global_non_mutable_completion :: proc(t: ^testing.T) {
 
 		Foo :: struct { x: int }
 		main :: proc() {
-			x := Foo.*
+			x := Foo.{*}
 		}
 		`,
 		packages = {},
@@ -978,7 +977,7 @@ ast_basic_value_untyped_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			xaa := 2
-			xa*
+			xa{*}
 		}
 		`,
 		packages = {},
@@ -995,7 +994,7 @@ ast_basic_value_binary_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			xaa := 2
 			xb2 := xaa - 2
-			xb*
+			xb{*}
 		}
 		`,
 		packages = {},
@@ -1024,7 +1023,7 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 		main     = `package main
 		import "my_package"
 		main :: proc() {
-			my_package.*
+			my_package.{*}
 		}
 		`,
 		packages = packages[:],
@@ -1052,7 +1051,7 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 		main     = `package main
 		import "my_package"
 		main :: proc() {
-			my_package.*
+			my_package.{*}
 		}
 		`,
 		packages = packages[:],
@@ -1080,7 +1079,7 @@ ast_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 		main     = `package main
 		import "my_package"
 		main :: proc() {
-			my_package.var.*
+			my_package.var.{*}
 		}
 		`,
 		packages = packages[:],
@@ -1097,7 +1096,7 @@ ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
 			{
 				aabb := 2
 			}
-			aab*
+			aab{*}
 		}
 		`,
 	}
@@ -1112,7 +1111,7 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 		main :: proc() {
 			xaaaa, yaaaa: string
 			xaaaa = "hi"
-			yaaa*
+			yaaa{*}
 		}
 		`,
 	}
@@ -1132,7 +1131,7 @@ ast_value_decl_comp_lit :: proc(t: ^testing.T) {
 				a = 2,
 			}
 
-			my_struct.*
+			my_struct.{*}
 		}
 		`,
 	}
@@ -1146,7 +1145,7 @@ ast_multi_pointer_completion :: proc(t: ^testing.T) {
 		main = `package main
 		main :: proc() {
 			faa: [^]int
-			fa*
+			fa{*}
 		}
 		`,
 	}
@@ -1161,7 +1160,7 @@ ast_multi_pointer_indexed_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			faa: [^]int
 			sap := faa[1]
-			sa*
+			sa{*}
 		}
 		`,
 	}
@@ -1181,7 +1180,7 @@ ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst := My_Struct {
-				bits = {.*}
+				bits = {.{*}}
 			}
 		}
 		`,
@@ -1203,7 +1202,7 @@ ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst := My_Struct {
-				{.A}, {.*},
+				{.A}, {.{*}},
 			}
 		}
 		`,
@@ -1225,7 +1224,7 @@ ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst := My_Struct {
-				.A, .*
+				.A, .{*}
 			}
 		}
 		`,
@@ -1250,7 +1249,7 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst := My_Struct {
-				foo = {{.A}, {.*}, {.B} }
+				foo = {{.A}, {.{*}}, {.B} }
 			}
 		}
 		`,
@@ -1274,7 +1273,7 @@ ast_comp_lit_in_complit_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			inst := My_Struct {
 				foo = {
-					a*
+					a{*}
 				}
 			}
 		}
@@ -1302,7 +1301,7 @@ ast_inlined_struct :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst: My_Struct
-			inst.foo.*
+			inst.foo.{*}
 		}
 		`,
 	}
@@ -1326,7 +1325,7 @@ ast_inlined_union :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			inst: My_Struct
-			inst.*
+			inst.{*}
 		}
 		`,
 	}
@@ -1348,7 +1347,7 @@ ast_union_identifier_completion :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {
-			a: My_*
+			a: My_{*}
 		}
 		`,
 	}
@@ -1364,7 +1363,7 @@ ast_union_poly :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			m: My_Union(int)
-    		m.*
+    		m.{*}
 		}
 		`,
 	}
@@ -1381,7 +1380,7 @@ ast_maybe_first_value :: proc(t: ^testing.T) {
 		main :: proc() {
 			m: Maybe(int)
     		v, ok := m.?
-			v*
+			v{*}
 		}
 		`,
 	}
@@ -1396,7 +1395,7 @@ ast_maybe_second_value :: proc(t: ^testing.T) {
 		main :: proc() {
 			m: Maybe(int)
     		v, ok := m.?
-			ok*
+			ok{*}
 		}
 		`,
 	}
@@ -1412,7 +1411,7 @@ ast_maybe_array :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			m: My_Union([5]u8)
-    		m.*
+    		m.{*}
 		}
 		`,
 	}
@@ -1440,7 +1439,7 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 		import "my_package"
 		main :: proc() {
 			m: my_package.Maybe(int)
-    		m.*
+    		m.{*}
 		}
 		`,
 		packages = packages[:],
@@ -1457,7 +1456,7 @@ ast_distinct_u32_completion :: proc(t: ^testing.T) {
 			Distinct_Type :: distinct u32
 
 			d: Distinct_Type
-			d*
+			d{*}
 		}
 		`,
 	}
@@ -1474,7 +1473,7 @@ ast_new_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			adzz := new(int);
-			adzz*
+			adzz{*}
 		}
 
 		`,
@@ -1494,7 +1493,7 @@ ast_new_clone_completion :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			adzz := new_clone(Foo{});
-			adzz*
+			adzz{*}
 		}
 
 		`,
@@ -1511,7 +1510,7 @@ ast_rawtr_cast_completion :: proc(t: ^testing.T) {
 		main :: proc() {
 			raw: rawptr
 			my_int := cast(int)raw;
-			my_i*
+			my_i{*}
 		}
 
 		`,
@@ -1538,7 +1537,7 @@ ast_overload_with_procedure_return :: proc(t: ^testing.T) {
 		test_int :: proc() -> int {}
 		main :: proc() {
 			my_in := my_group([]int, test_int())
-			my_in*
+			my_in{*}
 		}
 		`,
 	}
@@ -1568,7 +1567,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		main     = `package main
 		import "my_package"
 		f :: proc(param: my_package.My_Struct) {
-			para*
+			para{*}
 		}
 		`,
 		packages = packages[:],
@@ -1590,7 +1589,7 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 			foo :: enum{ one, two }
 			bar := [foo]int{
 			  .one = 1,
-			  .*two = 2, 
+			  .{*}two = 2, 
 			}
 	    }
 		`,
@@ -1606,7 +1605,7 @@ ast_implicit_enum_value_decl_type :: proc(t: ^testing.T) {
 		main = `package main
 		Foo :: enum { Aa, Ab, Ac, Ad }
 		main :: proc() {
-			foo: Foo = .*
+			foo: Foo = .{*}
 	    }
 		`,
 	}
@@ -1621,7 +1620,7 @@ ast_implicit_bitset_value_decl :: proc(t: ^testing.T) {
 		Foo :: enum { Aa, Ab, Ac, Ad }
 		Foo_Set :: bit_set[Foo]
 		main :: proc() {
-			foo_set := Foo_Set { .* }
+			foo_set := Foo_Set { .{*} }
 	    }
 		`,
 	}
@@ -1637,7 +1636,7 @@ ast_implicit_bitset_add :: proc(t: ^testing.T) {
 		Foo_Set :: bit_set[Foo]
 		main :: proc() {
 			foo_set: Foo_Set
-			foo_set += .*
+			foo_set += .{*}
 	    }
 		`,
 	}
@@ -1651,7 +1650,7 @@ ast_enum_complete :: proc(t: ^testing.T) {
 		main = `package main
 		Foo :: enum { Aa, Ab, Ac, Ad }
 		main :: proc() {
-			foo := Foo.*
+			foo := Foo.{*}
 	    }
 		`,
 	}
@@ -1688,7 +1687,7 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 		import "my_package"
 		main :: proc() {
 			a := my_package.Bar {
-				c = .*
+				c = .{*}
 			}
 	    }
 		`,
@@ -1725,7 +1724,7 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		main     = `package main
 		import "My_package"
 		main :: proc() {
-			My_package.*
+			My_package.{*}
 	    }
 		`,
 		packages = packages[:],
@@ -1763,7 +1762,7 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 		main :: proc() {
 			my_enum: My_package.Foo
 
-			if my_enum == *.
+			if my_enum == {*}.
 	    }
 		`,
 		packages = packages[:],
@@ -1777,7 +1776,7 @@ ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test	
 		main :: proc() {
-			when ODIN_OS == .*
+			when ODIN_OS == .{*}
 		}
 		`,
 		packages = {},
@@ -1794,7 +1793,7 @@ ast_for_in_range_half_completion_1 :: proc(t: ^testing.T) {
 			ints: []int
 		
 			for int_idx in 0..<len(ints) {
-				ints[int_idx] = int_i*
+				ints[int_idx] = int_i{*}
 			}
 		}
 		`,
@@ -1810,7 +1809,7 @@ ast_for_in_range_half_completion_2 :: proc(t: ^testing.T) {
 		main = `package test	
 		advance_rune_n :: proc(t: ^Tokenizer, n: int) {
 			for in 0..<n {
-				advance_rune(n*)
+				advance_rune(n{*})
 			}
 		}
 		`,
@@ -1841,7 +1840,7 @@ ast_for_in_switch_type :: proc(t: ^testing.T) {
 			switch v in my_union {
 			case My_Struct:
 				for item in v.my {
-					item.*
+					item.{*}
 				}
 			}
 		}
@@ -1860,7 +1859,7 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 			Int :: int
 			
 			my_procedure_two :: proc() {
-				b : In*
+				b : In{*}
 			}
 		}
 		`,
@@ -1884,7 +1883,7 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 				switch v in a {
 					case My_Enum:
 						switch v {
-							case .*
+							case .{*}
 						}
 						
 				}
@@ -1894,4 +1893,141 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, ".", {"One", "Two"})
+}
+
+@(test)
+ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package	
+			My_Int :: int
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		My_Union :: union { 
+			bool, 
+			my_package.My_Int,
+		}
+
+		main :: proc() {
+			my_union: My_Union
+			my_union.{*} 
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"(my_package.My_Int)"})
+}
+
+@(test)
+ast_completion_union_with_typeid :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Maybe :: union($T: typeid) {T}
+
+		main :: proc() {
+			my_maybe: Maybe(typeid)
+			my_maybe.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"(typeid)"})
+}
+
+@(test)
+ast_completion_with_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		main :: proc() {
+			my_pointer: ^int
+			my_p{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.my_pointer: ^int"})
+}
+
+
+@(test)
+ast_matrix_completion_index :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			m := matrix[2, 3]f32 {
+				1, 9, -13, 
+				20, 5, -6, 
+			}
+		
+			my_float := m[2, 3]
+			my_f{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.my_float: f32"})
+}
+
+@(test)
+ast_matrix_with_matrix_mult :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			a := matrix[2, 3]f32 {
+				2, 3, 1, 
+				4, 5, 0, 
+			}
+		
+			b := matrix[3, 2]f32 {
+				1, 2, 
+				3, 4, 
+				5, 6, 
+			}
+
+			my_matrix := a * b
+
+			my_matri{*}		
+		}
+		`,
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.my_matrix: matrix[2,2]f32"},
+	)
+}
+
+@(test)
+ast_vector_with_matrix_mult :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		My_Matrix :: matrix[2, 4]f32
+
+		main :: proc() {
+			m := My_Matrix{1, 2, 3, 4, 5, 5, 4, 2}
+			v := [4]f32{1, 5, 4, 3}
+		
+			my_vector := m * v
+	
+			my_vecto{*}		
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.my_vector: [4]f32"})
 }

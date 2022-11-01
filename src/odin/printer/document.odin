@@ -10,9 +10,8 @@ Document :: union {
 	Document_Break,
 	Document_Group,
 	Document_Cons,
-	Document_If_Break,
+	Document_If_Break_Or,
 	Document_Align,
-	Document_Nest_If_Break,
 	Document_Break_Parent,
 	Document_Line_Suffix,
 }
@@ -37,18 +36,15 @@ Document_Nest :: struct {
 	document:  ^Document,
 }
 
-Document_Nest_If_Break :: struct {
-	document: ^Document,
-	group_id: string,
-}
-
 Document_Break :: struct {
 	value:   string,
 	newline: bool,
 }
 
-Document_If_Break :: struct {
-	value: string,
+Document_If_Break_Or :: struct {
+	break_document: ^Document,
+	fit_document:   ^Document,
+	group_id:       string,
 }
 
 Document_Group :: struct {
@@ -127,12 +123,12 @@ nest_if_break :: proc(
 	group_id := "",
 	allocator := context.allocator,
 ) -> ^Document {
-	document := new(Document, allocator)
-	document^ = Document_Nest_If_Break {
-		document = nested_document,
-		group_id = group_id,
-	}
-	return document
+	return if_break_or_document(
+		nest(nested_document, allocator),
+		nested_document,
+		group_id,
+		allocator,
+	)
 }
 
 hang :: proc(
@@ -186,9 +182,39 @@ align :: proc(
 }
 
 if_break :: proc(value: string, allocator := context.allocator) -> ^Document {
+	return if_break_or_document(text(value, allocator), nil, "", allocator)
+}
+
+if_break_or :: proc {
+	if_break_or_string,
+	if_break_or_document,
+}
+
+if_break_or_string :: proc(
+	break_value: string,
+	fit_value: string,
+	group_id := "",
+	allocator := context.allocator,
+) -> ^Document {
+	return if_break_or_document(
+		text(break_value, allocator),
+		text(fit_value, allocator),
+		group_id,
+		allocator,
+	)
+}
+
+if_break_or_document :: proc(
+	break_document: ^Document,
+	fit_document: ^Document,
+	group_id := "",
+	allocator := context.allocator,
+) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_If_Break {
-		value = value,
+	document^ = Document_If_Break_Or {
+		break_document = break_document,
+		fit_document   = fit_document,
+		group_id       = group_id,
 	}
 	return document
 }
@@ -387,28 +413,24 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			} else {
 				width -= len(v.value)
 			}
-		case Document_If_Break:
+		case Document_If_Break_Or:
 			if data.mode == .Break {
-				width -= len(v.value)
-			}
-		case Document_Nest_If_Break:
-			if data.mode == .Break {
-				append(
-					list,
-					Tuple{
-						indentation = data.indentation + 1,
-						mode = data.mode,
-						document = v.document,
-						alignment = data.alignment,
-					},
-				)
-			} else {
 				append(
 					list,
 					Tuple{
 						indentation = data.indentation,
 						mode = data.mode,
-						document = v.document,
+						document = v.break_document,
+						alignment = data.alignment,
+					},
+				)
+			} else if v.fit_document != nil {
+				append(
+					list,
+					Tuple{
+						indentation = data.indentation,
+						mode = data.mode,
+						document = v.fit_document,
 						alignment = data.alignment,
 					},
 				)
@@ -560,30 +582,25 @@ format :: proc(
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
 			}
-		case Document_If_Break:
-			if data.mode == .Break {
-				strings.write_string(builder, v.value)
-				consumed += len(v.value)
-			}
-		case Document_Nest_If_Break:
+		case Document_If_Break_Or:
 			mode := v.group_id != "" ? p.group_modes[v.group_id] : data.mode
 			if mode == .Break {
 				append(
 					list,
 					Tuple{
-						indentation = data.indentation + 1,
+						indentation = data.indentation,
 						mode = data.mode,
-						document = v.document,
+						document = v.break_document,
 						alignment = data.alignment,
 					},
 				)
-			} else {
+			} else if v.fit_document != nil {
 				append(
 					list,
 					Tuple{
 						indentation = data.indentation,
 						mode = data.mode,
-						document = v.document,
+						document = v.fit_document,
 						alignment = data.alignment,
 					},
 				)
@@ -630,7 +647,9 @@ format :: proc(
 						alignment = data.alignment,
 					},
 				)
-			} else if fits(width - consumed, &list_fits) && v.mode != .Break && v.mode != .Fit {
+			} else if fits(width - consumed, &list_fits) &&
+			   v.mode != .Break &&
+			   v.mode != .Fit {
 				append(
 					list,
 					Tuple{

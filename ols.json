@@ -1,16 +1,13 @@
 {
     "collections": [
         {
-            "name": "core",
-            "path": "C:\\Users\\danie\\OneDrive\\Desktop\\Computer_Science\\Odin\\core"
-        },
-        {
             "name": "shared",
             "path": "src"
         }
     ],
     "enable_document_symbols": true,
     "enable_semantic_tokens": true,
-    "enable_hover": true,
-    "enable_snippets": true
+    "enable_snippets": true,
+    "enable_references": true,
+    "verbose": false
 }

@@ -32,11 +32,12 @@ SemanticTokenTypes :: enum {
 	Method,
 }
 
-SemanticTokenModifiers :: enum (u32) {
+SemanticTokenModifiers :: enum (u8) {
 	None        = 0,
-	Declaration = 2,
-	Definition  = 4,
-	Deprecated  = 8,
+	Declaration = 1,
+	Definition  = 2,
+	Deprecated  = 4,
+	ReadOnly    = 8,
 }
 
 SemanticTokensClientCapabilities :: struct {
@@ -84,7 +85,7 @@ SemanticTokenBuilder :: struct {
 make_token_builder :: proc(
 	allocator := context.temp_allocator,
 ) -> SemanticTokenBuilder {
-	return {tokens = make([dynamic]u32, 1000, context.temp_allocator)}
+	return {tokens = make([dynamic]u32, 10000, context.temp_allocator)}
 }
 
 get_tokens :: proc(builder: SemanticTokenBuilder) -> SemanticTokens {
@@ -259,15 +260,35 @@ visit_node :: proc(
 		)
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
+		modifier: SemanticTokenModifiers
+
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
-			if symbol_and_node.symbol.type == .Variable ||
+			if symbol_and_node.symbol.type == .Constant ||
+			   symbol_and_node.symbol.type != .Variable {
+				//modifier = .ReadOnly
+			}
+
+			if .Distinct in symbol_and_node.symbol.flags &&
 			   symbol_and_node.symbol.type == .Constant {
 				write_semantic_node(
 					builder,
 					node,
 					ast_context.file.src,
-					.Variable,
+					.Type,
 					.None,
+				)
+				return
+			}
+
+			_, is_proc := symbol_and_node.symbol.value.(SymbolProcedureValue)
+
+			if symbol_and_node.symbol.type == .Variable && !is_proc {
+				write_semantic_node(
+					builder,
+					node,
+					ast_context.file.src,
+					.Variable,
+					modifier,
 				)
 				return
 			}
@@ -287,7 +308,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Struct,
-					.None,
+					modifier,
 				)
 			case SymbolEnumValue:
 				write_semantic_node(
@@ -295,7 +316,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Enum,
-					.None,
+					modifier,
 				)
 			case SymbolUnionValue:
 				write_semantic_node(
@@ -303,7 +324,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Enum,
-					.None,
+					modifier,
 				)
 			case SymbolProcedureValue:
 				write_semantic_node(
@@ -311,7 +332,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Function,
-					.None,
+					modifier,
 				)
 			case SymbolProcedureGroupValue:
 				write_semantic_node(
@@ -319,7 +340,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Function,
-					.None,
+					modifier,
 				)
 			case SymbolUntypedValue:
 				write_semantic_node(
@@ -327,7 +348,7 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Type,
-					.None,
+					modifier,
 				)
 			case SymbolBasicValue:
 				write_semantic_node(
@@ -335,7 +356,15 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Type,
-					.None,
+					modifier,
+				)
+			case SymbolMatrixValue:
+				write_semantic_node(
+					builder,
+					node,
+					ast_context.file.src,
+					.Type,
+					modifier,
 				)
 			case:
 			//log.errorf("Unexpected symbol value: %v", symbol.value);
@@ -373,6 +402,22 @@ visit_node :: proc(
 		visit(n.stmts, builder, ast_context)
 	case ^Expr_Stmt:
 		visit(n.expr, builder, ast_context)
+	case ^Matrix_Type:
+		write_semantic_string(
+			builder,
+			n.tok_pos,
+			"matrix",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit(n.row_count, builder, ast_context)
+		visit(n.column_count, builder, ast_context)
+		visit(n.elem, builder, ast_context)
+	case ^ast.Matrix_Index_Expr:
+		visit(n.expr, builder, ast_context)
+		visit(n.row_index, builder, ast_context)
+		visit(n.column_index, builder, ast_context)
 	case ^Branch_Stmt:
 		write_semantic_token(
 			builder,
@@ -702,6 +747,48 @@ visit_node :: proc(
 		visit(n.cond, builder, ast_context)
 		visit(n.x, builder, ast_context)
 		visit(n.y, builder, ast_context)
+	case ^Union_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"union",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit(n.variants, builder, ast_context)
+	case ^ast.Enum_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"enum",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_enum_fields(n^, builder, ast_context)
+	case ^Proc_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"proc",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_proc_type(n, builder, ast_context)
+	case ^Proc_Lit:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"proc",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_proc_type(n.type, builder, ast_context)
+
+		visit(n.body, builder, ast_context)
 	case:
 	//log.errorf("unhandled semantic token node %v", n);
 	//panic(fmt.tprintf("Missed semantic token handling %v", n));
@@ -778,15 +865,7 @@ visit_value_decl :: proc(
 				.Enum,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"union",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit(v.variants, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Struct_Type:
 			write_semantic_node(
 				builder,
@@ -795,15 +874,7 @@ visit_value_decl :: proc(
 				.Struct,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"struct",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit_struct_fields(v^, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Enum_Type:
 			write_semantic_node(
 				builder,
@@ -812,15 +883,7 @@ visit_value_decl :: proc(
 				.Enum,
 				.None,
 			)
-			write_semantic_string(
-				builder,
-				v.pos,
-				"enum",
-				ast_context.file.src,
-				.Keyword,
-				.None,
-			)
-			visit_enum_fields(v^, builder, ast_context)
+			visit(value_decl.values[0], builder, ast_context)
 		case ^Proc_Group:
 			write_semantic_node(
 				builder,
@@ -856,6 +919,8 @@ visit_value_decl :: proc(
 				.Function,
 				.None,
 			)
+			visit(value_decl.values[0], builder, ast_context)
+		case ^ast.Proc_Type:
 			write_semantic_string(
 				builder,
 				v.pos,
@@ -864,9 +929,7 @@ visit_value_decl :: proc(
 				.Keyword,
 				.None,
 			)
-			visit_proc_type(v.type, builder, ast_context)
-
-			visit(v.body, builder, ast_context)
+			visit_proc_type(v, builder, ast_context)
 		case:
 			for name in value_decl.names {
 				write_semantic_node(
