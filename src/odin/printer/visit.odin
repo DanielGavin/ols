@@ -1796,7 +1796,7 @@ visit_expr :: proc(
 			document,
 			push_where_clauses(p, v.where_clauses),
 		)
-		document = cons_with_opl(document, visit_proc_tags(p, v.tags))
+		document = cons(document, visit_proc_tags(p, v.tags))
 
 		if v.body != nil {
 			set_source_position(p, v.body.pos)
@@ -2354,7 +2354,7 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 		document = cons_with_opl(document, text("#optional_ok"))
 	}
 
-	return document
+	return group(cons_with_nopl(if_break("\\"), document))
 }
 
 @(private)
@@ -2382,7 +2382,7 @@ visit_proc_type :: proc(
 		document,
 		nest(
 			cons(
-				break_with(""),
+				len(proc_type.params.list) > 0 ? break_with("") : empty(),
 				visit_signature_list(p, proc_type.params, true, false),
 			),
 		),
