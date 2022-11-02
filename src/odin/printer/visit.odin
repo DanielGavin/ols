@@ -194,7 +194,6 @@ visit_comments :: proc(p: ^Printer, pos: tokenizer.Pos) -> (^Document, int) {
 
 @(private)
 visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
-
 	if node.pos.line not_in p.disabled_lines {
 		return empty()
 	}
@@ -209,7 +208,10 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 		return empty()
 	}
 
-	move := move_line(p, node.pos)
+	pos_one_line_before := node.pos
+	pos_one_line_before.line -= 1
+
+	move := cons(move_line(p, pos_one_line_before), escape_nest(move_line(p, node.pos)))
 
 	for comment_before_or_in_line(p, node.end.line) {
 		next_comment_group(p)
@@ -218,7 +220,7 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 	p.source_position = node.end
 	p.disabled_until_line = disabled_info.end_line
 
-	return cons(escape_nest(move), text(disabled_info.text))
+	return cons(move, text(disabled_info.text))
 }
 
 @(private)
@@ -2208,7 +2210,7 @@ visit_block_stmts :: proc(
 
 	for stmt, i in stmts {
 		last_index := max(0, i - 1)
-		if stmts[last_index].end.line == stmt.pos.line && i != 0 {
+		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
 			document = cons(document, break_with(";"))
 		}
 

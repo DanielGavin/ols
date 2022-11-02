@@ -46,3 +46,19 @@ empty_odin_fmt_block :: proc() {
 	//a := 10
 	//odinfmt: enable
 }
+
+
+disabled_comment_after_normal_comments :: proc() {
+	// comment
+	// hello
+	
+    //odinfmt: disable
+	return true
+    //odinfmt: enable
+}
+
+disabled_comments_with_multiple_statements_one_lined :: proc() {
+	//odinfmt: disable
+	i:int;b:int
+	//odinfmt: enable
+}
