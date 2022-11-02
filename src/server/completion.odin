@@ -1756,7 +1756,7 @@ language_keywords: []string = {
 	"distinct",
 	"fallthrough",
 	"in",
-	"notin",
+	"not_in",
 	"return",
 	"type_of",
 	"bit_field",
