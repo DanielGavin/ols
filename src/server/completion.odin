@@ -100,7 +100,7 @@ get_completion_list :: proc(
 	if position_context.import_stmt != nil {
 		completion_type = .Package
 	}
-
+	
 	done: if position_context.switch_type_stmt != nil &&
 	   position_context.case_clause != nil {
 
@@ -124,6 +124,13 @@ get_completion_list :: proc(
 				}
 			}
 		}
+	}
+
+	//Currently we do not do any completion in string literals, but it could be possible in the future for formatted strings
+	if position_context.basic_lit != nil {
+		if _, ok := position_context.basic_lit.derived.(^ast.Basic_Lit); ok {
+			return list, true
+		} 
 	}
 
 	switch completion_type {
@@ -1035,8 +1042,8 @@ get_identifier_completion :: proc(
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			lookup_name = ident.name
-		}
-	}
+		} 
+	} 
 
 	pkgs := make([dynamic]string, context.temp_allocator)
 

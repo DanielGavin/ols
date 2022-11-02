@@ -40,6 +40,7 @@ DocumentPositionContext :: struct {
 	returns:          ^ast.Return_Stmt, //used for completion
 	comp_lit:         ^ast.Comp_Lit, //used for completion
 	parent_comp_lit:  ^ast.Comp_Lit, //used for completion
+	basic_lit:        ^ast.Basic_Lit,
 	struct_type:      ^ast.Struct_Type,
 	union_type:       ^ast.Union_Type,
 	bitset_type:      ^ast.Bit_Set_Type,
@@ -4723,6 +4724,7 @@ get_document_position_node :: proc(
 		}
 	case ^Undef:
 	case ^Basic_Lit:
+		position_context.basic_lit = cast(^Basic_Lit)node
 	case ^Matrix_Index_Expr:
 		get_document_position(n.expr, position_context)
 		get_document_position(n.row_index, position_context)
