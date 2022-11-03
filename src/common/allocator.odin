@@ -67,7 +67,7 @@ scratch_allocator_proc :: proc(
 	size := size
 
 	switch mode {
-	case .Alloc:
+	case .Alloc, .Alloc_Non_Zeroed:
 		size = mem.align_forward_int(size, alignment)
 
 		switch {
