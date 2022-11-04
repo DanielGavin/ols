@@ -2031,3 +2031,28 @@ ast_vector_with_matrix_mult :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.my_vector: [4]f32"})
 }
+
+@(test)
+ast_completion_on_call_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main		
+		My_Struct :: struct {
+			a: int,
+			b: int,
+		}
+
+		my_function :: proc() -> My_Struct {}
+
+		main :: proc() {
+			my_function().{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.a: int", "My_Struct.b: int"},
+	)
+}
