@@ -400,6 +400,8 @@ visit_node :: proc(
 		visit_value_decl(n^, builder, ast_context)
 	case ^Block_Stmt:
 		visit(n.stmts, builder, ast_context)
+	case ^ast.Foreign_Block_Decl:
+		visit(n.body, builder, ast_context)
 	case ^Expr_Stmt:
 		visit(n.expr, builder, ast_context)
 	case ^Matrix_Type:
