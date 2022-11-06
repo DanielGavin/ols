@@ -211,7 +211,10 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 	pos_one_line_before := node.pos
 	pos_one_line_before.line -= 1
 
-	move := cons(move_line(p, pos_one_line_before), escape_nest(move_line(p, node.pos)))
+	move := cons(
+		move_line(p, pos_one_line_before),
+		escape_nest(move_line(p, node.pos)),
+	)
 
 	for comment_before_or_in_line(p, node.end.line) {
 		next_comment_group(p)
@@ -2210,7 +2213,9 @@ visit_block_stmts :: proc(
 
 	for stmt, i in stmts {
 		last_index := max(0, i - 1)
-		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
+		if stmts[last_index].end.line == stmt.pos.line &&
+		   i != 0 &&
+		   stmt.pos.line not_in p.disabled_lines {
 			document = cons(document, break_with(";"))
 		}
 
@@ -2540,7 +2545,7 @@ visit_signature_field_flag :: proc(
 	document := empty()
 
 	if .Auto_Cast in flags {
-		document = cons_with_nopl(document, text("#auto_cast"))
+		document = cons_with_nopl(document, text("auto_cast"))
 	}
 
 	if .Any_Int in flags {
