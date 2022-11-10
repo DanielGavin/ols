@@ -50,7 +50,9 @@ jobs:
     - name: Download LLVM
       run: sudo apt-get install llvm-11 clang-11
     - name: Download Odin
-      run: git clone https://github.com/odin-lang/Odin
+      run: |
+        git clone https://github.com/odin-lang/Odin
+        git checkout map-dev
     - name: Build Odin
       run: |
         cd Odin
@@ -71,7 +73,9 @@ jobs:
         TMP_PATH=$(xcrun --show-sdk-path)/user/include
         echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
     - name: Download Odin
-      run: git clone https://github.com/odin-lang/Odin
+      run: | 
+        git clone https://github.com/odin-lang/Odin
+        git checkout map-dev
     - name: Build Odin
       run: |
         cd Odin
