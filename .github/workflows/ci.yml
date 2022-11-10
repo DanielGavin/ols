@@ -21,7 +21,9 @@ jobs:
     - uses: actions/checkout@v1
     - name: Download Odin
       shell: cmd
-      run: git clone https://github.com/odin-lang/Odin
+      run: |
+        git clone https://github.com/odin-lang/Odin
+        git checkout map-dev
     - name: Download and unpack LLVM bins
       shell: powershell
       run: |
