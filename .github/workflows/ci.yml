@@ -22,8 +22,7 @@ jobs:
     - name: Download Odin
       shell: cmd
       run: |
-        git clone https://github.com/odin-lang/Odin
-        git checkout map-dev
+        git clone  -b map-dev https://github.com/odin-lang/Odin
     - name: Download and unpack LLVM bins
       shell: powershell
       run: |
@@ -51,8 +50,7 @@ jobs:
       run: sudo apt-get install llvm-11 clang-11
     - name: Download Odin
       run: |
-        git clone https://github.com/odin-lang/Odin
-        git checkout map-dev
+        git clone  -b map-dev https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
@@ -74,8 +72,7 @@ jobs:
         echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
     - name: Download Odin
       run: | 
-        git clone https://github.com/odin-lang/Odin
-        git checkout map-dev
+        git clone -b map-dev https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
