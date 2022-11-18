@@ -166,4 +166,5 @@ indent = { tab-width = 2, unit = " " }
 language-server = { command = "ols" }
 injection-regex = "odin"
 roots = ["ols.json"]
+formatter = { command = "odinfmt", args = [ "-stdin", "true" ] }
 ```
