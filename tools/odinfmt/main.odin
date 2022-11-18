@@ -18,7 +18,7 @@ Args :: struct {
 }
 
 print_help :: proc(args: []string) {
-	fmt.eprintln("usage: odinfmt -w {filepath}")
+	fmt.eprintln("usage: odinfmt [-w {filepath}] [-stdin]")
 }
 
 print_arg_error :: proc(args: []string, error: flag.Flag_Error) {
