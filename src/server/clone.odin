@@ -12,8 +12,7 @@ _ :: intrinsics
 
 new_type :: proc(
 	$T: typeid,
-	pos,
-	end: tokenizer.Pos,
+	pos, end: tokenizer.Pos,
 	allocator: mem.Allocator,
 ) -> ^T {
 	n, _ := mem.new(T, allocator)
@@ -150,22 +149,14 @@ clone_node :: proc(
 			if unique_strings == nil {
 				r.name = strings.clone(n.name, allocator)
 			} else {
-				r.name = get_index_unique_string(
-					unique_strings,
-					allocator,
-					n.name,
-				)
+				r.name = get_index_unique_string(unique_strings, allocator, n.name)
 			}
 		case ^Implicit:
 			n := node.derived.(^Implicit)
 			if unique_strings == nil {
 				r.tok.text = strings.clone(n.tok.text, allocator)
 			} else {
-				r.tok.text = get_index_unique_string(
-					unique_strings,
-					allocator,
-					n.tok.text,
-				)
+				r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
 			}
 		case ^Undef:
 		case ^Basic_Lit:
@@ -173,22 +164,14 @@ clone_node :: proc(
 			if unique_strings == nil {
 				r.tok.text = strings.clone(n.tok.text, allocator)
 			} else {
-				r.tok.text = get_index_unique_string(
-					unique_strings,
-					allocator,
-					n.tok.text,
-				)
+				r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
 			}
 		case ^Basic_Directive:
 			n := node.derived.(^Basic_Directive)
 			if unique_strings == nil {
 				r.name = strings.clone(n.name, allocator)
 			} else {
-				r.name = get_index_unique_string(
-					unique_strings,
-					allocator,
-					n.name,
-				)
+				r.name = get_index_unique_string(unique_strings, allocator, n.name)
 			}
 		case ^Ellipsis:
 			r.expr = clone_type(r.expr, allocator, unique_strings)
@@ -197,8 +180,15 @@ clone_node :: proc(
 		case ^Unary_Expr:
 			r.expr = clone_type(r.expr, allocator, unique_strings)
 		case ^Binary_Expr:
+			n := node.derived.(^Binary_Expr)
 			r.left = clone_type(r.left, allocator, unique_strings)
 			r.right = clone_type(r.right, allocator, unique_strings)
+			//Todo: Replace this with some constant table for opeator text
+			if unique_strings == nil {
+				r.op.text = strings.clone(n.op.text, allocator)
+			} else {
+				r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
+			}
 		case ^Paren_Expr:
 			r.expr = clone_type(r.expr, allocator, unique_strings)
 		case ^Selector_Expr:
@@ -215,10 +205,8 @@ clone_node :: proc(
 		case ^Distinct_Type:
 			r.type = clone_type(r.type, allocator, unique_strings)
 		case ^Proc_Type:
-			r.params =
-			auto_cast clone_type(r.params, allocator, unique_strings)
-			r.results =
-			auto_cast clone_type(r.results, allocator, unique_strings)
+			r.params = auto_cast clone_type(r.params, allocator, unique_strings)
+			r.results = auto_cast clone_type(r.results, allocator, unique_strings)
 		case ^Pointer_Type:
 			r.elem = clone_type(r.elem, allocator, unique_strings)
 		case ^Array_Type:
@@ -229,39 +217,24 @@ clone_node :: proc(
 			r.elem = clone_type(r.elem, allocator, unique_strings)
 			r.tag = clone_type(r.tag, allocator, unique_strings)
 		case ^Struct_Type:
-			r.poly_params =
-			auto_cast clone_type(r.poly_params, allocator, unique_strings)
+			r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
 			r.align = clone_type(r.align, allocator, unique_strings)
-			r.fields =
-			auto_cast clone_type(r.fields, allocator, unique_strings)
-			r.where_clauses = clone_type(
-				r.where_clauses,
-				allocator,
-				unique_strings,
-			)
+			r.fields = auto_cast clone_type(r.fields, allocator, unique_strings)
+			r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
 		case ^Field:
 			r.names = clone_type(r.names, allocator, unique_strings)
 			r.type = clone_type(r.type, allocator, unique_strings)
-			r.default_value = clone_type(
-				r.default_value,
-				allocator,
-				unique_strings,
-			)
+			r.default_value = clone_type(r.default_value, allocator, unique_strings)
 		case ^Field_List:
 			r.list = clone_type(r.list, allocator, unique_strings)
 		case ^Field_Value:
 			r.field = clone_type(r.field, allocator, unique_strings)
 			r.value = clone_type(r.value, allocator, unique_strings)
 		case ^Union_Type:
-			r.poly_params =
-			auto_cast clone_type(r.poly_params, allocator, unique_strings)
+			r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
 			r.align = clone_type(r.align, allocator, unique_strings)
 			r.variants = clone_type(r.variants, allocator, unique_strings)
-			r.where_clauses = clone_type(
-				r.where_clauses,
-				allocator,
-				unique_strings,
-			)
+			r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
 		case ^Enum_Type:
 			r.base_type = clone_type(r.base_type, allocator, unique_strings)
 			r.fields = clone_type(r.fields, allocator, unique_strings)
@@ -275,34 +248,21 @@ clone_node :: proc(
 			r.expr = clone_type(r.expr, allocator, unique_strings)
 			r.args = clone_type(r.args, allocator, unique_strings)
 		case ^Typeid_Type:
-			r.specialization = clone_type(
-				r.specialization,
-				allocator,
-				unique_strings,
-			)
+			r.specialization = clone_type(r.specialization, allocator, unique_strings)
 		case ^Ternary_When_Expr:
 			r.x = clone_type(r.x, allocator, unique_strings)
 			r.cond = clone_type(r.cond, allocator, unique_strings)
 			r.y = clone_type(r.y, allocator, unique_strings)
 		case ^Poly_Type:
 			r.type = auto_cast clone_type(r.type, allocator, unique_strings)
-			r.specialization = clone_type(
-				r.specialization,
-				allocator,
-				unique_strings,
-			)
+			r.specialization = clone_type(r.specialization, allocator, unique_strings)
 		case ^Proc_Group:
 			r.args = clone_type(r.args, allocator, unique_strings)
 		case ^Comp_Lit:
 			r.type = clone_type(r.type, allocator, unique_strings)
 			r.elems = clone_type(r.elems, allocator, unique_strings)
 		case ^Proc_Lit:
-			r.type =
-			cast(^Proc_Type)clone_type(
-				cast(^Node)r.type,
-				allocator,
-				unique_strings,
-			)
+			r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings)
 			r.body = nil
 			r.where_clauses = nil
 		case ^Helper_Type:
