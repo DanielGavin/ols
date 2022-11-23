@@ -1268,6 +1268,8 @@ internal_resolve_type_expression :: proc(
 			return {}, false
 		}
 
+		ast_context.current_package = indexed.pkg
+
 		symbol: Symbol
 
 		#partial switch v2 in indexed.value {
@@ -1285,6 +1287,7 @@ internal_resolve_type_expression :: proc(
 		case SymbolMultiPointer:
 			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
 		}
+
 
 		symbol.type = indexed.type
 

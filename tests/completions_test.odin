@@ -60,6 +60,33 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_index_dynamic_array_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+
+		main :: proc() {
+			my_struct: [dynamic] My_Struct;
+			my_struct[2].{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+	)
+}
+
+@(test)
 ast_struct_pointer_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test

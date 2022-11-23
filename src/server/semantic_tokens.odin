@@ -250,6 +250,8 @@ visit_node :: proc(
 
 	#partial switch n in node.derived {
 	case ^Ellipsis:
+		/*
+			Issue with parser pos not being correct.
 		write_semantic_string(
 			builder,
 			node.pos,
@@ -258,6 +260,7 @@ visit_node :: proc(
 			.Operator,
 			.None,
 		)
+		*/
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
 		modifier: SemanticTokenModifiers
