@@ -11,4 +11,7 @@
 *.sqlite
 *.suo
 *node_modules
+ols
+odinfmt
+
 

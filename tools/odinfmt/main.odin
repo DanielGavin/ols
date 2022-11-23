@@ -14,10 +14,11 @@ import "flag"
 
 Args :: struct {
 	write: Maybe(bool) `flag:"w" usage:"write the new format to file"`,
+	stdin: Maybe(bool) `flag:"stdin" usage:"formats code from standard input"`,
 }
 
 print_help :: proc(args: []string) {
-	fmt.eprintln("usage: odinfmt -w {filepath}")
+	fmt.eprintln("usage: odinfmt [-w {filepath}] [-stdin]")
 }
 
 print_arg_error :: proc(args: []string, error: flag.Flag_Error) {
@@ -51,13 +52,7 @@ format_file :: proc(
 	bool,
 ) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
-		return format.format(
-			filepath,
-			string(data),
-			config,
-			{.Optional_Semicolons},
-			allocator,
-		)
+		return format.format(filepath, string(data), config, {.Optional_Semicolons}, allocator)
 	} else {
 		return "", false
 	}
@@ -65,13 +60,7 @@ format_file :: proc(
 
 files: [dynamic]string
 
-walk_files :: proc(
-	info: os.File_Info,
-	in_err: os.Errno,
-) -> (
-	err: os.Errno,
-	skip_dir: bool,
-) {
+walk_files :: proc(info: os.File_Info, in_err: os.Errno) -> (err: os.Errno, skip_dir: bool) {
 	if info.is_dir {
 		return 0, false
 	}
@@ -113,8 +102,34 @@ main :: proc() {
 
 	watermark := 0
 
-	if os.is_file(path) {
-		config := format.find_config_file_or_default(path)
+	config := format.find_config_file_or_default(path)
+
+	if _, ok := args.stdin.(bool); ok {
+		data := make([dynamic]byte, arena_allocator)
+
+		for {
+			tmp: [mem.Kilobyte]byte
+
+			r, err := os.read(os.stdin, tmp[:])
+			if err != os.ERROR_NONE || r <= 0 do break
+
+			append(&data, ..tmp[:r])
+		}
+
+		source, ok := format.format(
+			"<stdin>",
+			string(data[:]),
+			config,
+			{.Optional_Semicolons},
+			arena_allocator,
+		)
+
+		if ok {
+			fmt.println(source)
+		}
+
+		write_failure = !ok
+	} else if os.is_file(path) {
 		if _, ok := args.write.(bool); ok {
 			backup_path := strings.concatenate({path, "_bk"})
 			defer delete(backup_path)
@@ -135,7 +150,6 @@ main :: proc() {
 			}
 		}
 	} else if os.is_dir(path) {
-		config := format.find_config_file_or_default(path)
 		filepath.walk(path, walk_files)
 
 		for file in files {
@@ -177,3 +191,4 @@ main :: proc() {
 
 	os.exit(1 if write_failure else 0)
 }
+
