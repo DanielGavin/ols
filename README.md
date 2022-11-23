@@ -1,7 +1,7 @@
 # ols
 Language server for Odin. This project is still in early development. 
 
-**Status**: No longer works after new Odin update(48c9c1682c347adb7e743a6a6f8c70f08420c197 and before works fine)
+**Status**: All platforms work.
 
 ## Table Of Contents
 - [Installation](#installation)
