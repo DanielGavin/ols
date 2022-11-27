@@ -1003,15 +1003,26 @@ resolve_basic_lit :: proc(
 
 	value: SymbolUntypedValue
 
+	if len(basic_lit.tok.text) == 0 {
+		return {}, false
+	}
+
 	if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
 		value.type = .Integer
 	} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
 		value.type = .Bool
-	} else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
+	} else if v, ok := strconv.parse_int(basic_lit.tok.text[0:1]); ok {
 		value.type = .Float
 	} else {
 		value.type = .String
 	}
+
+	/*
+	out commented because of an infinite loop in parse_f64
+	else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
+		value.type = .Float
+	} 
+	*/
 
 	symbol.pkg = ast_context.current_package
 	symbol.value = value
