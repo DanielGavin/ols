@@ -1819,7 +1819,15 @@ visit_expr :: proc(
 	case ^Implicit_Selector_Expr:
 		document = cons(text("."), text_position(p, v.field.name, v.field.pos))
 	case ^Call_Expr:
-		document = cons(visit_expr(p, v.expr), text("("))
+		switch v.inlining {
+		case .None:
+		case .Inline:
+			document = cons(document, text("#force_inline"), break_with_no_newline())
+		case .No_Inline:
+			document = cons(document, text("#force_no_inline"), break_with_no_newline())
+		}
+
+		document = cons(document, visit_expr(p, v.expr), text("("))
 
 		contains_comments := contains_comments_in_range(p, v.open, v.close)
 		contains_do := false
