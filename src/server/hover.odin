@@ -96,6 +96,10 @@ get_hover_information :: proc(
 		)
 	}
 
+	if position_context.import_stmt != nil {
+		return {}, false, true
+	}
+
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			if _, ok := common.keyword_map[ident.name]; ok {

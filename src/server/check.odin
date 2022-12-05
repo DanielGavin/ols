@@ -18,10 +18,6 @@ import "core:text/scanner"
 
 import "shared:common"
 
-is_package :: proc(file: string, pkg: string) {
-
-}
-
 check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	data := make([]byte, mem.Kilobyte * 10, context.temp_allocator)
 

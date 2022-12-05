@@ -16,6 +16,36 @@ import "core:os"
 
 import "shared:common"
 
+get_all_package_file_locations :: proc(
+	document: ^Document,
+	import_decl: ^ast.Import_Decl,
+	locations: ^[dynamic]common.Location,
+) -> bool {
+	path := ""
+
+	for imp in document.imports {
+		if imp.original == import_decl.fullpath {
+			path = imp.name
+		}
+	}
+
+	matches, err := filepath.glob(
+		fmt.tprintf("%v/*.odin", path),
+		context.temp_allocator,
+	)
+
+	for match in matches {
+		uri := common.create_uri(match, context.temp_allocator)
+		location := common.Location {
+			uri = uri.uri,
+		}
+		append(locations, location)
+	}
+
+	return false
+
+}
+
 get_definition_location :: proc(
 	document: ^Document,
 	position: common.Position,
@@ -59,7 +89,15 @@ get_definition_location :: proc(
 		)
 	}
 
-	if position_context.selector_expr != nil {
+	if position_context.import_stmt != nil {
+		if get_all_package_file_locations(
+			   document,
+			   position_context.import_stmt,
+			   &locations,
+		   ) {
+			return locations[:], true
+		}
+	} else if position_context.selector_expr != nil {
 		//if the base selector is the client wants to go to.
 		if base, ok := position_context.selector.derived.(^ast.Ident);
 		   ok && position_context.identifier != nil {

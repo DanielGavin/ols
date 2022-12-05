@@ -24,8 +24,9 @@ ParserError :: struct {
 }
 
 Package :: struct {
-	name: string, //the entire absolute path to the directory
-	base: string,
+	name:     string, //the entire absolute path to the directory
+	base:     string,
+	original: string,
 }
 
 Document :: struct {
@@ -471,6 +472,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			}
 
 			import_: Package
+			import_.original = imp.fullpath
 			import_.name = strings.clone(
 				path.join(
 					elems = {dir, p},
@@ -492,6 +494,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			}
 
 			import_: Package
+			import_.original = imp.fullpath
 			import_.name = path.join(
 				elems = {
 					document.package_name,
