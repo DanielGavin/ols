@@ -42,8 +42,7 @@ get_all_package_file_locations :: proc(
 		append(locations, location)
 	}
 
-	return false
-
+	return true
 }
 
 get_definition_location :: proc(
