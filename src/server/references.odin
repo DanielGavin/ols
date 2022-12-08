@@ -19,6 +19,7 @@ fullpaths: [dynamic]string
 walk_directories :: proc(
 	info: os.File_Info,
 	in_err: os.Errno,
+	user_data: rawptr,
 ) -> (
 	err: os.Errno,
 	skip_dir: bool,
@@ -73,6 +74,7 @@ resolve_references :: proc(
 	filepath.walk(
 		filepath.dir(os.args[0], context.allocator),
 		walk_directories,
+		nil,
 	)
 
 	reset_ast_context(ast_context)
