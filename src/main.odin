@@ -33,7 +33,7 @@ os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 
 request_thread: ^thread.Thread
 
-logger: log.Logger
+logger: ^log.Logger
 
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	common.config.collections = make(map[string]string)
@@ -42,9 +42,12 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	common.config.running = true
 
+	logger = new(log.Logger)
+
 	request_thread_data := server.RequestThreadData {
 		reader = reader,
 		writer = writer,
+		logger = logger,
 	}
 
 	/*
@@ -63,12 +66,12 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	for common.config.running {
 		if common.config.verbose {
-			logger = server.create_lsp_logger(writer, log.Level.Info)
+			logger^ = server.create_lsp_logger(writer, log.Level.Info)
 		} else {
-			logger = server.create_lsp_logger(writer, log.Level.Error)
+			logger^ = server.create_lsp_logger(writer, log.Level.Error)
 		}
 
-		context.logger = logger
+		context.logger = logger^
 
 		server.consume_requests(&common.config, writer)
 	}
@@ -96,7 +99,6 @@ end :: proc() {
 }
 
 main :: proc() {
-
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
 

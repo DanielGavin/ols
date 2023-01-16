@@ -63,19 +63,19 @@ DocumentPositionContext :: struct {
 }
 
 DocumentLocal :: struct {
-	lhs:    ^ast.Expr,
-	rhs:    ^ast.Expr,
-	offset: int,
-	global: bool, //Some locals have already been resolved and are now in global space
-	id:     int, //Id that can used to connect the local to something, i.e. for stmt begin offset
+	lhs:       ^ast.Expr,
+	rhs:       ^ast.Expr,
+	offset:    int,
+	global:    bool, //Some locals have already been resolved and are now in global space
+	id:        int, //Id that can used to connect the local to something, i.e. for stmt begin offset
+	pkg:       string,
+	variable:  bool,
+	parameter: bool,
 }
 
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
 	globals:          map[string]common.GlobalExpr,
-	variables:        map[string]bool,
-	parameters:       map[string]bool,
-	in_package:       map[string]string, //sometimes you have to extract types from arrays/maps and you lose package information
 	recursion_map:    map[rawptr]bool,
 	usings:           [dynamic]string,
 	file:             ast.File,
@@ -110,10 +110,7 @@ make_ast_context :: proc(
 			allocator,
 		),
 		globals          = make(map[string]common.GlobalExpr, 0, allocator),
-		variables        = make(map[string]bool, 0, allocator),
 		usings           = make([dynamic]string, allocator),
-		parameters       = make(map[string]bool, 0, allocator),
-		in_package       = make(map[string]string, 0, allocator),
 		recursion_map    = make(map[rawptr]bool, 0, allocator),
 		file             = file,
 		imports          = imports,
@@ -1430,8 +1427,11 @@ store_local :: proc(
 	rhs: ^ast.Expr,
 	offset: int,
 	name: string,
-	id := 0,
-	global := false,
+	id: int,
+	global: bool,
+	variable: bool,
+	pkg: string,
+	parameter: bool,
 ) {
 	local_stack := &ast_context.locals[id][name]
 
@@ -1449,6 +1449,9 @@ store_local :: proc(
 			offset = offset,
 			id = id,
 			global = global,
+			pkg = pkg,
+			variable = variable,
+			parameter = parameter,
 		},
 	)
 }
@@ -1465,13 +1468,48 @@ clear_local_group :: proc(ast_context: ^AstContext, id: int) {
 	ast_context.locals[id] = {}
 }
 
+/*
 get_local_lhs_and_rhs :: proc(
 	ast_context: ^AstContext,
 	offset: int,
 	name: string,
+) -> DocumentLocal {
+	for _, locals in &ast_context.locals {
+		if local_stack, ok := locals[name]; ok {
+			for i := len(local_stack) - 1; i >= 0; i -= 1 {
+				if local_stack[i].offset <= offset {
+					if i < 0 {
+						return {}
+					} else {
+						ret := local_stack[i].rhs
+						if ident, ok := ret.derived.(^ast.Ident);
+						   ok && ident.name == name {
+							if i - 1 < 0 {
+								return {}
+							}
+
+							if _, ok := ast_context.parameters[ident.name];
+							   ok {
+								return local_stack[i]
+							}
+						}
+						return local_stack[i]
+					}
+				}
+			}
+		}
+	}
+
+	return {}
+}
+*/
+
+get_local :: proc(
+	ast_context: ^AstContext,
+	offset: int,
+	name: string,
 ) -> (
-	^ast.Expr,
-	^ast.Expr,
+	DocumentLocal,
 	bool,
 ) {
 	for _, locals in &ast_context.locals {
@@ -1479,44 +1517,23 @@ get_local_lhs_and_rhs :: proc(
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
 				if local_stack[i].offset <= offset {
 					if i < 0 {
-						return nil, nil, false
+						return {}, false
 					} else {
 						ret := local_stack[i].rhs
 						if ident, ok := ret.derived.(^ast.Ident);
 						   ok && ident.name == name {
 							if i - 1 < 0 {
-								return nil, nil, false
-							}
-
-							if _, ok := ast_context.parameters[ident.name];
-							   ok {
-								return local_stack[i].lhs,
-									local_stack[i].rhs,
-									local_stack[i].global
+								return {}, false
 							}
 						}
-						return local_stack[i].lhs,
-							local_stack[i].rhs,
-							local_stack[i].global
+						return local_stack[i], true
 					}
 				}
 			}
 		}
 	}
 
-	return nil, nil, false
-}
-
-get_local :: proc(
-	ast_context: ^AstContext,
-	offset: int,
-	name: string,
-) -> (
-	^ast.Expr,
-	bool,
-) {
-	lhs, rhs, global := get_local_lhs_and_rhs(ast_context, offset, name)
-	return rhs, global
+	return {}, false
 }
 
 get_local_offset :: proc(
@@ -1571,10 +1588,6 @@ internal_resolve_type_identifier :: proc(
 		ast_context.current_package = saved_package
 	}
 
-	if pkg, ok := ast_context.in_package[node.name]; ok {
-		ast_context.current_package = pkg
-	}
-
 	if v, ok := common.keyword_map[node.name]; ok {
 		//keywords
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
@@ -1601,35 +1614,34 @@ internal_resolve_type_identifier :: proc(
 		}
 
 		return symbol, true
-	} else if _, ok := ast_context.parameters[node.name]; ok {
-		for imp in ast_context.imports {
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type = .Package,
-					pkg = imp.name,
-					value = SymbolPackageValue{},
-				}
-
-				return symbol, true
-			}
-		}
 	}
 
-	if local, is_global_space := get_local(
-		ast_context,
-		node.pos.offset,
-		node.name,
-	); local != nil && ast_context.use_locals {
+	if local, ok := get_local(ast_context, node.pos.offset, node.name);
+	   ok && ast_context.use_locals {
 		is_distinct := false
 
+		if local.parameter {
+			for imp in ast_context.imports {
+				if strings.compare(imp.base, node.name) == 0 {
+					symbol := Symbol {
+						type = .Package,
+						pkg = imp.name,
+						value = SymbolPackageValue{},
+					}
+
+					return symbol, true
+				}
+			}
+		}
+
 		//Sometimes the locals are semi resolved and can no longer use the locals
-		if is_global_space {
+		if local.global {
 			ast_context.use_locals = false
 		}
 
-		if dist, ok := local.derived.(^ast.Distinct_Type); ok {
+		if dist, ok := local.rhs.derived.(^ast.Distinct_Type); ok {
 			if dist.type != nil {
-				local = dist.type
+				local.rhs = dist.type
 				is_distinct = true
 			}
 		}
@@ -1637,7 +1649,7 @@ internal_resolve_type_identifier :: proc(
 		return_symbol: Symbol
 		ok: bool
 
-		#partial switch v in local.derived {
+		#partial switch v in local.rhs.derived {
 		case ^Ident:
 			return_symbol, ok = internal_resolve_type_identifier(
 				ast_context,
@@ -1664,7 +1676,7 @@ internal_resolve_type_identifier :: proc(
 				return_symbol, ok =
 					make_symbol_procedure_from_ast(
 						ast_context,
-						local,
+						local.rhs,
 						v.type^,
 						node,
 					),
@@ -1677,7 +1689,7 @@ internal_resolve_type_identifier :: proc(
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
-							local,
+							local.rhs,
 							v.type^,
 							node,
 						),
@@ -1701,10 +1713,9 @@ internal_resolve_type_identifier :: proc(
 		case ^Basic_Lit:
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
-			return_symbol.type =
-				ast_context.variables[node.name] ? .Variable : .Constant
+			return_symbol.type = local.variable ? .Variable : .Constant
 		case:
-			return_symbol, ok = resolve_type_expression(ast_context, local)
+			return_symbol, ok = resolve_type_expression(ast_context, local.rhs)
 		}
 
 		if is_distinct {
@@ -1712,8 +1723,7 @@ internal_resolve_type_identifier :: proc(
 			return_symbol.flags |= {.Distinct}
 		}
 
-		if is_variable, ok := ast_context.variables[node.name];
-		   ok && is_variable {
+		if local.variable {
 			//return_symbol.name = node.name
 			return_symbol.type = .Variable
 		}
@@ -1814,8 +1824,7 @@ internal_resolve_type_identifier :: proc(
 			return_symbol.flags |= {.Distinct}
 		}
 
-		if is_variable, ok := ast_context.variables[node.name];
-		   ok && is_variable {
+		if global.mutable {
 			return_symbol.type = .Variable
 		}
 
@@ -2060,13 +2069,9 @@ resolve_location_identifier :: proc(
 ) {
 	symbol: Symbol
 
-	if local, _, _ := get_local_lhs_and_rhs(
-		ast_context,
-		node.pos.offset,
-		node.name,
-	); local != nil {
-		symbol.range = common.get_token_range(local, ast_context.file.src)
-		uri := common.create_uri(local.pos.file, ast_context.allocator)
+	if local, ok := get_local(ast_context, node.pos.offset, node.name); ok {
+		symbol.range = common.get_token_range(local.lhs, ast_context.file.src)
+		uri := common.create_uri(local.lhs.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
 		symbol.uri = uri.uri
 		return symbol, true
@@ -2856,12 +2861,9 @@ resolve_poly_struct :: proc(
 }
 
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
-	ast_context.variables["context"] = true
-
 	exprs := common.collect_globals(file)
 
 	for expr in exprs {
-		ast_context.variables[expr.name] = expr.mutable
 		ast_context.globals[expr.name] = expr
 	}
 }
@@ -2955,7 +2957,6 @@ get_locals_value_decl :: proc(
 	if value_decl.type != nil {
 		for name, i in value_decl.names {
 			str := common.get_ast_node_string(value_decl.names[i], file.src)
-			ast_context.variables[str] = value_decl.is_mutable
 			store_local(
 				ast_context,
 				name,
@@ -2963,6 +2964,10 @@ get_locals_value_decl :: proc(
 				value_decl.end.offset,
 				str,
 				ast_context.local_id,
+				false,
+				value_decl.is_mutable,
+				"",
+				false,
 			)
 		}
 		return
@@ -2982,7 +2987,7 @@ get_locals_value_decl :: proc(
 	for name, i in value_decl.names {
 		result_i := min(len(results) - 1, i)
 		str := common.get_ast_node_string(name, file.src)
-		ast_context.in_package[str] = get_package_from_node(results[result_i]^)
+
 		call := false
 
 		store_local(
@@ -2993,8 +2998,10 @@ get_locals_value_decl :: proc(
 			str,
 			ast_context.local_id,
 			calls[result_i] or_else false,
+			value_decl.is_mutable,
+			get_package_from_node(results[result_i]^),
+			false,
 		)
-		ast_context.variables[str] = value_decl.is_mutable
 	}
 }
 
@@ -3111,8 +3118,11 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 					0,
 					name,
 					ast_context.local_id,
+					false,
+					true,
+					"",
+					false,
 				)
-				ast_context.variables[name] = true
 			}
 		}
 	}
@@ -3155,8 +3165,11 @@ get_locals_assign_stmt :: proc(
 				ident.pos.offset,
 				ident.name,
 				ast_context.local_id,
+				false,
+				true,
+				"",
+				false,
 			)
-			ast_context.variables[ident.name] = true
 		}
 	}
 }
@@ -3207,8 +3220,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						false,
 					)
-					ast_context.variables[ident.name] = true
 				}
 			}
 		}
@@ -3226,9 +3242,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
@@ -3240,9 +3258,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 		case SymbolDynamicArrayValue:
@@ -3255,9 +3275,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
@@ -3269,9 +3291,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 		case SymbolFixedArrayValue:
@@ -3284,9 +3308,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 
@@ -3299,9 +3325,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 		case SymbolSliceValue:
@@ -3314,9 +3342,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 			if len(stmt.vals) >= 2 {
@@ -3328,9 +3358,11 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						symbol.pkg,
+						false,
 					)
-					ast_context.variables[ident.name] = true
-					ast_context.in_package[ident.name] = symbol.pkg
 				}
 			}
 		}
@@ -3402,8 +3434,11 @@ get_locals_type_switch_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						false,
 					)
-					ast_context.variables[ident.name] = true
 				}
 
 				for b in cause.body {
@@ -3438,9 +3473,11 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						true,
 					)
-					ast_context.variables[str] = true
-					ast_context.parameters[str] = true
 
 					if .Using in arg.flags {
 						using_stmt: ast.Using_Stmt
@@ -3461,9 +3498,11 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						true,
 					)
-					ast_context.variables[str] = true
-					ast_context.parameters[str] = true
 				}
 			}
 		}
@@ -3481,9 +3520,11 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						true,
 					)
-					ast_context.variables[str] = true
-					ast_context.parameters[str] = true
 				} else {
 					str := common.get_ast_node_string(name, file.src)
 					store_local(
@@ -3493,9 +3534,11 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						false,
+						true,
+						"",
+						true,
 					)
-					ast_context.variables[str] = true
-					ast_context.parameters[str] = true
 				}
 			}
 		}
@@ -3541,8 +3584,6 @@ get_locals :: proc(
 
 clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.locals)
-	clear(&ast_context.parameters)
-	clear(&ast_context.variables)
 	clear(&ast_context.usings)
 }
 

@@ -896,12 +896,7 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(
-		t,
-		&source,
-		".",
-		{"my_package.my_value: bool"},
-	)
+	test.expect_completion_details(t, &source, ".", {"test.my_value: bool"})
 }
 
 

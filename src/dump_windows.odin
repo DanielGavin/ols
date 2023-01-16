@@ -52,7 +52,7 @@ dump_stack_trace_on_exception_logger :: proc "stdcall" (
 ) -> windows.LONG {
 	using pdb
 	context = runtime.default_context() // TODO: use a more efficient one-off allocators
-	context.logger = logger
+	context.logger = logger^
 
 	builder := strings.builder_make()
 

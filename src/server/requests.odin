@@ -74,6 +74,7 @@ make_response_message_error :: proc(
 RequestThreadData :: struct {
 	reader: ^Reader,
 	writer: ^Writer,
+	logger: ^log.Logger,
 }
 
 Request :: struct {
@@ -93,6 +94,8 @@ thread_request_main :: proc(data: rawptr) {
 	request_data := cast(^RequestThreadData)data
 
 	for common.config.running {
+		context.logger = request_data.logger^
+
 		header, success := read_and_parse_header(request_data.reader)
 
 		if (!success) {
@@ -904,7 +907,7 @@ notification_did_change :: proc(
 	writer: ^Writer,
 ) -> common.Error {
 	params_object, ok := params.(json.Object)
-
+ 
 	if !ok {
 		return .ParseError
 	}
