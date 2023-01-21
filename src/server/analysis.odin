@@ -1133,6 +1133,7 @@ internal_resolve_type_expression :: proc(
 				ast_context,
 				v^,
 				ast_context.field_name,
+				{},
 				true,
 			),
 			true
@@ -1185,6 +1186,7 @@ internal_resolve_type_expression :: proc(
 				node,
 				v^,
 				ast_context.field_name,
+				{},
 			),
 			true
 	case ^Basic_Directive:
@@ -1634,6 +1636,10 @@ internal_resolve_type_identifier :: proc(
 			}
 		}
 
+		if local.pkg != "" {
+			ast_context.current_package = local.pkg
+		}
+
 		//Sometimes the locals are semi resolved and can no longer use the locals
 		if local.global {
 			ast_context.use_locals = false
@@ -1665,7 +1671,7 @@ internal_resolve_type_identifier :: proc(
 			return_symbol.name = node.name
 		case ^Struct_Type:
 			return_symbol, ok =
-				make_symbol_struct_from_ast(ast_context, v^, node), true
+				make_symbol_struct_from_ast(ast_context, v^, node, {}), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
 			return_symbol, ok =
@@ -1679,6 +1685,7 @@ internal_resolve_type_identifier :: proc(
 						local.rhs,
 						v.type^,
 						node,
+						{},
 					),
 					true
 			} else {
@@ -1692,6 +1699,7 @@ internal_resolve_type_identifier :: proc(
 							local.rhs,
 							v.type^,
 							node,
+							{},
 						),
 						true
 				}
@@ -1755,7 +1763,13 @@ internal_resolve_type_identifier :: proc(
 			)
 		case ^Struct_Type:
 			return_symbol, ok =
-				make_symbol_struct_from_ast(ast_context, v^, node), true
+				make_symbol_struct_from_ast(
+					ast_context,
+					v^,
+					node,
+					global.attributes,
+				),
+				true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
 			return_symbol, ok =
@@ -1777,6 +1791,7 @@ internal_resolve_type_identifier :: proc(
 						global.expr,
 						v.type^,
 						node,
+						global.attributes,
 					),
 					true
 			} else {
@@ -1790,6 +1805,7 @@ internal_resolve_type_identifier :: proc(
 							global.expr,
 							v.type^,
 							node,
+							global.attributes,
 						),
 						true
 				}
@@ -2392,6 +2408,7 @@ make_symbol_procedure_from_ast :: proc(
 	n: ^ast.Node,
 	v: ast.Proc_Type,
 	name: ast.Ident,
+	attributes: []^ast.Attribute,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(name, ast_context.file.src),
@@ -2662,6 +2679,7 @@ make_symbol_struct_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ast.Struct_Type,
 	ident: ast.Ident,
+	attributes: []^ast.Attribute,
 	inlined := false,
 ) -> Symbol {
 	symbol := Symbol {

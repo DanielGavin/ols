@@ -592,8 +592,45 @@ ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_for_in_identifier_completion :: proc(t: ^testing.T) {
+ast_for_in_for_from_different_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
 
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+				My_Bar :: struct {
+					number: int,
+				}
+				
+				My_Foo :: struct {
+					elems: []^My_Bar,
+				}			
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test	
+		import "my_package"		
+		main :: proc() {
+			my_foos: []^my_package.My_Foo
+			for foo in my_foos {
+				for my_bar in foo.elems {
+					my_bar.{*}
+				}
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"My_Bar.number: int"})
+}
+
+@(test)
+ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test	
 		My_Struct :: struct {
@@ -626,7 +663,6 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test	
 		RenderPass :: struct(type : typeid) { list : ^int, data : type, }
@@ -686,7 +722,6 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_generic_make_completion_2 :: proc(t: ^testing.T) {
-
 	source := test.Source {
 		main = `package test
 

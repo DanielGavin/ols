@@ -17,11 +17,13 @@ SymbolAndNode :: struct {
 }
 
 SymbolStructValue :: struct {
-	names:  []string,
-	ranges: []common.Range,
-	types:  []^ast.Expr,
-	usings: map[string]bool,
-	poly:   ^ast.Field_List,
+	names:                []string,
+	ranges:               []common.Range,
+	types:                []^ast.Expr,
+	usings:               map[string]bool,
+	poly:                 ^ast.Field_List,
+	objc_name:            string,
+	objc_is_class_method: bool,
 }
 
 SymbolPackageValue :: struct {}
@@ -130,6 +132,7 @@ SymbolFlag :: enum {
 	Anonymous, //Usually applied to structs that are defined inline inside another struct
 	Variable, //Symbols that are variable, this means their value decl was mutable
 	Local,
+	ObjC,
 }
 
 SymbolFlags :: bit_set[SymbolFlag]
