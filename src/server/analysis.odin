@@ -1954,10 +1954,10 @@ expand_struct_usings :: proc(
 	if .ObjC in symbol.flags {
 		pkg := indexer.index.collection.packages[symbol.pkg]
 
-		if functions, ok := pkg.objc_structs[symbol.name]; ok {
-			for function in functions {
+		if obj_struct, ok := pkg.objc_structs[symbol.name]; ok {
+			for function, i in obj_struct.functions {
 				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
-				base.name = pkg.objc_package[symbol.name]
+				base.name = obj_struct.pkg
 
 				field := new_type(ast.Ident, {}, {}, context.temp_allocator)
 				field.name = function.physical_name
@@ -1974,6 +1974,7 @@ expand_struct_usings :: proc(
 
 				append(&names, function.logical_name)
 				append(&types, selector)
+				append(&ranges, obj_struct.ranges[i])
 			}
 
 		}

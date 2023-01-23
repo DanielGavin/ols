@@ -24,10 +24,15 @@ ObjcFunction :: struct {
 	logical_name:  string,
 }
 
+ObjcStruct :: struct {
+	functions: [dynamic]ObjcFunction,
+	pkg:       string,
+	ranges:    [dynamic]common.Range,
+}
+
 SymbolPackage :: struct {
 	symbols:      map[string]Symbol,
-	objc_structs: map[string][dynamic]ObjcFunction, //mapping from struct name to function
-	objc_package: map[string]string, //which package the struct lives in - this is necessery to prevent resolving types at indexing time
+	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
 }
 
 get_index_unique_string :: proc {
@@ -449,26 +454,30 @@ collect_objc :: proc(
 					struct_ident.name,
 				)
 
-				functions := &pkg.objc_structs[struct_name]
+				objc_struct := &pkg.objc_structs[struct_name]
 
-				if functions == nil {
-					pkg.objc_structs[struct_name] = make(
+				if objc_struct == nil {
+					pkg.objc_structs[struct_name] = {}
+					objc_struct = &pkg.objc_structs[struct_name]
+					objc_struct.functions = make(
 						[dynamic]ObjcFunction,
 						0,
 						10,
 						collection.allocator,
 					)
-					functions = &pkg.objc_structs[struct_name]
+					objc_struct.ranges = make(
+						[dynamic]common.Range,
+						0,
+						10,
+						collection.allocator,
+					)
+					objc_struct.pkg = symbol.pkg
 				}
 
-				if struct_name not_in pkg.objc_package {
-					pkg.objc_package[struct_name] = symbol.pkg
-				}
-
-				log.error(symbol.name)
+				append(&objc_struct.ranges, symbol.range)
 
 				append(
-					functions,
+					&objc_struct.functions,
 					ObjcFunction{
 						logical_name = get_index_unique_string_collection(
 							collection,
@@ -707,11 +716,10 @@ collect_symbols :: proc(
 			pkg = &collection.packages[symbol.pkg]
 			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
 			pkg.objc_structs = make(
-				map[string][dynamic]ObjcFunction,
+				map[string]ObjcStruct,
 				5,
 				collection.allocator,
 			)
-			pkg.objc_package = make(map[string]string, 5, collection.allocator)
 		}
 
 		if .ObjC in symbol.flags {
