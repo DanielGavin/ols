@@ -79,6 +79,79 @@ GlobalExpr :: struct {
 	builtin:         bool,
 }
 
+get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
+	for attribute in attributes {
+		for elem in attribute.elems {
+			if assign, ok := elem.derived.(^ast.Field_Value); ok {
+				if ident, ok := assign.field.derived.(^ast.Ident);
+				   ok && ident.name == "objc_type" {
+					return assign.value
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+get_attribute_objc_name :: proc(
+	attributes: []^ast.Attribute,
+) -> (
+	string,
+	bool,
+) {
+	for attribute in attributes {
+		for elem in attribute.elems {
+			if assign, ok := elem.derived.(^ast.Field_Value); ok {
+				if ident, ok := assign.field.derived.(^ast.Ident);
+				   ok && ident.name == "objc_name" {
+					if lit, ok := assign.value.derived.(^ast.Basic_Lit);
+					   ok && len(lit.tok.text) > 2 {
+						return lit.tok.text[1:len(lit.tok.text) - 1], true
+					}
+				}
+
+			}
+		}
+	}
+
+	return "", false
+}
+
+get_attribute_objc_class_name :: proc(
+	attributes: []^ast.Attribute,
+) -> (
+	string,
+	bool,
+) {
+	for attribute in attributes {
+		for elem in attribute.elems {
+			if assign, ok := elem.derived.(^ast.Field_Value); ok {
+				if ident, ok := assign.field.derived.(^ast.Ident);
+				   ok && ident.name == "objc_class" {
+					if lit, ok := assign.value.derived.(^ast.Basic_Lit);
+					   ok && len(lit.tok.text) > 2 {
+						return lit.tok.text[1:len(lit.tok.text) - 1], true
+					}
+				}
+
+			}
+		}
+	}
+
+	return "", false
+}
+
+
+get_attribute_objc_class_method :: proc(
+	attributes: []^ast.Attribute,
+) -> (
+	bool,
+	bool,
+) {
+	return false, false
+}
+
 unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 	expr := expr
 	for expr != nil {

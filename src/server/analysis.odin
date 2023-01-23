@@ -1410,14 +1410,9 @@ internal_resolve_type_expression :: proc(
 					return Symbol{}, false
 				}
 			}
-		} else {
-			return Symbol{}, false
 		}
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %T", v)
-		if v == nil {
-			return {}, false
-		}
 	}
 
 	return Symbol{}, false
@@ -1956,6 +1951,36 @@ expand_struct_usings :: proc(
 		}
 	}
 
+	if .ObjC in symbol.flags {
+		pkg := indexer.index.collection.packages[symbol.pkg]
+
+		if functions, ok := pkg.objc_structs[symbol.name]; ok {
+			for function in functions {
+				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				base.name = pkg.objc_package[symbol.name]
+
+				field := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				field.name = function.physical_name
+
+				selector := new_type(
+					ast.Selector_Expr,
+					{},
+					{},
+					context.temp_allocator,
+				)
+
+				selector.field = field
+				selector.expr = base
+
+				append(&names, function.logical_name)
+				append(&types, selector)
+			}
+
+		}
+
+		//fmt.println(symbol.name)
+	}
+
 	return {names = names[:], types = types[:], ranges = ranges[:]}
 }
 
@@ -2024,7 +2049,7 @@ resolve_symbol_return :: proc(
 		}
 
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
-		if len(v.usings) > 0 {
+		if len(v.usings) > 0 || .ObjC in symbol.flags {
 			expanded := symbol
 			expanded.value = expand_struct_usings(ast_context, symbol, v)
 			return expanded, true
@@ -2444,6 +2469,10 @@ make_symbol_procedure_from_ast :: proc(
 		generic      = v.generic,
 	}
 
+	if _, ok := common.get_attribute_objc_name(attributes); ok {
+		symbol.flags |= {.ObjC}
+	}
+
 	return symbol
 }
 
@@ -2734,12 +2763,16 @@ make_symbol_struct_from_ast :: proc(
 		usings = usings,
 	}
 
+	if _, ok := common.get_attribute_objc_class_name(attributes); ok {
+		symbol.flags |= {.ObjC}
+	}
+
 	if v.poly_params != nil {
 		resolve_poly_struct(ast_context, v.poly_params, &symbol)
 	}
 
 	//TODO change the expand to not double copy the array, but just pass the dynamic arrays
-	if len(usings) > 0 {
+	if len(usings) > 0 || .ObjC in symbol.flags {
 		symbol.value = expand_struct_usings(
 			ast_context,
 			symbol,

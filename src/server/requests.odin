@@ -907,7 +907,7 @@ notification_did_change :: proc(
 	writer: ^Writer,
 ) -> common.Error {
 	params_object, ok := params.(json.Object)
- 
+
 	if !ok {
 		return .ParseError
 	}
@@ -1023,10 +1023,10 @@ notification_did_save :: proc(
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
 	for k, v in &indexer.index.collection.packages {
-		for k2, v2 in &v {
+		for k2, v2 in &v.symbols {
 			if corrected_uri.uri == v2.uri {
 				free_symbol(v2, indexer.index.collection.allocator)
-				v[k2] = {}
+				v.symbols[k2] = {}
 			}
 		}
 	}
