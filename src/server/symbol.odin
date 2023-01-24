@@ -131,6 +131,7 @@ SymbolFlag :: enum {
 	Variable, //Symbols that are variable, this means their value decl was mutable
 	Local,
 	ObjC,
+	ObjCIsClassMethod, // should be set true only when ObjC is enabled
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

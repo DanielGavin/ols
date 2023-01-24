@@ -140,7 +140,7 @@ collect_procedure_fields :: proc(
 		objc_name            = common.get_attribute_objc_name(
 			attributes,
 		) or_else "",
-		objc_is_class_method = common.get_attribute_objc_class_method(
+		objc_is_class_method = common.get_attribute_objc_is_class_method(
 			attributes,
 		) or_else false,
 		*/
@@ -547,6 +547,9 @@ collect_symbols :: proc(
 			if _, is_objc := common.get_attribute_objc_name(expr.attributes);
 			   is_objc {
 				symbol.flags |= {.ObjC}
+				if common.get_attribute_objc_is_class_method(expr.attributes) {
+					symbol.flags |= {.ObjCIsClassMethod}
+				}
 			}
 		case ^ast.Proc_Type:
 			token = v^
@@ -584,6 +587,9 @@ collect_symbols :: proc(
 				expr.attributes,
 			); is_objc {
 				symbol.flags |= {.ObjC}
+				if common.get_attribute_objc_is_class_method(expr.attributes) {
+					symbol.flags |= {.ObjCIsClassMethod}
+				}
 			}
 		case ^ast.Enum_Type:
 			token = v^

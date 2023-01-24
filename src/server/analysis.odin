@@ -2472,6 +2472,9 @@ make_symbol_procedure_from_ast :: proc(
 
 	if _, ok := common.get_attribute_objc_name(attributes); ok {
 		symbol.flags |= {.ObjC}
+		if common.get_attribute_objc_is_class_method(attributes) {
+			symbol.flags |= {.ObjCIsClassMethod}
+		}
 	}
 
 	return symbol
@@ -2766,6 +2769,9 @@ make_symbol_struct_from_ast :: proc(
 
 	if _, ok := common.get_attribute_objc_class_name(attributes); ok {
 		symbol.flags |= {.ObjC}
+		if common.get_attribute_objc_is_class_method(attributes) {
+			symbol.flags |= {.ObjCIsClassMethod}
+		}
 	}
 
 	if v.poly_params != nil {
