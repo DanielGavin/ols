@@ -1308,7 +1308,25 @@ internal_resolve_type_expression :: proc(
 	case ^Implicit_Selector_Expr:
 		return Symbol{}, false
 	case ^Selector_Call_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		if selector, ok := internal_resolve_type_expression(
+			ast_context,
+			v.expr,
+		); ok {
+			ast_context.use_locals = false
+			ast_context.current_package = selector.pkg
+
+			#partial switch s in selector.value {
+			case SymbolProcedureValue:
+				if len(s.return_types) == 1 {
+					return internal_resolve_type_expression(
+						ast_context,
+						s.return_types[0].type,
+					)
+				}
+			}
+
+			return selector, true
+		}
 	case ^Selector_Expr:
 		if selector, ok := internal_resolve_type_expression(
 			ast_context,
