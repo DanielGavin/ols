@@ -143,13 +143,26 @@ get_attribute_objc_class_name :: proc(
 }
 
 
-get_attribute_objc_class_method :: proc(
+get_attribute_objc_is_class_method :: proc(
 	attributes: []^ast.Attribute,
 ) -> (
 	bool,
-	bool,
 ) {
-	return false, false
+	for attribute in attributes {
+		for elem in attribute.elems {
+			if assign, ok := elem.derived.(^ast.Field_Value); ok {
+				if ident, ok := assign.field.derived.(^ast.Ident);
+				   ok && ident.name == "objc_is_class_method" {
+					if field_value, ok := assign.value.derived.(^ast.Ident);
+					   ok && field_value.name == "true" {
+						return true
+					}
+				}
+
+			}
+		}
+	}
+	return false
 }
 
 unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
