@@ -866,8 +866,10 @@ resolve_function_overload :: proc(
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
-		   ok {
+		next_fn: if f, ok := internal_resolve_type_expression(
+			ast_context,
+			arg_expr,
+		); ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
@@ -1308,7 +1310,25 @@ internal_resolve_type_expression :: proc(
 	case ^Implicit_Selector_Expr:
 		return Symbol{}, false
 	case ^Selector_Call_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		if selector, ok := internal_resolve_type_expression(
+			ast_context,
+			v.expr,
+		); ok {
+			ast_context.use_locals = false
+			ast_context.current_package = selector.pkg
+
+			#partial switch s in selector.value {
+			case SymbolProcedureValue:
+				if len(s.return_types) == 1 {
+					return internal_resolve_type_expression(
+						ast_context,
+						s.return_types[0].type,
+					)
+				}
+			}
+
+			return selector, true
+		}
 	case ^Selector_Expr:
 		if selector, ok := internal_resolve_type_expression(
 			ast_context,
@@ -1410,14 +1430,9 @@ internal_resolve_type_expression :: proc(
 					return Symbol{}, false
 				}
 			}
-		} else {
-			return Symbol{}, false
 		}
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %T", v)
-		if v == nil {
-			return {}, false
-		}
 	}
 
 	return Symbol{}, false
@@ -1956,6 +1971,37 @@ expand_struct_usings :: proc(
 		}
 	}
 
+	if .ObjC in symbol.flags {
+		pkg := indexer.index.collection.packages[symbol.pkg]
+
+		if obj_struct, ok := pkg.objc_structs[symbol.name]; ok {
+			for function, i in obj_struct.functions {
+				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				base.name = obj_struct.pkg
+
+				field := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				field.name = function.physical_name
+
+				selector := new_type(
+					ast.Selector_Expr,
+					{},
+					{},
+					context.temp_allocator,
+				)
+
+				selector.field = field
+				selector.expr = base
+
+				append(&names, function.logical_name)
+				append(&types, selector)
+				append(&ranges, obj_struct.ranges[i])
+			}
+
+		}
+
+		//fmt.println(symbol.name)
+	}
+
 	return {names = names[:], types = types[:], ranges = ranges[:]}
 }
 
@@ -2024,7 +2070,7 @@ resolve_symbol_return :: proc(
 		}
 
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
-		if len(v.usings) > 0 {
+		if len(v.usings) > 0 || .ObjC in symbol.flags {
 			expanded := symbol
 			expanded.value = expand_struct_usings(ast_context, symbol, v)
 			return expanded, true
@@ -2444,6 +2490,13 @@ make_symbol_procedure_from_ast :: proc(
 		generic      = v.generic,
 	}
 
+	if _, ok := common.get_attribute_objc_name(attributes); ok {
+		symbol.flags |= {.ObjC}
+		if common.get_attribute_objc_is_class_method(attributes) {
+			symbol.flags |= {.ObjCIsClassMethod}
+		}
+	}
+
 	return symbol
 }
 
@@ -2734,12 +2787,19 @@ make_symbol_struct_from_ast :: proc(
 		usings = usings,
 	}
 
+	if _, ok := common.get_attribute_objc_class_name(attributes); ok {
+		symbol.flags |= {.ObjC}
+		if common.get_attribute_objc_is_class_method(attributes) {
+			symbol.flags |= {.ObjCIsClassMethod}
+		}
+	}
+
 	if v.poly_params != nil {
 		resolve_poly_struct(ast_context, v.poly_params, &symbol)
 	}
 
 	//TODO change the expand to not double copy the array, but just pass the dynamic arrays
-	if len(usings) > 0 {
+	if len(usings) > 0 || .ObjC in symbol.flags {
 		symbol.value = expand_struct_usings(
 			ast_context,
 			symbol,

@@ -15,8 +15,24 @@ import "shared:common"
 SymbolCollection :: struct {
 	allocator:      mem.Allocator,
 	config:         ^common.Config,
-	packages:       map[string]map[string]Symbol,
+	packages:       map[string]SymbolPackage,
 	unique_strings: map[string]string, //store all our strings as unique strings and reference them to save memory.
+}
+
+ObjcFunction :: struct {
+	physical_name: string,
+	logical_name:  string,
+}
+
+ObjcStruct :: struct {
+	functions: [dynamic]ObjcFunction,
+	pkg:       string,
+	ranges:    [dynamic]common.Range,
+}
+
+SymbolPackage :: struct {
+	symbols:      map[string]Symbol,
+	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
 }
 
 get_index_unique_string :: proc {
@@ -56,7 +72,7 @@ make_symbol_collection :: proc(
 		SymbolCollection{
 			allocator = allocator,
 			config = config,
-			packages = make(map[string]map[string]Symbol, 16, allocator),
+			packages = make(map[string]SymbolPackage, 16, allocator),
 			unique_strings = make(map[string]string, 16, allocator),
 		} \
 	)
@@ -64,7 +80,7 @@ make_symbol_collection :: proc(
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
 	for k, v in collection.packages {
-		for k2, v2 in v {
+		for k2, v2 in v.symbols {
 			free_symbol(v2, collection.allocator)
 		}
 	}
@@ -74,7 +90,7 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 	}
 
 	for k, v in collection.packages {
-		delete(v)
+		delete(v.symbols)
 	}
 
 	delete(collection.packages)
@@ -87,6 +103,7 @@ collect_procedure_fields :: proc(
 	arg_list: ^ast.Field_List,
 	return_list: ^ast.Field_List,
 	package_map: map[string]string,
+	attributes: []^ast.Attribute,
 ) -> SymbolProcedureValue {
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
 	args := make([dynamic]^ast.Field, 0, collection.allocator)
@@ -119,7 +136,16 @@ collect_procedure_fields :: proc(
 		return_types = returns[:],
 		arg_types    = args[:],
 		generic      = proc_type.generic,
+		/*
+		objc_name            = common.get_attribute_objc_name(
+			attributes,
+		) or_else "",
+		objc_is_class_method = common.get_attribute_objc_is_class_method(
+			attributes,
+		) or_else false,
+		*/
 	}
+
 	return value
 }
 
@@ -407,6 +433,64 @@ collect_generic :: proc(
 	return value
 }
 
+collect_objc :: proc(
+	collection: ^SymbolCollection,
+	attributes: []^ast.Attribute,
+	symbol: Symbol,
+) {
+	pkg := &collection.packages[symbol.pkg]
+
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		objc_name, found_objc_name := common.get_attribute_objc_name(
+			attributes,
+		)
+
+		if objc_type := common.get_attribute_objc_type(attributes);
+		   objc_type != nil && found_objc_name {
+
+			if struct_ident, ok := objc_type.derived.(^ast.Ident); ok {
+				struct_name := get_index_unique_string_collection(
+					collection,
+					struct_ident.name,
+				)
+
+				objc_struct := &pkg.objc_structs[struct_name]
+
+				if objc_struct == nil {
+					pkg.objc_structs[struct_name] = {}
+					objc_struct = &pkg.objc_structs[struct_name]
+					objc_struct.functions = make(
+						[dynamic]ObjcFunction,
+						0,
+						10,
+						collection.allocator,
+					)
+					objc_struct.ranges = make(
+						[dynamic]common.Range,
+						0,
+						10,
+						collection.allocator,
+					)
+					objc_struct.pkg = symbol.pkg
+				}
+
+				append(&objc_struct.ranges, symbol.range)
+
+				append(
+					&objc_struct.functions,
+					ObjcFunction{
+						logical_name = get_index_unique_string_collection(
+							collection,
+							objc_name,
+						),
+						physical_name = symbol.name,
+					},
+				)
+			}
+		}
+	}
+}
+
 collect_symbols :: proc(
 	collection: ^SymbolCollection,
 	file: ast.File,
@@ -456,7 +540,16 @@ collect_symbols :: proc(
 					v.type.params,
 					v.type.results,
 					package_map,
+					expr.attributes,
 				)
+			}
+
+			if _, is_objc := common.get_attribute_objc_name(expr.attributes);
+			   is_objc {
+				symbol.flags |= {.ObjC}
+				if common.get_attribute_objc_is_class_method(expr.attributes) {
+					symbol.flags |= {.ObjCIsClassMethod}
+				}
 			}
 		case ^ast.Proc_Type:
 			token = v^
@@ -467,6 +560,7 @@ collect_symbols :: proc(
 				v.params,
 				v.results,
 				package_map,
+				expr.attributes,
 			)
 		case ^ast.Proc_Group:
 			token = v^
@@ -488,6 +582,15 @@ collect_symbols :: proc(
 				file,
 			)
 			symbol.signature = "struct"
+
+			if _, is_objc := common.get_attribute_objc_class_name(
+				expr.attributes,
+			); is_objc {
+				symbol.flags |= {.ObjC}
+				if common.get_attribute_objc_is_class_method(expr.attributes) {
+					symbol.flags |= {.ObjCIsClassMethod}
+				}
+			}
 		case ^ast.Enum_Type:
 			token = v^
 			token_type = .Enum
@@ -611,20 +714,26 @@ collect_symbols :: proc(
 
 		symbol.uri = get_index_unique_string(collection, uri)
 
-		pkg: ^map[string]Symbol
+		pkg: ^SymbolPackage
 		ok: bool
 
 		if pkg, ok = &collection.packages[symbol.pkg]; !ok {
-			collection.packages[symbol.pkg] = make(
-				map[string]Symbol,
-				100,
+			collection.packages[symbol.pkg] = {}
+			pkg = &collection.packages[symbol.pkg]
+			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
+			pkg.objc_structs = make(
+				map[string]ObjcStruct,
+				5,
 				collection.allocator,
 			)
-			pkg = &collection.packages[symbol.pkg]
 		}
 
-		if v, ok := pkg[symbol.name]; !ok || v.name == "" {
-			pkg[symbol.name] = symbol
+		if .ObjC in symbol.flags {
+			collect_objc(collection, expr.attributes, symbol)
+		}
+
+		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {
+			pkg.symbols[symbol.name] = symbol
 		} else {
 			free_symbol(symbol, collection.allocator)
 		}

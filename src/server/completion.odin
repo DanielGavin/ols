@@ -519,9 +519,19 @@ get_selector_completion :: proc(
 					}
 				}
 
-				if position_context.arrow && symbol.type != .Function {
+				if position_context.arrow {
+					if symbol.type != .Function {
+						continue
+					}
+					if .ObjCIsClassMethod in symbol.flags {
+						assert(.ObjC in symbol.flags)
+						continue
+					}
+				}
+				if !position_context.arrow && .ObjC in symbol.flags {
 					continue
 				}
+
 
 				item := CompletionItem {
 					label         = name,

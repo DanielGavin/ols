@@ -17,13 +17,11 @@ SymbolAndNode :: struct {
 }
 
 SymbolStructValue :: struct {
-	names:                []string,
-	ranges:               []common.Range,
-	types:                []^ast.Expr,
-	usings:               map[string]bool,
-	poly:                 ^ast.Field_List,
-	objc_name:            string,
-	objc_is_class_method: bool,
+	names:  []string,
+	ranges: []common.Range,
+	types:  []^ast.Expr,
+	usings: map[string]bool,
+	poly:   ^ast.Field_List,
 }
 
 SymbolPackageValue :: struct {}
@@ -133,6 +131,7 @@ SymbolFlag :: enum {
 	Variable, //Symbols that are variable, this means their value decl was mutable
 	Local,
 	ObjC,
+	ObjCIsClassMethod, // should be set true only when ObjC is enabled
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

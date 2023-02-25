@@ -36,9 +36,9 @@ memory_index_lookup :: proc(
 	}
 
 	if _pkg, ok := &index.collection.packages[pkg]; ok {
-		index.last_package = _pkg
+		index.last_package = &_pkg.symbols
 		index.last_package_name = pkg
-		return _pkg[name]
+		return _pkg.symbols[name]
 	} else {
 		index.last_package = nil
 		index.last_package_name = ""
@@ -63,9 +63,9 @@ memory_index_fuzzy_search :: proc(
 
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
-			for _, symbol in pkg {
+			for _, symbol in pkg.symbols {
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name);
-				ok == 1 {
+				   ok == 1 {
 					result := FuzzyResult {
 						symbol = symbol,
 						score  = score,

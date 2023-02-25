@@ -1822,9 +1822,17 @@ visit_expr :: proc(
 		switch v.inlining {
 		case .None:
 		case .Inline:
-			document = cons(document, text("#force_inline"), break_with_no_newline())
+			document = cons(
+				document,
+				text("#force_inline"),
+				break_with_no_newline(),
+			)
 		case .No_Inline:
-			document = cons(document, text("#force_no_inline"), break_with_no_newline())
+			document = cons(
+				document,
+				text("#force_no_inline"),
+				break_with_no_newline(),
+			)
 		}
 
 		document = cons(document, visit_expr(p, v.expr), text("("))
@@ -2681,6 +2689,8 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 		return 0
 	case ^ast.Paren_Expr:
 		return 1 + get_node_length(v.expr) + 1
+	case ^ast.Pointer_Type:
+		return 1 + get_node_length(v.elem)
 	case ^ast.Selector_Expr:
 		return(
 			get_node_length(v.expr) +
