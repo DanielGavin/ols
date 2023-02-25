@@ -574,6 +574,7 @@ visit_node :: proc(
 			.None,
 		)
 	case ^Array_Type:
+		visit(n.len, builder, ast_context)
 		visit(n.elem, builder, ast_context)
 	case ^Binary_Expr:
 		visit(n.left, builder, ast_context)
