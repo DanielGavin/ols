@@ -866,8 +866,10 @@ resolve_function_overload :: proc(
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := resolve_type_expression(ast_context, arg_expr);
-		   ok {
+		next_fn: if f, ok := internal_resolve_type_expression(
+			ast_context,
+			arg_expr,
+		); ok {
 			if call_expr == nil || len(call_expr.args) == 0 {
 				append(&candidates, f)
 				break next_fn
