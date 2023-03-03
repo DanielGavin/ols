@@ -38,9 +38,14 @@ function lookupInPath(exec: string): string | undefined {
             : [candidate];
     });
 
-    for (var i = 0; i < candidates.length; i += 1) {
-        if (isFile(candidates[i])) {
-            return candidates[i];
+    for (let i = 0; i < candidates.length; i += 1) {
+        try {
+            const pathToOdin = fs.realpathSync(candidates[i]);
+            if (!!pathToOdin) {
+                return pathToOdin;
+            } 
+        } catch (realpathError) {
+            console.error("realpathError:", realpathError)
         }
     }
 
