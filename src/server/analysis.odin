@@ -25,41 +25,42 @@ DocumentPositionContextHint :: enum {
 }
 
 DocumentPositionContext :: struct {
-	file:             ast.File,
-	position:         common.AbsolutePosition,
-	line:             int,
-	function:         ^ast.Proc_Lit, //used to help with type resolving in function scope
-	functions:        [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
-	selector:         ^ast.Expr, //used for completion
-	selector_expr:    ^ast.Selector_Expr,
-	identifier:       ^ast.Node,
-	implicit_context: ^ast.Implicit,
-	tag:              ^ast.Node,
-	field:            ^ast.Expr, //used for completion
-	call:             ^ast.Expr, //used for signature help
-	returns:          ^ast.Return_Stmt, //used for completion
-	comp_lit:         ^ast.Comp_Lit, //used for completion
-	parent_comp_lit:  ^ast.Comp_Lit, //used for completion
-	basic_lit:        ^ast.Basic_Lit,
-	struct_type:      ^ast.Struct_Type,
-	union_type:       ^ast.Union_Type,
-	bitset_type:      ^ast.Bit_Set_Type,
-	enum_type:        ^ast.Enum_Type,
-	field_value:      ^ast.Field_Value,
-	implicit:         bool, //used for completion
-	arrow:            bool,
-	binary:           ^ast.Binary_Expr, //used for completion
-	parent_binary:    ^ast.Binary_Expr, //used for completion
-	assign:           ^ast.Assign_Stmt, //used for completion
-	switch_stmt:      ^ast.Switch_Stmt, //used for completion
-	switch_type_stmt: ^ast.Type_Switch_Stmt, //used for completion
-	case_clause:      ^ast.Case_Clause, //used for completion
-	value_decl:       ^ast.Value_Decl, //used for completion
-	abort_completion: bool,
-	hint:             DocumentPositionContextHint,
-	global_lhs_stmt:  bool,
-	import_stmt:      ^ast.Import_Decl,
-	call_commas:      []int,
+	file:                   ast.File,
+	position:               common.AbsolutePosition,
+	line:                   int,
+	function:               ^ast.Proc_Lit, //used to help with type resolving in function scope
+	functions:              [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
+	selector:               ^ast.Expr, //used for completion
+	selector_expr:          ^ast.Selector_Expr,
+	identifier:             ^ast.Node,
+	implicit_context:       ^ast.Implicit,
+	tag:                    ^ast.Node,
+	field:                  ^ast.Expr, //used for completion
+	call:                   ^ast.Expr, //used for signature help
+	returns:                ^ast.Return_Stmt, //used for completion
+	comp_lit:               ^ast.Comp_Lit, //used for completion
+	parent_comp_lit:        ^ast.Comp_Lit, //used for completion
+	basic_lit:              ^ast.Basic_Lit,
+	struct_type:            ^ast.Struct_Type,
+	union_type:             ^ast.Union_Type,
+	bitset_type:            ^ast.Bit_Set_Type,
+	enum_type:              ^ast.Enum_Type,
+	field_value:            ^ast.Field_Value,
+	implicit:               bool, //used for completion
+	arrow:                  bool,
+	binary:                 ^ast.Binary_Expr, //used for completion
+	parent_binary:          ^ast.Binary_Expr, //used for completion
+	assign:                 ^ast.Assign_Stmt, //used for completion
+	switch_stmt:            ^ast.Switch_Stmt, //used for completion
+	switch_type_stmt:       ^ast.Type_Switch_Stmt, //used for completion
+	case_clause:            ^ast.Case_Clause, //used for completion
+	value_decl:             ^ast.Value_Decl, //used for completion
+	implicit_selector_expr: ^ast.Implicit_Selector_Expr,
+	abort_completion:       bool,
+	hint:                   DocumentPositionContextHint,
+	global_lhs_stmt:        bool,
+	import_stmt:            ^ast.Import_Decl,
+	call_commas:            []int,
 }
 
 DocumentLocal :: struct {
@@ -1307,8 +1308,6 @@ internal_resolve_type_expression :: proc(
 	case ^Call_Expr:
 		ast_context.call = cast(^Call_Expr)node
 		return internal_resolve_type_expression(ast_context, v.expr)
-	case ^Implicit_Selector_Expr:
-		return Symbol{}, false
 	case ^Selector_Call_Expr:
 		if selector, ok := internal_resolve_type_expression(
 			ast_context,
@@ -1998,11 +1997,54 @@ expand_struct_usings :: proc(
 			}
 
 		}
-
-		//fmt.println(symbol.name)
 	}
 
 	return {names = names[:], types = types[:], ranges = ranges[:]}
+}
+
+resolve_implicit_selector :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	selector_expr: ^ast.Implicit_Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
+	if position_context.assign != nil &&
+	   len(position_context.assign.lhs) == len(position_context.assign.rhs) {
+
+		for _, i in position_context.assign.lhs {
+			if position_in_node(
+				position_context.assign.rhs[i],
+				position_context.position,
+			) {
+				return resolve_type_expression(
+					ast_context,
+					position_context.assign.lhs[i],
+				)
+			}
+		}
+	}
+
+	if position_context.binary != nil {
+		if position_in_node(
+			position_context.binary.left,
+			position_context.position,
+		) {
+			return resolve_type_expression(
+				ast_context,
+				position_context.binary.right,
+			)
+		} else {
+			return resolve_type_expression(
+				ast_context,
+				position_context.binary.left,
+			)
+		}
+	}
+
+
+	return {}, false
 }
 
 resolve_symbol_return :: proc(
@@ -2161,6 +2203,40 @@ resolve_location_identifier :: proc(
 	}
 
 	return {}, false
+}
+
+resolve_location_implicit_selector :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	implicit_selector: ^ast.Implicit_Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
+	reset_ast_context(ast_context)
+
+	ast_context.current_package = ast_context.document_package
+
+	symbol, ok := resolve_implicit_selector(
+		ast_context,
+		position_context,
+		implicit_selector,
+	)
+
+	if !ok {
+		return {}, false
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolEnumValue:
+		for name, i in v.names {
+			if strings.compare(name, implicit_selector.field.name) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	}
+
+	return symbol, ok
 }
 
 resolve_location_selector :: proc(
@@ -2682,8 +2758,11 @@ make_symbol_enum_from_ast :: proc(
 
 
 	names := make([dynamic]string, ast_context.allocator)
+	ranges := make([dynamic]common.Range, ast_context.allocator)
 
 	for n in v.fields {
+		append(&ranges, common.get_token_range(n, ast_context.file.src))
+
 		if ident, ok := n.derived.(^ast.Ident); ok {
 			append(&names, ident.name)
 		} else if field, ok := n.derived.(^ast.Field_Value); ok {
@@ -2697,7 +2776,8 @@ make_symbol_enum_from_ast :: proc(
 	}
 
 	symbol.value = SymbolEnumValue {
-		names = names[:],
+		names  = names[:],
+		ranges = ranges[:],
 	}
 
 	return symbol
@@ -4654,6 +4734,7 @@ fallback_position_context_completion :: proc(
 		position_context.field = s.field
 	} else if s, ok := e.derived.(^ast.Implicit_Selector_Expr); ok {
 		position_context.implicit = true
+		position_context.implicit_selector_expr = s
 	} else if s, ok := e.derived.(^ast.Tag_Expr); ok {
 		position_context.tag = s.expr
 	} else if bad_expr, ok := e.derived.(^ast.Bad_Expr); ok {
@@ -5111,6 +5192,7 @@ get_document_position_node :: proc(
 		get_document_position(n.value, position_context)
 	case ^Implicit_Selector_Expr:
 		position_context.implicit = true
+		position_context.implicit_selector_expr = n
 		get_document_position(n.field, position_context)
 	case ^ast.Or_Else_Expr:
 		get_document_position(n.x, position_context)

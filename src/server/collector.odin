@@ -200,11 +200,14 @@ collect_enum_fields :: proc(
 	collection: ^SymbolCollection,
 	fields: []^ast.Expr,
 	package_map: map[string]string,
+	file: ast.File,
 ) -> SymbolEnumValue {
 	names := make([dynamic]string, 0, collection.allocator)
+	ranges := make([dynamic]common.Range, 0, collection.allocator)
 
 	//ERROR no hover on n in the for, but elsewhere is fine
 	for n in fields {
+		append(&ranges, common.get_token_range(n, file.src))
 		if ident, ok := n.derived.(^ast.Ident); ok {
 			append(&names, get_index_unique_string(collection, ident.name))
 		} else if field, ok := n.derived.(^ast.Field_Value); ok {
@@ -224,7 +227,8 @@ collect_enum_fields :: proc(
 	}
 
 	value := SymbolEnumValue {
-		names = names[:],
+		names  = names[:],
+		ranges = ranges[:],
 	}
 
 	return value
@@ -598,6 +602,7 @@ collect_symbols :: proc(
 				collection,
 				v.fields,
 				package_map,
+				file,
 			)
 			symbol.signature = "enum"
 		case ^ast.Union_Type:

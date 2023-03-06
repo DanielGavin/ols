@@ -131,6 +131,17 @@ get_definition_location :: proc(
 			location.range = resolved.range
 			uri = resolved.uri
 		}
+	} else if position_context.implicit_selector_expr != nil {
+		if resolved, ok := resolve_location_implicit_selector(
+			&ast_context,
+			&position_context,
+			position_context.implicit_selector_expr,
+		); ok {
+			location.range = resolved.range
+			uri = resolved.uri
+		} else {
+			return {}, false
+		}
 	} else if position_context.identifier != nil {
 		if resolved, ok := resolve_location_identifier(
 			&ast_context,

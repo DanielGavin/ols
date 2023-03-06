@@ -42,7 +42,8 @@ SymbolAggregateValue :: struct {
 }
 
 SymbolEnumValue :: struct {
-	names: []string,
+	names:  []string,
+	ranges: []common.Range,
 }
 
 SymbolUnionValue :: struct {
