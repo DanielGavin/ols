@@ -993,7 +993,7 @@ get_implicit_completion :: proc(
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(
-				ast_context,
+				position_context,
 				call^,
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);

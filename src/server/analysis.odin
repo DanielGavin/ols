@@ -88,7 +88,6 @@ AstContext :: struct {
 	use_locals:       bool,
 	local_id:         int,
 	call:             ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
-	position:         common.AbsolutePosition,
 	value_decl:       ^ast.Value_Decl,
 	field_name:       ast.Ident,
 	uri:              string,
@@ -2010,14 +2009,44 @@ resolve_implicit_selector :: proc(
 	Symbol,
 	bool,
 ) {
+
+	if position_context.call != nil {
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			parameter_index, parameter_ok := find_position_in_call_param(
+				position_context,
+				call^,
+			)
+			if symbol, ok := resolve_type_expression(ast_context, call.expr);
+			   ok && parameter_ok {
+				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
+					if len(proc_value.arg_types) <= parameter_index {
+						return {}, false
+					}
+
+					return resolve_type_expression(
+						ast_context,
+						proc_value.arg_types[parameter_index].type,
+					)
+				}
+			}
+		}
+	}
+
+	if position_context.switch_stmt != nil {
+		return resolve_type_expression(
+			ast_context,
+			position_context.switch_stmt.cond,
+		)
+	}
+
 	if position_context.assign != nil &&
 	   len(position_context.assign.lhs) == len(position_context.assign.rhs) {
 
 		for _, i in position_context.assign.lhs {
 			if position_in_node(
-				position_context.assign.rhs[i],
-				position_context.position,
-			) {
+				   position_context.assign.rhs[i],
+				   position_context.position,
+			   ) {
 				return resolve_type_expression(
 					ast_context,
 					position_context.assign.lhs[i],
@@ -2028,9 +2057,9 @@ resolve_implicit_selector :: proc(
 
 	if position_context.binary != nil {
 		if position_in_node(
-			position_context.binary.left,
-			position_context.position,
-		) {
+			   position_context.binary.left,
+			   position_context.position,
+		   ) {
 			return resolve_type_expression(
 				ast_context,
 				position_context.binary.right,
@@ -2043,6 +2072,35 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.returns != nil && position_context.function != nil {
+		return_index: int
+
+		if position_context.returns.results == nil {
+			return {}, false
+		}
+
+		for result, i in position_context.returns.results {
+			if position_in_node(result, position_context.position) {
+				return_index = i
+				break
+			}
+		}
+
+		if position_context.function.type == nil {
+			return {}, false
+		}
+
+		if position_context.function.type.results == nil {
+			return {}, false
+		}
+
+		if len(position_context.function.type.results.list) > return_index {
+			return resolve_type_expression(
+				ast_context,
+				position_context.function.type.results.list[return_index].type,
+			)
+		}
+	}
 
 	return {}, false
 }
@@ -2436,7 +2494,7 @@ resolve_binary_expression :: proc(
 }
 
 find_position_in_call_param :: proc(
-	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
 	call: ast.Call_Expr,
 ) -> (
 	int,
@@ -2447,7 +2505,7 @@ find_position_in_call_param :: proc(
 	}
 
 	for arg, i in call.args {
-		if position_in_node(arg, ast_context.position) {
+		if position_in_node(arg, position_context.position) {
 			return i, true
 		}
 	}
@@ -4982,7 +5040,8 @@ get_document_position_node :: proc(
 		get_document_position(n.expr, position_context)
 	case ^Call_Expr:
 		if position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion {
+		   position_context.hint == .Completion ||
+		   position_context.hint == .Definition {
 			position_context.call = cast(^Expr)node
 		}
 		get_document_position(n.expr, position_context)
