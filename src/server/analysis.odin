@@ -2027,6 +2027,9 @@ resolve_implicit_selector :: proc(
 						ast_context,
 						proc_value.arg_types[parameter_index].type,
 					)
+				} else if enum_value, ok := symbol.value.(SymbolEnumValue);
+				   ok {
+					return symbol, true
 				}
 			}
 		}

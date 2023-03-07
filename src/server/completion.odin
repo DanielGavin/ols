@@ -1020,6 +1020,20 @@ get_implicit_completion :: proc(
 						list.items = items[:]
 						return
 					}
+				} else if enum_value, ok := symbol.value.(SymbolEnumValue);
+				   ok {
+					for name in enum_value.names {
+						item := CompletionItem {
+							label  = name,
+							kind   = .EnumMember,
+							detail = name,
+						}
+
+						append(&items, item)
+					}
+
+					list.items = items[:]
+					return
 				}
 			}
 		}
