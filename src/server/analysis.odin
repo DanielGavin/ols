@@ -2102,6 +2102,75 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.value_decl != nil &&
+	   position_context.value_decl.type != nil {
+		return resolve_type_expression(
+			ast_context,
+			position_context.value_decl.type,
+		)
+	}
+
+	if position_context.comp_lit != nil {
+		if position_context.parent_comp_lit.type == nil {
+			return {}, false
+		}
+
+		field_name: string
+
+		if position_context.field_value != nil {
+			if field, ok := position_context.field_value.field.derived.(^ast.Ident);
+			   ok {
+				field_name = field.name
+			} else {
+				return {}, false
+			}
+		}
+
+
+		if symbol, ok := resolve_type_expression(
+			ast_context,
+			position_context.parent_comp_lit.type,
+		); ok {
+			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
+				ast_context,
+				position_context,
+				symbol,
+				position_context.parent_comp_lit,
+			); ok {
+				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
+					ast_context.current_package = comp_symbol.pkg
+
+					//We can either have the final 
+					elem_index := -1
+
+					for elem, i in comp_lit.elems {
+						if position_in_node(elem, position_context.position) {
+							elem_index = i
+						}
+					}
+
+					type: ^ast.Expr
+
+					for name, i in s.names {
+						if name != field_name {
+							continue
+						}
+
+						type = s.types[i]
+						break
+					}
+
+					if type == nil && len(s.types) > elem_index {
+						type = s.types[elem_index]
+					}
+
+					return resolve_type_expression(ast_context, type)
+				}
+			}
+		}
+	}
+
+
 	return {}, false
 }
 
