@@ -157,7 +157,7 @@ collect_struct_fields :: proc(
 ) -> SymbolStructValue {
 	names := make([dynamic]string, 0, collection.allocator)
 	types := make([dynamic]^ast.Expr, 0, collection.allocator)
-	usings := make(map[string]bool, 0, collection.allocator)
+	usings := make(map[int]bool, 0, collection.allocator)
 	ranges := make([dynamic]common.Range, 0, collection.allocator)
 
 	for field in struct_type.fields.list {
@@ -174,7 +174,7 @@ collect_struct_fields :: proc(
 			append(&types, cloned)
 
 			if .Using in field.flags {
-				usings[names[len(names) - 1]] = true
+				usings[len(names) - 1] = true
 			}
 
 			append(&ranges, common.get_token_range(n, file.src))

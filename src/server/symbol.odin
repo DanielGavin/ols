@@ -20,7 +20,7 @@ SymbolStructValue :: struct {
 	names:  []string,
 	ranges: []common.Range,
 	types:  []^ast.Expr,
-	usings: map[string]bool,
+	usings: map[int]bool,
 	poly:   ^ast.Field_List,
 }
 

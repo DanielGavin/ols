@@ -235,6 +235,10 @@ get_comp_lit_completion :: proc(
 			#partial switch v in comp_symbol.value {
 			case SymbolStructValue:
 				for name, i in v.names {
+					if name == "_" {
+						continue
+					}
+
 					ast_context.current_package = comp_symbol.pkg
 
 					if resolved, ok := resolve_type_expression(
@@ -504,6 +508,10 @@ get_selector_completion :: proc(
 		list.isIncomplete = false
 
 		for name, i in v.names {
+			if name == "_" {
+				continue
+			}
+
 			if selector.pkg != "" {
 				ast_context.current_package = selector.pkg
 			} else {

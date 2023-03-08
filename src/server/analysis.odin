@@ -1941,12 +1941,7 @@ expand_struct_usings :: proc(
 
 		field_expr: ^ast.Expr
 
-		for name, i in value.names {
-
-			if name == k && v {
-				field_expr = value.types[i]
-			}
-		}
+		field_expr = value.types[k]
 
 		if field_expr == nil {
 			continue
@@ -2959,16 +2954,17 @@ make_symbol_struct_from_ast :: proc(
 
 	names := make([dynamic]string, ast_context.allocator)
 	types := make([dynamic]^ast.Expr, ast_context.allocator)
-	usings := make(map[string]bool, 0, ast_context.allocator)
+	usings := make(map[int]bool, 0, ast_context.allocator)
 	ranges := make([dynamic]common.Range, 0, ast_context.allocator)
 
 	for field in v.fields.list {
 		for n in field.names {
 			if identifier, ok := n.derived.(^ast.Ident);
 			   ok && field.type != nil {
-				if identifier.name == "_" {
-					continue
+				if .Using in field.flags {
+					usings[len(types)] = true
 				}
+
 				append(&names, identifier.name)
 				if v.poly_params != nil {
 					append(
@@ -2977,9 +2973,6 @@ make_symbol_struct_from_ast :: proc(
 					)
 				} else {
 					append(&types, field.type)
-				}
-				if .Using in field.flags {
-					usings[identifier.name] = true
 				}
 
 				append(
