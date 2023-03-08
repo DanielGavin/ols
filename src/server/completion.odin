@@ -735,6 +735,8 @@ get_implicit_completion :: proc(
 				return
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.comp_lit != nil &&
@@ -760,6 +762,8 @@ get_implicit_completion :: proc(
 				return
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
@@ -868,6 +872,8 @@ get_implicit_completion :: proc(
 				}
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.binary != nil &&
@@ -906,6 +912,8 @@ get_implicit_completion :: proc(
 				return
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.assign != nil &&
@@ -953,6 +961,8 @@ get_implicit_completion :: proc(
 				return
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.returns != nil && position_context.function != nil {
@@ -996,6 +1006,8 @@ get_implicit_completion :: proc(
 				return
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.call != nil {
