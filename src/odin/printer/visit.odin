@@ -337,6 +337,7 @@ visit_decl :: proc(
 		}
 
 		document = cons(document, move_line(p, decl.pos))
+		document = cons(document, visit_state_flags(p, v.state_flags))
 
 		lhs := empty()
 		rhs := empty()
