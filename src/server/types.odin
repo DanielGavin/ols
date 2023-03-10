@@ -94,7 +94,7 @@ ServerCapabilities :: struct {
 	documentSymbolProvider:     bool,
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
-	inlayHintsProvider:         bool,
+	inlayHintProvider:          bool,
 	renameProvider:             bool,
 	referencesProvider:         bool,
 	documentLinkProvider:       DocumentLinkOptions,
@@ -103,6 +103,9 @@ ServerCapabilities :: struct {
 CompletionOptions :: struct {
 	resolveProvider:   bool,
 	triggerCharacters: []string,
+	completionItem:    struct {
+		labelDetailsSupport: bool,
+	},
 }
 
 CompletionContext :: struct {
@@ -141,7 +144,8 @@ GeneralClientCapabilities :: struct {
 }
 
 CompletionItemCapabilities :: struct {
-	snippetSupport: bool,
+	snippetSupport:      bool,
+	labelDetailsSupport: bool,
 }
 
 CompletionClientCapabilities :: struct {
@@ -299,7 +303,13 @@ CompletionItem :: struct {
 	additionalTextEdits: []TextEdit,
 	tags:                []CompletionItemTag,
 	deprecated:          bool,
-	command:             Command,
+	command:             Maybe(Command),
+	labelDetails:        Maybe(CompletionItemLabelDetails),
+}
+
+CompletionItemLabelDetails :: struct {
+	detail:      string,
+	description: string,
 }
 
 CompletionItemTag :: enum {
@@ -384,6 +394,7 @@ HoverParams :: struct {
 
 InlayParams :: struct {
 	textDocument: TextDocumentIdentifier,
+	range:        common.Range,
 }
 
 Hover :: struct {
@@ -397,10 +408,15 @@ Command :: struct {
 	arguments: []string,
 }
 
+InlayHintKind :: enum {
+	Type      = 1,
+	Parameter = 2,
+}
+
 InlayHint :: struct {
-	range: common.Range,
-	kind:  string,
-	label: string,
+	position: common.Position,
+	kind:     InlayHintKind,
+	label:    string,
 }
 
 DocumentLinkClientCapabilities :: struct {

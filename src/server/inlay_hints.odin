@@ -38,6 +38,8 @@ get_inlay_hints :: proc(
 		data := cast(^Visit_Data)visitor.data
 
 		if call, ok := node.derived.(^ast.Call_Expr); ok {
+
+
 			append(&data.calls, node)
 		}
 
@@ -52,6 +54,7 @@ get_inlay_hints :: proc(
 	for decl in document.ast.decls {
 		ast.walk(&visitor, decl)
 	}
+
 
 	loop: for node_call in &data.calls {
 		symbol_arg_count := 0
@@ -74,13 +77,14 @@ get_inlay_hints :: proc(
 						}
 
 						if ident, ok := name.derived.(^ast.Ident); ok {
+							range := common.get_token_range(
+								call.args[symbol_arg_count],
+								string(document.text),
+							)
 							hint := InlayHint {
-								kind  = "parameter",
-								label = fmt.tprintf("%v = ", ident.name),
-								range = common.get_token_range(
-									call.args[symbol_arg_count],
-									string(document.text),
-								),
+								kind     = .Parameter,
+								label    = fmt.tprintf("%v = ", ident.name),
+								position = range.start,
 							}
 							append(&hints, hint)
 						}

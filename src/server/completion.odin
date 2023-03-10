@@ -150,6 +150,10 @@ get_completion_list :: proc(
 		get_package_completion(&ast_context, &position_context, &list)
 	}
 
+	if common.config.enable_label_details {
+		format_to_label_details(&list)
+	}
+
 	return list, true
 }
 
@@ -597,8 +601,9 @@ get_selector_completion :: proc(
 				if symbol.type == .Function && common.config.enable_snippets {
 					item.insertText = fmt.tprintf("%v($0)", item.label)
 					item.insertTextFormat = .Snippet
-					item.command.command =
-					"editor.action.triggerParameterHints"
+					item.command = Command {
+						command = "editor.action.triggerParameterHints",
+					}
 					item.deprecated = .Deprecated in symbol.flags
 				}
 
@@ -1354,7 +1359,9 @@ get_identifier_completion :: proc(
 				item.insertText = fmt.tprintf("%v($0)", item.label)
 				item.insertTextFormat = .Snippet
 				item.deprecated = .Deprecated in result.flags
-				item.command.command = "editor.action.triggerParameterHints"
+				item.command = Command {
+					command = "editor.action.triggerParameterHints",
+				}
 			}
 
 			item.detail = concatenate_symbol_information(
@@ -1759,6 +1766,20 @@ append_magic_union_completion :: proc(
 	}
 
 }
+
+//Temporary hack to support labeldetails
+format_to_label_details :: proc(list: ^CompletionList) {
+	for item in &list.items {
+		if item.kind == .Function && true {
+			proc_index := strings.index(item.detail, "proc")
+
+			item.labelDetails = CompletionItemLabelDetails {
+				detail = item.detail[proc_index + 4:len(item.detail)],
+			}
+		}
+	}
+}
+
 
 bitset_operators: map[string]bool = {
 	"|"  = true,

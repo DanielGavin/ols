@@ -271,7 +271,7 @@ call_map: map[string]proc(
 	"textDocument/semanticTokens/range" = request_semantic_token_range,
 	"textDocument/hover"                = request_hover,
 	"textDocument/formatting"           = request_format_document,
-	"odin/inlayHints"                   = request_inlay_hint,
+	"textDocument/inlayHint"            = request_inlay_hint,
 	"textDocument/documentLink"         = request_document_links,
 	"textDocument/rename"               = request_rename,
 	"textDocument/references"           = request_references,
@@ -573,8 +573,12 @@ request_initialize :: proc(
 		}
 	}
 
+	config.enable_label_details =
+		initialize_params.capabilities.textDocument.completion.completionItem.labelDetailsSupport
+
 	config.enable_snippets &=
 		initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
+
 	config.signature_offset_support =
 		initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport
 
@@ -626,6 +630,7 @@ request_initialize :: proc(
 				completionProvider = CompletionOptions{
 					resolveProvider = false,
 					triggerCharacters = completionTriggerCharacters,
+					completionItem = {labelDetailsSupport = true},
 				},
 				signatureHelpProvider = SignatureHelpOptions{
 					triggerCharacters = signatureTriggerCharacters,
@@ -639,7 +644,7 @@ request_initialize :: proc(
 						tokenModifiers = token_modifiers,
 					},
 				},
-				inlayHintsProvider = config.enable_inlay_hints,
+				inlayHintProvider = config.enable_inlay_hints,
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
