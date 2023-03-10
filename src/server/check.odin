@@ -84,88 +84,102 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	//find all the signatures string(digit:digit)
 	loop: for scanner.peek(&s) != scanner.EOF {
 
-		error: ErrorSeperator
+		scan_line: {
+			error: ErrorSeperator
 
-		source_pos := s.src_pos
+			source_pos := s.src_pos
 
-		if source_pos == 1 {
-			source_pos = 0
-		}
-
-		for scanner.peek(&s) != '(' {
-			n := scanner.scan(&s)
-
-			if n == scanner.EOF {
-				break loop
+			if source_pos == 1 {
+				source_pos = 0
 			}
+
+			for scanner.peek(&s) != '(' {
+				n := scanner.scan(&s)
+
+				if n == scanner.EOF {
+					break loop
+				}
+				if n == '\n' {
+					source_pos = s.src_pos - 1
+				}
+			}
+
+			error.uri = string(buffer[source_pos:s.src_pos - 1])
+
+			left_paren := scanner.scan(&s)
+
+			if left_paren != '(' {
+				break scan_line
+			}
+
+			lhs_digit := scanner.scan(&s)
+
+			if lhs_digit != scanner.Int {
+				break scan_line
+			}
+
+			line, column: int
+			ok: bool
+
+			line, ok = strconv.parse_int(scanner.token_text(&s))
+
+			if !ok {
+				break scan_line
+			}
+
+			seperator := scanner.scan(&s)
+
+			if seperator != ':' {
+				break scan_line
+			}
+
+			rhs_digit := scanner.scan(&s)
+
+			if rhs_digit != scanner.Int {
+				break scan_line
+			}
+
+			column, ok = strconv.parse_int(scanner.token_text(&s))
+
+			if !ok {
+				break scan_line
+			}
+
+			right_paren := scanner.scan(&s)
+
+			if right_paren != ')' {
+				break scan_line
+			}
+
+			source_pos = s.src_pos
+
+			for scanner.peek(&s) != '\n' {
+				n := scanner.scan(&s)
+
+				if n == scanner.EOF {
+					break
+				}
+			}
+
+			if source_pos == s.src_pos {
+				continue
+			}
+
+			error.message = string(buffer[source_pos:s.src_pos - 1])
+			error.column = column
+			error.line = line
+
+			append(&error_seperators, error)
+			continue loop
 		}
 
-		error.uri = string(buffer[source_pos:s.src_pos - 1])
-
-		left_paren := scanner.scan(&s)
-
-		if left_paren != '(' {
-			break loop
-		}
-
-		lhs_digit := scanner.scan(&s)
-
-		if lhs_digit != scanner.Int {
-			break loop
-		}
-
-		line, column: int
-		ok: bool
-
-		line, ok = strconv.parse_int(scanner.token_text(&s))
-
-		if !ok {
-			break loop
-		}
-
-		seperator := scanner.scan(&s)
-
-		if seperator != ':' {
-			break loop
-		}
-
-		rhs_digit := scanner.scan(&s)
-
-		if rhs_digit != scanner.Int {
-			break loop
-		}
-
-		column, ok = strconv.parse_int(scanner.token_text(&s))
-
-		if !ok {
-			break loop
-		}
-
-		right_paren := scanner.scan(&s)
-
-		if right_paren != ')' {
-			break loop
-		}
-
-		source_pos = s.src_pos
-
+		// line scan failed, skip to the next line
 		for scanner.peek(&s) != '\n' {
 			n := scanner.scan(&s)
-
 			if n == scanner.EOF {
 				break
 			}
 		}
-
-		if source_pos == s.src_pos {
-			continue
-		}
-
-		error.message = string(buffer[source_pos:s.src_pos - 1])
-		error.column = column
-		error.line = line
-
-		append(&error_seperators, error)
 	}
 
 	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
@@ -185,7 +199,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 				code = "checker",
 				severity = .Error,
 				range = {
-					start = {character = 0, line = error.line - 1},
+					start = {character = error.column, line = error.line - 1},
 					end = {character = 0, line = error.line},
 				},
 				message = error.message,
