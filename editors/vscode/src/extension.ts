@@ -154,6 +154,8 @@ async function bootstrap(config: Config, state: PersistentState): Promise<string
 
     const path = await bootstrapServer(config, state);
 
+    await removeOldServers(config, state);
+
     return path;
 }
 
@@ -176,6 +178,37 @@ async function bootstrapServer(config: Config, state: PersistentState): Promise<
     */
 
     return path;
+}
+
+async function removeOldServers(config: Config, state: PersistentState): Promise<void> {
+  if (process.platform != "win32") {
+    // only on windows, releases are put into their separate folders, so no cleanup needed
+    return;
+  }
+  const releasesFolder = config.globalStorageUri.fsPath;
+  
+  // get list of all old releases
+  const currentRelease = state.releaseId?.toString() ?? ""
+  const releases = (await fs.readdir(releasesFolder, { withFileTypes: true }))
+    .filter(dirent => dirent.isDirectory() && dirent.name != currentRelease)
+    .map(dirent => dirent.name)
+
+  // try to delete all old releases
+  for (const release of releases) {
+    try {
+      let pathToRemove = path.join(releasesFolder, release)
+      if (release[0] !== '_') {
+        // windows: rename path first to ensure it is not in use anymore
+        const renamedPath = path.join(releasesFolder, '_' + release)
+        await fs.rename(pathToRemove, renamedPath)
+        pathToRemove = renamedPath
+      }
+      fs.rm(pathToRemove, { recursive: true, force: true })
+    } catch {
+      // ignore if the release can't be renamed/removed, probably still in use
+      continue;
+    }
+  }
 }
 
 export function createOlsConfig(ctx: Ctx) {
@@ -245,10 +278,14 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     }
     */
 
-    const ext = platform.indexOf("-windows-") !== -1 ? ".exe" : "";
-    const destFolder = config.globalStorageUri.fsPath;
-    const destExecutable = path.join(destFolder, `ols-${platform}${ext}`);
-    
+    const isWindows = platform.indexOf("-windows-") !== -1;
+    const ext = isWindows ? ".exe" : "";
+    // use a separate folder for each release on windows because we can't overwrite files while they are still in use
+    const getDestFolder = (releaseId: number | undefined) => path.join(config.globalStorageUri.fsPath, (releaseId ?? 0).toString());
+    const getExecutable = (releaseId: number | undefined) => path.join(getDestFolder(releaseId), `ols-${platform}${ext}`);
+    const zipFolder = config.globalStorageUri.fsPath;
+    const destExecutable = getExecutable(state.releaseId);
+
     const exists = await fs.stat(destExecutable).then(() => true, () => false);
 
     if (!exists) {
@@ -284,7 +321,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     const artifact = release.assets.find(artifact => artifact.name === `ols-${platform}.zip`);
     assert(!!artifact, `Bad release: ${JSON.stringify(release)}`);
     
-    const destZip = path.join(destFolder, `ols-${platform}.zip`);
+    const destZip = path.join(zipFolder, `ols-${platform}.zip`);
 
     await downloadWithRetryDialog(state, async () => {
         await download({
@@ -297,10 +334,17 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 
     var zip = new AdmZip(destZip);
 
-    zip.extractAllTo(destFolder, true);
+    const latestDestFolder = getDestFolder(release.id);
+    const latestExecutable = getExecutable(release.id);
+
+    if (!await fs.stat(latestDestFolder).then(() => true, () => false)) {
+      await fs.mkdir(latestDestFolder)
+    }
+
+    zip.extractAllTo(latestDestFolder, true);
 
     if (ext !== ".exe") {
-        fs.chmod(destExecutable, 0o755);
+        fs.chmod(latestExecutable, 0o755);
     }
 
     await state.updateServerVersion(config.package.version);
@@ -308,7 +352,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     await state.updateLastCheck(Date.now());
     await vscode.commands.executeCommand("workbench.action.reloadWindow");
 
-    return destExecutable;
+    return latestExecutable;
 }
 
 async function downloadWithRetryDialog<T>(state: PersistentState, downloadFunc: () => Promise<T>): Promise<T> {
