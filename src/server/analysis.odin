@@ -1483,42 +1483,6 @@ clear_local_group :: proc(ast_context: ^AstContext, id: int) {
 	ast_context.locals[id] = {}
 }
 
-/*
-get_local_lhs_and_rhs :: proc(
-	ast_context: ^AstContext,
-	offset: int,
-	name: string,
-) -> DocumentLocal {
-	for _, locals in &ast_context.locals {
-		if local_stack, ok := locals[name]; ok {
-			for i := len(local_stack) - 1; i >= 0; i -= 1 {
-				if local_stack[i].offset <= offset {
-					if i < 0 {
-						return {}
-					} else {
-						ret := local_stack[i].rhs
-						if ident, ok := ret.derived.(^ast.Ident);
-						   ok && ident.name == name {
-							if i - 1 < 0 {
-								return {}
-							}
-
-							if _, ok := ast_context.parameters[ident.name];
-							   ok {
-								return local_stack[i]
-							}
-						}
-						return local_stack[i]
-					}
-				}
-			}
-		}
-	}
-
-	return {}
-}
-*/
-
 get_local :: proc(
 	ast_context: ^AstContext,
 	offset: int,

@@ -119,7 +119,10 @@ try_build_package :: proc(pkg_name: string) {
 			ok = parser.parse_file(&p, &file)
 
 			if !ok {
-				log.errorf("error in parse file for indexing %v", fullpath)
+				if !strings.contains("builtin/builtin.odin", fullpath) &&
+				   !strings.contains("intrinsics/intrinsics.odin", fullpath) {
+					log.errorf("error in parse file for indexing %v", fullpath)
+				}
 				continue
 			}
 
