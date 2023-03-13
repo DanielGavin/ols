@@ -842,7 +842,7 @@ visit_attributes :: proc(
 	}
 
 	slice.sort_by(attributes[:], proc(i, j: ^ast.Attribute) -> bool {
-		return j.pos.offset < i.pos.offset
+		return i.pos.offset < j.pos.offset
 	})
 
 	document = cons(document, move_line(p, attributes[0].pos))
