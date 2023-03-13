@@ -1751,10 +1751,8 @@ foreign_system :: proc() {
 		}
 
 		// Example using the link_prefix attribute
-
-		@(link_prefix = "Get")
 		@(default_calling_convention = "std")
-
+		@(link_prefix = "Get")
 		foreign kernel32 {
 			LastError :: proc() -> i32 ---
 		}
