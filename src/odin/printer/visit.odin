@@ -216,12 +216,13 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 		escape_nest(move_line(p, node.pos)),
 	)
 
-	for comment_before_or_in_line(p, node.end.line) {
+	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
 		next_comment_group(p)
 	}
 
-	p.source_position = node.end
 	p.disabled_until_line = disabled_info.end_line
+	p.source_position = node.end
+	p.source_position.line = disabled_info.end_line
 
 	return cons(move, text(disabled_info.text))
 }
@@ -238,12 +239,12 @@ visit_decl :: proc(
 		return empty()
 	}
 
-	defer {
-		set_source_position(p, decl.end)
-	}
-
 	if decl.pos.line in p.disabled_lines {
 		return visit_disabled(p, decl)
+	}
+
+	defer {
+		set_source_position(p, decl.end)
 	}
 
 	#partial switch v in decl.derived {
@@ -336,8 +337,11 @@ visit_decl :: proc(
 			)
 		}
 
-		document = cons(document, move_line(p, decl.pos))
-		document = cons(document, visit_state_flags(p, v.state_flags))
+		document = cons(
+			document,
+			move_line(p, decl.pos),
+			visit_state_flags(p, v.state_flags),
+		)
 
 		lhs := empty()
 		rhs := empty()

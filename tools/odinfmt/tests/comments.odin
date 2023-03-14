@@ -62,3 +62,19 @@ disabled_comments_with_multiple_statements_one_lined :: proc() {
 	i:int;b:int
 	//odinfmt: enable
 }
+
+//odinfmt: disable
+AH :: Reg { index = 0b000, size  = .Bits_8H }
+//
+AL :: Reg { index = 0b000, size  = .Bits_8 }
+//
+AX :: Reg { index = 0b000, size  = .Bits_16 }
+//
+EAX :: Reg { index = 0b000, size  = .Bits_32 }
+
+//odinfmt: enable
+Instruction :: struct {
+	mnemonic: Mnemonic,
+	prefixes: LegacyPrefixes,
+	operands: []Operand,
+}
