@@ -888,13 +888,19 @@ visit_state_flags :: proc(
 
 @(private)
 enforce_fit_if_do :: proc(stmt: ^ast.Stmt, document: ^Document) -> ^Document {
-	if v, ok := stmt.derived.(^ast.Block_Stmt); ok {
-		if v.uses_do {
-			return enforce_fit(document)
-		}
+	if block_uses_do(stmt) {
+		return enforce_fit(document)
 	}
 
 	return document
+}
+
+block_uses_do :: proc(stmt: ^ast.Stmt) -> bool {
+	if v, ok := stmt.derived.(^ast.Block_Stmt); ok {
+		return v.uses_do
+	}
+
+	return false
 }
 
 @(private)
@@ -1052,14 +1058,15 @@ visit_stmt :: proc(
 
 		if v.else_stmt != nil {
 			if p.config.brace_style == .Allman ||
-			   p.config.brace_style == .Stroustrup {
+			   p.config.brace_style == .Stroustrup ||
+			   block_uses_do(v.body) {
 				document = cons(document, newline(1))
 			}
 
 			set_source_position(p, v.else_stmt.pos)
 
-			if _, ok := v.else_stmt.derived.(^ast.If_Stmt); ok {
-				document = cons_with_opl(
+			if block_uses_do(v.body) {
+				document = cons(
 					document,
 					cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)),
 				)
@@ -1069,6 +1076,8 @@ visit_stmt :: proc(
 					cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)),
 				)
 			}
+
+
 		}
 		document = enforce_fit_if_do(v.body, document)
 	case ^Switch_Stmt:
