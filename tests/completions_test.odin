@@ -2113,3 +2113,42 @@ ast_completion_on_call_expr :: proc(t: ^testing.T) {
 		{"My_Struct.a: int", "My_Struct.b: int"},
 	)
 }
+
+
+@(test)
+ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+			A :: struct {
+				lib_a: int,
+				lib_b: int,
+			}
+			Nested :: struct {
+				lib_a: A,
+			}			
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"	
+		A :: struct {
+			main_a:int,
+			main_b:int,
+		}	
+		main :: proc() {
+			a := my_package.Nested{}
+			a.lib_a.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"A.lib_a: int"})
+}

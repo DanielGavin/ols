@@ -112,7 +112,6 @@ get_completion_list :: proc(
 
 		if assign, ok := position_context.switch_type_stmt.tag.derived.(^ast.Assign_Stmt);
 		   ok && assign.rhs != nil && len(assign.rhs) == 1 {
-			ast_context.use_globals = true
 			ast_context.use_locals = true
 
 			if symbol, ok := resolve_type_expression(

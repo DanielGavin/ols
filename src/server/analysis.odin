@@ -84,7 +84,6 @@ AstContext :: struct {
 	imports:          []Package, //imports for the current document
 	current_package:  string,
 	document_package: string,
-	use_globals:      bool,
 	use_locals:       bool,
 	local_id:         int,
 	call:             ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
@@ -115,7 +114,6 @@ make_ast_context :: proc(
 		file             = file,
 		imports          = imports,
 		use_locals       = true,
-		use_globals      = true,
 		document_package = package_name,
 		current_package  = package_name,
 		uri              = uri,
@@ -129,7 +127,6 @@ make_ast_context :: proc(
 }
 
 reset_ast_context :: proc(ast_context: ^AstContext) {
-	ast_context.use_globals = true
 	ast_context.use_locals = true
 	clear(&ast_context.recursion_map)
 }
@@ -1718,7 +1715,7 @@ internal_resolve_type_identifier :: proc(
 		return return_symbol, ok
 
 	} else if global, ok := ast_context.globals[node.name];
-	   ast_context.use_globals && ok {
+	   ast_context.current_package == ast_context.document_package && ok {
 		is_distinct := false
 		ast_context.use_locals = false
 
