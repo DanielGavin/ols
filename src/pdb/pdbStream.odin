@@ -68,7 +68,7 @@ parse_pdb_stream :: proc(this: ^BlocksReader) -> (header: PdbStreamHeader, nameM
             //fmt.printf("k: %v, v: %v, vstr: %v\n", kv.key, kv.value, ))
             nameStr : string
             assert(kv.key < nameStringLen, "invalid name key")
-            nameStr = strings.string_from_nul_terminated_ptr(&nameMap.strBuf[kv.key], len(nameMap.strBuf)-int(kv.key))
+            nameStr = strings.string_from_null_terminated_ptr(&nameMap.strBuf[kv.key], len(nameMap.strBuf)-int(kv.key))
             //fmt.printf("bucket#%v [%v:%v], name: %v\n", i, kv.key, kv.value, nameStr)
             nameMap.names[nameIdx] = {nameStr, kv.value }
             nameIdx+=1
