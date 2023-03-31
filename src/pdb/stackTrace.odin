@@ -267,7 +267,7 @@ parse_stack_trace :: proc(stackTrace: []StackFrame, sameProcess: bool, srcCodeLo
                         pPdbBase := (^PECodeViewInfoPdb70Base)((stackFrame.imgBaseAddr) + uintptr(dde.rawDataAddr))
                         if pPdbBase.cvSignature != PECodeView_Signature_RSDS do continue
                         pPdbPath := (^byte)(uintptr(pPdbBase) + cast(uintptr)size_of(PECodeViewInfoPdb70Base))
-                        mi.pdbPath = strings.string_from_nul_terminated_ptr(pPdbPath, int(dde.dataSize-size_of(PECodeViewInfoPdb70Base)))
+                        mi.pdbPath = strings.string_from_null_terminated_ptr(pPdbPath, int(dde.dataSize-size_of(PECodeViewInfoPdb70Base)))
                     } else {
                         // otherwise we need to seek to it on disk
                         peStream := os.stream_from_handle(peFile)
