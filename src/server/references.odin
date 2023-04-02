@@ -159,8 +159,6 @@ resolve_references :: proc(
 	for fullpath in fullpaths {
 		data, ok := os.read_entire_file(fullpath, context.allocator)
 
-		log.error("looking: ", fullpath, "\n")
-
 		if !ok {
 			log.errorf("failed to read entire file for indexing %v", fullpath)
 			continue

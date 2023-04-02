@@ -414,7 +414,9 @@ request_initialize :: proc(
 	config.workspace_folders = make([dynamic]common.WorkspaceFolder)
 
 	for s in initialize_params.workspaceFolders {
-		append(&config.workspace_folders, s)
+		workspace: common.WorkspaceFolder
+		workspace.uri = strings.clone(s.uri)
+		append(&config.workspace_folders, workspace)
 	}
 
 	read_ols_config :: proc(
