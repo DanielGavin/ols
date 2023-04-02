@@ -145,9 +145,7 @@ get_attribute_objc_class_name :: proc(
 
 get_attribute_objc_is_class_method :: proc(
 	attributes: []^ast.Attribute,
-) -> (
-	bool,
-) {
+) -> bool {
 	for attribute in attributes {
 		for elem in attribute.elems {
 			if assign, ok := elem.derived.(^ast.Field_Value); ok {
@@ -165,11 +163,13 @@ get_attribute_objc_is_class_method :: proc(
 	return false
 }
 
-unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
+unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
+	n := 0
 	expr := expr
 	for expr != nil {
 		if pointer, ok := expr.derived.(^ast.Pointer_Type); ok {
 			expr = pointer.elem
+			n += 1
 		} else {
 			break
 		}
@@ -177,13 +177,13 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, bool) {
 
 	if expr != nil {
 		if ident, ok := expr.derived.(^ast.Ident); ok {
-			return ident^, ok
+			return ident^, n, ok
 		}
 
-		return {}, false
+		return {}, n, false
 	}
 
-	return {}, false
+	return {}, n, false
 }
 
 collect_value_decl :: proc(

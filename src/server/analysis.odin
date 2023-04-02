@@ -538,7 +538,7 @@ resolve_generic_function_symbol :: proc(
 			continue
 		}
 
-		ident, ok := common.unwrap_pointer(result.type)
+		ident, wrapped, ok := common.unwrap_pointer(result.type)
 
 		if ok {
 			if m, ok := poly_map[ident.name]; ok {
@@ -547,7 +547,7 @@ resolve_generic_function_symbol :: proc(
 					ast_context.allocator,
 					nil,
 				)
-				field.type = m
+				field.type = wrap_pointer(m, wrapped)
 				append(&return_types, field)
 			} else {
 				append(&return_types, result)
@@ -2590,6 +2590,27 @@ get_package_from_node :: proc(node: ast.Node) -> string {
 	slashed, _ := filepath.to_slash(node.pos.file, context.temp_allocator)
 	ret := path.dir(slashed, context.temp_allocator)
 	return ret
+}
+
+wrap_pointer :: proc(expr: ^ast.Expr, times: int) -> ^ast.Expr {
+	n := 0
+	expr := expr
+
+	for i in 0 ..< times {
+		new_pointer := new_type(
+			ast.Pointer_Type,
+			expr.pos,
+			expr.end,
+			context.temp_allocator,
+		)
+
+		new_pointer.elem = expr
+
+		expr = new_pointer
+	}
+
+
+	return expr
 }
 
 get_using_packages :: proc(ast_context: ^AstContext) -> []string {
