@@ -6,10 +6,16 @@ package ols_builtin
 
 size_of      :: proc($T: typeid) -> int ---
 @builtin align_of     :: proc($T: typeid) -> int ---
-@builtin offset_of    :: proc($T: typeid) -> uintptr ---
 @builtin type_of      :: proc(x: expr) -> type ---
 @builtin type_info_of :: proc($T: typeid) -> ^runtime.Type_Info ---
 @builtin typeid_of    :: proc($T: typeid) -> typeid ---
+
+offset_of_selector :: proc(selector: $T) -> uintptr ---
+offset_of_member   :: proc($T: typeid, member: $M) -> uintptr ---
+
+@builtin offset_of :: proc{offset_of_selector, offset_of_member}
+
+@builtin offset_of_by_string :: proc($T: typeid, member: string) -> uintptr ---
 
 @builtin swizzle :: proc(x: [N]T, indices: ..int) -> [len(indices)]T ---
 

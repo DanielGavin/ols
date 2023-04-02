@@ -77,6 +77,11 @@ resolve_references :: proc(
 		nil,
 	)
 
+	for workspace in common.config.workspace_folders {
+		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+		filepath.walk(uri.path, walk_directories, nil)
+	}
+
 	reset_ast_context(ast_context)
 
 	if position_context.struct_type != nil &&
@@ -153,6 +158,8 @@ resolve_references :: proc(
 
 	for fullpath in fullpaths {
 		data, ok := os.read_entire_file(fullpath, context.allocator)
+
+		log.error("looking: ", fullpath, "\n")
 
 		if !ok {
 			log.errorf("failed to read entire file for indexing %v", fullpath)

@@ -5285,6 +5285,6 @@ get_document_position_node :: proc(
 	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
 	case:
-		log.errorf("Unhandled node kind: %T", n)
+		log.warnf("Unhandled node kind: %T", n)
 	}
 }
