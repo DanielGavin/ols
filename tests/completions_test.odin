@@ -1536,7 +1536,7 @@ ast_new_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.adzz: int"})
+	test.expect_completion_details(t, &source, "", {"test.adzz: ^int"})
 }
 
 @(test)
@@ -1556,7 +1556,7 @@ ast_new_clone_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.adzz: Foo"})
+	test.expect_completion_details(t, &source, "", {"test.adzz: ^Foo"})
 }
 
 @(test)
