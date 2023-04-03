@@ -113,7 +113,7 @@ main :: proc() {
 	*/
 
 	when ODIN_DEBUG && ODIN_OS == .Windows {
-		set_stacktrace()
+		//set_stacktrace()
 	}
 
 	init_global_temporary_allocator(mem.Megabyte * 100)

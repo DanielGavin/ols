@@ -307,6 +307,10 @@ document_close :: proc(uri_string: string) -> common.Error {
 		return .InvalidRequest
 	}
 
+	if document.uri.uri in file_resolve_cache.files {
+		delete_key(&file_resolve_cache.files, document.uri.uri)
+	}
+
 	document_free_allocator(document.allocator)
 
 	document.allocator = nil

@@ -666,6 +666,8 @@ request_initialize :: proc(
 		append(&indexer.builtin_packages, path.join({core, "runtime"}))
 	}
 
+	file_resolve_cache.files = make(map[string]FileResolve, 200)
+
 	setup_index()
 
 	for pkg in indexer.builtin_packages {
@@ -1125,6 +1127,8 @@ request_semantic_token_range :: proc(
 	symbols: SemanticTokens
 
 	if config.enable_semantic_tokens {
+		resolve_entire_file_cached(document)
+
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
 			symbols = get_semantic_tokens(
 				document,
