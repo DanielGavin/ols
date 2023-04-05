@@ -102,10 +102,10 @@ run_executable :: proc(
 		return 0, false, stdout[0:]
 	}
 
-	startup_info: win32.STARTUPINFO
+	startup_info: win32.STARTUPINFOW
 	process_info: win32.PROCESS_INFORMATION
 
-	startup_info.cb = size_of(win32.STARTUPINFO)
+	startup_info.cb = size_of(win32.STARTUPINFOW)
 
 	startup_info.hStdError = stdout_write
 	startup_info.hStdOutput = stdout_write
