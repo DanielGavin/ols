@@ -71,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(disposable);
- 
+
     if (!serverPath) {
         vscode.window.showErrorMessage("Failed to find ols executable!");
         return;
@@ -103,7 +103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ctx.registerCommand("runTest", runTest);
 
     const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
-    
+
     fs.access(olsFile, constants.F_OK).catch(async err => {
         if (err) {
 
@@ -122,7 +122,7 @@ export async function activate(context: vscode.ExtensionContext) {
         parseOlsFile(config, olsFile);
     });
 
-    if(!isOdinInstalled()) {
+    if (!isOdinInstalled()) {
         vscode.window.showErrorMessage("Odin cannot be found in your path environment. Please install Odin or add it into your path environment before going any further: [Install](https://odin-lang.org/docs/install/).");
     }
 
@@ -139,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
         client.start();
     });
 
-    vscode.commands.registerCommand("ols.createOls", async() => {
+    vscode.commands.registerCommand("ols.createOls", async () => {
         createOlsConfig(ctx);
     });
 
@@ -181,34 +181,34 @@ async function bootstrapServer(config: Config, state: PersistentState): Promise<
 }
 
 async function removeOldServers(config: Config, state: PersistentState): Promise<void> {
-  if (process.platform != "win32") {
-    // only on windows, releases are put into their separate folders, so no cleanup needed
-    return;
-  }
-  const releasesFolder = config.globalStorageUri.fsPath;
-  
-  // get list of all old releases
-  const currentRelease = state.releaseId?.toString() ?? ""
-  const releases = (await fs.readdir(releasesFolder, { withFileTypes: true }))
-    .filter(dirent => dirent.isDirectory() && dirent.name != currentRelease)
-    .map(dirent => dirent.name)
-
-  // try to delete all old releases
-  for (const release of releases) {
-    try {
-      let pathToRemove = path.join(releasesFolder, release)
-      if (release[0] !== '_') {
-        // windows: rename path first to ensure it is not in use anymore
-        const renamedPath = path.join(releasesFolder, '_' + release)
-        await fs.rename(pathToRemove, renamedPath)
-        pathToRemove = renamedPath
-      }
-      fs.rm(pathToRemove, { recursive: true, force: true })
-    } catch {
-      // ignore if the release can't be renamed/removed, probably still in use
-      continue;
+    if (process.platform != "win32") {
+        // only on windows, releases are put into their separate folders, so no cleanup needed
+        return;
     }
-  }
+    const releasesFolder = config.globalStorageUri.fsPath;
+
+    // get list of all old releases
+    const currentRelease = state.releaseId?.toString() ?? ""
+    const releases = (await fs.readdir(releasesFolder, { withFileTypes: true }))
+        .filter(dirent => dirent.isDirectory() && dirent.name != currentRelease)
+        .map(dirent => dirent.name)
+
+    // try to delete all old releases
+    for (const release of releases) {
+        try {
+            let pathToRemove = path.join(releasesFolder, release)
+            if (release[0] !== '_') {
+                // windows: rename path first to ensure it is not in use anymore
+                const renamedPath = path.join(releasesFolder, '_' + release)
+                await fs.rename(pathToRemove, renamedPath)
+                pathToRemove = renamedPath
+            }
+            fs.rm(pathToRemove, { recursive: true, force: true })
+        } catch {
+            // ignore if the release can't be renamed/removed, probably still in use
+            continue;
+        }
+    }
 }
 
 export function createOlsConfig(ctx: Ctx) {
@@ -241,7 +241,7 @@ export async function parseOlsFile(config: Config, file: string) {
         const conf = JSON.parse(data.toString());
         config.collections = conf.collections;
     });
-} 
+}
 
 function serverPath(config: Config): string | null {
     return config.serverPath;
@@ -260,6 +260,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
         "x64 win32": "x86_64-pc-windows-msvc",
         "x64 linux": "x86_64-unknown-linux-gnu",
         "x64 darwin": "x86_64-darwin",
+        "arm64": "darwin",
     };
 
     let platform = platforms[`${process.arch} ${process.platform}`];
@@ -295,8 +296,8 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     /*
         Temp: right now it doesn't check for versions, since ols has no versioning right now
     */
-    
-    if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000)  > Date.now()) {
+
+    if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000) > Date.now()) {
         return destExecutable;
     }
 
@@ -320,7 +321,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 
     const artifact = release.assets.find(artifact => artifact.name === `ols-${platform}.zip`);
     assert(!!artifact, `Bad release: ${JSON.stringify(release)}`);
-    
+
     const destZip = path.join(zipFolder, `ols-${platform}.zip`);
 
     await downloadWithRetryDialog(state, async () => {
@@ -338,7 +339,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     const latestExecutable = getExecutable(release.id);
 
     if (!await fs.stat(latestDestFolder).then(() => true, () => false)) {
-      await fs.mkdir(latestDestFolder)
+        await fs.mkdir(latestDestFolder)
     }
 
     zip.extractAllTo(latestDestFolder, true);
