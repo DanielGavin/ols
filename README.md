@@ -1,5 +1,5 @@
 # ols
-Language server for Odin. This project is still in early development. 
+Language server for Odin. This project is still in early development.
 
 **Status**: All platforms work.
 
@@ -18,10 +18,10 @@ Language server for Odin. This project is still in early development.
  ```
  cd ols
 
- //for windows
- ./build.bat 
+ # for windows
+ ./build.bat
 
- //for linux
+ # for linux/mac
  ./build.sh
  ```
 
@@ -54,7 +54,7 @@ Options:
 
 `enable_semantic_tokens`: Turns on syntax highlighting.
 
-`enable_document_symbols`: Turns on outline of all your global declarations in your document. 
+`enable_document_symbols`: Turns on outline of all your global declarations in your document.
 
 `odin_command`: Allows you to specifiy your Odin location, instead of just relying on the environment path.
 
