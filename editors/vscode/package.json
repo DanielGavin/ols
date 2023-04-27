@@ -1,15 +1,15 @@
 {
 	"name": "ols",
 	"publisher": "DanielGavin",
-	"displayName": "ols",
+	"displayName": "Odin Language",
 	"description": "Odin language support",
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.1.6",
+	"version": "0.1.14",
 	"engines": {
-		"vscode": "^1.65.0"
+		"vscode": "^1.66.0"
 	},
 	"categories": [
 		"Programming Languages"
@@ -17,6 +17,7 @@
 	"activationEvents": [
 		"onLanguage:odin"
 	],
+	"icon": "images/emblem.png",
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
@@ -89,7 +90,10 @@
 		"languages": [
 			{
 				"id": "odin",
-				"aliases": ["odin", "Odin"],
+				"aliases": [
+					"odin",
+					"Odin"
+				],
 				"icon": {
 					"light": "./fileicons/odin-file.svg",
 					"dark": "./fileicons/odin-file.svg"
@@ -106,30 +110,10 @@
 				"scopeName": "source.odin",
 				"path": "./syntaxes/odin.tmLanguage.json"
 			}
-		], 
-		"breakpoints": [
-		  {
-			  "language": "odin"
-		  }
 		],
-		"colors": [
+		"breakpoints": [
 			{
-				"id": "odin.inlayHints.foreground",
-				"description": "Foreground color of inlay hints",
-				"defaults": {
-					"dark": "#A0A0A0F0",
-					"light": "#747474",
-					"highContrast": "#BEBEBE"
-				}
-			},
-			{
-				"id": "odin.inlayHints.background",
-				"description": "Background color of inlay hints",
-				"defaults": {
-					"dark": "#11223300",
-					"light": "#11223300",
-					"highContrast": "#11223300"
-				}
+				"language": "odin"
 			}
 		]
 	},
@@ -145,9 +129,9 @@
 	"devDependencies": {
 		"@types/glob": "^7.2.0",
 		"@types/mocha": "^9.1.0",
-		"@types/node": "^14.18.12",
+		"@types/node": "~16.11.7",
+		"@types/vscode": "~1.66.0",
 		"@types/node-fetch": "^2.6.1",
-		"@types/vscode": "^1.65.0",
 		"@typescript-eslint/eslint-plugin": "^4.33.0",
 		"@typescript-eslint/parser": "^4.33.0",
 		"eslint": "^7.32.0",
@@ -155,7 +139,7 @@
 		"mocha": "^8.4.0",
 		"typescript": "^4.6.2",
 		"vscode-test": "^1.6.1",
-		"vsce": "^2.7.0"
+		"vsce": "^2.9.2"
 	},
 	"dependencies": {
 		"adm-zip": "^0.5.9",
