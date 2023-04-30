@@ -2070,7 +2070,7 @@ visit_expr :: proc(
 			)
 		}
 	case ^Pointer_Type:
-		document = cons(text("^"), visit_expr(p, v.elem))
+		document = cons(visit_expr(p, v.tag), text("^"), visit_expr(p, v.elem))
 	case ^Multi_Pointer_Type:
 		document = cons(text("[^]"), visit_expr(p, v.elem))
 	case ^Implicit:
