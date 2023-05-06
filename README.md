@@ -146,7 +146,7 @@ Configuration of the LSP:
 ### Neovim
 Neovim has a builtin support for LSP.
 
-There is a plugin that turn easier the setup, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can
+There is a plugin that turns easier the setup, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can
 install it with you prefered package manager.
 
 A simple configuration to use with Odin would be like this:
