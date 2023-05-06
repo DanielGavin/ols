@@ -126,7 +126,12 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 
 	for group in p.comments {
 		for comment in group.list {
-            comment_text, _ := strings.replace_all(comment.text[:], " ", "", context.temp_allocator)
+			comment_text, _ := strings.replace_all(
+				comment.text[:],
+				" ",
+				"",
+				context.temp_allocator,
+			)
 
 			if strings.contains(comment_text, "//odinfmt:disable") {
 				found_disable = true

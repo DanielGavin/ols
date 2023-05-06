@@ -275,6 +275,7 @@ call_map: map[string]proc(
 	"textDocument/documentLink"         = request_document_links,
 	"textDocument/rename"               = request_rename,
 	"textDocument/references"           = request_references,
+	"window/progress"                   = request_noop,
 }
 
 notification_map: map[string]bool = {
@@ -283,6 +284,7 @@ notification_map: map[string]bool = {
 	"textDocument/didClose"  = true,
 	"textDocument/didSave"   = true,
 	"initialized"            = true,
+	"window/progress"        = true,
 }
 
 consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
@@ -1379,5 +1381,14 @@ request_references :: proc(
 
 	send_response(response, writer)
 
+	return .None
+}
+
+request_noop :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	return .None
 }
