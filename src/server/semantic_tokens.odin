@@ -650,6 +650,8 @@ visit_node :: proc(
 				.Property,
 				.None,
 			)
+		} else {
+			visit(n.field, builder, ast_context)
 		}
 
 		visit(n.value, builder, ast_context)
@@ -857,6 +859,10 @@ visit_value_decl :: proc(
 		}
 
 		visit(value_decl.type, builder, ast_context)
+
+		if len(value_decl.values) == 1 {
+			visit(value_decl.values[0], builder, ast_context)
+		}
 
 		return
 	}
