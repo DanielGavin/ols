@@ -11,6 +11,7 @@ Language server for Odin. This project is still in early development.
   - [Vs Code](#vs-code)
   - [Sublime](#sublime)
   - [Vim](#vim)
+  - [Neovim](#neovim)
   - [Emacs](#emacs)
 
 ## Installation
@@ -140,6 +141,18 @@ Configuration of the LSP:
     }
   }
 }
+```
+
+### Neovim
+Neovim has a builtin support for LSP.
+
+There is a plugin that turn easier the setup, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can
+install it with you prefered package manager.
+
+A simple configuration to use with Odin would be like this:
+```lua
+local lspconfig = require('lspconfig')
+lspconfig.ols.setup({})
 ```
 
 ### Emacs
