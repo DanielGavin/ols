@@ -46,6 +46,7 @@ Example of ols.json:
 
 ```
 
+You can also set `ODIN_ROOT` environment variable to the path where ols should look for core and vendor libraries.
 
 Options:
 
