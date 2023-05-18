@@ -138,6 +138,39 @@ get_hover_information :: proc(
 		}
 	}
 
+	if position_context.field_value != nil &&
+	   position_context.comp_lit != nil {
+		if comp_symbol, ok := resolve_comp_literal(
+			&ast_context,
+			&position_context,
+		); ok {
+			if field, ok := position_context.field_value.field.derived.(^ast.Ident);
+			   ok {
+				if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+					for name, i in v.names {
+						if name == field.name {
+							if symbol, ok := resolve_type_expression(
+								&ast_context,
+								v.types[i],
+							); ok {
+								symbol.name = name
+								symbol.pkg = comp_symbol.name
+								symbol.signature = common.node_to_string(
+									v.types[i],
+								)
+								hover.contents = write_hover_content(
+									&ast_context,
+									symbol,
+								)
+								return hover, true, true
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if position_context.selector != nil && position_context.identifier != nil {
 		hover.range = common.get_token_range(
 			position_context.identifier^,
@@ -207,7 +240,7 @@ get_hover_information :: proc(
 						&ast_context,
 						v.types[i],
 					); ok {
-						symbol.name = name //TODO refractor - never set symbol name after creation - change writer_hover_content
+						symbol.name = name
 						symbol.pkg = selector.name
 						symbol.signature = common.node_to_string(v.types[i])
 						hover.contents = write_hover_content(
