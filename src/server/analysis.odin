@@ -362,20 +362,13 @@ resolve_type_comp_literal :: proc(
 		return {}, nil, false
 	}
 
-	element_index := 0
 
 	prev_package := ast_context.current_package
 	ast_context.current_package = current_symbol.pkg
 
 	defer ast_context.current_package = prev_package
 
-	for elem, i in current_comp_lit.elems {
-		if position_in_node(elem, position_context.position) {
-			element_index = i
-		}
-	}
-
-	for elem in current_comp_lit.elems {
+	for elem, element_index in current_comp_lit.elems {
 		if !position_in_node(elem, position_context.position) {
 			continue
 		}
@@ -409,7 +402,8 @@ resolve_type_comp_literal :: proc(
 				}
 			}
 		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { 	//indexed
-			if s, ok := current_symbol.value.(SymbolStructValue); ok {
+			#partial switch s in current_symbol.value {
+			case SymbolStructValue:
 				if len(s.types) <= element_index {
 					return {}, {}, false
 				}
@@ -422,6 +416,38 @@ resolve_type_comp_literal :: proc(
 					if _, ok := symbol.value.(SymbolBitSetValue); ok {
 						return current_symbol, current_comp_lit, true
 					}
+					return resolve_type_comp_literal(
+						ast_context,
+						position_context,
+						symbol,
+						comp_value,
+					)
+				}
+			case SymbolSliceValue:
+				if symbol, ok := resolve_type_expression(ast_context, s.expr);
+				   ok {
+					return resolve_type_comp_literal(
+						ast_context,
+						position_context,
+						symbol,
+						comp_value,
+					)
+				}
+
+			case SymbolDynamicArrayValue:
+				if symbol, ok := resolve_type_expression(ast_context, s.expr);
+				   ok {
+					return resolve_type_comp_literal(
+						ast_context,
+						position_context,
+						symbol,
+						comp_value,
+					)
+				}
+
+			case SymbolFixedArrayValue:
+				if symbol, ok := resolve_type_expression(ast_context, s.expr);
+				   ok {
 					return resolve_type_comp_literal(
 						ast_context,
 						position_context,
@@ -1957,6 +1983,28 @@ expand_struct_usings :: proc(
 	return {names = names[:], types = types[:], ranges = ranges[:]}
 }
 
+resolve_comp_literal :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	symbol = resolve_type_expression(
+		ast_context,
+		position_context.parent_comp_lit.type,
+	) or_return
+
+	symbol, _ = resolve_type_comp_literal(
+		ast_context,
+		position_context,
+		symbol,
+		position_context.parent_comp_lit,
+	) or_return
+
+	return symbol, true
+}
+
 resolve_implicit_selector :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -2290,28 +2338,50 @@ resolve_location_identifier :: proc(
 
 	return {}, false
 }
+resolve_location_comp_lit_field :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	reset_ast_context(ast_context)
+
+	ast_context.current_package = ast_context.document_package
+
+	symbol = resolve_comp_literal(ast_context, position_context) or_return
+
+	field := position_context.field_value.field.derived.(^ast.Ident) or_return
+
+	if struct_value, ok := symbol.value.(SymbolStructValue); ok {
+		for name, i in struct_value.names {
+			if name == field.name {
+				symbol.range = struct_value.ranges[i]
+			}
+
+		}
+	}
+
+	return symbol, true
+}
 
 resolve_location_implicit_selector :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	implicit_selector: ^ast.Implicit_Selector_Expr,
 ) -> (
-	Symbol,
-	bool,
+	symbol: Symbol,
+	ok: bool,
 ) {
 	reset_ast_context(ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
-	symbol, ok := resolve_implicit_selector(
+	symbol = resolve_implicit_selector(
 		ast_context,
 		position_context,
 		implicit_selector,
-	)
-
-	if !ok {
-		return {}, false
-	}
+	) or_return
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
@@ -2329,17 +2399,13 @@ resolve_location_selector :: proc(
 	ast_context: ^AstContext,
 	selector: ^ast.Selector_Expr,
 ) -> (
-	Symbol,
-	bool,
+	symbol: Symbol,
+	ok: bool,
 ) {
 	reset_ast_context(ast_context)
 	ast_context.current_package = ast_context.document_package
 
-	symbol, ok := resolve_type_expression(ast_context, selector.expr)
-
-	if !ok {
-		return {}, false
-	}
+	symbol = resolve_type_expression(ast_context, selector.expr) or_return
 
 	field: string
 

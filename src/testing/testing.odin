@@ -366,7 +366,7 @@ expect_definition_locations :: proc(
 
 	for expect_location, i in expect_locations {
 		for location, j in locations {
-			if location == expect_location {
+			if location.range == expect_location.range {
 				flags[i] += 1
 			}
 		}
@@ -377,7 +377,7 @@ expect_definition_locations :: proc(
 			testing.errorf(
 				t,
 				"Expected location %v, but received %v",
-				expect_locations[i],
+				expect_locations[i].range,
 				locations,
 			)
 		}
