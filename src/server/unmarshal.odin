@@ -81,7 +81,7 @@ unmarshal :: proc(
 					len(j) * variant.elem_size,
 					variant.elem.align,
 					allocator,
-				)
+				) or_else panic("OOM")
 				array.len = len(j)
 				array.cap = len(j)
 				array.allocator = allocator

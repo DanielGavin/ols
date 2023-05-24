@@ -99,7 +99,7 @@ clone_node :: proc(
 		panic("Cannot clone this node type")
 	}
 
-	res := cast(^Node)mem.alloc(size, align, allocator)
+	res := cast(^Node)(mem.alloc(size, align, allocator) or_else panic("OOM"))
 	src: rawptr = node
 	if node.derived != nil {
 		src = (^rawptr)(&node.derived)^
