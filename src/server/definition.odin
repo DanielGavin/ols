@@ -132,7 +132,8 @@ get_definition_location :: proc(
 			uri = resolved.uri
 		}
 	} else if position_context.field_value != nil &&
-	   position_context.comp_lit != nil {
+	   position_context.comp_lit != nil &&
+	   !common.is_expr_basic_lit(position_context.field_value.field) {
 		if resolved, ok := resolve_location_comp_lit_field(
 			&ast_context,
 			&position_context,

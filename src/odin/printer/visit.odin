@@ -1589,8 +1589,8 @@ visit_expr :: proc(
 		document = cons_with_nopl(document, visit_expr(p, v.y))
 	case ^Or_Else_Expr:
 		document = visit_expr(p, v.x)
-		document = cons_with_opl(document, text_token(p, v.token))
-		document = cons_with_opl(document, visit_expr(p, v.y))
+		document = cons_with_nopl(document, text_token(p, v.token))
+		document = cons_with_nopl(document, visit_expr(p, v.y))
 	case ^Or_Return_Expr:
 		document = cons_with_nopl(
 			visit_expr(p, v.expr),

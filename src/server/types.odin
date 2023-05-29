@@ -74,10 +74,11 @@ ResponseInitializeParams :: struct {
 }
 
 RequestInitializeParams :: struct {
-	trace:            string,
-	workspaceFolders: [dynamic]common.WorkspaceFolder,
-	capabilities:     ClientCapabilities,
-	rootUri:          string,
+	trace:                 string,
+	workspaceFolders:      [dynamic]common.WorkspaceFolder,
+	capabilities:          ClientCapabilities,
+	rootUri:               string,
+	initializationOptions: OlsConfig,
 }
 
 MarkupContent :: struct {
@@ -329,19 +330,19 @@ TextDocumentSyncOptions :: struct {
 
 OlsConfig :: struct {
 	collections:              [dynamic]OlsConfigCollection,
-	thread_pool_count:        int,
-	enable_semantic_tokens:   bool,
+	thread_pool_count:        Maybe(int),
+	enable_semantic_tokens:   Maybe(bool),
 	enable_document_symbols:  Maybe(bool),
 	enable_hover:             Maybe(bool),
-	enable_procedure_context: bool,
-	enable_snippets:          bool,
-	enable_inlay_hints:       bool,
-	enable_references:        bool,
-	disable_parser_errors:    bool,
-	verbose:                  bool,
-	file_log:                 bool,
-	odin_command:             string,
-	checker_args:             string,
+	enable_procedure_context: Maybe(bool),
+	enable_snippets:          Maybe(bool),
+	enable_inlay_hints:       Maybe(bool),
+	enable_references:        Maybe(bool),
+	disable_parser_errors:    Maybe(bool),
+	verbose:                  Maybe(bool),
+	file_log:                 Maybe(bool),
+	odin_command:             Maybe(string),
+	checker_args:             Maybe(string),
 }
 
 OlsConfigCollection :: struct {

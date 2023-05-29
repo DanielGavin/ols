@@ -186,6 +186,11 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 	return {}, n, false
 }
 
+is_expr_basic_lit :: proc(expr: ^ast.Expr) -> bool {
+	_, ok := expr.derived.(^ast.Basic_Lit)
+	return ok
+}
+
 collect_value_decl :: proc(
 	exprs: ^[dynamic]GlobalExpr,
 	file: ast.File,

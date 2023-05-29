@@ -421,6 +421,42 @@ request_initialize :: proc(
 		append(&config.workspace_folders, workspace)
 	}
 
+	read_ols_initialize_options :: proc(
+		config: ^common.Config,
+		ols_config: OlsConfig,
+	) {
+		config.disable_parser_errors =
+			ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+		config.thread_count =
+			ols_config.thread_pool_count.(int) or_else config.thread_count
+		config.enable_document_symbols =
+			ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+		config.enable_hover =
+			ols_config.enable_hover.(bool) or_else config.enable_hover
+		config.enable_semantic_tokens =
+			ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+		config.enable_procedure_context =
+			ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
+		config.enable_snippets =
+			ols_config.enable_snippets.(bool) or_else config.enable_snippets
+		config.enable_references =
+			ols_config.enable_references.(bool) or_else config.enable_references
+		config.verbose = ols_config.verbose.(bool) or_else config.verbose
+		config.file_log = ols_config.file_log.(bool) or_else config.file_log
+		config.enable_rename =
+			ols_config.enable_references.(bool) or_else config.enable_rename
+		config.odin_command = strings.clone(
+			ols_config.odin_command.(string) or_else config.odin_command,
+			context.allocator,
+		)
+		config.checker_args = strings.clone(
+			ols_config.checker_args.(string) or_else config.checker_args,
+			context.allocator,
+		)
+		config.enable_inlay_hints =
+			ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+	}
+
 	read_ols_config :: proc(
 		file: string,
 		config: ^common.Config,
@@ -437,30 +473,35 @@ request_initialize :: proc(
 				if unmarshal(value, ols_config, context.temp_allocator) ==
 				   nil {
 					config.disable_parser_errors =
-						ols_config.disable_parser_errors
-					config.thread_count = ols_config.thread_pool_count
+						ols_config.disable_parser_errors.(bool) or_else false
+					config.thread_count =
+						ols_config.thread_pool_count.(int) or_else 2
 					config.enable_document_symbols =
 						ols_config.enable_document_symbols.(bool) or_else true
 					config.enable_hover =
 						ols_config.enable_hover.(bool) or_else true
 					config.enable_semantic_tokens =
-						ols_config.enable_semantic_tokens
+						ols_config.enable_semantic_tokens.(bool) or_else false
 					config.enable_procedure_context =
-						ols_config.enable_procedure_context
-					config.enable_snippets = ols_config.enable_snippets
-					config.enable_references = ols_config.enable_references
-					config.verbose = ols_config.verbose
-					config.file_log = ols_config.file_log
-					config.enable_rename = ols_config.enable_references
+						ols_config.enable_procedure_context.(bool) or_else false
+					config.enable_snippets =
+						ols_config.enable_snippets.(bool) or_else false
+					config.enable_references =
+						ols_config.enable_references.(bool) or_else false
+					config.verbose = ols_config.verbose.(bool) or_else false
+					config.file_log = ols_config.file_log.(bool) or_else false
+					config.enable_rename =
+						ols_config.enable_references.(bool) or_else false
 					config.odin_command = strings.clone(
-						ols_config.odin_command,
+						ols_config.odin_command.(string) or_else "",
 						context.allocator,
 					)
 					config.checker_args = strings.clone(
-						ols_config.checker_args,
+						ols_config.checker_args.(string) or_else "",
 						context.allocator,
 					)
-					config.enable_inlay_hints = ols_config.enable_inlay_hints
+					config.enable_inlay_hints =
+						ols_config.enable_inlay_hints.(bool) or_else false
 					config.enable_format = true
 
 					for p in ols_config.collections {
@@ -524,6 +565,11 @@ request_initialize :: proc(
 		)
 		read_ols_config(ols_config_path, config, uri)
 	}
+
+	read_ols_initialize_options(
+		config,
+		initialize_params.initializationOptions,
+	)
 
 	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 

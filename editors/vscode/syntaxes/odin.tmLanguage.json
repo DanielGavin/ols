@@ -30,30 +30,37 @@
 	],
 	"repository": {
 		"identifier": {
-			"patterns": [{
-				"match": "\\b[[:alpha:]_][[:alnum:]_]*\\b"
-			}]
+			"patterns": [
+				{
+					"match": "\\b[[:alpha:]_][[:alnum:]_]*\\b"
+				}
+			]
 		},
 		"type-chars": {
-			"patterns": [{
-				"match": "[[:alnum:]\\s,._^<>\\[\\]-]"
-			}]
+			"patterns": [
+				{
+					"match": "[[:alnum:]\\s,._^<>\\[\\]-]"
+				}
+			]
 		},
 		"screaming-identifier": {
-			"patterns": [{
-				"match": "\\b[A-Z_](?![a-z])[A-Z_0-9]+\\b"
-			}]
+			"patterns": [
+				{
+					"match": "\\b[A-Z_](?![a-z])[A-Z_0-9]+\\b"
+				}
+			]
 		},
-
 		"block-comment": {
 			"patterns": [
 				{
 					"name": "comment.block.odin",
 					"begin": "/\\*",
 					"end": "\\*/",
-					"patterns": [{
-						"include": "#block-comment"
-					}]
+					"patterns": [
+						{
+							"include": "#block-comment"
+						}
+					]
 				}
 			]
 		},
@@ -233,7 +240,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(proc|type)\\b"
+					"match": "\\b(proc)\\b"
 				},
 				{
 					"name": "meta.brackets.odin",
