@@ -208,12 +208,21 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 		return empty()
 	}
 
-	pos_one_line_before := node.pos
+	node_pos := node.pos
+
+	#partial switch v in node.derived {
+	case ^ast.Value_Decl:
+		if len(v.attributes) > 0 {
+			node_pos = v.attributes[0].pos
+		}
+	}
+
+	pos_one_line_before := node_pos
 	pos_one_line_before.line -= 1
 
 	move := cons(
 		move_line(p, pos_one_line_before),
-		escape_nest(move_line(p, node.pos)),
+		escape_nest(move_line(p, node_pos)),
 	)
 
 	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
@@ -317,15 +326,21 @@ visit_decl :: proc(
 		document := move_line(p, decl.pos)
 
 		if v.name.text != "" {
-			document = cons(document, text_token(p, v.import_tok))
-			document = cons(document, break_with_space())
-			document = cons(document, text_token(p, v.name))
-			document = cons(document, break_with_space())
-			document = cons(document, text(v.fullpath))
+			document = cons(
+				document,
+				text_token(p, v.import_tok),
+				break_with_space(),
+				text_token(p, v.name),
+				break_with_space(),
+				text(v.fullpath),
+			)
 		} else {
-			document = cons(document, text_token(p, v.import_tok))
-			document = cons(document, break_with_space())
-			document = cons(document, text(v.fullpath))
+			document = cons(
+				document,
+				text_token(p, v.import_tok),
+				break_with_space(),
+				text(v.fullpath),
+			)
 		}
 		return document
 	case ^Value_Decl:
@@ -451,20 +466,6 @@ is_call_expr_nestable :: proc(list: []^ast.Expr) -> bool {
 
 @(private)
 is_foreign_block_only_procedures :: proc(stmt: ^ast.Stmt) -> bool {
-
-	/*
-	if block, ok := stmt.derived.(^ast.Block_Stmt); ok {
-
-		for stmt in block.stmts {
-
-
-
-
-		}
-
-	}
-	*/
-
 	return true
 }
 
@@ -859,8 +860,6 @@ visit_attributes :: proc(
 			visit_exprs(p, attribute.elems, {.Add_Comma}),
 			text(")"),
 		)
-		// document = cons(document, visit_exprs(p, attribute.elems, {.Add_Comma}))
-		// document = cons(document, text(")"))
 
 		if i != len(attributes) - 1 {
 			document = cons(document, newline(1))
@@ -2387,6 +2386,10 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 
 	if .Optional_Ok in proc_tags {
 		document = cons_with_opl(document, text("#optional_ok"))
+	}
+
+	if .Optional_Allocator_Error in proc_tags {
+		document = cons_with_opl(document, text("#optional_allocator_error"))
 	}
 
 	return group(cons_with_nopl(if_break("\\"), document))
