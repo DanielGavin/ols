@@ -8,3 +8,10 @@ main :: proc() {
 }
 
 procedure_no_bounds_check :: proc() where 1 == 1 #no_bounds_check {}
+
+// odinfmt: disable
+@(require_results)
+foo :: proc() -> int {
+    return 0
+}
+// odinfmt: enable
