@@ -301,7 +301,7 @@ CompletionItem :: struct {
 	insertText:          Maybe(string),
 	InsertTextMode:      Maybe(InsertTextMode),
 	textEdit:            Maybe(TextEdit),
-	additionalTextEdits: []TextEdit,
+	additionalTextEdits: Maybe([]TextEdit),
 	tags:                []CompletionItemTag,
 	deprecated:          bool,
 	command:             Maybe(Command),

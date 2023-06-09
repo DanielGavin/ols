@@ -1322,7 +1322,7 @@ get_identifier_completion :: proc(
 			continue
 		}
 
-		if result.snippet.insert != "" {
+		if result.snippet.insert != "" && false {
 			item := CompletionItem {
 				label            = result.name,
 				insertText       = result.snippet.insert,

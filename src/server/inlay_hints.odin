@@ -2,6 +2,7 @@ package server
 
 import "core:odin/ast"
 import "core:fmt"
+import "core:log"
 
 import "shared:common"
 
@@ -38,8 +39,6 @@ get_inlay_hints :: proc(
 		data := cast(^Visit_Data)visitor.data
 
 		if call, ok := node.derived.(^ast.Call_Expr); ok {
-
-
 			append(&data.calls, node)
 		}
 
@@ -62,7 +61,7 @@ get_inlay_hints :: proc(
 		call := node_call.derived.(^ast.Call_Expr)
 
 		for arg in call.args {
-			if _, ok := arg.derived.(^ast.Field); ok {
+			if _, ok := arg.derived.(^ast.Field_Value); ok {
 				continue loop
 			}
 		}
