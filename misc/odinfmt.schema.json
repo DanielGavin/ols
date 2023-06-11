@@ -1,0 +1,51 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"properties": {
+		"character_width": {
+			"type": "integer",
+			"default": 100,
+			"description": "How many characters it takes before it line breaks it."
+		},
+		"spaces": {
+			"type": "integer",
+			"default": 4,
+			"description": "Spaces per indentation"
+		},
+		"newline_limit": {
+			"type": "integer",
+			"default": 2,
+			"description": "The limit of newlines between statements and declarations."
+		},
+		"tabs": {
+			"type": "boolean",
+			"default": true,
+			"description": "Use tabs instead of spaces"
+		},
+		"tabs_width": {
+			"type": "integer",
+			"default": 4,
+			"description": "How many characters one tab represents"
+		},
+		"convert_do": {
+			"type": "boolean",
+			"default": false,
+			"description": "Convert all do statements to brace blocks"
+		},
+		"brace_style": {
+			"type": "string",
+			"enum": ["_1TBS", "Allman", "Stroustrup", "K_And_R"],
+			"default": "_1TBS"
+		},
+		"indent_cases": {
+			"type": "boolean",
+			"default": false
+		},
+		"newline_style": {
+			"type": "string",
+			"enum": ["CRLF", "LF"],
+			"default": "CRLF"
+		}
+	},
+	"required": []
+}
