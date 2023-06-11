@@ -20,6 +20,7 @@ import "core:time"
 
 import "shared:common"
 
+
 Header :: struct {
 	content_length: int,
 	content_type:   string,
@@ -276,6 +277,7 @@ call_map: map[string]proc(
 	"textDocument/rename"               = request_rename,
 	"textDocument/references"           = request_references,
 	"window/progress"                   = request_noop,
+	"workspace/symbol"                  = request_workspace_symbols,
 }
 
 notification_map: map[string]bool = {
@@ -675,6 +677,7 @@ request_initialize :: proc(
 					save = {includeText = true},
 				},
 				renameProvider = config.enable_rename,
+				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
 				definitionProvider = true,
 				completionProvider = CompletionOptions{
@@ -1426,6 +1429,17 @@ request_references :: proc(
 	response := make_response_message(params = locations, id = id)
 
 	send_response(response, writer)
+
+	return .None
+}
+
+request_workspace_symbols :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+
 
 	return .None
 }

@@ -53,7 +53,6 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator)
 
 	for k, global in ast_context.globals {
-
 		symbol: DocumentSymbol
 		symbol.range = common.get_token_range(
 			global.expr,

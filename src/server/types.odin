@@ -98,6 +98,7 @@ ServerCapabilities :: struct {
 	inlayHintProvider:          bool,
 	renameProvider:             bool,
 	referencesProvider:         bool,
+	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
 }
 
@@ -471,4 +472,14 @@ TextDocumentEdit :: struct {
 
 WorkspaceEdit :: struct {
 	documentChanges: []TextDocumentEdit,
+}
+
+WorkspaceSymbolParams :: struct {
+	query: string,
+}
+
+WorkspaceSymbol :: struct {
+	name:     string,
+	kind:     SymbolKind,
+	location: common.Location,
 }
