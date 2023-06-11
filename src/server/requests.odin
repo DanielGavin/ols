@@ -1440,6 +1440,8 @@ request_workspace_symbols :: proc(
 	writer: ^Writer,
 ) -> common.Error {
 
+	get_workspace_symbols("")
+
 
 	return .None
 }
