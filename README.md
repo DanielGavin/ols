@@ -34,14 +34,14 @@ In order for the language server to index your files, the ols.json must contain 
 
 Example of ols.json:
 
-```
+```json
 {
   "collections": [{ "name": "core", "path": "c:/path/to/Odin/core" },
                   { "name": "shared", "path": "c:/path/to/MyProject/src" }],
   "enable_semantic_tokens": false,
   "enable_document_symbols": true,
   "enable_hover": true,
-  "enable_snippets": true,
+  "enable_snippets": true
 }
 
 ```
@@ -72,7 +72,7 @@ Odinfmt reads configuration through `odinfmt.json`.
 
 Example:
 
-```
+```json
 {
 	"character_width": 80,
 	"tabs": true,
