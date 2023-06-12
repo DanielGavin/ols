@@ -65,6 +65,7 @@ try_build_package :: proc(pkg_name: string) {
 
 	if err != .None {
 		log.errorf("Failed to glob %v for indexing package", pkg_name)
+		return
 	}
 
 	temp_arena: mem.Arena

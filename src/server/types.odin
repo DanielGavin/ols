@@ -28,6 +28,7 @@ ResponseParams :: union {
 	[]TextEdit,
 	[]InlayHint,
 	[]DocumentLink,
+	[]WorkspaceSymbol,
 	WorkspaceEdit,
 }
 

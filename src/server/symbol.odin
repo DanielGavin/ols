@@ -229,3 +229,25 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolUntypedValue, SymbolPackageValue:
 	}
 }
+
+
+symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
+	#partial switch type {
+	case .Function:
+		return .Function
+	case .Constant:
+		return .Constant
+	case .Variable:
+		return .Variable
+	case .Union:
+		return .Enum
+	case .Struct:
+		return .Struct
+	case .Enum:
+		return .Enum
+	case .Keyword:
+		return .Key
+	case:
+		return .Null
+	}
+}

@@ -4,6 +4,7 @@ package server
 import "core:path/filepath"
 import "core:os"
 import "core:log"
+import "core:fmt"
 
 import "shared:common"
 
@@ -19,7 +20,8 @@ walk_dir :: proc(
 	pkgs := cast(^[dynamic]string)user_data
 
 	if info.is_dir {
-		append(pkgs, info.name)
+		dir, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
+		append(pkgs, dir)
 	}
 
 	return 0, false
@@ -28,18 +30,42 @@ walk_dir :: proc(
 get_workspace_symbols :: proc(
 	query: string,
 ) -> (
-	symbols: []WorkspaceSymbol,
+	workspace_symbols: []WorkspaceSymbol,
 	ok: bool,
 ) {
 	workspace := common.config.workspace_folders[0]
 	uri := common.parse_uri(workspace.uri, context.temp_allocator) or_return
 	pkgs := make([dynamic]string, 0, context.temp_allocator)
+	symbols := make([dynamic]WorkspaceSymbol, 0, 100, context.temp_allocator)
 
 	filepath.walk(uri.path, walk_dir, &pkgs)
 
 	for pkg in pkgs {
-		//log.error(pkg)
+		matches, err := filepath.glob(
+			fmt.tprintf("%v/*.odin", pkg),
+			context.temp_allocator,
+		)
+
+		if len(matches) == 0 {
+			continue
+		}
+
+		if results, ok := fuzzy_search(query, {pkg}); ok {
+			for result in results {
+				symbol := WorkspaceSymbol {
+					name = result.symbol.name,
+					location = {
+						range = result.symbol.range,
+						uri = result.symbol.uri,
+					},
+					kind = symbol_kind_to_type(result.symbol.type),
+				}
+
+				append(&symbols, symbol)
+			}
+		}
 	}
 
-	return {}, true
+
+	return symbols[:], true
 }

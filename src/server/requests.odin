@@ -519,7 +519,7 @@ request_initialize :: proc(
 									"HOME",
 									context.temp_allocator,
 								)
-								strings.replace(
+								forward_path, _ = strings.replace(
 									forward_path,
 									"~",
 									home,
@@ -1439,9 +1439,29 @@ request_workspace_symbols :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	params_object, ok := params.(json.Object)
 
-	get_workspace_symbols("")
+	if !ok {
+		return .ParseError
+	}
 
+	workspace_symbol_params: WorkspaceSymbolParams
+
+	if unmarshal(params, workspace_symbol_params, context.temp_allocator) !=
+	   nil {
+		return .ParseError
+	}
+
+	symbols: []WorkspaceSymbol
+	symbols, ok = get_workspace_symbols(workspace_symbol_params.query)
+
+	if !ok {
+		return .InternalError
+	}
+
+	response := make_response_message(params = symbols, id = id)
+
+	send_response(response, writer)
 
 	return .None
 }
