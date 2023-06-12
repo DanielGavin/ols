@@ -217,6 +217,7 @@ export function createOlsConfig(ctx: Ctx) {
     const corePath = path.resolve(path.join(path.dirname(odinPath), "core"));
 
     const config = {
+		$schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
         collections: [{ name: "core", path: corePath }],
         enable_document_symbols: true,
         enable_semantic_tokens: false,

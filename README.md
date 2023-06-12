@@ -1,49 +1,54 @@
 # ols
-Language server for Odin. This project is still in early development. 
+
+Language server for Odin. This project is still in early development.
 
 **Status**: All platforms work.
 
 ## Table Of Contents
-- [Installation](#installation)
-  - [Configuration](#Configuration)
-- [Features](#features)
-- [Clients](#clients)
-  - [Vs Code](#vs-code)
-  - [Sublime](#sublime)
-  - [Vim](#vim)
-  - [Neovim](#neovim)
-  - [Emacs](#emacs)
+
+-   [Installation](#installation)
+    -   [Configuration](#Configuration)
+-   [Features](#features)
+-   [Clients](#clients)
+    -   [Vs Code](#vs-code)
+    -   [Sublime](#sublime)
+    -   [Vim](#vim)
+    -   [Neovim](#neovim)
+    -   [Emacs](#emacs)
+    -   [Helix](#helix)
 
 ## Installation
 
- ```
- cd ols
+```bash
+cd ols
 
- //for windows
- ./build.bat 
+# for windows
+./build.bat
 
- //for linux
- ./build.sh
- ```
+# for linux
+./build.sh
+```
 
 ### Configuration
 
-All configurations is contained in one json file that must be named ```ols.json``` in your main workspace.
+All configurations is contained in one json file that must be named `ols.json` in your main workspace.
 
-In order for the language server to index your files, the ols.json must contain all the collections in your project.
+In order for the language server to index your files, the `ols.json` must contain all the collections in your project.
 
-Example of ols.json:
+Example of `ols.json`:
 
-```
+```json
 {
-  "collections": [{ "name": "core", "path": "c:/path/to/Odin/core" },
-                  { "name": "shared", "path": "c:/path/to/MyProject/src" }],
-  "enable_semantic_tokens": false,
-  "enable_document_symbols": true,
-  "enable_hover": true,
-  "enable_snippets": true,
+	"$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
+	"collections": [
+		{ "name": "core", "path": "c:/path/to/Odin/core" },
+		{ "name": "shared", "path": "c:/path/to/MyProject/src" }
+	],
+	"enable_semantic_tokens": false,
+	"enable_document_symbols": true,
+	"enable_hover": true,
+	"enable_snippets": true
 }
-
 ```
 
 You can also set `ODIN_ROOT` environment variable to the path where ols should look for core and vendor libraries.
@@ -56,24 +61,23 @@ Options:
 
 `enable_semantic_tokens`: Turns on syntax highlighting.
 
-`enable_document_symbols`: Turns on outline of all your global declarations in your document. 
+`enable_document_symbols`: Turns on outline of all your global declarations in your document.
 
-`odin_command`: Allows you to specifiy your Odin location, instead of just relying on the environment path.
+`odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
-`checker_args`: Pass custom arguments to ```odin check```.
+`checker_args`: Pass custom arguments to `odin check`.
 
 `verbose`: Logs warnings instead of just errors.
 
-
-
-
 ### Odinfmt configurations
+
 Odinfmt reads configuration through `odinfmt.json`.
 
 Example:
 
-```
+```json
 {
+	"$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/odinfmt.schema.json",
 	"character_width": 80,
 	"tabs": true,
 	"tabs_width": 4
@@ -93,22 +97,28 @@ Options:
 `tabs_width`: How many characters one tab represents
 
 ## Features
-  Support Language server features:
-  - Completion
-  - Go to definition
-  - Semantic tokens(really unstable and unfinished)
-  - Document symbols
-  - Signature help
-  - Hover
+
+Support Language server features:
+
+-   Completion
+-   Go to definition
+-   Semantic tokens(really unstable and unfinished)
+-   Document symbols
+-   Signature help
+-   Hover
 
 ## Clients
 
 ### VS Code
+
 Install the extension https://marketplace.visualstudio.com/items?itemName=DanielGavin.ols
+
 ### Sublime
+
 Install the package https://github.com/sublimelsp/LSP
 
 Configuration of the LSP:
+
 ```
 {
 	"clients":
@@ -129,9 +139,11 @@ Configuration of the LSP:
 ```
 
 ### Vim
+
 Install [Coc](https://github.com/neoclide/coc.nvim).
 
 Configuration of the LSP:
+
 ```
 {
   "languageserver": {
@@ -145,18 +157,21 @@ Configuration of the LSP:
 ```
 
 ### Neovim
+
 Neovim has a builtin support for LSP.
 
 There is a plugin that turns easier the setup, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can
 install it with you prefered package manager.
 
 A simple configuration to use with Odin would be like this:
+
 ```lua
 local lspconfig = require('lspconfig')
 lspconfig.ols.setup({})
 ```
 
 ### Emacs
+
 ```
 ;; With odin-mode (https://github.com/mattt-b/odin-mode) and lsp-mode already added to your init.el of course!.
 (setq-default lsp-auto-guess-root t) ;; if you work with Projectile/project.el this will help find the ols.json file.
@@ -170,6 +185,7 @@ lspconfig.ols.setup({})
 ```
 
 ### Helix
+
 ```
 [[language]]
 name = "odin"
