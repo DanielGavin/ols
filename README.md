@@ -15,6 +15,7 @@ Language server for Odin. This project is still in early development.
     -   [Vim](#vim)
     -   [Neovim](#neovim)
     -   [Emacs](#emacs)
+    -   [Helix](#helix)
 
 ## Installation
 
