@@ -16,6 +16,7 @@ Language server for Odin. This project is still in early development.
     -   [Neovim](#neovim)
     -   [Emacs](#emacs)
     -   [Helix](#helix)
+    -   [Micro](#micro)
 
 ## Installation
 
@@ -197,4 +198,16 @@ language-server = { command = "ols" }
 injection-regex = "odin"
 roots = ["ols.json"]
 formatter = { command = "odinfmt", args = [ "-stdin", "true" ] }
+```
+
+### Micro
+
+Install the [LSP plugin](https://github.com/AndCake/micro-plugin-lsp)
+
+Configure the plugin in micro's settings.json:
+
+```json
+{
+	"lsp.server": "c=clangd,go=gopls,odin=ols"
+}
 ```
