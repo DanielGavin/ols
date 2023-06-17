@@ -140,6 +140,26 @@
 					"match": "\\b(cast|transmute|auto_cast)\\b"
 				},
 				{
+					"name": "keyword.operator.assignment.compound",
+					"match": "[+\\-*/%]=|%%="
+				},
+				{
+					"name": "keyword.operator.assignment.compound.bitwise",
+					"match": "\\|=|~=|&~?=|<<=|>>="
+				},
+				{
+					"name": "keyword.operator.comparison",
+					"match": "==|!="
+				},
+				{
+					"name": "keyword.operator.relational",
+					"match": "[<>]=?"
+				},
+				{
+					"name": "keyword.operator.assignment.odin",
+					"match": ":[:=]|="
+				},
+				{
 					"name": "keyword.operator.odin",
 					"match": "@|(\\||\\!|:|\\+|-\\>?|\\*|/|\\<\\<?|\\>\\>?|\\~)=?|=|::?|\\.\\."
 				},
@@ -157,10 +177,10 @@
 							"name": "entity.name.function.odin"
 						},
 						"2": {
-							"name": "punctuation.odin"
+							"name": "keyword.operator.assignment.odin"
 						},
 						"3": {
-							"name": "punctuation.odin"
+							"name": "keyword.operator.assignment.odin"
 						},
 						"4": {
 							"name": "storage.type.odin"
@@ -212,7 +232,7 @@
 				{
 					"captures": {
 						"1": {
-							"name": "meta.type.name.odin"
+							"name": "entity.name.type.odin"
 						},
 						"2": {
 							"name": "storage.type.odin"
@@ -269,23 +289,23 @@
 		"basic-types": {
 			"patterns": [
 				{
-					"name": "support.type.odin",
+					"name": "support.type.primitive.odin",
 					"match": "\\b((i8|i16|i32|i64|i128|int)|(u8|u16|u32|u64|u128|uint|uintptr))\\b"
 				},
 				{
-					"name": "support.type.odin",
+					"name": "support.type.primitive.odin",
 					"match": "\\b((f16|f32|f64)|(complex32|complex64|complex128)|(quaternion64|quaternion128|quaternion256))\\b"
 				},
 				{
-					"name": "support.type.odin",
+					"name": "support.type.primitive.odin",
 					"match": "\\b(bool|b8|b16|b32|b64)\\b"
 				},
 				{
-					"name": "support.type.odin",
+					"name": "support.type.primitive.odin",
 					"match": "\\b(string|rune|rawptr|any)\\b"
 				},
 				{
-					"name": "support.type.odin",
+					"name": "support.type.primitive.odin",
 					"match": "\\b(byte|cstring)\\b"
 				}
 			]
