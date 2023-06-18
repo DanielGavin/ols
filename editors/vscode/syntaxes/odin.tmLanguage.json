@@ -13,6 +13,9 @@
 			"include": "#types"
 		},
 		{
+			"include": "#object-identifiers"
+		},
+		{
 			"include": "#functions-and-declarations"
 		},
 		{
@@ -169,6 +172,17 @@
 				}
 			]
 		},
+		"object-identifiers": {
+			"patterns": [
+				{
+					"captures": {
+						"1": { "name": "variable.other.object" },
+						"2": { "name": "punctuation.accessor.odin" }
+					},
+					"match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\.)"
+				}
+			]
+		},
 		"functions-and-declarations": {
 			"patterns": [
 				{
@@ -217,15 +231,6 @@
 						}
 					},
 					"match": "(proc)\\s*([\\(])"
-				},
-				{
-					"captures": {
-						"1": { "name": "variable.other.object" },
-						"2": { "name": "punctuation.accessor.odin" },
-						"3": { "name": "entity.name.function.odin" },
-						"4": { "name": "punctuation.odin" }
-					},
-					"match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*[!]?\\s*([\\(])"
 				},
 				{
 					"captures": {
