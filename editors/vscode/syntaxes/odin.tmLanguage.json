@@ -176,7 +176,7 @@
 			"patterns": [
 				{
 					"captures": {
-						"1": { "name": "variable.other.object" },
+						"1": { "name": "variable.other.object.odin" },
 						"2": { "name": "punctuation.accessor.odin" }
 					},
 					"match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\.)"
