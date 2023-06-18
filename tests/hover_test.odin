@@ -156,3 +156,17 @@ ast_hover_same_name_in_selector_and_field :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "Color.color: int")
 }
+
+@(test)
+zzast_hover_on_sliced_result :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f :: proc() {
+			buf: [420]byte
+			slic{*}e := buf[2:20]
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.slice: []byte")
+}

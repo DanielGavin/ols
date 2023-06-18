@@ -1244,7 +1244,7 @@ internal_resolve_type_expression :: proc(
 	case ^Paren_Expr:
 		return internal_resolve_type_expression(ast_context, v.expr)
 	case ^Slice_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return resolve_slice_expression(ast_context, v)
 	case ^Tag_Expr:
 		return internal_resolve_type_expression(ast_context, v.expr)
 	case ^Helper_Type:
@@ -1981,6 +1981,35 @@ expand_struct_usings :: proc(
 	}
 
 	return {names = names[:], types = types[:], ranges = ranges[:]}
+}
+
+resolve_slice_expression :: proc(
+	ast_context: ^AstContext,
+	slice_expr: ^ast.Slice_Expr,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	symbol = resolve_type_expression(ast_context, slice_expr.expr) or_return
+
+	expr: ^ast.Expr
+
+	#partial switch v in symbol.value {
+	case SymbolSliceValue:
+		expr = v.expr
+	case SymbolFixedArrayValue:
+		expr = v.expr
+	case SymbolDynamicArrayValue:
+		expr = v.expr
+	case:
+		return {}, false
+	}
+
+	symbol.value = SymbolSliceValue {
+		expr = expr,
+	}
+
+	return symbol, true
 }
 
 resolve_comp_literal :: proc(
