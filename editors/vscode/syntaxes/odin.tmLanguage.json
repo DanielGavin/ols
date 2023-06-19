@@ -13,6 +13,9 @@
 			"include": "#types"
 		},
 		{
+			"include": "#object-identifiers"
+		},
+		{
 			"include": "#functions-and-declarations"
 		},
 		{
@@ -112,8 +115,8 @@
 					"match": "\\b(asm)\\b"
 				},
 				{
-					"name": "keyword.operator.odin",
-					"match": "\\b(distinct|context)\\b"
+					"name": "variable.other.object.odin",
+					"match": "\\b(context)\\b"
 				},
 				{
 					"name": "constant.language.odin",
@@ -133,7 +136,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(struct|enum|union|map|set|bit_set|typeid|matrix)\\b"
+					"match": "\\b(struct|enum|union|distinct|map|set|bit_set|typeid|matrix)\\b"
 				},
 				{
 					"name": "keyword.function.odin",
@@ -166,6 +169,17 @@
 				{
 					"name": "keyword.other.odin",
 					"match": "#[A-Za-z_][A-Za-z_0-9]*"
+				}
+			]
+		},
+		"object-identifiers": {
+			"patterns": [
+				{
+					"captures": {
+						"1": { "name": "variable.other.object.odin" },
+						"2": { "name": "punctuation.accessor.odin" }
+					},
+					"match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\.)"
 				}
 			]
 		},
@@ -205,7 +219,7 @@
 							"name": "punctuation.odin"
 						}
 					},
-					"match": "\\b(len|cap|make|resize|reserve|append|delete|assertf?|panicf?)\\b\\s*(\\()"
+					"match": "\\b(len|cap|make|resize|reserve|append|delete|assert|panic)\\b\\s*(\\()"
 				},
 				{
 					"captures": {
@@ -220,25 +234,19 @@
 				},
 				{
 					"captures": {
-						"1": {
-							"name": "support.function.odin"
-						},
-						"2": {
-							"name": "punctuation.odin"
-						}
+						"1": { "name": "entity.name.function.odin" },
+						"2": { "name": "punctuation.odin" }
 					},
 					"match": "([A-Za-z_][A-Za-z0-9_]*)\\s*[!]?\\s*([\\(])"
 				},
 				{
 					"captures": {
-						"1": {
-							"name": "entity.name.type.odin"
-						},
-						"2": {
-							"name": "storage.type.odin"
-						}
+						"1": { "name": "entity.name.type.odin" },
+						"2": { "name": "keyword.operator.assignment.odin" },
+						"3": { "name": "keyword.operator.assignment.odin" },
+						"4": { "name": "storage.type.odin" }
 					},
-					"match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*[:]\\s*[:]\\s*(struct|union|enum|bit_set)"
+					"match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*([:])\\s*([:])\\s*(struct|union|enum|bit_set)"
 				}
 			]
 		},
