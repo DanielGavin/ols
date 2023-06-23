@@ -64,7 +64,7 @@
 						"1": { "name": "support.function.builtin.odin" },
 						"2": { "name": "punctuation.odin" }
 					},
-					"match": "\\b(len|cap|size_of|align_of|offset_of_selector|offset_of_member|offset_of|offset_of_by_string|type_of|type_info_of|typeid_of|swizzle|complex|quaternion|real|imag|jmag|kmag|conj|expand_values|min|max|abs|clamp|soa_zip|soa_unzip|make|resize|reserve|append|delete|assert|panic)\\b\\s*(\\()"
+					"match": "(?<!\\.)\\b(len|cap|size_of|align_of|offset_of_selector|offset_of_member|offset_of|offset_of_by_string|type_of|type_info_of|typeid_of|swizzle|complex|quaternion|real|imag|jmag|kmag|conj|expand_values|min|max|abs|clamp|soa_zip|soa_unzip|make|resize|reserve|append|delete|assert|panic)\\b\\s*(\\()"
 				},
 				{
 					"captures": {
