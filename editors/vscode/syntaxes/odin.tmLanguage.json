@@ -21,7 +21,7 @@
 		"declarations": {
 			"patterns": [
 				{
-					"begin": "\\b([A-Za-z_]\\w*)\\s*(:)\\s*(:|=)\\s*(#type)?\\s*(?=proc)",
+					"begin": "\\b([A-Za-z_]\\w*)\\s*(:)\\s*(:|=)\\s*(#type)?\\s*(?=\\bproc\\b)",
 					"beginCaptures": {
 						"1": {
 							"name": "meta.definition.function.odin entity.name.function.odin"
@@ -83,7 +83,7 @@
 		},
 		"procedure-declaration": {
 			"name": "meta.function.odin",
-			"begin": "proc",
+			"begin": "\\bproc\\b",
 			"beginCaptures": { "0": { "name": "keyword.other.odin" } },
 			"end": "(?=^|\\)|,|;)|(?<=})",
 			"patterns": [
@@ -442,7 +442,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(proc)\\b"
+					"match": "\\bproc\\b"
 				},
 				{
 					"name": "meta.brackets.odin",
