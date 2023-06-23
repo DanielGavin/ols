@@ -106,66 +106,8 @@
 			},
 			"patterns": [
 				{ "include": "#comments" },
-				{
-					"begin": ":?=",
-					"beginCaptures": {
-						"0": { "name": "keyword.operator.assignment.odin" }
-					},
-					"end": "(?=,|\\))",
-					"patterns": [
-						{ "include": "#comments" },
-						{ "include": "#keywords" },
-						{ "include": "#property-access" },
-						{ "include": "#strings" },
-						{ "include": "#punctuation" },
-						{ "include": "#variables" }
-					]
-				},
-				{
-					"begin": ":",
-					"beginCaptures": {
-						"0": { "name": "keyword.operator.type.annotation.odin" }
-					},
-					"name": "meta.type.annotation.odin",
-					"end": "(?=,|\\)|\\s*=)",
-					"patterns": [
-						{ "include": "#comments" },
-						{ "include": "#procedure-declaration" },
-						{ "include": "#keywords" },
-						{ "include": "#basic-types" },
-						{
-							"begin": "\\b([A-Za-z_]\\w*)\\b\\s*\\(()\\s*",
-							"beginCaptures": {
-								"1": { "name": "entity.name.type.odin" },
-								"2": {
-									"name": "punctuation.definition.typeparameters.begin.odin"
-								}
-							},
-							"end": "\\)",
-							"endCaptures": {
-								"0": {
-									"name": "punctuation.definition.typeparameters.end.odin"
-								}
-							},
-							"patterns": [
-								{ "include": "#comments" },
-								{ "include": "#keywords" },
-								{ "include": "#basic-types" },
-								{ "include": "#property-access" },
-								{
-									"name": "entity.name.type.parameter.odin",
-									"match": "\\b[A-Za-z_]\\w*\\b"
-								},
-								{ "include": "#parameter-separator" }
-							]
-						},
-						{ "include": "#property-access" },
-						{
-							"name": "entity.name.type.odin",
-							"match": "\\b[A-Za-z_]\\w*\\b"
-						}
-					]
-				},
+				{ "include": "#parameter-assignment" },
+				{ "include": "#type-annotation" },
 				{ "include": "#keywords" },
 				{ "include": "#basic-types" },
 				{ "include": "#property-access" },
@@ -205,43 +147,8 @@
 					},
 					"patterns": [
 						{ "include": "#comments" },
-						{
-							"begin": ":?=",
-							"beginCaptures": {
-								"0": {
-									"name": "keyword.operator.assignment.odin"
-								}
-							},
-							"end": "(?=,|\\))",
-							"patterns": [
-								{ "include": "#comments" },
-								{ "include": "#keywords" },
-								{ "include": "#property-access" },
-								{ "include": "#strings" },
-								{ "include": "#punctuation" },
-								{ "include": "#variables" }
-							]
-						},
-						{
-							"begin": ":",
-							"beginCaptures": {
-								"0": {
-									"name": "keyword.operator.type.annotation.odin"
-								}
-							},
-							"name": "meta.type.annotation.odin",
-							"end": "(?=,|\\)|\\s*=)",
-							"patterns": [
-								{ "include": "#comments" },
-								{ "include": "#keywords" },
-								{ "include": "#basic-types" },
-								{ "include": "#property-access" },
-								{
-									"name": "entity.name.type.odin",
-									"match": "\\b[A-Za-z_]\\w*\\b"
-								}
-							]
-						},
+						{ "include": "#parameter-assignment" },
+						{ "include": "#type-annotation" },
 						{ "include": "#keywords" },
 						{ "include": "#basic-types" },
 						{ "include": "#property-access" },
@@ -256,6 +163,23 @@
 					"name": "entity.name.type.odin",
 					"match": "\\b[A-Za-z_]\\w*\\b"
 				}
+			]
+		},
+		"parameter-assignment": {
+			"begin": ":?=",
+			"beginCaptures": {
+				"0": {
+					"name": "keyword.operator.assignment.odin"
+				}
+			},
+			"end": "(?=,|\\))",
+			"patterns": [
+				{ "include": "#comments" },
+				{ "include": "#keywords" },
+				{ "include": "#property-access" },
+				{ "include": "#strings" },
+				{ "include": "#punctuation" },
+				{ "include": "#variables" }
 			]
 		},
 		"where-clause": {
@@ -280,6 +204,51 @@
 		"parameter-separator": {
 			"name": "punctuation.separator.parameter.odin",
 			"match": ","
+		},
+		"type-annotation": {
+			"name": "meta.type.annotation.odin",
+			"begin": ":",
+			"beginCaptures": {
+				"0": { "name": "keyword.operator.type.annotation.odin" }
+			},
+			"end": "(?=,|\\)|\\s*=)",
+			"patterns": [
+				{ "include": "#comments" },
+				{ "include": "#procedure-declaration" },
+				{ "include": "#keywords" },
+				{ "include": "#basic-types" },
+				{
+					"begin": "\\b([A-Za-z_]\\w*)\\b\\s*\\(()\\s*",
+					"beginCaptures": {
+						"1": { "name": "entity.name.type.odin" },
+						"2": {
+							"name": "punctuation.definition.typeparameters.begin.odin"
+						}
+					},
+					"end": "\\)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.typeparameters.end.odin"
+						}
+					},
+					"patterns": [
+						{ "include": "#comments" },
+						{ "include": "#keywords" },
+						{ "include": "#basic-types" },
+						{ "include": "#property-access" },
+						{
+							"name": "entity.name.type.parameter.odin",
+							"match": "\\b[A-Za-z_]\\w*\\b"
+						},
+						{ "include": "#parameter-separator" }
+					]
+				},
+				{ "include": "#property-access" },
+				{
+					"name": "entity.name.type.odin",
+					"match": "\\b[A-Za-z_]\\w*\\b"
+				}
+			]
 		},
 		"property-access": {
 			"captures": {
