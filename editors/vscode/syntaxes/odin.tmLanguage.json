@@ -85,7 +85,7 @@
 			"name": "meta.function.odin",
 			"begin": "proc",
 			"beginCaptures": { "0": { "name": "keyword.other.odin" } },
-			"end": "(?=^)|(?<=\\})",
+			"end": "(?=^|\\)|,|;)|(?<=})",
 			"patterns": [
 				{ "include": "#comments" },
 				{ "include": "#procedure-parameters" },
@@ -130,6 +130,7 @@
 					"end": "(?=,|\\)|\\s*=)",
 					"patterns": [
 						{ "include": "#comments" },
+						{ "include": "#procedure-declaration" },
 						{ "include": "#keywords" },
 						{ "include": "#basic-types" },
 						{
@@ -181,7 +182,7 @@
 			"beginCaptures": {
 				"0": { "name": "storage.type.function.arrow.odin" }
 			},
-			"end": "(?=^|{|where)",
+			"end": "(?=^|\\)|,|;|{|where)",
 			"patterns": [
 				{ "include": "#comments" },
 				{ "include": "#keywords" },
