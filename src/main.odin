@@ -112,10 +112,6 @@ main :: proc() {
 	context.logger = log.create_file_logger(fh, log.Level.Info)
 	*/
 
-	when ODIN_DEBUG && ODIN_OS == .Windows {
-		//set_stacktrace()
-	}
-
 	init_global_temporary_allocator(mem.Megabyte * 100)
 
 
