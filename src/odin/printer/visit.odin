@@ -257,6 +257,8 @@ visit_decl :: proc(
 	}
 
 	#partial switch v in decl.derived {
+	case ^Assign_Stmt:
+		return visit_stmt(p, v)
 	case ^Expr_Stmt:
 		document := move_line(p, decl.pos)
 		return cons(document, visit_expr(p, v.expr))
