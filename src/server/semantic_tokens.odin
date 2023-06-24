@@ -803,7 +803,7 @@ visit_basic_lit :: proc(
 ) {
 	if symbol, ok := resolve_basic_lit(ast_context, basic_lit); ok {
 		if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
-			switch untyped.type {
+			#partial switch untyped.type {
 			case .Bool:
 				write_semantic_token(
 					builder,
