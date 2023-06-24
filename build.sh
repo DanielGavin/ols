@@ -59,7 +59,7 @@ then
 fi
 if [[ $1 == "debug" ]]
 then
-    odin build src/ -collection:shared=src -out:ols -debug
+    odin build src/ -collection:shared=src -out:ols -use-separate-modules -debug
     exit 0
 fi
 
