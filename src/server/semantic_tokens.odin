@@ -715,13 +715,6 @@ visit_node :: proc(
 			)
 		}
 
-		write_semantic_token(
-			builder,
-			n.relpath,
-			ast_context.file.src,
-			.String,
-			.None,
-		)
 	case ^Or_Return_Expr:
 		visit(n.expr, builder, ast_context)
 		write_semantic_token(
@@ -825,14 +818,6 @@ visit_basic_lit :: proc(
 					basic_lit.tok,
 					ast_context.file.src,
 					.Number,
-					.None,
-				)
-			case .String:
-				write_semantic_token(
-					builder,
-					basic_lit.tok,
-					ast_context.file.src,
-					.String,
 					.None,
 				)
 			}
