@@ -977,6 +977,7 @@ visit_stmt :: proc(
 		set_source_position(p, v.pos)
 
 		block := visit_block_stmts(p, v.stmts, len(v.stmts) > 1)
+
 		comment_end, _ := visit_comments(
 			p,
 			tokenizer.Pos{line = v.end.line, offset = v.end.offset},
@@ -984,6 +985,8 @@ visit_stmt :: proc(
 
 		if block_type == .Switch_Stmt && !p.config.indent_cases {
 			document = cons(document, block, comment_end)
+		} else if uses_do {
+			document = cons(document, cons(block, comment_end))
 		} else {
 			document = cons(document, nest(cons(block, comment_end)))
 		}
