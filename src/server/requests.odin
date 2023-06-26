@@ -433,7 +433,22 @@ read_ols_initialize_options :: proc(
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 
+	// copy collections from new config
+	when ODIN_OS == .Windows {
+		for it in ols_config.collections {
+			forward, _ := filepath.to_slash(
+				common.get_case_sensitive_path(it.path),
+				context.temp_allocator,
+			)
+			config.collections[it.name] = strings.clone(forward, context.allocator)
+		}
+	} else {
+		for it in ols_config.collections {
+			config.collections[it.name] = strings.clone(it.path, context.allocator)
+		}
+	}
 
+	// ensure that core/vendor collections are provided
 	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
 
 	if odin_core_env == "" {
@@ -462,16 +477,6 @@ read_ols_initialize_options :: proc(
 			elems = {forward_path, "vendor"},
 			allocator = context.allocator,
 		)
-	}
-
-	when ODIN_OS == .Windows {
-		for k, v in config.collections {
-			forward, _ := filepath.to_slash(
-				common.get_case_sensitive_path(v),
-				context.temp_allocator,
-			)
-			config.collections[k] = strings.clone(forward, context.allocator)
-		}
 	}
 }
 
