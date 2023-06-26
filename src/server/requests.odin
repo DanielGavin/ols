@@ -1455,7 +1455,14 @@ request_workspace_didChangeConfiguration :: proc(
 
 	ols_config := workspace_config_params.settings
 
-	// TODO: update config here
+	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.? or_else true
+	config.enable_document_symbols = ols_config.enable_document_symbols.? or_else true
+	config.enable_hover = ols_config.enable_hover.? or_else true
+	config.enable_snippets = ols_config.enable_snippets.? or_else true
+
+	for conf in ols_config.collections {
+		config.collections[strings.clone(conf.name)] = strings.clone(conf.path)
+	}
 
 	return .None
 }
