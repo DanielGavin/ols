@@ -278,7 +278,7 @@ call_map: map[string]proc(
 	"textDocument/references"           = request_references,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
-	"workspace/didChangeConfiguration"  = request_workspace_didChangeConfiguration,
+	"workspace/didChangeConfiguration"  = notification_workspace_did_change_configuration,
 }
 
 notification_map: map[string]bool = {
@@ -398,6 +398,42 @@ call :: proc(
 	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
+read_ols_initialize_options :: proc(
+	config: ^common.Config,
+	ols_config: OlsConfig,
+) {
+	config.disable_parser_errors =
+		ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+	config.thread_count =
+		ols_config.thread_pool_count.(int) or_else config.thread_count
+	config.enable_document_symbols =
+		ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_hover =
+		ols_config.enable_hover.(bool) or_else config.enable_hover
+	config.enable_semantic_tokens =
+		ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+	config.enable_procedure_context =
+		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
+	config.enable_snippets =
+		ols_config.enable_snippets.(bool) or_else config.enable_snippets
+	config.enable_references =
+		ols_config.enable_references.(bool) or_else config.enable_references
+	config.verbose = ols_config.verbose.(bool) or_else config.verbose
+	config.file_log = ols_config.file_log.(bool) or_else config.file_log
+	config.enable_rename =
+		ols_config.enable_references.(bool) or_else config.enable_rename
+	config.odin_command = strings.clone(
+		ols_config.odin_command.(string) or_else config.odin_command,
+		context.allocator,
+	)
+	config.checker_args = strings.clone(
+		ols_config.checker_args.(string) or_else config.checker_args,
+		context.allocator,
+	)
+	config.enable_inlay_hints =
+		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+}
+
 request_initialize :: proc(
 	params: json.Value,
 	id: RequestId,
@@ -422,42 +458,6 @@ request_initialize :: proc(
 		workspace: common.WorkspaceFolder
 		workspace.uri = strings.clone(s.uri)
 		append(&config.workspace_folders, workspace)
-	}
-
-	read_ols_initialize_options :: proc(
-		config: ^common.Config,
-		ols_config: OlsConfig,
-	) {
-		config.disable_parser_errors =
-			ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
-		config.thread_count =
-			ols_config.thread_pool_count.(int) or_else config.thread_count
-		config.enable_document_symbols =
-			ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
-		config.enable_hover =
-			ols_config.enable_hover.(bool) or_else config.enable_hover
-		config.enable_semantic_tokens =
-			ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
-		config.enable_procedure_context =
-			ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
-		config.enable_snippets =
-			ols_config.enable_snippets.(bool) or_else config.enable_snippets
-		config.enable_references =
-			ols_config.enable_references.(bool) or_else config.enable_references
-		config.verbose = ols_config.verbose.(bool) or_else config.verbose
-		config.file_log = ols_config.file_log.(bool) or_else config.file_log
-		config.enable_rename =
-			ols_config.enable_references.(bool) or_else config.enable_rename
-		config.odin_command = strings.clone(
-			ols_config.odin_command.(string) or_else config.odin_command,
-			context.allocator,
-		)
-		config.checker_args = strings.clone(
-			ols_config.checker_args.(string) or_else config.checker_args,
-			context.allocator,
-		)
-		config.enable_inlay_hints =
-			ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 	}
 
 	read_ols_config :: proc(
@@ -1434,7 +1434,7 @@ request_references :: proc(
 	return .None
 }
 
-request_workspace_didChangeConfiguration :: proc(
+notification_workspace_did_change_configuration :: proc(
 	params: json.Value,
 	id: RequestId,
 	config: ^common.Config,
@@ -1455,14 +1455,7 @@ request_workspace_didChangeConfiguration :: proc(
 
 	ols_config := workspace_config_params.settings
 
-	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.? or_else true
-	config.enable_document_symbols = ols_config.enable_document_symbols.? or_else true
-	config.enable_hover = ols_config.enable_hover.? or_else true
-	config.enable_snippets = ols_config.enable_snippets.? or_else true
-
-	for conf in ols_config.collections {
-		config.collections[strings.clone(conf.name)] = strings.clone(conf.path)
-	}
+	read_ols_initialize_options(config, ols_config)
 
 	return .None
 }
