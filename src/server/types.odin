@@ -484,3 +484,7 @@ WorkspaceSymbol :: struct {
 	kind:     SymbolKind,
 	location: common.Location,
 }
+
+DidChangeConfigurationParams :: struct {
+	settings: OlsConfig,
+}

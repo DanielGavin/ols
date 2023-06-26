@@ -278,6 +278,7 @@ call_map: map[string]proc(
 	"textDocument/references"           = request_references,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
+	"workspace/didChangeConfiguration"  = request_workspace_didChangeConfiguration,
 }
 
 notification_map: map[string]bool = {
@@ -1429,6 +1430,39 @@ request_references :: proc(
 	response := make_response_message(params = locations, id = id)
 
 	send_response(response, writer)
+
+	return .None
+}
+
+request_workspace_didChangeConfiguration :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	workspace_config_params: DidChangeConfigurationParams
+
+	if unmarshal(params, workspace_config_params, context.temp_allocator) !=
+	   nil {
+		return .ParseError
+	}
+
+	ols_config := workspace_config_params.settings
+
+	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.? or_else true
+	config.enable_document_symbols = ols_config.enable_document_symbols.? or_else true
+	config.enable_hover = ols_config.enable_hover.? or_else true
+	config.enable_snippets = ols_config.enable_snippets.? or_else true
+
+	for conf in ols_config.collections {
+		config.collections[strings.clone(conf.name)] = strings.clone(conf.path)
+	}
 
 	return .None
 }
