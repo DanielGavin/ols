@@ -50,6 +50,8 @@ get_workspace_symbols :: proc(
 			continue
 		}
 
+		try_build_package(pkg)
+
 		if results, ok := fuzzy_search(query, {pkg}); ok {
 			for result in results {
 				symbol := WorkspaceSymbol {
