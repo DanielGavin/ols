@@ -432,6 +432,47 @@ read_ols_initialize_options :: proc(
 	)
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+
+
+	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
+
+	if odin_core_env == "" {
+		if exe_path, ok := common.lookup_in_path("odin"); ok {
+			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+		}
+	}
+
+	if "core" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(
+			odin_core_env,
+			context.temp_allocator,
+		)
+		config.collections["core"] = path.join(
+			elems = {forward_path, "core"},
+			allocator = context.allocator,
+		)
+	}
+
+	if "vendor" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(
+			odin_core_env,
+			context.temp_allocator,
+		)
+		config.collections["vendor"] = path.join(
+			elems = {forward_path, "vendor"},
+			allocator = context.allocator,
+		)
+	}
+
+	when ODIN_OS == .Windows {
+		for k, v in config.collections {
+			forward, _ := filepath.to_slash(
+				common.get_case_sensitive_path(v),
+				context.temp_allocator,
+			)
+			config.collections[k] = strings.clone(forward, context.allocator)
+		}
+	}
 }
 
 request_initialize :: proc(
@@ -573,46 +614,6 @@ request_initialize :: proc(
 		config,
 		initialize_params.initializationOptions,
 	)
-
-	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
-
-	if odin_core_env == "" {
-		if exe_path, ok := common.lookup_in_path("odin"); ok {
-			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
-		}
-	}
-
-	if "core" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
-		config.collections["core"] = path.join(
-			elems = {forward_path, "core"},
-			allocator = context.allocator,
-		)
-	}
-
-	if "vendor" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
-		config.collections["vendor"] = path.join(
-			elems = {forward_path, "vendor"},
-			allocator = context.allocator,
-		)
-	}
-
-	when ODIN_OS == .Windows {
-		for k, v in config.collections {
-			forward, _ := filepath.to_slash(
-				common.get_case_sensitive_path(v),
-				context.temp_allocator,
-			)
-			config.collections[k] = strings.clone(forward, context.allocator)
-		}
-	}
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
