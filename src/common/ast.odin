@@ -314,11 +314,17 @@ collect_globals :: proc(
 				}
 
 				if ident != nil && implicit != nil {
-					allowed :=
-						ident.name == "ODIN_OS" &&
+					if binary.op.text == "==" {
+						allowed = ident.name == "ODIN_OS" &&
 							implicit.field.name == fmt.tprint(ODIN_OS) ||
 						ident.name == "ODIN_ARCH" &&
 							implicit.field.name == fmt.tprint(ODIN_ARCH)
+					} else if binary.op.text == "!=" {
+						allowed = ident.name == "ODIN_OS" &&
+							implicit.field.name != fmt.tprint(ODIN_OS) ||
+						ident.name == "ODIN_ARCH" &&
+							implicit.field.name != fmt.tprint(ODIN_ARCH)
+					}
 					if allowed {
 						if block, ok := when_decl.body.derived.(^ast.Block_Stmt);
 						   ok {
