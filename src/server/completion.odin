@@ -162,6 +162,7 @@ get_attribute_completion :: proc(
 	list: ^CompletionList,
 ) {
 
+
 }
 
 get_directive_completion :: proc(
@@ -332,6 +333,8 @@ get_selector_completion :: proc(
 			}
 		}
 	}
+
+	//append_method_completion(ast_context, selector, &items)
 
 	#partial switch v in selector.value {
 	case SymbolFixedArrayValue:
@@ -1606,6 +1609,52 @@ get_range_from_selection_start_to_dot :: proc(
 	}
 
 	return {}, false
+}
+
+append_method_completion :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	items: ^[dynamic]CompletionItem,
+) {
+	if symbol.type != .Variable {
+		return
+	}
+
+	for k, v in indexer.index.collection.packages {
+		method := Method {
+			name = symbol.name,
+			pkg  = symbol.pkg,
+		}
+		if symbols, ok := &v.methods[method]; ok {
+			for symbol in symbols {
+
+				resolve_unresolved_symbol(ast_context, &symbol)
+				build_procedure_symbol_signature(&symbol)
+
+				item := CompletionItem {
+					label         = symbol.name,
+					kind          = cast(CompletionItemKind)symbol.type,
+					detail        = concatenate_symbol_information(
+						ast_context,
+						symbol,
+						true,
+					),
+					documentation = symbol.doc,
+				}
+
+				if symbol.type == .Function && common.config.enable_snippets {
+					item.insertText = fmt.tprintf("%v($0)", item.label)
+					item.insertTextFormat = .Snippet
+					item.command = Command {
+						command = "editor.action.triggerParameterHints",
+					}
+					item.deprecated = .Deprecated in symbol.flags
+				}
+
+				append(items, item)
+			}
+		}
+	}
 }
 
 append_magic_map_completion :: proc(

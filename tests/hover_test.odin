@@ -158,7 +158,7 @@ ast_hover_same_name_in_selector_and_field :: proc(t: ^testing.T) {
 }
 
 @(test)
-zzast_hover_on_sliced_result :: proc(t: ^testing.T) {
+ast_hover_on_sliced_result :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		f :: proc() {

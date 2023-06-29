@@ -30,9 +30,15 @@ ObjcStruct :: struct {
 	ranges:    [dynamic]common.Range,
 }
 
+Method :: struct {
+	pkg:  string,
+	name: string,
+}
+
 SymbolPackage :: struct {
 	symbols:      map[string]Symbol,
 	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
+	methods:      map[Method][dynamic]Symbol,
 }
 
 get_index_unique_string :: proc {
@@ -136,14 +142,6 @@ collect_procedure_fields :: proc(
 		return_types = returns[:],
 		arg_types    = args[:],
 		generic      = proc_type.generic,
-		/*
-		objc_name            = common.get_attribute_objc_name(
-			attributes,
-		) or_else "",
-		objc_is_class_method = common.get_attribute_objc_is_class_method(
-			attributes,
-		) or_else false,
-		*/
 	}
 
 	return value
@@ -437,6 +435,55 @@ collect_generic :: proc(
 	return value
 }
 
+collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
+	pkg := &collection.packages[symbol.pkg]
+
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		if len(value.arg_types) == 0 {
+			return
+		}
+
+		expr, _, ok := common.unwrap_pointer(value.arg_types[0].type)
+
+		if !ok {
+			return
+		}
+
+		method: Method
+
+		#partial switch v in expr.derived {
+		case ^ast.Selector_Expr:
+			if ident, ok := v.expr.derived.(^ast.Ident); ok {
+				method.pkg = get_index_unique_string(collection, ident.name)
+				method.name = get_index_unique_string(collection, v.field.name)
+			} else {
+				return
+			}
+		case ^ast.Ident:
+			method.pkg = symbol.pkg
+			method.name = get_index_unique_string(collection, v.name)
+		case:
+			return
+		}
+
+		symbols := &pkg.methods[method]
+
+		if symbols == nil {
+			pkg.methods[method] = make([dynamic]Symbol, collection.allocator)
+			symbols = &pkg.methods[method]
+		}
+
+		if method.pkg != "$builtin" {
+			//fmt.println(method)
+			//fmt.println(symbol)
+		}
+
+		append(symbols, symbol)
+	}
+
+
+}
+
 collect_objc :: proc(
 	collection: ^SymbolCollection,
 	attributes: []^ast.Attribute,
@@ -726,6 +773,11 @@ collect_symbols :: proc(
 			collection.packages[symbol.pkg] = {}
 			pkg = &collection.packages[symbol.pkg]
 			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
+			pkg.methods = make(
+				map[Method][dynamic]Symbol,
+				100,
+				collection.allocator,
+			)
 			pkg.objc_structs = make(
 				map[string]ObjcStruct,
 				5,
@@ -735,6 +787,10 @@ collect_symbols :: proc(
 
 		if .ObjC in symbol.flags {
 			collect_objc(collection, expr.attributes, symbol)
+		}
+
+		if symbol.type == .Function {
+			//collect_method(collection, symbol)
 		}
 
 		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {

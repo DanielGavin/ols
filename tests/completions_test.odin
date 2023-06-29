@@ -2152,3 +2152,36 @@ ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"A.lib_a: int"})
 }
+
+@(test)
+zzast_completion_method_with_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+			A :: struct {
+				lib_a: int,
+			}
+			proc_one :: proc(a: ^A) {}
+			proc_two :: proc(a: A) {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"	
+		main :: proc() {
+			a: my_package.A
+
+			a.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"ib_a: int"})
+}
