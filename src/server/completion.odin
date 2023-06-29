@@ -1797,6 +1797,13 @@ format_to_label_details :: proc(list: ^CompletionList) {
         description = item.detail[type_index+1:]
       }
       item.detail = ""
+    } else if item.kind == .Struct || item.kind == .Enum || item.kind == .Class {
+			type_index := strings.index(item.detail, ":")
+      item.labelDetails = CompletionItemLabelDetails {
+        detail = "",
+        description = item.detail[type_index+1:]
+      }
+      item.detail = ""
     }
 	}
 }
