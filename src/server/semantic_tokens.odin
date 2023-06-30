@@ -597,14 +597,6 @@ visit_node :: proc(
 		visit(n.expr, builder, ast_context)
 		visit(n.type, builder, ast_context)
 	case ^Type_Cast:
-		write_semantic_string(
-			builder,
-			n.pos,
-			"cast",
-			ast_context.file.src,
-			.Keyword,
-			.None,
-		)
 		visit(n.type, builder, ast_context)
 		visit(n.expr, builder, ast_context)
 	case ^Paren_Expr:
