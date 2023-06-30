@@ -1768,46 +1768,47 @@ append_magic_union_completion :: proc(
 
 //Temporary hack to support labeldetails
 format_to_label_details :: proc(list: ^CompletionList) {
-  // detail      = left
-  // description = right
+	// detail      = left
+	// description = right
 	for item in &list.items {
-    // log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
-		if item.kind == .Function && true {
+		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
+		if item.kind == .Function {
 			proc_index := strings.index(item.detail, ": proc")
-      // check if the function return somrthing
-      proc_return_index := strings.index(item.detail, "->")
-      if proc_return_index > 0 {
-        proc_end_index := strings.index(item.detail[0:proc_return_index], ")")
-        item.labelDetails = CompletionItemLabelDetails {
-          detail = item.detail[proc_index + 6: proc_return_index],
-          description = item.detail[proc_return_index:]
-        }
-        item.detail = item.label
-      } else {
-        item.labelDetails = CompletionItemLabelDetails {
-          detail = item.detail[proc_index + 6:len(item.detail)],
-          description = ""
-        }
-        item.detail = ""
-      }
+			// check if the function return somrthing
+			proc_return_index := strings.index(item.detail, "->")
+			if proc_return_index > 0 {
+				proc_end_index := strings.index(item.detail[0:proc_return_index], ")")
+				item.labelDetails = CompletionItemLabelDetails {
+					detail = item.detail[proc_index + 6: proc_return_index],
+					description = item.detail[proc_return_index:]
+				}
+				item.detail = item.label
+			} else {
+				item.labelDetails = CompletionItemLabelDetails {
+					detail = item.detail[proc_index + 6:len(item.detail)],
+					description = ""
+				}
+				item.detail = ""
+			}
 		} else if item.kind == .Variable || item.kind == .Constant {
 			type_index := strings.index(item.detail, ":")
-      item.labelDetails = CompletionItemLabelDetails {
-        detail = "",
-        description = item.detail[type_index+1:]
-      }
-      item.detail = ""
-    } else if item.kind == .Struct || item.kind == .Enum || item.kind == .Class {
+			item.labelDetails = CompletionItemLabelDetails {
+				detail = "",
+				description = item.detail[type_index+1:]
+			}
+			item.detail = item.label
+		} else if item.kind == .Struct || item.kind == .Enum || item.kind == .Class {
 			type_index := strings.index(item.detail, ":")
-      item.labelDetails = CompletionItemLabelDetails {
-        detail = "",
-        description = item.detail[type_index+1:]
-      }
-      item.detail = ""
-    }
+			item.labelDetails = CompletionItemLabelDetails {
+				detail = "",
+				description = item.detail[type_index+1:]
+			}
+			item.detail = item.label
+		} else if item.kind == .Keyword {
+			item.detail = "keyword"
+		}
 	}
 }
-
 
 bitset_operators: map[string]bool = {
 	"|"  = true,
