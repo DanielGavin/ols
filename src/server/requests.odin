@@ -440,11 +440,11 @@ read_ols_initialize_options :: proc(
 				common.get_case_sensitive_path(it.path),
 				context.temp_allocator,
 			)
-			config.collections[it.name] = strings.clone(forward, context.allocator)
+			config.collections[strings.clone(it.name, context.allocator)] = strings.clone(forward, context.allocator)
 		}
 	} else {
 		for it in ols_config.collections {
-			config.collections[it.name] = strings.clone(it.path, context.allocator)
+			config.collections[strings.clone(it.name, context.allocator)] = strings.clone(it.path, context.allocator)
 		}
 	}
 
