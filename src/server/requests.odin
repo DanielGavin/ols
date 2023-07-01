@@ -432,6 +432,8 @@ read_ols_initialize_options :: proc(
 	)
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+	config.enable_fake_method =
+		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
 	// copy collections from new config
 	when ODIN_OS == .Windows {
@@ -440,11 +442,17 @@ read_ols_initialize_options :: proc(
 				common.get_case_sensitive_path(it.path),
 				context.temp_allocator,
 			)
-			config.collections[it.name] = strings.clone(forward, context.allocator)
+			config.collections[it.name] = strings.clone(
+				forward,
+				context.allocator,
+			)
 		}
 	} else {
 		for it in ols_config.collections {
-			config.collections[it.name] = strings.clone(it.path, context.allocator)
+			config.collections[it.name] = strings.clone(
+				it.path,
+				context.allocator,
+			)
 		}
 	}
 
@@ -551,7 +559,10 @@ request_initialize :: proc(
 					)
 					config.enable_inlay_hints =
 						ols_config.enable_inlay_hints.(bool) or_else false
+					config.enable_fake_method =
+						ols_config.enable_fake_methods.(bool) or_else false
 					config.enable_format = true
+
 
 					for p in ols_config.collections {
 						forward_path, _ := filepath.to_slash(

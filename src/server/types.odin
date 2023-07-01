@@ -340,6 +340,7 @@ OlsConfig :: struct {
 	enable_snippets:          Maybe(bool),
 	enable_inlay_hints:       Maybe(bool),
 	enable_references:        Maybe(bool),
+	enable_fake_methods:      Maybe(bool),
 	disable_parser_errors:    Maybe(bool),
 	verbose:                  Maybe(bool),
 	file_log:                 Maybe(bool),
@@ -488,3 +489,4 @@ WorkspaceSymbol :: struct {
 DidChangeConfigurationParams :: struct {
 	settings: OlsConfig,
 }
+

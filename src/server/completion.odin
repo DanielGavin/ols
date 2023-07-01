@@ -334,7 +334,9 @@ get_selector_completion :: proc(
 		}
 	}
 
-	//append_method_completion(ast_context, selector, &items)
+	if common.config.enable_fake_method {
+		append_method_completion(ast_context, selector, &items)
+	}
 
 	#partial switch v in selector.value {
 	case SymbolFixedArrayValue:

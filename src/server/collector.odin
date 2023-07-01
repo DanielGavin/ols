@@ -789,8 +789,8 @@ collect_symbols :: proc(
 			collect_objc(collection, expr.attributes, symbol)
 		}
 
-		if symbol.type == .Function {
-			//collect_method(collection, symbol)
+		if symbol.type == .Function && common.config.enable_fake_method {
+			collect_method(collection, symbol)
 		}
 
 		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {

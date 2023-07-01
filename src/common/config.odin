@@ -20,6 +20,7 @@ Config :: struct {
 	enable_label_details:     bool,
 	enable_std_references:    bool,
 	enable_import_fixer:      bool,
+	enable_fake_method:       bool,
 	disable_parser_errors:    bool,
 	thread_count:             int,
 	file_log:                 bool,
