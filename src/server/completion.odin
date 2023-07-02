@@ -335,7 +335,7 @@ get_selector_completion :: proc(
 	}
 
 	if common.config.enable_fake_method {
-		append_method_completion(ast_context, selector, &items)
+		append_method_completion(ast_context, selector, position_context, &items)
 	}
 
 	#partial switch v in selector.value {
@@ -1616,10 +1616,19 @@ get_range_from_selection_start_to_dot :: proc(
 append_method_completion :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
+	position_context: ^DocumentPositionContext,
 	items: ^[dynamic]CompletionItem,
 ) {
 	if symbol.type != .Variable {
 		return
+	}
+
+	selector: ^ast.Expr 
+
+	if position_context.selector_expr != nil {
+		selector = position_context.selector_expr 
+	} else {
+		selector = position_context.selector
 	}
 
 	for k, v in indexer.index.collection.packages {
@@ -1633,6 +1642,25 @@ append_method_completion :: proc(
 				resolve_unresolved_symbol(ast_context, &symbol)
 				build_procedure_symbol_signature(&symbol)
 
+				range, ok := get_range_from_selection_start_to_dot(position_context)
+
+				if !ok {
+					return
+				}
+			
+				remove_range := common.Range {
+					start = range.start,
+					end   = range.end,
+				}
+			
+				remove_edit := TextEdit {
+					range   = remove_range,
+					newText = "",
+				}
+			
+				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+				additionalTextEdits[0] = remove_edit
+
 				item := CompletionItem {
 					label         = symbol.name,
 					kind          = cast(CompletionItemKind)symbol.type,
@@ -1641,16 +1669,17 @@ append_method_completion :: proc(
 						symbol,
 						true,
 					),
+					additionalTextEdits = additionalTextEdits,
+					textEdit = TextEdit{
+						newText = fmt.tprintf(
+							"%v($0)",
+							symbol.name,
+						),
+						range = {start = range.end, end = range.end},
+					},
+					insertTextFormat = .Snippet,
+					InsertTextMode = .adjustIndentation,
 					documentation = symbol.doc,
-				}
-
-				if symbol.type == .Function && common.config.enable_snippets {
-					item.insertText = fmt.tprintf("%v($0)", item.label)
-					item.insertTextFormat = .Snippet
-					item.command = Command {
-						command = "editor.action.triggerParameterHints",
-					}
-					item.deprecated = .Deprecated in symbol.flags
 				}
 
 				append(items, item)
