@@ -67,6 +67,8 @@ Options:
 
 `enable_document_symbols`: Turns on outline of all your global declarations in your document.
 
+`enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
+
 `odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
 `checker_args`: Pass custom arguments to `odin check`.
