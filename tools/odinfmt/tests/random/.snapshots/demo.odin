@@ -203,11 +203,7 @@ control_flow :: proc() {
 		}
 
 
-		some_map := map[string]int {
-			"A" = 1,
-			"C" = 9,
-			"B" = 4,
-		}
+		some_map := map[string]int{"A" = 1, "C" = 9, "B" = 4}
 		defer delete(some_map)
 		for key in some_map {
 			fmt.println(key)
@@ -539,10 +535,7 @@ struct_type :: proc() {
 
 		// You can list just a subset of the fields if you specify the
 		// field by name (the order of the named fields does not matter):
-		v = Vector3 {
-			z = 1,
-			y = 2,
-		}
+		v = Vector3{z = 1, y = 2}
 		assert(v.x == 0)
 		assert(v.y == 2)
 		assert(v.z == 1)
@@ -688,9 +681,7 @@ union_type :: proc() {
 		// See `parametric_polymorphism` procedure for details
 		new_entity :: proc($T: typeid) -> ^Entity {
 			t := new(Entity)
-			t.derived = T {
-				entity = t,
-			}
+			t.derived = T{entity = t}
 			return t
 		}
 
@@ -1131,15 +1122,29 @@ parametric_polymorphism :: proc() {
 			return
 		}
 
-		x := [2][3]f32{{1, 2, 3}, {3, 2, 1}}
-		y := [3][2]f32{{0, 8}, {6, 2}, {8, 4}}
+		x := [2][3]f32{
+			{1, 2, 3},
+			{3, 2, 1},
+		}
+		y := [3][2]f32{
+			{0, 8},
+			{6, 2},
+			{8, 4},
+		}
 		z := mul(x, y)
 		assert(z == {{36, 24}, {20, 32}})
 	}
 }
 
 
-prefix_table := [?]string{"White", "Red", "Green", "Blue", "Octarine", "Black"}
+prefix_table := [?]string{
+	"White",
+	"Red",
+	"Green",
+	"Blue",
+	"Octarine",
+	"Black",
+}
 
 print_mutex := b64(false)
 
@@ -1766,7 +1771,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		fmt.println(foo)
 	}
 	{ 	// Indexed
-		foo := [?]int {
+		foo := [?]int{
 			3 = 16,
 			1 = 4,
 			2 = 9,
@@ -1776,7 +1781,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 	}
 	{ 	// Ranges
 		i := 2
-		foo := [?]int {
+		foo := [?]int{
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -1786,7 +1791,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 	}
 	{ 	// Slice and Dynamic Array support
 		i := 2
-		foo_slice := []int {
+		foo_slice := []int{
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -1794,7 +1799,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		assert(len(foo_slice) == 16)
 		fmt.println(foo_slice) // [123, 0, 0, 0, 0, 54, 54, 54, 54, 54, 8, 8, 8, 8, 8]
 
-		foo_dynamic_array := [dynamic]int {
+		foo_dynamic_array := [dynamic]int{
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -2005,11 +2010,7 @@ constant_literal_expressions :: proc() {
 		using c: Bar,
 	}
 
-	FOO_CONST :: Foo {
-		b = 2,
-		a = 1,
-		c = {3, 4},
-	}
+	FOO_CONST :: Foo{b = 2, a = 1, c = {3, 4}}
 
 
 	fmt.println(FOO_CONST.a)
@@ -2022,11 +2023,7 @@ constant_literal_expressions :: proc() {
 
 	fmt.println("-------")
 
-	ARRAY_CONST :: [3]int {
-		1 = 4,
-		2 = 9,
-		0 = 1,
-	}
+	ARRAY_CONST :: [3]int{1 = 4, 2 = 9, 0 = 1}
 
 	fmt.println(ARRAY_CONST[0])
 	fmt.println(ARRAY_CONST[1])
@@ -2045,10 +2042,7 @@ constant_literal_expressions :: proc() {
 		C,
 		D,
 	}
-	ENUM_ARRAY_CONST :: [Baz]int {
-		.A ..= .C   = 1,
-		.D = 16,
-	}
+	ENUM_ARRAY_CONST :: [Baz]int{.A ..= .C = 1, .D = 16}
 
 	fmt.println(ENUM_ARRAY_CONST[.A])
 	fmt.println(ENUM_ARRAY_CONST[.B])
@@ -2064,10 +2058,7 @@ constant_literal_expressions :: proc() {
 		D = 16,
 	}
 	#assert(len(Sparse_Baz) < len(#sparse[Sparse_Baz]int))
-	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int {
-		.A ..= .C   = 1,
-		.D = 16,
-	}
+	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int{.A ..= .C = 1, .D = 16}
 
 	fmt.println(SPARSE_ENUM_ARRAY_CONST[.A])
 	fmt.println(SPARSE_ENUM_ARRAY_CONST[.B])
@@ -2390,7 +2381,7 @@ matrix_type :: proc() {
 		// The following represents a matrix that has 2 rows and 3 columns
 		m: matrix[2, 3]f32
 
-		m = matrix[2, 3]f32 {
+		m = matrix[2, 3]f32{
 			1, 9, -13, 
 			20, 5, -6, 
 		}
@@ -2417,12 +2408,12 @@ matrix_type :: proc() {
 	}
 
 	{ 	// Matrices support multiplication between matrices
-		a := matrix[2, 3]f32 {
+		a := matrix[2, 3]f32{
 			2, 3, 1, 
 			4, 5, 0, 
 		}
 
-		b := matrix[3, 2]f32 {
+		b := matrix[3, 2]f32{
 			1, 2, 
 			3, 4, 
 			5, 6, 
@@ -2437,7 +2428,7 @@ matrix_type :: proc() {
 	}
 
 	{ 	// Matrices support multiplication between matrices and arrays
-		m := matrix[4, 4]f32 {
+		m := matrix[4, 4]f32{
 			1, 2, 3, 4, 
 			5, 5, 4, 2, 
 			0, 1, 3, 0, 
@@ -2453,7 +2444,7 @@ matrix_type :: proc() {
 		fmt.println("v * m", v * m)
 
 		// Support with non-square matrices
-		s := matrix[2, 4]f32 { 	// [4][2]f32
+		s := matrix[2, 4]f32{ 	// [4][2]f32
 			2, 4, 3, 1, 
 			7, 8, 6, 5, 
 		}
@@ -2467,12 +2458,12 @@ matrix_type :: proc() {
 		// if the element type supports it
 		// Not support for '/', '%', or '%%' operations
 
-		a := matrix[2, 2]i32 {
+		a := matrix[2, 2]i32{
 			1, 2, 
 			3, 4, 
 		}
 
-		b := matrix[2, 2]i32 {
+		b := matrix[2, 2]i32{
 			-5, 1, 
 			9, -7, 
 		}
@@ -2509,7 +2500,10 @@ matrix_type :: proc() {
 		mat2 :: distinct matrix[2, 2]f32
 		mat4 :: distinct matrix[4, 4]f32
 
-		m2 := mat2{1, 3, 2, 4}
+		m2 := mat2{
+			1, 3,
+			2, 4,
+		}
 
 		m4 := mat4(m2)
 		assert(m4[2, 2] == 1)
@@ -2519,7 +2513,12 @@ matrix_type :: proc() {
 		fmt.println("mat2(m4)", mat2(m4))
 		assert(mat2(m4) == m2)
 
-		b4 := mat4{1, 2, 0, 0, 3, 4, 0, 0, 5, 0, 6, 0, 0, 7, 0, 8}
+		b4 := mat4{
+			1, 2, 0, 0,
+			3, 4, 0, 0,
+			5, 0, 6, 0,
+			0, 7, 0, 8,
+		}
 		fmt.println("b4", matrix_flatten(b4))
 	}
 
@@ -2532,7 +2531,10 @@ matrix_type :: proc() {
 		mat2x4 :: distinct matrix[2, 4]f32
 		mat4x2 :: distinct matrix[4, 2]f32
 
-		x := mat2x4{1, 3, 5, 7, 2, 4, 6, 8}
+		x := mat2x4{
+			1, 3, 5, 7,
+			2, 4, 6, 8,
+		}
 
 		y := mat4x2(x)
 		fmt.println("x", x)

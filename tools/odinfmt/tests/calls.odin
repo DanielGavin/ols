@@ -9,6 +9,53 @@ calls :: proc() {
 	result := vk.CreateInsance(my_really_cool_call(aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
 
 	result = vk.CreateInsance(my_really_cool_call(aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
+	
+	_ = vk.CreateInsance(my_really_cool_call(1,2,3))
+	_ = vk.CreateInsance(my_really_cool_call(1,
+		2,3))
+	_ = vk.CreateInsance(1,2,3)
+	_ = vk.CreateInsance(1,
+		2,3)
+	_ = vk.CreateInsance(
+		1,
+	)
+	_ = vk.CreateInsance(
+		Composite{a=1,b=2},
+	)
+	_ = vk.CreateInsance(	Composite{a=1,b=2},)
+	_ = vk.CreateInsance(
+		Composite{
+			a=1,b=2},
+	)
+	_ = vk.CreateInsance(
+		Composite{1,2,3,4},
+	)
+	_ = vk.CreateInsance(
+		Composite{
+			1,2,
+			3,4},
+	)
+	_ = vk.CreateInsance(matrix[2, 2]i32 {
+		1, 2, 
+		3, 4, 
+	})
+	_ = vk.CreateInsance(matrix[2, 2]i32 {1, 2, 3, 4})
+
+	_ = vk.CreateInsance(	Composite{p=proc(int)->int { return 42 }},)
+	_ = vk.CreateInsance(	Composite{p=proc(int)->int {
+		 return 42 }},)
+	_ = vk.CreateInsance(	Composite{p=proc(int)->int {
+		 return 42 
+		}},)
+	_ = vk.CreateInsance(	Composite{
+		p=proc(int)->int {
+		 return 42 }},)
+	_ = vk.CreateInsance(	Composite{
+		p=proc(int)->int {
+		 return 42 
+		}},)
+	_ = vk.CreateInsance(	Composite{
+		p=proc(int)->int {return 42 }},)
 
 	test_2(
 		Foo{field1 = 1,

@@ -778,6 +778,9 @@ visit_comp_lit_exprs :: proc(
 	document := empty()
 
 	for expr, i in comp_lit.elems {
+		line_changed :=
+			i > 0 && expr.pos.line != comp_lit.elems[i - 1].pos.line
+
 		if i == 0 && .Enforce_Newline in options {
 			comment, _ := visit_comments(p, comp_lit.elems[i].pos)
 			if _, is_nil := comment.(Document_Nil); !is_nil {
@@ -811,6 +814,12 @@ visit_comp_lit_exprs :: proc(
 					cons(document, visit_expr(p, expr, .Generic, options)),
 				)
 			}
+		} else if .Group in options && line_changed {
+			document = cons(
+				document,
+				newline(1),
+				group(visit_expr(p, expr, .Generic, options)),
+			)
 		} else {
 			document = group(
 				cons_with_nopl(
@@ -966,10 +975,7 @@ visit_stmt :: proc(
 		}
 
 		if !uses_do {
-			document = cons(
-				document,
-				visit_begin_brace(p, v.pos, block_type, len(v.stmts)),
-			)
+			document = cons(document, visit_begin_brace(p, v.pos, block_type))
 		} else {
 			document = cons(document, text("do"), break_with(" ", false))
 		}
@@ -1449,6 +1455,16 @@ contains_comments_in_range :: proc(
 }
 
 @(private)
+comp_lit_spans_multiple_lines :: proc(lit: ^ast.Comp_Lit) -> bool {
+	for elem, i in lit.elems {
+		if elem.pos.line != lit.pos.line {
+			return true
+		}
+	}
+	return false
+}
+
+@(private)
 contains_do_in_expression :: proc(p: ^Printer, expr: ^ast.Expr) -> bool {
 	found_do := false
 
@@ -1856,10 +1872,14 @@ visit_expr :: proc(
 		document = cons(document, visit_expr(p, v.expr), text("("))
 
 		contains_comments := contains_comments_in_range(p, v.open, v.close)
+		args_span_multiple_lines := false
 		contains_do := false
 
-		for arg in v.args {
+		for arg, i in v.args {
 			contains_do |= contains_do_in_expression(p, arg)
+			if i > 0 && arg.pos.line != v.args[i - 1].pos.line {
+				args_span_multiple_lines = true
+			}
 		}
 
 		if is_call_expr_nestable(v.args) {
@@ -1885,7 +1905,7 @@ visit_expr :: proc(
 		}
 
 		//We enforce a break if comments exists inside the call args
-		if contains_comments {
+		if contains_comments || args_span_multiple_lines {
 			document = enforce_break(
 				document,
 				Document_Group_Options{id = "call_expr"},
@@ -1975,9 +1995,9 @@ visit_expr :: proc(
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
 			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
-				document = cons_with_nopl(
+				document = cons(
 					document,
-					visit_begin_brace(p, v.pos, .Generic),
+					visit_begin_brace(p, v.pos, .Comp_Lit),
 				)
 
 				set_source_position(p, v.open)
@@ -2003,19 +2023,20 @@ visit_expr :: proc(
 		}
 
 		should_newline :=
-			comp_lit_contains_fields(p, v^) ||
-			contains_comments_in_range(p, v.pos, v.end)
-		should_newline &=
-			(called_from == .Value_Decl ||
-				called_from == .Assignment_Stmt ||
-				(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^)))
+			comp_lit_spans_multiple_lines(v) ||
+			contains_comments_in_range(p, v.pos, v.end) ||
+			(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^))
 		should_newline &= len(v.elems) != 0
 
 		if should_newline {
-			document = cons_with_nopl(
-				document,
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
+
+			options: List_Options = {.Add_Comma, .Trailing}
+			if comp_lit_contains_fields(p, v^) {
+				options |= {.Enforce_Newline}
+			} else {
+				options |= {.Group}
+			}
 
 			set_source_position(p, v.open)
 			document = cons(
@@ -2023,11 +2044,7 @@ visit_expr :: proc(
 				nest(
 					cons(
 						newline_position(p, 1, v.elems[0].pos),
-						visit_comp_lit_exprs(
-							p,
-							v^,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_comp_lit_exprs(p, v^, options),
 					),
 				),
 			)
@@ -2202,8 +2219,6 @@ visit_begin_brace :: proc(
 	p: ^Printer,
 	begin: tokenizer.Pos,
 	type: Block_Type,
-	count := 0,
-	same_line_spaces_before := 1,
 ) -> ^Document {
 	set_source_position(p, begin)
 	set_comment_option(p, begin.line, .Indent)
@@ -2213,12 +2228,13 @@ visit_begin_brace :: proc(
 	newline_braced &= p.config.brace_style != ._1TBS
 
 	if newline_braced {
-		document := newline(1)
-		document = cons(document, text("{"))
-		return document
-	} else {
-		return text("{")
+		if type == .Comp_Lit {
+			return cons(text("\\"), newline(1), text("{"))
+		}
+		return cons(newline(1), text("{"))
 	}
+
+	return text("{")
 }
 
 @(private)
