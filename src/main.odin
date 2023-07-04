@@ -42,6 +42,16 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 
 	common.config.running = true
 
+	common.config.enable_format = true
+	common.config.enable_hover = true
+	common.config.enable_document_symbols = true
+	common.config.enable_semantic_tokens = true
+	common.config.enable_inlay_hints = true
+	common.config.enable_snippets = true
+	common.config.enable_references = true
+	common.config.enable_rename = true
+	common.config.enable_label_details = true
+
 	logger = new(log.Logger)
 
 	request_thread_data := server.RequestThreadData {
