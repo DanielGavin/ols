@@ -9,10 +9,32 @@ calls :: proc() {
 	result := vk.CreateInsance(my_really_cool_call(aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
 
 	result = vk.CreateInsance(my_really_cool_call(aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
+	result = vk.CreateInsance(my_really_cool_call(T{1,2,3},aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
+	result = vk.CreateInsance(my_really_cool_call(T{a=1,b=2,c=3},aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
+	result = vk.CreateInsance(my_really_cool_call(T{
+		1,2,3},aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
+	result = vk.CreateInsance(my_really_cool_call(T{
+		a=1,b=2,c=3},aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd))
 	
+
+	result = vk.CreateInsance(my_really_cool_call(T{aaaaaaaaaaaaaaaaaaaaa, bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd}))
+	result = vk.CreateInsance(my_really_cool_call(T{a=aaaaaaaaaaaaaaaaaaaaa,b=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,c=cccccccccccccccccccccccccccccccc,d=ddddddddddddddddddddddddddddddddddddd}))
+	result = vk.CreateInsance(my_really_cool_call(T{
+		aaaaaaaaaaaaaaaaaaaaa, 
+		bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb, cccccccccccccccccccccccccccccccc, ddddddddddddddddddddddddddddddddddddd}))
+	result = vk.CreateInsance(my_really_cool_call(T{
+		a=aaaaaaaaaaaaaaaaaaaaa,
+		b=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,c=cccccccccccccccccccccccccccccccc,d=ddddddddddddddddddddddddddddddddddddd+ddddddddddddddddddddddddddddddddddddd}))
+	result = vk.CreateInsance(my_really_cool_call(T{
+		a=aaaaaaaaaaaaaaaaaaaaa,
+		b=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,c=cccccccccccccccccccccccccccccccc,d=ddddddddddddddddddddddddddddddddddddd+1}))
+
 	_ = vk.CreateInsance(my_really_cool_call(1,2,3))
 	_ = vk.CreateInsance(my_really_cool_call(1,
 		2,3))
+	_ = vk.CreateInsance(my_really_cool_call(1,
+		2,3,),
+)
 	_ = vk.CreateInsance(1,2,3)
 	_ = vk.CreateInsance(1,
 		2,3)

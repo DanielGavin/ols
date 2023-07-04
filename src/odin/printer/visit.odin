@@ -818,7 +818,7 @@ visit_comp_lit_exprs :: proc(
 			document = cons(
 				document,
 				newline(1),
-				group(visit_expr(p, expr, .Generic, options)),
+				visit_expr(p, expr, .Generic, options),
 			)
 		} else {
 			document = group(
@@ -2022,9 +2022,10 @@ visit_expr :: proc(
 			}
 		}
 
+		contains_comments := contains_comments_in_range(p, v.pos, v.end)
 		should_newline :=
+			contains_comments ||
 			comp_lit_spans_multiple_lines(v) ||
-			contains_comments_in_range(p, v.pos, v.end) ||
 			(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^))
 		should_newline &= len(v.elems) != 0
 
@@ -2032,12 +2033,11 @@ visit_expr :: proc(
 			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 			options: List_Options = {.Add_Comma, .Trailing}
-			if comp_lit_contains_fields(p, v^) {
+			if contains_comments || comp_lit_contains_fields(p, v^) {
 				options |= {.Enforce_Newline}
 			} else {
 				options |= {.Group}
 			}
-
 			set_source_position(p, v.open)
 			document = cons(
 				document,

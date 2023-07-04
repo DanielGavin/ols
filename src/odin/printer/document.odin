@@ -290,11 +290,11 @@ cons_with_opl :: proc(
 	rhs: ^Document,
 	allocator := context.allocator,
 ) -> ^Document {
-	if _, ok := lhs.(Document_Nil); ok {
+	if is_empty(lhs) {
 		return rhs
 	}
 
-	if _, ok := rhs.(Document_Nil); ok {
+	if is_empty(rhs) {
 		return lhs
 	}
 
@@ -309,11 +309,11 @@ cons_with_nopl :: proc(
 	rhs: ^Document,
 	allocator := context.allocator,
 ) -> ^Document {
-	if _, ok := lhs.(Document_Nil); ok {
+	if is_empty(lhs) {
 		return rhs
 	}
 
-	if _, ok := rhs.(Document_Nil); ok {
+	if is_empty(rhs) {
 		return lhs
 	}
 
@@ -321,6 +321,11 @@ cons_with_nopl :: proc(
 		elems = {lhs, break_with_no_newline(allocator), rhs},
 		allocator = allocator,
 	)
+}
+
+is_empty :: proc(doc: ^Document) -> bool {
+	_, ok := doc.(Document_Nil)
+	return ok
 }
 
 Tuple :: struct {
