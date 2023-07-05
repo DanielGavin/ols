@@ -335,6 +335,7 @@ OlsConfig :: struct {
 	thread_pool_count:        Maybe(int),
 	enable_semantic_tokens:   Maybe(bool),
 	enable_document_symbols:  Maybe(bool),
+	enable_format:            Maybe(bool),
 	enable_hover:             Maybe(bool),
 	enable_procedure_context: Maybe(bool),
 	enable_snippets:          Maybe(bool),
