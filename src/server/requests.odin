@@ -408,6 +408,8 @@ read_ols_initialize_options :: proc(
 		ols_config.thread_pool_count.(int) or_else config.thread_count
 	config.enable_document_symbols =
 		ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_format =
+		ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover =
 		ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens =
@@ -535,6 +537,8 @@ request_initialize :: proc(
 						ols_config.thread_pool_count.(int) or_else 2
 					config.enable_document_symbols =
 						ols_config.enable_document_symbols.(bool) or_else true
+					config.enable_format =
+						ols_config.enable_format.(bool) or_else true
 					config.enable_hover =
 						ols_config.enable_hover.(bool) or_else true
 					config.enable_semantic_tokens =
@@ -561,7 +565,6 @@ request_initialize :: proc(
 						ols_config.enable_inlay_hints.(bool) or_else false
 					config.enable_fake_method =
 						ols_config.enable_fake_methods.(bool) or_else false
-					config.enable_format = true
 
 
 					for p in ols_config.collections {
