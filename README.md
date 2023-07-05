@@ -127,30 +127,29 @@ Configuration of the LSP:
 
 ```
 {
-	"clients":
-	{
-		"odin":
-		{
-		    "command":
-		    [
-			"C:/path/to/ols.exe"
-		    ],
-		    "enabled": false, // true for globally-enabled, but not required due to 'Enable In Project' command
-		    "selector": "source.odin",
-            "settings": {
+    "clients": {
+        "odin": {
+            "command": [
+                "/path/to/ols"
+            ],
+            "enabled": false, // true for globally-enabled, but not required due to 'Enable In Project' command
+            "selector": "source.odin",
+            "initializationOptions": {
                 "collections": [
-                    { "name": "collection_a", "path": "/path/to/collection_a" },
+                    {
+                        "name": "collection_a",
+                        "path": "/path/to/collection_a"
+                    },
                 ],
                 "enable_semantic_tokens": true,
                 "enable_document_symbols": true,
                 "enable_hover": true,
-                "enable_snippets": true
+                "enable_snippets": true,
+                "enable_format": true,
             }
-		}
-	},
-	"only_show_lsp_completions": true,
+        }
+    }
 }
-
 ```
 
 ### Vim
