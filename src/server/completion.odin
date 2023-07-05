@@ -1859,9 +1859,12 @@ format_to_label_details :: proc(list: ^CompletionList) {
 				proc_return_index := strings.index(item.detail, "->")
 				if proc_return_index > 0 {
 					proc_end_index := strings.index(item.detail[0:proc_return_index], ")")
+					if proc_return_index + 2 >= len(item.detail) {
+						break
+					}
 					item.labelDetails = CompletionItemLabelDetails {
 						detail = item.detail[proc_index + 6: proc_return_index],
-						description = item.detail[proc_return_index:]
+						description = item.detail[proc_return_index + 2:]
 					}
 					item.detail = item.label
 				} else {
