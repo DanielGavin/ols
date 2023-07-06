@@ -43,10 +43,13 @@ binary :: proc() {
 		111111111111111111111111 == 22222222222222222222232323222 &&
 		111123432411123232311 == 3333332323232432333333333333333333
 
-	b = my_cool_function(
+	b =
+		my_cool_function(
 			aaaaaaaaaaaaaaaaaaaaaaaaaa,
 			bbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
-		) * 234234 + 223423423
+		) *
+			234234 +
+		223423423
 
 
 	b =

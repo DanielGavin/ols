@@ -778,9 +778,6 @@ visit_comp_lit_exprs :: proc(
 	document := empty()
 
 	for expr, i in comp_lit.elems {
-		line_changed :=
-			i > 0 && expr.pos.line != comp_lit.elems[i - 1].pos.line
-
 		if i == 0 && .Enforce_Newline in options {
 			comment, _ := visit_comments(p, comp_lit.elems[i].pos)
 			if _, is_nil := comment.(Document_Nil); !is_nil {
@@ -814,12 +811,6 @@ visit_comp_lit_exprs :: proc(
 					cons(document, visit_expr(p, expr, .Generic, options)),
 				)
 			}
-		} else if .Group in options && line_changed {
-			document = cons(
-				document,
-				newline(1),
-				visit_expr(p, expr, .Generic, options),
-			)
 		} else {
 			document = group(
 				cons_with_nopl(
@@ -1455,7 +1446,7 @@ contains_comments_in_range :: proc(
 }
 
 @(private)
-comp_lit_spans_multiple_lines :: proc(lit: ^ast.Comp_Lit) -> bool {
+comp_lit_spans_multiple_lines :: proc(lit: ast.Comp_Lit) -> bool {
 	for elem, i in lit.elems {
 		if elem.pos.line != lit.pos.line {
 			return true
@@ -1872,14 +1863,10 @@ visit_expr :: proc(
 		document = cons(document, visit_expr(p, v.expr), text("("))
 
 		contains_comments := contains_comments_in_range(p, v.open, v.close)
-		args_span_multiple_lines := false
 		contains_do := false
 
-		for arg, i in v.args {
+		for arg in v.args {
 			contains_do |= contains_do_in_expression(p, arg)
-			if i > 0 && arg.pos.line != v.args[i - 1].pos.line {
-				args_span_multiple_lines = true
-			}
 		}
 
 		if is_call_expr_nestable(v.args) {
@@ -1905,7 +1892,7 @@ visit_expr :: proc(
 		}
 
 		//We enforce a break if comments exists inside the call args
-		if contains_comments || args_span_multiple_lines {
+		if contains_comments {
 			document = enforce_break(
 				document,
 				Document_Group_Options{id = "call_expr"},
@@ -2022,29 +2009,32 @@ visit_expr :: proc(
 			}
 		}
 
-		contains_comments := contains_comments_in_range(p, v.pos, v.end)
 		should_newline :=
-			contains_comments ||
-			comp_lit_spans_multiple_lines(v) ||
-			(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^))
+			comp_lit_spans_multiple_lines(v^) ||
+			contains_comments_in_range(p, v.pos, v.end)
+		should_newline &=
+			(called_from == .Value_Decl ||
+				called_from == .Assignment_Stmt ||
+				(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^)))
 		should_newline &= len(v.elems) != 0
 
 		if should_newline {
-			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
+			document = cons(
+				document,
+				visit_begin_brace(p, v.pos, .Comp_Lit),
+			)
 
-			options: List_Options = {.Add_Comma, .Trailing}
-			if contains_comments || comp_lit_contains_fields(p, v^) {
-				options |= {.Enforce_Newline}
-			} else {
-				options |= {.Group}
-			}
 			set_source_position(p, v.open)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.elems[0].pos),
-						visit_comp_lit_exprs(p, v^, options),
+						visit_comp_lit_exprs(
+							p,
+							v^,
+							{.Add_Comma, .Trailing, .Enforce_Newline},
+						),
 					),
 				),
 			)

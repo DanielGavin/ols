@@ -2501,8 +2501,10 @@ matrix_type :: proc() {
 		mat4 :: distinct matrix[4, 4]f32
 
 		m2 := mat2{
-			1, 3,
-			2, 4,
+			1,
+			3,
+			2,
+			4,
 		}
 
 		m4 := mat4(m2)
@@ -2514,10 +2516,22 @@ matrix_type :: proc() {
 		assert(mat2(m4) == m2)
 
 		b4 := mat4{
-			1, 2, 0, 0,
-			3, 4, 0, 0,
-			5, 0, 6, 0,
-			0, 7, 0, 8,
+			1,
+			2,
+			0,
+			0,
+			3,
+			4,
+			0,
+			0,
+			5,
+			0,
+			6,
+			0,
+			0,
+			7,
+			0,
+			8,
 		}
 		fmt.println("b4", matrix_flatten(b4))
 	}
@@ -2532,8 +2546,14 @@ matrix_type :: proc() {
 		mat4x2 :: distinct matrix[4, 2]f32
 
 		x := mat2x4{
-			1, 3, 5, 7,
-			2, 4, 6, 8,
+			1,
+			3,
+			5,
+			7,
+			2,
+			4,
+			6,
+			8,
 		}
 
 		y := mat4x2(x)

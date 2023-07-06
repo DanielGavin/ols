@@ -10,10 +10,12 @@ assignments :: proc() {
 		&big.Int{},
 		&big.Int{}
 
-	value += b4 * grad(
-		seed,
-		[3]i64{rbp.x, rbp.y - i_sign.y * PRIME_Y, rbp.z},
-		[3]f32{ri.x, ri.y + f_sign.y, ri.z},
+	value +=
+		b4 *
+		grad(
+			seed,
+			[3]i64{rbp.x, rbp.y - i_sign.y * PRIME_Y, rbp.z},
+			[3]f32{ri.x, ri.y + f_sign.y, ri.z},
 		)
 
 	a :=
