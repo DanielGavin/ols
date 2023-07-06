@@ -2009,9 +2009,11 @@ visit_expr :: proc(
 			}
 		}
 
+		can_multiline :=
+			p.config.multiline_composite_literals &&
+			comp_lit_spans_multiple_lines(v^)
 		should_newline :=
-			comp_lit_spans_multiple_lines(v^) ||
-			contains_comments_in_range(p, v.pos, v.end)
+			can_multiline || contains_comments_in_range(p, v.pos, v.end)
 		should_newline &=
 			(called_from == .Value_Decl ||
 				called_from == .Assignment_Stmt ||
@@ -2019,10 +2021,7 @@ visit_expr :: proc(
 		should_newline &= len(v.elems) != 0
 
 		if should_newline {
-			document = cons(
-				document,
-				visit_begin_brace(p, v.pos, .Comp_Lit),
-			)
+			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 			set_source_position(p, v.open)
 			document = cons(
