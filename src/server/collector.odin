@@ -184,11 +184,7 @@ collect_struct_fields :: proc(
 		types  = types[:],
 		ranges = ranges[:],
 		usings = usings,
-		poly   = cast(^ast.Field_List)clone_type(
-			struct_type.poly_params,
-			collection.allocator,
-			&collection.unique_strings,
-		),
+		poly   = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings),
 	}
 
 	return value
@@ -251,11 +247,7 @@ collect_union_fields :: proc(
 
 	value := SymbolUnionValue {
 		types = types[:],
-		poly  = cast(^ast.Field_List)clone_type(
-			union_type.poly_params,
-			collection.allocator,
-			&collection.unique_strings,
-		),
+		poly  = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
 	}
 
 	return value
@@ -456,6 +448,7 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 			if ident, ok := v.expr.derived.(^ast.Ident); ok {
 				method.pkg = get_index_unique_string(collection, ident.name)
 				method.name = get_index_unique_string(collection, v.field.name)
+				log.error(method)
 			} else {
 				return
 			}
@@ -473,15 +466,8 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 			symbols = &pkg.methods[method]
 		}
 
-		if method.pkg != "$builtin" {
-			//fmt.println(method)
-			//fmt.println(symbol)
-		}
-
 		append(symbols, symbol)
 	}
-
-
 }
 
 collect_objc :: proc(
