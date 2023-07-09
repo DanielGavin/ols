@@ -2331,6 +2331,7 @@ resolve_unresolved_symbol :: proc(
 		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
 			symbol.type = ret.type
 			symbol.signature = ret.signature
+			symbol.value = ret.value
 		} else {
 			return false
 		}
