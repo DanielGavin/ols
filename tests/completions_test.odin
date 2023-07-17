@@ -2154,7 +2154,7 @@ ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
 }
 
 @(test)
-zzast_completion_method_with_type :: proc(t: ^testing.T) {
+ast_completion_method_with_type :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
@@ -2183,5 +2183,5 @@ zzast_completion_method_with_type :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"ib_a: int"})
+	test.expect_completion_details(t, &source, ".", {"A.lib_a: int"})
 }

@@ -3583,7 +3583,7 @@ get_locals_for_range_stmt :: proc(
 	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
 		if binary.op.kind == .Range_Half {
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3605,7 +3605,7 @@ get_locals_for_range_stmt :: proc(
 		#partial switch v in symbol.value {
 		case SymbolMapValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3621,7 +3621,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3638,7 +3638,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolDynamicArrayValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3654,7 +3654,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3671,7 +3671,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolFixedArrayValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3688,7 +3688,7 @@ get_locals_for_range_stmt :: proc(
 			}
 
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3705,7 +3705,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolSliceValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3721,7 +3721,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -4330,6 +4330,20 @@ unwrap_procedure_until_struct_or_package :: proc(
 	}
 
 	return
+}
+
+unwrap_ident :: proc(node: ^ast.Expr) -> (^ast.Ident, bool) {
+	if ident, ok := node.derived.(^ast.Ident); ok {
+		return ident, true
+	}
+
+	if unary, ok := node.derived.(^ast.Unary_Expr); ok {
+		if ident, ok := unary.expr.derived.(^ast.Ident); ok {
+			return ident, true
+		}
+	}
+
+	return {}, false
 }
 
 unwrap_enum :: proc(
