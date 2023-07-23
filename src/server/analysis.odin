@@ -3797,7 +3797,7 @@ get_locals_type_switch_stmt :: proc(
 				tag := stmt.tag.derived.(^Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
-					ident := tag.lhs[0].derived.(^Ident)
+					ident, _ := unwrap_ident(tag.lhs[0])
 					store_local(
 						ast_context,
 						ident,
