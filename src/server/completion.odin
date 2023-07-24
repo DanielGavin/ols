@@ -1837,8 +1837,7 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		if common.config.client_name == "Sublime Text LSP" {
 			dt := &item.labelDetails.? or_else nil
 			if dt == nil do continue
-			if strings.contains(dt.detail, "..") &&
-			   strings.contains(dt.detail, "#") {
+			if strings.contains(dt.detail, "..") {
 				s, _ := strings.replace_all(
 					dt.detail,
 					"..",
