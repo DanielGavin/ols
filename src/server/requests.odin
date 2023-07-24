@@ -515,7 +515,7 @@ request_initialize :: proc(
 		return .ParseError
 	}
 
-	config.client_name = initialize_params.clientInfo.name
+	config.client_name = strings.clone(initialize_params.clientInfo.name)
 	config.workspace_folders = make([dynamic]common.WorkspaceFolder)
 
 	for s in initialize_params.workspaceFolders {
