@@ -508,6 +508,7 @@ request_initialize :: proc(
 		return .ParseError
 	}
 
+	config.client_name = initialize_params.clientInfo.name
 	config.workspace_folders = make([dynamic]common.WorkspaceFolder)
 
 	for s in initialize_params.workspaceFolders {
@@ -659,12 +660,8 @@ request_initialize :: proc(
 	signatureTriggerCharacters := []string{"(", ","}
 	signatureRetriggerCharacters := []string{","}
 
-	token_type := type_info_of(
-		SemanticTokenTypes,
-	).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
-	token_modifier := type_info_of(
-		SemanticTokenModifiers,
-	).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
+	token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
+	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
 
 	token_types := make(
 		[]string,

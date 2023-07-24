@@ -26,6 +26,7 @@ Config :: struct {
 	file_log:                 bool,
 	odin_command:             string,
 	checker_args:             string,
+	client_name:              string,
 }
 
 config: Config

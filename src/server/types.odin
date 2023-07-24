@@ -80,6 +80,11 @@ RequestInitializeParams :: struct {
 	capabilities:          ClientCapabilities,
 	rootUri:               string,
 	initializationOptions: OlsConfig,
+	clientInfo:            ClientInfo,
+}
+
+ClientInfo :: struct {
+	name: string,
 }
 
 MarkupContent :: struct {
@@ -490,4 +495,3 @@ WorkspaceSymbol :: struct {
 DidChangeConfigurationParams :: struct {
 	settings: OlsConfig,
 }
-
