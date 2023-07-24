@@ -2196,3 +2196,44 @@ ast_completion_method_with_type :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"A.lib_a: int"})
 }
+
+@(test)
+ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: enum { Aa, Ab, Ac, Ad }
+			Foo_Set :: distinct bit_set[Foo; u32] 
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		
+		Bar :: struct {
+			foo: my_package.Foo_Set,
+		}
+		
+		main :: proc() {
+			foo_set := Bar { 
+				foo = {.{*} } 
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(
+		t,
+		&source,
+		".",
+		{"Aa", "Ab", "Ac", "Ad"},
+	)
+}

@@ -846,6 +846,8 @@ get_implicit_completion :: proc(
 						ast_context,
 						type,
 					); ok {
+						ast_context.current_package = bitset_symbol.pkg
+
 						if value, ok := unwrap_bitset(
 							ast_context,
 							bitset_symbol,
