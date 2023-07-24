@@ -317,15 +317,17 @@ collect_globals :: proc(
 					allowed := false
 
 					if binary.op.text == "==" {
-						allowed = ident.name == "ODIN_OS" &&
-							implicit.field.name == fmt.tprint(ODIN_OS) ||
-						ident.name == "ODIN_ARCH" &&
-							implicit.field.name == fmt.tprint(ODIN_ARCH)
+						allowed =
+							ident.name == "ODIN_OS" &&
+								implicit.field.name == fmt.tprint(ODIN_OS) ||
+							ident.name == "ODIN_ARCH" &&
+								implicit.field.name == fmt.tprint(ODIN_ARCH)
 					} else if binary.op.text == "!=" {
-						allowed = ident.name == "ODIN_OS" &&
-							implicit.field.name != fmt.tprint(ODIN_OS) ||
-						ident.name == "ODIN_ARCH" &&
-							implicit.field.name != fmt.tprint(ODIN_ARCH)
+						allowed =
+							ident.name == "ODIN_OS" &&
+								implicit.field.name != fmt.tprint(ODIN_OS) ||
+							ident.name == "ODIN_ARCH" &&
+								implicit.field.name != fmt.tprint(ODIN_ARCH)
 					}
 
 					if allowed {
@@ -468,195 +470,195 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	}
 
 	if node.derived != nil do #partial switch n in node.derived {
-		case ^Bad_Expr:
-		case ^Ident:
-		case ^Implicit:
-		case ^Undef:
-		case ^Basic_Directive:
-		case ^Basic_Lit:
-		case ^Ellipsis:
-			free_ast(n.expr, allocator)
-		case ^Proc_Lit:
-			free_ast(n.type, allocator)
-			free_ast(n.body, allocator)
-			free_ast(n.where_clauses, allocator)
-		case ^Comp_Lit:
-			free_ast(n.type, allocator)
-			free_ast(n.elems, allocator)
-		case ^Tag_Expr:
-			free_ast(n.expr, allocator)
-		case ^Unary_Expr:
-			free_ast(n.expr, allocator)
-		case ^Binary_Expr:
-			free_ast(n.left, allocator)
-			free_ast(n.right, allocator)
-		case ^Paren_Expr:
-			free_ast(n.expr, allocator)
-		case ^Call_Expr:
-			free_ast(n.expr, allocator)
-			free_ast(n.args, allocator)
-		case ^Selector_Expr:
-			free_ast(n.expr, allocator)
-			free_ast(n.field, allocator)
-		case ^Implicit_Selector_Expr:
-			free_ast(n.field, allocator)
-		case ^Index_Expr:
-			free_ast(n.expr, allocator)
-			free_ast(n.index, allocator)
-		case ^Deref_Expr:
-			free_ast(n.expr, allocator)
-		case ^Slice_Expr:
-			free_ast(n.expr, allocator)
-			free_ast(n.low, allocator)
-			free_ast(n.high, allocator)
-		case ^Field_Value:
-			free_ast(n.field, allocator)
-			free_ast(n.value, allocator)
-		case ^Ternary_If_Expr:
-			free_ast(n.x, allocator)
-			free_ast(n.cond, allocator)
-			free_ast(n.y, allocator)
-		case ^Ternary_When_Expr:
-			free_ast(n.x, allocator)
-			free_ast(n.cond, allocator)
-			free_ast(n.y, allocator)
-		case ^Type_Assertion:
-			free_ast(n.expr, allocator)
-			free_ast(n.type, allocator)
-		case ^Type_Cast:
-			free_ast(n.type, allocator)
-			free_ast(n.expr, allocator)
-		case ^Auto_Cast:
-			free_ast(n.expr, allocator)
-		case ^Bad_Stmt:
-		case ^Empty_Stmt:
-		case ^Expr_Stmt:
-			free_ast(n.expr, allocator)
-		case ^Tag_Stmt:
-			r := cast(^Expr_Stmt)node
-			free_ast(r.expr, allocator)
-		case ^Assign_Stmt:
-			free_ast(n.lhs, allocator)
-			free_ast(n.rhs, allocator)
-		case ^Block_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.stmts, allocator)
-		case ^If_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.init, allocator)
-			free_ast(n.cond, allocator)
-			free_ast(n.body, allocator)
-			free_ast(n.else_stmt, allocator)
-		case ^When_Stmt:
-			free_ast(n.cond, allocator)
-			free_ast(n.body, allocator)
-			free_ast(n.else_stmt, allocator)
-		case ^Return_Stmt:
-			free_ast(n.results, allocator)
-		case ^Defer_Stmt:
-			free_ast(n.stmt, allocator)
-		case ^For_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.init, allocator)
-			free_ast(n.cond, allocator)
-			free_ast(n.post, allocator)
-			free_ast(n.body, allocator)
-		case ^Range_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.vals, allocator)
-			free_ast(n.expr, allocator)
-			free_ast(n.body, allocator)
-		case ^Case_Clause:
-			free_ast(n.list, allocator)
-			free_ast(n.body, allocator)
-		case ^Switch_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.init, allocator)
-			free_ast(n.cond, allocator)
-			free_ast(n.body, allocator)
-		case ^Type_Switch_Stmt:
-			free_ast(n.label, allocator)
-			free_ast(n.tag, allocator)
-			free_ast(n.expr, allocator)
-			free_ast(n.body, allocator)
-		case ^Branch_Stmt:
-			free_ast(n.label, allocator)
-		case ^Using_Stmt:
-			free_ast(n.list, allocator)
-		case ^Bad_Decl:
-		case ^Value_Decl:
-			free_ast(n.attributes, allocator)
-			free_ast(n.names, allocator)
-			free_ast(n.type, allocator)
-			free_ast(n.values, allocator)
-		case ^Package_Decl:
-		case ^Import_Decl:
-		case ^Foreign_Block_Decl:
-			free_ast(n.attributes, allocator)
-			free_ast(n.foreign_library, allocator)
-			free_ast(n.body, allocator)
-		case ^Foreign_Import_Decl:
-			free_ast(n.name, allocator)
-			free_ast(n.attributes, allocator)
-		case ^Proc_Group:
-			free_ast(n.args, allocator)
-		case ^Attribute:
-			free_ast(n.elems, allocator)
-		case ^Field:
-			free_ast(n.names, allocator)
-			free_ast(n.type, allocator)
-			free_ast(n.default_value, allocator)
-		//free_ast(n.docs);
-		//free_ast(n.comment);
-		case ^Field_List:
-			free_ast(n.list, allocator)
-		case ^Typeid_Type:
-			free_ast(n.specialization, allocator)
-		case ^Helper_Type:
-			free_ast(n.type, allocator)
-		case ^Distinct_Type:
-			free_ast(n.type, allocator)
-		case ^Poly_Type:
-			free_ast(n.type, allocator)
-			free_ast(n.specialization, allocator)
-		case ^Proc_Type:
-			free_ast(n.params, allocator)
-			free_ast(n.results, allocator)
-		case ^Pointer_Type:
-			free_ast(n.elem, allocator)
-		case ^Array_Type:
-			free_ast(n.len, allocator)
-			free_ast(n.elem, allocator)
-			free_ast(n.tag, allocator)
-		case ^Dynamic_Array_Type:
-			free_ast(n.elem, allocator)
-			free_ast(n.tag, allocator)
-		case ^Struct_Type:
-			free_ast(n.poly_params, allocator)
-			free_ast(n.align, allocator)
-			free_ast(n.fields, allocator)
-			free_ast(n.where_clauses, allocator)
-		case ^Union_Type:
-			free_ast(n.poly_params, allocator)
-			free_ast(n.align, allocator)
-			free_ast(n.variants, allocator)
-			free_ast(n.where_clauses, allocator)
-		case ^Enum_Type:
-			free_ast(n.base_type, allocator)
-			free_ast(n.fields, allocator)
-		case ^Bit_Set_Type:
-			free_ast(n.elem, allocator)
-			free_ast(n.underlying, allocator)
-		case ^Map_Type:
-			free_ast(n.key, allocator)
-			free_ast(n.value, allocator)
-		case ^Multi_Pointer_Type:
-			free_ast(n.elem, allocator)
-		case ^Matrix_Type:
-			free_ast(n.elem, allocator)
-		case:
-			panic(fmt.aprintf("free Unhandled node kind: %T", n))
-		}
+	case ^Bad_Expr:
+	case ^Ident:
+	case ^Implicit:
+	case ^Undef:
+	case ^Basic_Directive:
+	case ^Basic_Lit:
+	case ^Ellipsis:
+		free_ast(n.expr, allocator)
+	case ^Proc_Lit:
+		free_ast(n.type, allocator)
+		free_ast(n.body, allocator)
+		free_ast(n.where_clauses, allocator)
+	case ^Comp_Lit:
+		free_ast(n.type, allocator)
+		free_ast(n.elems, allocator)
+	case ^Tag_Expr:
+		free_ast(n.expr, allocator)
+	case ^Unary_Expr:
+		free_ast(n.expr, allocator)
+	case ^Binary_Expr:
+		free_ast(n.left, allocator)
+		free_ast(n.right, allocator)
+	case ^Paren_Expr:
+		free_ast(n.expr, allocator)
+	case ^Call_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.args, allocator)
+	case ^Selector_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.field, allocator)
+	case ^Implicit_Selector_Expr:
+		free_ast(n.field, allocator)
+	case ^Index_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.index, allocator)
+	case ^Deref_Expr:
+		free_ast(n.expr, allocator)
+	case ^Slice_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.low, allocator)
+		free_ast(n.high, allocator)
+	case ^Field_Value:
+		free_ast(n.field, allocator)
+		free_ast(n.value, allocator)
+	case ^Ternary_If_Expr:
+		free_ast(n.x, allocator)
+		free_ast(n.cond, allocator)
+		free_ast(n.y, allocator)
+	case ^Ternary_When_Expr:
+		free_ast(n.x, allocator)
+		free_ast(n.cond, allocator)
+		free_ast(n.y, allocator)
+	case ^Type_Assertion:
+		free_ast(n.expr, allocator)
+		free_ast(n.type, allocator)
+	case ^Type_Cast:
+		free_ast(n.type, allocator)
+		free_ast(n.expr, allocator)
+	case ^Auto_Cast:
+		free_ast(n.expr, allocator)
+	case ^Bad_Stmt:
+	case ^Empty_Stmt:
+	case ^Expr_Stmt:
+		free_ast(n.expr, allocator)
+	case ^Tag_Stmt:
+		r := cast(^Expr_Stmt)node
+		free_ast(r.expr, allocator)
+	case ^Assign_Stmt:
+		free_ast(n.lhs, allocator)
+		free_ast(n.rhs, allocator)
+	case ^Block_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.stmts, allocator)
+	case ^If_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.init, allocator)
+		free_ast(n.cond, allocator)
+		free_ast(n.body, allocator)
+		free_ast(n.else_stmt, allocator)
+	case ^When_Stmt:
+		free_ast(n.cond, allocator)
+		free_ast(n.body, allocator)
+		free_ast(n.else_stmt, allocator)
+	case ^Return_Stmt:
+		free_ast(n.results, allocator)
+	case ^Defer_Stmt:
+		free_ast(n.stmt, allocator)
+	case ^For_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.init, allocator)
+		free_ast(n.cond, allocator)
+		free_ast(n.post, allocator)
+		free_ast(n.body, allocator)
+	case ^Range_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.vals, allocator)
+		free_ast(n.expr, allocator)
+		free_ast(n.body, allocator)
+	case ^Case_Clause:
+		free_ast(n.list, allocator)
+		free_ast(n.body, allocator)
+	case ^Switch_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.init, allocator)
+		free_ast(n.cond, allocator)
+		free_ast(n.body, allocator)
+	case ^Type_Switch_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.tag, allocator)
+		free_ast(n.expr, allocator)
+		free_ast(n.body, allocator)
+	case ^Branch_Stmt:
+		free_ast(n.label, allocator)
+	case ^Using_Stmt:
+		free_ast(n.list, allocator)
+	case ^Bad_Decl:
+	case ^Value_Decl:
+		free_ast(n.attributes, allocator)
+		free_ast(n.names, allocator)
+		free_ast(n.type, allocator)
+		free_ast(n.values, allocator)
+	case ^Package_Decl:
+	case ^Import_Decl:
+	case ^Foreign_Block_Decl:
+		free_ast(n.attributes, allocator)
+		free_ast(n.foreign_library, allocator)
+		free_ast(n.body, allocator)
+	case ^Foreign_Import_Decl:
+		free_ast(n.name, allocator)
+		free_ast(n.attributes, allocator)
+	case ^Proc_Group:
+		free_ast(n.args, allocator)
+	case ^Attribute:
+		free_ast(n.elems, allocator)
+	case ^Field:
+		free_ast(n.names, allocator)
+		free_ast(n.type, allocator)
+		free_ast(n.default_value, allocator)
+	//free_ast(n.docs);
+	//free_ast(n.comment);
+	case ^Field_List:
+		free_ast(n.list, allocator)
+	case ^Typeid_Type:
+		free_ast(n.specialization, allocator)
+	case ^Helper_Type:
+		free_ast(n.type, allocator)
+	case ^Distinct_Type:
+		free_ast(n.type, allocator)
+	case ^Poly_Type:
+		free_ast(n.type, allocator)
+		free_ast(n.specialization, allocator)
+	case ^Proc_Type:
+		free_ast(n.params, allocator)
+		free_ast(n.results, allocator)
+	case ^Pointer_Type:
+		free_ast(n.elem, allocator)
+	case ^Array_Type:
+		free_ast(n.len, allocator)
+		free_ast(n.elem, allocator)
+		free_ast(n.tag, allocator)
+	case ^Dynamic_Array_Type:
+		free_ast(n.elem, allocator)
+		free_ast(n.tag, allocator)
+	case ^Struct_Type:
+		free_ast(n.poly_params, allocator)
+		free_ast(n.align, allocator)
+		free_ast(n.fields, allocator)
+		free_ast(n.where_clauses, allocator)
+	case ^Union_Type:
+		free_ast(n.poly_params, allocator)
+		free_ast(n.align, allocator)
+		free_ast(n.variants, allocator)
+		free_ast(n.where_clauses, allocator)
+	case ^Enum_Type:
+		free_ast(n.base_type, allocator)
+		free_ast(n.fields, allocator)
+	case ^Bit_Set_Type:
+		free_ast(n.elem, allocator)
+		free_ast(n.underlying, allocator)
+	case ^Map_Type:
+		free_ast(n.key, allocator)
+		free_ast(n.value, allocator)
+	case ^Multi_Pointer_Type:
+		free_ast(n.elem, allocator)
+	case ^Matrix_Type:
+		free_ast(n.elem, allocator)
+	case:
+		panic(fmt.aprintf("free Unhandled node kind: %T", n))
+	}
 
 	mem.free(node, allocator)
 }
@@ -938,6 +940,7 @@ build_string_node :: proc(
 	case ^Basic_Lit:
 		strings.write_string(builder, n.tok.text)
 	case ^Basic_Directive:
+		strings.write_string(builder, "#")
 		strings.write_string(builder, n.name)
 	case ^Implicit_Selector_Expr:
 		strings.write_string(builder, ".")

@@ -80,6 +80,11 @@ RequestInitializeParams :: struct {
 	capabilities:          ClientCapabilities,
 	rootUri:               string,
 	initializationOptions: OlsConfig,
+	clientInfo:            ClientInfo,
+}
+
+ClientInfo :: struct {
+	name: string,
 }
 
 MarkupContent :: struct {
@@ -335,11 +340,13 @@ OlsConfig :: struct {
 	thread_pool_count:        Maybe(int),
 	enable_semantic_tokens:   Maybe(bool),
 	enable_document_symbols:  Maybe(bool),
+	enable_format:            Maybe(bool),
 	enable_hover:             Maybe(bool),
 	enable_procedure_context: Maybe(bool),
 	enable_snippets:          Maybe(bool),
 	enable_inlay_hints:       Maybe(bool),
 	enable_references:        Maybe(bool),
+	enable_fake_methods:      Maybe(bool),
 	disable_parser_errors:    Maybe(bool),
 	verbose:                  Maybe(bool),
 	file_log:                 Maybe(bool),

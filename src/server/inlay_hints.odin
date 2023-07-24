@@ -57,6 +57,7 @@ get_inlay_hints :: proc(
 
 	loop: for node_call in &data.calls {
 		symbol_arg_count := 0
+		is_selector_call := false
 
 		call := node_call.derived.(^ast.Call_Expr)
 
@@ -66,10 +67,19 @@ get_inlay_hints :: proc(
 			}
 		}
 
+		if selector, ok := call.expr.derived.(^ast.Selector_Expr);
+		   ok && selector.op.kind == .Arrow_Right {
+			is_selector_call = true
+		}
+
 		if symbol_and_node, ok := symbols[cast(uintptr)node_call]; ok {
 			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue);
 			   ok {
-				for arg in symbol_call.arg_types {
+				for arg, i in symbol_call.arg_types {
+					if i == 0 && is_selector_call {
+						continue
+					}
+
 					for name in arg.names {
 						if symbol_arg_count >= len(call.args) {
 							continue loop

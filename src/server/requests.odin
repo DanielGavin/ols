@@ -408,6 +408,8 @@ read_ols_initialize_options :: proc(
 		ols_config.thread_pool_count.(int) or_else config.thread_count
 	config.enable_document_symbols =
 		ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_format =
+		ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover =
 		ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens =
@@ -432,8 +434,10 @@ read_ols_initialize_options :: proc(
 	)
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+	config.enable_fake_method =
+		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
-	// copy collections from new config
+  // copy collections from new config
 	when ODIN_OS == .Windows {
 		for it in ols_config.collections {
 			forward, _ := filepath.to_slash(
@@ -498,6 +502,7 @@ request_initialize :: proc(
 		return .ParseError
 	}
 
+	config.client_name = initialize_params.clientInfo.name
 	config.workspace_folders = make([dynamic]common.WorkspaceFolder)
 
 	for s in initialize_params.workspaceFolders {
@@ -527,6 +532,8 @@ request_initialize :: proc(
 						ols_config.thread_pool_count.(int) or_else 2
 					config.enable_document_symbols =
 						ols_config.enable_document_symbols.(bool) or_else true
+					config.enable_format =
+						ols_config.enable_format.(bool) or_else true
 					config.enable_hover =
 						ols_config.enable_hover.(bool) or_else true
 					config.enable_semantic_tokens =
@@ -551,7 +558,9 @@ request_initialize :: proc(
 					)
 					config.enable_inlay_hints =
 						ols_config.enable_inlay_hints.(bool) or_else false
-					config.enable_format = true
+					config.enable_fake_method =
+						ols_config.enable_fake_methods.(bool) or_else false
+
 
 					for p in ols_config.collections {
 						forward_path, _ := filepath.to_slash(
@@ -645,12 +654,8 @@ request_initialize :: proc(
 	signatureTriggerCharacters := []string{"(", ","}
 	signatureRetriggerCharacters := []string{","}
 
-	token_type := type_info_of(
-		SemanticTokenTypes,
-	).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
-	token_modifier := type_info_of(
-		SemanticTokenModifiers,
-	).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
+	token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
+	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
 
 	token_types := make(
 		[]string,

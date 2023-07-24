@@ -1909,10 +1909,12 @@ visit_expr :: proc(
 			)
 		}
 	case ^Selector_Expr:
-		document = cons(
-			visit_expr(p, v.expr),
-			text_token(p, v.op),
-			visit_expr(p, v.field),
+		document = enforce_fit(
+			cons(
+				visit_expr(p, v.expr),
+				text_token(p, v.op),
+				visit_expr(p, v.field),
+			),
 		)
 	case ^Paren_Expr:
 		document = group(

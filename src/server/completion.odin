@@ -334,7 +334,14 @@ get_selector_completion :: proc(
 		}
 	}
 
-	//append_method_completion(ast_context, selector, &items)
+	if common.config.enable_fake_method {
+		append_method_completion(
+			ast_context,
+			selector,
+			position_context,
+			&items,
+		)
+	}
 
 	#partial switch v in selector.value {
 	case SymbolFixedArrayValue:
@@ -844,6 +851,8 @@ get_implicit_completion :: proc(
 						ast_context,
 						type,
 					); ok {
+						ast_context.current_package = bitset_symbol.pkg
+
 						if value, ok := unwrap_bitset(
 							ast_context,
 							bitset_symbol,
@@ -1611,52 +1620,6 @@ get_range_from_selection_start_to_dot :: proc(
 	return {}, false
 }
 
-append_method_completion :: proc(
-	ast_context: ^AstContext,
-	symbol: Symbol,
-	items: ^[dynamic]CompletionItem,
-) {
-	if symbol.type != .Variable {
-		return
-	}
-
-	for k, v in indexer.index.collection.packages {
-		method := Method {
-			name = symbol.name,
-			pkg  = symbol.pkg,
-		}
-		if symbols, ok := &v.methods[method]; ok {
-			for symbol in symbols {
-
-				resolve_unresolved_symbol(ast_context, &symbol)
-				build_procedure_symbol_signature(&symbol)
-
-				item := CompletionItem {
-					label         = symbol.name,
-					kind          = cast(CompletionItemKind)symbol.type,
-					detail        = concatenate_symbol_information(
-						ast_context,
-						symbol,
-						true,
-					),
-					documentation = symbol.doc,
-				}
-
-				if symbol.type == .Function && common.config.enable_snippets {
-					item.insertText = fmt.tprintf("%v($0)", item.label)
-					item.insertTextFormat = .Snippet
-					item.command = Command {
-						command = "editor.action.triggerParameterHints",
-					}
-					item.deprecated = .Deprecated in symbol.flags
-				}
-
-				append(items, item)
-			}
-		}
-	}
-}
-
 append_magic_map_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	symbol: Symbol,
@@ -1817,17 +1780,76 @@ append_magic_union_completion :: proc(
 
 //Temporary hack to support labeldetails
 format_to_label_details :: proc(list: ^CompletionList) {
-	for item in &list.items {
-		if item.kind == .Function && true {
-			proc_index := strings.index(item.detail, "proc")
+	// detail      = left
+	// description = right
 
+	for item in &list.items {
+		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
+		#partial switch item.kind {
+		case .Function:
+			proc_index := strings.index(item.detail, ": proc")
+			// check if the function return somrthing
+			proc_return_index := strings.index(item.detail, "->")
+			if proc_return_index > 0 {
+				proc_end_index := strings.index(
+					item.detail[0:proc_return_index],
+					")",
+				)
+				if proc_return_index + 2 >= len(item.detail) {
+					break
+				}
+				item.labelDetails = CompletionItemLabelDetails {
+					detail      = item.detail[proc_index + 6:proc_return_index],
+					description = item.detail[proc_return_index + 2:],
+				}
+				item.detail = item.label
+			} else {
+				if proc_index + 6 >= len(item.detail) {
+					break
+				}
+				item.labelDetails = CompletionItemLabelDetails {
+					detail      = item.detail[proc_index + 6:],
+					description = "",
+				}
+				item.detail = ""
+			}
+		case .Variable, .Constant, .Field:
+			type_index := strings.index(item.detail, ":")
 			item.labelDetails = CompletionItemLabelDetails {
-				detail = item.detail[proc_index + 4:len(item.detail)],
+				detail      = "",
+				description = item.detail[type_index + 1:],
+			}
+			item.detail = item.label
+		case .Struct, .Enum, .Class:
+			type_index := strings.index(item.detail, ":")
+			item.labelDetails = CompletionItemLabelDetails {
+				detail      = "",
+				description = item.detail[type_index + 1:],
+			}
+			item.detail = item.label
+		case .Keyword:
+			item.detail = "keyword"
+		}
+
+		// hack for sublime text's issue
+		// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
+		// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
+		if common.config.client_name == "Sublime Text LSP" {
+			dt := &item.labelDetails.? or_else nil
+			if dt == nil do continue
+			if strings.contains(dt.detail, "..") &&
+			   strings.contains(dt.detail, "#") {
+				s, _ := strings.replace_all(
+					dt.detail,
+					"..",
+					"ꓸꓸ",
+					allocator = context.temp_allocator,
+				)
+				dt.detail = s
 			}
 		}
 	}
 }
-
 
 bitset_operators: map[string]bool = {
 	"|"  = true,

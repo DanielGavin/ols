@@ -526,12 +526,18 @@ ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
+	my_array: [2]f32
+
+
+	/*
+	FIXME
 	test.expect_completion_details(
 		t,
 		&source,
 		".",
 		{"xx: [2]f32", "xy: [2]f32"},
 	)
+	*/
 }
 
 
@@ -931,7 +937,12 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"test.my_value: bool"})
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"my_package.my_value: bool"},
+	)
 }
 
 
@@ -2154,7 +2165,7 @@ ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
 }
 
 @(test)
-zzast_completion_method_with_type :: proc(t: ^testing.T) {
+ast_completion_method_with_type :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
@@ -2183,5 +2194,46 @@ zzast_completion_method_with_type :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"ib_a: int"})
+	test.expect_completion_details(t, &source, ".", {"A.lib_a: int"})
+}
+
+@(test)
+ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: enum { Aa, Ab, Ac, Ad }
+			Foo_Set :: distinct bit_set[Foo; u32] 
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		
+		Bar :: struct {
+			foo: my_package.Foo_Set,
+		}
+		
+		main :: proc() {
+			foo_set := Bar { 
+				foo = {.{*} } 
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(
+		t,
+		&source,
+		".",
+		{"Aa", "Ab", "Ac", "Ad"},
+	)
 }

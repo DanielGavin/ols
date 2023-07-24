@@ -1329,6 +1329,14 @@ internal_resolve_type_expression :: proc(
 		return symbol, ok
 	case ^Call_Expr:
 		ast_context.call = cast(^Call_Expr)node
+
+		if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
+			switch ident.name {
+			case "type_of":
+				return internal_resolve_type_expression(ast_context, v.args[0])
+			}
+		}
+
 		return internal_resolve_type_expression(ast_context, v.expr)
 	case ^Selector_Call_Expr:
 		if selector, ok := internal_resolve_type_expression(
@@ -1847,14 +1855,18 @@ internal_resolve_type_identifier :: proc(
 		return_symbol.doc = common.get_doc(global.docs, ast_context.allocator)
 
 		return return_symbol, ok
-	} else if node.name == "context" {
-		for built in indexer.builtin_packages {
-			if symbol, ok := lookup("Context", built); ok {
-				symbol.type = .Variable
-				return symbol, ok
+	} else {
+		switch node.name {
+		case "context":
+			for built in indexer.builtin_packages {
+				if symbol, ok := lookup("Context", built); ok {
+					symbol.type = .Variable
+					return symbol, ok
+				}
 			}
 		}
-	} else {
+
+
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
 		if strings.contains(node.name, "/") {
 			symbol := Symbol {
@@ -2319,6 +2331,7 @@ resolve_unresolved_symbol :: proc(
 		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
 			symbol.type = ret.type
 			symbol.signature = ret.signature
+			symbol.value = ret.value
 		} else {
 			return false
 		}
@@ -3570,7 +3583,7 @@ get_locals_for_range_stmt :: proc(
 	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
 		if binary.op.kind == .Range_Half {
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3592,7 +3605,7 @@ get_locals_for_range_stmt :: proc(
 		#partial switch v in symbol.value {
 		case SymbolMapValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3608,7 +3621,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3625,7 +3638,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolDynamicArrayValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3641,7 +3654,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3658,7 +3671,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolFixedArrayValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3675,7 +3688,7 @@ get_locals_for_range_stmt :: proc(
 			}
 
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3692,7 +3705,7 @@ get_locals_for_range_stmt :: proc(
 			}
 		case SymbolSliceValue:
 			if len(stmt.vals) >= 1 {
-				if ident, ok := stmt.vals[0].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3708,7 +3721,7 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 			if len(stmt.vals) >= 2 {
-				if ident, ok := stmt.vals[1].derived.(^Ident); ok {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -3784,7 +3797,7 @@ get_locals_type_switch_stmt :: proc(
 				tag := stmt.tag.derived.(^Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
-					ident := tag.lhs[0].derived.(^Ident)
+					ident, _ := unwrap_ident(tag.lhs[0])
 					store_local(
 						ast_context,
 						ident,
@@ -4319,6 +4332,20 @@ unwrap_procedure_until_struct_or_package :: proc(
 	return
 }
 
+unwrap_ident :: proc(node: ^ast.Expr) -> (^ast.Ident, bool) {
+	if ident, ok := node.derived.(^ast.Ident); ok {
+		return ident, true
+	}
+
+	if unary, ok := node.derived.(^ast.Unary_Expr); ok {
+		if ident, ok := unary.expr.derived.(^ast.Ident); ok {
+			return ident, true
+		}
+	}
+
+	return {}, false
+}
+
 unwrap_enum :: proc(
 	ast_context: ^AstContext,
 	node: ^ast.Expr,
@@ -4519,9 +4546,8 @@ position_in_proc_decl :: proc(
 		return true
 	}
 
-	if proc_lit, ok := position_context.value_decl.values[
-		   0 \
-	   ].derived.(^ast.Proc_Lit); ok {
+	if proc_lit, ok := position_context.value_decl.values[0].derived.(^ast.Proc_Lit);
+	   ok {
 		if proc_lit.type != nil &&
 		   position_in_node(proc_lit.type, position_context.position) {
 			return true
