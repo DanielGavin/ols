@@ -437,18 +437,31 @@ read_ols_initialize_options :: proc(
 	config.enable_fake_method =
 		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
-  // copy collections from new config
+	// copy collections from new config
 	when ODIN_OS == .Windows {
 		for it in ols_config.collections {
 			forward, _ := filepath.to_slash(
 				common.get_case_sensitive_path(it.path),
 				context.temp_allocator,
 			)
-			config.collections[strings.clone(it.name, context.allocator)] = strings.clone(forward, context.allocator)
+
+			if it.name in config.collections {
+				delete(config.collections[it.name])
+				delete_key(&config.collections, it.name)
+			}
+
+			config.collections[strings.clone(it.name, context.allocator)] =
+				strings.clone(forward, context.allocator)
 		}
 	} else {
 		for it in ols_config.collections {
-			config.collections[strings.clone(it.name, context.allocator)] = strings.clone(it.path, context.allocator)
+			if it.name in config.collections {
+				delete(config.collections[it.name])
+				delete_key(&config.collections, it.name)
+			}
+
+			config.collections[strings.clone(it.name, context.allocator)] =
+				strings.clone(it.path, context.allocator)
 		}
 	}
 
