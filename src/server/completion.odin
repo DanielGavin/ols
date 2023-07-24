@@ -1034,6 +1034,8 @@ get_implicit_completion :: proc(
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
 			   ok && parameter_ok {
+				ast_context.current_package = symbol.pkg
+
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return

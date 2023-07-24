@@ -1840,6 +1840,40 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_index_enum_infer_call_expr :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+		Foo :: enum {
+			ONE,
+			TWO,
+		}
+
+		call :: proc(a: Foo) {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		main :: proc() {
+			my_package.call(.{*})
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"ONE", "TWO"})
+}
+
+
+@(test)
 ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test	
@@ -2230,10 +2264,5 @@ ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_labels(
-		t,
-		&source,
-		".",
-		{"Aa", "Ab", "Ac", "Ad"},
-	)
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
