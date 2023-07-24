@@ -335,7 +335,12 @@ get_selector_completion :: proc(
 	}
 
 	if common.config.enable_fake_method {
-		append_method_completion(ast_context, selector, position_context, &items)
+		append_method_completion(
+			ast_context,
+			selector,
+			position_context,
+			&items,
+		)
 	}
 
 	#partial switch v in selector.value {
@@ -846,6 +851,8 @@ get_implicit_completion :: proc(
 						ast_context,
 						type,
 					); ok {
+						ast_context.current_package = bitset_symbol.pkg
+
 						if value, ok := unwrap_bitset(
 							ast_context,
 							bitset_symbol,
@@ -1775,49 +1782,56 @@ append_magic_union_completion :: proc(
 format_to_label_details :: proc(list: ^CompletionList) {
 	// detail      = left
 	// description = right
+
 	for item in &list.items {
 		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
 		#partial switch item.kind {
-			case .Function:
-				proc_index := strings.index(item.detail, ": proc")
-				// check if the function return somrthing
-				proc_return_index := strings.index(item.detail, "->")
-				if proc_return_index > 0 {
-					proc_end_index := strings.index(item.detail[0:proc_return_index], ")")
-					if proc_return_index + 2 >= len(item.detail) {
-						break
-					}
-					item.labelDetails = CompletionItemLabelDetails {
-						detail = item.detail[proc_index + 6: proc_return_index],
-						description = item.detail[proc_return_index + 2:]
-					}
-					item.detail = item.label
-				} else {
-					item.labelDetails = CompletionItemLabelDetails {
-						detail = item.detail[proc_index + 6:len(item.detail)],
-						description = ""
-					}
-					item.detail = ""
+		case .Function:
+			proc_index := strings.index(item.detail, ": proc")
+			// check if the function return somrthing
+			proc_return_index := strings.index(item.detail, "->")
+			if proc_return_index > 0 {
+				proc_end_index := strings.index(
+					item.detail[0:proc_return_index],
+					")",
+				)
+				if proc_return_index + 2 >= len(item.detail) {
+					break
 				}
-			case .Variable, .Constant, .Field:
-				type_index := strings.index(item.detail, ":")
 				item.labelDetails = CompletionItemLabelDetails {
-					detail = "",
-					description = item.detail[type_index+1:]
+					detail      = item.detail[proc_index + 6:proc_return_index],
+					description = item.detail[proc_return_index + 2:],
 				}
 				item.detail = item.label
-			case .Struct, .Enum, .Class:
-				type_index := strings.index(item.detail, ":")
-				item.labelDetails = CompletionItemLabelDetails {
-					detail = "",
-					description = item.detail[type_index+1:]
+			} else {
+				if proc_index + 6 >= len(item.detail) {
+					break
 				}
-				item.detail = item.label
-			case .Keyword:
-				item.detail = "keyword"
+				item.labelDetails = CompletionItemLabelDetails {
+					detail      = item.detail[proc_index + 6:],
+					description = "",
+				}
+				item.detail = ""
+			}
+		case .Variable, .Constant, .Field:
+			type_index := strings.index(item.detail, ":")
+			item.labelDetails = CompletionItemLabelDetails {
+				detail      = "",
+				description = item.detail[type_index + 1:],
+			}
+			item.detail = item.label
+		case .Struct, .Enum, .Class:
+			type_index := strings.index(item.detail, ":")
+			item.labelDetails = CompletionItemLabelDetails {
+				detail      = "",
+				description = item.detail[type_index + 1:],
+			}
+			item.detail = item.label
+		case .Keyword:
+			item.detail = "keyword"
 		}
-
-		// hack for sublime text's issue
+    
+    // hack for sublime text's issue
 		// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
 		// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
 		dt:= &item.labelDetails.? or_else nil
@@ -1825,7 +1839,7 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		if strings.contains(dt.detail, "..") && strings.contains(dt.detail, "#") {
 			s, _ := strings.replace_all(dt.detail, "..", "ꓸꓸ",  allocator = context.temp_allocator)
 			dt.detail = s
-		}
+    }
 	}
 }
 
