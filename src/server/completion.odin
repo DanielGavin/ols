@@ -1830,6 +1830,16 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		case .Keyword:
 			item.detail = "keyword"
 		}
+    
+    // hack for sublime text's issue
+		// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
+		// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
+		dt:= &item.labelDetails.? or_else nil
+		if dt == nil do continue
+		if strings.contains(dt.detail, "..") && strings.contains(dt.detail, "#") {
+			s, _ := strings.replace_all(dt.detail, "..", "ꓸꓸ",  allocator = context.temp_allocator)
+			dt.detail = s
+    }
 	}
 }
 
