@@ -1921,18 +1921,21 @@ visit_expr :: proc(
 			cons(text("("), nest(visit_expr(p, v.expr)), text(")")),
 		)
 	case ^Index_Expr:
-		document = cons(
-			visit_expr(p, v.expr),
-			text("["),
-			nest(
-				cons(
-					break_with("", true),
-					group(visit_expr(p, v.index)),
-					if_break(" \\"),
+		//Switch back to enforce fit, it just doesn't look good when breaking.
+		document = enforce_fit(
+			cons(
+				visit_expr(p, v.expr),
+				text("["),
+				nest(
+					cons(
+						break_with("", true),
+						group(visit_expr(p, v.index)),
+						if_break(" \\"),
+					),
 				),
+				break_with("", true),
+				text("]"),
 			),
-			break_with("", true),
-			text("]"),
 		)
 	case ^Proc_Group:
 		document = text_token(p, v.tok)
