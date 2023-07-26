@@ -41,7 +41,7 @@ setup :: proc(src: ^Source) {
 
 	common.scratch_allocator_init(
 		src.document.allocator,
-		mem.Kilobyte * 200,
+		mem.Kilobyte * 2000,
 		context.temp_allocator,
 	)
 

@@ -1120,7 +1120,6 @@ internal_resolve_type_expression :: proc(
 	}
 
 	if check_node_recursion(ast_context, node) {
-		//log.error("Recursion detected")
 		return {}, false
 	}
 
@@ -1588,7 +1587,6 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
-		//log.error("Recursion detected")
 		return {}, false
 	}
 
@@ -2332,6 +2330,7 @@ resolve_unresolved_symbol :: proc(
 			symbol.type = ret.type
 			symbol.signature = ret.signature
 			symbol.value = ret.value
+			symbol.pkg = ret.pkg
 		} else {
 			return false
 		}
