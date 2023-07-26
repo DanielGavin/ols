@@ -217,6 +217,8 @@ collect_value_decl :: proc(
 								case "package":
 									is_package_file = true
 								}
+							} else {
+								is_package_file = true
 							}
 						}
 					}
@@ -226,6 +228,8 @@ collect_value_decl :: proc(
 						is_deprecated = true
 					case "builtin":
 						is_builtin = true
+					case "private":
+						is_package_file = true
 					}
 				}
 			}
@@ -250,6 +254,7 @@ collect_value_decl :: proc(
 						attributes = value_decl.attributes[:],
 						deprecated = is_deprecated,
 						builtin = is_builtin,
+						package_private = is_package_file,
 					},
 				)
 			} else {
@@ -265,6 +270,7 @@ collect_value_decl :: proc(
 							attributes = value_decl.attributes[:],
 							deprecated = is_deprecated,
 							builtin = is_builtin,
+							package_private = is_package_file,
 						},
 					)
 				}

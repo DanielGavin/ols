@@ -593,6 +593,10 @@ get_selector_completion :: proc(
 			for search in searched {
 				symbol := search.symbol
 
+				if .PrivatePackage in symbol.flags {
+					continue
+				}
+
 				resolve_unresolved_symbol(ast_context, &symbol)
 				build_procedure_symbol_signature(&symbol)
 

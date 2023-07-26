@@ -2266,3 +2266,35 @@ ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
+
+@(test)
+ast_private_proc_ignore :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+				@(private)
+				my_private :: proc() {}
+	
+				@private
+				my_private_two :: proc() {}
+
+			`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+			import "my_package"
+			main :: proc() {
+				my_package.{*}
+			}
+			`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {})
+}
