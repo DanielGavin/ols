@@ -2298,3 +2298,36 @@ ast_private_proc_ignore :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {})
 }
+
+@(test)
+ast_bitset_assignment_diff_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package{
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: enum { Aa, Ab, Ac, Ad }
+			Foo_Set :: bit_set[Foo]
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+		
+		Bar :: struct {
+			set: my_package.Foo_Set,
+		}
+		main :: proc() {
+			s: Bar
+			s.set = {.{*}}
+	    }
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
+}

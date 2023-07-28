@@ -737,6 +737,7 @@ get_implicit_completion :: proc(
 			ast_context,
 			position_context.assign.lhs[0],
 		); ok {
+			ast_context.current_package = symbol.pkg
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 
@@ -765,6 +766,7 @@ get_implicit_completion :: proc(
 			ast_context,
 			position_context.parent_binary,
 		); ok {
+			ast_context.current_package = symbol.pkg
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 					item := CompletionItem {
