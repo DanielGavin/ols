@@ -203,7 +203,11 @@ control_flow :: proc() {
 		}
 
 
-		some_map := map[string]int{"A" = 1, "C" = 9, "B" = 4}
+		some_map := map[string]int{
+			"A" = 1,
+			"C" = 9,
+			"B" = 4,
+		}
 		defer delete(some_map)
 		for key in some_map {
 			fmt.println(key)
@@ -535,7 +539,10 @@ struct_type :: proc() {
 
 		// You can list just a subset of the fields if you specify the
 		// field by name (the order of the named fields does not matter):
-		v = Vector3{z = 1, y = 2}
+		v = Vector3{
+			z = 1,
+			y = 2,
+		}
 		assert(v.x == 0)
 		assert(v.y == 2)
 		assert(v.z == 1)
@@ -681,7 +688,9 @@ union_type :: proc() {
 		// See `parametric_polymorphism` procedure for details
 		new_entity :: proc($T: typeid) -> ^Entity {
 			t := new(Entity)
-			t.derived = T{entity = t}
+			t.derived = T{
+				entity = t,
+			}
 			return t
 		}
 
@@ -2010,7 +2019,11 @@ constant_literal_expressions :: proc() {
 		using c: Bar,
 	}
 
-	FOO_CONST :: Foo{b = 2, a = 1, c = {3, 4}}
+	FOO_CONST :: Foo{
+		b = 2,
+		a = 1,
+		c = {3, 4},
+	}
 
 
 	fmt.println(FOO_CONST.a)
@@ -2023,7 +2036,11 @@ constant_literal_expressions :: proc() {
 
 	fmt.println("-------")
 
-	ARRAY_CONST :: [3]int{1 = 4, 2 = 9, 0 = 1}
+	ARRAY_CONST :: [3]int{
+		1 = 4,
+		2 = 9,
+		0 = 1,
+	}
 
 	fmt.println(ARRAY_CONST[0])
 	fmt.println(ARRAY_CONST[1])
@@ -2042,7 +2059,10 @@ constant_literal_expressions :: proc() {
 		C,
 		D,
 	}
-	ENUM_ARRAY_CONST :: [Baz]int{.A ..= .C = 1, .D = 16}
+	ENUM_ARRAY_CONST :: [Baz]int{
+		.A ..= .C   = 1,
+		.D = 16,
+	}
 
 	fmt.println(ENUM_ARRAY_CONST[.A])
 	fmt.println(ENUM_ARRAY_CONST[.B])
@@ -2058,7 +2078,10 @@ constant_literal_expressions :: proc() {
 		D = 16,
 	}
 	#assert(len(Sparse_Baz) < len(#sparse[Sparse_Baz]int))
-	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int{.A ..= .C = 1, .D = 16}
+	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int{
+		.A ..= .C   = 1,
+		.D = 16,
+	}
 
 	fmt.println(SPARSE_ENUM_ARRAY_CONST[.A])
 	fmt.println(SPARSE_ENUM_ARRAY_CONST[.B])

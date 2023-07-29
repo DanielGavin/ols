@@ -2013,7 +2013,9 @@ visit_expr :: proc(
 			p.config.multiline_composite_literals &&
 			comp_lit_spans_multiple_lines(v^)
 		should_newline :=
-			can_multiline || contains_comments_in_range(p, v.pos, v.end)
+			can_multiline ||
+			comp_lit_contains_fields(p, v^) ||
+			contains_comments_in_range(p, v.pos, v.end)
 		should_newline &=
 			(called_from == .Value_Decl ||
 				called_from == .Assignment_Stmt ||
