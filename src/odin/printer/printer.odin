@@ -38,15 +38,16 @@ Disabled_Info :: struct {
 }
 
 Config :: struct {
-	character_width: int,
-	spaces:          int, //Spaces per indentation
-	newline_limit:   int, //The limit of newlines between statements and declarations.
-	tabs:            bool, //Enable or disable tabs
-	tabs_width:      int,
-	convert_do:      bool, //Convert all do statements to brace blocks
-	brace_style:     Brace_Style,
-	indent_cases:    bool,
-	newline_style:   Newline_Style,
+	character_width:              int,
+	spaces:                       int, //Spaces per indentation
+	newline_limit:                int, //The limit of newlines between statements and declarations.
+	tabs:                         bool, //Enable or disable tabs
+	tabs_width:                   int,
+	convert_do:                   bool, //Convert all do statements to brace blocks
+	multiline_composite_literals: bool `json:"exp_multiline_composite_literals"`,
+	brace_style:                  Brace_Style,
+	indent_cases:                 bool,
+	newline_style:                Newline_Style,
 }
 
 Brace_Style :: enum {

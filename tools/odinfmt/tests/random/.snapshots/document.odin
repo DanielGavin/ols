@@ -81,7 +81,7 @@ empty :: proc(allocator := context.allocator) -> ^Document {
 
 text :: proc(value: string, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Text {
+	document^ = Document_Text{
 		value = value,
 	}
 	return document
@@ -89,7 +89,7 @@ text :: proc(value: string, allocator := context.allocator) -> ^Document {
 
 newline :: proc(amount: int, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Newline {
+	document^ = Document_Newline{
 		amount = amount,
 	}
 	return document
@@ -101,7 +101,7 @@ nest :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Nest {
+	document^ = Document_Nest{
 		indentation = level,
 		document    = nested_document,
 	}
@@ -115,7 +115,7 @@ nest_if_break :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Nest_If_Break {
+	document^ = Document_Nest_If_Break{
 		indentation = level,
 		document    = nested_document,
 		group_id    = group_id,
@@ -129,7 +129,7 @@ hang :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Nest {
+	document^ = Document_Nest{
 		alignment = align,
 		document  = hanged_document,
 	}
@@ -141,7 +141,7 @@ enforce_fit :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Group {
+	document^ = Document_Group{
 		document = fitted_document,
 		mode     = .Fit,
 	}
@@ -153,7 +153,7 @@ enforce_break :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Group {
+	document^ = Document_Group{
 		document = fitted_document,
 		mode     = .Break,
 	}
@@ -165,7 +165,7 @@ align :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Align {
+	document^ = Document_Align{
 		document = aligned_document,
 	}
 	return document
@@ -173,7 +173,7 @@ align :: proc(
 
 if_break :: proc(value: string, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_If_Break {
+	document^ = Document_If_Break{
 		value = value,
 	}
 	return document
@@ -185,7 +185,7 @@ break_with :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Break {
+	document^ = Document_Break{
 		value   = value,
 		newline = newline,
 	}
@@ -206,7 +206,7 @@ group :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Group {
+	document^ = Document_Group{
 		document = grouped_document,
 		options  = options,
 	}
@@ -219,7 +219,7 @@ cons :: proc(
 	allocator := context.allocator,
 ) -> ^Document {
 	document := new(Document, allocator)
-	document^ = Document_Cons {
+	document^ = Document_Cons{
 		lhs = lhs,
 		rhs = rhs,
 	}
