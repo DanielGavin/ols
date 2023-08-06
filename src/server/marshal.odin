@@ -93,7 +93,7 @@ marshal_to_writer :: proc(
 	ti := runtime.type_info_base(type_info_of(v.id))
 	a := any{v.data, ti.id}
 
-	switch info in ti.variant {
+	#partial switch info in ti.variant {
 	case runtime.Type_Info_Named:
 		unreachable()
 
@@ -293,9 +293,6 @@ marshal_to_writer :: proc(
 	case runtime.Type_Info_Relative_Pointer:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Relative_Slice:
-		return .Unsupported_Type
-
 	case runtime.Type_Info_Matrix:
 		return .Unsupported_Type
 
@@ -313,9 +310,7 @@ marshal_to_writer :: proc(
 		opt_write_end(w, opt, ']') or_return
 
 	case runtime.Type_Info_Enumerated_Array:
-		index := runtime.type_info_base(
-			info.index,
-		).variant.(runtime.Type_Info_Enum)
+		index := runtime.type_info_base(info.index).variant.(runtime.Type_Info_Enum)
 		opt_write_start(w, opt, '[') or_return
 		for i in 0 ..< info.count {
 			opt_write_iteration(w, opt, i) or_return
