@@ -203,7 +203,7 @@ control_flow :: proc() {
 		}
 
 
-		some_map := map[string]int{
+		some_map := map[string]int {
 			"A" = 1,
 			"C" = 9,
 			"B" = 4,
@@ -539,7 +539,7 @@ struct_type :: proc() {
 
 		// You can list just a subset of the fields if you specify the
 		// field by name (the order of the named fields does not matter):
-		v = Vector3{
+		v = Vector3 {
 			z = 1,
 			y = 2,
 		}
@@ -688,7 +688,7 @@ union_type :: proc() {
 		// See `parametric_polymorphism` procedure for details
 		new_entity :: proc($T: typeid) -> ^Entity {
 			t := new(Entity)
-			t.derived = T{
+			t.derived = T {
 				entity = t,
 			}
 			return t
@@ -1131,29 +1131,15 @@ parametric_polymorphism :: proc() {
 			return
 		}
 
-		x := [2][3]f32{
-			{1, 2, 3},
-			{3, 2, 1},
-		}
-		y := [3][2]f32{
-			{0, 8},
-			{6, 2},
-			{8, 4},
-		}
+		x := [2][3]f32{{1, 2, 3}, {3, 2, 1}}
+		y := [3][2]f32{{0, 8}, {6, 2}, {8, 4}}
 		z := mul(x, y)
 		assert(z == {{36, 24}, {20, 32}})
 	}
 }
 
 
-prefix_table := [?]string{
-	"White",
-	"Red",
-	"Green",
-	"Blue",
-	"Octarine",
-	"Black",
-}
+prefix_table := [?]string{"White", "Red", "Green", "Blue", "Octarine", "Black"}
 
 print_mutex := b64(false)
 
@@ -1780,7 +1766,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		fmt.println(foo)
 	}
 	{ 	// Indexed
-		foo := [?]int{
+		foo := [?]int {
 			3 = 16,
 			1 = 4,
 			2 = 9,
@@ -1790,7 +1776,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 	}
 	{ 	// Ranges
 		i := 2
-		foo := [?]int{
+		foo := [?]int {
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -1800,7 +1786,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 	}
 	{ 	// Slice and Dynamic Array support
 		i := 2
-		foo_slice := []int{
+		foo_slice := []int {
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -1808,7 +1794,7 @@ ranged_fields_for_array_compound_literals :: proc() {
 		assert(len(foo_slice) == 16)
 		fmt.println(foo_slice) // [123, 0, 0, 0, 0, 54, 54, 54, 54, 54, 8, 8, 8, 8, 8]
 
-		foo_dynamic_array := [dynamic]int{
+		foo_dynamic_array := [dynamic]int {
 			0 = 123,
 			5 ..= 9  = 54,
 			10 ..< 16  = i * 3 + (i - 1) * 2,
@@ -2019,7 +2005,7 @@ constant_literal_expressions :: proc() {
 		using c: Bar,
 	}
 
-	FOO_CONST :: Foo{
+	FOO_CONST :: Foo {
 		b = 2,
 		a = 1,
 		c = {3, 4},
@@ -2036,7 +2022,7 @@ constant_literal_expressions :: proc() {
 
 	fmt.println("-------")
 
-	ARRAY_CONST :: [3]int{
+	ARRAY_CONST :: [3]int {
 		1 = 4,
 		2 = 9,
 		0 = 1,
@@ -2059,7 +2045,7 @@ constant_literal_expressions :: proc() {
 		C,
 		D,
 	}
-	ENUM_ARRAY_CONST :: [Baz]int{
+	ENUM_ARRAY_CONST :: [Baz]int {
 		.A ..= .C   = 1,
 		.D = 16,
 	}
@@ -2078,7 +2064,7 @@ constant_literal_expressions :: proc() {
 		D = 16,
 	}
 	#assert(len(Sparse_Baz) < len(#sparse[Sparse_Baz]int))
-	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int{
+	SPARSE_ENUM_ARRAY_CONST :: #sparse[Sparse_Baz]int {
 		.A ..= .C   = 1,
 		.D = 16,
 	}
@@ -2523,12 +2509,7 @@ matrix_type :: proc() {
 		mat2 :: distinct matrix[2, 2]f32
 		mat4 :: distinct matrix[4, 4]f32
 
-		m2 := mat2{
-			1,
-			3,
-			2,
-			4,
-		}
+		m2 := mat2{1, 3, 2, 4}
 
 		m4 := mat4(m2)
 		assert(m4[2, 2] == 1)
@@ -2538,24 +2519,7 @@ matrix_type :: proc() {
 		fmt.println("mat2(m4)", mat2(m4))
 		assert(mat2(m4) == m2)
 
-		b4 := mat4{
-			1,
-			2,
-			0,
-			0,
-			3,
-			4,
-			0,
-			0,
-			5,
-			0,
-			6,
-			0,
-			0,
-			7,
-			0,
-			8,
-		}
+		b4 := mat4{1, 2, 0, 0, 3, 4, 0, 0, 5, 0, 6, 0, 0, 7, 0, 8}
 		fmt.println("b4", matrix_flatten(b4))
 	}
 
@@ -2568,16 +2532,7 @@ matrix_type :: proc() {
 		mat2x4 :: distinct matrix[2, 4]f32
 		mat4x2 :: distinct matrix[4, 2]f32
 
-		x := mat2x4{
-			1,
-			3,
-			5,
-			7,
-			2,
-			4,
-			6,
-			8,
-		}
+		x := mat2x4{1, 3, 5, 7, 2, 4, 6, 8}
 
 		y := mat4x2(x)
 		fmt.println("x", x)

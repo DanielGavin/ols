@@ -1446,16 +1446,6 @@ contains_comments_in_range :: proc(
 }
 
 @(private)
-comp_lit_spans_multiple_lines :: proc(lit: ast.Comp_Lit) -> bool {
-	for elem, i in lit.elems {
-		if elem.pos.line != lit.pos.line {
-			return true
-		}
-	}
-	return false
-}
-
-@(private)
 contains_do_in_expression :: proc(p: ^Printer, expr: ^ast.Expr) -> bool {
 	found_do := false
 
@@ -2012,11 +2002,7 @@ visit_expr :: proc(
 			}
 		}
 
-		can_multiline :=
-			p.config.multiline_composite_literals &&
-			comp_lit_spans_multiple_lines(v^)
 		should_newline :=
-			can_multiline ||
 			comp_lit_contains_fields(p, v^) ||
 			contains_comments_in_range(p, v.pos, v.end)
 		should_newline &=
@@ -2026,7 +2012,10 @@ visit_expr :: proc(
 		should_newline &= len(v.elems) != 0
 
 		if should_newline {
-			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
+			document = cons_with_nopl(
+				document,
+				visit_begin_brace(p, v.pos, .Comp_Lit),
+			)
 
 			set_source_position(p, v.open)
 			document = cons(

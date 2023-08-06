@@ -6,50 +6,23 @@ main :: proc() {
 		a, b, c, d: int,
 	}
 	_ = T{0, 0, 0, 0}
-	_ = T{
-		0,
-		0,
-		0,
-		0,
-	}
-	_ = T{
-		0,
-		0,
-		0,
-		0,
-	}
-	_ = T{
-		0,
-		0,
-		0,
-		0,
-	}
-	_ = T{
-		a = 0,
-		b = 0,
-		c = 0,
-		d = 0,
-	}
-	_ = T{
-		a = 0,
-		b = 0,
-		c = 0,
-		d = 0,
-	}
-	_ = T{
-		a = 0,
-		b = 0,
-		c = 0,
-		d = 0,
-	}
-	_ = T{
+
+
+	_ = T {
 		a = 0,
 		b = 0,
 		c = 0,
 		d = 0,
 	}
 
-	sort.sort(sort.Interface{
+	_ = T {
+		a = 0,
+		b = 0,
+		c = 0,
+		d = 0,
+	}
+
+	sort.sort(sort.Interface {
 		len = proc(it: sort.Interface) -> int {
 			c := 2
 		},

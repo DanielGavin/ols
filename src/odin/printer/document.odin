@@ -65,6 +65,7 @@ Document_Group_Mode :: enum {
 	Flat,
 	Break,
 	Fit,
+	Fill,
 }
 
 Document_Group_Options :: struct {
@@ -152,6 +153,18 @@ enforce_fit :: proc(
 	document^ = Document_Group {
 		document = fitted_document,
 		mode     = .Fit,
+	}
+	return document
+}
+
+fill :: proc(
+	filled_document: ^Document,
+	allocator := context.allocator,
+) -> ^Document {
+	document := new(Document, allocator)
+	document^ = Document_Group {
+		document = filled_document,
+		mode     = .Fill,
 	}
 	return document
 }
@@ -578,6 +591,17 @@ format :: proc(
 					builder,
 					p,
 				)
+			} else if data.mode == .Fill && consumed < width {
+				strings.write_string(builder, v.value)
+				consumed += len(v.value)
+			} else if data.mode == .Fill && v.newline {
+				format_newline(
+					data.indentation,
+					data.alignment,
+					&consumed,
+					builder,
+					p,
+				)
 			} else {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
@@ -660,7 +684,17 @@ format :: proc(
 					},
 				)
 			} else {
-				if v.mode == .Fit {
+				if data.mode == .Fill || v.mode == .Fill {
+					append(
+						list,
+						Tuple{
+							indentation = data.indentation,
+							mode = .Fill,
+							document = v.document,
+							alignment = data.alignment,
+						},
+					)
+				} else if v.mode == .Fit {
 					append(
 						list,
 						Tuple{
