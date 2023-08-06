@@ -19,6 +19,7 @@ format_file :: proc(
 	style := format.default_style
 	style.character_width = 80
 	style.newline_style = .LF //We want to make sure it works on linux and windows.
+	style.multiline_composite_literals = true
 
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
 		return format.format(
@@ -79,9 +80,9 @@ snapshot_file :: proc(path: string) -> bool {
 
 	if os.exists(snapshot_path) {
 		if snapshot_data, ok := os.read_entire_file(
-			   snapshot_path,
-			   context.temp_allocator,
-		   ); ok {
+			snapshot_path,
+			context.temp_allocator,
+		); ok {
 			snapshot_scanner := scanner.Scanner{}
 			scanner.init(&snapshot_scanner, string(snapshot_data))
 			formatted_scanner := scanner.Scanner{}

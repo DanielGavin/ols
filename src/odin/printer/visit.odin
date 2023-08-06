@@ -966,10 +966,7 @@ visit_stmt :: proc(
 		}
 
 		if !uses_do {
-			document = cons(
-				document,
-				visit_begin_brace(p, v.pos, block_type, len(v.stmts)),
-			)
+			document = cons(document, visit_begin_brace(p, v.pos, block_type))
 		} else {
 			document = cons(document, text("do"), break_with(" ", false))
 		}
@@ -1443,6 +1440,16 @@ contains_comments_in_range :: proc(
 			if pos.offset <= c.pos.offset && c.pos.offset <= end.offset {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+@(private)
+comp_lit_spans_multiple_lines :: proc(lit: ast.Comp_Lit) -> bool {
+	for elem, i in lit.elems {
+		if elem.pos.line != lit.pos.line {
+			return true
 		}
 	}
 	return false
@@ -1978,9 +1985,9 @@ visit_expr :: proc(
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
 			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
-				document = cons_with_nopl(
+				document = cons(
 					document,
-					visit_begin_brace(p, v.pos, .Generic),
+					visit_begin_brace(p, v.pos, .Comp_Lit),
 				)
 
 				set_source_position(p, v.open)
@@ -2005,7 +2012,11 @@ visit_expr :: proc(
 			}
 		}
 
+		can_multiline :=
+			p.config.multiline_composite_literals &&
+			comp_lit_spans_multiple_lines(v^)
 		should_newline :=
+			can_multiline ||
 			comp_lit_contains_fields(p, v^) ||
 			contains_comments_in_range(p, v.pos, v.end)
 		should_newline &=
@@ -2015,10 +2026,7 @@ visit_expr :: proc(
 		should_newline &= len(v.elems) != 0
 
 		if should_newline {
-			document = cons_with_nopl(
-				document,
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 			set_source_position(p, v.open)
 			document = cons(
@@ -2205,8 +2213,6 @@ visit_begin_brace :: proc(
 	p: ^Printer,
 	begin: tokenizer.Pos,
 	type: Block_Type,
-	count := 0,
-	same_line_spaces_before := 1,
 ) -> ^Document {
 	set_source_position(p, begin)
 	set_comment_option(p, begin.line, .Indent)
@@ -2216,12 +2222,13 @@ visit_begin_brace :: proc(
 	newline_braced &= p.config.brace_style != ._1TBS
 
 	if newline_braced {
-		document := newline(1)
-		document = cons(document, text("{"))
-		return document
-	} else {
-		return text("{")
+		if type == .Comp_Lit {
+			return cons(text("\\"), newline(1), text("{"))
+		}
+		return cons(newline(1), text("{"))
 	}
+
+	return text("{")
 }
 
 @(private)

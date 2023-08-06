@@ -32,6 +32,11 @@
 			"default": false,
 			"description": "Convert all do statements to brace blocks"
 		},
+		"exp_multiline_composite_literals": {
+			"type": "boolean",
+			"default": false,
+			"description": "Experimental: Composite literals that span multiple lines are not forcibly inlined"
+		},
 		"brace_style": {
 			"type": "string",
 			"enum": ["_1TBS", "Allman", "Stroustrup", "K_And_R"],
