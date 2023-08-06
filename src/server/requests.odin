@@ -524,6 +524,9 @@ request_initialize :: proc(
 		append(&config.workspace_folders, workspace)
 	}
 
+	config.enable_hover = true
+	config.enable_format = true
+
 	read_ols_config :: proc(
 		file: string,
 		config: ^common.Config,
