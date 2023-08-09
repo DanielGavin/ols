@@ -1154,7 +1154,12 @@ visit_stmt :: proc(
 
 		//If the switch contains `switch in v`
 		if exprs_contain_empty_idents(v.lhs) && block_type == .Switch_Stmt {
-			assign_document = cons(document, text(v.op.text))
+			assign_document = cons(
+				document,
+				text("_"),
+				break_with_space(),
+				text(v.op.text),
+			)
 		} else {
 			assign_document = cons(
 				document,
