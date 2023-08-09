@@ -94,7 +94,7 @@ clone_node :: proc(
 		align = elem.align
 	}
 
-	#partial switch in node.derived {
+	#partial switch _ in node.derived {
 	case ^Package, ^File:
 		panic("Cannot clone this node type")
 	}
