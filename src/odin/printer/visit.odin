@@ -937,6 +937,17 @@ visit_stmt :: proc(
 	comments := move_line(p, stmt.pos)
 
 	#partial switch v in stmt.derived {
+	case ^ast.Tag_Stmt:
+		//Hack to fix a bug in the odin parser
+		v.end = v.stmt.end
+
+		document = cons(
+			document,
+			text(v.op.text),
+			text(v.name),
+			break_with_no_newline(),
+			visit_stmt(p, v.stmt),
+		)
 	case ^Using_Stmt:
 		document = cons(
 			document,

@@ -3555,7 +3555,7 @@ get_locals_if_stmt :: proc(
 		return
 	}
 
-	get_locals_stmt(file, stmt.init, ast_context, document_position, true)
+	get_locals_stmt(file, stmt.init, ast_context, document_position, false)
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 	get_locals_stmt(file, stmt.else_stmt, ast_context, document_position)
 }
@@ -3752,7 +3752,7 @@ get_locals_for_stmt :: proc(
 		return
 	}
 
-	get_locals_stmt(file, stmt.init, ast_context, document_position, true)
+	get_locals_stmt(file, stmt.init, ast_context, document_position, false)
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 }
 
