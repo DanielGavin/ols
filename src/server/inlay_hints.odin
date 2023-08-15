@@ -83,6 +83,10 @@ get_inlay_hints :: proc(
 					if arg.type != nil {
 						if ellipsis, is_ellipsis := arg.type.derived.(^ast.Ellipsis);
 						   is_ellipsis {
+							if symbol_arg_count >= len(call.args) {
+								continue loop
+							}
+
 							if ident, ok := ellipsis.expr.derived.(^ast.Ident);
 							   ok {
 								range := common.get_token_range(
