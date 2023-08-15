@@ -80,6 +80,30 @@ get_inlay_hints :: proc(
 						continue
 					}
 
+					if arg.type != nil {
+						if ellipsis, is_ellipsis := arg.type.derived.(^ast.Ellipsis);
+						   is_ellipsis {
+							if ident, ok := ellipsis.expr.derived.(^ast.Ident);
+							   ok {
+								range := common.get_token_range(
+									call.args[symbol_arg_count],
+									string(document.text),
+								)
+								hint := InlayHint {
+									kind     = .Parameter,
+									label    = fmt.tprintf(
+										"%v = ",
+										ident.name,
+									),
+									position = range.start,
+								}
+								append(&hints, hint)
+
+								continue loop
+							}
+						}
+					}
+
 					for name in arg.names {
 						if symbol_arg_count >= len(call.args) {
 							continue loop
@@ -99,6 +123,7 @@ get_inlay_hints :: proc(
 						}
 						symbol_arg_count += 1
 					}
+
 				}
 			}
 		}
