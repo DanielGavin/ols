@@ -80,52 +80,50 @@ get_inlay_hints :: proc(
 						continue
 					}
 
-					if arg.type != nil {
-						if ellipsis, is_ellipsis := arg.type.derived.(^ast.Ellipsis);
-						   is_ellipsis {
-							if symbol_arg_count >= len(call.args) {
-								continue loop
-							}
-
-							if ident, ok := ellipsis.expr.derived.(^ast.Ident);
-							   ok {
-								range := common.get_token_range(
-									call.args[symbol_arg_count],
-									string(document.text),
-								)
-								hint := InlayHint {
-									kind     = .Parameter,
-									label    = fmt.tprintf(
-										"%v = ",
-										ident.name,
-									),
-									position = range.start,
-								}
-								append(&hints, hint)
-
-								continue loop
-							}
-						}
-					}
-
 					for name in arg.names {
 						if symbol_arg_count >= len(call.args) {
 							continue loop
 						}
 
-						if ident, ok := name.derived.(^ast.Ident); ok {
-							range := common.get_token_range(
-								call.args[symbol_arg_count],
-								string(document.text),
-							)
-							hint := InlayHint {
-								kind     = .Parameter,
-								label    = fmt.tprintf("%v = ", ident.name),
-								position = range.start,
+						label := ""
+						is_ellipsis := false
+
+						if arg.type != nil {
+							if ellipsis, ok := arg.type.derived.(^ast.Ellipsis);
+							   ok {
+								is_ellipsis = true
 							}
-							append(&hints, hint)
 						}
+
+						#partial switch v in name.derived {
+						case ^ast.Ident:
+							label = v.name
+						case ^ast.Poly_Type:
+							if ident, ok := v.type.derived.(^ast.Ident); ok {
+								label = ident.name
+							} else {
+								continue loop
+							}
+						case:
+							continue loop
+						}
+
+						range := common.get_token_range(
+							call.args[symbol_arg_count],
+							string(document.text),
+						)
+						hint := InlayHint {
+							kind     = .Parameter,
+							label    = fmt.tprintf("%v = ", label),
+							position = range.start,
+						}
+						append(&hints, hint)
+
 						symbol_arg_count += 1
+
+						if is_ellipsis {
+							continue loop
+						}
 					}
 
 				}
