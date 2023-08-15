@@ -64,14 +64,15 @@ DocumentPositionContext :: struct {
 }
 
 DocumentLocal :: struct {
-	lhs:       ^ast.Expr,
-	rhs:       ^ast.Expr,
-	offset:    int,
-	global:    bool, //Some locals have already been resolved and are now in global space
-	id:        int, //Id that can used to connect the local to something, i.e. for stmt begin offset
-	pkg:       string,
-	variable:  bool,
-	parameter: bool,
+	lhs:             ^ast.Expr,
+	rhs:             ^ast.Expr,
+	offset:          int,
+	resolved_global: bool, //Some locals have already been resolved and are now in global space
+	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
+	id:              int, //Id that can used to connect the local to something, i.e. for stmt begin offset
+	pkg:             string,
+	variable:        bool,
+	parameter:       bool,
 }
 
 AstContext :: struct {
@@ -1473,7 +1474,8 @@ store_local :: proc(
 	offset: int,
 	name: string,
 	id: int,
-	global: bool,
+	local_global: bool,
+	resolved_global: bool,
 	variable: bool,
 	pkg: string,
 	parameter: bool,
@@ -1493,7 +1495,8 @@ store_local :: proc(
 			rhs = rhs,
 			offset = offset,
 			id = id,
-			global = global,
+			resolved_global = resolved_global,
+			local_global = local_global,
 			pkg = pkg,
 			variable = variable,
 			parameter = parameter,
@@ -1524,7 +1527,8 @@ get_local :: proc(
 	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
-				if local_stack[i].offset <= offset {
+				if local_stack[i].offset <= offset ||
+				   local_stack[i].local_global {
 					if i < 0 {
 						return {}, false
 					} else {
@@ -1553,7 +1557,8 @@ get_local_offset :: proc(
 	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			for i := len(local_stack) - 1; i >= 0; i -= 1 {
-				if local_stack[i].offset <= offset {
+				if local_stack[i].offset <= offset ||
+				   local_stack[i].local_global {
 					if i < 0 {
 						return -1
 					} else {
@@ -1647,7 +1652,7 @@ internal_resolve_type_identifier :: proc(
 		}
 
 		//Sometimes the locals are semi resolved and can no longer use the locals
-		if local.global {
+		if local.resolved_global {
 			ast_context.use_locals = false
 		}
 
@@ -3334,6 +3339,7 @@ get_locals_value_decl :: proc(
 				value_decl.end.offset,
 				str,
 				ast_context.local_id,
+				ast_context.non_mutable_only,
 				false,
 				value_decl.is_mutable,
 				"",
@@ -3367,6 +3373,7 @@ get_locals_value_decl :: proc(
 			value_decl.end.offset,
 			str,
 			ast_context.local_id,
+			ast_context.non_mutable_only,
 			calls[result_i] or_else false,
 			value_decl.is_mutable,
 			get_package_from_node(results[result_i]^),
@@ -3489,6 +3496,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 					name,
 					ast_context.local_id,
 					false,
+					ast_context.non_mutable_only,
 					true,
 					"",
 					false,
@@ -3535,6 +3543,7 @@ get_locals_assign_stmt :: proc(
 				ident.pos.offset,
 				ident.name,
 				ast_context.local_id,
+				ast_context.non_mutable_only,
 				false,
 				true,
 				"",
@@ -3590,6 +3599,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3612,6 +3622,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3628,6 +3639,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3645,6 +3657,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3661,6 +3674,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3678,6 +3692,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3695,6 +3710,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3712,6 +3728,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3728,6 +3745,7 @@ get_locals_for_range_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						symbol.pkg,
@@ -3804,6 +3822,7 @@ get_locals_type_switch_stmt :: proc(
 						ident.pos.offset,
 						ident.name,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3843,6 +3862,7 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3868,6 +3888,7 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3890,6 +3911,7 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3904,6 +3926,7 @@ get_locals_proc_param_and_results :: proc(
 						name.pos.offset,
 						str,
 						ast_context.local_id,
+						ast_context.non_mutable_only,
 						false,
 						true,
 						"",
@@ -3946,10 +3969,15 @@ get_locals :: proc(
 		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
 
+	old_position := document_position.position
+
 	for function in document_position.functions {
 		ast_context.non_mutable_only = true
+		document_position.position = function.end.offset
 		get_locals_stmt(file, function.body, ast_context, document_position)
 	}
+
+	document_position.position = old_position
 }
 
 clear_locals :: proc(ast_context: ^AstContext) {

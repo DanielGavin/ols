@@ -2331,3 +2331,34 @@ ast_bitset_assignment_diff_pkg :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {"Aa", "Ab", "Ac", "Ad"})
 }
+
+@(test)
+ast_local_global_function :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+
+		main :: proc() {
+			 my_function_two :: proc(one: int) {
+				my_{*}
+			 }
+		
+			 my_function_one :: proc(one: int) {
+				
+			 }
+		
+		}
+		
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.my_function_two: proc(one: int)"},
+	)
+}
