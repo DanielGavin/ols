@@ -1,10 +1,12 @@
 package odin_printer
 
+import "core:fmt"
+import "core:log"
+import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
+import "core:slice"
 import "core:strings"
-import "core:fmt"
-import "core:mem"
 
 Printer :: struct {
 	string_builder:       strings.Builder,
@@ -47,6 +49,7 @@ Config :: struct {
 	brace_style:     Brace_Style,
 	indent_cases:    bool,
 	newline_style:   Newline_Style,
+	sort_imports:    bool,
 }
 
 Brace_Style :: enum {
@@ -95,6 +98,7 @@ when ODIN_OS == .Windows {
 		indent_cases    = false,
 		newline_style   = .CRLF,
 		character_width = 100,
+		sort_imports    = true,
 	}
 } else {
 	default_style := Config {
@@ -107,6 +111,7 @@ when ODIN_OS == .Windows {
 		indent_cases    = false,
 		newline_style   = .LF,
 		character_width = 100,
+		sort_imports    = true,
 	}
 }
 
@@ -222,8 +227,37 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 		cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)),
 	)
 
-	for decl in file.decls {
-		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
+	// Keep track of the first import in a row, to sort them later.
+	import_group_start: Maybe(int)
+
+	for decl, i in file.decls {
+		decl := cast(^ast.Decl)decl
+
+		if imp, is_import := decl.derived.(^ast.Import_Decl);
+		   p.config.sort_imports && is_import {
+			// First import in this group.
+			if import_group_start == nil {
+				import_group_start = i
+				continue
+			}
+
+			// If this import is on the next line, it is part of the group.
+			if imp.pos.line - 1 == file.decls[i - 1].end.line {
+				continue
+			}
+
+			// This is an import, but it is separated, lets sort the current group.
+			print_sorted_imports(p, file.decls[import_group_start.?:i])
+			import_group_start = i
+		} else {
+			// If there were imports before this declaration, sort and print them.
+			if import_group_start != nil {
+				print_sorted_imports(p, file.decls[import_group_start.?:i])
+				import_group_start = nil
+			}
+
+			p.document = cons(p.document, visit_decl(p, decl))
+		}
 	}
 
 	if len(p.comments) > 0 {
@@ -242,4 +276,24 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	format(p.config.character_width, &list, &p.string_builder, p)
 
 	return strings.to_string(p.string_builder)
+}
+
+// Sort the imports and add them to the document.
+@(private)
+print_sorted_imports :: proc(p: ^Printer, decls: []^ast.Stmt) {
+	start_line := decls[0].pos.line
+
+	slice.stable_sort_by(decls, proc(imp1, imp2: ^ast.Stmt) -> bool {
+		return(
+			imp1.derived.(^ast.Import_Decl).fullpath <
+			imp2.derived.(^ast.Import_Decl).fullpath \
+		)
+	})
+
+	for decl, i in decls {
+		decl.pos.line = start_line + i
+		decl.end.line = start_line + i
+
+		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
+	}
 }
