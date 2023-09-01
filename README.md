@@ -104,6 +104,8 @@ Options:
 
 `tabs_width`: How many characters one tab represents
 
+`sort_imports`: A boolean that defaults to true, which can be set to false to disable sorting imports.
+
 ## Features
 
 Support Language server features:
