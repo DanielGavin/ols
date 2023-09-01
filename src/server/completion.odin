@@ -1,18 +1,18 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
-import "core:path/filepath"
-import "core:sort"
-import "core:slice"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
 
 import "shared:common"
@@ -464,7 +464,7 @@ get_selector_completion :: proc(
 
 		for type in v.types {
 			if symbol, ok := resolve_type_expression(ast_context, type); ok {
-				base := path.base(symbol.pkg, false, context.temp_allocator)
+				base := get_symbol_pkg_name(ast_context, symbol)
 
 				item := CompletionItem {
 					kind          = .EnumMember,
@@ -496,7 +496,7 @@ get_selector_completion :: proc(
 							symbol.pointers,
 							context.temp_allocator,
 						),
-						path.base(symbol.pkg, false, context.temp_allocator),
+						get_symbol_pkg_name(ast_context, symbol),
 						common.node_to_string(type, true),
 					)
 				}
@@ -1516,6 +1516,9 @@ get_type_switch_completion :: proc(
 				for name in case_clause.list {
 					if ident, ok := name.derived.(^ast.Ident); ok {
 						used_unions[ident.name] = true
+					} else if selector, ok := name.derived.(^ast.Selector_Expr);
+					   ok {
+						used_unions[selector.field.name] = true
 					}
 				}
 			}
@@ -1533,9 +1536,6 @@ get_type_switch_completion :: proc(
 					union_value.types[i],
 				); ok {
 					name := symbol.name
-					if name in used_unions {
-						continue
-					}
 
 					item := CompletionItem {
 						kind = .EnumMember,
@@ -1559,11 +1559,7 @@ get_type_switch_completion :: proc(
 								symbol.pointers,
 								context.temp_allocator,
 							),
-							path.base(
-								symbol.pkg,
-								false,
-								context.temp_allocator,
-							),
+							get_symbol_pkg_name(ast_context, symbol),
 							name,
 						)
 					}

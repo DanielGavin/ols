@@ -24,9 +24,10 @@ ParserError :: struct {
 }
 
 Package :: struct {
-	name:     string, //the entire absolute path to the directory
-	base:     string,
-	original: string,
+	name:          string, //the entire absolute path to the directory
+	base:          string,
+	base_original: string,
+	original:      string,
 }
 
 Document :: struct {
@@ -486,6 +487,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
+				import_.base_original = path.base(import_.name, false)
 			} else {
 				import_.base = path.base(import_.name, false)
 			}
@@ -510,6 +512,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
+				import_.base_original = path.base(import_.name, false)
 			} else {
 				import_.base = path.base(import_.name, false)
 			}

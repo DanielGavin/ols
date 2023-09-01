@@ -1,19 +1,19 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:path/filepath"
-import "core:sort"
-import "core:slice"
-import "core:unicode/utf8"
+import path "core:path/slashpath"
 import "core:reflect"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
+import "core:unicode/utf8"
 
 import "shared:common"
 
@@ -2750,6 +2750,23 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	return usings
 }
 
+get_symbol_pkg_name :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+) -> string {
+
+	name := path.base(symbol.pkg, false, context.temp_allocator)
+
+	for imp in ast_context.imports {
+		if imp.base_original == name {
+			return imp.base
+		}
+	}
+
+	return name
+}
+
+
 make_symbol_procedure_from_ast :: proc(
 	ast_context: ^AstContext,
 	n: ^ast.Node,
@@ -4439,6 +4456,7 @@ unwrap_union :: proc(
 	bool,
 ) {
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
+		ast_context.current_package = union_symbol.pkg
 		if union_value, ok := union_symbol.value.(SymbolUnionValue); ok {
 			return union_value, true
 		}
