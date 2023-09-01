@@ -2271,21 +2271,27 @@ resolve_symbol_return :: proc(
 		}
 	case SymbolUnionValue:
 		if v.poly != nil {
-			//Todo(daniel): Maybe change the function to return a new symbol instead of referencing it.
-			//resolving the poly union means changing the type, so we do a copy of it.
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
-			append_elems(&types, ..v.types)
+
+			for type in v.types {
+				append(&types, clone_expr(type, context.temp_allocator, nil))
+			}
+
 			v.types = types[:]
+
 			resolve_poly_union(ast_context, v.poly, &symbol)
 		}
 		return symbol, ok
 	case SymbolStructValue:
 		if v.poly != nil {
-			//Todo(daniel): Maybe change the function to return a new symbol instead of referencing it.
-			//resolving the struct union means changing the type, so we do a copy of it.
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
-			append_elems(&types, ..v.types)
+
+			for type in v.types {
+				append(&types, clone_expr(type, context.temp_allocator, nil))
+			}
+
 			v.types = types[:]
+
 			resolve_poly_struct(ast_context, v.poly, &symbol)
 		}
 
@@ -3214,24 +3220,56 @@ resolve_poly_struct :: proc(
 		}
 	}
 
-	for type, i in symbol_value.types {
-		if ident, ok := type.derived.(^ast.Ident); ok {
-			if expr, ok := poly_map[ident.name]; ok {
-				symbol_value.types[i] = expr
-			}
-		} else if call_expr, ok := type.derived.(^ast.Call_Expr); ok {
-			if call_expr.args == nil {
-				continue
-			}
+	Visit_Data :: struct {
+		poly_map:     map[string]^ast.Expr,
+		symbol_value: ^SymbolStructValue,
+		parent:       ^ast.Node,
+		i:            int,
+	}
 
-			for arg, i in call_expr.args {
-				if ident, ok := arg.derived.(^ast.Ident); ok {
-					if expr, ok := poly_map[ident.name]; ok {
-						symbol_value.types[i] = expr
+	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil || visitor == nil {
+			return nil
+		}
+
+		data := cast(^Visit_Data)visitor.data
+
+		if ident, ok := node.derived.(^ast.Ident); ok {
+			if expr, ok := data.poly_map[ident.name]; ok {
+				if data.parent != nil {
+					#partial switch &v in data.parent.derived {
+					case ^ast.Array_Type:
+						v.elem = expr
+					case ^ast.Dynamic_Array_Type:
+						v.elem = expr
 					}
+				} else {
+					data.symbol_value.types[data.i] = expr
 				}
 			}
 		}
+
+		#partial switch v in node.derived {
+		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr:
+			data.parent = node
+		}
+
+		return visitor
+	}
+
+	for type, i in symbol_value.types {
+		data := Visit_Data {
+			poly_map     = poly_map,
+			symbol_value = symbol_value,
+			i            = i,
+		}
+
+		visitor := ast.Visitor {
+			data  = &data,
+			visit = visit,
+		}
+
+		ast.walk(&visitor, type)
 	}
 }
 

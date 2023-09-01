@@ -2362,3 +2362,30 @@ ast_local_global_function :: proc(t: ^testing.T) {
 		{"test.my_function_two: proc(one: int)"},
 	)
 }
+
+@(test)
+ast_generic_struct_with_array :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package main
+		Test :: struct($T: typeid) {
+			values: [32]T,
+		}
+		
+		Test_Inner :: struct {
+			a, b, c: int,
+		}
+		
+		main :: proc() {
+			test := Test(Test_Inner) {}
+			a := test.values[0]
+			a.{*} 
+		}
+		
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"Test_Inner.b: int"})
+}
