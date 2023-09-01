@@ -1,7 +1,7 @@
 package odin_printer
 
-import "core:strings"
 import "core:fmt"
+import "core:strings"
 
 Document :: union {
 	Document_Nil,

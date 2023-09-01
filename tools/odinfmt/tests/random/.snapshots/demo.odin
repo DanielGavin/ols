@@ -1,14 +1,14 @@
 package main
 
 import "core:fmt"
-import "core:mem"
-import "core:os"
-import "core:thread"
-import "core:time"
-import "core:reflect"
-import "core:runtime"
 import "core:intrinsics"
 import "core:math/big"
+import "core:mem"
+import "core:os"
+import "core:reflect"
+import "core:runtime"
+import "core:thread"
+import "core:time"
 
 /*
 	Odin is a general-purpose programming language with distinct typing built
@@ -1403,7 +1403,7 @@ partial_switch :: proc() {
 			bool,
 		}
 		f: Foo = 123
-		switch in f {
+		switch _ in f {
 		case int:
 			fmt.println("int")
 		case bool:
@@ -1411,7 +1411,7 @@ partial_switch :: proc() {
 		case:
 		}
 
-		#partial switch in f {
+		#partial switch _ in f {
 		case bool:
 			fmt.println("bool")
 		}
