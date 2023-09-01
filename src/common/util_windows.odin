@@ -22,6 +22,7 @@ foreign kernel32 {
 get_case_sensitive_path :: proc(
 	path: string,
 	allocator := context.temp_allocator,
+	location := #caller_location,
 ) -> string {
 	wide := win32.utf8_to_utf16(path)
 	file := win32.CreateFileW(
@@ -35,7 +36,7 @@ get_case_sensitive_path :: proc(
 	)
 
 	if (file == win32.INVALID_HANDLE) {
-		log.errorf("Failed on get_case_sensitive_path(%v)", path)
+		log.errorf("Failed on get_case_sensitive_path(%v) at %v", path, location)
 		log_last_error()
 		return path
 	}

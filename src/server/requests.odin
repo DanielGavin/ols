@@ -1,21 +1,21 @@
 package server
 
+import "core:encoding/json"
 import "core:fmt"
+import "core:intrinsics"
 import "core:log"
 import "core:mem"
-import "core:os"
-import "core:strings"
-import "core:slice"
-import "core:strconv"
-import "core:encoding/json"
-import path "core:path/slashpath"
-import "core:runtime"
-import "core:thread"
-import "core:sync"
-import "core:path/filepath"
-import "core:intrinsics"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:runtime"
+import "core:slice"
+import "core:strconv"
+import "core:strings"
+import "core:sync"
+import "core:thread"
 import "core:time"
 
 import "shared:common"
@@ -401,6 +401,7 @@ call :: proc(
 read_ols_initialize_options :: proc(
 	config: ^common.Config,
 	ols_config: OlsConfig,
+	uri: common.Uri,
 ) {
 	config.disable_parser_errors =
 		ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
@@ -437,32 +438,63 @@ read_ols_initialize_options :: proc(
 	config.enable_fake_method =
 		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
-	// copy collections from new config
-	when ODIN_OS == .Windows {
-		for it in ols_config.collections {
-			forward, _ := filepath.to_slash(
-				common.get_case_sensitive_path(it.path),
-				context.temp_allocator,
-			)
 
-			if it.name in config.collections {
-				delete(config.collections[it.name])
-				delete_key(&config.collections, it.name)
+	for it in ols_config.collections {
+		if it.name in config.collections {
+			delete(config.collections[it.name])
+			delete_key(&config.collections, it.name)
+		}
+
+		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
+
+		//Support a basic use of '~'
+		when ODIN_OS != .Windows {
+			if forward_path[0] == '~' {
+				home := os.get_env("HOME", context.temp_allocator)
+				forward_path, _ = strings.replace(
+					forward_path,
+					"~",
+					home,
+					1,
+					context.temp_allocator,
+				)
+			}
+		}
+
+		final_path := ""
+
+		when ODIN_OS == .Windows {
+			if filepath.is_abs(it.path) {
+				final_path, _ = filepath.to_slash(
+					common.get_case_sensitive_path(
+						forward_path,
+						context.temp_allocator,
+					),
+					context.temp_allocator,
+				)
+			} else {
+				final_path, _ = filepath.to_slash(
+					common.get_case_sensitive_path(
+						path.join(
+							elems = {uri.path, forward_path},
+							allocator = context.temp_allocator,
+						),
+						context.temp_allocator,
+					),
+					context.temp_allocator,
+				)
 			}
 
-			config.collections[strings.clone(it.name, context.allocator)] =
-				strings.clone(forward, context.allocator)
-		}
-	} else {
-		for it in ols_config.collections {
-			if it.name in config.collections {
-				delete(config.collections[it.name])
-				delete_key(&config.collections, it.name)
+			final_path = strings.clone(final_path)
+		} else {
+			if filepath.is_abs(it.path) {
+				final_path = strings.clone(forward_path)
+			} else {
+				final_path = path.join(elems = {uri.path, forward_path})
 			}
-
-			config.collections[strings.clone(it.name, context.allocator)] =
-				strings.clone(it.path, context.allocator)
 		}
+
+		config.collections[strings.clone(it.name)] = final_path
 	}
 
 	// ensure that core/vendor collections are provided
@@ -479,7 +511,7 @@ read_ols_initialize_options :: proc(
 			odin_core_env,
 			context.temp_allocator,
 		)
-		config.collections["core"] = path.join(
+		config.collections[strings.clone("core")] = path.join(
 			elems = {forward_path, "core"},
 			allocator = context.allocator,
 		)
@@ -490,7 +522,7 @@ read_ols_initialize_options :: proc(
 			odin_core_env,
 			context.temp_allocator,
 		)
-		config.collections["vendor"] = path.join(
+		config.collections[strings.clone("vendor")] = path.join(
 			elems = {forward_path, "vendor"},
 			allocator = context.allocator,
 		)
@@ -527,6 +559,23 @@ request_initialize :: proc(
 	config.enable_hover = true
 	config.enable_format = true
 
+	config.disable_parser_errors = false
+	config.thread_count = 2
+	config.enable_document_symbols = true
+	config.enable_format = true
+	config.enable_hover = true
+	config.enable_semantic_tokens = false
+	config.enable_procedure_context = false
+	config.enable_snippets = false
+	config.enable_references = false
+	config.verbose = false
+	config.file_log = false
+	config.enable_rename = false
+	config.odin_command = ""
+	config.checker_args = ""
+	config.enable_inlay_hints = false
+	config.enable_fake_method = false
+
 	read_ols_config :: proc(
 		file: string,
 		config: ^common.Config,
@@ -542,77 +591,7 @@ request_initialize :: proc(
 
 				if unmarshal(value, ols_config, context.temp_allocator) ==
 				   nil {
-					config.disable_parser_errors =
-						ols_config.disable_parser_errors.(bool) or_else false
-					config.thread_count =
-						ols_config.thread_pool_count.(int) or_else 2
-					config.enable_document_symbols =
-						ols_config.enable_document_symbols.(bool) or_else true
-					config.enable_format =
-						ols_config.enable_format.(bool) or_else true
-					config.enable_hover =
-						ols_config.enable_hover.(bool) or_else true
-					config.enable_semantic_tokens =
-						ols_config.enable_semantic_tokens.(bool) or_else false
-					config.enable_procedure_context =
-						ols_config.enable_procedure_context.(bool) or_else false
-					config.enable_snippets =
-						ols_config.enable_snippets.(bool) or_else false
-					config.enable_references =
-						ols_config.enable_references.(bool) or_else false
-					config.verbose = ols_config.verbose.(bool) or_else false
-					config.file_log = ols_config.file_log.(bool) or_else false
-					config.enable_rename =
-						ols_config.enable_references.(bool) or_else false
-					config.odin_command = strings.clone(
-						ols_config.odin_command.(string) or_else "",
-						context.allocator,
-					)
-					config.checker_args = strings.clone(
-						ols_config.checker_args.(string) or_else "",
-						context.allocator,
-					)
-					config.enable_inlay_hints =
-						ols_config.enable_inlay_hints.(bool) or_else false
-					config.enable_fake_method =
-						ols_config.enable_fake_methods.(bool) or_else false
-
-
-					for p in ols_config.collections {
-						forward_path, _ := filepath.to_slash(
-							p.path,
-							context.temp_allocator,
-						)
-
-						//Support a basic use of '~'
-						when ODIN_OS != .Windows {
-							if forward_path[0] == '~' {
-								home := os.get_env(
-									"HOME",
-									context.temp_allocator,
-								)
-								forward_path, _ = strings.replace(
-									forward_path,
-									"~",
-									home,
-									1,
-									context.temp_allocator,
-								)
-							}
-						}
-
-						if filepath.is_abs(p.path) {
-							config.collections[strings.clone(p.name)] =
-								strings.clone(forward_path)
-						} else {
-							config.collections[strings.clone(p.name)] =
-								path.join(
-									elems = {uri.path, forward_path},
-									allocator = context.allocator,
-								)
-						}
-					}
-
+					read_ols_initialize_options(config, ols_config, uri)
 				} else {
 					log.errorf("Failed to unmarshal %v", file)
 				}
@@ -638,12 +617,14 @@ request_initialize :: proc(
 			allocator = context.temp_allocator,
 		)
 		read_ols_config(ols_config_path, config, uri)
+
+		read_ols_initialize_options(
+			config,
+			initialize_params.initializationOptions,
+			uri,
+		)
 	}
 
-	read_ols_initialize_options(
-		config,
-		initialize_params.initializationOptions,
-	)
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
@@ -1482,7 +1463,12 @@ notification_workspace_did_change_configuration :: proc(
 
 	ols_config := workspace_config_params.settings
 
-	read_ols_initialize_options(config, ols_config)
+	if uri, ok := common.parse_uri(
+		config.workspace_folders[0].uri,
+		context.temp_allocator,
+	); ok {
+		read_ols_initialize_options(config, ols_config, uri)
+	}
 
 	return .None
 }
