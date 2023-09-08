@@ -1291,6 +1291,10 @@ visit_stmt :: proc(
 			)
 		}
 
+		if v.reverse {
+			document = cons(document, text("#reverse"), break_with_no_newline())
+		}
+
 		document = cons(document, text("for"))
 
 		if len(v.vals) >= 1 {
