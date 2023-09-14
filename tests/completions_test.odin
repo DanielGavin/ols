@@ -1,7 +1,7 @@
 package tests
 
-import "core:testing"
 import "core:fmt"
+import "core:testing"
 
 import test "shared:testing"
 
@@ -395,7 +395,7 @@ ast_generic_make_slice :: proc(t: ^testing.T) {
 		Context :: struct {
 			allocator: Allocator,
 		}
-		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_slice :: proc($T: typeid/[]$E, #any_int len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
 
 		My_Struct :: struct {
@@ -699,15 +699,15 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 			make_map,
 			make_slice,
 		};
-		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_slice :: proc($T: typeid/[]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
+		make_map :: proc($T: typeid/map[$K]$E, #any_int cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
 		}
 		make_dynamic_array :: proc($T: typeid/[dynamic]$E, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
 		}
-		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, #any_int len: int, #any_int cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
 
 		My_Struct :: struct {
@@ -738,15 +738,15 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 			make_map,
 			make_slice,
 		};
-		make_slice :: proc($T: typeid/[]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_slice :: proc($T: typeid/[]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_map :: proc($T: typeid/map[$K]$E, auto_cast cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
+		make_map :: proc($T: typeid/map[$K]$E, #any_int cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
 		}
 		make_dynamic_array :: proc($T: typeid/[dynamic]$E, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
 		}
-		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, auto_cast len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
-		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, auto_cast len: int, auto_cast cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, #any_int len: int, #any_int cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
 
 		My_Struct :: struct {
@@ -795,6 +795,7 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"Window.height: int"})
 }
 
+/*
 @(test)
 ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -804,7 +805,7 @@ ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
 			with_autocast,
 			with_bool,
 		};
-		with_autocast :: proc(auto_cast a: int) -> bool {
+		with_autocast :: proc(#any_int a: int) -> bool {
 		}
 		with_bool :: proc(a: bool) -> int {
 		}
@@ -820,7 +821,7 @@ ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.my_value: bool"})
 }
-
+*/
 
 @(test)
 ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
@@ -1598,7 +1599,7 @@ ast_overload_with_procedure_return :: proc(t: ^testing.T) {
 			make_map,
 		}
 
-		make_slice :: proc($T: typeid/[]$E, auto_cast len: int) -> (T, Allocator_Error) #optional_second {}
+		make_slice :: proc($T: typeid/[]$E, #any_int len: int) -> (T, Allocator_Error) #optional_second {}
 		make_map :: proc(a: int) -> int {}
 
 
