@@ -708,9 +708,7 @@ is_symbol_same_typed :: proc(
 
 	#partial switch b_value in b.value {
 	case SymbolBasicValue:
-		if .Auto_Cast in flags {
-			return true
-		} else if .Any_Int in flags {
+		if .Any_Int in flags {
 			//Temporary - make a function that finds the base type of basic values 
 			//This code only works with non distinct ints
 			switch a.name {

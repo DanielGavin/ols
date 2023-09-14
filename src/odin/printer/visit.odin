@@ -1,12 +1,12 @@
 package odin_printer
 
+import "core:fmt"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:strings"
-import "core:fmt"
-import "core:strconv"
 import "core:slice"
+import "core:strconv"
+import "core:strings"
 
 @(private)
 comment_before_position :: proc(p: ^Printer, pos: tokenizer.Pos) -> bool {
@@ -1292,7 +1292,11 @@ visit_stmt :: proc(
 		}
 
 		if v.reverse {
-			document = cons(document, text("#reverse"), break_with_no_newline())
+			document = cons(
+				document,
+				text("#reverse"),
+				break_with_no_newline(),
+			)
 		}
 
 		document = cons(document, text("for"))
@@ -2602,10 +2606,6 @@ visit_signature_field_flag :: proc(
 	flags: ast.Field_Flags,
 ) -> ^Document {
 	document := empty()
-
-	if .Auto_Cast in flags {
-		document = cons_with_nopl(document, text("auto_cast"))
-	}
 
 	if .Any_Int in flags {
 		document = cons_with_nopl(document, text("#any_int"))
