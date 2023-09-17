@@ -1,11 +1,11 @@
 package common
 
-import "core:odin/ast"
+import "core:fmt"
 import "core:log"
 import "core:mem"
-import "core:fmt"
-import "core:strings"
+import "core:odin/ast"
 import path "core:path/slashpath"
+import "core:strings"
 
 keyword_map: map[string]bool = {
 	"typeid"        = true,
@@ -922,7 +922,6 @@ build_string_node :: proc(
 	builder: ^strings.Builder,
 	remove_pointers: bool,
 ) {
-
 	using ast
 
 	if node == nil {
@@ -1093,7 +1092,10 @@ build_string_node :: proc(
 		build_string(n.base_type, builder, remove_pointers)
 		build_string(n.fields, builder, remove_pointers)
 	case ^Bit_Set_Type:
+		strings.write_string(builder, "bit_set")
+		strings.write_string(builder, "[")
 		build_string(n.elem, builder, remove_pointers)
+		strings.write_string(builder, "]")
 		build_string(n.underlying, builder, remove_pointers)
 	case ^Map_Type:
 		strings.write_string(builder, "map")

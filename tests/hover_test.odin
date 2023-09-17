@@ -183,5 +183,5 @@ ast_hover_on_bitset_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(&t, &source, "test.derived_bit_set: bit_set[Foo]")
+	test.expect_hover(t, &source, "test.derived_bit_set: bit_set[Foo]")
 }
