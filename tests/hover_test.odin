@@ -1,7 +1,7 @@
 package tests
 
-import "core:testing"
 import "core:fmt"
+import "core:testing"
 
 import test "shared:testing"
 
@@ -169,4 +169,19 @@ ast_hover_on_sliced_result :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.slice: []byte")
+}
+
+
+@(test)
+ast_hover_on_bitset_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		test :: proc () {
+			Foo :: enum {A,B,C}
+			derived_{*}bit_set := bit_set[Foo]{}
+			}
+		`,
+	}
+
+	test.expect_hover(&t, &source, "test.derived_bit_set: bit_set[Foo]")
 }

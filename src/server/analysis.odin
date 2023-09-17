@@ -4515,7 +4515,15 @@ get_signature :: proc(
 			ast_context.allocator,
 		)
 	case SymbolBitSetValue:
-		return common.node_to_string(v.expr)
+		return strings.concatenate(
+			a = {
+				pointer_prefix,
+				"bit_set[",
+				common.node_to_string(v.expr),
+				"]",
+			},
+			allocator = ast_context.allocator,
+		)
 	case SymbolEnumValue:
 		if is_variable {
 			return symbol.name
