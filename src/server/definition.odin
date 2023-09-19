@@ -1,18 +1,18 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
-import "core:path/filepath"
-import "core:sort"
-import "core:slice"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
 import "shared:common"
 
@@ -133,7 +133,11 @@ get_definition_location :: proc(
 		}
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
-	   !common.is_expr_basic_lit(position_context.field_value.field) {
+	   !common.is_expr_basic_lit(position_context.field_value.field) &&
+	   position_in_node(
+		   position_context.field_value.field,
+		   position_context.position,
+	   ) {
 		if resolved, ok := resolve_location_comp_lit_field(
 			&ast_context,
 			&position_context,
