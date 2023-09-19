@@ -425,14 +425,21 @@ read_ols_initialize_options :: proc(
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 	config.enable_rename =
 		ols_config.enable_references.(bool) or_else config.enable_rename
-	config.odin_command = strings.clone(
-		ols_config.odin_command.(string) or_else config.odin_command,
-		context.allocator,
-	)
-	config.checker_args = strings.clone(
-		ols_config.checker_args.(string) or_else config.checker_args,
-		context.allocator,
-	)
+
+	if ols_config.odin_command != "" {
+		config.odin_command = strings.clone(
+			ols_config.odin_command,
+			context.allocator,
+		)
+	}
+
+	if ols_config.checker_args != "" {
+		config.checker_args = strings.clone(
+			ols_config.checker_args,
+			context.allocator,
+		)
+	}
+
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 	config.enable_fake_method =

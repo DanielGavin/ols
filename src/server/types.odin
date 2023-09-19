@@ -350,8 +350,8 @@ OlsConfig :: struct {
 	disable_parser_errors:    Maybe(bool),
 	verbose:                  Maybe(bool),
 	file_log:                 Maybe(bool),
-	odin_command:             Maybe(string),
-	checker_args:             Maybe(string),
+	odin_command:             string,
+	checker_args:             string,
 }
 
 OlsConfigCollection :: struct {
