@@ -1646,14 +1646,14 @@ where_clauses :: proc() {
 		}
 	}
 	{ 	// Parametric polymorphism checks
-		cross_2d :: proc(a, b: $T/[2]$E) -> E where intrinsics.type_is_numeric(
-				E,
-			) {
+		cross_2d :: proc(
+			a, b: $T/[2]$E,
+		) -> E where intrinsics.type_is_numeric(E) {
 			return a.x * b.y - a.y * b.x
 		}
-		cross_3d :: proc(a, b: $T/[3]$E) -> T where intrinsics.type_is_numeric(
-				E,
-			) {
+		cross_3d :: proc(
+			a, b: $T/[3]$E,
+		) -> T where intrinsics.type_is_numeric(E) {
 			x := a.y * b.z - a.z * b.y
 			y := a.z * b.x - a.x * b.z
 			z := a.x * b.y - a.y * b.z

@@ -1499,17 +1499,15 @@ contains_do_in_expression :: proc(p: ^Printer, expr: ^ast.Expr) -> bool {
 }
 
 @(private)
-push_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
+visit_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
 	if len(clauses) == 0 {
 		return empty()
 	}
 
-	return group(
-		nest(
-			cons_with_nopl(
-				text("where"),
-				visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline}),
-			),
+	return nest(
+		cons_with_nopl(
+			text("where"),
+			visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline}),
 		),
 	)
 }
@@ -1699,7 +1697,7 @@ visit_expr :: proc(
 
 		document = cons_with_nopl(
 			document,
-			push_where_clauses(p, v.where_clauses),
+			visit_where_clauses(p, v.where_clauses),
 		)
 
 		if len(v.variants) == 0 {
@@ -1784,7 +1782,7 @@ visit_expr :: proc(
 
 		document = cons_with_nopl(
 			document,
-			push_where_clauses(p, v.where_clauses),
+			visit_where_clauses(p, v.where_clauses),
 		)
 
 		if v.fields != nil && len(v.fields.list) == 0 {
@@ -1834,10 +1832,14 @@ visit_expr :: proc(
 			document,
 			visit_proc_type(p, v.type^, v.body != nil),
 		)
+
 		document = cons_with_nopl(
 			document,
-			push_where_clauses(p, v.where_clauses),
+			visit_where_clauses(p, v.where_clauses),
 		)
+
+		document = group(document)
+
 		document = cons(document, visit_proc_tags(p, v.tags))
 
 		if v.body != nil {
@@ -2513,7 +2515,7 @@ visit_proc_type :: proc(
 		document = cons_with_nopl(document, text("!"))
 	}
 
-	return group(document)
+	return document
 }
 
 
