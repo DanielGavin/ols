@@ -498,7 +498,6 @@ is_assign_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
 		#partial switch v in
 			assign_stmt.rhs[len(assign_stmt.rhs) - 1].derived {
 		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
-			fmt.println("TRUE")
 			return true
 		}
 	}
