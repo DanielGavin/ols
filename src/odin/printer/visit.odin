@@ -489,6 +489,24 @@ is_value_decl_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
 }
 
 @(private)
+is_assign_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
+	if assign_stmt, ok := stmt.derived.(^ast.Assign_Stmt); ok {
+		if len(assign_stmt.rhs) == 0 {
+			return false
+		}
+
+		#partial switch v in
+			assign_stmt.rhs[len(assign_stmt.rhs) - 1].derived {
+		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
+			fmt.println("TRUE")
+			return true
+		}
+	}
+
+	return false
+}
+
+@(private)
 is_value_expression_call :: proc(expr: ^ast.Expr) -> bool {
 	#partial switch v in expr.derived {
 	case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
@@ -1041,6 +1059,7 @@ visit_stmt :: proc(
 
 
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
+		   v.init != nil && is_assign_statement_ending_with_call(v.init) ||
 		   v.cond != nil && v.init == nil && is_value_expression_call(v.cond) {
 			document = cons(
 				document,
