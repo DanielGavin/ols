@@ -326,9 +326,9 @@ get_selector_completion :: proc(
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
 			if selector, ok = resolve_type_expression(
-				   ast_context,
-				   s.return_types[0].type,
-			   ); !ok {
+				ast_context,
+				s.return_types[0].type,
+			); !ok {
 				return
 			}
 		}
@@ -361,9 +361,9 @@ get_selector_completion :: proc(
 		if field != "" {
 			for i := 0; i < len(field); i += 1 {
 				c := field[i]
-				if _, ok := swizzle_color_components[c]; ok {
+				if _, ok := swizzle_color_map[c]; ok {
 					containsColor += 1
-				} else if _, ok := swizzle_coord_components[c]; ok {
+				} else if _, ok := swizzle_coord_map[c]; ok {
 					containsCoord += 1
 				}
 			}
@@ -379,10 +379,10 @@ get_selector_completion :: proc(
 				expr_len -= 1
 
 				item := CompletionItem {
-					label  = fmt.tprintf("%v%c", field, k),
+					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
 					detail = fmt.tprintf(
-						"%v%c: %v",
+						"%v%v: %v",
 						field,
 						k,
 						common.node_to_string(v.expr),
@@ -401,10 +401,10 @@ get_selector_completion :: proc(
 				expr_len -= 1
 
 				item := CompletionItem {
-					label  = fmt.tprintf("%v%c", field, k),
+					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
 					detail = fmt.tprintf(
-						"%v%c: %v",
+						"%v%v: %v",
 						field,
 						k,
 						common.node_to_string(v.expr),
@@ -423,10 +423,10 @@ get_selector_completion :: proc(
 				expr_len -= 1
 
 				item := CompletionItem {
-					label  = fmt.tprintf("%v%c", field, k),
+					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
 					detail = fmt.tprintf(
-						"%v%c: [%v]%v",
+						"%v%v: [%v]%v",
 						field,
 						k,
 						containsColor,
@@ -444,10 +444,10 @@ get_selector_completion :: proc(
 				expr_len -= 1
 
 				item := CompletionItem {
-					label  = fmt.tprintf("%v%c", field, k),
+					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
 					detail = fmt.tprintf(
-						"%v%c: [%v]%v",
+						"%v%v: [%v]%v",
 						field,
 						k,
 						containsCoord,
@@ -1926,16 +1926,20 @@ language_keywords: []string = {
 	"or_else",
 }
 
-swizzle_color_components: map[u8]bool = {
+swizzle_color_map: map[u8]bool = {
 	'r' = true,
 	'g' = true,
 	'b' = true,
 	'a' = true,
 }
 
-swizzle_coord_components: map[u8]bool = {
+swizzle_color_components: []string = {"r", "g", "b", "a"}
+
+swizzle_coord_map: map[u8]bool = {
 	'x' = true,
 	'y' = true,
 	'z' = true,
 	'w' = true,
 }
+
+swizzle_coord_components: []string = {"x", "y", "z", "w"}

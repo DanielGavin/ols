@@ -526,18 +526,12 @@ ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	my_array: [2]f32
-
-
-	/*
-	FIXME
 	test.expect_completion_details(
 		t,
 		&source,
 		".",
 		{"xx: [2]f32", "xy: [2]f32"},
 	)
-	*/
 }
 
 
