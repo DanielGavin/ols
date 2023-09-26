@@ -1699,9 +1699,9 @@ internal_resolve_type_identifier :: proc(
 					true
 			} else {
 				if return_symbol, ok = resolve_generic_function(
-					   ast_context,
-					   v^,
-				   ); !ok {
+					ast_context,
+					v^,
+				); !ok {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -1805,9 +1805,9 @@ internal_resolve_type_identifier :: proc(
 					true
 			} else {
 				if return_symbol, ok = resolve_generic_function(
-					   ast_context,
-					   v^,
-				   ); !ok {
+					ast_context,
+					v^,
+				); !ok {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -3342,6 +3342,10 @@ get_generic_assignment :: proc(
 		if v.expr != nil {
 			append(results, value)
 		}
+	case ^ast.Index_Expr:
+		append(results, v)
+		b := make_bool_ast(ast_context, v.expr.pos, v.expr.end)
+		append(results, b)
 	case ^Type_Assertion:
 		if v.type != nil {
 			if unary, ok := v.type.derived.(^ast.Unary_Expr);
