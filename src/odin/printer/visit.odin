@@ -2597,9 +2597,11 @@ visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 
 	ellipsis := call_expr.ellipsis.kind == .Ellipsis
 
+
 	for expr, i in call_expr.args {
-		if i == len(call_expr.args) - 1 && ellipsis {
+		if call_expr.ellipsis.pos.offset <= expr.pos.offset && ellipsis {
 			document = cons(document, text(".."))
+			ellipsis = false
 		}
 
 		document = cons(document, group(visit_expr(p, expr, .Call_Expr)))
