@@ -172,7 +172,7 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
 
 		message := strings.to_string(builder)
 
-		if len(message) == 0 || message[len(message) - 2] != '\r' {
+		if len(message) < 2 || message[len(message) - 2] != '\r' {
 			log.error("No carriage return")
 			return header, false
 		}
@@ -1051,9 +1051,9 @@ notification_did_save :: proc(
 	uri: common.Uri
 
 	if uri, ok = common.parse_uri(
-		   save_params.textDocument.uri,
-		   context.temp_allocator,
-	   ); !ok {
+		save_params.textDocument.uri,
+		context.temp_allocator,
+	); !ok {
 		return .ParseError
 	}
 
