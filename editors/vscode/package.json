@@ -118,12 +118,12 @@
 		]
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
 		"lint": "eslint src --ext ts",
 		"watch": "tsc -watch -p ./",
 		"pretest": "npm run compile && npm run lint",
-		"package": "npm run compile && vsce package -o extension.vsix",
+		"package": "vsce package -o extension.vsix",
+		"build": "npm run compile && npm run package",
 		"test": "node ./out/test/runTest.js"
 	},
 	"devDependencies": {
