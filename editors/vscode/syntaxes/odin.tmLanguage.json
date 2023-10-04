@@ -309,7 +309,7 @@
 				},
 				{
 					"name": "keyword.control.odin",
-					"match": "\\b(import|export|foreign|package)\\b"
+					"match": "\\b(import|foreign|package)\\b"
 				},
 				{
 					"name": "keyword.control.odin",
@@ -317,7 +317,7 @@
 				},
 				{
 					"name": "keyword.control.odin",
-					"match": "\\b(fallthrough|break|continue|case|dynamic)\\b"
+					"match": "\\b(fallthrough|break|or_break|continue|or_continue|case|dynamic)\\b"
 				},
 				{
 					"name": "keyword.control.odin",
@@ -353,7 +353,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(struct|enum|union|map|set|bit_set|typeid|matrix)\\b"
+					"match": "\\b(struct|enum|union|map|bit_set|typeid|matrix)\\b"
 				},
 				{
 					"name": "keyword.function.odin",
@@ -378,6 +378,14 @@
 				{
 					"name": "keyword.operator.assignment.odin",
 					"match": ":[:=]|="
+				},
+				{
+					"name": "keyword.operator.address.odin",
+					"match": "\\&"
+				},
+				{
+					"name": "keyword.operator.pointer.odin",
+					"match": "\\^"
 				},
 				{
 					"match": "->",
@@ -460,18 +468,49 @@
 				{
 					"name": "string.quoted.double.odin",
 					"begin": "\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.odin"
+						}
+					},
 					"end": "\"",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.odin"
+						}
+					},
 					"patterns": [{ "include": "#string-escaped-char" }]
 				},
 				{
-					"name": "string.quoted.double.odin",
+					"name": "string.quoted.raw.odin",
 					"begin": "`",
-					"end": "`"
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.odin"
+						}
+					},
+					"end": "`",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.odin"
+						}
+					},
+					"patterns": [{ "include": "#string-escaped-char" }]
 				},
 				{
 					"name": "string.quoted.single.odin",
 					"begin": "'",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.odin"
+						}
+					},
 					"end": "'",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.odin"
+						}
+					},
 					"patterns": [{ "include": "#string-escaped-char" }]
 				}
 			]
