@@ -81,7 +81,7 @@
 			"beginCaptures": { "1": { "name": "storage.type.function.odin" } },
 			"end": "(?=^|\\)|,|;)|(?<=})",
 			"patterns": [
-				{ "include": "#strings-quoted-double" },
+				{ "include": "#strings" },
 				{ "include": "#comments" },
 				{ "include": "#procedure-parameters" },
 				{ "include": "#procedure-return-type" },
