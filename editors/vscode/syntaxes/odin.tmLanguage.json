@@ -490,7 +490,7 @@
 					"match": "\\b(rawptr)\\b"
 				},
 				{
-					"name": "support.type.primitive",
+					"name": "support.type.primitive.odin",
 					"match": "\\b(any|typeid)\\b"
 				},
 				{
