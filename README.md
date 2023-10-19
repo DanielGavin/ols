@@ -2,7 +2,7 @@
 
 Language server for Odin. This project is still in early development.
 
-**Status**: You have to use `odin` commit 41a22bd8 to build. Project can't compile with the latest llvm 17 update.
+**Status**: You have to use `odin` commit 886d0de to build. Project can't compile with the latest llvm 17 update.
 
 ## Table Of Contents
 
