@@ -1,9 +1,9 @@
 package server
 
-import "core:odin/tokenizer"
-import "core:odin/ast"
-import "core:log"
 import "core:fmt"
+import "core:log"
+import "core:odin/ast"
+import "core:odin/tokenizer"
 
 import "shared:common"
 
@@ -343,22 +343,6 @@ visit_node :: proc(
 					node,
 					ast_context.file.src,
 					.Function,
-					modifier,
-				)
-			case SymbolUntypedValue:
-				write_semantic_node(
-					builder,
-					node,
-					ast_context.file.src,
-					.Type,
-					modifier,
-				)
-			case SymbolBasicValue:
-				write_semantic_node(
-					builder,
-					node,
-					ast_context.file.src,
-					.Type,
 					modifier,
 				)
 			case SymbolMatrixValue:
