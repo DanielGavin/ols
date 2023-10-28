@@ -1,82 +1,80 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
 
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
+    branches: ['master']
+    paths-ignore: ['**/*.md']
   pull_request:
-    branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: ['master']
+    paths-ignore: ['**/*.md']
+  # Allow to run this workflow manually from the Actions tab.
   workflow_dispatch:
 
 jobs:
-  build_windows:
-    runs-on: windows-2019
+  windows:
+    strategy:
+      matrix:
+        os: [windows-2019, windows-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v1
-    - name: Download Odin
-      shell: cmd
-      run: git clone https://github.com/odin-lang/Odin
-    - name: Download and unpack LLVM bins
-      shell: powershell
-      run: |
-          cd Odin
-          cd bin
+      - uses: actions/checkout@v4
+      - name: Setup Dependencies
+        run: |
+          git clone --depth 1 https://github.com/odin-lang/Odin
+          cd Odin/bin
           $ProgressPreference = "SilentlyContinue";
           Invoke-WebRequest -Uri https://github.com/odin-lang/Odin/releases/download/llvm-windows/llvm-binaries.zip -OutFile llvm-binaries.zip
-          7z x llvm-binaries.zip > $null 
-    - name: Build Odin
-      shell: cmd
-      run: |
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
-        cd Odin
-        ./build.bat 1
-    - name: Build ols
-      shell: cmd
-      run: |
-        ./build.bat CI
-  build_linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@v1
-    - name: Download LLVM
-      run: sudo apt-get install llvm-11 clang-11
-    - name: Download Odin
-      run: git clone https://github.com/odin-lang/Odin
-    - name: Build Odin
-      run: |
-        cd Odin
-        ./build_odin.sh release
-    - name: Build ols
-      run: |
-        dir
-        ./build.sh CI
-  build_macOS:
-    runs-on: macos-latest
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@v1
-    - name: Download LLVM and setup PATH
-      run: |
-        brew install llvm@14
-        echo "/usr/local/opt/llvm@14/bin" >> $GITHUB_PATH
-        TMP_PATH=$(xcrun --show-sdk-path)/user/include
-        echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
-    - name: Download Odin
-      run: git clone https://github.com/odin-lang/Odin
-    - name: Build Odin
-      run: |
-        cd Odin
-        make release
-    - name: Build ols
-      run: ./build.sh CI
-     
-     
-    
+          7z x llvm-binaries.zip > $null
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+      - name: Build Odin
+        run: |
+          cd Odin
+          ./build.bat 1
+      - name: Build ols
+        run: ./build.bat CI
 
+  linux:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dependencies
+        if: matrix.os == 'ubuntu-20.04'
+        # LLVM 12 and 11 are pre-installed on GitHub runners. On ubuntu-20.04, LLVM 12
+        # is available as version 12.0.0 whilst Odin requires 12.0.1. It would try to use
+        # LLVM 12 by default and CI would fail. Therefore we'll remove it to use LLVM 11.
+        run: sudo apt update && sudo apt purge -qq -y llvm-12 clang-12
+      - name: Buid Odin
+        run: |
+          git clone --depth 1 https://github.com/odin-lang/Odin
+          cd Odin && ./build_odin.sh release
+      - name: Build ols
+        run: ./build.sh CI
+
+  macos:
+    strategy:
+      matrix:
+        os: [macos-11, macos-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Dependencies
+        run: |
+          brew install llvm@14
+          echo "/usr/local/opt/llvm@14/bin" >> $GITHUB_PATH
+          TMP_PATH=$(xcrun --show-sdk-path)/user/include
+          echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
+      - name: Build Odin
+        run: |
+          git clone --depth 1 https://github.com/odin-lang/Odin
+          cd Odin && ./build_odin.sh release
+      - name: Build ols
+        run: ./build.sh CI
