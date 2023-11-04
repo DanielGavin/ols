@@ -1,16 +1,16 @@
 package server
 
+import "core:fmt"
+import "core:log"
+import "core:mem"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
+import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:os"
-import "core:fmt"
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:log"
-import "core:odin/tokenizer"
-import "core:strings"
-import "core:mem"
 import "core:runtime"
+import "core:strings"
 import "core:time"
 
 import "shared:common"
@@ -120,8 +120,8 @@ try_build_package :: proc(pkg_name: string) {
 			ok = parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains("builtin/builtin.odin", fullpath) &&
-				   !strings.contains("intrinsics/intrinsics.odin", fullpath) {
+				if !strings.contains(fullpath, "builtin.odin") &&
+				   !strings.contains(fullpath, "intrinsics.odin") {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -135,11 +135,10 @@ try_build_package :: proc(pkg_name: string) {
 		}
 	}
 
-	build_cache.loaded_pkgs[
-		strings.clone(pkg_name, indexer.index.collection.allocator) \
-	] = PackageCacheInfo {
-		timestamp = time.now(),
-	}
+	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] =
+		PackageCacheInfo {
+			timestamp = time.now(),
+		}
 }
 
 setup_index :: proc() {

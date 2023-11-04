@@ -1,14 +1,14 @@
 package server
 
-import "core:odin/ast"
-import "core:hash"
-import "core:strings"
-import "core:mem"
 import "core:fmt"
+import "core:hash"
+import "core:log"
+import "core:mem"
+import "core:odin/ast"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:log"
 import "core:strconv"
+import "core:strings"
 
 import "shared:common"
 
@@ -448,7 +448,6 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 			if ident, ok := v.expr.derived.(^ast.Ident); ok {
 				method.pkg = get_index_unique_string(collection, ident.name)
 				method.name = get_index_unique_string(collection, v.field.name)
-				log.error(method)
 			} else {
 				return
 			}

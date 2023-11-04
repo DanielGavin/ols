@@ -3,16 +3,16 @@ package server
 
 import "shared:common"
 
-import "core:strings"
+import "core:fmt"
+import "core:log"
+import "core:mem"
 import "core:odin/ast"
 import "core:odin/parser"
-import path "core:path/slashpath"
-import "core:log"
-import "core:path/filepath"
-import "core:fmt"
 import "core:os"
-import "core:mem"
+import "core:path/filepath"
+import path "core:path/slashpath"
 import "core:runtime"
+import "core:strings"
 
 fullpaths: [dynamic]string
 
@@ -192,7 +192,10 @@ resolve_references :: proc(
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			log.errorf("error in parse file for indexing %v", fullpath)
+			if !strings.contains(fullpath, "builtin.odin") &&
+			   !strings.contains(fullpath, "intrinsics.odin") {
+				log.errorf("error in parse file for indexing %v", fullpath)
+			}
 			continue
 		}
 

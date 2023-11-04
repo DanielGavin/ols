@@ -632,7 +632,6 @@ request_initialize :: proc(
 		)
 	}
 
-
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
 			config.hover_support_md = true
@@ -1093,7 +1092,10 @@ notification_did_save :: proc(
 	ok = parser.parse_file(&p, &file)
 
 	if !ok {
-		log.errorf("error in parse file for indexing %v", fullpath)
+		if !strings.contains(fullpath, "builtin.odin") &&
+		   !strings.contains(fullpath, "intrinsics.odin") {
+			log.errorf("error in parse file for indexing %v", fullpath)
+		}
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
