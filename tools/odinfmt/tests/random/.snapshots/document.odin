@@ -293,7 +293,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Cons:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = data.mode,
 					document = v.rhs,
@@ -302,7 +302,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			)
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = data.mode,
 					document = v.lhs,
@@ -312,7 +312,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Align:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = 0,
 					mode = data.mode,
 					document = v.document,
@@ -322,7 +322,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Nest:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation + v.indentation,
 					mode = data.mode,
 					document = v.document,
@@ -345,7 +345,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			if data.mode == .Break {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation + v.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -355,7 +355,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			} else {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -366,7 +366,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Group:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = data.mode,
 					document = v.document,
@@ -430,7 +430,7 @@ format :: proc(
 		case Document_Cons:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = data.mode,
 					document = v.rhs,
@@ -439,7 +439,7 @@ format :: proc(
 			)
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = data.mode,
 					document = v.lhs,
@@ -449,7 +449,7 @@ format :: proc(
 		case Document_Nest:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation + v.indentation,
 					mode = data.mode,
 					document = v.document,
@@ -459,7 +459,7 @@ format :: proc(
 		case Document_Align:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = 0,
 					mode = data.mode,
 					document = v.document,
@@ -492,7 +492,7 @@ format :: proc(
 			if mode == .Break {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation + v.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -502,7 +502,7 @@ format :: proc(
 			} else {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -519,7 +519,7 @@ format :: proc(
 
 			append(
 				&l,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = .Flat,
 					document = v.document,
@@ -530,7 +530,7 @@ format :: proc(
 			if data.mode == .Fit {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = .Fit,
 						document = v.document,
@@ -540,7 +540,7 @@ format :: proc(
 			} else if fits(width - consumed, &l) && v.mode != .Break {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = .Flat,
 						document = v.document,
@@ -551,7 +551,7 @@ format :: proc(
 				if v.mode == .Fit {
 					append(
 						list,
-						Tuple{
+						Tuple {
 							indentation = data.indentation,
 							mode = .Fit,
 							document = v.document,
@@ -561,7 +561,7 @@ format :: proc(
 				} else {
 					append(
 						list,
-						Tuple{
+						Tuple {
 							indentation = data.indentation,
 							mode = .Break,
 							document = v.document,

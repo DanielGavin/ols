@@ -2015,7 +2015,7 @@ visit_expr :: proc(
 		}
 
 		if v.type != nil {
-			document = cons_with_nopl(document, visit_expr(p, v.type))
+			document = cons_with_nopl(document, group(visit_expr(p, v.type)))
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
 			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
@@ -2081,16 +2081,21 @@ visit_expr :: proc(
 		} else {
 			document = cons(
 				document,
-				text("{"),
-				nest(
+				group(
 					cons(
+						if_break(" "),
+						text("{"),
+						nest(
+							cons(
+								break_with(""),
+								visit_exprs(p, v.elems, {.Add_Comma, .Group}),
+							),
+						),
+						if_break(","),
 						break_with(""),
-						visit_exprs(p, v.elems, {.Add_Comma, .Group}),
+						text("}"),
 					),
 				),
-				if_break(","),
-				break_with(""),
-				text("}"),
 			)
 			document = group(document)
 		}

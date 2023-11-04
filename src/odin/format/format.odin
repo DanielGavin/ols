@@ -81,6 +81,8 @@ format :: proc(
 
 	ok := parser.parse_file(&p, &file)
 
+	fmt.println(file.syntax_error_count)
+
 	if !ok || file.syntax_error_count > 0 {
 		return {}, false
 	}

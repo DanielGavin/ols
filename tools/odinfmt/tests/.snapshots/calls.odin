@@ -79,7 +79,7 @@ calls :: proc() {
 
 	result = vk.CreateInsance(
 		my_really_cool_call(
-			T{
+			T {
 				aaaaaaaaaaaaaaaaaaaaa,
 				bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 				cccccccccccccccccccccccccccccccc,
@@ -89,7 +89,7 @@ calls :: proc() {
 	)
 	result = vk.CreateInsance(
 		my_really_cool_call(
-			T{
+			T {
 				a = aaaaaaaaaaaaaaaaaaaaa,
 				b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 				c = cccccccccccccccccccccccccccccccc,
@@ -99,7 +99,7 @@ calls :: proc() {
 	)
 	result = vk.CreateInsance(
 		my_really_cool_call(
-			T{
+			T {
 				aaaaaaaaaaaaaaaaaaaaa,
 				bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 				cccccccccccccccccccccccccccccccc,
@@ -111,7 +111,7 @@ calls :: proc() {
 	)
 	result = vk.CreateInsance(
 		my_really_cool_call(
-			T{
+			T {
 				a = aaaaaaaaaaaaaaaaaaaaa,
 				b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 				c = cccccccccccccccccccccccccccccccc,
@@ -122,7 +122,7 @@ calls :: proc() {
 	)
 	result = vk.CreateInsance(
 		my_really_cool_call(
-			T{
+			T {
 				a = aaaaaaaaaaaaaaaaaaaaa,
 				b = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,
 				c = cccccccccccccccccccccccccccccccc,
@@ -152,7 +152,7 @@ calls :: proc() {
 		})
 
 	test_2(
-		Foo{
+		Foo {
 			field1 = 1,
 			field2 = "hello",
 			field3 = 1,
@@ -169,7 +169,7 @@ calls :: proc() {
 	})
 
 	test3(
-		Foo{
+		Foo {
 			field1 = 1,
 			field2 = "hello",
 			field3 = 1,
@@ -185,7 +185,7 @@ calls :: proc() {
 
 	resuuuuuuuuult := add_to_long_list_of_values(
 		fooooooooooooo,
-		Foo{
+		Foo {
 			field1 = 1,
 			field2 = "hello",
 			field3 = 1,
