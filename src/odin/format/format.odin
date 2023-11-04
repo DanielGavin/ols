@@ -1,12 +1,12 @@
 package odin_format
 
-import "shared:odin/printer"
-import "core:odin/parser"
-import "core:odin/ast"
 import "core:encoding/json"
+import "core:fmt"
+import "core:odin/ast"
+import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
-import "core:fmt"
+import "shared:odin/printer"
 
 default_style := printer.default_style
 
@@ -80,8 +80,6 @@ format :: proc(
 	p := parser.default_parser(parser_flags)
 
 	ok := parser.parse_file(&p, &file)
-
-	fmt.println(file.syntax_error_count)
 
 	if !ok || file.syntax_error_count > 0 {
 		return {}, false
