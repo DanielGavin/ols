@@ -1,18 +1,18 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
-import "core:path/filepath"
-import "core:sort"
-import "core:slice"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
 
 import "shared:common"
@@ -118,14 +118,14 @@ append_method_completion :: proc(
 
 				item := CompletionItem {
 					label = symbol.name,
-					kind = cast(CompletionItemKind)symbol.type,
+					kind = symbol_type_to_completion_kind(symbol.type),
 					detail = concatenate_symbol_information(
 						ast_context,
 						symbol,
 						true,
 					),
 					additionalTextEdits = remove_edit,
-					textEdit = TextEdit{
+					textEdit = TextEdit {
 						newText = new_text,
 						range = {start = range.end, end = range.end},
 					},

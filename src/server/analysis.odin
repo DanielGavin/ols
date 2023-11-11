@@ -997,7 +997,7 @@ resolve_function_overload :: proc(
 	}
 
 	if len(candidates) > 1 {
-		return Symbol{
+		return Symbol {
 				type = candidates[0].type,
 				name = candidates[0].name,
 				pkg = candidates[0].pkg,
@@ -1210,6 +1210,7 @@ internal_resolve_type_expression :: proc(
 				v^,
 				ast_context.field_name,
 				{},
+				true,
 			),
 			true
 	case ^Basic_Directive:
@@ -1488,7 +1489,7 @@ store_local :: proc(
 
 	append(
 		local_stack,
-		DocumentLocal{
+		DocumentLocal {
 			lhs = lhs,
 			rhs = rhs,
 			offset = offset,
@@ -1695,6 +1696,7 @@ internal_resolve_type_identifier :: proc(
 						v.type^,
 						node,
 						{},
+						false,
 					),
 					true
 			} else {
@@ -1709,6 +1711,7 @@ internal_resolve_type_identifier :: proc(
 							v.type^,
 							node,
 							{},
+							false,
 						),
 						true
 				}
@@ -1801,6 +1804,7 @@ internal_resolve_type_identifier :: proc(
 						v.type^,
 						node,
 						global.attributes,
+						false,
 					),
 					true
 			} else {
@@ -1815,6 +1819,7 @@ internal_resolve_type_identifier :: proc(
 							v.type^,
 							node,
 							global.attributes,
+							false,
 						),
 						true
 				}
@@ -2771,10 +2776,11 @@ make_symbol_procedure_from_ast :: proc(
 	v: ast.Proc_Type,
 	name: ast.Ident,
 	attributes: []^ast.Attribute,
+	type: bool,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(name, ast_context.file.src),
-		type  = .Function,
+		type  = .Function if !type else .Type_Function,
 		pkg   = get_package_from_node(n^),
 		name  = name.name,
 	}
@@ -4520,7 +4526,7 @@ get_signature :: proc(
 		)
 	case SymbolBitSetValue:
 		return strings.concatenate(
-			a = {
+			a =  {
 				pointer_prefix,
 				"bit_set[",
 				common.node_to_string(v.expr),
@@ -4536,7 +4542,7 @@ get_signature :: proc(
 		}
 	case SymbolMapValue:
 		return strings.concatenate(
-			a = {
+			a =  {
 				pointer_prefix,
 				"map[",
 				common.node_to_string(v.key),
@@ -4582,7 +4588,7 @@ get_signature :: proc(
 		)
 	case SymbolFixedArrayValue:
 		return strings.concatenate(
-			a = {
+			a =  {
 				pointer_prefix,
 				"[",
 				common.node_to_string(v.len),
@@ -4593,7 +4599,7 @@ get_signature :: proc(
 		)
 	case SymbolMatrixValue:
 		return strings.concatenate(
-			a = {
+			a =  {
 				pointer_prefix,
 				"matrix",
 				"[",

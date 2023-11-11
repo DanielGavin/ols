@@ -1,12 +1,12 @@
 package server
 
-import "core:odin/ast"
 import "core:hash"
-import "core:strings"
 import "core:mem"
+import "core:odin/ast"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:slice"
+import "core:strings"
 
 import "shared:common"
 
@@ -151,17 +151,18 @@ Symbol :: struct {
 }
 
 SymbolType :: enum {
-	Function   = 3,
-	Field      = 5,
-	Variable   = 6,
-	Package    = 9,
-	Enum       = 13,
-	Keyword    = 14,
-	EnumMember = 20,
-	Constant   = 21,
-	Struct     = 22,
-	Union      = 7,
-	Unresolved = 1, //Use text if not being able to resolve it.
+	Function      = 3,
+	Field         = 5,
+	Variable      = 6,
+	Package       = 9,
+	Enum          = 13,
+	Keyword       = 14,
+	EnumMember    = 20,
+	Constant      = 21,
+	Struct        = 22,
+	Type_Function = 23,
+	Union         = 7,
+	Unresolved    = 1, //Use text if not being able to resolve it.
 }
 
 new_clone_symbol :: proc(
@@ -230,6 +231,38 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	}
 }
 
+symbol_type_to_completion_kind :: proc(
+	type: SymbolType,
+) -> CompletionItemKind {
+	switch type {
+	case .Function:
+		return .Function
+	case .Field:
+		return .Field
+	case .Variable:
+		return .Variable
+	case .Package:
+		return .Module
+	case .Enum:
+		return .Enum
+	case .Keyword:
+		return .Keyword
+	case .EnumMember:
+		return .EnumMember
+	case .Constant:
+		return .Constant
+	case .Struct:
+		return .Struct
+	case .Type_Function:
+		return .Function
+	case .Union:
+		return .Enum
+	case .Unresolved:
+		return .Text
+	case:
+		return .Text
+	}
+}
 
 symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 	#partial switch type {

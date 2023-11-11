@@ -179,7 +179,7 @@ get_directive_completion :: proc(
 		Right now just return all the possible completions, but later on I should give the context specific ones
 	*/
 
-	directive_list := []string{
+	directive_list := []string {
 		"file",
 		"line",
 		"packed",
@@ -602,7 +602,9 @@ get_selector_completion :: proc(
 
 				item := CompletionItem {
 					label         = symbol.name,
-					kind          = cast(CompletionItemKind)symbol.type,
+					kind          = symbol_type_to_completion_kind(
+						symbol.type,
+					),
 					detail        = concatenate_symbol_information(
 						ast_context,
 						symbol,
@@ -1135,7 +1137,7 @@ get_identifier_completion :: proc(
 			if uri.path != ast_context.fullpath {
 				append(
 					&combined,
-					CombinedResult{
+					CombinedResult {
 						score = r.score,
 						type = r.symbol.type,
 						name = r.symbol.name,
@@ -1182,7 +1184,7 @@ get_identifier_completion :: proc(
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 				append(
 					&combined,
-					CombinedResult{
+					CombinedResult {
 						score = score * 1.1,
 						type = symbol.type,
 						name = ident.name,
@@ -1229,7 +1231,7 @@ get_identifier_completion :: proc(
 				   ok == 1 {
 					append(
 						&combined,
-						CombinedResult{
+						CombinedResult {
 							score = score * 1.7,
 							type = symbol.type,
 							name = ident.name,
@@ -1257,7 +1259,7 @@ get_identifier_completion :: proc(
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
 			append(
 				&combined,
-				CombinedResult{
+				CombinedResult {
 					score = score * 1.1,
 					type = symbol.type,
 					name = symbol.name,
@@ -1279,7 +1281,7 @@ get_identifier_completion :: proc(
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(
 				&combined,
-				CombinedResult{
+				CombinedResult {
 					score = score,
 					type = symbol.type,
 					name = symbol.name,
@@ -1301,7 +1303,7 @@ get_identifier_completion :: proc(
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
 			append(
 				&combined,
-				CombinedResult{
+				CombinedResult {
 					score = score * 1.1,
 					type = symbol.type,
 					name = symbol.name,
@@ -1372,7 +1374,7 @@ get_identifier_completion :: proc(
 				documentation = result.doc,
 			}
 
-			item.kind = cast(CompletionItemKind)result.type
+			item.kind = symbol_type_to_completion_kind(result.type)
 
 			if result.type == .Function && common.config.enable_snippets {
 				item.insertText = fmt.tprintf("%v($0)", item.label)
@@ -1424,7 +1426,7 @@ get_package_completion :: proc(
 
 		if colon_index + 1 < len(without_quotes) {
 			absolute_path = filepath.join(
-				elems = {
+				elems =  {
 					common.config.collections[c],
 					filepath.dir(
 						without_quotes[colon_index + 1:],
@@ -1590,14 +1592,14 @@ get_core_insert_package_if_non_existent :: proc(
 
 	strings.write_string(&builder, fmt.tprintf("import \"core:%v\"", pkg))
 
-	return {
+	return  {
 			newText = strings.to_string(builder),
-			range = {
-				start = {
+			range =  {
+				start =  {
 					line = ast_context.file.pkg_decl.end.line + 1,
 					character = 0,
 				},
-				end = {
+				end =  {
 					line = ast_context.file.pkg_decl.end.line + 1,
 					character = 0,
 				},
@@ -1655,7 +1657,7 @@ append_magic_map_completion :: proc(
 			kind = .Snippet,
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit{
+			textEdit = TextEdit {
 				newText = fmt.tprintf(
 					"for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}",
 					symbol.name,
@@ -1702,7 +1704,7 @@ append_magic_dynamic_array_completion :: proc(
 			label = "len",
 			kind = .Function,
 			detail = "len",
-			textEdit = TextEdit{
+			textEdit = TextEdit {
 				newText = text,
 				range = {start = range.end, end = range.end},
 			},
@@ -1719,7 +1721,7 @@ append_magic_dynamic_array_completion :: proc(
 			kind = .Snippet,
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit{
+			textEdit = TextEdit {
 				newText = fmt.tprintf(
 					"for i in %v {{\n\t$0 \n}}",
 					symbol.name,
@@ -1766,7 +1768,7 @@ append_magic_union_completion :: proc(
 			kind = .Snippet,
 			detail = "switch",
 			additionalTextEdits = additionalTextEdits,
-			textEdit = TextEdit{
+			textEdit = TextEdit {
 				newText = fmt.tprintf(
 					"switch v in %v {{\n\t$0 \n}}",
 					symbol.name,
@@ -1882,7 +1884,7 @@ is_bitset_assignment_operator :: proc(op: string) -> bool {
 	return op in bitset_assignment_operators
 }
 
-language_keywords: []string = {
+language_keywords: []string =  {
 	"align_of",
 	"case",
 	"defer",
