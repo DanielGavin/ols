@@ -198,10 +198,10 @@ collect_value_decl :: proc(
 	skip_private: bool,
 ) {
 	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
-		is_deprecated := false
+		is_deprecated   := false
 		is_private_file := false
-		is_package_file := false
-		is_builtin := false
+		is_private_pkg  := false
+		is_builtin      := false
 
 		for attribute in value_decl.attributes {
 			for elem in attribute.elems {
@@ -215,10 +215,10 @@ collect_value_decl :: proc(
 								case "\"file\"":
 									is_private_file = true
 								case "package":
-									is_package_file = true
+									is_private_pkg = true
 								}
 							} else {
-								is_package_file = true
+								is_private_pkg = true
 							}
 						}
 					}
@@ -229,7 +229,7 @@ collect_value_decl :: proc(
 					case "builtin":
 						is_builtin = true
 					case "private":
-						is_package_file = true
+						is_private_pkg = true
 					}
 				}
 			}
@@ -237,6 +237,25 @@ collect_value_decl :: proc(
 
 		if is_private_file && skip_private {
 			return
+		}
+		
+		// If a private status is not explicitly set with an attribute above the declaration
+		// check the file comment.
+		if !is_private_file && !is_private_pkg && file.docs != nil {
+			for comment in file.docs.list {
+				txt := comment.text
+				if strings.has_prefix(txt, "//+private") {
+					txt = strings.trim_prefix(txt, "//+private")
+					is_private_pkg = true
+						
+					if strings.has_prefix(txt, " ") {
+						txt = strings.trim_space(txt)
+						if txt == "file" {
+							is_private_file = true
+						}
+					}
+				}
+			}
 		}
 
 		for name, i in value_decl.names {
@@ -254,7 +273,7 @@ collect_value_decl :: proc(
 						attributes = value_decl.attributes[:],
 						deprecated = is_deprecated,
 						builtin = is_builtin,
-						package_private = is_package_file,
+						package_private = is_private_pkg,
 					},
 				)
 			} else {
@@ -270,7 +289,7 @@ collect_value_decl :: proc(
 							attributes = value_decl.attributes[:],
 							deprecated = is_deprecated,
 							builtin = is_builtin,
-							package_private = is_package_file,
+							package_private = is_private_pkg,
 						},
 					)
 				}
