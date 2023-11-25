@@ -1,20 +1,20 @@
 package server
 
+import "core:encoding/json"
 import "core:fmt"
+import "core:intrinsics"
 import "core:log"
 import "core:mem"
 import "core:os"
-import "core:strings"
-import "core:slice"
-import "core:strconv"
-import "core:encoding/json"
+import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:runtime"
-import "core:thread"
+import "core:slice"
+import "core:strconv"
+import "core:strings"
 import "core:sync"
-import "core:path/filepath"
-import "core:intrinsics"
 import "core:text/scanner"
+import "core:thread"
 
 import "shared:common"
 
@@ -46,16 +46,16 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	}
 
 	if code, ok, buffer = common.run_executable(
-		   fmt.tprintf(
-			   "%v check %s %s -no-entry-point %s %s",
-			   command,
-			   path.dir(uri.path, context.temp_allocator),
-			   strings.to_string(collection_builder),
-			   config.checker_args,
-			   ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
-		   ),
-		   &data,
-	   ); !ok {
+		fmt.tprintf(
+			"%v check %s %s -no-entry-point %s %s",
+			command,
+			path.dir(uri.path, context.temp_allocator),
+			strings.to_string(collection_builder),
+			config.checker_args,
+			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+		),
+		&data,
+	); !ok {
 		log.errorf(
 			"Odin check failed with code %v for file %v",
 			code,
@@ -195,10 +195,10 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 
 		append(
 			&errors[error.uri],
-			Diagnostic{
+			Diagnostic {
 				code = "checker",
 				severity = .Error,
-				range = {
+				range =  {
 					start = {character = error.column, line = error.line - 1},
 					end = {character = 0, line = error.line},
 				},

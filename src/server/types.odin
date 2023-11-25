@@ -347,11 +347,13 @@ OlsConfig :: struct {
 	enable_inlay_hints:       Maybe(bool),
 	enable_references:        Maybe(bool),
 	enable_fake_methods:      Maybe(bool),
+	enable_procedure_snippet: Maybe(bool),
 	disable_parser_errors:    Maybe(bool),
 	verbose:                  Maybe(bool),
 	file_log:                 Maybe(bool),
 	odin_command:             string,
 	checker_args:             string,
+	checker_targets:          []string,
 }
 
 OlsConfigCollection :: struct {

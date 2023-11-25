@@ -21,11 +21,13 @@ Config :: struct {
 	enable_std_references:    bool,
 	enable_import_fixer:      bool,
 	enable_fake_method:       bool,
+	enable_procedure_snippet: bool,
 	disable_parser_errors:    bool,
 	thread_count:             int,
 	file_log:                 bool,
 	odin_command:             string,
 	checker_args:             string,
+	checker_targets:          []string,
 	client_name:              string,
 }
 

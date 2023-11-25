@@ -426,6 +426,9 @@ read_ols_initialize_options :: proc(
 	config.enable_rename =
 		ols_config.enable_references.(bool) or_else config.enable_rename
 
+	config.enable_procedure_snippet =
+		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(
 			ols_config.odin_command,
@@ -439,6 +442,20 @@ read_ols_initialize_options :: proc(
 			context.allocator,
 		)
 	}
+
+	config.checker_targets = slice.clone(
+		ols_config.checker_targets,
+		context.allocator,
+	)
+
+	found_target := false
+
+	for target in config.checker_targets {
+		if ODIN_OS in os_enum_to_string {
+			found_target = true
+		}
+	}
+
 
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
@@ -582,6 +599,7 @@ request_initialize :: proc(
 	config.checker_args = ""
 	config.enable_inlay_hints = false
 	config.enable_fake_method = false
+	config.enable_procedure_snippet = true
 
 	read_ols_config :: proc(
 		file: string,
@@ -684,9 +702,9 @@ request_initialize :: proc(
 	}
 
 	response := make_response_message(
-		params = ResponseInitializeParams{
-			capabilities = ServerCapabilities{
-				textDocumentSync = TextDocumentSyncOptions{
+		params = ResponseInitializeParams {
+			capabilities = ServerCapabilities {
+				textDocumentSync = TextDocumentSyncOptions {
 					openClose = true,
 					change = 2,
 					save = {includeText = true},
@@ -695,19 +713,19 @@ request_initialize :: proc(
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
 				definitionProvider = true,
-				completionProvider = CompletionOptions{
+				completionProvider = CompletionOptions {
 					resolveProvider = false,
 					triggerCharacters = completionTriggerCharacters,
 					completionItem = {labelDetailsSupport = true},
 				},
-				signatureHelpProvider = SignatureHelpOptions{
+				signatureHelpProvider = SignatureHelpOptions {
 					triggerCharacters = signatureTriggerCharacters,
 					retriggerCharacters = signatureRetriggerCharacters,
 				},
-				semanticTokensProvider = SemanticTokensOptions{
+				semanticTokensProvider = SemanticTokensOptions {
 					range = config.enable_semantic_tokens,
 					full = config.enable_semantic_tokens,
-					legend = SemanticTokensLegend{
+					legend = SemanticTokensLegend {
 						tokenTypes = token_types,
 						tokenModifiers = token_modifiers,
 					},

@@ -613,7 +613,9 @@ get_selector_completion :: proc(
 					documentation = symbol.doc,
 				}
 
-				if symbol.type == .Function && common.config.enable_snippets {
+				if symbol.type == .Function &&
+				   common.config.enable_snippets &&
+				   common.config.enable_procedure_snippet {
 					item.insertText = fmt.tprintf("%v($0)", item.label)
 					item.insertTextFormat = .Snippet
 					item.command = Command {
@@ -1376,7 +1378,9 @@ get_identifier_completion :: proc(
 
 			item.kind = symbol_type_to_completion_kind(result.type)
 
-			if result.type == .Function && common.config.enable_snippets {
+			if result.type == .Function &&
+			   common.config.enable_snippets &&
+			   common.config.enable_procedure_snippet {
 				item.insertText = fmt.tprintf("%v($0)", item.label)
 				item.insertTextFormat = .Snippet
 				item.deprecated = .Deprecated in result.flags
