@@ -517,6 +517,40 @@ get_selector_completion :: proc(
 			append(&items, item)
 		}
 
+	case SymbolBitSetValue:
+		list.isIncomplete = false
+
+		enumv, ok := unwrap_bitset(ast_context, selector)
+		if !ok { break }
+
+		range, rok := get_range_from_selection_start_to_dot(position_context)
+		if !rok { break }
+
+		range.end.character -= 1
+
+		variable, vok := position_context.selector.derived_expr.(^ast.Ident)
+		if !vok { break }
+
+		remove_edit := TextEdit {
+			range = {
+				start = range.start,
+				end = range.end,
+			},
+			newText = "",
+		}
+
+		additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+		additionalTextEdits[0] = remove_edit
+
+		for name in enumv.names {
+			append(&items, CompletionItem {
+				label = fmt.tprintf(".%s", name),
+				kind = .EnumMember,
+				detail = fmt.tprintf("%s.%s", selector.name, name),
+				additionalTextEdits = additionalTextEdits,
+			})
+		}
+
 	case SymbolStructValue:
 		list.isIncomplete = false
 
@@ -671,11 +705,31 @@ get_implicit_completion :: proc(
 	//value decl infer a : My_Enum = .*
 	if position_context.value_decl != nil &&
 	   position_context.value_decl.type != nil {
-		if enum_value, ok := unwrap_enum(
+		enum_value: Maybe(SymbolEnumValue)
+
+		if _enum_value, ok := unwrap_enum(
 			ast_context,
 			position_context.value_decl.type,
 		); ok {
-			for name in enum_value.names {
+			enum_value = _enum_value
+		}
+
+		if position_context.comp_lit != nil {
+			if bitset_symbol, ok := resolve_type_expression(
+				ast_context,
+				position_context.value_decl.type,
+			); ok {
+				if _enum_value, ok := unwrap_bitset(
+					ast_context,
+					bitset_symbol,
+				); ok {
+					enum_value = _enum_value
+				}
+			}
+		}
+
+		if ev, ok := enum_value.?; ok {
+			for name in ev.names {
 				item := CompletionItem {
 					label  = name,
 					kind   = .EnumMember,
@@ -792,60 +846,95 @@ get_implicit_completion :: proc(
 
 	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
 	if position_context.comp_lit != nil {
-		if position_context.parent_comp_lit.type == nil {
-			return
-		}
+		if position_context.parent_comp_lit.type != nil {
+			field_name: string
 
-		field_name: string
-
-		if position_context.field_value != nil {
-			if field, ok := position_context.field_value.field.derived.(^ast.Ident);
-			   ok {
-				field_name = field.name
-			} else {
-				return
+			if position_context.field_value != nil {
+				if field, ok := position_context.field_value.field.derived.(^ast.Ident);
+				   ok {
+					field_name = field.name
+				} else {
+					return
+				}
 			}
-		}
 
-		if symbol, ok := resolve_type_expression(
-			ast_context,
-			position_context.parent_comp_lit.type,
-		); ok {
-			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
+			if symbol, ok := resolve_type_expression(
 				ast_context,
-				position_context,
-				symbol,
-				position_context.parent_comp_lit,
+				position_context.parent_comp_lit.type,
 			); ok {
-				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
-					ast_context.current_package = comp_symbol.pkg
+				if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
+					ast_context,
+					position_context,
+					symbol,
+					position_context.parent_comp_lit,
+				); ok {
+					if s, ok := comp_symbol.value.(SymbolStructValue); ok {
+						ast_context.current_package = comp_symbol.pkg
 
-					//We can either have the final 
-					elem_index := -1
+						//We can either have the final 
+						elem_index := -1
 
-					for elem, i in comp_lit.elems {
-						if position_in_node(elem, position_context.position) {
-							elem_index = i
+						for elem, i in comp_lit.elems {
+							if position_in_node(elem, position_context.position) {
+								elem_index = i
+							}
 						}
-					}
 
-					type: ^ast.Expr
+						type: ^ast.Expr
 
-					for name, i in s.names {
-						if name != field_name {
-							continue
+						for name, i in s.names {
+							if name != field_name {
+								continue
+							}
+
+							type = s.types[i]
+							break
 						}
 
-						type = s.types[i]
-						break
-					}
+						if type == nil && len(s.types) > elem_index {
+							type = s.types[elem_index]
+						}
 
-					if type == nil && len(s.types) > elem_index {
-						type = s.types[elem_index]
-					}
+						if enum_value, ok := unwrap_enum(ast_context, type); ok {
+							for enum_name in enum_value.names {
+								item := CompletionItem {
+									label  = enum_name,
+									kind   = .EnumMember,
+									detail = enum_name,
+								}
 
-					if enum_value, ok := unwrap_enum(ast_context, type); ok {
-						for enum_name in enum_value.names {
+								append(&items, item)
+							}
+
+							list.items = items[:]
+							return
+						} else if bitset_symbol, ok := resolve_type_expression(
+							ast_context,
+							type,
+						); ok {
+							ast_context.current_package = bitset_symbol.pkg
+
+							if value, ok := unwrap_bitset(
+								ast_context,
+								bitset_symbol,
+							); ok {
+								for name in value.names {
+
+									item := CompletionItem {
+										label  = name,
+										kind   = .EnumMember,
+										detail = name,
+									}
+
+									append(&items, item)
+								}
+								list.items = items[:]
+								return
+							}
+						}
+					} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
+					   ok {
+						for enum_name in s.names {
 							item := CompletionItem {
 								label  = enum_name,
 								kind   = .EnumMember,
@@ -857,49 +946,12 @@ get_implicit_completion :: proc(
 
 						list.items = items[:]
 						return
-					} else if bitset_symbol, ok := resolve_type_expression(
-						ast_context,
-						type,
-					); ok {
-						ast_context.current_package = bitset_symbol.pkg
-
-						if value, ok := unwrap_bitset(
-							ast_context,
-							bitset_symbol,
-						); ok {
-							for name in value.names {
-
-								item := CompletionItem {
-									label  = name,
-									kind   = .EnumMember,
-									detail = name,
-								}
-
-								append(&items, item)
-							}
-							list.items = items[:]
-							return
-						}
 					}
-				} else if s, ok := unwrap_bitset(ast_context, comp_symbol);
-				   ok {
-					for enum_name in s.names {
-						item := CompletionItem {
-							label  = enum_name,
-							kind   = .EnumMember,
-							detail = enum_name,
-						}
-
-						append(&items, item)
-					}
-
-					list.items = items[:]
-					return
 				}
 			}
-		}
 
-		reset_ast_context(ast_context)
+			reset_ast_context(ast_context)
+		}
 	}
 
 	if position_context.binary != nil &&
@@ -1068,6 +1120,33 @@ get_implicit_completion :: proc(
 						list.items = items[:]
 						return
 					}
+					
+					// Bitset comp literal in parameter, eg: `hello({ . })`.
+					if position_context.comp_lit != nil {
+						if bitset_symbol, ok := resolve_type_expression(
+							ast_context,
+							proc_value.arg_types[parameter_index].type,
+						); ok {
+							if enum_value, ok := unwrap_bitset(
+								ast_context,
+								bitset_symbol,
+							); ok {
+								for name in enum_value.names {
+									item := CompletionItem {
+										label  = name,
+										kind   = .EnumMember,
+										detail = name,
+									}
+
+									append(&items, item)
+								}
+
+								list.items = items[:]
+								return
+							}
+						}
+					}
+
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue);
 				   ok {
 					for name in enum_value.names {
