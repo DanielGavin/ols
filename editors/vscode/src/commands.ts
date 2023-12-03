@@ -23,7 +23,7 @@ export function runDebugTest(ctx: Ctx): Cmd {
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
             const path = ctx.config.collections[i].path;
-            if(name === "core") {
+            if(name === "core" || name === "vendor") {
                 continue;
             }
             args.push(`-collection:${name}=${path}`);
