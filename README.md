@@ -2,8 +2,6 @@
 
 Language server for Odin. This project is still in early development.
 
-**Status**: You have to use `odin` commit 886d0de to build. Project can't compile with the latest llvm 17 update.
-
 ## Table Of Contents
 
 -   [Installation](#installation)
@@ -26,7 +24,7 @@ cd ols
 # for windows
 ./build.bat
 
-# for linux
+# for linux and macos
 ./build.sh
 ```
 
