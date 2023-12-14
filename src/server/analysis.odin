@@ -1905,15 +1905,12 @@ internal_resolve_type_identifier :: proc(
 			}
 		}
 
-		//If we are resolving a symbol that is in the document package, then we'll check the builtin packages.
-		if ast_context.current_package == ast_context.document_package {
-			if symbol, ok := lookup(node.name, "$builtin"); ok {
+		if symbol, ok := lookup(node.name, "$builtin"); ok {
+			return resolve_symbol_return(ast_context, symbol)
+		}
+		for built in indexer.builtin_packages {
+			if symbol, ok := lookup(node.name, built); ok {
 				return resolve_symbol_return(ast_context, symbol)
-			}
-			for built in indexer.builtin_packages {
-				if symbol, ok := lookup(node.name, built); ok {
-					return resolve_symbol_return(ast_context, symbol)
-				}
 			}
 		}
 
