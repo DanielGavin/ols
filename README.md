@@ -203,20 +203,8 @@ lspconfig.ols.setup({})
 ```
 
 ### Helix
-
-```
-[[language]]
-name = "odin"
-scope = "scope.odin"
-file-types = ["odin"]
-comment-token = "//"
-indent = { tab-width = 2, unit = " " }
-language-server = { command = "ols" }
-injection-regex = "odin"
-roots = ["ols.json"]
-formatter = { command = "odinfmt", args = [ "-stdin", "true" ] }
-```
-
+Guide for installing helix with ols:
+https://github.com/joaocarvalhoopen/Helix_editor_for_the_Odin_programming_Language
 ### Micro
 
 Install the [LSP plugin](https://github.com/AndCake/micro-plugin-lsp)
