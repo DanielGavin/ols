@@ -349,7 +349,7 @@ index_package_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct {
@@ -481,7 +481,7 @@ ast_swizzle_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{
+		 {
 			"x: f32",
 			"y: f32",
 			"z: f32",
@@ -597,7 +597,7 @@ ast_for_in_for_from_different_package :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 				My_Bar :: struct {
@@ -903,7 +903,7 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		my_group :: proc{
@@ -947,7 +947,7 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		my_proc :: proc() -> bool {
@@ -1072,7 +1072,7 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 
@@ -1101,7 +1101,7 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct { a: int }
@@ -1129,7 +1129,7 @@ ast_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct { a: int }
@@ -1489,7 +1489,7 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		Maybe :: union($T: typeid) {T}
@@ -1615,7 +1615,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct {
@@ -1728,7 +1728,7 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		Foo :: enum {
@@ -1766,7 +1766,7 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "My_package",
 			source = `package My_package
 		Foo :: enum {
@@ -1808,7 +1808,7 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "My_package",
 			source = `package My_package
 		Foo :: enum {
@@ -1840,7 +1840,7 @@ ast_index_enum_infer_call_expr :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		Foo :: enum {
@@ -1998,7 +1998,7 @@ ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package	
 			My_Int :: int
@@ -2161,7 +2161,7 @@ ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 			A :: struct {
@@ -2199,7 +2199,7 @@ ast_completion_method_with_type :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 			A :: struct {
@@ -2232,7 +2232,7 @@ ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 			Foo :: enum { Aa, Ab, Ac, Ad }
@@ -2268,7 +2268,7 @@ ast_private_proc_ignore :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 				@(private)
@@ -2300,7 +2300,7 @@ ast_bitset_assignment_diff_pkg :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 			Foo :: enum { Aa, Ab, Ac, Ad }
@@ -2383,4 +2383,27 @@ ast_generic_struct_with_array :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, ".", {"Test_Inner.b: int"})
+}
+
+@(test)
+ast_assign_to_global_function :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test	
+		import "my_package"		
+		get_foo :: proc() -> string {
+
+		}
+		
+		global_foo := get_foo()
+		
+		main :: proc() {
+			global_fo{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.global_foo: string"})
 }

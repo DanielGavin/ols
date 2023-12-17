@@ -1585,8 +1585,8 @@ internal_resolve_type_identifier :: proc(
 	ast_context: ^AstContext,
 	node: ast.Ident,
 ) -> (
-	Symbol,
-	bool,
+	_symbol: Symbol,
+	_ok: bool,
 ) {
 	using ast
 
@@ -1773,6 +1773,21 @@ internal_resolve_type_identifier :: proc(
 				ast_context,
 				v^,
 			)
+		case ^ast.Call_Expr:
+			call_symbol := internal_resolve_type_expression(
+				ast_context,
+				v.expr,
+			) or_return
+
+			proc_value := call_symbol.value.(SymbolProcedureValue) or_return
+
+			if len(proc_value.return_types) >= 1 &&
+			   proc_value.return_types[0].type != nil {
+				return_symbol, ok = internal_resolve_type_expression(
+					ast_context,
+					proc_value.return_types[0].type,
+				)
+			}
 		case ^Struct_Type:
 			return_symbol, ok =
 				make_symbol_struct_from_ast(
