@@ -552,8 +552,7 @@
 				"0": {
 					"name": "punctuation.definition.string.end.odin"
 				}
-			},
-			"patterns": [{ "include": "#string-escaped-char" }]
+			}
 		},
 		"string-escaped-char": {
 			"patterns": [
