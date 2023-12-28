@@ -109,7 +109,11 @@ append_method_completion :: proc(
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
 						"%v.%v($0)",
-						path.base(symbol.pkg, false, ast_context.allocator),
+						path.base(
+							get_symbol_pkg_name(ast_context, symbol),
+							false,
+							ast_context.allocator,
+						),
 						symbol.name,
 					)
 				} else {
