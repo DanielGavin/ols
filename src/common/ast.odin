@@ -163,7 +163,7 @@ get_attribute_objc_is_class_method :: proc(
 	return false
 }
 
-unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
+unwrap_pointer_ident :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 	n := 0
 	expr := expr
 	for expr != nil {
@@ -186,6 +186,25 @@ unwrap_pointer :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 	return {}, n, false
 }
 
+unwrap_pointer_expr :: proc(expr: ^ast.Expr) -> (^ast.Expr, int, bool) {
+	n := 0
+	expr := expr
+	for expr != nil {
+		if pointer, ok := expr.derived.(^ast.Pointer_Type); ok {
+			expr = pointer.elem
+			n += 1
+		} else {
+			break
+		}
+	}
+
+	if expr == nil {
+		return {}, n, false
+	}
+
+	return expr, n, true
+}
+
 is_expr_basic_lit :: proc(expr: ^ast.Expr) -> bool {
 	_, ok := expr.derived.(^ast.Basic_Lit)
 	return ok
@@ -198,10 +217,10 @@ collect_value_decl :: proc(
 	skip_private: bool,
 ) {
 	if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
-		is_deprecated   := false
+		is_deprecated := false
 		is_private_file := false
-		is_private_pkg  := false
-		is_builtin      := false
+		is_private_pkg := false
+		is_builtin := false
 
 		for attribute in value_decl.attributes {
 			for elem in attribute.elems {
@@ -238,7 +257,7 @@ collect_value_decl :: proc(
 		if is_private_file && skip_private {
 			return
 		}
-		
+
 		// If a private status is not explicitly set with an attribute above the declaration
 		// check the file comment.
 		if !is_private_file && !is_private_pkg && file.docs != nil {
@@ -247,7 +266,7 @@ collect_value_decl :: proc(
 				if strings.has_prefix(txt, "//+private") {
 					txt = strings.trim_prefix(txt, "//+private")
 					is_private_pkg = true
-						
+
 					if strings.has_prefix(txt, " ") {
 						txt = strings.trim_space(txt)
 						if txt == "file" {
@@ -264,7 +283,7 @@ collect_value_decl :: proc(
 			if value_decl.type != nil {
 				append(
 					exprs,
-					GlobalExpr{
+					GlobalExpr {
 						name = str,
 						name_expr = name,
 						expr = value_decl.type,
@@ -280,7 +299,7 @@ collect_value_decl :: proc(
 				if len(value_decl.values) > i {
 					append(
 						exprs,
-						GlobalExpr{
+						GlobalExpr {
 							name = str,
 							name_expr = name,
 							expr = value_decl.values[i],

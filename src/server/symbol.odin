@@ -1,8 +1,11 @@
 package server
 
+import "core:fmt"
 import "core:hash"
+import "core:log"
 import "core:mem"
 import "core:odin/ast"
+import "core:odin/tokenizer"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:slice"
@@ -22,6 +25,7 @@ SymbolStructValue :: struct {
 	types:  []^ast.Expr,
 	usings: map[int]bool,
 	poly:   ^ast.Field_List,
+	args:   []^ast.Expr, //The arguments in the call expression for poly
 }
 
 SymbolPackageValue :: struct {}
@@ -83,6 +87,7 @@ SymbolUntypedValue :: struct {
 		String,
 		Bool,
 	},
+	tok:  tokenizer.Token,
 }
 
 SymbolMapValue :: struct {
@@ -227,7 +232,9 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolMapValue:
 		common.free_ast(v.key, allocator)
 		common.free_ast(v.value, allocator)
-	case SymbolUntypedValue, SymbolPackageValue:
+	case SymbolUntypedValue:
+		delete(v.tok.text)
+	case SymbolPackageValue:
 	}
 }
 
@@ -283,4 +290,51 @@ symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 	case:
 		return .Null
 	}
+}
+
+symbol_to_expr :: proc(
+	symbol: Symbol,
+	file: string,
+	allocator := context.temp_allocator,
+) -> ^ast.Expr {
+
+	pos := tokenizer.Pos {
+		file = file,
+	}
+
+	end := tokenizer.Pos {
+		file = file,
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolDynamicArrayValue:
+		type := new_type(ast.Dynamic_Array_Type, pos, end, allocator)
+		type.elem = v.expr
+		return type
+	case SymbolFixedArrayValue:
+		type := new_type(ast.Array_Type, pos, end, allocator)
+		type.elem = v.expr
+		return type
+	case SymbolMapValue:
+		type := new_type(ast.Map_Type, pos, end, allocator)
+		type.key = v.key
+		type.value = v.value
+		return type
+	case SymbolBasicValue:
+		return v.ident
+	case SymbolSliceValue:
+		type := new_type(ast.Array_Type, pos, end, allocator)
+		type.elem = v.expr
+		return type
+	case SymbolStructValue:
+		type := new_type(ast.Struct_Type, pos, end, allocator)
+		return type
+	case SymbolUntypedValue:
+		type := new_type(ast.Basic_Lit, pos, end, allocator)
+		return type
+	case:
+		log.errorf("Unhandled symbol %v", symbol)
+	}
+
+	return nil
 }

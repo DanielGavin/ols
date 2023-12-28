@@ -6,7 +6,6 @@
 *.ll
 *.sublime-project
 *.sublime-workspace
-*.vscode
 *.lib
 *.exp
 *.sqlite

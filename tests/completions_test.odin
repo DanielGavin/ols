@@ -789,33 +789,6 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"Window.height: int"})
 }
 
-/*
-@(test)
-ast_overload_with_autocast_completion :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package test
-
-		my_group :: proc{
-			with_autocast,
-			with_bool,
-		};
-		with_autocast :: proc(#any_int a: int) -> bool {
-		}
-		with_bool :: proc(a: bool) -> int {
-		}
-
-		main :: proc() {
-			my_uint: uint = 0;
-			my_value := my_group(my_uint);
-			my_val{*}
-		}
-		`,
-		packages = {},
-	}
-
-	test.expect_completion_details(t, &source, "", {"test.my_value: bool"})
-}
-*/
 
 @(test)
 ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
@@ -2406,4 +2379,118 @@ ast_assign_to_global_function :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {"test.global_foo: string"})
+}
+
+@(test)
+ast_poly_dynamic_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test	
+		import "my_package"		
+
+		_raw_data_dynamic :: proc(data: $T/[dynamic]$E) -> [^]E {
+			return {}
+		}
+		
+		main :: proc() {
+			my_dynamic: [dynamic]int
+			ret_dynamic := _raw_data_dynamic(my_dynamic)
+			ret_dy{*}	
+		}
+		
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.ret_dynamic: [^]int"},
+	)
+}
+
+@(test)
+ast_poly_array_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test	
+		import "my_package"		
+
+		_raw_data_array :: proc(data: $T/[]$E) -> [^]E {
+			return {}
+		}
+		
+		main :: proc() {
+			my_array: []int
+			ret_array := _raw_data_array(my_array)
+			ret_arr{*}	
+		}
+		
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.ret_array: [^]int"})
+}
+
+@(test)
+ast_poly_struct_with_poly :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test
+		Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+			data: [N]T,
+			len:  int,
+		}
+
+		Animal :: struct {
+			happy:  bool,
+			sad:    bool,
+			fluffy: bool,
+		}
+		
+		get_ptr :: proc "contextless" (a: ^$A/Small_Array($N, $T), index: int) -> ^T {
+			return &a.data[index]
+		}
+		
+		main :: proc() {
+			animals := Small_Array(5, Animal){}
+			first := get_ptr(&animals, 0)
+			fir{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+
+	test.expect_completion_details(t, &source, "", {"test.first: ^Animal"})
+}
+
+@(test)
+ast_poly_proc_array_constant :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test
+		make_f32_array :: proc($N: int, $val: f32) -> (res: [N]f32) {
+			for _, i in res {
+				res[i] = val*val
+			}
+			return
+		}
+
+		main :: proc() {
+			array := make_f32_array(3, 2)
+			arr{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+
+	test.expect_completion_details(t, &source, "", {"test.array: [3]f32"})
 }

@@ -75,7 +75,7 @@ make_symbol_collection :: proc(
 	config: ^common.Config,
 ) -> SymbolCollection {
 	return(
-		SymbolCollection{
+		SymbolCollection {
 			allocator = allocator,
 			config = config,
 			packages = make(map[string]SymbolPackage, 16, allocator),
@@ -141,7 +141,7 @@ collect_procedure_fields :: proc(
 	value := SymbolProcedureValue {
 		return_types = returns[:],
 		arg_types    = args[:],
-		generic      = proc_type.generic,
+		generic      = is_procedure_generic(proc_type),
 	}
 
 	return value
@@ -435,7 +435,7 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 			return
 		}
 
-		expr, _, ok := common.unwrap_pointer(value.arg_types[0].type)
+		expr, _, ok := common.unwrap_pointer_ident(value.arg_types[0].type)
 
 		if !ok {
 			return
@@ -514,7 +514,7 @@ collect_objc :: proc(
 
 				append(
 					&objc_struct.functions,
-					ObjcFunction{
+					ObjcFunction {
 						logical_name = get_index_unique_string_collection(
 							collection,
 							objc_name,
