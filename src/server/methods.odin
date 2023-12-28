@@ -88,6 +88,11 @@ append_method_completion :: proc(
 					continue
 				}
 
+				if len(value.arg_types) == 0 ||
+				   value.arg_types[0].type == nil {
+					continue
+				}
+
 				first_arg: Symbol
 				first_arg, ok = resolve_type_expression(
 					ast_context,
