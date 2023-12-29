@@ -171,22 +171,23 @@ resolve_poly :: proc(
 				}
 				found |= true
 			}
+			if p.len != nil {
+				if poly_type, ok := p.len.derived.(^ast.Poly_Type); ok {
+					if ident, ok := unwrap_ident(poly_type.type); ok {
+						poly_map[ident.name] = call_array.len
+					}
 
-			if poly_type, ok := p.len.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_array.len
+					if poly_type.specialization != nil {
+						return resolve_poly(
+							ast_context,
+							call_array.len,
+							call_symbol,
+							p.len,
+							poly_map,
+						)
+					}
+					found |= true
 				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_array.len,
-						call_symbol,
-						p.len,
-						poly_map,
-					)
-				}
-				found |= true
 			}
 
 			return found
