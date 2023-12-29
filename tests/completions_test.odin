@@ -2517,7 +2517,7 @@ ast_poly_proc_matrix_type :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(&t, &source, "", {"test.ptr: ^f32"})
+	test.expect_completion_details(t, &source, "", {"test.ptr: ^f32"})
 }
 
 @(test)
@@ -2541,7 +2541,7 @@ ast_poly_proc_matrix_constant_array :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(&t, &source, "", {"test.ptr: [3]f32"})
+	test.expect_completion_details(t, &source, "", {"test.ptr: [3]f32"})
 }
 
 @(test)
@@ -2570,5 +2570,5 @@ ast_poly_proc_matrix_constant_array_2 :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(&t, &source, "", {"test.myss: [10]f32"})
+	test.expect_completion_details(t, &source, "", {"test.myss: [10]f32"})
 }
