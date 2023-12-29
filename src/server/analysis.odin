@@ -1347,7 +1347,10 @@ internal_resolve_type_identifier :: proc(
 			return_symbol.name = node.name
 			return_symbol.type = local.variable ? .Variable : .Constant
 		case:
-			return_symbol, ok = resolve_type_expression(ast_context, local.rhs)
+			return_symbol, ok = internal_resolve_type_expression(
+				ast_context,
+				local.rhs,
+			)
 		}
 
 		if is_distinct {
@@ -1356,7 +1359,6 @@ internal_resolve_type_identifier :: proc(
 		}
 
 		if local.variable {
-			//return_symbol.name = node.name
 			return_symbol.type = .Variable
 		}
 
