@@ -314,6 +314,7 @@ symbol_to_expr :: proc(
 	case SymbolFixedArrayValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
+		type.len = v.len
 		return type
 	case SymbolMapValue:
 		type := new_type(ast.Map_Type, pos, end, allocator)
@@ -331,6 +332,12 @@ symbol_to_expr :: proc(
 		return type
 	case SymbolUntypedValue:
 		type := new_type(ast.Basic_Lit, pos, end, allocator)
+		return type
+	case SymbolMatrixValue:
+		type := new_type(ast.Matrix_Type, pos, end, allocator)
+		type.row_count = v.x
+		type.column_count = v.y
+		type.elem = v.expr
 		return type
 	case:
 		log.errorf("Unhandled symbol %v", symbol)
