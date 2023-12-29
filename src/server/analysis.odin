@@ -939,7 +939,12 @@ internal_resolve_type_expression :: proc(
 
 		return symbol, ok
 	case ^Call_Expr:
+		old_call := ast_context.call
 		ast_context.call = cast(^Call_Expr)node
+
+		defer {
+			ast_context.call = old_call
+		}
 
 		if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
 			switch ident.name {
@@ -2795,7 +2800,12 @@ get_generic_assignment :: proc(
 	case ^Or_Return_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls)
 	case ^Call_Expr:
+		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
+
+		defer {
+			ast_context.call = old_call
+		}
 
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
