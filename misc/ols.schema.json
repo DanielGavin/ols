@@ -30,8 +30,15 @@
 			"type": "boolean",
 			"description": "Turns on builtin snippets"
 		},
-		"enable_inlay_hints": { "type": "boolean" },
+		"enable_inlay_hints": {
+			"type": "boolean",
+			"description": "Turn on inlay hints for editors that support it."
+		},
 		"enable_references": { "type": "boolean" },
+		"enable_fake_methods": {
+			"type": "boolean",
+			"description": "Turn on fake methods completion."
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",
