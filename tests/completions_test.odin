@@ -2572,3 +2572,39 @@ ast_poly_proc_matrix_constant_array_2 :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.myss: [10]f32"})
 }
+
+@(test)
+ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main = `package test
+		
+		@(require_results)
+		matrix_mul :: proc "contextless" (
+			a, b: $M/matrix[$N, N]$E,
+		) -> (
+			c: M,
+		) where !IS_ARRAY(E),
+			IS_NUMERIC(E) #no_bounds_check {
+			return a * b
+		}
+
+		matrix4_from_trs_f16 :: proc "contextless" () -> matrix[4, 4]f32 {
+			translation: matrix[4, 4]f32
+			rotation: matrix[4, 4]f32
+			dsszz := matrix_mul(scale, translation)
+			dssz{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.dsszz: matrix[4,4]f32"},
+	)
+
+}

@@ -1,13 +1,13 @@
 package server
 
-import "core:mem"
 import "core:fmt"
-import "core:odin/tokenizer"
-import "core:odin/ast"
-import "core:strings"
-import "core:log"
 import "core:intrinsics"
+import "core:log"
+import "core:mem"
+import "core:odin/ast"
+import "core:odin/tokenizer"
 import "core:reflect"
+import "core:strings"
 _ :: intrinsics
 
 new_type :: proc(
@@ -143,148 +143,150 @@ clone_node :: proc(
 	}
 
 	if res.derived != nil do #partial switch r in res.derived {
-		case ^Ident:
-			n := node.derived.(^Ident)
+	case ^Ident:
+		n := node.derived.(^Ident)
 
-			if unique_strings == nil {
-				r.name = strings.clone(n.name, allocator)
-			} else {
-				r.name = get_index_unique_string(unique_strings, allocator, n.name)
-			}
-		case ^Implicit:
-			n := node.derived.(^Implicit)
-			if unique_strings == nil {
-				r.tok.text = strings.clone(n.tok.text, allocator)
-			} else {
-				r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
-			}
-		case ^Undef:
-		case ^Basic_Lit:
-			n := node.derived.(^Basic_Lit)
-			if unique_strings == nil {
-				r.tok.text = strings.clone(n.tok.text, allocator)
-			} else {
-				r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
-			}
-		case ^Basic_Directive:
-			n := node.derived.(^Basic_Directive)
-			if unique_strings == nil {
-				r.name = strings.clone(n.name, allocator)
-			} else {
-				r.name = get_index_unique_string(unique_strings, allocator, n.name)
-			}
-		case ^Ellipsis:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Tag_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Unary_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Binary_Expr:
-			n := node.derived.(^Binary_Expr)
-			r.left = clone_type(r.left, allocator, unique_strings)
-			r.right = clone_type(r.right, allocator, unique_strings)
-			//Todo: Replace this with some constant table for opeator text
-			if unique_strings == nil {
-				r.op.text = strings.clone(n.op.text, allocator)
-			} else {
-				r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
-			}
-		case ^Paren_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Selector_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-			r.field = auto_cast clone_type(r.field, allocator, unique_strings)
-		case ^Implicit_Selector_Expr:
-			r.field = auto_cast clone_type(r.field, allocator, unique_strings)
-		case ^Slice_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-			r.low = clone_type(r.low, allocator, unique_strings)
-			r.high = clone_type(r.high, allocator, unique_strings)
-		case ^Attribute:
-			r.elems = clone_type(r.elems, allocator, unique_strings)
-		case ^Distinct_Type:
-			r.type = clone_type(r.type, allocator, unique_strings)
-		case ^Proc_Type:
-			r.params = auto_cast clone_type(r.params, allocator, unique_strings)
-			r.results = auto_cast clone_type(r.results, allocator, unique_strings)
-		case ^Pointer_Type:
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-		case ^Array_Type:
-			r.len = clone_type(r.len, allocator, unique_strings)
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-			r.tag = clone_type(r.tag, allocator, unique_strings)
-		case ^Dynamic_Array_Type:
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-			r.tag = clone_type(r.tag, allocator, unique_strings)
-		case ^Struct_Type:
-			r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
-			r.align = clone_type(r.align, allocator, unique_strings)
-			r.fields = auto_cast clone_type(r.fields, allocator, unique_strings)
-			r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
-		case ^Field:
-			r.names = clone_type(r.names, allocator, unique_strings)
-			r.type = clone_type(r.type, allocator, unique_strings)
-			r.default_value = clone_type(r.default_value, allocator, unique_strings)
-		case ^Field_List:
-			r.list = clone_type(r.list, allocator, unique_strings)
-		case ^Field_Value:
-			r.field = clone_type(r.field, allocator, unique_strings)
-			r.value = clone_type(r.value, allocator, unique_strings)
-		case ^Union_Type:
-			r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
-			r.align = clone_type(r.align, allocator, unique_strings)
-			r.variants = clone_type(r.variants, allocator, unique_strings)
-			r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
-		case ^Enum_Type:
-			r.base_type = clone_type(r.base_type, allocator, unique_strings)
-			r.fields = clone_type(r.fields, allocator, unique_strings)
-		case ^Bit_Set_Type:
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-			r.underlying = clone_type(r.underlying, allocator, unique_strings)
-		case ^Map_Type:
-			r.key = clone_type(r.key, allocator, unique_strings)
-			r.value = clone_type(r.value, allocator, unique_strings)
-		case ^Call_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-			r.args = clone_type(r.args, allocator, unique_strings)
-		case ^Typeid_Type:
-			r.specialization = clone_type(r.specialization, allocator, unique_strings)
-		case ^Ternary_When_Expr:
-			r.x = clone_type(r.x, allocator, unique_strings)
-			r.cond = clone_type(r.cond, allocator, unique_strings)
-			r.y = clone_type(r.y, allocator, unique_strings)
-		case ^Poly_Type:
-			r.type = auto_cast clone_type(r.type, allocator, unique_strings)
-			r.specialization = clone_type(r.specialization, allocator, unique_strings)
-		case ^Proc_Group:
-			r.args = clone_type(r.args, allocator, unique_strings)
-		case ^Comp_Lit:
-			r.type = clone_type(r.type, allocator, unique_strings)
-			r.elems = clone_type(r.elems, allocator, unique_strings)
-		case ^Proc_Lit:
-			r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings)
-			r.body = nil
-			r.where_clauses = nil
-		case ^Helper_Type:
-			r.type = clone_type(r.type, allocator, unique_strings)
-		case ^Type_Cast:
-			r.type = clone_type(r.type, allocator, unique_strings)
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Deref_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-		case ^Index_Expr:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-			r.index = clone_type(r.index, allocator, unique_strings)
-		case ^Multi_Pointer_Type:
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-		case ^Matrix_Type:
-			r.elem = clone_type(r.elem, allocator, unique_strings)
-		case ^Type_Assertion:
-			r.expr = clone_type(r.expr, allocator, unique_strings)
-			r.type = clone_type(r.type, allocator, unique_strings)
-		case:
-		//fmt.logf("Unhandled node kind: %T", r)
+		if unique_strings == nil {
+			r.name = strings.clone(n.name, allocator)
+		} else {
+			r.name = get_index_unique_string(unique_strings, allocator, n.name)
 		}
+	case ^Implicit:
+		n := node.derived.(^Implicit)
+		if unique_strings == nil {
+			r.tok.text = strings.clone(n.tok.text, allocator)
+		} else {
+			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
+		}
+	case ^Undef:
+	case ^Basic_Lit:
+		n := node.derived.(^Basic_Lit)
+		if unique_strings == nil {
+			r.tok.text = strings.clone(n.tok.text, allocator)
+		} else {
+			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
+		}
+	case ^Basic_Directive:
+		n := node.derived.(^Basic_Directive)
+		if unique_strings == nil {
+			r.name = strings.clone(n.name, allocator)
+		} else {
+			r.name = get_index_unique_string(unique_strings, allocator, n.name)
+		}
+	case ^Ellipsis:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Tag_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Unary_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Binary_Expr:
+		n := node.derived.(^Binary_Expr)
+		r.left = clone_type(r.left, allocator, unique_strings)
+		r.right = clone_type(r.right, allocator, unique_strings)
+		//Todo: Replace this with some constant table for opeator text
+		if unique_strings == nil {
+			r.op.text = strings.clone(n.op.text, allocator)
+		} else {
+			r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
+		}
+	case ^Paren_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Selector_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
+	case ^Implicit_Selector_Expr:
+		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
+	case ^Slice_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.low = clone_type(r.low, allocator, unique_strings)
+		r.high = clone_type(r.high, allocator, unique_strings)
+	case ^Attribute:
+		r.elems = clone_type(r.elems, allocator, unique_strings)
+	case ^Distinct_Type:
+		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^Proc_Type:
+		r.params = auto_cast clone_type(r.params, allocator, unique_strings)
+		r.results = auto_cast clone_type(r.results, allocator, unique_strings)
+	case ^Pointer_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+	case ^Array_Type:
+		r.len = clone_type(r.len, allocator, unique_strings)
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+		r.tag = clone_type(r.tag, allocator, unique_strings)
+	case ^Dynamic_Array_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+		r.tag = clone_type(r.tag, allocator, unique_strings)
+	case ^Struct_Type:
+		r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
+		r.align = clone_type(r.align, allocator, unique_strings)
+		r.fields = auto_cast clone_type(r.fields, allocator, unique_strings)
+		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
+	case ^Field:
+		r.names = clone_type(r.names, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+		r.default_value = clone_type(r.default_value, allocator, unique_strings)
+	case ^Field_List:
+		r.list = clone_type(r.list, allocator, unique_strings)
+	case ^Field_Value:
+		r.field = clone_type(r.field, allocator, unique_strings)
+		r.value = clone_type(r.value, allocator, unique_strings)
+	case ^Union_Type:
+		r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
+		r.align = clone_type(r.align, allocator, unique_strings)
+		r.variants = clone_type(r.variants, allocator, unique_strings)
+		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
+	case ^Enum_Type:
+		r.base_type = clone_type(r.base_type, allocator, unique_strings)
+		r.fields = clone_type(r.fields, allocator, unique_strings)
+	case ^Bit_Set_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+		r.underlying = clone_type(r.underlying, allocator, unique_strings)
+	case ^Map_Type:
+		r.key = clone_type(r.key, allocator, unique_strings)
+		r.value = clone_type(r.value, allocator, unique_strings)
+	case ^Call_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.args = clone_type(r.args, allocator, unique_strings)
+	case ^Typeid_Type:
+		r.specialization = clone_type(r.specialization, allocator, unique_strings)
+	case ^Ternary_When_Expr:
+		r.x = clone_type(r.x, allocator, unique_strings)
+		r.cond = clone_type(r.cond, allocator, unique_strings)
+		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Poly_Type:
+		r.type = auto_cast clone_type(r.type, allocator, unique_strings)
+		r.specialization = clone_type(r.specialization, allocator, unique_strings)
+	case ^Proc_Group:
+		r.args = clone_type(r.args, allocator, unique_strings)
+	case ^Comp_Lit:
+		r.type = clone_type(r.type, allocator, unique_strings)
+		r.elems = clone_type(r.elems, allocator, unique_strings)
+	case ^Proc_Lit:
+		r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings)
+		r.body = nil
+		r.where_clauses = nil
+	case ^Helper_Type:
+		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^Type_Cast:
+		r.type = clone_type(r.type, allocator, unique_strings)
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Deref_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Index_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.index = clone_type(r.index, allocator, unique_strings)
+	case ^Multi_Pointer_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+	case ^Matrix_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+		r.column_count = clone_type(r.column_count, allocator, unique_strings)
+		r.row_count = clone_type(r.row_count, allocator, unique_strings)
+	case ^Type_Assertion:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+	case:
+	//fmt.logf("Unhandled node kind: %T", r)
+	}
 
 	return res
 }

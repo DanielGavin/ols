@@ -54,6 +54,10 @@ resolve_poly :: proc(
 			}
 		}
 		return true
+	} else if type != nil {
+		if ident, ok := unwrap_ident(type); ok {
+			poly_map[ident.name] = specialization
+		}
 	}
 
 	#partial switch p in specialization.derived {
@@ -281,6 +285,11 @@ find_and_replace_poly_type :: proc(
 				return v, ok
 			}
 		}
+		if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
+			if v, ok := poly_map[poly.type.name]; ok {
+				return v, ok
+			}
+		}
 
 		return nil, false
 	}
@@ -296,6 +305,16 @@ find_and_replace_poly_type :: proc(
 		poly_map := cast(^map[string]^ast.Expr)visitor.data
 
 		#partial switch v in node.derived {
+		case ^ast.Matrix_Type:
+			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+				v.elem = expr
+			}
+			if expr, ok := is_in_poly_map(v.column_count, poly_map); ok {
+				v.column_count = expr
+			}
+			if expr, ok := is_in_poly_map(v.row_count, poly_map); ok {
+				v.row_count = expr
+			}
 		case ^ast.Dynamic_Array_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
@@ -417,7 +436,7 @@ resolve_generic_function_symbol :: proc(
 				)
 
 				if symbol_expr == nil {
-					continue
+					return {}, false
 				}
 
 				if resolve_poly(
@@ -428,7 +447,11 @@ resolve_generic_function_symbol :: proc(
 					&poly_map,
 				) {
 					if poly, ok := name.derived.(^ast.Poly_Type); ok {
-						poly_map[poly.type.name] = call_expr.args[i]
+						poly_map[poly.type.name] = clone_expr(
+							call_expr.args[i],
+							ast_context.allocator,
+							nil,
+						)
 					}
 				}
 			}
@@ -438,6 +461,7 @@ resolve_generic_function_symbol :: proc(
 	}
 
 	for k, v in poly_map {
+		find_and_replace_poly_type(v, &poly_map)
 		//fmt.println(k, v.derived, "\n")
 	}
 

@@ -339,8 +339,15 @@ symbol_to_expr :: proc(
 		type.column_count = v.y
 		type.elem = v.expr
 		return type
+	case SymbolProcedureValue:
+		type := new_type(ast.Proc_Type, pos, end, allocator)
+		type.results = new_type(ast.Field_List, pos, end, allocator)
+		type.results.list = v.return_types
+		type.params = new_type(ast.Field_List, pos, end, allocator)
+		type.params.list = v.arg_types
+		return type
 	case:
-		log.errorf("Unhandled symbol %v", symbol)
+		log.panicf("Unhandled symbol %v", symbol)
 	}
 
 	return nil
