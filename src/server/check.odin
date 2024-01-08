@@ -19,7 +19,7 @@ import "core:thread"
 import "shared:common"
 
 check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
-	data := make([]byte, mem.Kilobyte * 100, context.temp_allocator)
+	data := make([]byte, mem.Kilobyte * 200, context.temp_allocator)
 
 	buffer: []byte
 	code: u32
