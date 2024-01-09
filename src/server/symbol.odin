@@ -347,7 +347,7 @@ symbol_to_expr :: proc(
 		type.params.list = v.arg_types
 		return type
 	case:
-		log.panicf("Unhandled symbol %v", symbol)
+		return nil
 	}
 
 	return nil
