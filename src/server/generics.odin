@@ -439,11 +439,14 @@ resolve_generic_function_symbol :: proc(
 					return {}, false
 				}
 
+				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
+				param_type := clone_expr(param.type, ast_context.allocator, nil)
+
 				if resolve_poly(
 					ast_context,
 					symbol_expr,
 					symbol,
-					param.type,
+					param_type,
 					&poly_map,
 				) {
 					if poly, ok := name.derived.(^ast.Poly_Type); ok {
