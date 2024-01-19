@@ -43,8 +43,7 @@ scratch_allocator_destroy :: proc(s: ^Scratch_Allocator) {
 scratch_allocator_proc :: proc(
 	allocator_data: rawptr,
 	mode: mem.Allocator_Mode,
-	size,
-	alignment: int,
+	size, alignment: int,
 	old_memory: rawptr,
 	old_size: int,
 	loc := #caller_location,
@@ -121,7 +120,7 @@ scratch_allocator_proc :: proc(
 		}
 		clear(&s.leaked_allocations)
 
-	case .Resize:
+	case .Resize, .Resize_Non_Zeroed:
 		begin := uintptr(raw_data(s.data))
 		end := begin + uintptr(len(s.data))
 		old_ptr := uintptr(old_memory)
