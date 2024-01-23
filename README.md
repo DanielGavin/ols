@@ -142,7 +142,7 @@ Configuration of the LSP:
                     {
                         "name": "collection_a",
                         "path": "/path/to/collection_a"
-                    },
+                    }
                 ],
                 "enable_semantic_tokens": true,
                 "enable_document_symbols": true,
