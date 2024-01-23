@@ -43,8 +43,7 @@ Example of `ols.json`:
 {
 	"$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
 	"collections": [
-		{ "name": "core", "path": "c:/path/to/Odin/core" },
-		{ "name": "shared", "path": "c:/path/to/MyProject/src" }
+		{ "name": "custom_collection", "path": "c:/path/to/collection" },
 	],
 	"enable_semantic_tokens": false,
 	"enable_document_symbols": true,
