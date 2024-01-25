@@ -21,6 +21,11 @@
 			"type": "boolean",
 			"description": "Turns on outline of all your global declarations in your document."
 		},
+		"enable_format": {
+			"type": "boolean",
+			"description": "Turns on formatting with odinfmt.",
+			"default": true
+		},
 		"enable_hover": {
 			"type": "boolean",
 			"description": "Enables hover feature"
