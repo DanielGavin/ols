@@ -26,7 +26,7 @@ jobs:
         cd Odin
         make release
     - name: Build ols
-      run: ./build.sh CI -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
+      run: ./build.sh -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
     - name: Move to Dist
       run: |
         mkdir dist
