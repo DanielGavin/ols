@@ -3,7 +3,7 @@
 
 if [[ $1 == "CI" ]]
 then
-	shift
+    shift
 
     export PATH=$PATH:$PWD/Odin
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
@@ -30,20 +30,20 @@ then
 fi
 if [[ $1 == "CI_NO_TESTS" ]]
 then
-	shift
+    shift
 
     export PATH=$PATH:$PWD/Odin
 fi
 if [[ $1 == "single_test" ]]
 then
-	shift
+    shift
 
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
     odin test ../tests -collection:shared=../src -test-name:$@
 
-	shift
+    shift
 
     if ([ $? -ne 0 ])
     then
@@ -56,7 +56,7 @@ fi
 
 if [[ $1 == "test" ]]
 then
-	shift
+    shift
 
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
@@ -73,7 +73,7 @@ then
 fi
 if [[ $1 == "debug" ]]
 then
-	shift
+    shift
 
     odin build src/ -collection:shared=src -out:ols -use-separate-modules -debug $@
     exit 0
