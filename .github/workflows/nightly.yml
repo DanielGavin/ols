@@ -128,7 +128,7 @@ jobs:
     name: publish
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-x86_64-darwin']
+    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-x86_64-darwin', 'dist-arm64-darwin']
     steps:
     - name: Install Nodejs
       uses: actions/setup-node@v1
@@ -154,14 +154,24 @@ jobs:
       with:
         name: dist-x86_64-darwin
         path: dist
+    - uses: actions/download-artifact@v2
+      with:
+        name: dist-arm64-darwin
+        path: dist
     - run: |
         ls -al ./dist
         cd dist
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
+
         chmod +x ols-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
+
         chmod +x ols-x86_64-darwin
         zip -r ols-x86_64-darwin.zip ols-x86_64-darwin builtin
+
+        chmod +x ols-arm64-darwin
+        zip -r ols-arm64-darwin.zip ols-arm64-darwin builtin
+
         rm -rf builtin
     - name: Publish Release
       uses: ./.github/actions/github-release
