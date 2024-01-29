@@ -28,6 +28,12 @@ then
         #exit 1
     fi
 fi
+if [[ $1 == "CI_NO_TESTS" ]]
+then
+	shift
+
+    export PATH=$PATH:$PWD/Odin
+fi
 if [[ $1 == "single_test" ]]
 then
 	shift
