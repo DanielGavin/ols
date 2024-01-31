@@ -87,7 +87,7 @@ AstContext :: struct {
 	document_package: string,
 	use_locals:       bool,
 	local_id:         int,
-	call:             ^ast.Call_Expr, //used to determene the types for generics and the correct function for overloaded functions
+	call:             ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
 	value_decl:       ^ast.Value_Decl,
 	field_name:       ast.Ident,
 	uri:              string,
@@ -1393,6 +1393,13 @@ internal_resolve_type_identifier :: proc(
 				v^,
 			)
 		case ^ast.Call_Expr:
+			old_call := ast_context.call
+			ast_context.call = cast(^Call_Expr)global.expr
+
+			defer {
+				ast_context.call = old_call
+			}
+
 			call_symbol := internal_resolve_type_expression(
 				ast_context,
 				v.expr,
@@ -1520,7 +1527,10 @@ internal_resolve_type_identifier :: proc(
 			return symbol, true
 		}
 
-		is_runtime := strings.contains(ast_context.current_package, "core/runtime")
+		is_runtime := strings.contains(
+			ast_context.current_package,
+			"core/runtime",
+		)
 
 		if is_runtime {
 			if symbol, ok := lookup(node.name, "$builtin"); ok {
