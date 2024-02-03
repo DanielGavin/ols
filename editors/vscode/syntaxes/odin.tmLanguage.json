@@ -15,10 +15,9 @@
 				{ "include": "#constant-assignment" },
 				{ "include": "#variable-assignment" },
 				{ "include": "#case-clause" },
-				{ "include": "#where-clause" },
 				{ "include": "#block-label" },
 				{ "include": "#type-annotation" },
-				{ "include": "#block-declaration" },
+				{ "include": "#block-definition" },
 				{ "include": "#expressions" }
 			]
 		},
@@ -114,7 +113,15 @@
 			"end": "(?=^|,|;|\\)|=|:|for|switch|if|{)",
 			"patterns": [ { "include": "#type-declaration" } ]
 		},
-		"block-declaration": {
+		"object-definition": {
+			"name": "meta.object.type.odin",
+			"begin": "\\{",
+			"beginCaptures": { "0": { "name": "punctuation.definition.block.odin" } },
+			"end": "\\}",
+			"endCaptures": { "0": { "name": "punctuation.definition.block.odin" } },
+			"patterns": [ { "include": "#statements" } ]
+		},
+		"block-definition": {
 			"name": "meta.block.odin",
 			"begin": "\\{",
 			"beginCaptures": { "0": { "name": "punctuation.definition.block.odin" } },
@@ -141,13 +148,13 @@
 					"patterns": [
 						{ "include": "#parameters" },
 						{ "include": "#return-type-declaration" },
-						{ "include": "#where-clause" },
-						{ "include": "#type-declaration" }
+						{ "include": "#object-definition" },
+						{ "include": "#expressions" }
 					]
 				},
 				{ "include": "#comments" },
 				{ "include": "#strings" },
-				{ "include": "#block-declaration" },
+				{ "include": "#block-definition" },
 				{ "include": "#keywords" },
 				{ "include": "#basic-types" },
 				{ "include": "#slice" },
@@ -222,13 +229,6 @@
 				},
 				{ "include": "#type-declaration" }
 			]
-		},
-		"where-clause": {
-			"name": "meta.where.clause.odin",
-			"begin": "\\bwhere\\b",
-			"beginCaptures": { "0": { "name": "keyword.other.where.odin" } },
-			"end": "(?={)",
-			"patterns": [ { "include": "#expressions" } ]
 		},
 		"case-clause": {
 			"name": "meta.case-clause.expr.odin",

@@ -1438,7 +1438,7 @@ should_align_comp_lit :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
 }
 
 @(private)
-comp_lit_contains_fields :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
+comp_lit_contains_fields :: proc(comp_lit: ast.Comp_Lit) -> bool {
 
 	if len(comp_lit.elems) == 0 {
 		return false
@@ -2051,7 +2051,7 @@ visit_expr :: proc(
 		}
 
 		should_newline :=
-			comp_lit_contains_fields(p, v^) ||
+			comp_lit_contains_fields(v^) ||
 			contains_comments_in_range(p, v.pos, v.end)
 		should_newline &=
 			(called_from == .Value_Decl ||
@@ -2807,8 +2807,10 @@ get_possible_comp_lit_alignment :: proc(exprs: []^ast.Expr) -> int {
 			return 0
 		}
 
-		if _, is_comp := value.value.derived.(^ast.Comp_Lit); is_comp {
-			return 0
+		if comp, is_comp := value.value.derived.(^ast.Comp_Lit); is_comp {
+			if comp_lit_contains_fields(comp^) {
+				return 0
+			}
 		}
 
 		longest_name = max(longest_name, get_node_length(value.field))

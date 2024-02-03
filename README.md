@@ -32,7 +32,7 @@ cd ols
 
 In order for the language server to index your files, it must know about your collections.
 
-To do that you can either configure ols via an ``ols.json`` file (it should be located at the root of your workspace).
+To do that you can either configure ols via an `ols.json` file (it should be located at the root of your workspace).
 
 Or you can provide the configuration via your editor of choice.
 
@@ -43,8 +43,7 @@ Example of `ols.json`:
 {
 	"$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
 	"collections": [
-		{ "name": "core", "path": "c:/path/to/Odin/core" },
-		{ "name": "shared", "path": "c:/path/to/MyProject/src" }
+		{ "name": "custom_collection", "path": "c:/path/to/collection" }
 	],
 	"enable_semantic_tokens": false,
 	"enable_document_symbols": true,
@@ -56,6 +55,8 @@ Example of `ols.json`:
 You can also set `ODIN_ROOT` environment variable to the path where ols should look for core and vendor libraries.
 
 Options:
+
+`enable_format`: Turns on formatting with `odinfmt`. _(Enabled by default)_
 
 `enable_hover`: Enables hover feature
 
@@ -143,7 +144,7 @@ Configuration of the LSP:
                     {
                         "name": "collection_a",
                         "path": "/path/to/collection_a"
-                    },
+                    }
                 ],
                 "enable_semantic_tokens": true,
                 "enable_document_symbols": true,
