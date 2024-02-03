@@ -757,7 +757,7 @@ request_initialize :: proc(
 		Add runtime package
 	*/
 
-	if core, ok := config.collections["core"]; ok {
+	if core, ok := config.collections["base"]; ok {
 		append(&indexer.builtin_packages, path.join({core, "runtime"}))
 	}
 
