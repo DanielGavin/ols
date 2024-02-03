@@ -88,6 +88,11 @@ append_method_completion :: proc(
 					continue
 				}
 
+				if len(value.arg_types) == 0 ||
+				   value.arg_types[0].type == nil {
+					continue
+				}
+
 				first_arg: Symbol
 				first_arg, ok = resolve_type_expression(
 					ast_context,
@@ -109,7 +114,11 @@ append_method_completion :: proc(
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
 						"%v.%v($0)",
-						path.base(symbol.pkg, false, ast_context.allocator),
+						path.base(
+							get_symbol_pkg_name(ast_context, symbol),
+							false,
+							ast_context.allocator,
+						),
 						symbol.name,
 					)
 				} else {
