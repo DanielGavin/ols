@@ -1253,8 +1253,8 @@ internal_resolve_type_identifier :: proc(
 			for imp in ast_context.imports {
 				if strings.compare(imp.base, node.name) == 0 {
 					symbol := Symbol {
-						type = .Package,
-						pkg = imp.name,
+						type  = .Package,
+						pkg   = imp.name,
 						value = SymbolPackageValue{},
 					}
 
@@ -1517,8 +1517,8 @@ internal_resolve_type_identifier :: proc(
 		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
 		if strings.contains(node.name, "/") {
 			symbol := Symbol {
-				type = .Package,
-				pkg = node.name,
+				type  = .Package,
+				pkg   = node.name,
 				value = SymbolPackageValue{},
 			}
 
@@ -1529,7 +1529,7 @@ internal_resolve_type_identifier :: proc(
 
 		is_runtime := strings.contains(
 			ast_context.current_package,
-			"core/runtime",
+			"base/runtime",
 		)
 
 		if is_runtime {
@@ -1552,8 +1552,8 @@ internal_resolve_type_identifier :: proc(
 		for imp in ast_context.imports {
 			if strings.compare(imp.base, node.name) == 0 {
 				symbol := Symbol {
-					type = .Package,
-					pkg = imp.name,
+					type  = .Package,
+					pkg   = imp.name,
 					value = SymbolPackageValue{},
 				}
 
@@ -4534,10 +4534,10 @@ fallback_position_context_completion :: proc(
 	}
 
 	p := parser.Parser {
-		err = common.parser_warning_handler, //empty
-		warn = common.parser_warning_handler, //empty
+		err   = common.parser_warning_handler, //empty
+		warn  = common.parser_warning_handler, //empty
 		flags = {.Optional_Semicolons},
-		file = &position_context.file,
+		file  = &position_context.file,
 	}
 
 	tokenizer.init(
