@@ -28,7 +28,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	collection_builder := strings.builder_make(context.temp_allocator)
 
 	for k, v in common.config.collections {
-		if k == "" || k == "core" || k == "vendor" {
+		if k == "" || k == "core" || k == "vendor" || k == "base" {
 			continue
 		}
 		strings.write_string(
@@ -216,7 +216,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 			uri := common.create_uri(match, context.temp_allocator)
 
 			params := NotificationPublishDiagnosticsParams {
-				uri = uri.uri,
+				uri         = uri.uri,
 				diagnostics = {},
 			}
 
