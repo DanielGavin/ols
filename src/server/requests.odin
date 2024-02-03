@@ -10,7 +10,6 @@ import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:runtime"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
@@ -20,6 +19,7 @@ import "core:time"
 
 import "shared:common"
 
+import "base:runtime"
 
 Header :: struct {
 	content_length: int,
@@ -551,6 +551,17 @@ read_ols_initialize_options :: proc(
 			allocator = context.allocator,
 		)
 	}
+
+	if "base" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(
+			odin_core_env,
+			context.temp_allocator,
+		)
+		config.collections[strings.clone("base")] = path.join(
+			elems = {forward_path, "base"},
+			allocator = context.allocator,
+		)
+	}
 }
 
 request_initialize :: proc(
@@ -1077,8 +1088,8 @@ notification_did_save :: proc(
 	fullpath := uri.path
 
 	p := parser.Parser {
-		err = log_error_handler,
-		warn = log_warning_handler,
+		err   = log_error_handler,
+		warn  = log_warning_handler,
 		flags = {.Optional_Semicolons},
 	}
 
