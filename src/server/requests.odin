@@ -443,6 +443,20 @@ read_ols_initialize_options :: proc(
 		)
 	}
 
+	for profile in ols_config.profiles {
+		if ols_config.profile == profile.name {
+			if filepath.is_abs(ols_config.profile) {
+				config.profile.checker_path = strings.clone(
+					profile.checker_path,
+				)
+			} else {
+				config.profile.checker_path = path.join(
+					elems = {uri.path, profile.checker_path},
+				)
+			}
+		}
+	}
+
 	config.checker_targets = slice.clone(
 		ols_config.checker_targets,
 		context.allocator,
@@ -1146,11 +1160,10 @@ notification_did_save :: proc(
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	if uri, ok := common.parse_uri(
-		config.workspace_folders[0].uri,
-		context.temp_allocator,
-	); ok {
-		check(uri, writer, config)
+	if config.profile.checker_path != "" {
+		check(config.profile.checker_path, writer, config)
+	} else {
+		check(config.workspace_folders[0].uri, writer, config)
 	}
 
 	return .None

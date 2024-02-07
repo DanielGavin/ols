@@ -48,7 +48,12 @@ Example of `ols.json`:
 	"enable_semantic_tokens": false,
 	"enable_document_symbols": true,
 	"enable_hover": true,
-	"enable_snippets": true
+	"enable_snippets": true,
+    "profile": "windows",
+    "profiles": [
+        { "name": "linux_profile", "os": "linux", "checker_path": "src/main.odin"},
+        { "name": "windows_profile", "os": "windows", "checker_path": "src"}
+    ]
 }
 ```
 
@@ -77,6 +82,10 @@ Options:
 `checker_args`: Pass custom arguments to `odin check`.
 
 `verbose`: Logs warnings instead of just errors.
+
+`profile`: What profile to currently use.
+
+`profiles`: List of different profiles that describe the environment ols is running under.
 
 ### Odinfmt configurations
 

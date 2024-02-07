@@ -1,5 +1,11 @@
 package common
 
+ConfigProfile :: struct {
+	os:           string,
+	name:         string,
+	checker_path: string,
+}
+
 Config :: struct {
 	workspace_folders:        [dynamic]WorkspaceFolder,
 	completion_support_md:    bool,
@@ -29,6 +35,7 @@ Config :: struct {
 	checker_args:             string,
 	checker_targets:          []string,
 	client_name:              string,
+	profile:                  ConfigProfile,
 }
 
 config: Config

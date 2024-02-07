@@ -354,6 +354,8 @@ OlsConfig :: struct {
 	odin_command:             string,
 	checker_args:             string,
 	checker_targets:          []string,
+	profiles:                 [dynamic]common.ConfigProfile,
+	profile:                  string,
 }
 
 OlsConfigCollection :: struct {

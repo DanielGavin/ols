@@ -18,7 +18,10 @@ import "core:thread"
 
 import "shared:common"
 
-check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
+//Store uris we have reported on since last save. We use this to clear them on next save.
+uris_reported := make([dynamic]string)
+
+check :: proc(path: string, writer: ^Writer, config: ^common.Config) {
 	data := make([]byte, mem.Kilobyte * 200, context.temp_allocator)
 
 	buffer: []byte
@@ -45,35 +48,24 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		command = "odin"
 	}
 
+	entry_point_opt :=
+		filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
+
 	if code, ok, buffer = common.run_executable(
 		fmt.tprintf(
-			"%v check %s %s -no-entry-point %s %s",
+			"%v check %s %s %s %s %s",
 			command,
-			uri.path,
+			path,
 			strings.to_string(collection_builder),
+			entry_point_opt,
 			config.checker_args,
 			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
 		),
 		&data,
 	); !ok {
-		log.errorf(
-			"Odin check failed with code %v for file %v",
-			code,
-			uri.path,
-		)
+		log.errorf("Odin check failed with code %v for file %v", code, path)
 		return
 	}
-
-	log.error(
-		fmt.tprintf(
-			"%v check %s %s -no-entry-point %s %s",
-			command,
-			path.dir(uri.path, context.temp_allocator),
-			strings.to_string(collection_builder),
-			config.checker_args,
-			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
-		),
-	)
 
 	s: scanner.Scanner
 
@@ -224,30 +216,29 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		)
 	}
 
-	matches, err := filepath.glob(
-		fmt.tprintf("%v/*.odin", path.dir(uri.path, context.temp_allocator)),
-	)
+	for uri in uris_reported {
 
-	if err == .None {
-		for match in matches {
-			uri := common.create_uri(match, context.temp_allocator)
+		log.errorf("clear %v", uri)
 
-			params := NotificationPublishDiagnosticsParams {
-				uri         = uri.uri,
-				diagnostics = {},
-			}
-
-			notifaction := Notification {
-				jsonrpc = "2.0",
-				method  = "textDocument/publishDiagnostics",
-				params  = params,
-			}
-
-			if writer != nil {
-				send_notification(notifaction, writer)
-			}
+		params := NotificationPublishDiagnosticsParams {
+			uri         = uri,
+			diagnostics = {},
 		}
+
+		notifaction := Notification {
+			jsonrpc = "2.0",
+			method  = "textDocument/publishDiagnostics",
+			params  = params,
+		}
+
+		if writer != nil {
+			send_notification(notifaction, writer)
+		}
+
+		delete(uri)
 	}
+
+	clear(&uris_reported)
 
 	for k, v in errors {
 		uri := common.create_uri(k, context.temp_allocator)
@@ -262,6 +253,8 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 			method  = "textDocument/publishDiagnostics",
 			params  = params,
 		}
+
+		append(&uris_reported, strings.clone(uri.uri))
 
 		if writer != nil {
 			send_notification(notifaction, writer)
