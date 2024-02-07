@@ -49,7 +49,7 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		fmt.tprintf(
 			"%v check %s %s -no-entry-point %s %s",
 			command,
-			path.dir(uri.path, context.temp_allocator),
+			uri.path,
 			strings.to_string(collection_builder),
 			config.checker_args,
 			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
@@ -63,6 +63,17 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 		)
 		return
 	}
+
+	log.error(
+		fmt.tprintf(
+			"%v check %s %s -no-entry-point %s %s",
+			command,
+			path.dir(uri.path, context.temp_allocator),
+			strings.to_string(collection_builder),
+			config.checker_args,
+			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+		),
+	)
 
 	s: scanner.Scanner
 
@@ -185,6 +196,12 @@ check :: proc(uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
 
 	for error in error_seperators {
+		if strings.contains(
+			error.message,
+			"Redeclaration of 'main' in this scope",
+		) {
+			continue
+		}
 
 		if error.uri not_in errors {
 			errors[error.uri] = make(

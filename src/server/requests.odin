@@ -1146,8 +1146,12 @@ notification_did_save :: proc(
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-
-	check(uri, writer, config)
+	if uri, ok := common.parse_uri(
+		config.workspace_folders[0].uri,
+		context.temp_allocator,
+	); ok {
+		check(uri, writer, config)
+	}
 
 	return .None
 }
