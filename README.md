@@ -51,8 +51,8 @@ Example of `ols.json`:
 	"enable_snippets": true,
     "profile": "windows_profile",
     "profiles": [
-        { "name": "linux_profile", "os": "linux", "checker_path": "src/main.odin"},
-        { "name": "windows_profile", "os": "windows", "checker_path": "src"}
+        { "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"]},
+        { "name": "windows_profile", "os": "windows", "checker_path": ["src"]}
     ]
 }
 ```
