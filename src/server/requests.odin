@@ -445,14 +445,23 @@ read_ols_initialize_options :: proc(
 
 	for profile in ols_config.profiles {
 		if ols_config.profile == profile.name {
+			config.profile.checker_path = make(
+				[dynamic]string,
+				len(profile.checker_path),
+			)
+
 			if filepath.is_abs(ols_config.profile) {
-				config.profile.checker_path = strings.clone(
-					profile.checker_path,
-				)
+				for checker_path, i in profile.checker_path {
+					config.profile.checker_path[i] = strings.clone(
+						checker_path,
+					)
+				}
 			} else {
-				config.profile.checker_path = path.join(
-					elems = {uri.path, profile.checker_path},
-				)
+				for checker_path, i in profile.checker_path {
+					config.profile.checker_path[i] = path.join(
+						elems = {uri.path, checker_path},
+					)
+				}
 			}
 		}
 	}
@@ -1160,10 +1169,10 @@ notification_did_save :: proc(
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	if config.profile.checker_path != "" {
-		check(config.profile.checker_path, writer, config)
+	if len(config.profile.checker_path) > 0 {
+		check(config.profile.checker_path[:], writer, config)
 	} else {
-		check(config.workspace_folders[0].uri, writer, config)
+		check({config.workspace_folders[0].uri}, writer, config)
 	}
 
 	return .None

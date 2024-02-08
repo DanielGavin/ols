@@ -21,7 +21,7 @@ import "shared:common"
 //Store uris we have reported on since last save. We use this to clear them on next save.
 uris_reported := make([dynamic]string)
 
-check :: proc(path: string, writer: ^Writer, config: ^common.Config) {
+check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 	data := make([]byte, mem.Kilobyte * 200, context.temp_allocator)
 
 	buffer: []byte
@@ -40,186 +40,195 @@ check :: proc(path: string, writer: ^Writer, config: ^common.Config) {
 		)
 	}
 
-	command: string
+	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
 
-	if config.odin_command != "" {
-		command = config.odin_command
-	} else {
-		command = "odin"
-	}
+	for path in paths {
+		command: string
 
-	entry_point_opt :=
-		filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
+		if config.odin_command != "" {
+			command = config.odin_command
+		} else {
+			command = "odin"
+		}
 
-	if code, ok, buffer = common.run_executable(
-		fmt.tprintf(
-			"%v check %s %s %s %s %s",
-			command,
-			path,
-			strings.to_string(collection_builder),
-			entry_point_opt,
-			config.checker_args,
-			ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
-		),
-		&data,
-	); !ok {
-		log.errorf("Odin check failed with code %v for file %v", code, path)
-		return
-	}
+		entry_point_opt :=
+			filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
 
-	s: scanner.Scanner
+		if code, ok, buffer = common.run_executable(
+			fmt.tprintf(
+				"%v check %s %s %s %s %s",
+				command,
+				path,
+				strings.to_string(collection_builder),
+				entry_point_opt,
+				config.checker_args,
+				ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+			),
+			&data,
+		); !ok {
+			log.errorf(
+				"Odin check failed with code %v for file %v",
+				code,
+				path,
+			)
+			return
+		}
 
-	scanner.init(&s, string(buffer))
+		s: scanner.Scanner
 
-	s.whitespace = {'\t', ' '}
+		scanner.init(&s, string(buffer))
 
-	current: rune
+		s.whitespace = {'\t', ' '}
 
-	ErrorSeperator :: struct {
-		message: string,
-		line:    int,
-		column:  int,
-		uri:     string,
-	}
+		current: rune
 
-	error_seperators := make([dynamic]ErrorSeperator, context.temp_allocator)
+		ErrorSeperator :: struct {
+			message: string,
+			line:    int,
+			column:  int,
+			uri:     string,
+		}
 
-	//find all the signatures string(digit:digit)
-	loop: for scanner.peek(&s) != scanner.EOF {
+		error_seperators := make(
+			[dynamic]ErrorSeperator,
+			context.temp_allocator,
+		)
 
-		scan_line: {
-			error: ErrorSeperator
+		//find all the signatures string(digit:digit)
+		loop: for scanner.peek(&s) != scanner.EOF {
 
-			source_pos := s.src_pos
+			scan_line: {
+				error: ErrorSeperator
 
-			if source_pos == 1 {
-				source_pos = 0
-			}
+				source_pos := s.src_pos
 
-			for scanner.peek(&s) != '(' {
-				n := scanner.scan(&s)
-
-				if n == scanner.EOF {
-					break loop
+				if source_pos == 1 {
+					source_pos = 0
 				}
-				if n == '\n' {
-					source_pos = s.src_pos - 1
+
+				for scanner.peek(&s) != '(' {
+					n := scanner.scan(&s)
+
+					if n == scanner.EOF {
+						break loop
+					}
+					if n == '\n' {
+						source_pos = s.src_pos - 1
+					}
 				}
+
+				error.uri = string(buffer[source_pos:s.src_pos - 1])
+
+				left_paren := scanner.scan(&s)
+
+				if left_paren != '(' {
+					break scan_line
+				}
+
+				lhs_digit := scanner.scan(&s)
+
+				if lhs_digit != scanner.Int {
+					break scan_line
+				}
+
+				line, column: int
+				ok: bool
+
+				line, ok = strconv.parse_int(scanner.token_text(&s))
+
+				if !ok {
+					break scan_line
+				}
+
+				seperator := scanner.scan(&s)
+
+				if seperator != ':' {
+					break scan_line
+				}
+
+				rhs_digit := scanner.scan(&s)
+
+				if rhs_digit != scanner.Int {
+					break scan_line
+				}
+
+				column, ok = strconv.parse_int(scanner.token_text(&s))
+
+				if !ok {
+					break scan_line
+				}
+
+				right_paren := scanner.scan(&s)
+
+				if right_paren != ')' {
+					break scan_line
+				}
+
+				source_pos = s.src_pos
+
+				for scanner.peek(&s) != '\n' {
+					n := scanner.scan(&s)
+
+					if n == scanner.EOF {
+						break
+					}
+				}
+
+				if source_pos == s.src_pos {
+					continue
+				}
+
+				error.message = string(buffer[source_pos:s.src_pos - 1])
+				error.column = column
+				error.line = line
+
+				append(&error_seperators, error)
+				continue loop
 			}
 
-			error.uri = string(buffer[source_pos:s.src_pos - 1])
-
-			left_paren := scanner.scan(&s)
-
-			if left_paren != '(' {
-				break scan_line
-			}
-
-			lhs_digit := scanner.scan(&s)
-
-			if lhs_digit != scanner.Int {
-				break scan_line
-			}
-
-			line, column: int
-			ok: bool
-
-			line, ok = strconv.parse_int(scanner.token_text(&s))
-
-			if !ok {
-				break scan_line
-			}
-
-			seperator := scanner.scan(&s)
-
-			if seperator != ':' {
-				break scan_line
-			}
-
-			rhs_digit := scanner.scan(&s)
-
-			if rhs_digit != scanner.Int {
-				break scan_line
-			}
-
-			column, ok = strconv.parse_int(scanner.token_text(&s))
-
-			if !ok {
-				break scan_line
-			}
-
-			right_paren := scanner.scan(&s)
-
-			if right_paren != ')' {
-				break scan_line
-			}
-
-			source_pos = s.src_pos
-
+			// line scan failed, skip to the next line
 			for scanner.peek(&s) != '\n' {
 				n := scanner.scan(&s)
-
 				if n == scanner.EOF {
 					break
 				}
 			}
+		}
 
-			if source_pos == s.src_pos {
+		for error in error_seperators {
+			if strings.contains(
+				error.message,
+				"Redeclaration of 'main' in this scope",
+			) {
 				continue
 			}
 
-			error.message = string(buffer[source_pos:s.src_pos - 1])
-			error.column = column
-			error.line = line
-
-			append(&error_seperators, error)
-			continue loop
-		}
-
-		// line scan failed, skip to the next line
-		for scanner.peek(&s) != '\n' {
-			n := scanner.scan(&s)
-			if n == scanner.EOF {
-				break
+			if error.uri not_in errors {
+				errors[error.uri] = make(
+					[dynamic]Diagnostic,
+					context.temp_allocator,
+				)
 			}
-		}
-	}
 
-	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
-
-	for error in error_seperators {
-		if strings.contains(
-			error.message,
-			"Redeclaration of 'main' in this scope",
-		) {
-			continue
-		}
-
-		if error.uri not_in errors {
-			errors[error.uri] = make(
-				[dynamic]Diagnostic,
-				context.temp_allocator,
+			append(
+				&errors[error.uri],
+				Diagnostic {
+					code = "checker",
+					severity = .Error,
+					range =  {
+						start =  {
+							character = error.column,
+							line = error.line - 1,
+						},
+						end = {character = 0, line = error.line},
+					},
+					message = error.message,
+				},
 			)
 		}
-
-		append(
-			&errors[error.uri],
-			Diagnostic {
-				code = "checker",
-				severity = .Error,
-				range =  {
-					start = {character = error.column, line = error.line - 1},
-					end = {character = 0, line = error.line},
-				},
-				message = error.message,
-			},
-		)
 	}
 
 	for uri in uris_reported {
-
-		log.errorf("clear %v", uri)
-
 		params := NotificationPublishDiagnosticsParams {
 			uri         = uri,
 			diagnostics = {},

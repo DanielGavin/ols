@@ -3,7 +3,7 @@ package common
 ConfigProfile :: struct {
 	os:           string,
 	name:         string,
-	checker_path: string,
+	checker_path: [dynamic]string,
 }
 
 Config :: struct {
