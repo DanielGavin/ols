@@ -1172,7 +1172,9 @@ notification_did_save :: proc(
 	if len(config.profile.checker_path) > 0 {
 		check(config.profile.checker_path[:], writer, config)
 	} else {
-		check({config.workspace_folders[0].uri}, writer, config)
+		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+			check({uri.path}, writer, config)
+		}
 	}
 
 	return .None

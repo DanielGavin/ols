@@ -54,6 +54,8 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 		entry_point_opt :=
 			filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
 
+		slice.zero(data)
+
 		if code, ok, buffer = common.run_executable(
 			fmt.tprintf(
 				"%v check %s %s %s %s %s",
@@ -117,7 +119,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 					}
 				}
 
-				error.uri = string(buffer[source_pos:s.src_pos - 1])
+				error.uri = strings.clone(string(buffer[source_pos:s.src_pos - 1]), context.temp_allocator)
 
 				left_paren := scanner.scan(&s)
 
@@ -145,7 +147,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 				if seperator != ':' {
 					break scan_line
 				}
-
+				
 				rhs_digit := scanner.scan(&s)
 
 				if rhs_digit != scanner.Int {
@@ -157,7 +159,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 				if !ok {
 					break scan_line
 				}
-
+	
 				right_paren := scanner.scan(&s)
 
 				if right_paren != ')' {
@@ -178,7 +180,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 					continue
 				}
 
-				error.message = string(buffer[source_pos:s.src_pos - 1])
+				error.message = strings.clone(string(buffer[source_pos:s.src_pos - 1]), context.temp_allocator)
 				error.column = column
 				error.line = line
 
