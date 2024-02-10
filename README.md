@@ -5,16 +5,16 @@ Language server for Odin. This project is still in early development.
 ## Table Of Contents
 
 -   [Installation](#installation)
-    -   [Configuration](#Configuration)
+	-   [Configuration](#Configuration)
 -   [Features](#features)
 -   [Clients](#clients)
-    -   [Vs Code](#vs-code)
-    -   [Sublime](#sublime)
-    -   [Vim](#vim)
-    -   [Neovim](#neovim)
-    -   [Emacs](#emacs)
-    -   [Helix](#helix)
-    -   [Micro](#micro)
+	-   [Vs Code](#vs-code)
+	-   [Sublime](#sublime)
+	-   [Vim](#vim)
+	-   [Neovim](#neovim)
+	-   [Emacs](#emacs)
+	-   [Helix](#helix)
+	-   [Micro](#micro)
 
 ## Installation
 
@@ -54,7 +54,7 @@ Example of `ols.json`:
 		{ "name": "default", "checker_path": ["src"]},
 		{ "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"]},
 		{ "name": "windows_profile", "os": "windows", "checker_path": ["src"]}
-    ]
+	]
 }
 ```
 
@@ -142,28 +142,28 @@ Configuration of the LSP:
 
 ```
 {
-    "clients": {
-        "odin": {
-            "command": [
-                "/path/to/ols"
-            ],
-            "enabled": false, // true for globally-enabled, but not required due to 'Enable In Project' command
-            "selector": "source.odin",
-            "initializationOptions": {
-                "collections": [
-                    {
-                        "name": "collection_a",
-                        "path": "/path/to/collection_a"
-                    }
-                ],
-                "enable_semantic_tokens": true,
-                "enable_document_symbols": true,
-                "enable_hover": true,
-                "enable_snippets": true,
-                "enable_format": true,
-            }
-        }
-    }
+	"clients": {
+		"odin": {
+			"command": [
+				"/path/to/ols"
+			],
+			"enabled": false, // true for globally-enabled, but not required due to 'Enable In Project' command
+			"selector": "source.odin",
+			"initializationOptions": {
+				"collections": [
+					{
+						"name": "collection_a",
+						"path": "/path/to/collection_a"
+					}
+				],
+				"enable_semantic_tokens": true,
+				"enable_document_symbols": true,
+				"enable_hover": true,
+				"enable_snippets": true,
+				"enable_format": true,
+			}
+		}
+	}
 }
 ```
 
@@ -176,11 +176,11 @@ Configuration of the LSP:
 ```
 {
   "languageserver": {
-    "odin": {
-      "command": "ols",
-      "filetypes": ["odin"],
-      "rootPatterns": ["ols.json"]
-    }
+	"odin": {
+	  "command": "ols",
+	  "filetypes": ["odin"],
+	  "rootPatterns": ["ols.json"]
+	}
   }
 }
 ```
@@ -207,9 +207,9 @@ lspconfig.ols.setup({})
 (defvar lsp-language-id-configuration '((odin-mode . "odin")))
 (lsp-register-client
  (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable")
-                  :major-modes '(odin-mode)
-                  :server-id 'ols
-                  :multi-root t)) ;; This is just so lsp-mode sends the "workspaceFolders" param to the server.
+				  :major-modes '(odin-mode)
+				  :server-id 'ols
+				  :multi-root t)) ;; This is just so lsp-mode sends the "workspaceFolders" param to the server.
 (add-hook 'odin-mode-hook #'lsp)
 ```
 
