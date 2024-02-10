@@ -4,17 +4,17 @@ Language server for Odin. This project is still in early development.
 
 ## Table Of Contents
 
--   [Installation](#installation)
-    -   [Configuration](#Configuration)
--   [Features](#features)
--   [Clients](#clients)
-    -   [Vs Code](#vs-code)
-    -   [Sublime](#sublime)
-    -   [Vim](#vim)
-    -   [Neovim](#neovim)
-    -   [Emacs](#emacs)
-    -   [Helix](#helix)
-    -   [Micro](#micro)
+- [Installation](#installation)
+  - [Configuration](#Configuration)
+- [Features](#features)
+- [Clients](#clients)
+  - [Vs Code](#vs-code)
+  - [Sublime](#sublime)
+  - [Vim](#vim)
+  - [Neovim](#neovim)
+  - [Emacs](#emacs)
+  - [Helix](#helix)
+  - [Micro](#micro)
 
 ## Installation
 
@@ -35,7 +35,6 @@ In order for the language server to index your files, it must know about your co
 To do that you can either configure ols via an `ols.json` file (it should be located at the root of your workspace).
 
 Or you can provide the configuration via your editor of choice.
-
 
 Example of `ols.json`:
 
@@ -97,8 +96,7 @@ Example:
 {
 	"$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/odinfmt.schema.json",
 	"character_width": 80,
-	"tabs": true,
-	"tabs_width": 4
+	"tabs": true
 }
 ```
 
@@ -120,12 +118,12 @@ Options:
 
 Support Language server features:
 
--   Completion
--   Go to definition
--   Semantic tokens(really unstable and unfinished)
--   Document symbols
--   Signature help
--   Hover
+- Completion
+- Go to definition
+- Semantic tokens(really unstable and unfinished)
+- Document symbols
+- Signature help
+- Hover
 
 ## Clients
 
