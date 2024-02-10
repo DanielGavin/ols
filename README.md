@@ -49,11 +49,11 @@ Example of `ols.json`:
 	"enable_document_symbols": true,
 	"enable_hover": true,
 	"enable_snippets": true,
-    "profile": "default",
-    "profiles": [
+	"profile": "default",
+	"profiles": [
 		{ "name": "default", "checker_path": ["src"]},
-        { "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"]},
-        { "name": "windows_profile", "os": "windows", "checker_path": ["src"]}
+		{ "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"]},
+		{ "name": "windows_profile", "os": "windows", "checker_path": ["src"]}
     ]
 }
 ```
