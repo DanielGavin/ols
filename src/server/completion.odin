@@ -199,6 +199,7 @@ get_directive_completion :: proc(
 		"procedure",
 		"load",
 		"partial",
+		"force_inline",
 	}
 
 	for elem in directive_list {
