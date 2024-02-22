@@ -13,7 +13,7 @@ import "core:runtime"
 import "core:strings"
 import "core:time"
 
-import "shared:common"
+import "src:common"
 
 platform_os: map[string]bool = {
 	"windows" = true,
@@ -95,8 +95,8 @@ try_build_package :: proc(pkg_name: string) {
 			}
 
 			p := parser.Parser {
-				err = log_error_handler,
-				warn = log_warning_handler,
+				err   = log_error_handler,
+				warn  = log_warning_handler,
 				flags = {.Optional_Semicolons},
 			}
 

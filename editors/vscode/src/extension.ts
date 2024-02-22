@@ -107,14 +107,22 @@ export async function activate(context: vscode.ExtensionContext) {
     fs.access(olsFile, constants.F_OK).catch(async err => {
         if (err) {
 
+            if (!config.askCreateOLS) {
+                return;
+            }
+
             const userResponse = await vscode.window.showInformationMessage(
                 "No ols config file in the workspace root folder. Do you wish to create one?",
                 "Yes",
-                "No"
+                "No",
+                "Don't ask again"
             );
 
             if (userResponse === "Yes") {
                 createOlsConfig(ctx);
+            } else if (userResponse === "Don't ask again") {
+                config.updateAskCreateOLS(false);
+                return;
             }
 
         }

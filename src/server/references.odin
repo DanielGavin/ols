@@ -1,7 +1,7 @@
 package server
 
 
-import "shared:common"
+import "src:common"
 
 import "core:fmt"
 import "core:log"
@@ -122,6 +122,8 @@ resolve_references :: proc(
 		} else {
 			return {}, true
 		}
+	} else if position_context.implicit {
+		return {}, true
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 
@@ -165,8 +167,8 @@ resolve_references :: proc(
 		}
 
 		p := parser.Parser {
-			err = log_error_handler,
-			warn = log_warning_handler,
+			err   = log_error_handler,
+			warn  = log_warning_handler,
 			flags = {.Optional_Semicolons},
 		}
 

@@ -10,7 +10,7 @@ import path "core:path/slashpath"
 import "core:strconv"
 import "core:strings"
 
-import "shared:common"
+import "src:common"
 
 SymbolCollection :: struct {
 	allocator:      mem.Allocator,

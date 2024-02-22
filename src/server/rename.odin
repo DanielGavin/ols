@@ -1,10 +1,10 @@
 package server
 
-import "shared:common"
+import "src:common"
 
 import "core:log"
-import "core:odin/ast"
 import "core:mem"
+import "core:odin/ast"
 import "core:runtime"
 import "core:strings"
 
@@ -73,9 +73,8 @@ get_rename :: proc(
 		*/
 
 		if edits = &document_edits[location.uri]; edits == nil {
-			document_edits[
-				strings.clone(location.uri, context.temp_allocator) \
-			] = make([dynamic]TextEdit, context.temp_allocator)
+			document_edits[strings.clone(location.uri, context.temp_allocator)] =
+				make([dynamic]TextEdit, context.temp_allocator)
 			edits = &document_edits[location.uri]
 		}
 
@@ -89,7 +88,7 @@ get_rename :: proc(
 	for k, v in document_edits {
 		append(
 			&document_changes,
-			TextDocumentEdit{
+			TextDocumentEdit {
 				edits = v[:],
 				textDocument = {uri = k, version = document.version},
 			},

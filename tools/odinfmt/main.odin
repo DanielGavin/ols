@@ -1,16 +1,16 @@
 package odinfmt
 
-import "core:os"
-import "core:odin/tokenizer"
-import "shared:odin/printer"
-import "shared:odin/format"
-import "core:fmt"
-import "core:strings"
-import "core:path/filepath"
-import "core:time"
-import "core:mem"
 import "core:encoding/json"
+import "core:fmt"
+import "core:mem"
+import "core:odin/tokenizer"
+import "core:os"
+import "core:path/filepath"
+import "core:strings"
+import "core:time"
 import "flag"
+import "src:odin/format"
+import "src:odin/printer"
 
 Args :: struct {
 	write: Maybe(bool) `flag:"w" usage:"write the new format to file"`,

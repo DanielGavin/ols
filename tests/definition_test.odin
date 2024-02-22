@@ -1,11 +1,11 @@
 package tests
 
-import "core:testing"
 import "core:fmt"
+import "core:testing"
 
-import "shared:common"
+import "src:common"
 
-import test "shared:testing"
+import test "src:testing"
 
 @(test)
 ast_goto_comp_lit_field :: proc(t: ^testing.T) {
@@ -24,7 +24,7 @@ ast_goto_comp_lit_field :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
+		range =  {
 			start = {line = 2, character = 12},
 			end = {line = 2, character = 13},
 		},
@@ -51,7 +51,7 @@ ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
+		range =  {
 			start = {line = 2, character = 12},
 			end = {line = 2, character = 13},
 		},

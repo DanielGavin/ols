@@ -5,7 +5,7 @@ import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 
-import "shared:common"
+import "src:common"
 
 
 /*

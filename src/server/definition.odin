@@ -14,7 +14,7 @@ import "core:sort"
 import "core:strconv"
 import "core:strings"
 
-import "shared:common"
+import "src:common"
 
 get_all_package_file_locations :: proc(
 	document: ^Document,

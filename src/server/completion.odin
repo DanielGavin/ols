@@ -15,7 +15,7 @@ import "core:strconv"
 import "core:strings"
 
 
-import "shared:common"
+import "src:common"
 
 /*
 	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
@@ -522,21 +522,18 @@ get_selector_completion :: proc(
 		list.isIncomplete = false
 
 		enumv, ok := unwrap_bitset(ast_context, selector)
-		if !ok { break }
+		if !ok {break}
 
 		range, rok := get_range_from_selection_start_to_dot(position_context)
-		if !rok { break }
+		if !rok {break}
 
 		range.end.character -= 1
 
 		variable, vok := position_context.selector.derived_expr.(^ast.Ident)
-		if !vok { break }
+		if !vok {break}
 
 		remove_edit := TextEdit {
-			range = {
-				start = range.start,
-				end = range.end,
-			},
+			range = {start = range.start, end = range.end},
 			newText = "",
 		}
 
@@ -544,12 +541,15 @@ get_selector_completion :: proc(
 		additionalTextEdits[0] = remove_edit
 
 		for name in enumv.names {
-			append(&items, CompletionItem {
-				label = fmt.tprintf(".%s", name),
-				kind = .EnumMember,
-				detail = fmt.tprintf("%s.%s", selector.name, name),
-				additionalTextEdits = additionalTextEdits,
-			})
+			append(
+				&items,
+				CompletionItem {
+					label = fmt.tprintf(".%s", name),
+					kind = .EnumMember,
+					detail = fmt.tprintf("%s.%s", selector.name, name),
+					additionalTextEdits = additionalTextEdits,
+				},
+			)
 		}
 
 	case SymbolStructValue:
@@ -884,7 +884,10 @@ get_implicit_completion :: proc(
 						elem_index := -1
 
 						for elem, i in comp_lit.elems {
-							if position_in_node(elem, position_context.position) {
+							if position_in_node(
+								elem,
+								position_context.position,
+							) {
 								elem_index = i
 							}
 						}
@@ -904,7 +907,8 @@ get_implicit_completion :: proc(
 							type = s.types[elem_index]
 						}
 
-						if enum_value, ok := unwrap_enum(ast_context, type); ok {
+						if enum_value, ok := unwrap_enum(ast_context, type);
+						   ok {
 							for enum_name in enum_value.names {
 								item := CompletionItem {
 									label  = enum_name,
@@ -1129,7 +1133,7 @@ get_implicit_completion :: proc(
 						list.items = items[:]
 						return
 					}
-					
+
 					// Bitset comp literal in parameter, eg: `hello({ . })`.
 					if position_context.comp_lit != nil {
 						if bitset_symbol, ok := resolve_type_expression(
@@ -1763,14 +1767,22 @@ append_magic_map_completion :: proc(
 		append(items, item)
 	}
 }
-get_expression_string_from_position_context :: proc(position_context: ^DocumentPositionContext) -> string {
+get_expression_string_from_position_context :: proc(
+	position_context: ^DocumentPositionContext,
+) -> string {
 	src := position_context.file.src
 	if position_context.call != nil {
-		return src[position_context.call.pos.offset:position_context.call.end.offset]
+		return(
+			src[position_context.call.pos.offset:position_context.call.end.offset] \
+		)
 	} else if position_context.field != nil {
-		return src[position_context.field.pos.offset:position_context.field.end.offset]
+		return(
+			src[position_context.field.pos.offset:position_context.field.end.offset] \
+		)
 	} else if position_context.selector != nil {
-		return src[position_context.selector.pos.offset:position_context.selector.end.offset]
+		return(
+			src[position_context.selector.pos.offset:position_context.selector.end.offset] \
+		)
 	}
 	return ""
 }
@@ -1826,10 +1838,7 @@ append_magic_dynamic_array_completion :: proc(
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf(
-					"for i in %v {{\n\t$0 \n}}",
-					symbol_str,
-				),
+				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,

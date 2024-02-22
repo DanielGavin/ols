@@ -7,7 +7,7 @@
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.1.23",
+	"version": "0.1.27",
 	"engines": {
 		"vscode": "^1.66.0"
 	},
@@ -46,6 +46,11 @@
 			"type": "object",
 			"title": "Odin language client configuration",
 			"properties": {
+				"ols.prompt.AskCreateOLS": {
+					"type": "boolean",
+					"default": true,
+					"description": "Ask if it should create an ols.json file if it's not in the project."
+				},
 				"ols.updates.askBeforeDownload": {
 					"type": "boolean",
 					"default": true,

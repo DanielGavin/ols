@@ -2,7 +2,7 @@ package server
 
 import "core:encoding/json"
 
-import "shared:common"
+import "src:common"
 
 /*
 	General types

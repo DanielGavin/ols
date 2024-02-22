@@ -17,7 +17,7 @@ import "core:sync"
 import "core:thread"
 import "core:time"
 
-import "shared:common"
+import "src:common"
 
 import "base:runtime"
 
@@ -582,6 +582,17 @@ read_ols_initialize_options :: proc(
 		)
 		config.collections[strings.clone("base")] = path.join(
 			elems = {forward_path, "base"},
+			allocator = context.allocator,
+		)
+	}
+
+	if "shared" not_in config.collections && odin_core_env != "" {
+		forward_path, _ := filepath.to_slash(
+			odin_core_env,
+			context.temp_allocator,
+		)
+		config.collections[strings.clone("shared")] = path.join(
+			elems = {forward_path, "shared"},
 			allocator = context.allocator,
 		)
 	}
@@ -1172,7 +1183,10 @@ notification_did_save :: proc(
 	if len(config.profile.checker_path) > 0 {
 		check(config.profile.checker_path[:], writer, config)
 	} else {
-		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
+		if uri, ok := common.parse_uri(
+			config.workspace_folders[0].uri,
+			context.temp_allocator,
+		); ok {
 			check({uri.path}, writer, config)
 		}
 	}

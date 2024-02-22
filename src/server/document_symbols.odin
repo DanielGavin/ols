@@ -1,21 +1,21 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
-import "core:path/filepath"
-import "core:sort"
-import "core:slice"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
 
-import "shared:common"
+import "src:common"
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	ast_context := make_ast_context(
@@ -44,7 +44,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	)
 	package_symbol.range = {
 		start = {line = document.ast.decls[0].pos.line},
-		end = {
+		end =  {
 			line = document.ast.decls[len(document.ast.decls) - 1].end.line,
 		},
 	}

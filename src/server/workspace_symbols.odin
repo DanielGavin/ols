@@ -1,12 +1,12 @@
 package server
 
 
-import "core:path/filepath"
-import "core:os"
-import "core:log"
 import "core:fmt"
+import "core:log"
+import "core:os"
+import "core:path/filepath"
 
-import "shared:common"
+import "src:common"
 
 @(private)
 walk_dir :: proc(
@@ -56,7 +56,7 @@ get_workspace_symbols :: proc(
 			for result in results {
 				symbol := WorkspaceSymbol {
 					name = result.symbol.name,
-					location = {
+					location =  {
 						range = result.symbol.range,
 						uri = result.symbol.uri,
 					},

@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { log } from "./util";
 
-//modified from https://github.com/rust-analyzer/rust-analyzer/blob/master/editors/code/src/config.ts - 03.05.2021
-
 export class Config {
 
     readonly extensionId = "danielgavin.ols";
@@ -45,5 +43,11 @@ export class Config {
 
     get debugEngine() { return this.get<string>("debug.engine"); }
 
+    get askCreateOLS() {  return this.get<boolean>("prompt.AskCreateOLS"); }
+
+    public updateAskCreateOLS(ask: boolean) {
+        this.cfg.update("prompt.AskCreateOLS", ask, vscode.ConfigurationTarget.Global);
+    }
+    
     collections: any [] = [];
 }

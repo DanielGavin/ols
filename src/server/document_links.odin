@@ -1,21 +1,21 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
-import "core:path/filepath"
-import "core:sort"
-import "core:slice"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:os"
+import "core:path/filepath"
+import path "core:path/slashpath"
+import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
 
-import "shared:common"
+import "src:common"
 
 get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 	links := make([dynamic]DocumentLink, 0, context.temp_allocator)
@@ -41,12 +41,12 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 
 		//Temporarly assuming non unicode
 		node := ast.Node {
-			pos = {
+			pos =  {
 				offset = imp.relpath.pos.offset + 1,
 				column = imp.relpath.pos.column + 1,
 				line = imp.relpath.pos.line,
 			},
-			end = {
+			end =  {
 				offset = imp.relpath.pos.offset + len(imp.relpath.text) - 1,
 				column = imp.relpath.pos.column + len(imp.relpath.text) - 1,
 				line = imp.relpath.pos.line,

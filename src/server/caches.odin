@@ -1,6 +1,6 @@
 package server
 
-import "shared:common"
+import "src:common"
 
 import "core:time"
 

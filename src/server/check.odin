@@ -16,7 +16,7 @@ import "core:sync"
 import "core:text/scanner"
 import "core:thread"
 
-import "shared:common"
+import "src:common"
 
 //Store uris we have reported on since last save. We use this to clear them on next save.
 uris_reported := make([dynamic]string)
@@ -119,7 +119,10 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 					}
 				}
 
-				error.uri = strings.clone(string(buffer[source_pos:s.src_pos - 1]), context.temp_allocator)
+				error.uri = strings.clone(
+					string(buffer[source_pos:s.src_pos - 1]),
+					context.temp_allocator,
+				)
 
 				left_paren := scanner.scan(&s)
 
@@ -147,7 +150,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 				if seperator != ':' {
 					break scan_line
 				}
-				
+
 				rhs_digit := scanner.scan(&s)
 
 				if rhs_digit != scanner.Int {
@@ -159,7 +162,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 				if !ok {
 					break scan_line
 				}
-	
+
 				right_paren := scanner.scan(&s)
 
 				if right_paren != ')' {
@@ -180,7 +183,10 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 					continue
 				}
 
-				error.message = strings.clone(string(buffer[source_pos:s.src_pos - 1]), context.temp_allocator)
+				error.message = strings.clone(
+					string(buffer[source_pos:s.src_pos - 1]),
+					context.temp_allocator,
+				)
 				error.column = column
 				error.line = line
 

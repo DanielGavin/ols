@@ -1,15 +1,15 @@
 package ols_testing
 
-import "core:testing"
-import "core:mem"
 import "core:fmt"
-import "core:strings"
-import "core:path/filepath"
-import "core:odin/parser"
+import "core:mem"
 import "core:odin/ast"
+import "core:odin/parser"
+import "core:path/filepath"
+import "core:strings"
+import "core:testing"
 
-import "shared:server"
-import "shared:common"
+import "src:common"
+import "src:server"
 
 Package :: struct {
 	pkg:    string,
@@ -92,8 +92,8 @@ setup :: proc(src: ^Source) {
 		fullpath := uri.path
 
 		p := parser.Parser {
-			err = parser.default_error_handler,
-			warn = parser.default_error_handler,
+			err   = parser.default_error_handler,
+			warn  = parser.default_error_handler,
 			flags = {.Optional_Semicolons},
 		}
 

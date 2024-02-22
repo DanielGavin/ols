@@ -7,7 +7,7 @@ import "core:strings"
 import "core:text/scanner"
 import "core:fmt"
 
-import "shared:odin/format"
+import "src:odin/format"
 
 format_file :: proc(
 	filepath: string,

@@ -1,21 +1,21 @@
 package main
 
+import "core:encoding/json"
 import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
-import "core:strings"
+import "core:reflect"
 import "core:slice"
 import "core:strconv"
-import "core:thread"
-import "core:encoding/json"
-import "core:reflect"
+import "core:strings"
 import "core:sync"
+import "core:thread"
 
 import "core:intrinsics"
 
-import "shared:server"
-import "shared:common"
+import "src:common"
+import "src:server"
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr := cast(^os.Handle)handle

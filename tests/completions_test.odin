@@ -3,12 +3,12 @@ package tests
 import "core:fmt"
 import "core:testing"
 
-import test "shared:testing"
+import test "src:testing"
 
 @(test)
 ast_simple_struct_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -35,7 +35,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 @(test)
 ast_index_array_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -62,7 +62,7 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 @(test)
 ast_index_dynamic_array_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -89,7 +89,7 @@ ast_index_dynamic_array_completion :: proc(t: ^testing.T) {
 @(test)
 ast_struct_pointer_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -116,7 +116,7 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 @(test)
 ast_struct_take_address_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -144,7 +144,7 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 @(test)
 ast_struct_deref_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -172,7 +172,7 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 @(test)
 ast_range_map :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -203,7 +203,7 @@ ast_range_map :: proc(t: ^testing.T) {
 @(test)
 ast_range_array :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -235,7 +235,7 @@ ast_range_array :: proc(t: ^testing.T) {
 ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Int :: distinct int;
 
@@ -268,7 +268,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 @(test)
 ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			one: int,
@@ -291,7 +291,7 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Struct :: struct {
 			array: []string,
@@ -314,7 +314,7 @@ ast_completion_range_struct_selector_strings :: proc(t: ^testing.T) {
 @(test)
 ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		My_Foo :: struct {
 			a: int,
@@ -388,7 +388,7 @@ import "core:odin/parser"
 ast_generic_make_slice :: proc(t: ^testing.T) {
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		Allocator :: struct {
 
 		}
@@ -422,7 +422,7 @@ ast_generic_make_slice :: proc(t: ^testing.T) {
 ast_named_procedure_1 :: proc(t: ^testing.T) {
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		proc_a :: proc(a: int, b: int) -> int {
 		}
 
@@ -445,7 +445,7 @@ ast_named_procedure_1 :: proc(t: ^testing.T) {
 @(test)
 ast_named_procedure_2 :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		proc_a :: proc(a: int, b: int) -> int {
 		}
 
@@ -468,7 +468,7 @@ ast_named_procedure_2 :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			my_array: [4] f32;
 			my_array.{*}
@@ -497,7 +497,7 @@ ast_swizzle_completion :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_completion_one_component :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			my_array: [4] f32;
 			my_array.x{*}
@@ -517,7 +517,7 @@ ast_swizzle_completion_one_component :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			my_array: [2] f32;
 			my_array.x{*}
@@ -538,7 +538,7 @@ ast_swizzle_completion_few_components :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_resolve_one_components :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			my_array: [4]f32;
 			my_swizzle := my_array.x;
@@ -554,7 +554,7 @@ ast_swizzle_resolve_one_components :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_resolve_two_components :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			my_array: [4]f32;
 			my_swizzle := my_array.xx;
@@ -570,7 +570,7 @@ ast_swizzle_resolve_two_components :: proc(t: ^testing.T) {
 @(test)
 ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		My_Struct :: struct {
 			one: int,
 			two: int,
@@ -632,7 +632,7 @@ ast_for_in_for_from_different_package :: proc(t: ^testing.T) {
 @(test)
 ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		My_Struct :: struct {
 			one: int,
 			two: int,
@@ -664,7 +664,7 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 @(test)
 ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		RenderPass :: struct(type : typeid) { list : ^int, data : type, }
 
 		LightingAccumPass2 :: struct {
@@ -684,7 +684,7 @@ ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 @(test)
 ast_generic_make_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		make :: proc{
 			make_dynamic_array,
@@ -723,7 +723,7 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 @(test)
 ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		make :: proc{
 			make_dynamic_array,
@@ -793,7 +793,7 @@ ast_struct_for_in_switch_stmt_completion :: proc(t: ^testing.T) {
 @(test)
 ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		my_group :: proc{
 			with_any_int,
@@ -819,7 +819,7 @@ ast_overload_with_any_int_completion :: proc(t: ^testing.T) {
 @(test)
 ast_overload_with_any_int_with_poly_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		my_group :: proc{
 			with_any_int,
@@ -952,7 +952,7 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 @(test)
 ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 	
 		My_Struct :: struct {
 			a: int,
@@ -976,7 +976,7 @@ ast_poly_with_comp_lit_empty_completion :: proc(t: ^testing.T) {
 @(test)
 ast_global_struct_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package main
+		main     = `package main
 
 		Foo :: struct { x: int }
 		foo := Foo{}
@@ -993,7 +993,7 @@ ast_global_struct_completion :: proc(t: ^testing.T) {
 @(test)
 ast_global_non_mutable_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package main
+		main     = `package main
 
 		Foo :: struct { x: int }
 		main :: proc() {
@@ -1009,7 +1009,7 @@ ast_global_non_mutable_completion :: proc(t: ^testing.T) {
 @(test)
 ast_basic_value_untyped_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package main
+		main     = `package main
 
 		main :: proc() {
 			xaa := 2
@@ -1025,7 +1025,7 @@ ast_basic_value_untyped_completion :: proc(t: ^testing.T) {
 @(test)
 ast_basic_value_binary_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package main
+		main     = `package main
 
 		main :: proc() {
 			xaa := 2
@@ -1844,7 +1844,7 @@ ast_index_enum_infer_call_expr :: proc(t: ^testing.T) {
 @(test)
 ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		main :: proc() {
 			when ODIN_OS == .{*}
 		}
@@ -1858,7 +1858,7 @@ ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 @(test)
 ast_for_in_range_half_completion_1 :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		main :: proc() {
 			ints: []int
 		
@@ -1876,7 +1876,7 @@ ast_for_in_range_half_completion_1 :: proc(t: ^testing.T) {
 @(test)
 ast_for_in_range_half_completion_2 :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		advance_rune_n :: proc(t: ^Tokenizer, n: int) {
 			for in 0..<n {
 				advance_rune(n{*})
@@ -1892,7 +1892,7 @@ ast_for_in_range_half_completion_2 :: proc(t: ^testing.T) {
 @(test)
 ast_for_in_switch_type :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		My_Foo :: struct {
 			bar: int,
 		}
@@ -1924,7 +1924,7 @@ ast_for_in_switch_type :: proc(t: ^testing.T) {
 @(test)
 ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 		test :: proc() {
 			Int :: int
 			
@@ -1942,7 +1942,7 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 @(test)
 ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test	
+		main     = `package test	
 			Maybe :: union($T: typeid) {T}
 
 			My_Enum :: enum {
@@ -2466,7 +2466,6 @@ ast_poly_struct_with_poly :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-
 	test.expect_completion_details(t, &source, "", {"test.first: ^Animal"})
 }
 
@@ -2578,7 +2577,7 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		
 		@(require_results)
 		matrix_mul :: proc "contextless" (

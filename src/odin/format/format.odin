@@ -6,7 +6,7 @@ import "core:odin/ast"
 import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
-import "shared:odin/printer"
+import "src:odin/printer"
 
 default_style := printer.default_style
 

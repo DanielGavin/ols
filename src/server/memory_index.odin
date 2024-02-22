@@ -1,12 +1,12 @@
 package server
 
-import "core:hash"
-import "core:strings"
 import "core:fmt"
+import "core:hash"
 import "core:log"
 import "core:slice"
+import "core:strings"
 
-import "shared:common"
+import "src:common"
 
 MemoryIndex :: struct {
 	collection:        SymbolCollection,

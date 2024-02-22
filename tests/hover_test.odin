@@ -3,12 +3,12 @@ package tests
 import "core:fmt"
 import "core:testing"
 
-import test "shared:testing"
+import test "src:testing"
 
 @(test)
 ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		my_function :: proc(a := false) {
 			b := a{*};
@@ -24,7 +24,7 @@ ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 @(test)
 ast_hover_default_parameter_enum :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		procedure :: proc(called_from: Expr_Called_Type = .None, options := List_Options{}) {
 		}
 
@@ -44,7 +44,7 @@ ast_hover_default_parameter_enum :: proc(t: ^testing.T) {
 @(test)
 ast_hover_parameter :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		main :: proc(cool: int) {
 			cool{*}
@@ -62,7 +62,7 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct {
@@ -92,7 +92,7 @@ ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{
+		test.Package {
 			pkg = "my_package",
 			source = `package my_package
 		My_Struct :: struct {

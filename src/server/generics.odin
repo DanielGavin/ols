@@ -15,7 +15,7 @@ import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
 
-import "shared:common"
+import "src:common"
 
 resolve_poly :: proc(
 	ast_context: ^AstContext,
@@ -439,8 +439,16 @@ resolve_generic_function_symbol :: proc(
 					return {}, false
 				}
 
-				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
-				param_type := clone_expr(param.type, ast_context.allocator, nil)
+				symbol_expr = clone_expr(
+					symbol_expr,
+					ast_context.allocator,
+					nil,
+				)
+				param_type := clone_expr(
+					param.type,
+					ast_context.allocator,
+					nil,
+				)
 
 				if resolve_poly(
 					ast_context,

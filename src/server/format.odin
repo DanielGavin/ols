@@ -1,9 +1,9 @@
 package server
 
-import "shared:common"
-import "shared:odin/printer"
-import "shared:odin/format"
 import "core:path/filepath"
+import "src:common"
+import "src:odin/format"
+import "src:odin/printer"
 
 import "core:log"
 

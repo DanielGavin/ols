@@ -15,7 +15,7 @@ import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
 
-import "shared:common"
+import "src:common"
 
 DocumentPositionContextHint :: enum {
 	Completion,

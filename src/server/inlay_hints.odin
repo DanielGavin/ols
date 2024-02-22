@@ -1,10 +1,10 @@
 package server
 
-import "core:odin/ast"
 import "core:fmt"
 import "core:log"
+import "core:odin/ast"
 
-import "shared:common"
+import "src:common"
 
 get_inlay_hints :: proc(
 	document: ^Document,

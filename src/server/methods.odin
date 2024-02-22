@@ -15,7 +15,7 @@ import "core:strconv"
 import "core:strings"
 
 
-import "shared:common"
+import "src:common"
 
 
 @(private)

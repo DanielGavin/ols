@@ -1,19 +1,19 @@
 package server
 
-import "core:odin/parser"
-import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:fmt"
 import "core:log"
-import "core:strings"
-import path "core:path/slashpath"
 import "core:mem"
-import "core:strconv"
+import "core:odin/ast"
+import "core:odin/parser"
+import "core:odin/tokenizer"
 import "core:path/filepath"
-import "core:sort"
+import path "core:path/slashpath"
 import "core:slice"
+import "core:sort"
+import "core:strconv"
+import "core:strings"
 
-import "shared:common"
+import "src:common"
 
 write_hover_content :: proc(
 	ast_context: ^AstContext,
@@ -125,9 +125,8 @@ get_hover_information :: proc(
 
 	if position_context.implicit_context != nil {
 		if str, ok :=
-			   builtin_identifier_hover[
-				   position_context.implicit_context.tok.text \
-			   ]; ok {
+			   builtin_identifier_hover[position_context.implicit_context.tok.text];
+		   ok {
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
 			hover.range = common.get_token_range(

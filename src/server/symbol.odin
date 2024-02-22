@@ -11,7 +11,7 @@ import path "core:path/slashpath"
 import "core:slice"
 import "core:strings"
 
-import "shared:common"
+import "src:common"
 
 SymbolAndNode :: struct {
 	symbol:      Symbol,

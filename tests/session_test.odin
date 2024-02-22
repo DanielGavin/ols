@@ -1,14 +1,14 @@
 package tests
 
+import "core:fmt"
 import "core:log"
 import "core:mem"
-import "core:fmt"
 import "core:os"
 import "core:strings"
 
 
 import src "../src"
-import "shared:server"
+import "src:server"
 
 initialize_request := `
 {   "jsonrpc":"2.0",
@@ -333,7 +333,7 @@ main :: proc() {
 
 	buffer := TestReadBuffer {
 		data = transmute([]byte)strings.join(
-			{
+			 {
 				make_request(initialize_request),
 				make_request(shutdown_request),
 				make_request(exit_notification),

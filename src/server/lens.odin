@@ -3,7 +3,7 @@ package server
 import "core:odin/ast"
 
 
-import "shared:common"
+import "src:common"
 
 
 CodeLensClientCapabilities :: struct {

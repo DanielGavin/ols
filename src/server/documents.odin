@@ -1,19 +1,19 @@
 package server
 
-import "core:strings"
 import "core:fmt"
 import "core:log"
-import "core:os"
-import "core:odin/parser"
+import "core:mem"
 import "core:odin/ast"
+import "core:odin/parser"
 import "core:odin/tokenizer"
+import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:mem"
+import "core:strings"
 
 import "core:intrinsics"
 
-import "shared:common"
+import "src:common"
 
 ParserError :: struct {
 	message: string,
@@ -351,8 +351,8 @@ document_refresh :: proc(
 
 		for error, i in errors {
 			params.diagnostics[i] = Diagnostic {
-				range = common.Range{
-					start = common.Position{
+				range = common.Range {
+					start = common.Position {
 						line = error.line - 1,
 						character = 0,
 					},
@@ -380,7 +380,7 @@ document_refresh :: proc(
 			notifaction := Notification {
 				jsonrpc = "2.0",
 				method = "textDocument/publishDiagnostics",
-				params = NotificationPublishDiagnosticsParams{
+				params = NotificationPublishDiagnosticsParams {
 					uri = document.uri.uri,
 					diagnostics = make(
 						[]Diagnostic,
@@ -420,8 +420,8 @@ parse_document :: proc(
 	bool,
 ) {
 	p := parser.Parser {
-		err = parser_error_handler,
-		warn = common.parser_warning_handler,
+		err   = parser_error_handler,
+		warn  = common.parser_warning_handler,
 		flags = {.Optional_Semicolons},
 	}
 
@@ -502,7 +502,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = path.join(
-				elems = {
+				elems =  {
 					document.package_name,
 					imp.fullpath[1:len(imp.fullpath) - 1],
 				},
