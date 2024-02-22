@@ -949,6 +949,7 @@ internal_resolve_type_expression :: proc(
 		if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
 			switch ident.name {
 			case "type_of":
+				ast_context.call = nil
 				return internal_resolve_type_expression(ast_context, v.args[0])
 			}
 		}

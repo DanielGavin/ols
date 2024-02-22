@@ -218,9 +218,7 @@ export function createOlsConfig(ctx: Ctx) {
 
     const config = {
 		$schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
-        collections: [{ name: "core", path: corePath }],
         enable_document_symbols: true,
-        enable_semantic_tokens: false,
         enable_hover: true,
         enable_snippets: true
     };
@@ -261,6 +259,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
         "x64 win32": "x86_64-pc-windows-msvc",
         "x64 linux": "x86_64-unknown-linux-gnu",
         "x64 darwin": "x86_64-darwin",
+        "arm64 darwin": "arm64-darwin"
     };
 
     let platform = platforms[`${process.arch} ${process.platform}`];
