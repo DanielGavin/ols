@@ -102,12 +102,21 @@ main :: proc() {
 		os.exit(1)
 	}
 
-	if res := flag.parse(args, os.args[1:len(os.args) - 1]); res != .None {
+	// When running `$ odinfmt some_odin_file.odin`, the file shouldn't be passed to
+	// `flag.parse`. But, when running `$ odinfmt -stdin`, we do want to pass `-stdin` to
+	// `flag.parse`. Need to check if last arg is a flag, and if so, include it in the
+	// args to parse.
+	args_to_parse := os.args[1:len(os.args) - 1]
+	path := os.args[len(os.args) - 1]
+	if strings.has_prefix(os.args[len(os.args) - 1], "-") {
+		args_to_parse = os.args[1:]
+		path = "." // if no file was specified, use current directory as the starting path to look for `odinfmt.json`
+	}
+
+	if res := flag.parse(args, args_to_parse); res != .None {
 		print_arg_error(os.args, res)
 		os.exit(1)
 	}
-
-	path := os.args[len(os.args) - 1]
 
 	tick_time := time.tick_now()
 
@@ -204,3 +213,4 @@ main :: proc() {
 
 	os.exit(1 if write_failure else 0)
 }
+
