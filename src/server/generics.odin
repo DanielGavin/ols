@@ -265,6 +265,47 @@ resolve_poly :: proc(
 	return false
 }
 
+is_generic_type_recursive :: proc(expr: ^ast.Expr, name: string) -> bool {
+	Data :: struct {
+		name:   string,
+		exists: bool,
+	}
+
+	visit_function :: proc(
+		visitor: ^ast.Visitor,
+		node: ^ast.Node,
+	) -> ^ast.Visitor {
+		if node == nil {
+			return nil
+		}
+
+		data := cast(^Data)visitor.data
+
+		if ident, ok := node.derived.(^ast.Ident); ok {
+			if ident.name == data.name {
+				data.exists = true
+				return nil
+			}
+		}
+
+		return visitor
+	}
+
+	data := Data {
+		name = name,
+	}
+
+	visitor := ast.Visitor {
+		data  = &data,
+		visit = visit_function,
+	}
+
+	ast.walk(&visitor, expr)
+
+	return data.exists
+}
+
+
 find_and_replace_poly_type :: proc(
 	expr: ^ast.Expr,
 	poly_map: ^map[string]^ast.Expr,
@@ -281,12 +322,14 @@ find_and_replace_poly_type :: proc(
 		}
 
 		if ident, ok := node.derived.(^ast.Ident); ok {
-			if v, ok := poly_map[ident.name]; ok {
+			if v, ok := poly_map[ident.name];
+			   ok && !is_generic_type_recursive(v, ident.name) {
 				return v, ok
 			}
 		}
 		if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
-			if v, ok := poly_map[poly.type.name]; ok {
+			if v, ok := poly_map[poly.type.name];
+			   ok && !is_generic_type_recursive(v, poly.type.name) {
 				return v, ok
 			}
 		}
@@ -473,7 +516,6 @@ resolve_generic_function_symbol :: proc(
 
 	for k, v in poly_map {
 		find_and_replace_poly_type(v, &poly_map)
-		//fmt.println(k, v.derived, "\n")
 	}
 
 	if count_required_params > len(call_expr.args) ||
