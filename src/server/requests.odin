@@ -682,10 +682,21 @@ request_initialize :: proc(
 	}
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		global_ols_config_path := path.join(
+			elems =  {
+				filepath.dir(os.args[0], context.temp_allocator),
+				"ols.json",
+			},
+			allocator = context.temp_allocator,
+		)
+
+		read_ols_config(global_ols_config_path, config, uri)
+
 		ols_config_path := path.join(
 			elems = {uri.path, "ols.json"},
 			allocator = context.temp_allocator,
 		)
+
 		read_ols_config(ols_config_path, config, uri)
 
 		read_ols_initialize_options(
