@@ -695,6 +695,7 @@ request_initialize :: proc(
 		)
 	}
 
+
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
 			config.hover_support_md = true
@@ -1180,16 +1181,7 @@ notification_did_save :: proc(
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	if len(config.profile.checker_path) > 0 {
-		check(config.profile.checker_path[:], writer, config)
-	} else {
-		if uri, ok := common.parse_uri(
-			config.workspace_folders[0].uri,
-			context.temp_allocator,
-		); ok {
-			check({uri.path}, writer, config)
-		}
-	}
+	check(config.profile.checker_path[:], writer, config)
 
 	return .None
 }
