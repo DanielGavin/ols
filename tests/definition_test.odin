@@ -59,3 +59,33 @@ ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_untyped_comp_lit_in_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+			My_Struct :: struct {
+				one: int,
+				two: int,
+			}
+
+			my_function :: proc(my_struct: My_Struct) {
+
+			}
+
+			main :: proc() {
+				my_function({on{*}e = 2, two = 3})
+			}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range =  {
+			start = {line = 2, character = 4},
+			end = {line = 2, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}

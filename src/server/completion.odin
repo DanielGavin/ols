@@ -222,57 +222,45 @@ get_comp_lit_completion :: proc(
 ) {
 	items := make([dynamic]CompletionItem, context.temp_allocator)
 
-	if position_context.parent_comp_lit.type == nil {
-		return
-	}
 
-	if symbol, ok := resolve_type_expression(
-		ast_context,
-		position_context.parent_comp_lit.type,
-	); ok {
-		if comp_symbol, _, ok := resolve_type_comp_literal(
-			ast_context,
-			position_context,
-			symbol,
-			position_context.parent_comp_lit,
-		); ok {
-			ast_context.current_package = comp_symbol.pkg
-			#partial switch v in comp_symbol.value {
-			case SymbolStructValue:
-				for name, i in v.names {
-					if name == "_" {
+	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
+		//ast_context.current_package = comp_symbol.pkg
+		#partial switch v in symbol.value {
+		case SymbolStructValue:
+			for name, i in v.names {
+				if name == "_" {
+					continue
+				}
+
+				ast_context.current_package = symbol.pkg
+				
+				if resolved, ok := resolve_type_expression(
+					ast_context,
+					v.types[i],
+				); ok {
+					if field_exists_in_comp_lit(
+						position_context.comp_lit,
+						name,
+					) {
 						continue
 					}
 
-					ast_context.current_package = comp_symbol.pkg
-
-					if resolved, ok := resolve_type_expression(
-						ast_context,
-						v.types[i],
-					); ok {
-						if field_exists_in_comp_lit(
-							position_context.comp_lit,
+					item := CompletionItem {
+						label         = name,
+						kind          = .Field,
+						detail        = fmt.tprintf(
+							"%v.%v: %v",
+							symbol.name,
 							name,
-						) {
-							continue
-						}
-
-						item := CompletionItem {
-							label         = name,
-							kind          = .Field,
-							detail        = fmt.tprintf(
-								"%v.%v: %v",
-								comp_symbol.name,
-								name,
-								common.node_to_string(v.types[i]),
-							),
-							documentation = resolved.doc,
-						}
-
-						append(&items, item)
+							common.node_to_string(v.types[i]),
+						),
+						documentation = resolved.doc,
 					}
+
+					append(&items, item)
 				}
 			}
+
 		}
 	}
 

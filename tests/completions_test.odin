@@ -2607,3 +2607,28 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 	)
 
 }
+
+
+ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	source := test.Source {
+		main     = `package test	
+			My_Struct :: struct {
+				one: int,
+				two: int,
+			}
+
+			my_function :: proc(my_struct: My_Struct) {
+
+			}
+
+			main :: proc() {
+				my_function({on{*}})
+			}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(t, &source, "", {"My_Struct.one: int"})
+}

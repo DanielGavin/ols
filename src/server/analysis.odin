@@ -1690,10 +1690,43 @@ resolve_comp_literal :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
-	symbol = resolve_type_expression(
-		ast_context,
-		position_context.parent_comp_lit.type,
-	) or_return
+	if position_context.parent_comp_lit.type != nil {
+		symbol = resolve_type_expression(
+			ast_context,
+			position_context.parent_comp_lit.type,
+		) or_return
+	} else if position_context.call != nil {
+		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr);
+		   ok {
+			arg_index := 0
+			for arg, i in call_expr.args {
+				if position_in_node(arg, position_context.position) {
+					arg_index = i
+					break
+				}
+			}
+
+			symbol = resolve_type_expression(
+				ast_context,
+				position_context.call,
+			) or_return
+
+			value := symbol.value.(SymbolProcedureValue) or_return
+
+			if len(value.arg_types) <= arg_index {
+				return {}, false
+			}
+
+			if value.arg_types[arg_index].type == nil {
+				return {}, false
+			}
+
+			symbol = resolve_type_expression(
+				ast_context,
+				value.arg_types[arg_index].type,
+			) or_return
+		}
+	}
 
 	symbol, _ = resolve_type_comp_literal(
 		ast_context,
