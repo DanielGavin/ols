@@ -233,7 +233,7 @@ get_comp_lit_completion :: proc(
 				}
 
 				ast_context.current_package = symbol.pkg
-				
+
 				if resolved, ok := resolve_type_expression(
 					ast_context,
 					v.types[i],
@@ -1128,6 +1128,7 @@ get_implicit_completion :: proc(
 							ast_context,
 							proc_value.arg_types[parameter_index].type,
 						); ok {
+							ast_context.current_package = bitset_symbol.pkg
 							if enum_value, ok := unwrap_bitset(
 								ast_context,
 								bitset_symbol,

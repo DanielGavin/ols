@@ -1698,13 +1698,10 @@ resolve_comp_literal :: proc(
 	} else if position_context.call != nil {
 		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr);
 		   ok {
-			arg_index := 0
-			for arg, i in call_expr.args {
-				if position_in_node(arg, position_context.position) {
-					arg_index = i
-					break
-				}
-			}
+			arg_index := find_position_in_call_param(
+				position_context,
+				call_expr^,
+			) or_return
 
 			symbol = resolve_type_expression(
 				ast_context,
@@ -1728,12 +1725,17 @@ resolve_comp_literal :: proc(
 		}
 	}
 
+	old_package := ast_context.current_package
+	ast_context.current_package = symbol.pkg
+
 	symbol, _ = resolve_type_comp_literal(
 		ast_context,
 		position_context,
 		symbol,
 		position_context.parent_comp_lit,
 	) or_return
+
+	ast_context.current_package = old_package
 
 	return symbol, true
 }

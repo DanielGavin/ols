@@ -2302,8 +2302,6 @@ ast_bitset_assignment_diff_pkg :: proc(t: ^testing.T) {
 
 @(test)
 ast_local_global_function :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package main
 		import "my_package"
@@ -2333,8 +2331,6 @@ ast_local_global_function :: proc(t: ^testing.T) {
 
 @(test)
 ast_generic_struct_with_array :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package main
 		Test :: struct($T: typeid) {
@@ -2360,8 +2356,6 @@ ast_generic_struct_with_array :: proc(t: ^testing.T) {
 
 @(test)
 ast_assign_to_global_function :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test	
 		import "my_package"		
@@ -2383,8 +2377,6 @@ ast_assign_to_global_function :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_dynamic_type :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test	
 		import "my_package"		
@@ -2413,8 +2405,6 @@ ast_poly_dynamic_type :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_array_type :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test	
 		import "my_package"		
@@ -2438,8 +2428,6 @@ ast_poly_array_type :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_struct_with_poly :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 		Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
@@ -2471,8 +2459,6 @@ ast_poly_struct_with_poly :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_proc_array_constant :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 		make_f32_array :: proc($N: int, $val: f32) -> (res: [N]f32) {
@@ -2496,8 +2482,6 @@ ast_poly_proc_array_constant :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_proc_matrix_type :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 
@@ -2521,8 +2505,6 @@ ast_poly_proc_matrix_type :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_proc_matrix_constant_array :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 
@@ -2545,8 +2527,6 @@ ast_poly_proc_matrix_constant_array :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_proc_matrix_constant_array_2 :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 		array_cast :: proc "contextless" (
@@ -2574,8 +2554,6 @@ ast_poly_proc_matrix_constant_array_2 :: proc(t: ^testing.T) {
 
 @(test)
 ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test
 		
@@ -2610,8 +2588,6 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 
 
 ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
-
 	source := test.Source {
 		main     = `package test	
 			My_Struct :: struct {
@@ -2631,4 +2607,39 @@ ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {"My_Struct.one: int"})
+}
+
+
+ast_completion_infer_bitset_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			My_Enum :: enum {
+				ONE,
+				TWO,
+			}
+			My_Bitset :: bit_set[My_Enum]
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test	
+			import "my_package"	
+
+			my_function :: proc(my_bitset: my_package.My_Bitset)
+
+			main :: proc() {
+				my_function({.{*}})
+			}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"ONE", "TWO"})
 }

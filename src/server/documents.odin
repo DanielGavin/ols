@@ -284,8 +284,6 @@ document_apply_changes :: proc(
 		}
 	}
 
-	//log.info(string(document.text[:document.used_text]));
-
 	return document_refresh(document, config, writer)
 }
 
