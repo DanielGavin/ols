@@ -549,6 +549,10 @@
 		"string-escaped-char": {
 			"patterns": [
 				{
+					"name": "constant.character.escape.ansi-color-sequence.odin",
+					"match": "\\\\(x1b|e|033)\\[[0-9;]*m"
+				},
+				{
 					"name": "constant.character.escape.odin",
 					"match": "\\\\(\\\\|[abfnrutv''\"]|x\\h{2}|u\\h{4}|U\\h{8}|[0-7]{3})"
 				},
