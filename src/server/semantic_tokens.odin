@@ -7,7 +7,6 @@ import "core:odin/tokenizer"
 
 import "src:common"
 
-
 /*
 	Right now I might be setting the wrong types, since there is no documentation as to what should be what, and looking at other LSP there is no consistancy.
 */
@@ -138,6 +137,11 @@ write_semantic_node :: proc(
 	type: SemanticTokenTypes,
 	modifier: SemanticTokenModifiers,
 ) {
+	//Sometimes odin ast uses "_" for empty params.
+	if ident, ok := node.derived.(^ast.Ident); ok && ident.name == "_" {
+		return
+	}
+
 	position := common.get_relative_token_position(
 		node.pos.offset,
 		transmute([]u8)src,
@@ -250,17 +254,6 @@ visit_node :: proc(
 
 	#partial switch n in node.derived {
 	case ^Ellipsis:
-		/*
-			Issue with parser pos not being correct.
-		write_semantic_string(
-			builder,
-			node.pos,
-			"..",
-			ast_context.file.src,
-			.Operator,
-			.None,
-		)
-		*/
 		visit(n.expr, builder, ast_context)
 	case ^Ident:
 		modifier: SemanticTokenModifiers
