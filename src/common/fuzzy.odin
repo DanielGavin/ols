@@ -8,7 +8,7 @@ import "core:fmt"
 */
 
 max_pattern :: 63
-max_word    :: 127
+max_word    :: 256
 
 awful_score: int = -(1 << 13)
 perfect_bonus :: 4
@@ -189,8 +189,9 @@ fuzzy_is_awful :: proc(s: int) -> bool {
 }
 
 fuzzy_calculate_roles :: proc(text: string, roles: ^[]FuzzyCharRole) -> FuzzyCharTypeSet {
-
-	assert(len(text) == len(roles))
+	if len(text) != len(roles) {
+		return 0
+	}
 
 	if len(text) == 0 {
 		return 0
