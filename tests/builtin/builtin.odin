@@ -6,10 +6,16 @@ package ols_builtin
 
 size_of      :: proc($T: typeid) -> int ---
 @builtin align_of     :: proc($T: typeid) -> int ---
-@builtin offset_of    :: proc($T: typeid) -> uintptr ---
 @builtin type_of      :: proc(x: expr) -> type ---
 @builtin type_info_of :: proc($T: typeid) -> ^runtime.Type_Info ---
 @builtin typeid_of    :: proc($T: typeid) -> typeid ---
+
+offset_of_selector :: proc(selector: $T) -> uintptr ---
+offset_of_member   :: proc($T: typeid, member: $M) -> uintptr ---
+
+@builtin offset_of :: proc{offset_of_selector, offset_of_member}
+
+@builtin offset_of_by_string :: proc($T: typeid, member: string) -> uintptr ---
 
 @builtin swizzle :: proc(x: [N]T, indices: ..int) -> [len(indices)]T ---
 
@@ -37,6 +43,8 @@ Odin_OS_Type :: enum int {
 	Linux,
 	Essence,
 	FreeBSD,
+	Haiku,
+	OpenBSD,
 	WASI,
 	JS,
 	Freestanding,
@@ -51,7 +59,7 @@ Odin_Arch_Type :: enum int {
 	i386,
 	arm64,
 	wasm32,
-	wasm64,
+	wasm64p32,
 }
 
 @builtin
@@ -76,6 +84,23 @@ Odin_Endian_Type :: enum int {
 
 @builtin
 ODIN_ENDIAN: Odin_Endian_Type
+
+Odin_Platform_Subtarget_Type :: enum int {
+	Default,
+	iOS,
+}
+
+@builtin
+ODIN_PLATFORM_SUBTARGET: Odin_Platform_Subtarget_Type
+
+Odin_Sanitizer_Flag :: enum u32 {
+	Address,
+	Memory,
+	Thread,
+}
+
+@builtin
+ODIN_SANITIZER_FLAGS: distinct bit_set[Odin_Sanitizer_Flag; u32]
 
 @builtin
 ODIN_DEBUG: bool
