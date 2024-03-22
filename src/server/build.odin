@@ -75,7 +75,7 @@ try_build_package :: proc(pkg_name: string) {
 
 
 
-	defer mem_virtual.arena_free_all(&temp_arena)
+	defer mem_virtual.arena_destroy(&temp_arena)
 
 	{
 		context.allocator = mem_virtual.arena_allocator(&temp_arena)
