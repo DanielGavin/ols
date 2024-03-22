@@ -12,6 +12,7 @@ import path "core:path/slashpath"
 import "core:runtime"
 import "core:strings"
 import "core:time"
+import mem_virtual "core:mem/virtual"
 
 import "src:common"
 
@@ -68,16 +69,16 @@ try_build_package :: proc(pkg_name: string) {
 		return
 	}
 
-	temp_arena: mem.Arena
+	temp_arena: mem_virtual.Arena
 
-	mem.arena_init(
-		&temp_arena,
-		make([]byte, mem.Megabyte * 25, runtime.default_allocator()),
-	)
-	defer delete(temp_arena.data)
+	allocator_err := mem_virtual.arena_init_growing(&temp_arena, mem.Megabyte * 16);
+
+
+
+	defer mem_virtual.arena_free_all(&temp_arena)
 
 	{
-		context.allocator = mem.arena_allocator(&temp_arena)
+		context.allocator = mem_virtual.arena_allocator(&temp_arena)
 
 		for fullpath in matches {
 			if skip_file(filepath.base(fullpath)) {
