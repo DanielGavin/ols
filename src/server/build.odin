@@ -70,11 +70,7 @@ try_build_package :: proc(pkg_name: string) {
 	}
 
 	temp_arena: mem_virtual.Arena
-
 	allocator_err := mem_virtual.arena_init_growing(&temp_arena, mem.Megabyte * 16);
-
-
-
 	defer mem_virtual.arena_destroy(&temp_arena)
 
 	{
