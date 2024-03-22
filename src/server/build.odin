@@ -69,12 +69,8 @@ try_build_package :: proc(pkg_name: string) {
 		return
 	}
 
-	temp_arena: mem_virtual.Arena
-	allocator_err := mem_virtual.arena_init_growing(&temp_arena, mem.Megabyte * 16);
-	defer mem_virtual.arena_destroy(&temp_arena)
-
 	{
-		context.allocator = mem_virtual.arena_allocator(&temp_arena)
+		context.allocator = context.temp_allocator
 
 		for fullpath in matches {
 			if skip_file(filepath.base(fullpath)) {
@@ -128,7 +124,7 @@ try_build_package :: proc(pkg_name: string) {
 
 			collect_symbols(&indexer.index.collection, file, uri.uri)
 
-			free_all(context.allocator)
+			//free_all(context.allocator)
 		}
 	}
 
