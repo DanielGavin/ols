@@ -23,7 +23,11 @@ platform_os: map[string]bool = {
 	"freebsd" = true,
 	"darwin"  = true,
 	"wasm32"  = true,
+	"openbsd" = true,
+	"wasi"    = true,
+	"wasm"    = true,
 }
+
 
 os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.Windows      = "windows",
@@ -34,6 +38,8 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.WASI         = "wasi",
 	.JS           = "js",
 	.Freestanding = "freestanding",
+	.OpenBSD      = "openbsd",
+	.JS           = "wasm",
 }
 
 skip_file :: proc(filename: string) -> bool {
