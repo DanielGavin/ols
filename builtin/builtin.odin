@@ -43,6 +43,8 @@ Odin_OS_Type :: enum int {
 	Linux,
 	Essence,
 	FreeBSD,
+	Haiku,
+	OpenBSD,
 	WASI,
 	JS,
 	Freestanding,
@@ -57,7 +59,7 @@ Odin_Arch_Type :: enum int {
 	i386,
 	arm64,
 	wasm32,
-	wasm64,
+	wasm64p32,
 }
 
 @builtin
@@ -82,6 +84,23 @@ Odin_Endian_Type :: enum int {
 
 @builtin
 ODIN_ENDIAN: Odin_Endian_Type
+
+Odin_Platform_Subtarget_Type :: enum int {
+	Default,
+	iOS,
+}
+
+@builtin
+ODIN_PLATFORM_SUBTARGET: Odin_Platform_Subtarget_Type
+
+Odin_Sanitizer_Flag :: enum u32 {
+	Address,
+	Memory,
+	Thread,
+}
+
+@builtin
+ODIN_SANITIZER_FLAGS: distinct bit_set[Odin_Sanitizer_Flag; u32]
 
 @builtin
 ODIN_DEBUG: bool
