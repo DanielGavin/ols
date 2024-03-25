@@ -1802,6 +1802,11 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, visit_expr(p, v.align))
 		}
 
+		if v.field_align != nil {
+			document = cons_with_nopl(document, text("#field_align"))
+			document = cons_with_nopl(document, visit_expr(p, v.field_align))
+		}
+
 		document = cons_with_nopl(
 			document,
 			visit_where_clauses(p, v.where_clauses),
