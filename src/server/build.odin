@@ -75,7 +75,7 @@ try_build_package :: proc(pkg_name: string) {
 	}
 
 	arena: runtime.Arena 
-	result := runtime.arena_init(&arena, mem.Megabyte * 40, context.allocator)
+	result := runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
 	defer runtime.arena_destroy(&arena)
 
 	{
