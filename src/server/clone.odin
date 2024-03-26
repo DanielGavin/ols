@@ -284,8 +284,10 @@ clone_node :: proc(
 	case ^Type_Assertion:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^Relative_Type:
+		r.tag = clone_type(r.tag, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
 	case:
-	//fmt.logf("Unhandled node kind: %T", r)
 	}
 
 	return res

@@ -999,6 +999,5 @@ replace_package_alias_node :: proc(
 	case ^Multi_Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
 	case:
-		log.warnf("Replace Unhandled node kind: %T", n)
 	}
 }

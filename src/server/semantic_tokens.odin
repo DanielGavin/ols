@@ -760,8 +760,6 @@ visit_node :: proc(
 
 		visit(n.body, builder, ast_context)
 	case:
-	//log.errorf("unhandled semantic token node %v", n);
-	//panic(fmt.tprintf("Missed semantic token handling %v", n));
 	}
 }
 

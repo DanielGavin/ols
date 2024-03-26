@@ -1078,7 +1078,7 @@ internal_resolve_type_expression :: proc(
 			}
 		}
 	case:
-		log.warnf("default node kind, internal_resolve_type_expression: %T", v)
+		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
 	}
 
 	return Symbol{}, false
@@ -5075,6 +5075,5 @@ get_document_position_node :: proc(
 	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
 	case:
-		log.warnf("Unhandled node kind: %T", n)
 	}
 }
