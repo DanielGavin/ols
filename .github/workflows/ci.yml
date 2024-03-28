@@ -20,21 +20,19 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Dependencies
+      - name: Download Odin
+        shell: cmd
         run: |
-          git clone --depth 1 https://github.com/odin-lang/Odin
-          cd Odin/bin
-          $ProgressPreference = "SilentlyContinue";
-          Invoke-WebRequest -Uri https://github.com/odin-lang/Odin/releases/download/llvm-windows/llvm-binaries.zip -OutFile llvm-binaries.zip
-          7z x llvm-binaries.zip > $null
-          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          git clone https://github.com/odin-lang/Odin
       - name: Build Odin
+        shell: cmd
         run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
           cd Odin
           ./build.bat 1
       - name: Build ols
+        shell: cmd
         run: ./build.bat CI
-
   linux:
     strategy:
       matrix:
