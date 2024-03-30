@@ -69,7 +69,7 @@ append_method_completion :: proc(
 			pkg  = symbol.pkg,
 		}
 		if symbols, ok := &v.methods[method]; ok {
-			for symbol in symbols {
+			for &symbol in symbols {
 				resolve_unresolved_symbol(ast_context, &symbol)
 				build_procedure_symbol_signature(&symbol)
 
