@@ -160,22 +160,23 @@ collect_struct_fields :: proc(
 
 	for field in struct_type.fields.list {
 		for n in field.names {
-			ident := n.derived.(^ast.Ident)
-			append(&names, get_index_unique_string(collection, ident.name))
+			if ident, ok := n.derived.(^ast.Ident); ok {
+				append(&names, get_index_unique_string(collection, ident.name))
 
-			cloned := clone_type(
-				field.type,
-				collection.allocator,
-				&collection.unique_strings,
-			)
-			replace_package_alias(cloned, package_map, collection)
-			append(&types, cloned)
+				cloned := clone_type(
+					field.type,
+					collection.allocator,
+					&collection.unique_strings,
+				)
+				replace_package_alias(cloned, package_map, collection)
+				append(&types, cloned)
 
-			if .Using in field.flags {
-				usings[len(names) - 1] = true
+				if .Using in field.flags {
+					usings[len(names) - 1] = true
+				}
+
+				append(&ranges, common.get_token_range(n, file.src))
 			}
-
-			append(&ranges, common.get_token_range(n, file.src))
 		}
 	}
 
