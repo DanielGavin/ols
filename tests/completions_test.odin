@@ -2576,7 +2576,7 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 
 }
 
-
+@(test)
 ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test	
@@ -2600,6 +2600,7 @@ ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
 }
 
 
+@(test)
 ast_completion_infer_bitset_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
