@@ -207,11 +207,6 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
 			header.content_length = value
 
 			found_content_length = true
-		} else if strings.compare(header_name, "Content-Type") == 0 {
-			if len(header_value) == 0 {
-				log.error("Header value has no length")
-				return header, false
-			}
 		}
 	}
 
