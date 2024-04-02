@@ -76,7 +76,7 @@ Options:
 
 `enable_inlay_hints`: Turn on inlay hints for editors that support it.
 
-`enable_procedure_snippet`: Use snippets when completing procedures.
+`enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
 
 `odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
