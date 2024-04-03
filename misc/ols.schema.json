@@ -39,6 +39,11 @@
 			"type": "boolean",
 			"description": "Turn on inlay hints for editors that support it."
 		},
+		"enable_procedure_snippet": {
+			"type": "boolean",
+			"description": "Use snippets when completing procedures—adds parenthesis after the name.",
+			"default": true
+		},
 		"enable_references": { "type": "boolean" },
 		"enable_fake_methods": {
 			"type": "boolean",
