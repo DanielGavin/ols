@@ -1099,6 +1099,10 @@ get_implicit_completion :: proc(
 			   ok && parameter_ok {
 				ast_context.current_package = symbol.pkg
 
+				if .ObjC in symbol.flags {
+					parameter_index += 1
+				}
+
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
 						return
