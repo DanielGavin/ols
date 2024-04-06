@@ -3185,7 +3185,7 @@ get_locals_for_range_stmt :: proc(
 ) {
 	using ast
 
-	if !(stmt.body.pos.offset <= document_position.position &&
+	if !(stmt.body.pos.offset >= document_position.position &&
 		   document_position.position <= stmt.body.end.offset) {
 		return
 	}
