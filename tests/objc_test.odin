@@ -7,7 +7,7 @@ import test "src:testing"
 
 
 @(test)
-cobj_return_type_with_selector_expression :: proc(t: ^testing.T) {
+objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
@@ -48,7 +48,7 @@ cobj_return_type_with_selector_expression :: proc(t: ^testing.T) {
 }
 
 @(test)
-cobj_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
+objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
@@ -97,7 +97,7 @@ cobj_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 
 
 @(test)
-cobj_hover_chained_selector :: proc(t: ^testing.T) {
+objc_hover_chained_selector :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
@@ -146,7 +146,7 @@ cobj_hover_chained_selector :: proc(t: ^testing.T) {
 }
 
 @(test)
-cobj_hover_chained_selector :: proc(t: ^testing.T) {
+objc_implicit_enum_completion :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package)
 
 	append(
