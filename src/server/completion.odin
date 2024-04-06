@@ -1099,8 +1099,14 @@ get_implicit_completion :: proc(
 			   ok && parameter_ok {
 				ast_context.current_package = symbol.pkg
 
-				if .ObjC in symbol.flags {
-					parameter_index += 1
+				//Selector call expression always set the first argument to be the type of struct called, so increment it.
+				if position_context.selector_expr != nil {
+					if selector_call, ok := position_context.selector_expr.derived.(^ast.Selector_Call_Expr);
+					   ok {
+						if selector_call.call == position_context.call {
+							parameter_index += 1
+						}
+					}
 				}
 
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {

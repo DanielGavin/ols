@@ -144,3 +144,51 @@ cobj_hover_chained_selector :: proc(t: ^testing.T) {
 		"Window.initWithContentRect: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL)",
 	)
 }
+
+@(test)
+cobj_hover_chained_selector :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package    
+			My_Enum :: enum {
+				Regular    = 0,
+				Accessory  = 1,
+				Prohibited = 2,
+			}
+		
+            @(objc_class="NSWindow")
+            Window :: struct { dummy: int}
+
+            @(objc_type=Window, objc_name="alloc", objc_is_class_method=true)
+            Window_alloc :: proc "c" () -> ^Window {
+            }
+			@(objc_type=Window, objc_name="initWithContentRect")
+			Window_initWithContentRect :: proc (self: ^Window, my_enum: My_Enum) -> ^Window {			
+			}
+
+			My_Struct :: struct {
+				dummy: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+        import "my_package"
+
+		main :: proc() {
+            window := my_package.Window.alloc()->initWithContentRect(
+				.{*}
+			)	
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"Accessory"})
+}
