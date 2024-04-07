@@ -4460,10 +4460,10 @@ fallback_position_context_completion :: proc(
 		} else if c == '[' && bracket_count == 0 {
 			start = i + 1
 			break
-		} else if c == ']' && !last_dot {
+		} else if c == ']' && !last_dot && !last_arrow {
 			start = i + 1
 			break
-		} else if c == ')' && !last_dot {
+		} else if c == ')' && !last_dot && !last_arrow {
 			start = i + 1
 			break
 		} else if c == ')' {
