@@ -341,9 +341,11 @@ get_selector_completion :: proc(
 
 		expr_len := 0
 
-		if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
-			if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
-				expr_len = 0
+		if v.len != nil {
+			if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
+				if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
+					expr_len = 0
+				}
 			}
 		}
 
