@@ -961,7 +961,12 @@ internal_resolve_type_expression :: proc(
 			v.expr,
 		); ok {
 			ast_context.use_locals = false
-			ast_context.current_package = selector.pkg
+
+			if selector.pkg != "" {
+				ast_context.current_package = selector.pkg
+			} else {
+				ast_context.current_package = ast_context.document_package
+			}
 
 			#partial switch s in selector.value {
 			case SymbolProcedureValue:
@@ -981,6 +986,12 @@ internal_resolve_type_expression :: proc(
 			v.expr,
 		); ok {
 			ast_context.use_locals = false
+
+			if selector.pkg != "" {
+				ast_context.current_package = selector.pkg
+			} else {
+				ast_context.current_package = ast_context.document_package
+			}
 
 			#partial switch s in selector.value {
 			case SymbolFixedArrayValue:
@@ -1039,18 +1050,13 @@ internal_resolve_type_expression :: proc(
 					)
 					selector_expr.expr = s.return_types[0].type
 					selector_expr.field = v.field
+
 					return internal_resolve_type_expression(
 						ast_context,
 						selector_expr,
 					)
 				}
 			case SymbolStructValue:
-				if selector.pkg != "" {
-					ast_context.current_package = selector.pkg
-				} else {
-					ast_context.current_package = ast_context.document_package
-				}
-
 				for name, i in s.names {
 					if v.field != nil && name == v.field.name {
 						ast_context.field_name = v.field^
@@ -1063,8 +1069,6 @@ internal_resolve_type_expression :: proc(
 					}
 				}
 			case SymbolPackageValue:
-				ast_context.current_package = selector.pkg
-
 				try_build_package(ast_context.current_package)
 
 				if v.field != nil {
@@ -4865,10 +4869,16 @@ get_document_position_node :: proc(
 	case ^Selector_Call_Expr:
 		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp {
+		   position_context.hint == .SignatureHelp ||
+		   position_context.hint == .Completion {
 			position_context.selector = n.expr
 			position_context.field = n.call
 			position_context.selector_expr = cast(^Selector_Expr)node
+
+			if _, ok := n.call.derived.(^ast.Call_Expr); ok {
+				position_context.call = n.call
+			}
+
 			get_document_position(n.expr, position_context)
 			get_document_position(n.call, position_context)
 

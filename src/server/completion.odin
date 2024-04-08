@@ -341,9 +341,11 @@ get_selector_completion :: proc(
 
 		expr_len := 0
 
-		if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
-			if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
-				expr_len = 0
+		if v.len != nil {
+			if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
+				if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
+					expr_len = 0
+				}
 			}
 		}
 
@@ -1098,6 +1100,16 @@ get_implicit_completion :: proc(
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
 			   ok && parameter_ok {
 				ast_context.current_package = symbol.pkg
+
+				//Selector call expression always set the first argument to be the type of struct called, so increment it.
+				if position_context.selector_expr != nil {
+					if selector_call, ok := position_context.selector_expr.derived.(^ast.Selector_Call_Expr);
+					   ok {
+						if selector_call.call == position_context.call {
+							parameter_index += 1
+						}
+					}
+				}
 
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {

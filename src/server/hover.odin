@@ -170,7 +170,9 @@ get_hover_information :: proc(
 		}
 	}
 
-	if position_context.selector != nil && position_context.identifier != nil {
+	if position_context.selector != nil &&
+	   position_context.identifier != nil &&
+	   position_context.field == position_context.identifier {
 		hover.range = common.get_token_range(
 			position_context.identifier^,
 			ast_context.file.src,
@@ -211,6 +213,7 @@ get_hover_information :: proc(
 		}
 
 		selector: Symbol
+
 		selector, ok = resolve_type_expression(
 			&ast_context,
 			position_context.selector,
@@ -226,6 +229,21 @@ get_hover_information :: proc(
 			#partial switch v in position_context.field.derived {
 			case ^ast.Ident:
 				field = v.name
+			}
+		}
+
+		if v, is_proc := selector.value.(SymbolProcedureValue); is_proc {
+			if len(v.return_types) == 0 || v.return_types[0].type == nil {
+				return {}, false, false
+			}
+
+			ast_context.current_package = selector.pkg
+
+			if selector, ok = resolve_type_expression(
+				&ast_context,
+				v.return_types[0].type,
+			); !ok {
+				return {}, false, false
 			}
 		}
 
