@@ -541,6 +541,9 @@ read_ols_initialize_options :: proc(
 			}
 		}
 
+		ok: bool
+		final_path, ok = filepath.abs(final_path, context.temp_allocator)
+		if !ok do return
 		config.collections[strings.clone(it.name)] = final_path
 	}
 
@@ -549,6 +552,9 @@ read_ols_initialize_options :: proc(
 
 	if odin_core_env == "" {
 		if exe_path, ok := common.lookup_in_path("odin"); ok {
+			// ensure that the correct lookup path is found even if symlinked
+			exe_path, ok = filepath.abs(exe_path, context.temp_allocator)
+			if !ok do return
 			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
 		}
 	}
