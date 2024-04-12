@@ -663,13 +663,13 @@ request_initialize :: proc(
 				   nil {
 					read_ols_initialize_options(config, ols_config, uri)
 				} else {
-					log.errorf("Failed to unmarshal %v", file)
+					log.warnf("Failed to unmarshal %v", file)
 				}
 			} else {
-				log.errorf("Failed to parse json %v", file)
+				log.warnf("Failed to parse json %v", file)
 			}
 		} else {
-			log.errorf("Failed to read/find %v", file)
+			log.warnf("Failed to read/find %v", file)
 		}
 	}
 
