@@ -59,7 +59,7 @@
 		},
 		"type-assignment": {
 			"name": "meta.definition.variable.odin",
-			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:)\\s*(?=(struct|union|enum|bit_set)\\b)",
+			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:)\\s*(?=(struct|union|enum|bit_set|bit_field)\\b)",
 			"beginCaptures": {
 				"1": { "name": "entity.name.type.odin" },
 				"2": { "name": "keyword.operator.assignment.odin" },
@@ -142,7 +142,7 @@
 			"patterns": [
 				{ "include": "#map-bitset" },
 				{
-					"begin": "\\b(proc|struct|union|enum)\\b",
+					"begin": "\\b(proc|struct|union|enum|bit_field)\\b",
 					"beginCaptures": { "1": { "name": "storage.type.odin" } },
 					"end": "(?=^|\\)|,|;)|(?<=})",
 					"patterns": [
@@ -408,7 +408,7 @@
 				},
 				{
 					"name": "storage.type.odin",
-					"match": "\\b(struct|enum|union|map|bit_set|matrix)\\b"
+					"match": "\\b(struct|enum|union|map|bit_set|bit_field|matrix)\\b"
 				},
 				{
 					"name": "keyword.operator.assignment.compound",
