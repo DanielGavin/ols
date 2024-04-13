@@ -531,20 +531,28 @@ read_ols_initialize_options :: proc(
 					context.temp_allocator,
 				)
 			}
-
-			final_path = strings.clone(final_path)
 		} else {
 			if filepath.is_abs(it.path) {
-				final_path = strings.clone(forward_path)
+				final_path = forward_path
 			} else {
-				final_path = path.join(elems = {uri.path, forward_path})
+				final_path = path.join(
+					elems = {uri.path, forward_path},
+					allocator = context.temp_allocator,
+				)
 			}
 		}
 
-		ok: bool
-		final_path, ok = filepath.abs(final_path, context.temp_allocator)
-		if !ok do return
-		config.collections[strings.clone(it.name)] = final_path
+		absolute_path, ok := filepath.abs(final_path, context.allocator)
+
+		if !ok {
+			log.errorf(
+				"Failed to find absolute adresss of collection: %v",
+				final_path,
+			)
+			return
+		}
+
+		config.collections[strings.clone(it.name)] = absolute_path
 	}
 
 	// ensure that core/vendor collections are provided
