@@ -1,12 +1,14 @@
 package common
 
-import "core:fmt"
-import "core:os"
-import "core:strings"
-import "core:path/filepath"
-foreign import libc "system:c"
-import "core:mem"
 import "core:bytes"
+import "core:fmt"
+import "core:log"
+import "core:mem"
+import "core:os"
+import "core:path/filepath"
+import "core:strings"
+
+foreign import libc "system:c"
 
 when ODIN_OS == .Windows {
 	delimiter :: ";"
@@ -22,29 +24,56 @@ lookup_in_path :: proc(name: string) -> (string, bool) {
 
 	for directory in strings.split_iterator(&path, delimiter) {
 		when ODIN_OS == .Windows {
-			name := filepath.join(
+			possibility := filepath.join(
 				elems = {directory, fmt.tprintf("%v.exe", name)},
 				allocator = context.temp_allocator,
 			)
-			if os.exists(name) {
-				return name, true
+			if os.exists(possibility) {
+				return possibility, true
 			}
 		} else {
-			name := filepath.join(
+			possibility := filepath.join(
 				elems = {directory, name},
 				allocator = context.temp_allocator,
 			)
-			if os.exists(name) {
-				if info, err := os.stat(name, context.temp_allocator);
+			possibility = resolve_home_dir(possibility, context.temp_allocator)
+			if os.exists(possibility) {
+				if info, err := os.stat(possibility, context.temp_allocator);
 				   err == os.ERROR_NONE &&
 				   (File_Mode_User_Executable & info.mode) != 0 {
-					return name, true
+					return possibility, true
 				}
 			}
 		}
 	}
 
 	return "", false
+}
+
+resolve_home_dir :: proc(
+	path: string,
+	allocator := context.allocator,
+) -> (
+	resolved: string,
+	allocated: bool,
+) #optional_ok {
+	when ODIN_OS == .Windows {
+		return path, false
+	} else {
+		if !strings.has_prefix(path, "~") {
+			return path, false
+		}
+
+		home := os.get_env("HOME", context.temp_allocator)
+		if home == "" {
+			log.error(
+				"could not find $HOME in the environment to be able to resolve ~ in collection paths",
+			)
+			return path, false
+		}
+
+		return filepath.join({home, path[1:]}, allocator), true
+	}
 }
 
 when ODIN_OS == .Darwin || ODIN_OS == .Linux {
