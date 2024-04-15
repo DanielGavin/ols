@@ -2633,3 +2633,30 @@ ast_completion_infer_bitset_package :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {"ONE", "TWO"})
 }
+
+@(test)
+ast_simple_bit_field_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		My_Bit_Field :: bit_field uint {
+			one: int | 1,
+			two: int | 1,
+			three: int | 1,
+		}
+
+		main :: proc() {
+			my_bit_field: My_Bit_Field;
+			my_bit_field.{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"My_Bit_Field.one: int", "My_Bit_Field.two: int", "My_Bit_Field.three: int"},
+	)
+}

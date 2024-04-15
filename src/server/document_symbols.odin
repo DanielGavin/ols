@@ -62,7 +62,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 		symbol.name = k
 
 		#partial switch v in global.expr.derived {
-		case ^ast.Struct_Type:
+		case ^ast.Struct_Type, ^ast.Bit_Field_Type:
 			symbol.kind = .Struct
 		case ^ast.Proc_Lit, ^ast.Proc_Group:
 			symbol.kind = .Function

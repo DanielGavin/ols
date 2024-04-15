@@ -287,6 +287,13 @@ clone_node :: proc(
 	case ^Relative_Type:
 		r.tag = clone_type(r.tag, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^Bit_Field_Type:
+		r.backing_type = clone_type(r.backing_type, allocator, unique_strings)
+		r.fields = clone_type(r.fields, allocator, unique_strings)
+	case ^Bit_Field_Field:
+		r.name = clone_type(r.name, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+		r.bit_size = clone_type(r.bit_size, allocator, unique_strings)
 	case:
 	}
 

@@ -89,3 +89,86 @@ ast_goto_untyped_comp_lit_in_proc :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_bit_field_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+			My_Bit_Field :: bit_field uint {
+				one: int | 1,
+				two: int | 1,
+			}
+
+			main :: proc() {
+				it: My_B{*}it_Field
+			}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range =  {
+			start = {line = 1, character = 3},
+			end = {line = 1, character = 15},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_bit_field_field_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+			My_Bit_Field :: bit_field uint {
+				one: int | 1,
+				two: int | 1,
+			}
+
+			main :: proc() {
+				it: My_Bit_Field
+				it.on{*}e
+			}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range =  {
+			start = {line = 2, character = 4},
+			end = {line = 2, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_bit_field_field_in_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+			My_Struct :: bit_field uint {
+				one: int | 1,
+				two: int | 2,
+			}
+
+			my_function :: proc(my_struct: My_Struct) {
+
+			}
+
+			main :: proc() {
+				my_function({on{*}e = 2, two = 3})
+			}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range =  {
+			start = {line = 2, character = 4},
+			end = {line = 2, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}

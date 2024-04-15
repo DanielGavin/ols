@@ -705,6 +705,13 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^Relative_Type:
 		free_ast(n.tag, allocator)
 		free_ast(n.type, allocator)
+	case ^Bit_Field_Type:
+		free_ast(n.backing_type, allocator)
+		for field in n.fields do free_ast(field, allocator)
+	case ^Bit_Field_Field:
+		free_ast(n.name, allocator)
+		free_ast(n.type, allocator)
+		free_ast(n.bit_size, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}
@@ -911,6 +918,22 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		if n, ok := a.derived.(^Call_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.args, m.args)
+			return ret
+		}
+	case ^Bit_Field_Type:
+		if n, ok := a.derived.(^Bit_Field_Type); ok {
+			if len(n.fields) != len(m.fields) do return false
+			ret := node_equal(n.backing_type, m.backing_type)
+			for i in 0..<len(n.fields) {
+				ret &= node_equal(n.fields[i], m.fields[i])
+			}
+			return ret
+		}
+	case ^Bit_Field_Field:
+		if n, ok := a.derived.(^Bit_Field_Field); ok {
+			ret := node_equal(n.name, m.name)
+			ret &= node_equal(n.type, m.type)
+			ret &= node_equal(n.bit_size, m.bit_size)
 			return ret
 		}
 	case ^Typeid_Type:
@@ -1148,6 +1171,21 @@ build_string_node :: proc(
 	case ^ast.Multi_Pointer_Type:
 		strings.write_string(builder, "[^]")
 		build_string(n.elem, builder, remove_pointers)
+	case ^ast.Bit_Field_Type:
+		strings.write_string(builder, "bit_field")
+		build_string(n.backing_type, builder, remove_pointers)
+		for field, i in n.fields {
+			build_string(field, builder, remove_pointers)
+			if len(n.fields) - 1 != i {
+				strings.write_string(builder, ",")
+			}
+		}
+	case ^ast.Bit_Field_Field:
+		build_string(n.name, builder, remove_pointers)
+		strings.write_string(builder, ": ")
+		build_string(n.type, builder, remove_pointers)
+		strings.write_string(builder, " | ")
+		build_string(n.bit_size, builder, remove_pointers)
 	}
 }
 
