@@ -432,8 +432,19 @@ read_ols_initialize_options :: proc(
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(
 			ols_config.odin_command,
-			context.allocator,
+			context.temp_allocator,
 		)
+
+		allocated: bool
+		config.odin_command, allocated = common.resolve_home_dir(
+			config.odin_command,
+		)
+		if !allocated {
+			config.odin_command = strings.clone(
+				config.odin_command,
+				context.allocator,
+			)
+		}
 	}
 
 	if ols_config.checker_args != "" {
@@ -494,19 +505,10 @@ read_ols_initialize_options :: proc(
 
 		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
 
-		//Support a basic use of '~'
-		when ODIN_OS != .Windows {
-			if forward_path[0] == '~' {
-				home := os.get_env("HOME", context.temp_allocator)
-				forward_path, _ = strings.replace(
-					forward_path,
-					"~",
-					home,
-					1,
-					context.temp_allocator,
-				)
-			}
-		}
+		forward_path = common.resolve_home_dir(
+			forward_path,
+			context.temp_allocator,
+		)
 
 		final_path := ""
 
@@ -531,41 +533,74 @@ read_ols_initialize_options :: proc(
 					context.temp_allocator,
 				)
 			}
+
+			final_path = strings.clone(final_path, context.temp_allocator)
 		} else {
 			if filepath.is_abs(it.path) {
-				final_path = forward_path
+				final_path = strings.clone(
+					forward_path,
+					context.temp_allocator,
+				)
 			} else {
 				final_path = path.join(
-					elems = {uri.path, forward_path},
-					allocator = context.temp_allocator,
+					{uri.path, forward_path},
+					context.temp_allocator,
 				)
 			}
 		}
 
-		absolute_path, ok := filepath.abs(final_path, context.allocator)
-
-		if !ok {
+		if abs_final_path, ok := filepath.abs(final_path); ok {
+			config.collections[strings.clone(it.name)] = abs_final_path
+		} else {
 			log.errorf(
-				"Failed to find absolute adresss of collection: %v",
+				"Failed to find absolute address of collection: %v",
 				final_path,
 			)
-			return
-		}
-
-		config.collections[strings.clone(it.name)] = absolute_path
-	}
-
-	// ensure that core/vendor collections are provided
-	odin_core_env := os.get_env("ODIN_ROOT", context.temp_allocator)
-
-	if odin_core_env == "" {
-		if exe_path, ok := common.lookup_in_path("odin"); ok {
-			// ensure that the correct lookup path is found even if symlinked
-			exe_path, ok = filepath.abs(exe_path, context.temp_allocator)
-			if !ok do return
-			odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+			config.collections[strings.clone(it.name)] = strings.clone(
+				final_path,
+			)
 		}
 	}
+
+	// Ideally we'd disallow specifying the builtin `base`, `core` and `vendor` completely
+	// because using `odin root` is always correct, but I suspect a lot of people have this in
+	// their config and it would break.
+
+	odin_core_env: string
+	odin_bin := "odin" if config.odin_command == "" else config.odin_command
+
+	root_buf: [1024]byte
+	root_slice := root_buf[:]
+	root_command := strings.concatenate(
+		{odin_bin, " root"},
+		context.temp_allocator,
+	)
+	code, ok, out := common.run_executable(root_command, &root_slice)
+	if ok && !strings.contains(string(out), "Usage") {
+		odin_core_env = string(out)
+	} else {
+		log.warnf("failed executing %q with code %v", root_command, code)
+
+		// User is probably on an older Odin version, let's try our best.
+
+		odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
+		if odin_core_env == "" {
+			if filepath.is_abs(odin_bin) {
+				odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
+			} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
+				odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+			}
+		}
+
+		if abs_core_env, ok := filepath.abs(
+			odin_core_env,
+			context.temp_allocator,
+		); ok {
+			odin_core_env = abs_core_env
+		}
+	}
+
+	log.infof("resolved odin root to: %q", odin_core_env)
 
 	if "core" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(
@@ -610,6 +645,8 @@ read_ols_initialize_options :: proc(
 			allocator = context.allocator,
 		)
 	}
+
+	log.info(config.collections)
 }
 
 request_initialize :: proc(
