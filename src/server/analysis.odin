@@ -46,6 +46,7 @@ DocumentPositionContext :: struct {
 	bitset_type:            ^ast.Bit_Set_Type,
 	enum_type:              ^ast.Enum_Type,
 	field_value:            ^ast.Field_Value,
+	bit_field_type:         ^ast.Bit_Field_Type,
 	implicit:               bool, //used for completion
 	arrow:                  bool,
 	binary:                 ^ast.Binary_Expr, //used for completion
@@ -189,11 +190,55 @@ resolve_type_comp_literal :: proc(
 							}
 						}
 					}
+				} else if s, ok := current_symbol.value.(SymbolBitFieldValue); ok {
+					for name, i in s.names {
+						if name ==
+						   field_value.field.derived.(^ast.Ident).name {
+							if symbol, ok := resolve_type_expression(
+								ast_context,
+								s.types[i],
+							); ok {
+								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+								if _, ok := symbol.value.(SymbolBitSetValue);
+								   ok {
+									return current_symbol,
+										current_comp_lit,
+										true
+								}
+								return resolve_type_comp_literal(
+									ast_context,
+									position_context,
+									symbol,
+									cast(^ast.Comp_Lit)field_value.value,
+								)
+							}
+						}
+					}
 				}
 			}
 		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { 	//indexed
 			#partial switch s in current_symbol.value {
 			case SymbolStructValue:
+				if len(s.types) <= element_index {
+					return {}, {}, false
+				}
+
+				if symbol, ok := resolve_type_expression(
+					ast_context,
+					s.types[element_index],
+				); ok {
+					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+					if _, ok := symbol.value.(SymbolBitSetValue); ok {
+						return current_symbol, current_comp_lit, true
+					}
+					return resolve_type_comp_literal(
+						ast_context,
+						position_context,
+						symbol,
+						comp_value,
+					)
+				}
+			case SymbolBitFieldValue:
 				if len(s.types) <= element_index {
 					return {}, {}, false
 				}
@@ -825,6 +870,14 @@ internal_resolve_type_expression :: proc(
 				true,
 			),
 			true
+	case ^Bit_Field_Type:
+		return make_symbol_bit_field_from_ast(
+			ast_context,
+			v^,
+			ast_context.field_name,
+			true,
+		),
+		true
 	case ^Basic_Directive:
 		return resolve_basic_directive(ast_context, v^)
 	case ^Binary_Expr:
@@ -1057,6 +1110,18 @@ internal_resolve_type_expression :: proc(
 					)
 				}
 			case SymbolStructValue:
+				for name, i in s.names {
+					if v.field != nil && name == v.field.name {
+						ast_context.field_name = v.field^
+						symbol, ok := internal_resolve_type_expression(
+							ast_context,
+							s.types[i],
+						)
+						symbol.type = .Variable
+						return symbol, ok
+					}
+				}
+			case SymbolBitFieldValue:
 				for name, i in s.names {
 					if v.field != nil && name == v.field.name {
 						ast_context.field_name = v.field^
@@ -1309,6 +1374,10 @@ internal_resolve_type_identifier :: proc(
 			return_symbol, ok =
 				make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
+		case ^Bit_Field_Type:
+			return_symbol, ok =
+				make_symbol_bit_field_from_ast(ast_context, v^, node), true
+			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !is_procedure_generic(v.type) {
 				return_symbol, ok =
@@ -1440,6 +1509,15 @@ internal_resolve_type_identifier :: proc(
 		case ^Enum_Type:
 			return_symbol, ok =
 				make_symbol_enum_from_ast(ast_context, v^, node), true
+			return_symbol.name = node.name
+		case ^Bit_Field_Type:
+			return_symbol, ok =
+				make_symbol_bit_field_from_ast(
+					ast_context,
+					v^,
+					node,
+				),
+				true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !is_procedure_generic(v.type) {
@@ -1911,6 +1989,34 @@ resolve_implicit_selector :: proc(
 					}
 
 					return resolve_type_expression(ast_context, type)
+				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
+					ast_context.current_package = comp_symbol.pkg
+
+					//We can either have the final 
+					elem_index := -1
+
+					for elem, i in comp_lit.elems {
+						if position_in_node(elem, position_context.position) {
+							elem_index = i
+						}
+					}
+
+					type: ^ast.Expr
+
+					for name, i in s.names {
+						if name != field_name {
+							continue
+						}
+
+						type = s.types[i]
+						break
+					}
+
+					if type == nil && len(s.types) > elem_index {
+						type = s.types[elem_index]
+					}
+
+					return resolve_type_expression(ast_context, type)
 				}
 			}
 		}
@@ -2018,7 +2124,7 @@ resolve_unresolved_symbol :: proc(
 	}
 
 	#partial switch v in symbol.value {
-	case SymbolStructValue:
+	case SymbolStructValue, SymbolBitFieldValue:
 		symbol.type = .Struct
 	case SymbolPackageValue:
 		symbol.type = .Package
@@ -2105,7 +2211,12 @@ resolve_location_comp_lit_field :: proc(
 			if name == field.name {
 				symbol.range = struct_value.ranges[i]
 			}
-
+		}
+	} else if bit_field_value, ok := symbol.value.(SymbolBitFieldValue); ok {
+		for name, i in bit_field_value.names {
+			if name == field.name {
+				symbol.range = bit_field_value.ranges[i]
+			}
 		}
 	}
 
@@ -2165,6 +2276,12 @@ resolve_location_selector :: proc(
 
 	#partial switch v in symbol.value {
 	case SymbolStructValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolBitFieldValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
@@ -2838,6 +2955,49 @@ make_symbol_struct_from_ast :: proc(
 	return symbol
 }
 
+make_symbol_bit_field_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Bit_Field_Type,
+	ident: ast.Ident,
+	inlined := false,
+) -> Symbol {
+	symbol := Symbol {
+		range = common.get_token_range(v, ast_context.file.src),
+		type  = .Struct,
+		pkg   = get_package_from_node(v.node),
+		name  = ident.name,
+	}
+
+	if inlined {
+		symbol.flags |= {.Anonymous}
+		symbol.name = "bit_field"
+	}
+
+	names := make([dynamic]string, ast_context.allocator)
+	types := make([dynamic]^ast.Expr, ast_context.allocator)
+	ranges := make([dynamic]common.Range, 0, ast_context.allocator)
+
+	for field in v.fields {
+		if identifier, ok := field.name.derived.(^ast.Ident);
+		   ok && field.type != nil {
+			append(&names, identifier.name)
+			append(&types, field.type)
+			append(
+				&ranges,
+				common.get_token_range(identifier, ast_context.file.src),
+			)
+		}
+	}
+
+	symbol.value = SymbolBitFieldValue {
+		names  = names[:],
+		types  = types[:],
+		ranges = ranges[:],
+	}
+
+	return symbol
+}
+
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 	exprs := common.collect_globals(file)
 
@@ -3075,7 +3235,7 @@ get_locals_block_stmt :: proc(
 }
 
 get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
-	if symbol, expr, ok := unwrap_procedure_until_struct_or_package(
+	if symbol, expr, ok := unwrap_procedure_until_struct_bit_field_or_package(
 		ast_context,
 		expr,
 	); ok {
@@ -3085,6 +3245,36 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				append(&ast_context.usings, ident.name)
 			}
 		case SymbolStructValue:
+			for name, i in v.names {
+				selector := new_type(
+					ast.Selector_Expr,
+					v.types[i].pos,
+					v.types[i].end,
+					ast_context.allocator,
+				)
+				selector.expr = expr
+				selector.field = new_type(
+					ast.Ident,
+					v.types[i].pos,
+					v.types[i].end,
+					ast_context.allocator,
+				)
+				selector.field.name = name
+				store_local(
+					ast_context,
+					expr,
+					selector,
+					0,
+					name,
+					ast_context.local_id,
+					false,
+					ast_context.non_mutable_only,
+					true,
+					"",
+					false,
+				)
+			}
+		case SymbolBitFieldValue:
 			for name, i in v.names {
 				selector := new_type(
 					ast.Selector_Expr,
@@ -3927,7 +4117,7 @@ concatenate_raw_string_information :: proc(
 	}
 }
 
-unwrap_procedure_until_struct_or_package :: proc(
+unwrap_procedure_until_struct_bit_field_or_package :: proc(
 	ast_context: ^AstContext,
 	node: ^ast.Expr,
 ) -> (
@@ -3964,7 +4154,7 @@ unwrap_procedure_until_struct_or_package :: proc(
 			}
 
 			expr = v.return_types[0].type
-		case SymbolStructValue, SymbolPackageValue:
+		case SymbolStructValue, SymbolPackageValue, SymbolBitFieldValue:
 			ok = true
 			return
 		case:
@@ -4123,6 +4313,15 @@ get_signature :: proc(
 			)
 		} else {
 			return "union"
+		}
+	case SymbolBitFieldValue:
+		if is_variable {
+			return strings.concatenate(
+				{pointer_prefix, symbol.name},
+				ast_context.allocator,
+			)
+		} else {
+			return "bit_field"
 		}
 	case SymbolMultiPointer:
 		return strings.concatenate(
@@ -5084,6 +5283,14 @@ get_document_position_node :: proc(
 		get_document_position(n.y, position_context)
 	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
+	case ^ast.Bit_Field_Type:
+		position_context.bit_field_type = cast(^Bit_Field_Type)node
+		get_document_position(n.backing_type, position_context)
+		get_document_position(n.fields, position_context)
+	case ^ast.Bit_Field_Field:
+		get_document_position(n.name, position_context)
+		get_document_position(n.type, position_context)
+		get_document_position(n.bit_size, position_context)
 	case:
 	}
 }

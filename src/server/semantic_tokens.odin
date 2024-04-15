@@ -759,6 +759,16 @@ visit_node :: proc(
 		visit_proc_type(n.type, builder, ast_context)
 
 		visit(n.body, builder, ast_context)
+	case ^Bit_Field_Type:
+		write_semantic_string(
+			builder,
+			n.pos,
+			"bit_field",
+			ast_context.file.src,
+			.Keyword,
+			.None,
+		)
+		visit_bit_field_fields(n^, builder, ast_context)
 	case:
 	}
 }
@@ -1050,6 +1060,27 @@ visit_struct_fields :: proc(
 	}
 }
 
+visit_bit_field_fields :: proc(
+	node: ast.Bit_Field_Type,
+	builder: ^SemanticTokenBuilder,
+	ast_context: ^AstContext,
+) {
+	for field in node.fields {
+		if ident, ok := field.name.derived.(^ast.Ident); ok {
+			write_semantic_node(
+				builder,
+				ident,
+				ast_context.file.src,
+				.Property,
+				.None,
+			)
+		}
+
+		visit(field.type, builder, ast_context)
+		visit(field.bit_size, builder, ast_context)
+	}
+}
+
 visit_selector :: proc(
 	selector: ^ast.Selector_Expr,
 	builder: ^SemanticTokenBuilder,
@@ -1123,6 +1154,14 @@ visit_selector :: proc(
 				selector.field,
 				ast_context.file.src,
 				.Function,
+				.None,
+			)
+		case SymbolBitFieldValue:
+			write_semantic_node(
+				builder,
+				selector.field,
+				ast_context.file.src,
+				.Struct,
 				.None,
 			)
 		}

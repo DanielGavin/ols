@@ -28,6 +28,12 @@ SymbolStructValue :: struct {
 	args:   []^ast.Expr, //The arguments in the call expression for poly
 }
 
+SymbolBitFieldValue :: struct {
+	names:  []string,
+	ranges: []common.Range,
+	types:  []^ast.Expr,
+}
+
 SymbolPackageValue :: struct {}
 
 SymbolProcedureValue :: struct {
@@ -126,6 +132,7 @@ SymbolValue :: union {
 	SymbolBasicValue,
 	SymbolUntypedValue,
 	SymbolMatrixValue,
+	SymbolBitFieldValue,
 }
 
 SymbolFlag :: enum {
@@ -185,7 +192,8 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	   symbol.signature != "struct" &&
 	   symbol.signature != "union" &&
 	   symbol.signature != "enum" &&
-	   symbol.signature != "bitset" {
+	   symbol.signature != "bitset" &&
+	   symbol.signature != "bit_field" {
 		delete(symbol.signature, allocator)
 	}
 
@@ -235,6 +243,9 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolUntypedValue:
 		delete(v.tok.text)
 	case SymbolPackageValue:
+	case SymbolBitFieldValue:
+		delete(v.names, allocator)
+		common.free_ast(v.types, allocator)
 	}
 }
 
@@ -345,6 +356,9 @@ symbol_to_expr :: proc(
 		type.results.list = v.return_types
 		type.params = new_type(ast.Field_List, pos, end, allocator)
 		type.params.list = v.arg_types
+		return type
+	case SymbolBitFieldValue:
+		type := new_type(ast.Bit_Field_Type, pos, end, allocator)
 		return type
 	case:
 		return nil

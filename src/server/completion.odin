@@ -260,7 +260,40 @@ get_comp_lit_completion :: proc(
 					append(&items, item)
 				}
 			}
+		case SymbolBitFieldValue:
+			for name, i in v.names {
+				if name == "_" {
+					continue
+				}
 
+				ast_context.current_package = symbol.pkg
+
+				if resolved, ok := resolve_type_expression(
+					ast_context,
+					v.types[i],
+				); ok {
+					if field_exists_in_comp_lit(
+						position_context.comp_lit,
+						name,
+					) {
+						continue
+					}
+
+					item := CompletionItem {
+						label         = name,
+						kind          = .Field,
+						detail        = fmt.tprintf(
+							"%v.%v: %v",
+							symbol.name,
+							name,
+							common.node_to_string(v.types[i]),
+						),
+						documentation = resolved.doc,
+					}
+
+					append(&items, item)
+				}
+			}
 		}
 	}
 
@@ -579,6 +612,52 @@ get_selector_completion :: proc(
 				}
 
 
+				item := CompletionItem {
+					label         = name,
+					kind          = .Field,
+					detail        = fmt.tprintf(
+						"%v.%v: %v",
+						selector.name,
+						name,
+						type_to_string(ast_context, v.types[i]),
+					),
+					documentation = symbol.doc,
+				}
+
+				append(&items, item)
+			} else {
+				//just give some generic symbol with name.
+				item := CompletionItem {
+					label         = symbol.name,
+					kind          = .Field,
+					detail        = fmt.tprintf(
+						"%v: %v",
+						name,
+						common.node_to_string(v.types[i]),
+					),
+					documentation = symbol.doc,
+				}
+
+				append(&items, item)
+			}
+		}
+
+	case SymbolBitFieldValue:
+		list.isIncomplete = false
+
+		for name, i in v.names {
+			if name == "_" {
+				continue
+			}
+
+			if selector.pkg != "" {
+				ast_context.current_package = selector.pkg
+			} else {
+				ast_context.current_package = ast_context.document_package
+			}
+
+			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
+			   ok {
 				item := CompletionItem {
 					label         = name,
 					kind          = .Field,

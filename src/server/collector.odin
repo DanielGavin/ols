@@ -191,6 +191,41 @@ collect_struct_fields :: proc(
 	return value
 }
 
+collect_bit_field_fields :: proc(
+	collection: ^SymbolCollection,
+	fields: []^ast.Bit_Field_Field,
+	package_map: map[string]string,
+	file: ast.File,
+) -> SymbolBitFieldValue {
+	names  := make([dynamic]string, 0, len(fields), collection.allocator)
+	types  := make([dynamic]^ast.Expr, 0, len(fields), collection.allocator)
+	ranges := make([dynamic]common.Range, 0, len(fields), collection.allocator)
+
+	for field, i in fields {
+		if ident, ok := field.name.derived.(^ast.Ident); ok {
+			append(&names, get_index_unique_string(collection, ident.name))
+
+			cloned := clone_type(
+				field.type,
+				collection.allocator,
+				&collection.unique_strings,
+			)
+			replace_package_alias(cloned, package_map, collection)
+			append(&types, cloned)
+
+			append(&ranges, common.get_token_range(ident, file.src))
+		}
+	}
+	
+	value := SymbolBitFieldValue {
+		names  = names[:],
+		types  = types[:],
+		ranges = ranges[:],
+	}
+
+	return value
+}
+
 collect_enum_fields :: proc(
 	collection: ^SymbolCollection,
 	fields: []^ast.Expr,
@@ -648,6 +683,16 @@ collect_symbols :: proc(
 			token_type = .Enum
 			symbol.value = collect_bitset_field(collection, v^, package_map)
 			symbol.signature = "bitset"
+		case ^ast.Bit_Field_Type:
+			token = v^
+			token_type = .Struct
+			symbol.value = collect_bit_field_fields(
+				collection,
+				v.fields,
+				package_map,
+				file,
+			)
+			symbol.signature = "bit_field"
 		case ^ast.Map_Type:
 			token = v^
 			token_type = .Variable
@@ -999,6 +1044,13 @@ replace_package_alias_node :: proc(
 	case ^Proc_Lit:
 	case ^Multi_Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
+	case ^Bit_Field_Type:
+		replace_package_alias(n.backing_type, package_map, collection)
+		replace_package_alias(n.fields, package_map, collection)
+	case ^Bit_Field_Field:
+		replace_package_alias(n.name, package_map, collection)
+		replace_package_alias(n.type, package_map, collection)
+		replace_package_alias(n.bit_size, package_map, collection)
 	case:
 	}
 }

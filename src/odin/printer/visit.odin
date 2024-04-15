@@ -716,6 +716,94 @@ visit_enum_exprs :: proc(
 }
 
 @(private)
+visit_bit_field_fields :: proc(
+	p: ^Printer,
+	bit_field_type: ast.Bit_Field_Type,
+	options := List_Options{},
+) -> ^Document {
+	if len(bit_field_type.fields) == 0 {
+		return empty()
+	}
+
+	document := empty()
+
+	name_alignment, type_alignment := get_possible_bit_field_alignment(bit_field_type.fields)
+
+	for field, i in bit_field_type.fields {
+		if i == 0 && .Enforce_Newline in options {
+			comment, _ := visit_comments(p, bit_field_type.fields[i].pos)
+			if _, is_nil := comment.(Document_Nil); !is_nil {
+				comment = cons(comment, newline(1))
+			}
+			document = cons(comment, document)
+		}
+
+		if (.Enforce_Newline in options) {
+			document = cons(
+				document,
+				cons_with_nopl(
+					cons(
+						visit_expr(p, field.name),
+						text_position(p, ":", field.name.end),
+					),
+					cons_with_nopl(
+						cons(
+							repeat_space(
+								name_alignment - get_node_length(field.name),
+							),
+							visit_expr(p, field.type),
+						),
+						cons_with_nopl(
+							cons(
+								repeat_space(
+									type_alignment - get_node_length(field.type),
+								),
+								text_position(p, "|", field.type.end),
+							),
+							visit_expr(p, field.bit_size),
+						),
+					),
+				),
+			)
+		} else {
+			document = group(
+				cons_with_opl(
+					document,
+					cons_with_nopl(
+						cons(
+							visit_expr(p, field.name),
+							text_position(p, ":", field.name.end),
+						),
+						cons_with_nopl(
+							cons_with_nopl(
+								visit_expr(p, field.type),
+								text_position(p, "|", field.type.end),
+							),
+							visit_expr(p, field.bit_size),
+						),
+					),
+				),
+			)
+		}
+
+		if (i != len(bit_field_type.fields) - 1 || .Trailing in options) &&
+		   .Add_Comma in options {
+			document = cons(document, text(","))
+		}
+
+		if (i != len(bit_field_type.fields) - 1 && .Enforce_Newline in options) {
+			comment, _ := visit_comments(p, bit_field_type.fields[i + 1].pos)
+			document = cons(document, comment, newline(1))
+		} else if .Enforce_Newline in options {
+			comment, _ := visit_comments(p, bit_field_type.end)
+			document = cons(document, comment)
+		}
+	}
+
+	return document
+}
+
+@(private)
 visit_union_exprs :: proc(
 	p: ^Printer,
 	union_type: ast.Union_Type,
@@ -1851,6 +1939,36 @@ visit_expr :: proc(
 		}
 
 		set_source_position(p, v.end)
+	case ^Bit_Field_Type:
+		document = text_position(p, "bit_field", v.pos)
+
+		document = cons_with_nopl(document, visit_expr(p, v.backing_type))
+
+		if len(v.fields) == 0 {
+			document = cons_with_nopl(document, text("{"))
+			document = cons(document, text("}"))
+		} else {
+			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
+			set_source_position(p, v.fields[0].pos)
+			document = cons(
+				document,
+				nest(
+					cons(
+						newline_position(p, 1, v.open),
+						visit_bit_field_fields(
+							p,
+							v^,
+							{.Add_Comma, .Trailing, .Enforce_Newline},
+						),
+					),
+				),
+			)
+			set_source_position(p, v.end)
+
+			document = cons(document, newline(1), text_position(p, "}", v.end))
+		}
+
+		set_source_position(p, v.end)
 	case ^Proc_Lit:
 		switch v.inlining {
 		case .None:
@@ -2844,4 +2962,14 @@ get_possible_enum_alignment :: proc(exprs: []^ast.Expr) -> int {
 	}
 
 	return longest_name
+}
+
+@(private)
+get_possible_bit_field_alignment :: proc(fields: []^ast.Bit_Field_Field) -> (longest_name: int, longest_type: int) {
+	for field in fields {
+		longest_name = max(longest_name, get_node_length(field.name))
+		longest_type = max(longest_type, get_node_length(field.type))
+	}
+
+	return
 }
