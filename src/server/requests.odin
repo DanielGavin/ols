@@ -1193,7 +1193,17 @@ notification_did_save :: proc(
 		for k2, v2 in &v.symbols {
 			if corrected_uri.uri == v2.uri {
 				free_symbol(v2, indexer.index.collection.allocator)
-				v.symbols[k2] = {}
+				delete_key(&v.symbols, k2)
+			}
+		}
+
+		for method, &symbols in v.methods {
+			for i := 0; i < len(symbols); i += 1 {
+				#no_bounds_check symbol := symbols[i]
+				if corrected_uri.uri == symbol.uri {
+					unordered_remove(&symbols, i)
+					i -= 1
+				}
 			}
 		}
 	}
