@@ -268,7 +268,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 					severity = .Error,
 					range =  {
 						start =  {
-							character = error.column,
+							character = error.column - 1,
 							line = error.line - 1,
 						},
 						end = {character = 0, line = error.line},
