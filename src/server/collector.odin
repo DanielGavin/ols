@@ -772,7 +772,7 @@ collect_symbols :: proc(
 			symbol.pkg = "$builtin"
 		} else if strings.contains(uri, "intrinsics.odin") {
 			path := filepath.join(
-				elems = {common.config.collections["core"], "/intrinsics"},
+				elems = {common.config.collections["base"], "/intrinsics"},
 				allocator = context.temp_allocator,
 			)
 
