@@ -1,13 +1,15 @@
 package server
 
+import "base:intrinsics"
+
 import "core:fmt"
-import "core:intrinsics"
 import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
 import "core:strings"
+
 _ :: intrinsics
 
 new_type :: proc(

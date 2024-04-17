@@ -1,8 +1,10 @@
 package server
 
+import "base:intrinsics"
+import "base:runtime"
+
 import "core:encoding/json"
 import "core:fmt"
-import "core:intrinsics"
 import "core:log"
 import "core:mem"
 import "core:odin/ast"
@@ -18,8 +20,6 @@ import "core:thread"
 import "core:time"
 
 import "src:common"
-
-import "base:runtime"
 
 Header :: struct {
 	content_length: int,

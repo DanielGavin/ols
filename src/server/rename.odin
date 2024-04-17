@@ -1,12 +1,13 @@
 package server
 
-import "src:common"
+import "base:runtime"
 
 import "core:log"
 import "core:mem"
 import "core:odin/ast"
-import "core:runtime"
 import "core:strings"
+
+import "src:common"
 
 get_rename :: proc(
 	document: ^Document,

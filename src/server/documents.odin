@@ -1,5 +1,7 @@
 package server
 
+import "base:intrinsics"
+
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -10,8 +12,6 @@ import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:strings"
-
-import "core:intrinsics"
 
 import "src:common"
 
