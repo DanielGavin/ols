@@ -215,7 +215,7 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 				source_pos = s.src_pos
 
 				for scanner.peek(&s) != '\n' {
-					n := scanner.scan(&s)
+					n := scanner.next(&s)
 
 					if n == scanner.EOF {
 						break
