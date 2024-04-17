@@ -550,7 +550,12 @@ read_ols_initialize_options :: proc(
 		}
 
 		if abs_final_path, ok := filepath.abs(final_path); ok {
-			config.collections[strings.clone(it.name)] = abs_final_path
+			slashed_path, _ := filepath.to_slash(
+				abs_final_path,
+				context.temp_allocator,
+			)
+
+			config.collections[strings.clone(it.name)] =  strings.clone(slashed_path)
 		} else {
 			log.errorf(
 				"Failed to find absolute address of collection: %v",
