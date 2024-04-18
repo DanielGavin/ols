@@ -345,6 +345,10 @@ get_selector_completion :: proc(
 		}
 	}
 
+	receiver_start := position_context.selector.expr_base.pos.offset
+	receiver_end := position_context.selector.expr_base.end.offset
+	receiver := position_context.file.src[receiver_start:receiver_end]
+
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
 			if selector, ok = resolve_type_expression(
@@ -362,6 +366,7 @@ get_selector_completion :: proc(
 			selector,
 			position_context,
 			&items,
+			receiver,
 		)
 	}
 
