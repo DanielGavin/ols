@@ -1,5 +1,7 @@
 package main
 
+import "base:intrinsics"
+
 import "core:encoding/json"
 import "core:fmt"
 import "core:log"
@@ -11,8 +13,6 @@ import "core:strconv"
 import "core:strings"
 import "core:sync"
 import "core:thread"
-
-import "core:intrinsics"
 
 import "src:common"
 import "src:server"

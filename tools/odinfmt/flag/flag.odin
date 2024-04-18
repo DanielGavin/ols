@@ -1,6 +1,7 @@
 package flag
 
-import "core:runtime"
+import "base:runtime"
+
 import "core:strings"
 import "core:reflect"
 import "core:fmt"

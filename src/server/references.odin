@@ -1,7 +1,6 @@
 package server
 
-
-import "src:common"
+import "base:runtime"
 
 import "core:fmt"
 import "core:log"
@@ -11,8 +10,9 @@ import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:runtime"
 import "core:strings"
+
+import "src:common"
 
 fullpaths: [dynamic]string
 

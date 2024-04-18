@@ -1,5 +1,7 @@
 package server
 
+import "base:runtime"
+
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -9,7 +11,6 @@ import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:runtime"
 import "core:strings"
 import "core:time"
 
