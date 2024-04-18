@@ -124,7 +124,7 @@ append_method_completion :: proc(
 
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
-						"%v.%v($0)",
+						"%v.%v",
 						path.base(
 							get_symbol_pkg_name(ast_context, symbol),
 							false,
@@ -133,23 +133,25 @@ append_method_completion :: proc(
 						symbol.name,
 					)
 				} else {
-					if len(symbol.value.(SymbolProcedureValue).arg_types) > 1 {
-						new_text = fmt.tprintf(
-							"%v(%v%v%v$0)",
-							symbol.name,
-							references,
-							receiver,
-							dereferences,
-						)
-					} else {
-						new_text = fmt.tprintf(
-							"%v(%v%v%v)$0",
-							symbol.name,
-							references,
-							receiver,
-							dereferences,
-						)
-					}
+					new_text = fmt.tprintf("%v", symbol.name)
+				}
+
+				if len(symbol.value.(SymbolProcedureValue).arg_types) > 1 {
+					new_text = fmt.tprintf(
+						"%v(%v%v%v$0)",
+						new_text,
+						references,
+						receiver,
+						dereferences,
+					)
+				} else {
+					new_text = fmt.tprintf(
+						"%v(%v%v%v)$0",
+						new_text,
+						references,
+						receiver,
+						dereferences,
+					)
 				}
 
 				item := CompletionItem {
