@@ -103,7 +103,7 @@ parse_args :: proc(ctx: ^Flag_Context, args: []string) -> Flag_Error {
 			}
 		case Type_Info_String:
 			raw_string := cast(^mem.Raw_String)flag.data;
-			raw_string.data = strings.ptr_from_string(value);
+			raw_string.data = raw_data(value);
 			raw_string.len = len(value);
 		case Type_Info_Float:
 			switch flag.type.size {
