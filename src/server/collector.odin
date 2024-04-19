@@ -854,7 +854,8 @@ get_package_mapping :: proc(
 		if len(imp.fullpath) < 2 {
 			continue
 		}
-		if i := strings.index(imp.fullpath, ":"); i != -1 {
+
+		if i := strings.index(imp.fullpath, ":"); i != -1 && i != len(imp.fullpath) - 1 {
 			collection := imp.fullpath[1:i]
 			p := imp.fullpath[i + 1:len(imp.fullpath) - 1]
 
