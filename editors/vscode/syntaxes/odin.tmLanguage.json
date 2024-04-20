@@ -4,6 +4,7 @@
 	"name": "Odin",
 	"patterns": [
 		{ "include": "#package-name-declaration" },
+		{ "include": "#import-declaration" },
 		{ "include": "#statements" }
 	],
 	"repository": {
@@ -216,6 +217,32 @@
 				"1": { "name": "keyword.control.odin" },
 				"2": { "name": "entity.name.type.module.odin" }
 			}
+		},
+		"import-declaration": {
+			"name": "meta.import.odin",
+			"begin": "\\b(import|foreign\\s+import)\\b",
+			"beginCaptures": {"0": {"name": "keyword.control.import.odin"}},
+			"end": "(?=^|;)",
+			"patterns": [
+				{	"name": "string.import.odin",
+					"match": "([\"`])([\\w\\.]*[/:])*([A-Za-z_]\\w*)([\"`])",
+					"captures": {
+						"1": {"name": "punctuation.definition.string.begin.odin"},
+						"3": {"name": "entity.name.namespace.odin"},
+						"4": {"name": "punctuation.definition.string.end.odin"}
+					}
+				},
+				{	"name": "entity.name.alias.odin",
+					"begin": "\\b[A-Za-z_]\\w*",
+					"beginCaptures": {"0": {"name": "entity.name.namespace.odin"}},
+					"end": "(?=^|;)",
+					"patterns": [
+						{ "include": "#strings" },
+						{ "include": "#comments" }
+					]
+				},
+				{ "include": "#comments" }
+			]
 		},
 		"map-bitset": {
 			"begin": "\\b(bit_set|map)\\b",
