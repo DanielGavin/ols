@@ -237,11 +237,12 @@
 					"beginCaptures": {"0": {"name": "entity.name.namespace.odin"}},
 					"end": "(?=^|;)",
 					"patterns": [
-						{ "include": "#strings" },
-						{ "include": "#comments" }
+						{"include": "#strings"},
+						{"include": "#comments"}
 					]
 				},
-				{ "include": "#comments" }
+				{"include": "#strings"},
+				{"include": "#comments"}
 			]
 		},
 		"map-bitset": {
