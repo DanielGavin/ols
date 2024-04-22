@@ -1,7 +1,8 @@
 package common
 
+import "base:runtime"
+
 import "core:mem"
-import "core:runtime"
 
 Scratch_Allocator :: struct {
 	data:               []byte,

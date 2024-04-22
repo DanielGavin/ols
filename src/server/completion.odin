@@ -52,9 +52,21 @@ get_completion_list :: proc(
 		return list, true
 	}
 
-	if position_context.import_stmt == nil &&
-	   strings.contains_any(completion_context.triggerCharacter, "/:\"") {
-		return list, true
+	if position_context.import_stmt == nil {
+		if strings.contains_any(completion_context.triggerCharacter, "/:\"") {
+			return list, true
+		}
+	} else {
+		// Check only when the import fullpath length is > 1, to allow
+		// completion of modules when the initial '"' quote is entered.
+		if len(position_context.import_stmt.fullpath) > 1 &&
+			position_context.position == position_context.import_stmt.end.offset &&
+			completion_context.triggerCharacter == "\"" {
+			// The completion was called for an import statement where the
+			// cursor is on the ending quote, so abort early to prevent
+			// performing another completion.
+			return list, true
+		}
 	}
 
 	ast_context := make_ast_context(
@@ -345,6 +357,10 @@ get_selector_completion :: proc(
 		}
 	}
 
+	receiver_start := position_context.selector.expr_base.pos.offset
+	receiver_end := position_context.selector.expr_base.end.offset
+	receiver := position_context.file.src[receiver_start:receiver_end]
+
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
 			if selector, ok = resolve_type_expression(
@@ -362,6 +378,7 @@ get_selector_completion :: proc(
 			selector,
 			position_context,
 			&items,
+			receiver,
 		)
 	}
 
@@ -1586,14 +1603,18 @@ get_package_completion :: proc(
 
 	list.isIncomplete = false
 
-	fullpath_length := len(position_context.import_stmt.fullpath)
+	without_quotes := position_context.import_stmt.fullpath
 
-	if fullpath_length <= 1 {
-		return
+	// Strip the opening quote, if one exists.
+	if len(without_quotes) > 0 && without_quotes[0] == '"' {
+		without_quotes = without_quotes[1:]
 	}
 
-	without_quotes := position_context.import_stmt.fullpath[1:fullpath_length -
-	1]
+	// Strip the closing quote, if one exists.
+	if len(without_quotes) > 0 && without_quotes[len(without_quotes) - 1] == '"' {
+		without_quotes = without_quotes[:len(without_quotes) - 1]
+	}
+
 	absolute_path := without_quotes
 	colon_index := strings.index(without_quotes, ":")
 

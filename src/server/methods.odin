@@ -49,11 +49,12 @@ create_remove_edit :: proc(
 
 append_method_completion :: proc(
 	ast_context: ^AstContext,
-	symbol: Symbol,
+	selector_symbol: Symbol,
 	position_context: ^DocumentPositionContext,
 	items: ^[dynamic]CompletionItem,
+	receiver: string,
 ) {
-	if symbol.type != .Variable {
+	if selector_symbol.type != .Variable && selector_symbol.type != .Struct {
 		return
 	}
 
@@ -65,8 +66,8 @@ append_method_completion :: proc(
 
 	for k, v in indexer.index.collection.packages {
 		method := Method {
-			name = symbol.name,
-			pkg  = symbol.pkg,
+			name = selector_symbol.name,
+			pkg  = selector_symbol.pkg,
 		}
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
@@ -103,17 +104,27 @@ append_method_completion :: proc(
 					continue
 				}
 
-				pointers_to_add := first_arg.pointers - symbol.pointers
+				pointers_to_add :=
+					first_arg.pointers - selector_symbol.pointers
 
-				if pointers_to_add != 1 {
-					pointers_to_add = 0
+				references := ""
+				dereferences := ""
+
+				if pointers_to_add > 0 {
+					for i in 0 ..< pointers_to_add {
+						references = fmt.tprintf("%v&", references)
+					}
+				} else if pointers_to_add < 0 {
+					for i in pointers_to_add ..< 0 {
+						dereferences = fmt.tprintf("%v^", dereferences)
+					}
 				}
 
 				new_text := ""
 
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
-						"%v.%v($0)",
+						"%v.%v",
 						path.base(
 							get_symbol_pkg_name(ast_context, symbol),
 							false,
@@ -122,7 +133,25 @@ append_method_completion :: proc(
 						symbol.name,
 					)
 				} else {
-					new_text = fmt.tprintf("%v($0)", symbol.name)
+					new_text = fmt.tprintf("%v", symbol.name)
+				}
+
+				if len(symbol.value.(SymbolProcedureValue).arg_types) > 1 {
+					new_text = fmt.tprintf(
+						"%v(%v%v%v$0)",
+						new_text,
+						references,
+						receiver,
+						dereferences,
+					)
+				} else {
+					new_text = fmt.tprintf(
+						"%v(%v%v%v)$0",
+						new_text,
+						references,
+						receiver,
+						dereferences,
+					)
 				}
 
 				item := CompletionItem {
