@@ -21,6 +21,25 @@ import "src:common"
 //Store uris we have reported on since last save. We use this to clear them on next save.
 uris_reported := make([dynamic]string)
 
+Json_Error :: struct {
+	type: string,
+	pos:  Json_Type_Error,
+	msgs: []string,
+}
+
+Json_Type_Error :: struct {
+	file:       string,
+	offset:     int,
+	line:       int,
+	column:     int,
+	end_column: int,
+}
+
+Json_Errors :: struct {
+	error_count: int,
+	errors:      []Json_Error,
+}
+
 
 //If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
 fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
@@ -101,12 +120,13 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 
 		if code, ok, buffer = common.run_executable(
 			fmt.tprintf(
-				"%v check %s %s %s %s %s",
+				"%v check %s %s %s %s %s %s",
 				command,
 				path,
 				strings.to_string(collection_builder),
 				entry_point_opt,
 				config.checker_args,
+				"-json-errors",
 				ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
 			),
 			&data,
@@ -119,161 +139,58 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 			return
 		}
 
-		s: scanner.Scanner
-
-		scanner.init(&s, string(buffer))
-
-		s.whitespace = {'\t', ' '}
-
-		current: rune
-
-		ErrorSeperator :: struct {
-			message: string,
-			line:    int,
-			column:  int,
-			uri:     string,
+		if len(buffer) == 0 {
+			continue
 		}
 
-		error_seperators := make(
-			[dynamic]ErrorSeperator,
+		json_errors: Json_Errors
+
+		if res := json.unmarshal(
+			buffer,
+			&json_errors,
+			json.DEFAULT_SPECIFICATION,
 			context.temp_allocator,
-		)
-
-		//find all the signatures string(digit:digit)
-		loop: for scanner.peek(&s) != scanner.EOF {
-
-			scan_line: {
-				error: ErrorSeperator
-
-				source_pos := s.src_pos
-
-				if source_pos == 1 {
-					source_pos = 0
-				}
-
-				for scanner.peek(&s) != '(' {
-					n := scanner.scan(&s)
-
-					if n == scanner.EOF {
-						break loop
-					}
-					if n == '\n' {
-						source_pos = s.src_pos - 1
-					}
-				}
-
-				error.uri = strings.clone(
-					string(buffer[source_pos:s.src_pos - 1]),
-					context.temp_allocator,
-				)
-
-				left_paren := scanner.scan(&s)
-
-				if left_paren != '(' {
-					break scan_line
-				}
-
-				lhs_digit := scanner.scan(&s)
-
-				if lhs_digit != scanner.Int {
-					break scan_line
-				}
-
-				line, column: int
-				ok: bool
-
-				line, ok = strconv.parse_int(scanner.token_text(&s))
-
-				if !ok {
-					break scan_line
-				}
-
-				seperator := scanner.scan(&s)
-
-				if seperator != ':' {
-					break scan_line
-				}
-
-				rhs_digit := scanner.scan(&s)
-
-				if rhs_digit != scanner.Int {
-					break scan_line
-				}
-
-				column, ok = strconv.parse_int(scanner.token_text(&s))
-
-				if !ok {
-					break scan_line
-				}
-
-				right_paren := scanner.scan(&s)
-
-				if right_paren != ')' {
-					break scan_line
-				}
-
-				source_pos = s.src_pos
-
-				for scanner.peek(&s) != '\n' {
-					n := scanner.scan(&s)
-
-					if n == scanner.EOF {
-						break
-					}
-				}
-
-				if source_pos == s.src_pos {
-					continue
-				}
-
-				error.message = strings.clone(
-					string(buffer[source_pos:s.src_pos - 1]),
-					context.temp_allocator,
-				)
-				error.column = column
-				error.line = line
-
-				append(&error_seperators, error)
-				continue loop
-			}
-
-			// line scan failed, skip to the next line
-			for scanner.peek(&s) != '\n' {
-				n := scanner.scan(&s)
-				if n == scanner.EOF {
-					break
-				}
-			}
+		); res != nil {
+			log.errorf("Failed to unmarshal check results: %v", res)
 		}
 
-		for error in error_seperators {
+		for error in json_errors.errors {
+			if len(error.msgs) == 0 {
+				break
+			}
+
+			message := strings.join(error.msgs, " ", context.temp_allocator)
+
 			if strings.contains(
-				error.message,
+				message,
 				"Redeclaration of 'main' in this scope",
 			) {
 				continue
 			}
 
-			if error.uri not_in errors {
-				errors[error.uri] = make(
+			if error.pos.file not_in errors {
+				errors[error.pos.file] = make(
 					[dynamic]Diagnostic,
 					context.temp_allocator,
 				)
 			}
 
 			append(
-				&errors[error.uri],
+				&errors[error.pos.file],
 				Diagnostic {
 					code = "checker",
-					severity = .Error,
+					severity = .Error if error.type == "error" else .Warning,
 					range =  {
 						start =  {
-							character = error.column,
-							line = error.line - 1,
+							character = error.pos.column - 1,
+							line = error.pos.line - 1,
 						},
-						end = {character = 0, line = error.line},
+						end =  {
+							character = error.pos.end_column - 1,
+							line = error.pos.line - 1,
+						},
 					},
-					message = error.message,
+					message = message,
 				},
 			)
 		}
@@ -303,9 +220,12 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 	for k, v in errors {
 		uri := common.create_uri(k, context.temp_allocator)
 
+		//Find the unique diagnostics, since some poor profile settings make the checker check the same file multiple times
+		unique := slice.unique(v[:])
+
 		params := NotificationPublishDiagnosticsParams {
 			uri         = uri.uri,
-			diagnostics = v[:],
+			diagnostics = unique,
 		}
 
 		notifaction := Notification {
@@ -320,4 +240,6 @@ check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
 			send_notification(notifaction, writer)
 		}
 	}
+
+
 }
