@@ -69,10 +69,12 @@
 					"match": "\\b([A-Za-z_]\\w*)\\b",
 					"name": "entity.other.attribute-name.odin"
 				}, {
+					"match": ",",
+					"name": "punctuation.odin"
+				},{
 					"begin": "=",
 					"beginCaptures": {"0": {"name": "keyword.operator.assignment.odin"}},
-					"end": "(,)|(?=\\))",
-					"endCaptures": {"1": {"name": "punctuation.odin"}},
+					"end": "(?=,|\\))",
 					"patterns": [{"include": "#expressions"}]
 				}]
 			}]
