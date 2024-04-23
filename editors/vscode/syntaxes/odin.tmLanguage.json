@@ -10,6 +10,7 @@
 	"repository": {
 		"statements": {
 			"patterns": [
+				{ "include": "#attribute" },
 				{ "include": "#procedure-assignment" },
 				{ "include": "#type-assignment" },
 				{ "include": "#distinct-type-assignment" },
@@ -47,6 +48,35 @@
 				{ "include": "#variable-name" }
 			]
 		},
+		"attribute": {
+			"patterns": [{
+				"name": "meta.attribute.odin",
+				"match": "(@)\\s*([A-Za-z_]\\w*)\\b",
+				"captures": {
+					"1": {"name": "keyword.control.attribute.odin"},
+					"2": {"name": "entity.other.attribute-name.odin"}
+				}
+			}, {
+				"name": "meta.attribute.odin",
+				"begin": "(@)\\s*(\\()",
+				"beginCaptures": {
+					"1": {"name": "keyword.control.attribute.odin"},
+					"2": {"name": "meta.brace.round.odin"}
+				},
+				"end": "\\)",
+				"endCaptures": {"0": {"name": "meta.brace.round.odin"}},
+				"patterns": [{
+					"match": "\\b([A-Za-z_]\\w*)\\b",
+					"name": "entity.other.attribute-name.odin"
+				}, {
+					"begin": "=",
+					"beginCaptures": {"0": {"name": "keyword.operator.assignment.odin"}},
+					"end": "(,)|(?=\\))",
+					"endCaptures": {"1": {"name": "punctuation.odin"}},
+					"patterns": [{"include": "#expressions"}]
+				}]
+			}]
+        },
 		"procedure-assignment": {
 			"name": "meta.definition.variable.odin",
 			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:|=)\\s*(#\\w+)?\\s*(?=proc\\b)",
