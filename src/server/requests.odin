@@ -798,7 +798,7 @@ request_initialize :: proc(
 	)
 	token_modifiers := make(
 		[]string,
-		len(token_modifier.names),
+		len(token_modifier.names)-1, // skip zero case
 		context.temp_allocator,
 	)
 
@@ -810,7 +810,7 @@ request_initialize :: proc(
 		}
 	}
 
-	for name, i in token_modifier.names {
+	for name, i in token_modifier.names[1:] {
 		token_modifiers[i] = strings.to_lower(name, context.temp_allocator)
 	}
 

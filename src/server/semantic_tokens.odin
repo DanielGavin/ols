@@ -261,7 +261,7 @@ visit_node :: proc(
 		if symbol_and_node, ok := builder.symbols[cast(uintptr)node]; ok {
 			if symbol_and_node.symbol.type == .Constant ||
 			   symbol_and_node.symbol.type != .Variable {
-				//modifier = .ReadOnly
+				modifier = .ReadOnly
 			}
 
 			if .Distinct in symbol_and_node.symbol.flags &&
