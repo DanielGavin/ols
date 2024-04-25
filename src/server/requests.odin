@@ -429,6 +429,10 @@ read_ols_initialize_options :: proc(
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
 
+	config.enable_checker_only_saved =
+		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
+		
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(
 			ols_config.odin_command,
@@ -701,6 +705,7 @@ request_initialize :: proc(
 	config.enable_inlay_hints = false
 	config.enable_fake_method = false
 	config.enable_procedure_snippet = true
+	config.enable_checker_only_saved = false
 
 	read_ols_config :: proc(
 		file: string,
@@ -1258,7 +1263,7 @@ notification_did_save :: proc(
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
-	check(config.profile.checker_path[:], writer, config)
+	check(config.profile.checker_path[:], corrected_uri, writer, config)
 
 	return .None
 }

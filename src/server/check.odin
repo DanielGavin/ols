@@ -78,12 +78,17 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	return data[:]
 }
 
-check :: proc(paths: []string, writer: ^Writer, config: ^common.Config) {
+check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	paths := paths
 
 	if len(paths) == 0 {
-		paths = fallback_find_odin_directories(config)
+		if config.enable_checker_only_saved {
+			paths = {path.dir(uri.path, context.temp_allocator)}
+		} else {
+			paths = fallback_find_odin_directories(config)
+		}
 	}
+
 
 	data := make([]byte, mem.Kilobyte * 200, context.temp_allocator)
 

@@ -13,6 +13,10 @@
 			}
 		},
 		"thread_pool_count": { "type": "integer" },
+		"enable_checker_only_saved": {
+			"type": "boolean",
+			"description": "Turns on only calling the checker on the package being saved"
+		},
 		"enable_semantic_tokens": {
 			"type": "boolean",
 			"description": "Turns on syntax highlighting."
