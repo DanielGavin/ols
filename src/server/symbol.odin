@@ -46,7 +46,8 @@ SymbolProcedureGroupValue :: struct {
 	group: ^ast.Expr,
 }
 
-//runtime temp symbol value
+// currently only used for proc group references
+// TODO needs a better name
 SymbolAggregateValue :: struct {
 	symbols: []Symbol,
 }
@@ -65,6 +66,7 @@ SymbolDynamicArrayValue :: struct {
 	expr: ^ast.Expr,
 }
 
+// TODO rename to SymbolMultiPointerValue
 SymbolMultiPointer :: struct {
 	expr: ^ast.Expr,
 }

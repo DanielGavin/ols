@@ -793,32 +793,6 @@ request_initialize :: proc(
 	signatureTriggerCharacters := []string{"(", ","}
 	signatureRetriggerCharacters := []string{","}
 
-	token_type := type_info_of(SemanticTokenTypes).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
-	token_modifier := type_info_of(SemanticTokenModifiers).variant.(runtime.Type_Info_Named).base.variant.(runtime.Type_Info_Enum)
-
-	token_types := make(
-		[]string,
-		len(token_type.names),
-		context.temp_allocator,
-	)
-	token_modifiers := make(
-		[]string,
-		len(token_modifier.names),
-		context.temp_allocator,
-	)
-
-	for name, i in token_type.names {
-		if name == "EnumMember" {
-			token_types[i] = "enumMember"
-		} else {
-			token_types[i] = strings.to_lower(name, context.temp_allocator)
-		}
-	}
-
-	for name, i in token_modifier.names {
-		token_modifiers[i] = strings.to_lower(name, context.temp_allocator)
-	}
-
 	response := make_response_message(
 		params = ResponseInitializeParams {
 			capabilities = ServerCapabilities {
@@ -844,8 +818,8 @@ request_initialize :: proc(
 					range = config.enable_semantic_tokens,
 					full = config.enable_semantic_tokens,
 					legend = SemanticTokensLegend {
-						tokenTypes = token_types,
-						tokenModifiers = token_modifiers,
+						tokenTypes = semantic_token_type_names,
+						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
 				inlayHintProvider = config.enable_inlay_hints,
