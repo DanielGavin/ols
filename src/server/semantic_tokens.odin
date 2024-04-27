@@ -219,7 +219,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^Ellipsis:
 		visit_node(n.expr, builder)
 	case ^Ident:
-		visit_ident(n, {}, builder)
+		visit_ident(n, n, {}, builder)
 	case ^Selector_Expr:
 		visit_selector(cast(^Selector_Expr)node, builder)
 		builder.selector = false
@@ -403,7 +403,7 @@ visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuil
 	
 	for name in value_decl.names {
 		ident := name.derived.(^Ident) or_continue
-		visit_ident(ident, modifiers, builder)
+		visit_ident(ident, ident, modifiers, builder)
 	}
 
 	visit_node(value_decl.type, builder)
@@ -498,17 +498,18 @@ visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuil
 		builder.selector = true
 	}
 
-	visit_ident(selector.field, {}, builder)
+	visit_ident(selector.field, selector, {}, builder)
 }
 
 visit_ident :: proc(
 	ident: ^ast.Ident,
+	symbol_ptr: rawptr,
 	modifiers: SemanticTokenModifiers,
 	builder: ^SemanticTokenBuilder,
 ) {
 	using ast
 
-	symbol_and_node, in_symbols := builder.symbols[cast(uintptr)ident]
+	symbol_and_node, in_symbols := builder.symbols[cast(uintptr)symbol_ptr]
 	if !in_symbols {
 		return
 	}
