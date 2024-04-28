@@ -529,7 +529,14 @@ is_values_nestable_assign :: proc(list: []^ast.Expr) -> bool {
 
 	for expr in list {
 		#partial switch v in expr.derived {
-		case ^ast.Ident, ^ast.Binary_Expr, ^ast.Index_Expr, ^ast.Selector_Expr, ^ast.Paren_Expr, ^ast.Ternary_If_Expr, ^ast.Ternary_When_Expr, ^ast.Or_Else_Expr:
+		case ^ast.Ident,
+		     ^ast.Binary_Expr,
+		     ^ast.Index_Expr,
+		     ^ast.Selector_Expr,
+		     ^ast.Paren_Expr,
+		     ^ast.Ternary_If_Expr,
+		     ^ast.Ternary_When_Expr,
+		     ^ast.Or_Else_Expr:
 			return true
 		}
 	}
@@ -1157,16 +1164,14 @@ visit_stmt :: proc(
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
 		   v.init != nil && is_assign_statement_ending_with_call(v.init) ||
 		   v.cond != nil && v.init == nil && is_value_expression_call(v.cond) {
+			break_end_document :=
+				hang(3, end_document) if v.init != nil else end_document
 			document = cons(
 				document,
 				group(
 					cons(
 						begin_document,
-						if_break_or(
-							end_document,
-							hang(3, end_document),
-							"init",
-						),
+						if_break_or(end_document, break_end_document, "init"),
 					),
 				),
 			)
@@ -1239,10 +1244,21 @@ visit_stmt :: proc(
 	case ^Case_Clause:
 		document = cons(document, text("case"))
 
-		if v.list != nil {
+
+		if v.list != nil && len(v.list) > 0 {
+			options: List_Options = {.Add_Comma}
+
+			if contains_comments_in_range(
+				p,
+				v.list[0].pos,
+				v.list[len(v.list) - 1].end,
+			) {
+				options |= {.Enforce_Newline}
+			}
+
 			document = cons_with_nopl(
 				document,
-				align(group(visit_exprs(p, v.list, {.Add_Comma}))),
+				align(group(visit_exprs(p, v.list, options))),
 			)
 		}
 

@@ -22,4 +22,12 @@ if_three :: proc() {
 		position_context.position,
 	) {
 	}
+
+	if contains_comments_in_range(
+		p,
+		v.list[0].pos,
+		v.list[len(v.list) - 1].end,
+	) {
+
+	}
 }
