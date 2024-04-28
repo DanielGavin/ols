@@ -15,16 +15,14 @@ jobs:
     - name: Download LLVM and setup PATH
       run: |
         brew install llvm@17
-        echo "/usr/local/opt/llvm@17/bin" >> $GITHUB_PATH
-        TMP_PATH=$(xcrun --show-sdk-path)/user/include
-        echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
+        echo "/opt/homebrew/opt/llvm@17/bin" >> $GITHUB_PATH
     - name: Download Odin
       run: |
         git clone https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
-        make release
+        ./build_odin.sh release
     - name: Build ols
       run: ./build.sh CI_NO_TESTS -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
     - name: Move to Dist
