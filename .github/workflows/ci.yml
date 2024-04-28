@@ -43,12 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Setup Dependencies
-        if: matrix.os == 'ubuntu-20.04'
-        # LLVM 12 and 11 are pre-installed on GitHub runners. On ubuntu-20.04, LLVM 12
-        # is available as version 12.0.0 whilst Odin requires 12.0.1. It would try to use
-        # LLVM 12 by default and CI would fail. Therefore we'll remove it to use LLVM 11.
-        run: sudo apt update && sudo apt purge -qq -y llvm-12 clang-12
-      - name: Buid Odin
+        run:  wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 17
+          echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
+      - name: Build Odin
         run: |
           git clone --depth 1 https://github.com/odin-lang/Odin
           cd Odin && ./build_odin.sh release
@@ -58,7 +57,7 @@ jobs:
   macos:
     strategy:
       matrix:
-        os: [macos-12, macos-latest]
+        os: [macos-13]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15

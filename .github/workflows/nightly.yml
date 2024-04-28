@@ -38,7 +38,7 @@ jobs:
         path: ./dist
 
   dist-x86_64-darwin:
-    runs-on: macos-latest
+    runs-on: macos-13
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
@@ -73,7 +73,10 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Download LLVM
-      run: sudo apt update && sudo apt purge -qq -y llvm-12 clang-12
+      run:  wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 17
+          echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
     - name: Download Odin
       run: |
         git clone https://github.com/odin-lang/Odin

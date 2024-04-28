@@ -1160,7 +1160,13 @@ visit_stmt :: proc(
 			)
 		}
 
-
+		//Special case for when the if statement ends with a call expression
+		/* 
+		  if my_function(
+		 	
+		  ) {	 	
+		  }
+		*/
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
 		   v.init != nil && is_assign_statement_ending_with_call(v.init) ||
 		   v.cond != nil && v.init == nil && is_value_expression_call(v.cond) {
