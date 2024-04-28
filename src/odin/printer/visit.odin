@@ -557,7 +557,7 @@ is_values_return_stmt_callable :: proc(list: []^ast.Expr) -> bool {
 		}
 
 		#partial switch v in result.derived {
-		case ^ast.Call_Expr:
+		case ^ast.Call_Expr, ^ast.Comp_Lit:
 			return false
 		}
 	}
@@ -571,6 +571,10 @@ is_return_stmt_ending_with_call_expr :: proc(list: []^ast.Expr) -> bool {
 	}
 
 	if _, is_call := list[len(list) - 1].derived.(^ast.Call_Expr); is_call {
+		return true
+	}
+
+	if _, is_cmp := list[len(list) - 1].derived.(^ast.Comp_Lit); is_cmp {
 		return true
 	}
 
