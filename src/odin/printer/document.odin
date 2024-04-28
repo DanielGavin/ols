@@ -377,7 +377,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			for i := len(v.elements) - 1; i >= 0; i -= 1 {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.elements[i],
@@ -388,18 +388,19 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Align:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = 0,
 					mode = data.mode,
 					document = v.document,
 					alignment = start_width - width,
 				},
 			)
+
 		case Document_Nest:
 			if v.alignment != 0 {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -410,7 +411,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			} else {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation + (v.negate ? -1 : 1),
 						mode = data.mode,
 						document = v.document,
@@ -430,7 +431,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			if data.mode == .Break {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.break_document,
@@ -440,7 +441,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			} else if v.fit_document != nil {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.fit_document,
@@ -451,7 +452,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Group:
 			append(
 				list,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = (v.mode == .Break ? .Break : data.mode),
 					document = v.document,
@@ -537,7 +538,7 @@ format :: proc(
 			for i := len(v.elements) - 1; i >= 0; i -= 1 {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.elements[i],
@@ -549,7 +550,7 @@ format :: proc(
 			if v.alignment != 0 {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.document,
@@ -560,7 +561,7 @@ format :: proc(
 			} else {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation + (v.negate ? -1 : 1),
 						mode = data.mode,
 						document = v.document,
@@ -569,13 +570,14 @@ format :: proc(
 				)
 			}
 		case Document_Align:
+			align := consumed - data.indentation * p.indentation_width
 			append(
 				list,
-				Tuple{
-					indentation = 0,
+				Tuple {
+					indentation = data.indentation,
 					mode = data.mode,
 					document = v.document,
-					alignment = consumed,
+					alignment = align,
 				},
 			)
 		case Document_Text:
@@ -611,7 +613,7 @@ format :: proc(
 			if mode == .Break {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.break_document,
@@ -621,7 +623,7 @@ format :: proc(
 			} else if v.fit_document != nil {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = data.mode,
 						document = v.fit_document,
@@ -633,7 +635,7 @@ format :: proc(
 			if data.mode == .Flat && !recalculate {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = v.mode,
 						document = v.document,
@@ -651,7 +653,7 @@ format :: proc(
 
 			append(
 				&list_fits,
-				Tuple{
+				Tuple {
 					indentation = data.indentation,
 					mode = .Flat,
 					document = v.document,
@@ -664,7 +666,7 @@ format :: proc(
 			if data.mode == .Fit {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = .Fit,
 						document = v.document,
@@ -676,7 +678,7 @@ format :: proc(
 			   v.mode != .Fit {
 				append(
 					list,
-					Tuple{
+					Tuple {
 						indentation = data.indentation,
 						mode = .Flat,
 						document = v.document,
@@ -687,7 +689,7 @@ format :: proc(
 				if data.mode == .Fill || v.mode == .Fill {
 					append(
 						list,
-						Tuple{
+						Tuple {
 							indentation = data.indentation,
 							mode = .Fill,
 							document = v.document,
@@ -697,7 +699,7 @@ format :: proc(
 				} else if v.mode == .Fit {
 					append(
 						list,
-						Tuple{
+						Tuple {
 							indentation = data.indentation,
 							mode = .Fit,
 							document = v.document,
@@ -707,7 +709,7 @@ format :: proc(
 				} else {
 					append(
 						list,
-						Tuple{
+						Tuple {
 							indentation = data.indentation,
 							mode = .Break,
 							document = v.document,

@@ -727,7 +727,9 @@ visit_bit_field_fields :: proc(
 
 	document := empty()
 
-	name_alignment, type_alignment := get_possible_bit_field_alignment(bit_field_type.fields)
+	name_alignment, type_alignment := get_possible_bit_field_alignment(
+		bit_field_type.fields,
+	)
 
 	for field, i in bit_field_type.fields {
 		if i == 0 && .Enforce_Newline in options {
@@ -756,7 +758,8 @@ visit_bit_field_fields :: proc(
 						cons_with_nopl(
 							cons(
 								repeat_space(
-									type_alignment - get_node_length(field.type),
+									type_alignment -
+									get_node_length(field.type),
 								),
 								text_position(p, "|", field.type.end),
 							),
@@ -791,7 +794,8 @@ visit_bit_field_fields :: proc(
 			document = cons(document, text(","))
 		}
 
-		if (i != len(bit_field_type.fields) - 1 && .Enforce_Newline in options) {
+		if (i != len(bit_field_type.fields) - 1 &&
+			   .Enforce_Newline in options) {
 			comment, _ := visit_comments(p, bit_field_type.fields[i + 1].pos)
 			document = cons(document, comment, newline(1))
 		} else if .Enforce_Newline in options {
@@ -1094,7 +1098,7 @@ visit_stmt :: proc(
 
 		set_source_position(p, v.pos)
 
-		block := visit_block_stmts(p, v.stmts, len(v.stmts) > 1)
+		block := visit_block_stmts(p, v.stmts)
 
 		comment_end, _ := visit_comments(
 			p,
@@ -1238,7 +1242,7 @@ visit_stmt :: proc(
 		if v.list != nil {
 			document = cons_with_nopl(
 				document,
-				visit_exprs(p, v.list, {.Add_Comma}),
+				align(group(visit_exprs(p, v.list, {.Add_Comma}))),
 			)
 		}
 
@@ -1948,7 +1952,11 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, text("}"))
 		} else {
-			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
+			document = cons(
+				document,
+				break_with_space(),
+				visit_begin_brace(p, v.pos, .Generic),
+			)
 			set_source_position(p, v.fields[0].pos)
 			document = cons(
 				document,
@@ -2420,11 +2428,7 @@ visit_end_brace :: proc(
 }
 
 @(private)
-visit_block_stmts :: proc(
-	p: ^Printer,
-	stmts: []^ast.Stmt,
-	split := false,
-) -> ^Document {
+visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt) -> ^Document {
 	document := empty()
 
 	for stmt, i in stmts {
@@ -2965,7 +2969,12 @@ get_possible_enum_alignment :: proc(exprs: []^ast.Expr) -> int {
 }
 
 @(private)
-get_possible_bit_field_alignment :: proc(fields: []^ast.Bit_Field_Field) -> (longest_name: int, longest_type: int) {
+get_possible_bit_field_alignment :: proc(
+	fields: []^ast.Bit_Field_Field,
+) -> (
+	longest_name: int,
+	longest_type: int,
+) {
 	for field in fields {
 		longest_name = max(longest_name, get_node_length(field.name))
 		longest_type = max(longest_type, get_node_length(field.type))
