@@ -24,7 +24,7 @@ ast_goto_comp_lit_field :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 2, character = 12},
 			end = {line = 2, character = 13},
 		},
@@ -51,7 +51,7 @@ ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 2, character = 12},
 			end = {line = 2, character = 13},
 		},
@@ -81,7 +81,7 @@ ast_goto_untyped_comp_lit_in_proc :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 2, character = 4},
 			end = {line = 2, character = 7},
 		},
@@ -107,7 +107,7 @@ ast_goto_bit_field_definition :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 1, character = 3},
 			end = {line = 1, character = 15},
 		},
@@ -134,7 +134,7 @@ ast_goto_bit_field_field_definition :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 2, character = 4},
 			end = {line = 2, character = 7},
 		},
@@ -164,7 +164,7 @@ ast_goto_bit_field_field_in_proc :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range =  {
+		range = {
 			start = {line = 2, character = 4},
 			end = {line = 2, character = 7},
 		},

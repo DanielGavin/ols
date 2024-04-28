@@ -574,6 +574,16 @@ is_return_stmt_ending_with_call_expr :: proc(list: []^ast.Expr) -> bool {
 		return true
 	}
 
+
+	return false
+}
+
+@(private)
+is_return_stmt_ending_with_comp_lit_expr :: proc(list: []^ast.Expr) -> bool {
+	if len(list) == 0 {
+		return false
+	}
+
 	if _, is_cmp := list[len(list) - 1].derived.(^ast.Comp_Lit); is_cmp {
 		return true
 	}
@@ -1489,8 +1499,13 @@ visit_stmt :: proc(
 		} else {
 			document = cons(document, text("return"))
 
-
-			if !is_return_stmt_ending_with_call_expr(v.results) {
+			if is_return_stmt_ending_with_comp_lit_expr(v.results) {
+				document = cons(
+					document,
+					if_break_or_document(empty(), text(" ")),
+					visit_exprs(p, v.results, {.Add_Comma}),
+				)
+			} else if !is_return_stmt_ending_with_call_expr(v.results) {
 				document = cons_with_nopl(
 					document,
 					group(
@@ -2245,11 +2260,12 @@ visit_expr :: proc(
 
 			document = cons(document, newline(1), text_position(p, "}", v.end))
 		} else {
+			break_string := " " if v.type != nil else ""
 			document = cons(
 				document,
 				group(
 					cons(
-						if_break(" "),
+						if_break(break_string),
 						text("{"),
 						nest(
 							cons(
