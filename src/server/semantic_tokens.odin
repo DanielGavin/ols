@@ -518,29 +518,28 @@ visit_import_decl :: proc(decl: ^ast.Import_Decl, builder: ^SemanticTokenBuilder
 	}
 	else if len(decl.relpath.text) > 2 {
 
-		start, end := 1, len(decl.relpath.text) - 1
-		i := end
+		end := len(decl.relpath.text) - 1
+		pos := end
 
 		for {
-			if i > start {
-				ch, w := utf8.decode_last_rune_in_string(decl.relpath.text[:i])
+			if pos > 1 {
+				ch, w := utf8.decode_last_rune_in_string(decl.relpath.text[:pos])
 	
 				switch ch {
 				case ':', '/': // break
 				case:
-					i -= w
+					pos -= w
 					continue
 				}
 			}
 
-			start = i
 			break
 		}
 
 		write_semantic_at_pos(
 			builder,
-			decl.relpath.pos.offset+start,
-			end-start,
+			decl.relpath.pos.offset+pos,
+			end-pos,
 			.Namespace,
 		)
 	}
