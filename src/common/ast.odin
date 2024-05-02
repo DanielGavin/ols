@@ -924,7 +924,7 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 		if n, ok := a.derived.(^Bit_Field_Type); ok {
 			if len(n.fields) != len(m.fields) do return false
 			ret := node_equal(n.backing_type, m.backing_type)
-			for i in 0..<len(n.fields) {
+			for i in 0 ..< len(n.fields) {
 				ret &= node_equal(n.fields[i], m.fields[i])
 			}
 			return ret

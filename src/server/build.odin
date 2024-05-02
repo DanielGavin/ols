@@ -75,8 +75,12 @@ try_build_package :: proc(pkg_name: string) {
 		return
 	}
 
-	arena: runtime.Arena 
-	result := runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+	arena: runtime.Arena
+	result := runtime.arena_init(
+		&arena,
+		mem.Megabyte * 40,
+		runtime.default_allocator(),
+	)
 	defer runtime.arena_destroy(&arena)
 
 	{
@@ -156,7 +160,14 @@ setup_index :: proc() {
 	)
 	indexer.index = make_memory_index(symbol_collection)
 
-	dir_exe := path.dir(os.args[0])
+	dir_exe, ok := filepath.abs(path.dir(os.args[0], context.temp_allocator))
+
+	if !ok {
+		log.error(
+			"Failed to find ols executable path to build the builtin packages",
+		)
+		return
+	}
 
 	try_build_package(path.join({dir_exe, "builtin"}))
 }

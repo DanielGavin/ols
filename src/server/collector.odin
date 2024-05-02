@@ -74,14 +74,12 @@ make_symbol_collection :: proc(
 	allocator := context.allocator,
 	config: ^common.Config,
 ) -> SymbolCollection {
-	return(
-		SymbolCollection {
-			allocator = allocator,
-			config = config,
-			packages = make(map[string]SymbolPackage, 16, allocator),
-			unique_strings = make(map[string]string, 16, allocator),
-		} \
-	)
+	return SymbolCollection {
+		allocator = allocator,
+		config = config,
+		packages = make(map[string]SymbolPackage, 16, allocator),
+		unique_strings = make(map[string]string, 16, allocator),
+	}
 }
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
@@ -197,8 +195,8 @@ collect_bit_field_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
-	names  := make([dynamic]string, 0, len(fields), collection.allocator)
-	types  := make([dynamic]^ast.Expr, 0, len(fields), collection.allocator)
+	names := make([dynamic]string, 0, len(fields), collection.allocator)
+	types := make([dynamic]^ast.Expr, 0, len(fields), collection.allocator)
 	ranges := make([dynamic]common.Range, 0, len(fields), collection.allocator)
 
 	for field, i in fields {
@@ -216,7 +214,7 @@ collect_bit_field_fields :: proc(
 			append(&ranges, common.get_token_range(ident, file.src))
 		}
 	}
-	
+
 	value := SymbolBitFieldValue {
 		names  = names[:],
 		types  = types[:],
@@ -855,7 +853,8 @@ get_package_mapping :: proc(
 			continue
 		}
 
-		if i := strings.index(imp.fullpath, ":"); i != -1 && i != len(imp.fullpath) - 1 {
+		if i := strings.index(imp.fullpath, ":");
+		   i != -1 && i != len(imp.fullpath) - 1 {
 			collection := imp.fullpath[1:i]
 			p := imp.fullpath[i + 1:len(imp.fullpath) - 1]
 
