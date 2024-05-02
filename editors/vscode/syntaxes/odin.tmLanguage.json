@@ -256,14 +256,6 @@
 			"beginCaptures": {"0": {"name": "keyword.control.import.odin"}},
 			"end": "(?=^|;)",
 			"patterns": [
-				{	"name": "string.import.odin",
-					"match": "([\"`])([\\w\\.]*[/:])*([A-Za-z_]\\w*)([\"`])",
-					"captures": {
-						"1": {"name": "punctuation.definition.string.begin.odin"},
-						"3": {"name": "entity.name.namespace.odin"},
-						"4": {"name": "punctuation.definition.string.end.odin"}
-					}
-				},
 				{	"name": "entity.name.alias.odin",
 					"begin": "\\b[A-Za-z_]\\w*",
 					"beginCaptures": {"0": {"name": "entity.name.namespace.odin"}},
