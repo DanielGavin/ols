@@ -60,8 +60,9 @@ get_completion_list :: proc(
 		// Check only when the import fullpath length is > 1, to allow
 		// completion of modules when the initial '"' quote is entered.
 		if len(position_context.import_stmt.fullpath) > 1 &&
-			position_context.position == position_context.import_stmt.end.offset &&
-			completion_context.triggerCharacter == "\"" {
+		   position_context.position ==
+			   position_context.import_stmt.end.offset &&
+		   completion_context.triggerCharacter == "\"" {
 			// The completion was called for an import statement where the
 			// cursor is on the ending quote, so abort early to prevent
 			// performing another completion.
@@ -989,7 +990,9 @@ get_implicit_completion :: proc(
 							break
 						}
 
-						if type == nil && len(s.types) > elem_index {
+						if type == nil &&
+						   len(s.types) > elem_index &&
+						   elem_index != 1 {
 							type = s.types[elem_index]
 						}
 
@@ -1060,15 +1063,15 @@ get_implicit_completion :: proc(
 		enum_node: ^ast.Expr
 
 		if position_in_node(
-			   position_context.binary.right,
-			   position_context.position,
-		   ) {
+			position_context.binary.right,
+			position_context.position,
+		) {
 			context_node = position_context.binary.right
 			enum_node = position_context.binary.left
 		} else if position_in_node(
-			   position_context.binary.left,
-			   position_context.position,
-		   ) {
+			position_context.binary.left,
+			position_context.position,
+		) {
 			context_node = position_context.binary.left
 			enum_node = position_context.binary.right
 		}
@@ -1611,7 +1614,8 @@ get_package_completion :: proc(
 	}
 
 	// Strip the closing quote, if one exists.
-	if len(without_quotes) > 0 && without_quotes[len(without_quotes) - 1] == '"' {
+	if len(without_quotes) > 0 &&
+	   without_quotes[len(without_quotes) - 1] == '"' {
 		without_quotes = without_quotes[:len(without_quotes) - 1]
 	}
 
@@ -1623,7 +1627,7 @@ get_package_completion :: proc(
 
 		if colon_index + 1 < len(without_quotes) {
 			absolute_path = filepath.join(
-				elems =  {
+				elems = {
 					common.config.collections[c],
 					filepath.dir(
 						without_quotes[colon_index + 1:],
@@ -1789,14 +1793,14 @@ get_core_insert_package_if_non_existent :: proc(
 
 	strings.write_string(&builder, fmt.tprintf("import \"core:%v\"", pkg))
 
-	return  {
+	return {
 			newText = strings.to_string(builder),
-			range =  {
-				start =  {
+			range = {
+				start = {
 					line = ast_context.file.pkg_decl.end.line + 1,
 					character = 0,
 				},
-				end =  {
+				end = {
 					line = ast_context.file.pkg_decl.end.line + 1,
 					character = 0,
 				},
@@ -2098,7 +2102,7 @@ is_bitset_assignment_operator :: proc(op: string) -> bool {
 	return op in bitset_assignment_operators
 }
 
-language_keywords: []string =  {
+language_keywords: []string = {
 	"align_of",
 	"case",
 	"defer",
