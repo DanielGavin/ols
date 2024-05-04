@@ -606,7 +606,7 @@
 				},
 				{
 					"name": "constant.character.escape.odin",
-					"match": "\\\\(\\\\|[abfnrutv''\"]|x\\h{2}|u\\h{4}|U\\h{8}|[0-7]{3})"
+					"match": "\\\\(\\\\|[abefnrutv''\"]|x\\h{2}|u\\h{4}|U\\h{8}|[0-7]{3})"
 				},
 				{
 					"name": "invalid.illegal.unknown-escape.odin",
