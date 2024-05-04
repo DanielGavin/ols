@@ -78,7 +78,12 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	return data[:]
 }
 
-check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common.Config) {
+check :: proc(
+	paths: []string,
+	uri: common.Uri,
+	writer: ^Writer,
+	config: ^common.Config,
+) {
 	paths := paths
 
 	if len(paths) == 0 {
@@ -157,7 +162,11 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 			json.DEFAULT_SPECIFICATION,
 			context.temp_allocator,
 		); res != nil {
-			log.errorf("Failed to unmarshal check results: %v", res)
+			log.errorf(
+				"Failed to unmarshal check results: %v, %v",
+				res,
+				string(buffer),
+			)
 		}
 
 		for error in json_errors.errors {
@@ -186,12 +195,12 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 				Diagnostic {
 					code = "checker",
 					severity = .Error if error.type == "error" else .Warning,
-					range =  {
-						start =  {
+					range = {
+						start = {
 							character = error.pos.column - 1,
 							line = error.pos.line - 1,
 						},
-						end =  {
+						end = {
 							character = error.pos.end_column - 1,
 							line = error.pos.line - 1,
 						},
