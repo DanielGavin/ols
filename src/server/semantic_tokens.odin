@@ -9,6 +9,7 @@ package server
 
 import "core:fmt"
 import "core:log"
+import "core:unicode/utf8"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 
@@ -353,10 +354,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^Defer_Stmt:
 		visit_node(n.stmt, builder)
 	case ^Import_Decl:
-		if n.name.text != "" {
-			write_semantic_token(builder, n.name, .Namespace)
-		}
-
+		visit_import_decl(n, builder)
 	case ^Or_Return_Expr:
 		visit_node(n.expr, builder)
 	case ^Or_Else_Expr:
@@ -499,6 +497,52 @@ visit_selector :: proc(selector: ^ast.Selector_Expr, builder: ^SemanticTokenBuil
 	}
 
 	visit_ident(selector.field, selector, {}, builder)
+}
+
+visit_import_decl :: proc(decl: ^ast.Import_Decl, builder: ^SemanticTokenBuilder) {
+	/*
+	hightlight the namespace in the import declaration
+	
+	import "pkg"
+	        ^^^
+	import "core:fmt"
+	             ^^^
+	import "core:odin/ast"
+	                  ^^^
+	import foo "core:fmt"
+	       ^^^
+	*/
+
+	if decl.name.text != "" {
+		write_semantic_token(builder, decl.name, .Namespace)
+	}
+	else if len(decl.relpath.text) > 2 {
+
+		end := len(decl.relpath.text) - 1
+		pos := end
+
+		for {
+			if pos > 1 {
+				ch, w := utf8.decode_last_rune_in_string(decl.relpath.text[:pos])
+	
+				switch ch {
+				case ':', '/': // break
+				case:
+					pos -= w
+					continue
+				}
+			}
+
+			break
+		}
+
+		write_semantic_at_pos(
+			builder,
+			decl.relpath.pos.offset+pos,
+			end-pos,
+			.Namespace,
+		)
+	}
 }
 
 visit_ident :: proc(

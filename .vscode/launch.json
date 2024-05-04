@@ -9,12 +9,18 @@
             "request": "attach",
             "name": "Attach OLS",
             "processId": "${command:pickProcess}"
-        }
+        },
         {
             "type": "cppvsdbg",
             "request": "launch",
             "name": "Run unit",
             "program": "C:\\Users\\Daniel\\Desktop\\Computer_Science\\ols\\test_unit.exe",
-        }
+        },
+        {
+            "type": "lldb",
+            "request": "attach",
+            "name": "Attach lldb",
+            "pid": "${command:pickProcess}"
+        },
     ]
 }
