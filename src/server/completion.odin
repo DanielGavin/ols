@@ -992,7 +992,7 @@ get_implicit_completion :: proc(
 
 						if type == nil &&
 						   len(s.types) > elem_index &&
-						   elem_index != 1 {
+						   elem_index != -1 {
 							type = s.types[elem_index]
 						}
 
