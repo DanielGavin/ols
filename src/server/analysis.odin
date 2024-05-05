@@ -344,6 +344,8 @@ is_symbol_same_typed :: proc(
 				case:
 					return false
 				}
+			case .Nil:
+				return false
 			}
 		}
 	}
@@ -1304,24 +1306,21 @@ internal_resolve_type_identifier :: proc(
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
 		ident.name = node.name
 
-		symbol: Symbol
+		symbol: Symbol = {
+			type = .Keyword,
+			signature = node.name,
+			name = ident.name,
+			pkg = ast_context.current_package,
+		}
 
 		switch ident.name {
 		case "true", "false":
-			symbol = Symbol {
-				type = .Keyword,
-				signature = node.name,
-				pkg = ast_context.current_package,
-				value = SymbolUntypedValue{type = .Bool},
-			}
+			symbol.value = SymbolUntypedValue{type = .Bool}
+		case "nil":
+			// TODO get the type of nil from the context and remove .Nil from SymbolUntypedValue
+			symbol.value = SymbolUntypedValue{type = .Nil}
 		case:
-			symbol = Symbol {
-				type = .Keyword,
-				signature = node.name,
-				name = ident.name,
-				pkg = ast_context.current_package,
-				value = SymbolBasicValue{ident = ident},
-			}
+			symbol.value = SymbolBasicValue{ident = ident}
 		}
 
 		return symbol, true
@@ -4386,6 +4385,8 @@ get_signature :: proc(
 			return "bool"
 		case .Integer:
 			return "int"
+		case .Nil:
+			return "" // no obvious type for nil
 		}
 	}
 

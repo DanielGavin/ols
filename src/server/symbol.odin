@@ -94,6 +94,7 @@ SymbolUntypedValue :: struct {
 		Float,
 		String,
 		Bool,
+		Nil,
 	},
 	tok:  tokenizer.Token,
 }

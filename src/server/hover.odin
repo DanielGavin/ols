@@ -33,6 +33,8 @@ write_hover_content :: proc(
 			symbol.signature = "float"
 		case .Integer:
 			symbol.signature = "int"
+		case .Nil:
+			// no obvious signature for nil
 		}
 	}
 
