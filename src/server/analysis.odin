@@ -190,7 +190,8 @@ resolve_type_comp_literal :: proc(
 							}
 						}
 					}
-				} else if s, ok := current_symbol.value.(SymbolBitFieldValue); ok {
+				} else if s, ok := current_symbol.value.(SymbolBitFieldValue);
+				   ok {
 					for name, i in s.names {
 						if name ==
 						   field_value.field.derived.(^ast.Ident).name {
@@ -309,7 +310,15 @@ is_symbol_same_typed :: proc(
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
-				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
+				case "int",
+				     "uint",
+				     "u32",
+				     "i32",
+				     "u8",
+				     "i8",
+				     "u64",
+				     "u16",
+				     "i16":
 					return true
 				case:
 					return false
@@ -376,7 +385,10 @@ is_symbol_same_typed :: proc(
 	#partial switch a_value in a.value {
 	case SymbolBasicValue:
 		return a.name == b.name && a.pkg == b.pkg
-	case SymbolStructValue, SymbolEnumValue, SymbolUnionValue, SymbolBitSetValue:
+	case SymbolStructValue,
+	     SymbolEnumValue,
+	     SymbolUnionValue,
+	     SymbolBitSetValue:
 		return a.name == b.name && a.pkg == b.pkg
 	case SymbolSliceValue:
 		b_value := b.value.(SymbolSliceValue)
@@ -872,12 +884,12 @@ internal_resolve_type_expression :: proc(
 			true
 	case ^Bit_Field_Type:
 		return make_symbol_bit_field_from_ast(
-			ast_context,
-			v^,
-			ast_context.field_name,
-			true,
-		),
-		true
+				ast_context,
+				v^,
+				ast_context.field_name,
+				true,
+			),
+			true
 	case ^Basic_Directive:
 		return resolve_basic_directive(ast_context, v^)
 	case ^Binary_Expr:
@@ -1512,12 +1524,7 @@ internal_resolve_type_identifier :: proc(
 			return_symbol.name = node.name
 		case ^Bit_Field_Type:
 			return_symbol, ok =
-				make_symbol_bit_field_from_ast(
-					ast_context,
-					v^,
-					node,
-				),
-				true
+				make_symbol_bit_field_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if !is_procedure_generic(v.type) {
@@ -1868,9 +1875,9 @@ resolve_implicit_selector :: proc(
 
 		for _, i in position_context.assign.lhs {
 			if position_in_node(
-				   position_context.assign.rhs[i],
-				   position_context.position,
-			   ) {
+				position_context.assign.rhs[i],
+				position_context.position,
+			) {
 				return resolve_type_expression(
 					ast_context,
 					position_context.assign.lhs[i],
@@ -1881,9 +1888,9 @@ resolve_implicit_selector :: proc(
 
 	if position_context.binary != nil {
 		if position_in_node(
-			   position_context.binary.left,
-			   position_context.position,
-		   ) {
+			position_context.binary.left,
+			position_context.position,
+		) {
 			return resolve_type_expression(
 				ast_context,
 				position_context.binary.right,
@@ -1989,7 +1996,8 @@ resolve_implicit_selector :: proc(
 					}
 
 					return resolve_type_expression(ast_context, type)
-				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
+				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue);
+				   ok {
 					ast_context.current_package = comp_symbol.pkg
 
 					//We can either have the final 
@@ -3934,7 +3942,10 @@ resolve_entire_decl :: proc(
 				ast_context,
 				&position_context,
 			)
-		case ^ast.If_Stmt, ^ast.For_Stmt, ^ast.Range_Stmt, ^ast.Inline_Range_Stmt:
+		case ^ast.If_Stmt,
+		     ^ast.For_Stmt,
+		     ^ast.Range_Stmt,
+		     ^ast.Inline_Range_Stmt:
 			scope: Scope
 			scope.id = data.id_counter
 			scope.offset = node.end.offset
@@ -4269,7 +4280,7 @@ get_signature :: proc(
 		)
 	case SymbolBitSetValue:
 		return strings.concatenate(
-			a =  {
+			a = {
 				pointer_prefix,
 				"bit_set[",
 				common.node_to_string(v.expr),
@@ -4285,7 +4296,7 @@ get_signature :: proc(
 		}
 	case SymbolMapValue:
 		return strings.concatenate(
-			a =  {
+			a = {
 				pointer_prefix,
 				"map[",
 				common.node_to_string(v.key),
@@ -4340,7 +4351,7 @@ get_signature :: proc(
 		)
 	case SymbolFixedArrayValue:
 		return strings.concatenate(
-			a =  {
+			a = {
 				pointer_prefix,
 				"[",
 				common.node_to_string(v.len),
@@ -4351,7 +4362,7 @@ get_signature :: proc(
 		)
 	case SymbolMatrixValue:
 		return strings.concatenate(
-			a =  {
+			a = {
 				pointer_prefix,
 				"matrix",
 				"[",
@@ -5291,6 +5302,9 @@ get_document_position_node :: proc(
 		get_document_position(n.name, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.bit_size, position_context)
+	case ^ast.Or_Branch_Expr:
+		get_document_position(n.expr, position_context)
+		get_document_position(n.label, position_context)
 	case:
 	}
 }
