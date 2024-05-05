@@ -109,7 +109,6 @@ SemanticTokenBuilder :: struct {
 	current_start: int,
 	tokens:        [dynamic]u32,
 	symbols:       map[uintptr]SymbolAndNode,
-	selector:      bool,
 	src:           string,
 }
 
@@ -216,8 +215,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^Ident:
 		visit_ident(n, n, {}, builder)
 	case ^Selector_Expr:
-		visit_selector(cast(^Selector_Expr)node, builder)
-		builder.selector = false
+		visit_node(n.expr, builder)
+		visit_ident(n.field, n, {}, builder)
 	case ^When_Stmt:
 		visit_node(n.cond, builder)
 		visit_node(n.body, builder)
@@ -494,20 +493,6 @@ visit_bit_field_fields :: proc(
 	}
 }
 
-visit_selector :: proc(
-	selector: ^ast.Selector_Expr,
-	builder: ^SemanticTokenBuilder,
-) {
-	if v, ok := selector.expr.derived.(^ast.Selector_Expr); ok {
-		visit_selector(v, builder)
-	} else {
-		visit_node(selector.expr, builder)
-		builder.selector = true
-	}
-
-	visit_ident(selector.field, selector, {}, builder)
-}
-
 visit_import_decl :: proc(
 	decl: ^ast.Import_Decl,
 	builder: ^SemanticTokenBuilder,
@@ -592,6 +577,8 @@ visit_ident :: proc(
 		}
 	case .Type_Function:
 		write_semantic_node(builder, ident, .Type, modifiers)
+	case .EnumMember:
+		write_semantic_node(builder, ident, .EnumMember, modifiers)
 	}
 
 	switch v in symbol.value {

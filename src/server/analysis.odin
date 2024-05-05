@@ -1156,6 +1156,10 @@ internal_resolve_type_expression :: proc(
 				} else {
 					return Symbol{}, false
 				}
+			case SymbolEnumValue:
+				// enum members probably require own symbol value
+				selector.type = .EnumMember
+				return selector, true
 			}
 		}
 	case:
@@ -1856,9 +1860,9 @@ resolve_implicit_selector :: proc(
 						proc_value.arg_types[parameter_index].type,
 					)
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue);
-				   ok {
-					return symbol, true
-				}
+				ok {
+				 return symbol, true
+			 }
 			}
 		}
 	}
