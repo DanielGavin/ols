@@ -1308,27 +1308,25 @@ internal_resolve_type_identifier :: proc(
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
 		ident.name = node.name
 
-		symbol: Symbol
-
 		switch ident.name {
+		case "nil":
+			return {}, false
 		case "true", "false":
-			symbol = Symbol {
+			return {
 				type = .Keyword,
 				signature = node.name,
 				pkg = ast_context.current_package,
 				value = SymbolUntypedValue{type = .Bool},
-			}
+			}, true
 		case:
-			symbol = Symbol {
+			return {
 				type = .Keyword,
 				signature = node.name,
 				name = ident.name,
 				pkg = ast_context.current_package,
 				value = SymbolBasicValue{ident = ident},
-			}
+			}, true
 		}
-
-		return symbol, true
 	}
 
 	if local, ok := get_local(ast_context, node.pos.offset, node.name);
