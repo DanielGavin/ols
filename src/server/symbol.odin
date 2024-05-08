@@ -176,6 +176,7 @@ SymbolType :: enum {
 	Struct        = 22,
 	Type_Function = 23,
 	Union         = 7,
+	Type		  = 8, //For maps, arrays, slices, dyn arrays, matrixes, etc
 	Unresolved    = 1, //Use text if not being able to resolve it.
 }
 
@@ -279,6 +280,8 @@ symbol_type_to_completion_kind :: proc(
 		return .Enum
 	case .Unresolved:
 		return .Text
+	case .Type:
+		return .Constant
 	case:
 		return .Text
 	}
