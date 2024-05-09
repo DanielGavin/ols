@@ -187,6 +187,12 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		`,
 		packages = {},
 	}
+	test.expect_definition_locations(
+		t,
+		&source0,
+		{{range = {{line = 5, character = 5}, {line = 5, character = 8}}}},
+	)
+
 	source1 := test.Source {
 		main     = `package test
 			main :: proc() {
@@ -200,11 +206,27 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		`,
 		packages = {},
 	}
+	test.expect_definition_locations(
+		t,
+		&source1,
+		{{range = {{line = 5, character = 5}, {line = 5, character = 8}}}},
+	)
 
-	location := common.Location {
-		range = {{line = 5, character = 5}, {line = 5, character = 8}},
+	source3 := test.Source {
+		main     = `package test
+			main :: proc() {
+				foo := 1
+				
+				{
+					foo := fo{*}o
+				}
+			}
+		`,
+		packages = {},
 	}
-
-	test.expect_definition_locations(t, &source0, {location})
-	test.expect_definition_locations(t, &source1, {location})
+	test.expect_definition_locations(
+		t,
+		&source3,
+		{{range = {{line = 2, character = 4}, {line = 2, character = 7}}}},
+	)
 }
