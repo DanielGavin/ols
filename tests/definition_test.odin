@@ -172,3 +172,39 @@ ast_goto_bit_field_field_in_proc :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
+	source0 := test.Source {
+		main     = `package test
+			main :: proc() {
+				foo := 1
+				
+				{
+					fo{*}o := 2
+				}
+			}
+		`,
+		packages = {},
+	}
+	source1 := test.Source {
+		main     = `package test
+			main :: proc() {
+				foo := 1
+				
+				{
+					foo := 2
+					fo{*}o
+				}
+			}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {{line = 5, character = 5}, {line = 5, character = 8}},
+	}
+
+	test.expect_definition_locations(t, &source0, {location})
+	test.expect_definition_locations(t, &source1, {location})
+}

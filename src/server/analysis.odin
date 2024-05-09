@@ -1219,31 +1219,22 @@ clear_local_group :: proc(ast_context: ^AstContext, id: int) {
 }
 
 get_local :: proc(
-	ast_context: ^AstContext,
-	offset: int,
-	name: string,
+	ast_context: AstContext,
+	ident: ast.Ident,
 ) -> (
 	DocumentLocal,
 	bool,
 ) {
-	for _, locals in &ast_context.locals {
-		if local_stack, ok := locals[name]; ok {
-			for i := len(local_stack) - 1; i >= 0; i -= 1 {
-				if local_stack[i].offset <= offset ||
-				   local_stack[i].local_global {
-					if i < 0 {
-						return {}, false
-					} else {
-						ret := local_stack[i].rhs
-						if ident, ok := ret.derived.(^ast.Ident);
-						   ok && ident.name == name {
-							if i - 1 < 0 {
-								return {}, false
-							}
-						}
-						return local_stack[i], true
-					}
-				}
+	for _, locals in ast_context.locals {
+		local_stack := locals[ident.name] or_continue
+
+		#reverse for local in local_stack {
+			if local.offset <= ident.pos.offset ||
+			   local.local_global ||
+			   local.lhs.pos.offset == ident.pos.offset {
+				// checking equal offsets is a hack to allow matching lhs ident in var decls
+				// because otherwise minimal offset begins after the decl
+				return local, true
 			}
 		}
 	}
@@ -1313,23 +1304,23 @@ internal_resolve_type_identifier :: proc(
 			return {}, false
 		case "true", "false":
 			return {
-				type = .Keyword,
-				signature = node.name,
-				pkg = ast_context.current_package,
-				value = SymbolUntypedValue{type = .Bool},
+					type = .Keyword,
+					signature = node.name,
+					pkg = ast_context.current_package,
+					value = SymbolUntypedValue{type = .Bool},
 			}, true
 		case:
 			return {
-				type = .Keyword,
-				signature = node.name,
-				name = ident.name,
-				pkg = ast_context.current_package,
-				value = SymbolBasicValue{ident = ident},
+					type = .Keyword,
+					signature = node.name,
+					name = ident.name,
+					pkg = ast_context.current_package,
+					value = SymbolBasicValue{ident = ident},
 			}, true
 		}
 	}
 
-	if local, ok := get_local(ast_context, node.pos.offset, node.name);
+	if local, ok := get_local(ast_context^, node);
 	   ok && ast_context.use_locals {
 		is_distinct := false
 
@@ -1858,9 +1849,9 @@ resolve_implicit_selector :: proc(
 						proc_value.arg_types[parameter_index].type,
 					)
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue);
-				ok {
-				 return symbol, true
-			 }
+				   ok {
+					return symbol, true
+				}
 			}
 		}
 	}
@@ -2170,7 +2161,7 @@ resolve_location_identifier :: proc(
 ) {
 	symbol: Symbol
 
-	if local, ok := get_local(ast_context, node.pos.offset, node.name); ok {
+	if local, ok := get_local(ast_context^, node); ok {
 		symbol.range = common.get_token_range(local.lhs, ast_context.file.src)
 		uri := common.create_uri(local.lhs.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package

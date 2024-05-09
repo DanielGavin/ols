@@ -13,5 +13,6 @@
 *node_modules
 /ols
 /odinfmt
+tests/tests
 ols.json
 .vscode/settings.json
