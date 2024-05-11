@@ -2766,3 +2766,56 @@ ast_generics_function_with_struct_diff_pkg :: proc(t: ^testing.T) {
 		},
 	)
 }
+
+
+@(test)
+ast_generics_function_with_comp_lit_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			DummyFunction :: proc($T: typeid, value: T) -> T
+			{
+				return value;
+			}	
+
+			OtherStruct :: struct 
+			{
+				val1, val2, val3: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+		
+		CoolStruct :: struct
+		{
+			val1, val2, val3: int,
+		}
+
+		main :: proc()
+		{
+			newValue := my_package.DummyFunction(CoolStruct, CoolStruct{})
+    		newValue.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{
+			"CoolStruct.val1: int",
+			"CoolStruct.val2: int",
+			"CoolStruct.val3: int",
+		},
+	)
+}
