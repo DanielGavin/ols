@@ -1308,7 +1308,8 @@ internal_resolve_type_identifier :: proc(
 					signature = node.name,
 					pkg = ast_context.current_package,
 					value = SymbolUntypedValue{type = .Bool},
-			}, true
+				},
+				true
 		case:
 			return {
 					type = .Keyword,
@@ -1316,7 +1317,8 @@ internal_resolve_type_identifier :: proc(
 					name = ident.name,
 					pkg = ast_context.current_package,
 					value = SymbolBasicValue{ident = ident},
-			}, true
+				},
+				true
 		}
 	}
 
@@ -3029,6 +3031,7 @@ get_generic_assignment :: proc(
 			ast_context.call = old_call
 		}
 
+		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 				for ret in procedure.return_types {

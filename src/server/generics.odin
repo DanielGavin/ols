@@ -351,31 +351,47 @@ find_and_replace_poly_type :: proc(
 		case ^ast.Matrix_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.column_count, poly_map); ok {
 				v.column_count = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.row_count, poly_map); ok {
 				v.row_count = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Dynamic_Array_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Array_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.len, poly_map); ok {
 				v.len = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Multi_Pointer_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Pointer_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		}
 
