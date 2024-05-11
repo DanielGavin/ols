@@ -227,9 +227,7 @@ resolve_references :: proc(
 		if in_pkg {
 			symbols_and_nodes := resolve_entire_file(
 				&document,
-				reference,
 				resolve_flag,
-				false,
 				context.allocator,
 			)
 
