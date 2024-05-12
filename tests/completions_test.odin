@@ -481,7 +481,7 @@ ast_swizzle_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		 {
+		{
 			"x: f32",
 			"y: f32",
 			"z: f32",
@@ -2657,6 +2657,165 @@ ast_simple_bit_field_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{"My_Bit_Field.one: int", "My_Bit_Field.two: int", "My_Bit_Field.three: int"},
+		{
+			"My_Bit_Field.one: int",
+			"My_Bit_Field.two: int",
+			"My_Bit_Field.three: int",
+		},
+	)
+}
+
+
+@(test)
+ast_generics_function_with_struct_same_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			DummyFunction :: proc(value: $T/[dynamic]$E, index: int) -> ^E
+			{
+				return &value[index]
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+		
+		CoolStruct :: struct
+		{
+			val1, val2, val3: int,
+		}
+
+		main :: proc()
+		{
+			testArray : [dynamic]CoolStruct
+			
+			//no completion on function or new value
+			newValue := my_package.DummyFunction(testArray, 10)
+			newValue.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{
+			"CoolStruct.val1: int",
+			"CoolStruct.val2: int",
+			"CoolStruct.val3: int",
+		},
+	)
+}
+
+
+@(test)
+ast_generics_function_with_struct_diff_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			DummyFunction :: proc(value: $T/[dynamic]$E, index: int) -> ^E
+			{
+				return &value[index]
+			}
+
+			CoolStruct :: struct
+			{
+				val1, val2, val3: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+		
+		main :: proc()
+		{
+			testArray : [dynamic]my_package.CoolStruct
+			
+			//no completion on function or new value
+			newValue := my_package.DummyFunction(testArray, 10)
+			newValue.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{
+			"CoolStruct.val1: int",
+			"CoolStruct.val2: int",
+			"CoolStruct.val3: int",
+		},
+	)
+}
+
+
+@(test)
+ast_generics_function_with_comp_lit_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			DummyFunction :: proc($T: typeid, value: T) -> T
+			{
+				return value;
+			}	
+
+			OtherStruct :: struct 
+			{
+				val1, val2, val3: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "my_package"
+		
+		CoolStruct :: struct
+		{
+			val1, val2, val3: int,
+		}
+
+		main :: proc()
+		{
+			newValue := my_package.DummyFunction(CoolStruct, CoolStruct{})
+    		newValue.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{
+			"CoolStruct.val1: int",
+			"CoolStruct.val2: int",
+			"CoolStruct.val3: int",
+		},
 	)
 }

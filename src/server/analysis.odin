@@ -86,6 +86,7 @@ AstContext :: struct {
 	imports:          []Package, //imports for the current document
 	current_package:  string,
 	document_package: string,
+	saved_package:    string,
 	use_locals:       bool,
 	local_id:         int,
 	call:             ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
@@ -128,6 +129,46 @@ make_ast_context :: proc(
 	return ast_context
 }
 
+set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
+	ast_context.current_package = ast_context.saved_package
+}
+
+@(deferred_in = set_ast_package_deferred)
+set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
+	ast_context.saved_package = ast_context.current_package
+	ast_context.current_package = pkg
+}
+
+set_ast_package_none_deferred :: proc(ast_context: ^AstContext) {
+	ast_context.current_package = ast_context.saved_package
+}
+
+@(deferred_in = set_ast_package_none_deferred)
+set_ast_package_scoped :: proc(ast_context: ^AstContext) {
+	ast_context.saved_package = ast_context.current_package
+}
+
+set_ast_package_from_symbol_deferred :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+) {
+	ast_context.current_package = ast_context.saved_package
+}
+
+@(deferred_in = set_ast_package_from_symbol_deferred)
+set_ast_package_from_symbol_scoped :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+) {
+	ast_context.saved_package = ast_context.current_package
+
+	if symbol.pkg != "" {
+		ast_context.current_package = symbol.pkg
+	} else {
+		ast_context.current_package = ast_context.document_package
+	}
+}
+
 reset_ast_context :: proc(ast_context: ^AstContext) {
 	ast_context.use_locals = true
 	clear(&ast_context.recursion_map)
@@ -154,10 +195,7 @@ resolve_type_comp_literal :: proc(
 	}
 
 
-	prev_package := ast_context.current_package
-	ast_context.current_package = current_symbol.pkg
-
-	defer ast_context.current_package = prev_package
+	set_ast_package_set_scoped(ast_context, current_symbol.pkg)
 
 	for elem, element_index in current_comp_lit.elems {
 		if !position_in_node(elem, position_context.position) {
@@ -737,7 +775,7 @@ resolve_basic_directive :: proc(
 			ast_context.allocator,
 		)
 		ident.name = "Source_Code_Location"
-		ast_context.current_package = ast_context.document_package
+		set_ast_package_set_scoped(ast_context, ast_context.document_package)
 		return internal_resolve_type_identifier(ast_context, ident^)
 	}
 
@@ -781,11 +819,7 @@ internal_resolve_type_expression :: proc(
 		return {}, false
 	}
 
-	saved_package := ast_context.current_package
-
-	defer {
-		ast_context.current_package = saved_package
-	}
+	set_ast_package_scoped(ast_context)
 
 	if check_node_recursion(ast_context, node) {
 		return {}, false
@@ -979,7 +1013,7 @@ internal_resolve_type_expression :: proc(
 			return {}, false
 		}
 
-		ast_context.current_package = indexed.pkg
+		set_ast_package_set_scoped(ast_context, indexed.pkg)
 
 		symbol: Symbol
 
@@ -1027,11 +1061,7 @@ internal_resolve_type_expression :: proc(
 		); ok {
 			ast_context.use_locals = false
 
-			if selector.pkg != "" {
-				ast_context.current_package = selector.pkg
-			} else {
-				ast_context.current_package = ast_context.document_package
-			}
+			set_ast_package_from_symbol_scoped(ast_context, selector)
 
 			#partial switch s in selector.value {
 			case SymbolProcedureValue:
@@ -1052,11 +1082,7 @@ internal_resolve_type_expression :: proc(
 		); ok {
 			ast_context.use_locals = false
 
-			if selector.pkg != "" {
-				ast_context.current_package = selector.pkg
-			} else {
-				ast_context.current_package = ast_context.document_package
-			}
+			set_ast_package_from_symbol_scoped(ast_context, selector)
 
 			#partial switch s in selector.value {
 			case SymbolFixedArrayValue:
@@ -1079,12 +1105,8 @@ internal_resolve_type_expression :: proc(
 				}
 
 				if components_count == 1 {
-					if selector.pkg != "" {
-						ast_context.current_package = selector.pkg
-					} else {
-						ast_context.current_package =
-							ast_context.document_package
-					}
+					set_ast_package_from_symbol_scoped(ast_context, selector)
+
 					symbol, ok := internal_resolve_type_expression(
 						ast_context,
 						s.expr,
@@ -1288,11 +1310,7 @@ internal_resolve_type_identifier :: proc(
 		return {}, false
 	}
 
-	saved_package := ast_context.current_package
-
-	defer {
-		ast_context.current_package = saved_package
-	}
+	set_ast_package_scoped(ast_context)
 
 	if v, ok := common.keyword_map[node.name]; ok {
 		//keywords
@@ -1679,7 +1697,7 @@ expand_struct_usings :: proc(
 	ranges := slice.to_dynamic(value.ranges, ast_context.allocator)
 
 	for k, v in value.usings {
-		ast_context.current_package = symbol.pkg
+		set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 		field_expr: ^ast.Expr
 
@@ -1809,8 +1827,7 @@ resolve_comp_literal :: proc(
 		}
 	}
 
-	old_package := ast_context.current_package
-	ast_context.current_package = symbol.pkg
+	set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 	symbol, _ = resolve_type_comp_literal(
 		ast_context,
@@ -1818,8 +1835,6 @@ resolve_comp_literal :: proc(
 		symbol,
 		position_context.parent_comp_lit,
 	) or_return
-
-	ast_context.current_package = old_package
 
 	return symbol, true
 }
@@ -1964,7 +1979,7 @@ resolve_implicit_selector :: proc(
 				position_context.parent_comp_lit,
 			); ok {
 				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
-					ast_context.current_package = comp_symbol.pkg
+					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
 					//We can either have the final 
 					elem_index := -1
@@ -1993,7 +2008,7 @@ resolve_implicit_selector :: proc(
 					return resolve_type_expression(ast_context, type)
 				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue);
 				   ok {
-					ast_context.current_package = comp_symbol.pkg
+					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
 					//We can either have the final 
 					elem_index := -1
@@ -2140,7 +2155,8 @@ resolve_unresolved_symbol :: proc(
 	case SymbolBitSetValue:
 		symbol.type = .Enum
 	case SymbolGenericValue:
-		ast_context.current_package = symbol.pkg
+		set_ast_package_set_scoped(ast_context, symbol.pkg)
+
 		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
 			symbol.type = ret.type
 			symbol.signature = ret.signature
@@ -2203,7 +2219,7 @@ resolve_location_comp_lit_field :: proc(
 ) {
 	reset_ast_context(ast_context)
 
-	ast_context.current_package = ast_context.document_package
+	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	symbol = resolve_comp_literal(ast_context, position_context) or_return
 
@@ -2236,7 +2252,7 @@ resolve_location_implicit_selector :: proc(
 ) {
 	reset_ast_context(ast_context)
 
-	ast_context.current_package = ast_context.document_package
+	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	symbol = resolve_implicit_selector(
 		ast_context,
@@ -2264,7 +2280,8 @@ resolve_location_selector :: proc(
 	ok: bool,
 ) {
 	reset_ast_context(ast_context)
-	ast_context.current_package = ast_context.document_package
+
+	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	symbol = resolve_type_expression(ast_context, selector.expr) or_return
 
@@ -3031,6 +3048,7 @@ get_generic_assignment :: proc(
 			ast_context.call = old_call
 		}
 
+		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 				for ret in procedure.return_types {
@@ -3165,7 +3183,8 @@ get_locals_stmt :: proc(
 	save_assign := false,
 ) {
 	reset_ast_context(ast_context)
-	ast_context.current_package = ast_context.document_package
+
+	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	using ast
 
@@ -3790,6 +3809,296 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings)
 }
 
+ResolveReferenceFlag :: enum {
+	None,
+	Variable,
+	Constant,
+	StructElement,
+	EnumElement,
+}
+
+resolve_entire_file :: proc(
+	document: ^Document,
+	reference := "",
+	flag := ResolveReferenceFlag.None,
+	save_unresolved := false,
+	allocator := context.allocator,
+) -> map[uintptr]SymbolAndNode {
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		allocator,
+	)
+
+	get_globals(document.ast, &ast_context)
+
+	set_ast_package_set_scoped(&ast_context, ast_context.document_package)
+
+	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
+
+	for decl in document.ast.decls {
+		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
+			continue
+		}
+
+		resolve_entire_decl(
+			&ast_context,
+			document,
+			decl,
+			&symbols,
+			reference,
+			flag,
+			save_unresolved,
+			allocator,
+		)
+		clear(&ast_context.locals)
+	}
+
+	return symbols
+}
+
+resolve_entire_decl :: proc(
+	ast_context: ^AstContext,
+	document: ^Document,
+	decl: ^ast.Node,
+	symbols: ^map[uintptr]SymbolAndNode,
+	reference := "",
+	flag := ResolveReferenceFlag.None,
+	save_unresolved := false,
+	allocator := context.allocator,
+) {
+	Scope :: struct {
+		offset: int,
+		id:     int,
+	}
+
+	Visit_Data :: struct {
+		ast_context:     ^AstContext,
+		symbols:         ^map[uintptr]SymbolAndNode,
+		scopes:          [dynamic]Scope,
+		id_counter:      int,
+		last_visit:      ^ast.Node,
+		resolve_flag:    ResolveReferenceFlag,
+		reference:       string,
+		save_unresolved: bool,
+		document:        ^Document,
+	}
+
+	data := Visit_Data {
+		ast_context     = ast_context,
+		symbols         = symbols,
+		scopes          = make([dynamic]Scope, allocator),
+		resolve_flag    = flag,
+		reference       = reference,
+		document        = document,
+		save_unresolved = save_unresolved,
+	}
+
+	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil || visitor == nil {
+			return nil
+		}
+		data := cast(^Visit_Data)visitor.data
+		ast_context := data.ast_context
+
+		reset_ast_context(ast_context)
+
+		data.last_visit = node
+
+		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
+		if len(data.scopes) > 0 {
+			current_scope := data.scopes[len(data.scopes) - 1]
+
+			if current_scope.offset < node.end.offset {
+				clear_local_group(ast_context, current_scope.id)
+
+				pop(&data.scopes)
+
+				if len(data.scopes) > 0 {
+					current_scope = data.scopes[len(data.scopes) - 1]
+					ast_context.local_id = current_scope.id
+				} else {
+					ast_context.local_id = 0
+				}
+			}
+		}
+
+		#partial switch v in node.derived {
+		case ^ast.Proc_Lit:
+			if v.body == nil {
+				break
+			}
+
+			scope: Scope
+			scope.id = data.id_counter
+			scope.offset = node.end.offset
+			data.id_counter += 1
+			ast_context.local_id = scope.id
+
+			append(&data.scopes, scope)
+			add_local_group(ast_context, scope.id)
+
+			position_context: DocumentPositionContext
+			position_context.position = node.end.offset
+
+			get_locals_proc_param_and_results(
+				ast_context.file,
+				v^,
+				ast_context,
+				&position_context,
+			)
+			get_locals_stmt(
+				ast_context.file,
+				cast(^ast.Stmt)node,
+				ast_context,
+				&position_context,
+			)
+		case ^ast.If_Stmt,
+		     ^ast.For_Stmt,
+		     ^ast.Range_Stmt,
+		     ^ast.Inline_Range_Stmt:
+			scope: Scope
+			scope.id = data.id_counter
+			scope.offset = node.end.offset
+			data.id_counter += 1
+			ast_context.local_id = scope.id
+
+			append(&data.scopes, scope)
+			add_local_group(ast_context, scope.id)
+
+			position_context: DocumentPositionContext
+			position_context.position = node.end.offset
+			get_locals_stmt(
+				ast_context.file,
+				cast(^ast.Stmt)node,
+				ast_context,
+				&position_context,
+			)
+		}
+
+		if data.resolve_flag == .None {
+			#partial switch v in node.derived {
+			case ^ast.Ident:
+				if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
+					}
+				}
+			case ^ast.Selector_Expr:
+				if symbol, ok := resolve_type_expression(ast_context, &v.node);
+				   ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
+					}
+				}
+			case ^ast.Call_Expr:
+				if symbol, ok := resolve_type_expression(ast_context, &v.node);
+				   ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node        = v,
+						symbol      = symbol,
+						is_resolved = true,
+					}
+				} else if data.save_unresolved {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node = v,
+					}
+				}
+			}
+		} else {
+			#partial done: switch v in node.derived {
+			case ^ast.Selector_Expr:
+				document: ^Document = data.document
+
+				position_context := DocumentPositionContext {
+					position = v.pos.offset,
+				}
+
+				get_document_position_decls(
+					document.ast.decls[:],
+					&position_context,
+				)
+
+				if symbol, ok := resolve_location_selector(ast_context, v);
+				   ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node   = v.field,
+						symbol = symbol,
+					}
+				}
+
+				if _, is_ident := v.field.derived.(^ast.Ident); is_ident {
+					if data.resolve_flag == .Constant ||
+					   data.resolve_flag == .Variable {
+						return nil
+					}
+				}
+			case ^ast.Ident:
+				if data.resolve_flag == .Variable && v.name != data.reference {
+					break done
+				}
+
+				document: ^Document = data.document
+
+				position_context := DocumentPositionContext {
+					position = v.pos.offset,
+				}
+
+				get_document_position_decls(
+					document.ast.decls[:],
+					&position_context,
+				)
+
+				if position_context.field_value != nil &&
+				   position_in_node(
+					   position_context.field_value.field,
+					   v.pos.offset,
+				   ) {
+					break done
+				} else if position_context.struct_type != nil &&
+				   data.resolve_flag != .StructElement {
+					break done
+				} else if position_context.enum_type != nil &&
+				   data.resolve_flag != .EnumElement {
+					break done
+				}
+
+				if symbol, ok := resolve_location_identifier(ast_context, v^);
+				   ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node   = v,
+						symbol = symbol,
+					}
+				}
+			}
+		}
+
+		return visitor
+	}
+
+	visitor := ast.Visitor {
+		data  = &data,
+		visit = visit,
+	}
+
+	ast.walk(&visitor, decl)
+}
+
 concatenate_symbol_information :: proc {
 	concatenate_raw_symbol_information,
 	concatenate_raw_string_information,
@@ -3923,6 +4232,7 @@ unwrap_union :: proc(
 	bool,
 ) {
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
+		//TODO: This current package is sus, it probably shouldn't be there.
 		ast_context.current_package = union_symbol.pkg
 		if union_value, ok := union_symbol.value.(SymbolUnionValue); ok {
 			return union_value, true

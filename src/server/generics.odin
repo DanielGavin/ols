@@ -254,6 +254,24 @@ resolve_poly :: proc(
 				return true
 			}
 		}
+	case ^ast.Comp_Lit:
+		if comp_lit, ok := call_node.derived.(^ast.Comp_Lit); ok {
+			if poly_type, ok := p.type.derived.(^ast.Poly_Type); ok {
+				if ident, ok := unwrap_ident(poly_type.type); ok {
+					poly_map[ident.name] = comp_lit.type
+				}
+
+				if poly_type.specialization != nil {
+					return resolve_poly(
+						ast_context,
+						comp_lit.type,
+						call_symbol,
+						p.type,
+						poly_map,
+					)
+				}
+			}
+		}
 	case ^ast.Ident:
 		if n, ok := call_node.derived.(^ast.Ident); ok {
 			return true
@@ -348,34 +366,56 @@ find_and_replace_poly_type :: proc(
 		poly_map := cast(^map[string]^ast.Expr)visitor.data
 
 		#partial switch v in node.derived {
+		case ^ast.Comp_Lit:
+			if expr, ok := is_in_poly_map(v.type, poly_map); ok {
+				v.type = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
+			}
 		case ^ast.Matrix_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.column_count, poly_map); ok {
 				v.column_count = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.row_count, poly_map); ok {
 				v.row_count = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Dynamic_Array_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Array_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 			if expr, ok := is_in_poly_map(v.len, poly_map); ok {
 				v.len = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Multi_Pointer_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		case ^ast.Pointer_Type:
 			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		}
 
@@ -467,6 +507,8 @@ resolve_generic_function_symbol :: proc(
 			}
 
 			reset_ast_context(ast_context)
+
+			ast_context.current_package = ast_context.document_package
 
 			if symbol, ok := resolve_type_expression(
 				ast_context,

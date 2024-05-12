@@ -237,7 +237,6 @@ get_comp_lit_completion :: proc(
 
 
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
-		//ast_context.current_package = comp_symbol.pkg
 		#partial switch v in symbol.value {
 		case SymbolStructValue:
 			for name, i in v.names {
@@ -245,7 +244,7 @@ get_comp_lit_completion :: proc(
 					continue
 				}
 
-				ast_context.current_package = symbol.pkg
+				set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 				if resolved, ok := resolve_type_expression(
 					ast_context,
@@ -279,7 +278,7 @@ get_comp_lit_completion :: proc(
 					continue
 				}
 
-				ast_context.current_package = symbol.pkg
+				set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 				if resolved, ok := resolve_type_expression(
 					ast_context,
@@ -343,11 +342,7 @@ get_selector_completion :: proc(
 		return
 	}
 
-	if selector.pkg != "" {
-		ast_context.current_package = selector.pkg
-	} else {
-		ast_context.current_package = ast_context.document_package
-	}
+	set_ast_package_from_symbol_scoped(ast_context, selector)
 
 	field: string
 
@@ -601,11 +596,7 @@ get_selector_completion :: proc(
 				continue
 			}
 
-			if selector.pkg != "" {
-				ast_context.current_package = selector.pkg
-			} else {
-				ast_context.current_package = ast_context.document_package
-			}
+			set_ast_package_from_symbol_scoped(ast_context, selector)
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
 			   ok {
@@ -668,11 +659,7 @@ get_selector_completion :: proc(
 				continue
 			}
 
-			if selector.pkg != "" {
-				ast_context.current_package = selector.pkg
-			} else {
-				ast_context.current_package = ast_context.document_package
-			}
+			set_ast_package_from_symbol_scoped(ast_context, selector)
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]);
 			   ok {
@@ -792,11 +779,7 @@ get_implicit_completion :: proc(
 
 	reset_ast_context(ast_context)
 
-	if selector.pkg != "" {
-		ast_context.current_package = selector.pkg
-	} else {
-		ast_context.current_package = ast_context.document_package
-	}
+	set_ast_package_from_symbol_scoped(ast_context, selector)
 
 	//value decl infer a : My_Enum = .*
 	if position_context.value_decl != nil &&
@@ -891,7 +874,7 @@ get_implicit_completion :: proc(
 			ast_context,
 			position_context.assign.lhs[0],
 		); ok {
-			ast_context.current_package = symbol.pkg
+			set_ast_package_set_scoped(ast_context, symbol.pkg)
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 
@@ -920,7 +903,7 @@ get_implicit_completion :: proc(
 			ast_context,
 			position_context.parent_binary,
 		); ok {
-			ast_context.current_package = symbol.pkg
+			set_ast_package_set_scoped(ast_context, symbol.pkg)
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
 					item := CompletionItem {
@@ -965,7 +948,10 @@ get_implicit_completion :: proc(
 					position_context.parent_comp_lit,
 				); ok {
 					if s, ok := comp_symbol.value.(SymbolStructValue); ok {
-						ast_context.current_package = comp_symbol.pkg
+						set_ast_package_set_scoped(
+							ast_context,
+							comp_symbol.pkg,
+						)
 
 						//We can either have the final 
 						elem_index := -1
@@ -1014,7 +1000,10 @@ get_implicit_completion :: proc(
 							ast_context,
 							type,
 						); ok {
-							ast_context.current_package = bitset_symbol.pkg
+							set_ast_package_set_scoped(
+								ast_context,
+								bitset_symbol.pkg,
+							)
 
 							if value, ok := unwrap_bitset(
 								ast_context,
@@ -1198,7 +1187,7 @@ get_implicit_completion :: proc(
 			)
 			if symbol, ok := resolve_type_expression(ast_context, call.expr);
 			   ok && parameter_ok {
-				ast_context.current_package = symbol.pkg
+				set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 				//Selector call expression always set the first argument to be the type of struct called, so increment it.
 				if position_context.selector_expr != nil {
@@ -1239,7 +1228,10 @@ get_implicit_completion :: proc(
 							ast_context,
 							proc_value.arg_types[parameter_index].type,
 						); ok {
-							ast_context.current_package = bitset_symbol.pkg
+							set_ast_package_set_scoped(
+								ast_context,
+								bitset_symbol.pkg,
+							)
 							if enum_value, ok := unwrap_bitset(
 								ast_context,
 								bitset_symbol,
@@ -1360,6 +1352,7 @@ get_identifier_completion :: proc(
 		}
 
 		reset_ast_context(ast_context)
+
 		ast_context.current_package = ast_context.document_package
 
 		ident := new_type(

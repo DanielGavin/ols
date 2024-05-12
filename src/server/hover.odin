@@ -165,7 +165,8 @@ get_hover_information :: proc(
 							}
 						}
 					}
-				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
+				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue);
+				   ok {
 					for name, i in v.names {
 						if name == field.name {
 							if symbol, ok := resolve_type_expression(
@@ -257,7 +258,7 @@ get_hover_information :: proc(
 				return {}, false, false
 			}
 
-			ast_context.current_package = selector.pkg
+			set_ast_package_set_scoped(&ast_context, selector.pkg)
 
 			if selector, ok = resolve_type_expression(
 				&ast_context,
