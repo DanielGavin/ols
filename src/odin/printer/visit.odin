@@ -2227,21 +2227,21 @@ visit_expr :: proc(
 			}
 		}
 
-		should_newline :=
-			comp_lit_contains_fields(v^) ||
-			contains_comments_in_range(p, v.pos, v.end)
+		should_newline := comp_lit_contains_fields(v^)
+
 		should_newline &=
 			(called_from == .Value_Decl ||
 				called_from == .Assignment_Stmt ||
 				(called_from == .Call_Expr && comp_lit_contains_blocks(p, v^)))
 		should_newline &= len(v.elems) != 0
 
+		should_newline |= contains_comments_in_range(p, v.pos, v.end)
+
 		if should_newline {
 			document = cons_with_nopl(
 				document,
 				visit_begin_brace(p, v.pos, .Comp_Lit),
 			)
-
 			set_source_position(p, v.open)
 			document = cons(
 				document,
