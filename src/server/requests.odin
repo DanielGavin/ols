@@ -431,7 +431,6 @@ read_ols_initialize_options :: proc(
 
 	config.enable_checker_only_saved =
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
-		
 
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(
@@ -1210,8 +1209,8 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	for k, v in &indexer.index.collection.packages {
-		for k2, v2 in &v.symbols {
+	for k, &v in indexer.index.collection.packages {
+		for k2, v2 in v.symbols {
 			if corrected_uri.uri == v2.uri {
 				free_symbol(v2, indexer.index.collection.allocator)
 				delete_key(&v.symbols, k2)
