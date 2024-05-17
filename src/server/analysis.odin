@@ -2064,7 +2064,7 @@ resolve_symbol_return :: proc(
 		}
 	}
 
-	#partial switch v in &symbol.value {
+	#partial switch &v in symbol.value {
 	case SymbolProcedureGroupValue:
 		if symbol, ok := resolve_function_overload(
 			ast_context,
