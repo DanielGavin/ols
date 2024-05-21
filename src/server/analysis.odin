@@ -88,7 +88,7 @@ AstContext :: struct {
 	imports:          []Package, //imports for the current document
 	current_package:  string,
 	document_package: string,
-	deferred_package: [DeferredDepth]string,
+	deferred_package: [DeferredDepth]string, //When a package change happens when resolving
 	deferred_count:   int,
 	use_locals:       bool,
 	local_id:         int,
