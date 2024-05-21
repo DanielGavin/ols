@@ -76,6 +76,8 @@ DocumentLocal :: struct {
 	parameter:       bool,
 }
 
+DeferredDepth :: 60
+
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
 	globals:          map[string]common.GlobalExpr,
@@ -86,7 +88,8 @@ AstContext :: struct {
 	imports:          []Package, //imports for the current document
 	current_package:  string,
 	document_package: string,
-	saved_package:    string,
+	deferred_package: [DeferredDepth]string,
+	deferred_count:   int,
 	use_locals:       bool,
 	local_id:         int,
 	call:             ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
@@ -130,29 +133,42 @@ make_ast_context :: proc(
 }
 
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
-	ast_context.current_package = ast_context.saved_package
+	ast_context.deferred_count -= 1
+	ast_context.current_package =
+		ast_context.deferred_package[ast_context.deferred_count]
+	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_deferred)
 set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
-	ast_context.saved_package = ast_context.current_package
+	ast_context.deferred_package[ast_context.deferred_count] =
+		ast_context.current_package
+	ast_context.deferred_count += 1
 	ast_context.current_package = pkg
 }
 
 set_ast_package_none_deferred :: proc(ast_context: ^AstContext) {
-	ast_context.current_package = ast_context.saved_package
+	ast_context.deferred_count -= 1
+	ast_context.current_package =
+		ast_context.deferred_package[ast_context.deferred_count]
+	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_none_deferred)
 set_ast_package_scoped :: proc(ast_context: ^AstContext) {
-	ast_context.saved_package = ast_context.current_package
+	ast_context.deferred_package[ast_context.deferred_count] =
+		ast_context.current_package
+	ast_context.deferred_count += 1
 }
 
 set_ast_package_from_symbol_deferred :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
-	ast_context.current_package = ast_context.saved_package
+	ast_context.deferred_count -= 1
+	ast_context.current_package =
+		ast_context.deferred_package[ast_context.deferred_count]
+	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_from_symbol_deferred)
@@ -160,7 +176,9 @@ set_ast_package_from_symbol_scoped :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
-	ast_context.saved_package = ast_context.current_package
+	ast_context.deferred_package[ast_context.deferred_count] =
+		ast_context.current_package
+	ast_context.deferred_count += 1
 
 	if symbol.pkg != "" {
 		ast_context.current_package = symbol.pkg
@@ -804,6 +822,11 @@ resolve_type_expression :: proc(
 	Symbol,
 	bool,
 ) {
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count > DeferredDepth {
+		return {}, false
+	}
+
 	clear(&ast_context.recursion_map)
 	return internal_resolve_type_expression(ast_context, node)
 }
@@ -1294,6 +1317,11 @@ resolve_type_identifier :: proc(
 	Symbol,
 	bool,
 ) {
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count > DeferredDepth {
+		return {}, false
+	}
+
 	return internal_resolve_type_identifier(ast_context, node)
 }
 
