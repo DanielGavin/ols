@@ -76,7 +76,7 @@ DocumentLocal :: struct {
 	parameter:       bool,
 }
 
-DeferredDepth :: 60
+DeferredDepth :: 100
 
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
@@ -823,7 +823,7 @@ resolve_type_expression :: proc(
 	bool,
 ) {
 	//Try to prevent stack overflows and prevent indexing out of bounds.
-	if ast_context.deferred_count > DeferredDepth {
+	if ast_context.deferred_count >= DeferredDepth {
 		return {}, false
 	}
 
