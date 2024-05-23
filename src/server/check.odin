@@ -131,7 +131,7 @@ check :: proc(
 
 		if code, ok, buffer = common.run_executable(
 			fmt.tprintf(
-				"%v check %s %s %s %s %s %s",
+				"%v check \"%s\" %s %s %s %s %s",
 				command,
 				path,
 				strings.to_string(collection_builder),

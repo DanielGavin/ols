@@ -4,6 +4,7 @@ import "core:strings"
 import "core:unicode/utf8"
 import "core:fmt"
 import "core:odin/ast"
+import "core:log"
 
 /*
 	This file handles the conversion between utf-16 and utf-8 offsets in the text document
@@ -129,11 +130,15 @@ go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
 get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
 	range: Range
 
-
 	pos_offset := min(len(document_text) - 1, node.pos.offset)
 	end_offset := min(len(document_text) - 1, node.end.offset)
 
 	offset := go_backwards_to_endline(pos_offset, transmute([]u8)document_text)
+
+	if offset < 0 {
+		offset := 0
+		log.errorf("Failed to find offset in get_token_range: %v", node)
+	}
 
 	range.start.line = node.pos.line - 1
 	range.start.character = get_character_offset_u8_to_u16(

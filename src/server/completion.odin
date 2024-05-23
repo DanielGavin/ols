@@ -2000,7 +2000,7 @@ format_to_label_details :: proc(list: ^CompletionList) {
 	// detail      = left
 	// description = right
 
-	for item in &list.items {
+	for &item in list.items {
 		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
 		#partial switch item.kind {
 		case .Function:
