@@ -289,14 +289,14 @@ visit_decl :: proc(
 		if len(v.fullpaths) > 1 {
 			document = cons_with_nopl(document, text("{"))
 			for path, i in v.fullpaths {
-				document = cons(document, text(path))
+				document = cons(document, visit_expr(p, path))
 				if i != len(v.fullpaths) - 1 {
 					document = cons(document, text(","), break_with_space())
 				}
 			}
 			document = cons(document, text("}"))
 		} else if len(v.fullpaths) == 1 {
-			document = cons_with_nopl(document, text(v.fullpaths[0]))
+			document = cons_with_nopl(document, visit_expr(p, v.fullpaths[0]))
 		}
 
 		return document
