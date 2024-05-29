@@ -562,11 +562,15 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
+	//log.errorf("%# \n", symbol)
+
 	/* variable idents */
 	#partial switch symbol.type {
 	case .Variable, .Constant, .Function:
 		#partial switch _ in symbol.value {
-		case SymbolProcedureValue, SymbolProcedureGroupValue, SymbolAggregateValue:
+		case SymbolProcedureValue,
+		     SymbolProcedureGroupValue,
+		     SymbolAggregateValue:
 			write_semantic_node(builder, ident, .Function, modifiers)
 		case:
 			write_semantic_node(builder, ident, .Variable, modifiers)
@@ -598,7 +602,5 @@ visit_ident :: proc(
 	case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
 	// unused
 	case:
-	// log.errorf("Unexpected symbol value: %v", symbol.value);
-	// panic(fmt.tprintf("Unexpected symbol value: %v", symbol.value));
 	}
 }

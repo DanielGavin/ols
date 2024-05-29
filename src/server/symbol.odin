@@ -14,9 +14,8 @@ import "core:strings"
 import "src:common"
 
 SymbolAndNode :: struct {
-	symbol:      Symbol,
-	node:        ^ast.Node,
-	is_resolved: bool,
+	symbol: Symbol,
+	node:   ^ast.Node,
 }
 
 SymbolStructValue :: struct {
@@ -176,7 +175,7 @@ SymbolType :: enum {
 	Struct        = 22,
 	Type_Function = 23,
 	Union         = 7,
-	Type		  = 8, //For maps, arrays, slices, dyn arrays, matrixes, etc
+	Type          = 8, //For maps, arrays, slices, dyn arrays, matrixes, etc
 	Unresolved    = 1, //Use text if not being able to resolve it.
 }
 

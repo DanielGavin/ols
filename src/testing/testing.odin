@@ -58,7 +58,8 @@ setup :: proc(src: ^Source) {
 		} else if current == '\n' {
 			current_line += 1
 			current_character = 0
-		} else if src.main[current_index:current_index + 3] == "{*}" {
+		} else if len(src.main) > current_index + 3 &&
+		   src.main[current_index:current_index + 3] == "{*}" {
 			dst_slice := transmute([]u8)src.main[current_index:]
 			src_slice := transmute([]u8)src.main[current_index + 3:]
 			copy(dst_slice, src_slice)
@@ -382,4 +383,39 @@ expect_definition_locations :: proc(
 			)
 		}
 	}
+}
+
+expect_symbol_location :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expect_locations: []common.Location,
+) {
+	setup(src)
+	defer teardown(src)
+
+	symbol_and_nodes := server.resolve_entire_file(src.document, .None)
+
+	ok := true
+
+	for location in expect_locations {
+		match := false
+		for k, v in symbol_and_nodes {
+			if v.symbol.range == location.range {
+				match = true
+			}
+		}
+		if !match {
+			ok = false
+			testing.errorf(t, "Failed to match with location: %v", location)
+		}
+	}
+
+	if !ok {
+		testing.error(t, "Received:")
+		for k, v in symbol_and_nodes {
+			testing.errorf(t, "%v \n", v.symbol)
+		}
+	}
+
+
 }
