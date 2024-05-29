@@ -10,6 +10,7 @@ import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
+import "core:slice"
 import "core:strings"
 
 import "src:common"
@@ -24,6 +25,8 @@ walk_directories :: proc(
 	err: os.Errno,
 	skip_dir: bool,
 ) {
+	document := cast(^Document)user_data
+
 	if info.is_dir {
 		return 0, false
 	}
@@ -33,7 +36,10 @@ walk_directories :: proc(
 	}
 
 	if strings.contains(info.name, ".odin") {
-		append(&fullpaths, strings.clone(info.fullpath))
+		slash_path, _ := filepath.to_slash(info.fullpath)
+		if slash_path != document.fullpath {
+			append(&fullpaths, strings.clone(info.fullpath))
+		}
 	}
 
 	return 0, false
@@ -56,6 +62,7 @@ position_in_struct_names :: proc(
 
 
 resolve_references :: proc(
+	document: ^Document,
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 ) -> (
@@ -71,15 +78,11 @@ resolve_references :: proc(
 	ok: bool
 	pkg := ""
 
-	filepath.walk(
-		filepath.dir(os.args[0], context.allocator),
-		walk_directories,
-		nil,
-	)
+	filepath.walk(common.get_executable_path(), walk_directories, document)
 
 	for workspace in common.config.workspace_folders {
 		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-		filepath.walk(uri.path, walk_directories, nil)
+		filepath.walk(uri.path, walk_directories, document)
 	}
 
 	reset_ast_context(ast_context)
@@ -149,112 +152,144 @@ resolve_references :: proc(
 		}
 	}
 
-	if !ok {
-		return {}, true
-	}
+	arena: runtime.Arena
 
-	resolve_arena: mem.Arena
-	mem.arena_init(&resolve_arena, make([]byte, mem.Megabyte * 25))
+	_ = runtime.arena_init(
+		&arena,
+		mem.Megabyte * 40,
+		runtime.default_allocator(),
+	)
 
-	context.allocator = mem.arena_allocator(&resolve_arena)
+	defer runtime.arena_destroy(&arena)
 
-	for fullpath in fullpaths {
-		data, ok := os.read_entire_file(fullpath, context.allocator)
+	context.allocator = runtime.arena_allocator(&arena)
 
-		if !ok {
-			log.errorf("failed to read entire file for indexing %v", fullpath)
-			continue
-		}
+	fullpaths := slice.unique(fullpaths[:])
 
-		p := parser.Parser {
-			err   = log_error_handler,
-			warn  = log_warning_handler,
-			flags = {.Optional_Semicolons},
-		}
+	if .Local not_in symbol.flags {
+		for fullpath in fullpaths {
+			dir := filepath.dir(fullpath)
+			base := filepath.base(dir)
+			forward_dir, _ := filepath.to_slash(dir)
 
-		dir := filepath.dir(fullpath)
-		base := filepath.base(dir)
-		forward_dir, _ := filepath.to_slash(dir)
+			data, ok := os.read_entire_file(fullpath, context.allocator)
 
-		pkg := new(ast.Package)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = base
-
-		if base == "runtime" {
-			pkg.kind = .Runtime
-		}
-
-		file := ast.File {
-			fullpath = fullpath,
-			src      = string(data),
-			pkg      = pkg,
-		}
-
-		ok = parser.parse_file(&p, &file)
-
-		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") &&
-			   !strings.contains(fullpath, "intrinsics.odin") {
-				log.errorf("error in parse file for indexing %v", fullpath)
-			}
-			continue
-		}
-
-		uri := common.create_uri(fullpath, context.allocator)
-
-		document := Document {
-			ast = file,
-		}
-
-		document.uri = uri
-		document.text = transmute([]u8)file.src
-		document.used_text = len(file.src)
-
-		document_setup(&document)
-
-		parse_imports(&document, &common.config)
-
-		in_pkg := false
-
-		for pkg in document.imports {
-			if pkg.name == symbol.pkg || forward_dir == symbol.pkg {
-				in_pkg = true
+			if !ok {
+				log.errorf(
+					"failed to read entire file for indexing %v",
+					fullpath,
+				)
 				continue
 			}
-		}
 
-		if in_pkg {
-			symbols_and_nodes := resolve_entire_file(
-				&document,
-				resolve_flag,
-				context.allocator,
-			)
+			p := parser.Parser {
+				err   = log_error_handler,
+				warn  = log_warning_handler,
+				flags = {.Optional_Semicolons},
+			}
 
-			for k, v in symbols_and_nodes {
-				if v.symbol.uri == symbol.uri &&
-				   v.symbol.range == symbol.range {
-					node_uri := common.create_uri(
-						v.node.pos.file,
-						ast_context.allocator,
-					)
 
-					location := common.Location {
-						range = common.get_token_range(
-							v.node^,
-							string(document.text),
-						),
-						uri   = strings.clone(
-							node_uri.uri,
-							ast_context.allocator,
-						),
-					}
-					append(&locations, location)
+			pkg := new(ast.Package)
+			pkg.kind = .Normal
+			pkg.fullpath = fullpath
+			pkg.name = base
+
+			if base == "runtime" {
+				pkg.kind = .Runtime
+			}
+
+			file := ast.File {
+				fullpath = fullpath,
+				src      = string(data),
+				pkg      = pkg,
+			}
+
+			ok = parser.parse_file(&p, &file)
+
+			if !ok {
+				if !strings.contains(fullpath, "builtin.odin") &&
+				   !strings.contains(fullpath, "intrinsics.odin") {
+					log.errorf("error in parse file for indexing %v", fullpath)
+				}
+				continue
+			}
+
+			uri := common.create_uri(fullpath, context.allocator)
+
+			document := Document {
+				ast = file,
+			}
+
+			document.uri = uri
+			document.text = transmute([]u8)file.src
+			document.used_text = len(file.src)
+
+			document_setup(&document)
+
+			parse_imports(&document, &common.config)
+
+			in_pkg := false
+
+			for pkg in document.imports {
+				if pkg.name == symbol.pkg {
+					in_pkg = true
+					continue
 				}
 			}
-		}
 
-		free_all(context.allocator)
+			if in_pkg {
+				symbols_and_nodes := resolve_entire_file(
+					&document,
+					resolve_flag,
+					context.allocator,
+				)
+
+				for k, v in symbols_and_nodes {
+					if v.symbol.uri == symbol.uri &&
+					   v.symbol.range == symbol.range {
+						node_uri := common.create_uri(
+							v.node.pos.file,
+							ast_context.allocator,
+						)
+
+						location := common.Location {
+							range = common.get_token_range(
+								v.node^,
+								string(document.text),
+							),
+							uri   = strings.clone(
+								node_uri.uri,
+								ast_context.allocator,
+							),
+						}
+						append(&locations, location)
+					}
+				}
+			}
+
+			free_all(context.allocator)
+		}
+	}
+
+	symbols_and_nodes := resolve_entire_file(
+		document,
+		resolve_flag,
+		context.allocator,
+	)
+
+	for k, v in symbols_and_nodes {
+		if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
+			node_uri := common.create_uri(
+				v.node.pos.file,
+				ast_context.allocator,
+			)
+
+			location := common.Location {
+				range = common.get_token_range(v.node^, string(document.text)),
+				uri   = strings.clone(node_uri.uri, ast_context.allocator),
+			}
+			append(&locations, location)
+		}
 	}
 
 	return locations[:], true
@@ -267,21 +302,13 @@ get_references :: proc(
 	[]common.Location,
 	bool,
 ) {
-	data := make([]byte, mem.Megabyte * 55, runtime.default_allocator())
-	defer delete(data)
-
-	arena: mem.Arena
-	mem.arena_init(&arena, data)
-
-	context.allocator = mem.arena_allocator(&arena)
-
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
 		document.package_name,
 		document.uri.uri,
 		document.fullpath,
-		context.allocator,
+		context.temp_allocator,
 	)
 
 	position_context, ok := get_document_position_context(
@@ -303,7 +330,11 @@ get_references :: proc(
 		)
 	}
 
-	locations, ok2 := resolve_references(&ast_context, &position_context)
+	locations, ok2 := resolve_references(
+		document,
+		&ast_context,
+		&position_context,
+	)
 
 	temp_locations := make([dynamic]common.Location, 0, context.temp_allocator)
 

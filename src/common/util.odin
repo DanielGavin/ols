@@ -6,6 +6,7 @@ import "core:log"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
+import "core:path/slashpath"
 import "core:strings"
 
 foreign import libc "system:c"
@@ -119,4 +120,15 @@ when ODIN_OS == .Darwin || ODIN_OS == .Linux {
 		fgets :: proc "cdecl" (s: [^]byte, n: i32, stream: ^FILE) -> [^]u8 ---
 		fgetc :: proc "cdecl" (stream: ^FILE) -> i32 ---
 	}
+}
+
+get_executable_path :: proc(allocator := context.temp_allocator) -> string {
+	exe_path, ok := filepath.abs(
+		slashpath.dir(os.args[0], context.temp_allocator),
+	)
+	if !ok {
+		log.error("Failed to resolve executable path")
+		return ""
+	}
+	return exe_path
 }

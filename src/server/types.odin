@@ -484,7 +484,7 @@ TextDocumentEdit :: struct {
 }
 
 WorkspaceEdit :: struct {
-	documentChanges: []TextDocumentEdit,
+	changes: map[string][]TextEdit,
 }
 
 WorkspaceSymbolParams :: struct {

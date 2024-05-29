@@ -2212,6 +2212,7 @@ resolve_location_identifier :: proc(
 		uri := common.create_uri(local.lhs.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
 		symbol.uri = uri.uri
+		symbol.flags |= {.Local}
 		return symbol, true
 	} else if global, ok := ast_context.globals[node.name]; ok {
 		symbol.range = common.get_token_range(

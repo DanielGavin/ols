@@ -558,7 +558,9 @@ read_ols_initialize_options :: proc(
 				context.temp_allocator,
 			)
 
-			config.collections[strings.clone(it.name)] =  strings.clone(slashed_path)
+			config.collections[strings.clone(it.name)] = strings.clone(
+				slashed_path,
+			)
 		} else {
 			log.errorf(
 				"Failed to find absolute address of collection: %v",
@@ -743,7 +745,7 @@ request_initialize :: proc(
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		global_ols_config_path := path.join(
-			elems =  {
+			elems = {
 				filepath.dir(os.args[0], context.temp_allocator),
 				"ols.json",
 			},
