@@ -32,6 +32,8 @@ conj       :: proc(value: Complex_Or_Quaternion) -> Complex_Or_Quaternion ---
 @builtin abs   :: proc(value: T) -> T ---
 @builtin clamp :: proc(value, minimum, maximum: T) -> T ---
 
+@builtin unreachable :: proc() -> ! ---
+
 /*
 	This is interally from the compiler
 */
