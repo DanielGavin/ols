@@ -2948,7 +2948,7 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 			strings.rune_count(v.field.name) \
 		)
 	case:
-		panic(fmt.aprintf("unhandled get_node_length case %v", node.derived))
+		return 0
 	}
 }
 
