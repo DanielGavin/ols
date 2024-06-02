@@ -1457,10 +1457,12 @@ visit_stmt :: proc(
 		}
 
 		if len(v.vals) >= 2 {
-			document = cons(
-				document,
-				cons_with_opl(text(","), visit_expr(p, v.vals[1])),
-			)
+			for val in v.vals {
+				document = cons(
+					document,
+					cons_with_opl(text(","), visit_expr(p, val)),
+				)
+			}
 		}
 
 		document = cons_with_opl(document, text("in"))
