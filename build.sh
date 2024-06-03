@@ -24,8 +24,7 @@ then
     if ([ $? -ne 0 ])
     then
         echo "Odinfmt tests failed"
-        #darwin bug in snapshot
-        #exit 1
+        exit 1
     fi
 fi
 if [[ $1 == "CI_NO_TESTS" ]]
