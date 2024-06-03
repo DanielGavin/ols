@@ -5,12 +5,12 @@ if "%1" == "CI" (
     set "PATH=%cd%\Odin;!PATH!"
 
     rem odin test tests -collection:src=src 
-    rem if %errorlevel% neq 0 exit 1
+    rem if %errorlevel% neq 0 exit /b 1
     
     odin build src\ -collection:src=src -out:ols.exe -o:speed
 
     call "tools/odinfmt/tests.bat"
-    if %errorlevel% neq 0 exit 1
+    if %errorlevel% neq 0 exit /b 1
 ) else if "%1" == "test" (
     odin test tests -collection:src=src -debug
 ) else if "%1" == "single_test" (
