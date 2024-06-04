@@ -160,7 +160,10 @@ setup_index :: proc() {
 	)
 	indexer.index = make_memory_index(symbol_collection)
 
-	dir_exe, ok := filepath.abs(path.dir(os.args[0], context.temp_allocator))
+	dir_exe, ok := filepath.abs(
+		path.dir(os.args[0], context.temp_allocator),
+		context.temp_allocator,
+	)
 
 	if !ok {
 		log.error(
@@ -169,7 +172,7 @@ setup_index :: proc() {
 		return
 	}
 
-	try_build_package(path.join({dir_exe, "builtin"}))
+	try_build_package(path.join({dir_exe, "builtin"}, context.temp_allocator))
 }
 
 free_index :: proc() {

@@ -12,9 +12,9 @@ if "%1" == "CI" (
     call "tools/odinfmt/tests.bat"
     if %errorlevel% neq 0 exit /b 1
 ) else if "%1" == "test" (
-    odin test tests -collection:src=src -debug
+    odin test tests -collection:src=src -debug -define:ODIN_TEST_THREADS=1
 ) else if "%1" == "single_test" (
-    odin test tests -collection:src=src -test-name:%2
+    odin test tests -collection:src=src -define:ODIN_TEST_NAMES=%2 -debug
 ) else if "%1" == "debug" (
     odin build src\ -show-timings  -collection:src=src  -microarch:native -out:ols.exe -o:minimal  -no-bounds-check -use-separate-modules -debug
 ) else (

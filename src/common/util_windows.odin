@@ -1,9 +1,9 @@
 package common
 
-import "core:strings"
-import "core:mem"
 import "core:fmt"
 import "core:log"
+import "core:mem"
+import "core:strings"
 
 import win32 "core:sys/windows"
 
@@ -36,8 +36,14 @@ get_case_sensitive_path :: proc(
 	)
 
 	if (file == win32.INVALID_HANDLE) {
-		log.errorf("Failed on get_case_sensitive_path(%v) at %v", path, location)
-		log_last_error()
+		when !ODIN_TEST {
+			log.errorf(
+				"Failed on get_case_sensitive_path(%v) at %v",
+				path,
+				location,
+			)
+			log_last_error()
+		}
 		return path
 	}
 
@@ -113,17 +119,17 @@ run_executable :: proc(
 	startup_info.dwFlags |= win32.STARTF_USESTDHANDLES
 
 	if !win32.CreateProcessW(
-		   nil,
-		   &win32.utf8_to_utf16(command)[0],
-		   nil,
-		   nil,
-		   true,
-		   0,
-		   nil,
-		   nil,
-		   &startup_info,
-		   &process_info,
-	   ) {
+		nil,
+		&win32.utf8_to_utf16(command)[0],
+		nil,
+		nil,
+		true,
+		0,
+		nil,
+		nil,
+		&startup_info,
+		&process_info,
+	) {
 		return 0, false, stdout[0:]
 	}
 

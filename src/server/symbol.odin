@@ -176,7 +176,7 @@ SymbolType :: enum {
 	Struct        = 22,
 	Type_Function = 23,
 	Union         = 7,
-	Type		  = 8, //For maps, arrays, slices, dyn arrays, matrixes, etc
+	Type          = 8, //For maps, arrays, slices, dyn arrays, matrixes, etc
 	Unresolved    = 1, //Use text if not being able to resolve it.
 }
 
@@ -223,6 +223,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.group, allocator)
 	case SymbolEnumValue:
 		delete(v.names, allocator)
+		delete(v.ranges, allocator)
 	case SymbolUnionValue:
 		common.free_ast(v.types, allocator)
 	case SymbolBitSetValue:

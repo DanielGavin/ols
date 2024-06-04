@@ -8,7 +8,7 @@ import test "src:testing"
 
 @(test)
 objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -49,7 +49,7 @@ objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 
 @(test)
 objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -98,7 +98,7 @@ objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 
 @(test)
 objc_hover_chained_selector :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -147,7 +147,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 
 @(test)
 objc_implicit_enum_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
