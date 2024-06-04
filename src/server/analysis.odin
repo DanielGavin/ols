@@ -5122,8 +5122,7 @@ get_document_position_node :: proc(
 	case ^Selector_Call_Expr:
 		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion {
+		   position_context.hint == .SignatureHelp {
 			position_context.selector = n.expr
 			position_context.field = n.call
 			position_context.selector_expr = cast(^Selector_Expr)node
