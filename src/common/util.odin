@@ -76,7 +76,7 @@ resolve_home_dir :: proc(
 	}
 }
 
-when ODIN_OS == .Darwin || ODIN_OS == .Linux {
+when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 	FILE :: struct {}
 
 	run_executable :: proc(
