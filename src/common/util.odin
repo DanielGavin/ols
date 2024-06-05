@@ -77,7 +77,7 @@ resolve_home_dir :: proc(
 	}
 }
 
-when ODIN_OS == .Darwin || ODIN_OS == .Linux {
+when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 	FILE :: struct {}
 
 	run_executable :: proc(
@@ -125,6 +125,7 @@ when ODIN_OS == .Darwin || ODIN_OS == .Linux {
 get_executable_path :: proc(allocator := context.temp_allocator) -> string {
 	exe_path, ok := filepath.abs(
 		slashpath.dir(os.args[0], context.temp_allocator),
+		context.temp_allocator,
 	)
 	if !ok {
 		log.error("Failed to resolve executable path")

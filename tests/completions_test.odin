@@ -345,7 +345,7 @@ ast_completion_selector_on_indexed_array :: proc(t: ^testing.T) {
 @(test)
 index_package_completion :: proc(t: ^testing.T) {
 
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -593,7 +593,7 @@ ast_swizzle_resolve_one_component_struct_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_for_in_for_from_different_package :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -872,7 +872,7 @@ ast_completion_in_between_struct :: proc(t: ^testing.T) {
 
 @(test)
 ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -916,7 +916,7 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_package_procedure_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1041,7 +1041,7 @@ ast_basic_value_binary_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_file_private_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1070,7 +1070,7 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1098,7 +1098,7 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_mutable_variable_struct_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1130,9 +1130,9 @@ ast_out_of_block_scope_completion :: proc(t: ^testing.T) {
 		main = `package main
 		main :: proc() {
 			{
-				aabb := 2
+				zzaabb := 2
 			}
-			aab{*}
+			zzaab{*}
 		}
 		`,
 	}
@@ -1458,7 +1458,7 @@ ast_maybe_array :: proc(t: ^testing.T) {
 
 @(test)
 ast_maybe_index_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1584,7 +1584,7 @@ ast_overload_with_procedure_return :: proc(t: ^testing.T) {
 
 @(test)
 ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1697,7 +1697,7 @@ ast_enum_complete :: proc(t: ^testing.T) {
 
 @(test)
 ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1735,7 +1735,7 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 
 @(test)
 ast_package_uppercase_test :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1777,7 +1777,7 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 
 @(test)
 ast_index_enum_infer :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1809,7 +1809,7 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 
 @(test)
 ast_index_enum_infer_call_expr :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -1967,7 +1967,7 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 
 @(test)
 ast_union_with_type_from_different_package :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2130,7 +2130,7 @@ ast_completion_on_call_expr :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2168,7 +2168,7 @@ ast_completion_struct_with_same_name_in_pkg :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_method_with_type :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2201,7 +2201,7 @@ ast_completion_method_with_type :: proc(t: ^testing.T) {
 
 @(test)
 ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2237,7 +2237,7 @@ ast_implicit_bitset_value_decl_from_package :: proc(t: ^testing.T) {
 
 @(test)
 ast_private_proc_ignore :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2269,7 +2269,7 @@ ast_private_proc_ignore :: proc(t: ^testing.T) {
 
 @(test)
 ast_bitset_assignment_diff_pkg :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2602,7 +2602,7 @@ ast_completion_comp_lit_in_proc :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_infer_bitset_package :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2668,7 +2668,7 @@ ast_simple_bit_field_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_generics_function_with_struct_same_pkg :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2719,7 +2719,7 @@ ast_generics_function_with_struct_same_pkg :: proc(t: ^testing.T) {
 
 @(test)
 ast_generics_function_with_struct_diff_pkg :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -2770,7 +2770,7 @@ ast_generics_function_with_struct_diff_pkg :: proc(t: ^testing.T) {
 
 @(test)
 ast_generics_function_with_comp_lit_struct :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,

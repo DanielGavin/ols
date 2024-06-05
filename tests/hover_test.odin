@@ -58,7 +58,7 @@ ast_hover_parameter :: proc(t: ^testing.T) {
 
 @(test)
 ast_hover_external_package_parameter :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -88,7 +88,7 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 
 @(test)
 ast_hover_procedure_package_parameter :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,

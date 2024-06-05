@@ -210,7 +210,7 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		 {
+		{
 			"test.int_function: proc(a: int)",
 			"test.bool_function: proc(a: bool)",
 		},
@@ -237,7 +237,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		 {
+		{
 			"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A",
 		},
 	)
@@ -354,7 +354,7 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 
 @(test)
 index_simple_signature :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -464,7 +464,7 @@ ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
 
 @(test)
 index_variable_pointer_signature :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,

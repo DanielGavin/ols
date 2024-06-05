@@ -162,7 +162,7 @@ setup_index :: proc() {
 
 	dir_exe := common.get_executable_path()
 
-	try_build_package(path.join({dir_exe, "builtin"}))
+	try_build_package(path.join({dir_exe, "builtin"}, context.temp_allocator))
 }
 
 free_index :: proc() {

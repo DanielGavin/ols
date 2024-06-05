@@ -9,7 +9,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src -o:speed $@
+    odin test ../tests -collection:src=../src -o:speed $@ -define:ODIN_TEST_THREADS=1
 
     if ([ $? -ne 0 ])
     then
@@ -24,8 +24,7 @@ then
     if ([ $? -ne 0 ])
     then
         echo "Odinfmt tests failed"
-        #darwin bug in snapshot
-        #exit 1
+        exit 1
     fi
 fi
 if [[ $1 == "CI_NO_TESTS" ]]
@@ -41,7 +40,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src -test-name:$@
+    odin test ../tests -collection:src=../src -test-name:$@ -define:ODIN_TEST_THREADS=1
 
     shift
 
@@ -61,7 +60,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src $@
+    odin test ../tests -collection:src=../src $@ -define:ODIN_TEST_THREADS=1
 
     if ([ $? -ne 0 ])
     then

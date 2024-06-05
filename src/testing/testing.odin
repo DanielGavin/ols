@@ -1,6 +1,7 @@
 package ols_testing
 
 import "core:fmt"
+import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/parser"
@@ -27,7 +28,7 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
-	src.main = strings.clone(src.main)
+	src.main = strings.clone(src.main, context.temp_allocator)
 	src.document = new(server.Document, context.temp_allocator)
 	src.document.uri = common.create_uri(
 		"test/test.odin",
@@ -36,7 +37,10 @@ setup :: proc(src: ^Source) {
 	src.document.client_owned = true
 	src.document.text = transmute([]u8)src.main
 	src.document.used_text = len(src.document.text)
-	src.document.allocator = new(common.Scratch_Allocator)
+	src.document.allocator = new(
+		common.Scratch_Allocator,
+		context.temp_allocator,
+	)
 	src.document.package_name = "test"
 
 	common.scratch_allocator_init(
@@ -79,12 +83,9 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
-	/*
-		There is a lot code here that is used in the real code, then i'd like to see.
-	*/
-
-
 	for src_pkg in src.packages {
+		context.allocator = common.scratch_allocator(src.document.allocator)
+
 		uri := common.create_uri(
 			fmt.aprintf("test/%v/package.odin", src_pkg.pkg),
 			context.temp_allocator,
@@ -100,7 +101,7 @@ setup :: proc(src: ^Source) {
 
 		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
 
-		pkg := new(ast.Package)
+		pkg := new(ast.Package, context.temp_allocator)
 		pkg.kind = .Normal
 		pkg.fullpath = fullpath
 		pkg.name = dir
@@ -134,8 +135,20 @@ setup :: proc(src: ^Source) {
 
 @(private)
 teardown :: proc(src: ^Source) {
+	//A lot of these deletes are managed by other systems in ols, but to simplify it, we just delete them here in tests.
+
 	server.free_index()
 	server.indexer.index = {}
+
+	delete(src.document.package_name)
+
+	for k, v in server.build_cache.loaded_pkgs {
+		delete(k)
+	}
+
+	delete(server.build_cache.loaded_pkgs)
+
+	common.scratch_allocator_destroy(src.document.allocator)
 }
 
 expect_signature_labels :: proc(
@@ -149,18 +162,17 @@ expect_signature_labels :: proc(
 	help, ok := server.get_signature_information(src.document, src.position)
 
 	if !ok {
-		testing.error(t, "Failed get_signature_information")
+		log.error("Failed get_signature_information")
 	}
 
 	if len(expect_labels) == 0 && len(help.signatures) > 0 {
-		testing.errorf(
-			t,
+		log.errorf(
 			"Expected empty signature label, but received %v",
 			help.signatures,
 		)
 	}
 
-	flags := make([]int, len(expect_labels))
+	flags := make([]int, len(expect_labels), context.temp_allocator)
 
 	for expect_label, i in expect_labels {
 		for signature, j in help.signatures {
@@ -172,8 +184,7 @@ expect_signature_labels :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			testing.errorf(
-				t,
+			log.errorf(
 				"Expected signature label %v, but received %v",
 				expect_labels[i],
 				help.signatures,
@@ -194,8 +205,7 @@ expect_signature_parameter_position :: proc(
 	help, ok := server.get_signature_information(src.document, src.position)
 
 	if help.activeParameter != position {
-		testing.errorf(
-			t,
+		log.errorf(
 			"expected parameter position %v, but received %v",
 			position,
 			help.activeParameter,
@@ -223,18 +233,17 @@ expect_completion_labels :: proc(
 	)
 
 	if !ok {
-		testing.error(t, "Failed get_completion_list")
+		log.error("Failed get_completion_list")
 	}
 
 	if len(expect_labels) == 0 && len(completion_list.items) > 0 {
-		testing.errorf(
-			t,
+		log.errorf(
 			"Expected empty completion label, but received %v",
 			completion_list.items,
 		)
 	}
 
-	flags := make([]int, len(expect_labels))
+	flags := make([]int, len(expect_labels), context.temp_allocator)
 
 	for expect_label, i in expect_labels {
 		for completion, j in completion_list.items {
@@ -246,8 +255,7 @@ expect_completion_labels :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			testing.errorf(
-				t,
+			log.errorf(
 				"Expected completion detail %v, but received %v",
 				expect_labels[i],
 				completion_list.items,
@@ -276,18 +284,17 @@ expect_completion_details :: proc(
 	)
 
 	if !ok {
-		testing.error(t, "Failed get_completion_list")
+		log.error("Failed get_completion_list")
 	}
 
 	if len(expect_details) == 0 && len(completion_list.items) > 0 {
-		testing.errorf(
-			t,
+		log.errorf(
 			"Expected empty completion label, but received %v",
 			completion_list.items,
 		)
 	}
 
-	flags := make([]int, len(expect_details))
+	flags := make([]int, len(expect_details), context.temp_allocator)
 
 	for expect_detail, i in expect_details {
 		for completion, j in completion_list.items {
@@ -299,8 +306,7 @@ expect_completion_details :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			testing.errorf(
-				t,
+			log.errorf(
 				"Expected completion label %v, but received %v",
 				expect_details[i],
 				completion_list.items,
@@ -320,20 +326,18 @@ expect_hover :: proc(
 	hover, _, ok := server.get_hover_information(src.document, src.position)
 
 	if !ok {
-		testing.error(t, "Failed get_hover_information")
+		log.error(t, "Failed get_hover_information")
 	}
 
 	if expect_hover_string == "" && hover.contents.value != "" {
-		testing.errorf(
-			t,
+		log.errorf(
 			"Expected empty hover string, but received %v",
 			hover.contents.value,
 		)
 	}
 
 	if !strings.contains(hover.contents.value, expect_hover_string) {
-		testing.errorf(
-			t,
+		log.errorf(
 			"Expected hover string %v, but received %v",
 			expect_hover_string,
 			hover.contents.value,
@@ -352,18 +356,14 @@ expect_definition_locations :: proc(
 	locations, ok := server.get_definition_location(src.document, src.position)
 
 	if !ok {
-		testing.error(t, "Failed get_definition_location")
+		log.error("Failed get_definition_location")
 	}
 
 	if len(expect_locations) == 0 && len(locations) > 0 {
-		testing.errorf(
-			t,
-			"Expected empty locations, but received %v",
-			locations,
-		)
+		log.errorf("Expected empty locations, but received %v", locations)
 	}
 
-	flags := make([]int, len(expect_locations))
+	flags := make([]int, len(expect_locations), context.temp_allocator)
 
 	for expect_location, i in expect_locations {
 		for location, j in locations {
@@ -375,8 +375,7 @@ expect_definition_locations :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			testing.errorf(
-				t,
+			log.errorf(
 				"Expected location %v, but received %v",
 				expect_locations[i].range,
 				locations,

@@ -318,6 +318,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	common.delete_uri(document.uri)
 
 	delete(document.text)
+	delete(document.package_name)
 
 	document.used_text = 0
 
@@ -500,7 +501,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = path.join(
-				elems =  {
+				elems = {
 					document.package_name,
 					imp.fullpath[1:len(imp.fullpath) - 1],
 				},

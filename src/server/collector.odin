@@ -94,6 +94,11 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 	}
 
 	for k, v in collection.packages {
+		for k2, v2 in v.methods {
+			delete(v2)
+		}
+		delete(v.methods)
+		delete(v.objc_structs)
 		delete(v.symbols)
 	}
 

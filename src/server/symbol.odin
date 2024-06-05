@@ -222,6 +222,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.group, allocator)
 	case SymbolEnumValue:
 		delete(v.names, allocator)
+		delete(v.ranges, allocator)
 	case SymbolUnionValue:
 		common.free_ast(v.types, allocator)
 	case SymbolBitSetValue:

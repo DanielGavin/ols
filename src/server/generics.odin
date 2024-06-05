@@ -45,18 +45,22 @@ resolve_poly :: proc(
 	if specialization == nil {
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
-				poly_map[ident.name] = make_ident_ast(
-					ast_context,
-					call_node.pos,
-					call_node.end,
-					call_symbol.name,
+				save_poly_map(
+					ident,
+					make_ident_ast(
+						ast_context,
+						call_node.pos,
+						call_node.end,
+						call_symbol.name,
+					),
+					poly_map,
 				)
 			}
 		}
 		return true
 	} else if type != nil {
 		if ident, ok := unwrap_ident(type); ok {
-			poly_map[ident.name] = specialization
+			save_poly_map(ident, specialization, poly_map)
 		}
 	}
 
@@ -66,7 +70,7 @@ resolve_poly :: proc(
 			found := false
 			if poly_type, ok := p.row_count.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_matrix.row_count
+					save_poly_map(ident, call_matrix.row_count, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -83,7 +87,7 @@ resolve_poly :: proc(
 
 			if poly_type, ok := p.column_count.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_matrix.column_count
+					save_poly_map(ident, call_matrix.column_count, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -100,7 +104,7 @@ resolve_poly :: proc(
 
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_matrix.elem
+					save_poly_map(ident, call_matrix.elem, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -129,8 +133,11 @@ resolve_poly :: proc(
 						return false
 					}
 
-					poly_map[poly_type.type.name] =
-						struct_value.args[arg_index]
+					save_poly_map(
+						poly_type.type,
+						struct_value.args[arg_index],
+						poly_map,
+					)
 
 					arg_index += 1
 				}
@@ -141,7 +148,7 @@ resolve_poly :: proc(
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_array.elem
+					save_poly_map(ident, call_array.elem, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -161,7 +168,7 @@ resolve_poly :: proc(
 			found := false
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_array.elem
+					save_poly_map(ident, call_array.elem, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -178,7 +185,7 @@ resolve_poly :: proc(
 			if p.len != nil {
 				if poly_type, ok := p.len.derived.(^ast.Poly_Type); ok {
 					if ident, ok := unwrap_ident(poly_type.type); ok {
-						poly_map[ident.name] = call_array.len
+						save_poly_map(ident, call_array.len, poly_map)
 					}
 
 					if poly_type.specialization != nil {
@@ -201,7 +208,7 @@ resolve_poly :: proc(
 			found := false
 			if poly_type, ok := p.key.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_map.key
+					save_poly_map(ident, call_map.key, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -218,7 +225,7 @@ resolve_poly :: proc(
 
 			if poly_type, ok := p.value.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_map.value
+					save_poly_map(ident, call_map.value, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -239,7 +246,7 @@ resolve_poly :: proc(
 		   ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = call_pointer.elem
+					save_poly_map(ident, call_pointer.elem, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -258,7 +265,7 @@ resolve_poly :: proc(
 		if comp_lit, ok := call_node.derived.(^ast.Comp_Lit); ok {
 			if poly_type, ok := p.type.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
-					poly_map[ident.name] = comp_lit.type
+					save_poly_map(ident, comp_lit.type, poly_map)
 				}
 
 				if poly_type.specialization != nil {
@@ -323,38 +330,48 @@ is_generic_type_recursive :: proc(expr: ^ast.Expr, name: string) -> bool {
 	return data.exists
 }
 
+save_poly_map :: proc(
+	ident: ^ast.Ident,
+	expr: ^ast.Expr,
+	poly_map: ^map[string]^ast.Expr,
+) {
+	if ident == nil || expr == nil {
+		return
+	}
+	poly_map[ident.name] = expr
+}
+
+get_poly_map :: proc(
+	node: ^ast.Node,
+	poly_map: ^map[string]^ast.Expr,
+) -> (
+	^ast.Expr,
+	bool,
+) {
+	if node == nil {
+		return {}, false
+	}
+
+	if ident, ok := node.derived.(^ast.Ident); ok {
+		if v, ok := poly_map[ident.name];
+		   ok && !is_generic_type_recursive(v, ident.name) {
+			return v, ok
+		}
+	}
+	if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
+		if v, ok := poly_map[poly.type.name];
+		   ok && !is_generic_type_recursive(v, poly.type.name) {
+			return v, ok
+		}
+	}
+
+	return nil, false
+}
 
 find_and_replace_poly_type :: proc(
 	expr: ^ast.Expr,
 	poly_map: ^map[string]^ast.Expr,
 ) {
-	is_in_poly_map :: proc(
-		node: ^ast.Node,
-		poly_map: ^map[string]^ast.Expr,
-	) -> (
-		^ast.Expr,
-		bool,
-	) {
-		if node == nil {
-			return {}, false
-		}
-
-		if ident, ok := node.derived.(^ast.Ident); ok {
-			if v, ok := poly_map[ident.name];
-			   ok && !is_generic_type_recursive(v, ident.name) {
-				return v, ok
-			}
-		}
-		if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
-			if v, ok := poly_map[poly.type.name];
-			   ok && !is_generic_type_recursive(v, poly.type.name) {
-				return v, ok
-			}
-		}
-
-		return nil, false
-	}
-
 	visit_function :: proc(
 		visitor: ^ast.Visitor,
 		node: ^ast.Node,
@@ -367,52 +384,52 @@ find_and_replace_poly_type :: proc(
 
 		#partial switch v in node.derived {
 		case ^ast.Comp_Lit:
-			if expr, ok := is_in_poly_map(v.type, poly_map); ok {
+			if expr, ok := get_poly_map(v.type, poly_map); ok {
 				v.type = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
 		case ^ast.Matrix_Type:
-			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+			if expr, ok := get_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
-			if expr, ok := is_in_poly_map(v.column_count, poly_map); ok {
+			if expr, ok := get_poly_map(v.column_count, poly_map); ok {
 				v.column_count = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
-			if expr, ok := is_in_poly_map(v.row_count, poly_map); ok {
+			if expr, ok := get_poly_map(v.row_count, poly_map); ok {
 				v.row_count = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
 		case ^ast.Dynamic_Array_Type:
-			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+			if expr, ok := get_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
 		case ^ast.Array_Type:
-			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+			if expr, ok := get_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
-			if expr, ok := is_in_poly_map(v.len, poly_map); ok {
+			if expr, ok := get_poly_map(v.len, poly_map); ok {
 				v.len = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
 		case ^ast.Multi_Pointer_Type:
-			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+			if expr, ok := get_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
 		case ^ast.Pointer_Type:
-			if expr, ok := is_in_poly_map(v.elem, poly_map); ok {
+			if expr, ok := get_poly_map(v.elem, poly_map); ok {
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file

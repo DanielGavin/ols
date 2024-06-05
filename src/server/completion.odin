@@ -608,7 +608,8 @@ get_selector_completion :: proc(
 				}
 
 				if position_context.arrow {
-					if symbol.type != .Function {
+					if symbol.type != .Function &&
+					   symbol.type != .Type_Function {
 						continue
 					}
 					if .ObjCIsClassMethod in symbol.flags {
