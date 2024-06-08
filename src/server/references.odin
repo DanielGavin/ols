@@ -45,22 +45,6 @@ walk_directories :: proc(
 	return 0, false
 }
 
-position_in_struct_names :: proc(
-	position_context: ^DocumentPositionContext,
-	type: ^ast.Struct_Type,
-) -> bool {
-	for field in type.fields.list {
-		for name in field.names {
-			if position_in_node(name, position_context.position) {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-
 resolve_references :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -87,12 +71,26 @@ resolve_references :: proc(
 
 	reset_ast_context(ast_context)
 
-	if position_context.struct_type != nil &&
-	   position_in_struct_names(
-		   position_context,
-		   position_context.struct_type,
-	   ) {
-		return {}, true
+	if position_context.struct_type != nil {
+		found := false
+		done: for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(
+							name,
+							string(document.text),
+						),
+					}
+					found = true
+					resolve_flag = .Field
+					break done
+				}
+			}
+		}
+		if !found {
+			return {}, false
+		}
 	} else if position_context.enum_type != nil {
 		return {}, true
 	} else if position_context.bitset_type != nil {
@@ -100,52 +98,42 @@ resolve_references :: proc(
 	} else if position_context.union_type != nil {
 		return {}, true
 	} else if position_context.selector_expr != nil {
-		if resolved, ok := resolve_type_expression(
-			ast_context,
-			position_context.selector,
-		); ok {
-			if _, is_package := resolved.value.(SymbolPackageValue);
-			   !is_package {
+		resolve_flag = .Field
+
+		base: ^ast.Ident
+		base, ok = position_context.selector.derived.(^ast.Ident)
+
+		if !ok || position_context.identifier == nil {
+			return {}, true
+		}
+
+		ident := position_context.identifier.derived.(^ast.Ident)
+
+		if position_in_node(base, position_context.position) {
+			symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+			if !ok {
 				return {}, true
 			}
-			resolve_flag = .Constant
-		}
 
-		symbol, ok = resolve_location_selector(
-			ast_context,
-			position_context.selector_expr,
-		)
-
-		if !ok {
-			return {}, true
-		}
-
-		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			reference = ident.name
+			resolve_flag = .Base
 		} else {
-			return {}, true
+			symbol, ok = resolve_location_selector(
+				ast_context,
+				position_context.selector_expr,
+			)
+
+			resolve_flag = .Field
 		}
 	} else if position_context.implicit {
 		return {}, true
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 
-		if resolved, ok := resolve_type_identifier(ast_context, ident^); ok {
-			if resolved.type == .Variable {
-				resolve_flag = .Variable
-			} else {
-				resolve_flag = .Constant
-			}
-		} else {
-			log.errorf(
-				"Failed to resolve identifier for indexing: %v",
-				ident.name,
-			)
-			return {}, true
-		}
-
 		reference = ident.name
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+		resolve_flag = .Identifier
 
 		if !ok {
 			return {}, true

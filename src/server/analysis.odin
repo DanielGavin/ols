@@ -76,7 +76,7 @@ DocumentLocal :: struct {
 	parameter:       bool,
 }
 
-DeferredDepth :: 100
+DeferredDepth :: 35
 
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
@@ -4803,6 +4803,8 @@ get_document_position_node :: proc(
 			position_context.function = cast(^Proc_Lit)node
 			append(&position_context.functions, position_context.function)
 			get_document_position(n.body, position_context)
+		} else if position_in_node(n.type, position_context.position) {
+			position_context.function = cast(^Proc_Lit)node
 		}
 	case ^Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.

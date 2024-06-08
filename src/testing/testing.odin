@@ -393,7 +393,11 @@ expect_symbol_location :: proc(
 	setup(src)
 	defer teardown(src)
 
-	symbol_and_nodes := server.resolve_entire_file(src.document, flag)
+	symbol_and_nodes := server.resolve_entire_file(
+		src.document,
+		flag,
+		context.temp_allocator,
+	)
 
 	ok := true
 
