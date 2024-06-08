@@ -4822,20 +4822,15 @@ get_document_position_node :: proc(
 		get_document_position(n.expr, position_context)
 	case ^Binary_Expr:
 		if position_context.parent_binary == nil {
-			position_context.parent_binary = cast(^Binary_Expr)node
+			position_context.parent_binary = n
 		}
-		position_context.binary = cast(^Binary_Expr)node
+		position_context.binary = n
 		get_document_position(n.left, position_context)
 		get_document_position(n.right, position_context)
 	case ^Paren_Expr:
 		get_document_position(n.expr, position_context)
 	case ^Call_Expr:
-		if position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion ||
-		   position_context.hint == .Definition {
-			position_context.call = cast(^Expr)node
-		}
-
+		position_context.call = n
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
@@ -4880,7 +4875,7 @@ get_document_position_node :: proc(
 		get_document_position(n.low, position_context)
 		get_document_position(n.high, position_context)
 	case ^Field_Value:
-		position_context.field_value = cast(^Field_Value)node
+		position_context.field_value = n
 		get_document_position(n.field, position_context)
 		get_document_position(n.value, position_context)
 	case ^Ternary_If_Expr:
@@ -4904,10 +4899,10 @@ get_document_position_node :: proc(
 	case ^Expr_Stmt:
 		get_document_position(n.expr, position_context)
 	case ^Tag_Stmt:
-		r := cast(^Tag_Stmt)node
+		r := n
 		get_document_position(r.stmt, position_context)
 	case ^Assign_Stmt:
-		position_context.assign = cast(^Assign_Stmt)node
+		position_context.assign = n
 		get_document_position(n.lhs, position_context)
 		get_document_position(n.rhs, position_context)
 	case ^Block_Stmt:
@@ -4924,7 +4919,7 @@ get_document_position_node :: proc(
 		get_document_position(n.body, position_context)
 		get_document_position(n.else_stmt, position_context)
 	case ^Return_Stmt:
-		position_context.returns = cast(^Return_Stmt)node
+		position_context.returns = n
 		get_document_position(n.results, position_context)
 	case ^Defer_Stmt:
 		get_document_position(n.stmt, position_context)
@@ -5020,21 +5015,21 @@ get_document_position_node :: proc(
 	case ^Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
 	case ^Struct_Type:
-		position_context.struct_type = cast(^Struct_Type)node
+		position_context.struct_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Union_Type:
-		position_context.union_type = cast(^Union_Type)node
+		position_context.union_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.variants, position_context)
 	case ^Enum_Type:
-		position_context.enum_type = cast(^Enum_Type)node
+		position_context.enum_type = n
 		get_document_position(n.base_type, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Bit_Set_Type:
-		position_context.bitset_type = cast(^Bit_Set_Type)node
+		position_context.bitset_type = n
 		get_document_position(n.elem, position_context)
 		get_document_position(n.underlying, position_context)
 	case ^Map_Type:
@@ -5050,7 +5045,7 @@ get_document_position_node :: proc(
 	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
 	case ^ast.Bit_Field_Type:
-		position_context.bit_field_type = cast(^Bit_Field_Type)node
+		position_context.bit_field_type = n
 		get_document_position(n.backing_type, position_context)
 		get_document_position(n.fields, position_context)
 	case ^ast.Bit_Field_Field:

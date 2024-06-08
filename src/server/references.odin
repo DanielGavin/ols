@@ -97,19 +97,40 @@ resolve_references :: proc(
 		return {}, true
 	} else if position_context.union_type != nil {
 		return {}, true
+	} else if position_context.field_value != nil &&
+	   position_context.comp_lit != nil &&
+	   !common.is_expr_basic_lit(position_context.field_value.field) &&
+	   position_in_node(
+		   position_context.field_value.field,
+		   position_context.position,
+	   ) {
+		symbol, ok = resolve_location_comp_lit_field(
+			ast_context,
+			position_context,
+		)
+
+		if !ok {
+			return {}, false
+		}
+
+		//Only support structs for now
+		if _, ok := symbol.value.(SymbolStructValue); !ok {
+			return {}, false
+		}
+
+		resolve_flag = .Field
 	} else if position_context.selector_expr != nil {
 		resolve_flag = .Field
 
 		base: ^ast.Ident
 		base, ok = position_context.selector.derived.(^ast.Ident)
 
-		if !ok || position_context.identifier == nil {
-			return {}, true
-		}
+		if position_in_node(base, position_context.position) &&
+		   position_context.identifier != nil &&
+		   ok {
 
-		ident := position_context.identifier.derived.(^ast.Ident)
+			ident := position_context.identifier.derived.(^ast.Ident)
 
-		if position_in_node(base, position_context.position) {
 			symbol, ok = resolve_location_identifier(ast_context, ident^)
 
 			if !ok {

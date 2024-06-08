@@ -24,6 +24,14 @@ ResolveReferenceFlag :: enum {
 	Field,
 }
 
+@(private = "file")
+reset_position_context :: proc(position_context: ^DocumentPositionContext) {
+	position_context.comp_lit = nil
+	position_context.parent_comp_lit = nil
+	position_context.identifier = nil
+	position_context.call = nil
+}
+
 resolve_entire_file :: proc(
 	document: ^Document,
 	flag := ResolveReferenceFlag.None,
@@ -198,6 +206,27 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		resolve_node(n.expr, data)
 		resolve_node(n.field, data)
+	case ^Field_Value:
+		data.position_context.field_value = n
+
+		if data.flag != .None && data.position_context.comp_lit != nil {
+			data.position_context.position = n.pos.offset
+
+			if symbol, ok := resolve_location_comp_lit_field(
+				data.ast_context,
+				data.position_context,
+			); ok {
+				data.symbols[cast(uintptr)node] = SymbolAndNode {
+					node   = n.field,
+					symbol = symbol,
+				}
+			}
+
+			resolve_node(n.value, data)
+		} else {
+			resolve_node(n.field, data)
+			resolve_node(n.value, data)
+		}
 	case ^Proc_Lit:
 		local_scope(data, n.body)
 
@@ -272,7 +301,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.elem, data)
 	case ^Ellipsis:
 		resolve_node(n.expr, data)
-
 	case ^Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
 		if data.position_context.parent_comp_lit == nil {
@@ -299,7 +327,11 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Call_Expr:
 		data.position_context.call = n
 		resolve_node(n.expr, data)
-		resolve_nodes(n.args, data)
+
+		for arg in n.args {
+			data.position_context.position = arg.pos.offset
+			resolve_node(arg, data)
+		}
 	case ^Index_Expr:
 		resolve_node(n.expr, data)
 		resolve_node(n.index, data)
@@ -309,10 +341,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.expr, data)
 		resolve_node(n.low, data)
 		resolve_node(n.high, data)
-	case ^Field_Value:
-		data.position_context.field_value = n
-		resolve_node(n.field, data)
-		resolve_node(n.value, data)
 	case ^Ternary_If_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.cond, data)
@@ -360,14 +388,12 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Bad_Decl:
 	case ^Assign_Stmt:
 		data.position_context.assign = n
-		data.position_context.comp_lit = nil
-		data.position_context.parent_comp_lit = nil
+		reset_position_context(data.position_context)
 		resolve_nodes(n.lhs, data)
 		resolve_nodes(n.rhs, data)
 	case ^Value_Decl:
 		data.position_context.value_decl = n
-		data.position_context.comp_lit = nil
-		data.position_context.parent_comp_lit = nil
+		reset_position_context(data.position_context)
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_nodes(n.values, data)
