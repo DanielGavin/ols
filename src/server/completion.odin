@@ -99,7 +99,19 @@ get_completion_list :: proc(
 	}
 
 	if position_context.selector != nil {
-		completion_type = .Selector
+		if position_context.selector_expr != nil {
+			if selector_call, ok := position_context.selector_expr.derived.(^ast.Selector_Call_Expr);
+			   ok {
+				if !position_in_node(
+					selector_call.call,
+					position_context.position,
+				) {
+					completion_type = .Selector
+				}
+			}
+		} else {
+			completion_type = .Selector
+		}
 	}
 
 	if position_context.tag != nil {

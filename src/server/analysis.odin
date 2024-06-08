@@ -31,7 +31,7 @@ DocumentPositionContext :: struct {
 	function:               ^ast.Proc_Lit, //used to help with type resolving in function scope
 	functions:              [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
 	selector:               ^ast.Expr, //used for completion
-	selector_expr:          ^ast.Selector_Expr,
+	selector_expr:          ^ast.Node,
 	identifier:             ^ast.Node,
 	implicit_context:       ^ast.Implicit,
 	tag:                    ^ast.Node,
@@ -2303,7 +2303,7 @@ resolve_location_implicit_selector :: proc(
 
 resolve_location_selector :: proc(
 	ast_context: ^AstContext,
-	selector: ^ast.Selector_Expr,
+	selector_expr: ^ast.Node,
 ) -> (
 	symbol: Symbol,
 	ok: bool,
@@ -2312,40 +2312,45 @@ resolve_location_selector :: proc(
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	symbol = resolve_type_expression(ast_context, selector.expr) or_return
+	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
 
-	field: string
+		symbol = resolve_type_expression(ast_context, selector.expr) or_return
 
-	if selector.field != nil {
-		#partial switch v in selector.field.derived {
-		case ^ast.Ident:
-			field = v.name
-		}
-	}
+		field: string
 
-	#partial switch v in symbol.value {
-	case SymbolStructValue:
-		for name, i in v.names {
-			if strings.compare(name, field) == 0 {
-				symbol.range = v.ranges[i]
+		if selector.field != nil {
+			#partial switch v in selector.field.derived {
+			case ^ast.Ident:
+				field = v.name
 			}
 		}
-	case SymbolBitFieldValue:
-		for name, i in v.names {
-			if strings.compare(name, field) == 0 {
-				symbol.range = v.ranges[i]
+
+		#partial switch v in symbol.value {
+		case SymbolStructValue:
+			for name, i in v.names {
+				if strings.compare(name, field) == 0 {
+					symbol.range = v.ranges[i]
+				}
+			}
+		case SymbolBitFieldValue:
+			for name, i in v.names {
+				if strings.compare(name, field) == 0 {
+					symbol.range = v.ranges[i]
+				}
+			}
+		case SymbolPackageValue:
+			if pkg, ok := lookup(field, symbol.pkg); ok {
+				symbol.range = pkg.range
+				symbol.uri = pkg.uri
+			} else {
+				return {}, false
 			}
 		}
-	case SymbolPackageValue:
-		if pkg, ok := lookup(field, symbol.pkg); ok {
-			symbol.range = pkg.range
-			symbol.uri = pkg.uri
-		} else {
-			return {}, false
-		}
+
+		return symbol, true
 	}
 
-	return symbol, true
+	return {}, false
 }
 
 
@@ -4828,15 +4833,17 @@ get_document_position_node :: proc(
 		   position_context.hint == .Definition {
 			position_context.call = cast(^Expr)node
 		}
+
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
 		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp {
+		   position_context.hint == .SignatureHelp ||
+		   position_context.hint == .Completion {
 			position_context.selector = n.expr
 			position_context.field = n.call
-			position_context.selector_expr = cast(^Selector_Expr)node
+			position_context.selector_expr = node
 
 			if _, ok := n.call.derived.(^ast.Call_Expr); ok {
 				position_context.call = n.call
@@ -4850,18 +4857,11 @@ get_document_position_node :: proc(
 			}
 		}
 	case ^Selector_Expr:
-		if position_context.hint == .Completion {
-			if n.field != nil &&
-			   n.field.pos.line - 1 == position_context.line {
-				//The parser is not fault tolerant enough, relying on the fallback as the main completion parsing for now
-				//position_context.selector = n.expr;
-				//position_context.field = n.field;
-			}
-		} else if position_context.hint == .Definition ||
+		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover && n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
-			position_context.selector_expr = cast(^Selector_Expr)node
+			position_context.selector_expr = node
 			get_document_position(n.expr, position_context)
 			get_document_position(n.field, position_context)
 		} else {

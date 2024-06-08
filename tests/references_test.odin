@@ -21,6 +21,7 @@ reference_variables_in_function :: proc(t: ^testing.T) {
 	test.expect_symbol_location(
 		t,
 		&source,
+		.Variable,
 		{
 			{
 				range = {
