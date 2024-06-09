@@ -1853,6 +1853,34 @@ resolve_comp_literal :: proc(
 				value.arg_types[arg_index].type,
 			) or_return
 		}
+	} else if position_context.returns != nil {
+		return_index: int
+
+		if position_context.returns.results == nil {
+			return {}, false
+		}
+
+		for result, i in position_context.returns.results {
+			if position_in_node(result, position_context.position) {
+				return_index = i
+				break
+			}
+		}
+
+		if position_context.function.type == nil {
+			return {}, false
+		}
+
+		if position_context.function.type.results == nil {
+			return {}, false
+		}
+
+		if len(position_context.function.type.results.list) > return_index {
+			symbol = resolve_type_expression(
+				ast_context,
+				position_context.function.type.results.list[return_index].type,
+			) or_return
+		}
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)

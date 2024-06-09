@@ -179,3 +179,42 @@ reference_field_comp_lit_infer_from_function :: proc(t: ^testing.T) {
 		},
 	)
 }
+
+@(test)
+reference_field_comp_lit_infer_from_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			soo_many_cases: int,
+		}
+
+		My_Struct :: struct {
+			foo: Foo,
+		}
+
+		my_function :: proc() -> My_Struct {
+			return {foo = {soo_many_cases{*} = 2}}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{
+				range = {
+					start = {line = 2, character = 3},
+					end = {line = 2, character = 17},
+				},
+			},
+			{
+				range = {
+					start = {line = 10, character = 18},
+					end = {line = 10, character = 32},
+				},
+			},
+		},
+	)
+}
