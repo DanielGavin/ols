@@ -384,42 +384,33 @@ expect_definition_locations :: proc(
 	}
 }
 
-expect_symbol_location :: proc(
+expect_reference_locations :: proc(
 	t: ^testing.T,
 	src: ^Source,
-	flag: server.ResolveReferenceFlag,
 	expect_locations: []common.Location,
 ) {
 	setup(src)
 	defer teardown(src)
 
-	symbol_and_nodes := server.resolve_entire_file(
-		src.document,
-		flag,
-		context.temp_allocator,
-	)
+	locations, ok := server.get_references(src.document, src.position)
 
-	ok := true
-
-	for location in expect_locations {
+	for expect_location in expect_locations {
 		match := false
-		for k, v in symbol_and_nodes {
-			if v.symbol.range == location.range {
+		for location in locations {
+			if location.range == expect_location.range {
 				match = true
 			}
 		}
 		if !match {
 			ok = false
-			log.errorf("Failed to match with location: %v", location)
+			log.errorf("Failed to match with location: %v", expect_location)
 		}
 	}
 
 	if !ok {
 		log.error("Received:")
-		for k, v in symbol_and_nodes {
-			log.errorf("%v \n", v.symbol)
+		for location in locations {
+			log.errorf("%v \n", location)
 		}
 	}
-
-
 }

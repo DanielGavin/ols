@@ -36,9 +36,15 @@ walk_directories :: proc(
 	}
 
 	if strings.contains(info.name, ".odin") {
-		slash_path, _ := filepath.to_slash(info.fullpath)
+		slash_path, _ := filepath.to_slash(
+			info.fullpath,
+			context.temp_allocator,
+		)
 		if slash_path != document.fullpath {
-			append(&fullpaths, strings.clone(info.fullpath))
+			append(
+				&fullpaths,
+				strings.clone(info.fullpath, context.temp_allocator),
+			)
 		}
 	}
 

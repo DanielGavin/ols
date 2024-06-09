@@ -142,7 +142,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Bad_Expr:
 	case ^Ident:
 		data.position_context.identifier = node
-
 		if data.flag != .None {
 			if symbol, ok := resolve_location_identifier(data.ast_context, n^);
 			   ok {
@@ -421,10 +420,9 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 					},
 				}
 			}
-		} else {
-			resolve_nodes(n.names, data)
 		}
 
+		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_node(n.default_value, data)
 	case ^Field_List:
