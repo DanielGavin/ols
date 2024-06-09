@@ -697,7 +697,7 @@ request_initialize :: proc(
 	config.enable_semantic_tokens = false
 	config.enable_procedure_context = false
 	config.enable_snippets = false
-	config.enable_references = false
+	config.enable_references = true
 	config.verbose = false
 	config.file_log = false
 	config.enable_rename = false
