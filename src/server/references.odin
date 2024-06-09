@@ -68,11 +68,13 @@ resolve_references :: proc(
 	ok: bool
 	pkg := ""
 
-	filepath.walk(common.get_executable_path(), walk_directories, document)
+	when !ODIN_TEST {
+		filepath.walk(common.get_executable_path(), walk_directories, document)
 
-	for workspace in common.config.workspace_folders {
-		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-		filepath.walk(uri.path, walk_directories, document)
+		for workspace in common.config.workspace_folders {
+			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+			filepath.walk(uri.path, walk_directories, document)
+		}
 	}
 
 	reset_ast_context(ast_context)
