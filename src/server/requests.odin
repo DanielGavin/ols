@@ -700,7 +700,7 @@ request_initialize :: proc(
 	config.enable_references = true
 	config.verbose = false
 	config.file_log = false
-	config.enable_rename = false
+	config.enable_rename = true
 	config.odin_command = ""
 	config.checker_args = ""
 	config.enable_inlay_hints = false
