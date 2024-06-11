@@ -8,14 +8,13 @@ import test "src:testing"
 @(test)
 reference_variables_in_function :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		my_function :: proc() {
 			a := 2
 			b := a
 			c := 2 + b{*}
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -41,12 +40,11 @@ reference_variables_in_function :: proc(t: ^testing.T) {
 @(test)
 reference_variables_in_function_parameters :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		my_function :: proc(a: int) {
 			b := a{*}
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -66,7 +64,7 @@ reference_variables_in_function_parameters :: proc(t: ^testing.T) {
 @(test)
 reference_selectors_in_function :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		My_Struct :: struct {
 			a: int,
 		}
@@ -76,7 +74,6 @@ reference_selectors_in_function :: proc(t: ^testing.T) {
 			my.a{*} = 2
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -103,7 +100,7 @@ reference_selectors_in_function :: proc(t: ^testing.T) {
 @(test)
 reference_field_comp_lit :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: struct {
 			soo_many_cases: int,
 		}
@@ -118,7 +115,6 @@ reference_field_comp_lit :: proc(t: ^testing.T) {
 			}
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -144,7 +140,7 @@ reference_field_comp_lit :: proc(t: ^testing.T) {
 @(test)
 reference_field_comp_lit_infer_from_function :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: struct {
 			soo_many_cases: int,
 		}
@@ -157,7 +153,6 @@ reference_field_comp_lit_infer_from_function :: proc(t: ^testing.T) {
 			my_function({foo = {soo_many_cases{*} = 2}})
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -183,7 +178,7 @@ reference_field_comp_lit_infer_from_function :: proc(t: ^testing.T) {
 @(test)
 reference_field_comp_lit_infer_from_return :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: struct {
 			soo_many_cases: int,
 		}
@@ -196,7 +191,6 @@ reference_field_comp_lit_infer_from_return :: proc(t: ^testing.T) {
 			return {foo = {soo_many_cases{*} = 2}}
 		}
 		`,
-		packages = {},
 	}
 
 	test.expect_reference_locations(
@@ -213,6 +207,50 @@ reference_field_comp_lit_infer_from_return :: proc(t: ^testing.T) {
 				range = {
 					start = {line = 10, character = 18},
 					end = {line = 10, character = 32},
+				},
+			},
+		},
+	)
+}
+
+
+@(test)
+reference_enum_field_infer_from_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Sub_Enum1 :: enum {
+			ONE,
+		}
+		Sub_Enum2 :: enum {
+			TWO,
+		}
+
+		Super_Enum :: union {
+			Sub_Enum1,
+			Sub_Enum2,
+		}
+
+		main :: proc() {
+			my_enum: Super_Enum
+			my_enum = .ON{*}E
+		}
+		`,
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{
+				range = {
+					start = {line = 2, character = 3},
+					end = {line = 2, character = 6},
+				},
+			},
+			{
+				range = {
+					start = {line = 15, character = 14},
+					end = {line = 15, character = 17},
 				},
 			},
 		},

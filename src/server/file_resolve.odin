@@ -30,6 +30,8 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.parent_comp_lit = nil
 	position_context.identifier = nil
 	position_context.call = nil
+	position_context.binary = nil
+	position_context.parent_binary = nil
 }
 
 resolve_entire_file :: proc(
@@ -170,6 +172,23 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		resolve_node(n.expr, data)
 		resolve_node(n.call, data)
+	case ^Implicit_Selector_Expr:
+		data.position_context.implicit = true
+		data.position_context.implicit_selector_expr = n
+		if data.flag != .None {
+			data.position_context.position = n.pos.offset
+			if symbol, ok := resolve_location_implicit_selector(
+				data.ast_context,
+				data.position_context,
+				n,
+			); ok {
+				data.symbols[cast(uintptr)node] = SymbolAndNode {
+					node   = n,
+					symbol = symbol,
+				}
+			}
+		}
+		resolve_node(n.field, data)
 	case ^Selector_Expr:
 		data.position_context.selector = n.expr
 		data.position_context.field = n.field
@@ -408,20 +427,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Attribute:
 		resolve_nodes(n.elems, data)
 	case ^Field:
-		if data.flag != .None {
-			for name in n.names {
-				data.symbols[cast(uintptr)node] = SymbolAndNode {
-					node = name,
-					symbol = Symbol {
-						range = common.get_token_range(
-							name,
-							string(data.document.text),
-						),
-					},
-				}
-			}
-		}
-
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_node(n.default_value, data)
@@ -453,15 +458,57 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
 		resolve_node(n.fields, data)
+
+		if data.flag != .None {
+			for field in n.fields.list {
+				for name in field.names {
+					data.symbols[cast(uintptr)name] = SymbolAndNode {
+						node = name,
+						symbol = Symbol {
+							range = common.get_token_range(
+								name,
+								string(data.document.text),
+							),
+						},
+					}
+				}
+			}
+		}
 	case ^Union_Type:
 		data.position_context.union_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
 		resolve_nodes(n.variants, data)
+
+		if data.flag != .None {
+			for variant in n.variants {
+				data.symbols[cast(uintptr)variant] = SymbolAndNode {
+					node = variant,
+					symbol = Symbol {
+						range = common.get_token_range(
+							variant,
+							string(data.document.text),
+						),
+					},
+				}
+			}
+		}
 	case ^Enum_Type:
 		data.position_context.enum_type = n
 		resolve_node(n.base_type, data)
 		resolve_nodes(n.fields, data)
+
+		for field in n.fields {
+			data.symbols[cast(uintptr)field] = SymbolAndNode {
+				node = field,
+				symbol = Symbol {
+					range = common.get_token_range(
+						field,
+						string(data.document.text),
+					),
+				},
+			}
+		}
 	case ^Bit_Set_Type:
 		data.position_context.bitset_type = n
 		resolve_node(n.elem, data)
@@ -469,10 +516,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Map_Type:
 		resolve_node(n.key, data)
 		resolve_node(n.value, data)
-	case ^Implicit_Selector_Expr:
-		data.position_context.implicit = true
-		data.position_context.implicit_selector_expr = n
-		resolve_node(n.field, data)
 	case ^ast.Or_Else_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.y, data)

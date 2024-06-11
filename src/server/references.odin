@@ -81,7 +81,7 @@ resolve_references :: proc(
 
 	if position_context.struct_type != nil {
 		found := false
-		done: for field in position_context.struct_type.fields.list {
+		done_struct: for field in position_context.struct_type.fields.list {
 			for name in field.names {
 				if position_in_node(name, position_context.position) {
 					symbol = Symbol {
@@ -92,7 +92,7 @@ resolve_references :: proc(
 					}
 					found = true
 					resolve_flag = .Field
-					break done
+					break done_struct
 				}
 			}
 		}
@@ -100,11 +100,48 @@ resolve_references :: proc(
 			return {}, false
 		}
 	} else if position_context.enum_type != nil {
-		return {}, true
+		/*
+		found := false
+		done_enum: for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(
+							name,
+							string(document.text),
+						),
+					}
+					found = true
+					resolve_flag = .Field
+					break done_enum
+				}
+			}
+		}
+		if !found {
+			return {}, false
+		}
+		*/
 	} else if position_context.bitset_type != nil {
 		return {}, true
 	} else if position_context.union_type != nil {
-		return {}, true
+		found := false
+		for variant in position_context.union_type.variants {
+			if position_in_node(variant, position_context.position) {
+				symbol = Symbol {
+					range = common.get_token_range(
+						variant,
+						string(document.text),
+					),
+				}
+				found = true
+				resolve_flag = .Identifier
+				break
+			}
+		}
+		if !found {
+			return {}, false
+		}
+
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
 	   !common.is_expr_basic_lit(position_context.field_value.field) &&
@@ -155,7 +192,17 @@ resolve_references :: proc(
 			resolve_flag = .Field
 		}
 	} else if position_context.implicit {
-		return {}, true
+		resolve_flag = .Field
+
+		symbol, ok = resolve_location_implicit_selector(
+			ast_context,
+			position_context,
+			position_context.implicit_selector_expr,
+		)
+
+		if !ok {
+			return {}, true
+		}
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 
@@ -301,10 +348,18 @@ resolve_references :: proc(
 				ast_context.allocator,
 			)
 
+			range := common.get_token_range(v.node^, string(document.text))
+
+			//We don't have to have the `.` with, otherwise it renames the dot.
+			if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
+				range.start.character += 1
+			}
+
 			location := common.Location {
-				range = common.get_token_range(v.node^, string(document.text)),
+				range = range,
 				uri   = strings.clone(node_uri.uri, ast_context.allocator),
 			}
+
 			append(&locations, location)
 		}
 	}

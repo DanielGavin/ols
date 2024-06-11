@@ -231,6 +231,39 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+ast_goto_implicit_super_enum_infer_from_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		Sub_Enum1 :: enum {
+			ONE,
+		}
+		Sub_Enum2 :: enum {
+			TWO,
+		}
+
+		Super_Enum :: union {
+			Sub_Enum1,
+			Sub_Enum2,
+		}
+
+		main :: proc() {
+			my_enum: Super_Enum
+			my_enum = .ON{*}E
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 2, character = 3},
+			end = {line = 2, character = 6},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
 
 @(test)
 ast_goto_implicit_enum_infer_from_assignment :: proc(t: ^testing.T) {

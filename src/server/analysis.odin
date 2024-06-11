@@ -133,14 +133,17 @@ make_ast_context :: proc(
 }
 
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
+	assert(ast_context.deferred_count > 0)
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_deferred)
 set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -148,14 +151,17 @@ set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
 }
 
 set_ast_package_none_deferred :: proc(ast_context: ^AstContext) {
+	assert(ast_context.deferred_count > 0)
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_none_deferred)
 set_ast_package_scoped :: proc(ast_context: ^AstContext) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -165,10 +171,10 @@ set_ast_package_from_symbol_deferred :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
+	assert(ast_context.deferred_count > 0)
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_from_symbol_deferred)
@@ -176,6 +182,10 @@ set_ast_package_from_symbol_scoped :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
+
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -822,11 +832,6 @@ resolve_type_expression :: proc(
 	Symbol,
 	bool,
 ) {
-	//Try to prevent stack overflows and prevent indexing out of bounds.
-	if ast_context.deferred_count >= DeferredDepth {
-		return {}, false
-	}
-
 	clear(&ast_context.recursion_map)
 	return internal_resolve_type_expression(ast_context, node)
 }
@@ -839,6 +844,11 @@ internal_resolve_type_expression :: proc(
 	bool,
 ) {
 	if node == nil {
+		return {}, false
+	}
+
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
 		return {}, false
 	}
 
@@ -1317,11 +1327,6 @@ resolve_type_identifier :: proc(
 	Symbol,
 	bool,
 ) {
-	//Try to prevent stack overflows and prevent indexing out of bounds.
-	if ast_context.deferred_count > DeferredDepth {
-		return {}, false
-	}
-
 	return internal_resolve_type_identifier(ast_context, node)
 }
 
@@ -1335,6 +1340,11 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+		return {}, false
+	}
+
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
 		return {}, false
 	}
 
@@ -2326,6 +2336,15 @@ resolve_location_implicit_selector :: proc(
 				symbol.range = v.ranges[i]
 			}
 		}
+	case SymbolUnionValue:
+		enum_value := unwrap_super_enum(ast_context, v) or_return
+		for name, i in enum_value.names {
+			if strings.compare(name, implicit_selector.field.name) == 0 {
+				symbol.range = enum_value.ranges[i]
+			}
+		}
+	case:
+		ok = false
 	}
 
 	return symbol, ok
