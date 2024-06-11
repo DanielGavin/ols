@@ -479,34 +479,22 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
 		resolve_nodes(n.variants, data)
-
-		if data.flag != .None {
-			for variant in n.variants {
-				data.symbols[cast(uintptr)variant] = SymbolAndNode {
-					node = variant,
-					symbol = Symbol {
-						range = common.get_token_range(
-							variant,
-							string(data.document.text),
-						),
-					},
-				}
-			}
-		}
 	case ^Enum_Type:
 		data.position_context.enum_type = n
 		resolve_node(n.base_type, data)
 		resolve_nodes(n.fields, data)
 
-		for field in n.fields {
-			data.symbols[cast(uintptr)field] = SymbolAndNode {
-				node = field,
-				symbol = Symbol {
-					range = common.get_token_range(
-						field,
-						string(data.document.text),
-					),
-				},
+		if data.flag != .None {
+			for field in n.fields {
+				data.symbols[cast(uintptr)field] = SymbolAndNode {
+					node = field,
+					symbol = Symbol {
+						range = common.get_token_range(
+							field,
+							string(data.document.text),
+						),
+					},
+				}
 			}
 		}
 	case ^Bit_Set_Type:

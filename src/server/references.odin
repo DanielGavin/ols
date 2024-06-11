@@ -127,15 +127,24 @@ resolve_references :: proc(
 		found := false
 		for variant in position_context.union_type.variants {
 			if position_in_node(variant, position_context.position) {
-				symbol = Symbol {
-					range = common.get_token_range(
-						variant,
-						string(document.text),
-					),
+				if ident, ok := variant.derived.(^ast.Ident); ok {
+					symbol, ok = resolve_location_identifier(
+						ast_context,
+						ident^,
+					)
+					reference = ident.name
+					resolve_flag = .Identifier
+
+					if !ok {
+						return {}, false
+					}
+
+					found = true
+
+					break
+				} else {
+					return {}, false
 				}
-				found = true
-				resolve_flag = .Identifier
-				break
 			}
 		}
 		if !found {
