@@ -3992,10 +3992,35 @@ unwrap_enum :: proc(
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 		if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 			return enum_value, true
+		} else if union_value, ok := enum_symbol.value.(SymbolUnionValue); ok {
+			return unwrap_super_enum(ast_context, union_value)
 		}
 	}
 
 	return {}, false
+}
+
+unwrap_super_enum :: proc(
+	ast_context: ^AstContext,
+	symbol_union: SymbolUnionValue,
+) -> (
+	ret_value: SymbolEnumValue,
+	ret_ok: bool,
+) {
+	names := make([dynamic]string, 0, 20, ast_context.allocator)
+	ranges := make([dynamic]common.Range, 0, 20, ast_context.allocator)
+
+	for type in symbol_union.types {
+		symbol := resolve_type_expression(ast_context, type) or_return
+		value := symbol.value.(SymbolEnumValue) or_return
+		append(&names, ..value.names)
+		append(&ranges, ..value.ranges)
+	}
+
+	ret_value.names = names[:]
+	ret_value.ranges = ranges[:]
+
+	return ret_value, true
 }
 
 unwrap_union :: proc(
@@ -4030,6 +4055,9 @@ unwrap_bitset :: proc(
 		); ok {
 			if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 				return enum_value, true
+			} else if union_value, ok := enum_symbol.value.(SymbolUnionValue);
+			   ok {
+				return unwrap_super_enum(ast_context, union_value)
 			}
 		}
 	}

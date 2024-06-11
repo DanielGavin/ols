@@ -2665,6 +2665,33 @@ ast_simple_bit_field_completion :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+ast_simple_union_of_enums_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			Sub_Enum_1 :: enum {
+				ONE,
+			}
+			Sub_Enum_2 :: enum {
+				TWO,
+			}
+
+			Super_Enum :: union {
+				Sub_Enum_1,
+				Sub_Enum_2,
+			}
+
+			fn :: proc(mode: Super_Enum) {}
+
+			main :: proc() {
+				fn(.{*})
+			}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"ONE", "TWO"})
+}
+
 
 @(test)
 ast_generics_function_with_struct_same_pkg :: proc(t: ^testing.T) {
