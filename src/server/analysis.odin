@@ -2307,6 +2307,8 @@ resolve_location_implicit_selector :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
+	ok = true
+
 	reset_ast_context(ast_context)
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)

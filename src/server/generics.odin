@@ -261,6 +261,25 @@ resolve_poly :: proc(
 				return true
 			}
 		}
+	case ^ast.Pointer_Type:
+		if call_pointer, ok := call_node.derived.(^ast.Pointer_Type); ok {
+			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
+				if ident, ok := unwrap_ident(poly_type.type); ok {
+					save_poly_map(ident, call_pointer.elem, poly_map)
+				}
+
+				if poly_type.specialization != nil {
+					return resolve_poly(
+						ast_context,
+						call_pointer.elem,
+						call_symbol,
+						p.elem,
+						poly_map,
+					)
+				}
+				return true
+			}
+		}
 	case ^ast.Comp_Lit:
 		if comp_lit, ok := call_node.derived.(^ast.Comp_Lit); ok {
 			if poly_type, ok := p.type.derived.(^ast.Poly_Type); ok {
@@ -284,7 +303,7 @@ resolve_poly :: proc(
 			return true
 		}
 	case:
-		log.panicf("Unhandled specialization %v", specialization.derived)
+		log.error("Unhandled specialization %v", specialization.derived)
 	}
 
 	return false
