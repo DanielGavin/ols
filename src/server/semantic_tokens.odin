@@ -127,7 +127,7 @@ get_semantic_tokens :: proc(
 	ast_context.current_package = ast_context.document_package
 
 	builder: SemanticTokenBuilder = {
-		tokens  = make([dynamic]u32, 10000, context.temp_allocator),
+		tokens  = make([dynamic]u32, 0, 10000, context.temp_allocator),
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
