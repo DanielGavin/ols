@@ -197,7 +197,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		if data.flag != .None {
 			if symbol, ok := resolve_location_selector(data.ast_context, n);
 			   ok {
-				if data.flag == .Field {
+				if data.flag != .Base {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = n.field,
 						symbol = symbol,

@@ -33,6 +33,7 @@ DocumentPositionContext :: struct {
 	selector:               ^ast.Expr, //used for completion
 	selector_expr:          ^ast.Node,
 	identifier:             ^ast.Node,
+	label:                  ^ast.Ident,
 	implicit_context:       ^ast.Implicit,
 	tag:                    ^ast.Node,
 	field:                  ^ast.Expr, //used for completion
@@ -4838,6 +4839,19 @@ position_in_node :: proc(
 	)
 }
 
+get_document_position_label :: proc(
+	label: ^ast.Expr,
+	position_context: ^DocumentPositionContext,
+) {
+	if label == nil {
+		return
+	}
+
+	if ident, ok := label.derived.(^ast.Ident); ok {
+		position_context.label = ident
+	}
+}
+
 get_document_position_node :: proc(
 	node: ^ast.Node,
 	position_context: ^DocumentPositionContext,
@@ -4983,10 +4997,10 @@ get_document_position_node :: proc(
 		get_document_position(n.lhs, position_context)
 		get_document_position(n.rhs, position_context)
 	case ^Block_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.stmts, position_context)
 	case ^If_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
@@ -5001,13 +5015,13 @@ get_document_position_node :: proc(
 	case ^Defer_Stmt:
 		get_document_position(n.stmt, position_context)
 	case ^For_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.post, position_context)
 		get_document_position(n.body, position_context)
 	case ^Range_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.vals, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
@@ -5023,18 +5037,18 @@ get_document_position_node :: proc(
 		get_document_position(n.body, position_context)
 	case ^Switch_Stmt:
 		position_context.switch_stmt = cast(^Switch_Stmt)node
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
 	case ^Type_Switch_Stmt:
 		position_context.switch_type_stmt = cast(^Type_Switch_Stmt)node
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.tag, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
 	case ^Branch_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 	case ^Using_Stmt:
 		get_document_position(n.list, position_context)
 	case ^Bad_Decl:
@@ -5130,8 +5144,8 @@ get_document_position_node :: proc(
 		get_document_position(n.type, position_context)
 		get_document_position(n.bit_size, position_context)
 	case ^ast.Or_Branch_Expr:
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.expr, position_context)
-		get_document_position(n.label, position_context)
 	case:
 	}
 }

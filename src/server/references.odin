@@ -69,8 +69,6 @@ resolve_references :: proc(
 	pkg := ""
 
 	when !ODIN_TEST {
-		filepath.walk(common.get_executable_path(), walk_directories, document)
-
 		for workspace in common.config.workspace_folders {
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
 			filepath.walk(uri.path, walk_directories, document)
@@ -79,7 +77,10 @@ resolve_references :: proc(
 
 	reset_ast_context(ast_context)
 
-	if position_context.struct_type != nil {
+
+	if position_context.label != nil {
+		return {}, true
+	} else if position_context.struct_type != nil {
 		found := false
 		done_struct: for field in position_context.struct_type.fields.list {
 			for name in field.names {
@@ -223,6 +224,8 @@ resolve_references :: proc(
 		if !ok {
 			return {}, true
 		}
+	} else {
+		return {}, true
 	}
 
 	arena: runtime.Arena
@@ -310,7 +313,7 @@ resolve_references :: proc(
 				}
 			}
 
-			if in_pkg {
+			if in_pkg || symbol.pkg == document.package_name {
 				symbols_and_nodes := resolve_entire_file(
 					&document,
 					resolve_flag,
