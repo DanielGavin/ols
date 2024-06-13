@@ -15,7 +15,7 @@ import "core:unicode/utf8"
 
 import "src:common"
 
-SemanticTokenTypes :: enum u8 {
+SemanticTokenTypes :: enum u32 {
 	Namespace,
 	Type,
 	Enum,
@@ -101,22 +101,40 @@ SemanticTokensRangeParams :: struct {
 	range:        common.Range,
 }
 
-SemanticTokens :: struct {
+SemanticToken :: struct {
+	// token line number, relative to the previous token
+	delta_line: u32,
+	// token start character, relative to the previous token
+	// (relative to 0 or the previous token’s start if they are on the same line)
+	delta_char: u32,
+	len:        u32,
+	type:       SemanticTokenTypes,
+	modifiers:  SemanticTokenModifiers,
+}
+#assert(size_of(SemanticToken) == 5 * size_of(u32))
+
+SemanticTokensResponseParams :: struct {
 	data: []u32,
 }
 
 SemanticTokenBuilder :: struct {
 	current_start: int,
-	tokens:        [dynamic]u32,
+	tokens:        [dynamic]SemanticToken,
 	symbols:       map[uintptr]SymbolAndNode,
 	src:           string,
+}
+
+semantic_tokens_to_response_params :: proc (
+	tokens: []SemanticToken,
+) -> SemanticTokensResponseParams {
+	return {data = (cast([^]u32)raw_data(tokens))[:len(tokens) * 5]}
 }
 
 get_semantic_tokens :: proc(
 	document: ^Document,
 	range: common.Range,
 	symbols: map[uintptr]SymbolAndNode,
-) -> SemanticTokens {
+) -> []SemanticToken {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -127,7 +145,7 @@ get_semantic_tokens :: proc(
 	ast_context.current_package = ast_context.document_package
 
 	builder: SemanticTokenBuilder = {
-		tokens  = make([dynamic]u32, 10000, context.temp_allocator),
+		tokens  = make([dynamic]SemanticToken, 0, 2000, context.temp_allocator),
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
@@ -139,7 +157,7 @@ get_semantic_tokens :: proc(
 		}
 	}
 
-	return {data = builder.tokens[:]}
+	return builder.tokens[:]
 }
 
 write_semantic_at_pos :: proc(
@@ -154,14 +172,13 @@ write_semantic_at_pos :: proc(
 		transmute([]u8)builder.src,
 		builder.current_start,
 	)
-	append(
-		&builder.tokens,
-		cast(u32)position.line,
-		cast(u32)position.character,
-		cast(u32)len,
-		cast(u32)type,
-		transmute(u32)modifiers,
-	)
+	append(&builder.tokens, SemanticToken{
+		delta_line = cast(u32)position.line,
+		delta_char = cast(u32)position.character,
+		len        = cast(u32)len,
+		type       = type,
+		modifiers  = modifiers,
+	})
 	builder.current_start = pos
 }
 

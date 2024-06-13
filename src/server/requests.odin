@@ -1273,17 +1273,18 @@ request_semantic_token_full :: proc(
 		end = common.Position{line = 9000000}, //should be enough
 	}
 
-	symbols: SemanticTokens
+	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
 		resolve_entire_file_cached(document)
 
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(document, range, file.symbols)
+			tokens := get_semantic_tokens(document, range, file.symbols)
+			tokens_params = semantic_tokens_to_response_params(tokens)
 		}
 	}
 
-	response := make_response_message(params = symbols, id = id)
+	response := make_response_message(params = tokens_params, id = id)
 
 	send_response(response, writer)
 
@@ -1314,21 +1315,22 @@ request_semantic_token_range :: proc(
 		return .InternalError
 	}
 
-	symbols: SemanticTokens
+	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
 		resolve_entire_file_cached(document)
 
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(
+			tokens := get_semantic_tokens(
 				document,
 				semantic_params.range,
 				file.symbols,
 			)
+			tokens_params = semantic_tokens_to_response_params(tokens)
 		}
 	}
 
-	response := make_response_message(params = symbols, id = id)
+	response := make_response_message(params = tokens_params, id = id)
 
 	send_response(response, writer)
 
