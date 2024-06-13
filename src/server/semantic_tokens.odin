@@ -124,7 +124,7 @@ SemanticTokenBuilder :: struct {
 	src:           string,
 }
 
-semantic_tokens_to_response_params :: proc (
+semantic_tokens_to_response_params :: proc(
 	tokens: []SemanticToken,
 ) -> SemanticTokensResponseParams {
 	return {data = (cast([^]u32)raw_data(tokens))[:len(tokens) * 5]}
@@ -145,7 +145,12 @@ get_semantic_tokens :: proc(
 	ast_context.current_package = ast_context.document_package
 
 	builder: SemanticTokenBuilder = {
-		tokens  = make([dynamic]SemanticToken, 0, 2000, context.temp_allocator),
+		tokens  = make(
+			[dynamic]SemanticToken,
+			0,
+			2000,
+			context.temp_allocator,
+		),
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
@@ -172,13 +177,16 @@ write_semantic_at_pos :: proc(
 		transmute([]u8)builder.src,
 		builder.current_start,
 	)
-	append(&builder.tokens, SemanticToken{
-		delta_line = cast(u32)position.line,
-		delta_char = cast(u32)position.character,
-		len        = cast(u32)len,
-		type       = type,
-		modifiers  = modifiers,
-	})
+	append(
+		&builder.tokens,
+		SemanticToken {
+			delta_line = cast(u32)position.line,
+			delta_char = cast(u32)position.character,
+			len = cast(u32)len,
+			type = type,
+			modifiers = modifiers,
+		},
+	)
 	builder.current_start = pos
 }
 
