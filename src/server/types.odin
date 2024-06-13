@@ -23,7 +23,7 @@ ResponseParams :: union {
 	CompletionList,
 	SignatureHelp,
 	[]DocumentSymbol,
-	SemanticTokens,
+	SemanticTokensResponseParams,
 	Hover,
 	[]TextEdit,
 	[]InlayHint,
