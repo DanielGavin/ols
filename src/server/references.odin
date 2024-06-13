@@ -51,35 +51,21 @@ walk_directories :: proc(
 	return 0, false
 }
 
-resolve_references :: proc(
+prepare_references :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 ) -> (
-	[]common.Location,
-	bool,
+	symbol: Symbol,
+	resolve_flag: ResolveReferenceFlag,
+	ok: bool,
 ) {
-	locations := make([dynamic]common.Location, 0, ast_context.allocator)
-	fullpaths = make([dynamic]string, 0, ast_context.allocator)
-
-	resolve_flag: ResolveReferenceFlag
+	ok = false
 	reference := ""
-	symbol: Symbol
-	ok: bool
 	pkg := ""
 
-	when !ODIN_TEST {
-		for workspace in common.config.workspace_folders {
-			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			filepath.walk(uri.path, walk_directories, document)
-		}
-	}
-
-	reset_ast_context(ast_context)
-
-
 	if position_context.label != nil {
-		return {}, true
+		return
 	} else if position_context.struct_type != nil {
 		found := false
 		done_struct: for field in position_context.struct_type.fields.list {
@@ -98,7 +84,7 @@ resolve_references :: proc(
 			}
 		}
 		if !found {
-			return {}, false
+			return
 		}
 	} else if position_context.enum_type != nil {
 		/*
@@ -123,7 +109,7 @@ resolve_references :: proc(
 		}
 		*/
 	} else if position_context.bitset_type != nil {
-		return {}, true
+		return
 	} else if position_context.union_type != nil {
 		found := false
 		for variant in position_context.union_type.variants {
@@ -137,19 +123,19 @@ resolve_references :: proc(
 					resolve_flag = .Identifier
 
 					if !ok {
-						return {}, false
+						return
 					}
 
 					found = true
 
 					break
 				} else {
-					return {}, false
+					return
 				}
 			}
 		}
 		if !found {
-			return {}, false
+			return
 		}
 
 	} else if position_context.field_value != nil &&
@@ -165,12 +151,12 @@ resolve_references :: proc(
 		)
 
 		if !ok {
-			return {}, false
+			return
 		}
 
 		//Only support structs for now
 		if _, ok := symbol.value.(SymbolStructValue); !ok {
-			return {}, false
+			return
 		}
 
 		resolve_flag = .Field
@@ -189,7 +175,7 @@ resolve_references :: proc(
 			symbol, ok = resolve_location_identifier(ast_context, ident^)
 
 			if !ok {
-				return {}, true
+				return
 			}
 
 			resolve_flag = .Base
@@ -211,7 +197,7 @@ resolve_references :: proc(
 		)
 
 		if !ok {
-			return {}, true
+			return
 		}
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
@@ -222,11 +208,45 @@ resolve_references :: proc(
 		resolve_flag = .Identifier
 
 		if !ok {
-			return {}, true
+			return
 		}
 	} else {
+		return
+	}
+
+	return symbol, resolve_flag, true
+}
+
+resolve_references :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	[]common.Location,
+	bool,
+) {
+	locations := make([dynamic]common.Location, 0, ast_context.allocator)
+	fullpaths = make([dynamic]string, 0, ast_context.allocator)
+
+	symbol, resolve_flag, ok := prepare_references(
+		document,
+		ast_context,
+		position_context,
+	)
+
+	if !ok {
 		return {}, true
 	}
+
+	when !ODIN_TEST {
+		for workspace in common.config.workspace_folders {
+			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+			filepath.walk(uri.path, walk_directories, document)
+		}
+	}
+
+	reset_ast_context(ast_context)
+
 
 	arena: runtime.Arena
 

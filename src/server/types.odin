@@ -30,6 +30,7 @@ ResponseParams :: union {
 	[]DocumentLink,
 	[]WorkspaceSymbol,
 	WorkspaceEdit,
+	common.Range,
 }
 
 ResponseMessage :: struct {
@@ -102,11 +103,16 @@ ServerCapabilities :: struct {
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
 	inlayHintProvider:          bool,
-	renameProvider:             bool,
+	renameProvider:             RenameOptions,
 	referencesProvider:         bool,
 	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
 }
+
+RenameOptions :: struct {
+	prepareProvider: bool,
+}
+
 
 CompletionOptions :: struct {
 	resolveProvider:   bool,
@@ -464,6 +470,11 @@ RenameClientCapabilities :: struct {
 
 RenameParams :: struct {
 	newName:      string,
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
+PrepareRenameParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
 }
