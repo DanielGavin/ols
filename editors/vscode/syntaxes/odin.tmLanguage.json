@@ -503,7 +503,7 @@
 					"match": "@|(\\||\\!|:|\\+|-|\\*|/|%|\\<\\<?|\\>\\>?|\\~)=?|=|: : ?|\\.\\.|\\$"
 				},
 				{
-					"name": "keyword.other.odin",
+					"name": "entity.name.tag.odin",
 					"match": "#[A-Za-z_]\\w*"
 				}
 			]
