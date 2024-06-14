@@ -1410,6 +1410,10 @@ get_identifier_completion :: proc(
 				k,
 			)
 
+			if local_offset == -1 {
+				continue
+			}
+
 			reset_ast_context(ast_context)
 
 			ast_context.current_package = ast_context.document_package
