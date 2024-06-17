@@ -35,6 +35,8 @@ DocumentPositionContext :: struct {
 	identifier:             ^ast.Node,
 	label:                  ^ast.Ident,
 	implicit_context:       ^ast.Implicit,
+	index:                  ^ast.Index_Expr,
+	previous_index:         ^ast.Index_Expr,
 	tag:                    ^ast.Node,
 	field:                  ^ast.Expr, //used for completion
 	call:                   ^ast.Expr, //used for signature help
@@ -4957,6 +4959,8 @@ get_document_position_node :: proc(
 			get_document_position(n.field, position_context)
 		}
 	case ^Index_Expr:
+		position_context.previous_index = position_context.index
+		position_context.index = n
 		get_document_position(n.expr, position_context)
 		get_document_position(n.index, position_context)
 	case ^Deref_Expr:

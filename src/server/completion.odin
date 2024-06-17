@@ -1283,6 +1283,42 @@ get_implicit_completion :: proc(
 			}
 		}
 	}
+
+	if position_context.index != nil {
+		symbol: Symbol
+		ok := false
+		if position_context.previous_index != nil {
+			symbol, ok = resolve_type_expression(
+				ast_context,
+				position_context.previous_index,
+			)
+			if !ok {
+				return
+			}
+		} else {
+			symbol, ok = resolve_type_expression(
+				ast_context,
+				position_context.index.expr,
+			)
+		}
+
+		if array, ok := symbol.value.(SymbolFixedArrayValue); ok {
+			if enum_value, ok := unwrap_enum(ast_context, array.len); ok {
+				for name in enum_value.names {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+
+					append(&items, item)
+				}
+
+				list.items = items[:]
+				return
+			}
+		}
+	}
 }
 
 get_identifier_completion :: proc(

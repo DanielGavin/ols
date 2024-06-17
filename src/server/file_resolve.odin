@@ -32,6 +32,8 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.call = nil
 	position_context.binary = nil
 	position_context.parent_binary = nil
+	position_context.previous_index = nil
+	position_context.index = nil
 }
 
 resolve_entire_file :: proc(
