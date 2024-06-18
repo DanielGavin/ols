@@ -1952,16 +1952,26 @@ append_magic_dynamic_array_completion :: proc(
 		return
 	}
 
+	prefix := "&"
+	suffix := ""
+	if symbol.pointers > 0 {
+		prefix = ""
+		suffix = common.repeat(
+			"^",
+			symbol.pointers - 1,
+			context.temp_allocator,
+		)
+	}
+	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
+
 	//pop
 	{
-		text := fmt.tprintf("pop(&%v)", symbol_str)
-
 		item := CompletionItem {
 			label = "pop",
 			kind = .Function,
 			detail = "pop",
 			textEdit = TextEdit {
-				newText = text,
+				newText = fmt.tprintf("pop(%v)", ptr_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			additionalTextEdits = additionalTextEdits,
@@ -1988,7 +1998,7 @@ append_magic_dynamic_array_completion :: proc(
 			detail = name,
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("%s(&%v, $0)", name, symbol_str),
+				newText = fmt.tprintf("%s(%v, $0)", name, ptr_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
