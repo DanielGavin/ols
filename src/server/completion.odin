@@ -1947,6 +1947,56 @@ append_magic_dynamic_array_completion :: proc(
 		append(items, item)
 	}
 
+	// This proc is shared between slices and dynamic arrays.
+	if _, ok := symbol.value.(SymbolDynamicArrayValue); !ok {
+		return
+	}
+
+	//pop
+	{
+		text := fmt.tprintf("pop(&%v)", symbol_str)
+
+		item := CompletionItem {
+			label = "pop",
+			kind = .Function,
+			detail = "pop",
+			textEdit = TextEdit {
+				newText = text,
+				range = {start = range.end, end = range.end},
+			},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	dynamic_array_builtins := []string {
+		"append",
+		"unordered_remove",
+		"ordered_remove",
+		"resize",
+		"reserve",
+		"shrink",
+		"inject_at",
+		"assign_at",
+	}
+
+	for name in dynamic_array_builtins {
+		item := CompletionItem {
+			label = name,
+			kind = .Snippet,
+			detail = name,
+			additionalTextEdits = additionalTextEdits,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("%s(&%v, $0)", name, symbol_str),
+				range = {start = range.end, end = range.end},
+			},
+			insertTextFormat = .Snippet,
+			InsertTextMode = .adjustIndentation,
+		}
+
+		append(items, item)
+	}
 }
 
 append_magic_union_completion :: proc(
