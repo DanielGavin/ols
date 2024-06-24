@@ -359,27 +359,22 @@
 				{
 					"name": "comment.line.double-slash.odin",
 					"begin": "//",
+					"beginCaptures": {"0": {"name": "punctuation.definition.comment.odin"}},
 					"end": "\n"
 				}
 			]
 		},
 		"block-comment": {
-			"patterns": [
-				{
-					"name": "comment.block.odin",
-					"begin": "/\\*",
-					"end": "\\*/",
-					"patterns": [ { "include": "#block-comment" } ]
-				}
-			]
+			"name": "comment.block.odin",
+			"begin": "/\\*",
+			"beginCaptures": {"0": {"name": "punctuation.definition.comment.begin.odin"}},
+			"end": "\\*/",
+			"endCaptures": {"0": {"name": "punctuation.definition.comment.end.odin"}},
+			"patterns": [ { "include": "#block-comment" } ]
 		},
 		"type-name": {
-			"patterns": [
-				{
-					"name": "entity.name.type.odin",
-					"match": "\\b[A-Za-z_]\\w*\\b"
-				}
-			]
+			"name": "entity.name.type.odin",
+			"match": "\\b[A-Za-z_]\\w*\\b"
 		},
 		"type-parameter": {
 			"captures": {
@@ -389,12 +384,8 @@
 			"match": "(\\$)\\s*(\\b[A-Za-z_]\\w*\\b)"
 		},
 		"variable-name": {
-			"patterns": [
-				{
-					"name": "variable.name.odin",
-					"match": "\\b[A-Za-z_]\\w*\\b"
-				}
-			]
+			"name": "variable.name.odin",
+			"match": "\\b[A-Za-z_]\\w*\\b"
 		},
 		"keywords": {
 			"patterns": [
@@ -570,33 +561,30 @@
 		},
 		"strings": {
 			"patterns": [
-				{ "include": "#strings-quoted-double" },
-				{ "include": "#strings-quoted-single" },
-				{ "include": "#strings-quoted-raw" }
+				{
+					"name": "string.quoted.double.odin",
+					"begin": "\"",
+					"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
+					"end": "\"",
+					"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } },
+					"patterns": [ { "include": "#string-escaped-char" } ]
+				},
+				{
+					"name": "string.quoted.single.odin",
+					"begin": "'",
+					"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
+					"end": "'",
+					"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } },
+					"patterns": [ { "include": "#string-escaped-char" } ]
+				},
+				{
+					"name": "string.quoted.raw.odin",
+					"begin": "`",
+					"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
+					"end": "`",
+					"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } }
+				}
 			]
-		},
-		"strings-quoted-double": {
-			"name": "string.quoted.double.odin",
-			"begin": "\"",
-			"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
-			"end": "\"",
-			"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } },
-			"patterns": [ { "include": "#string-escaped-char" } ]
-		},
-		"strings-quoted-single": {
-			"name": "string.quoted.single.odin",
-			"begin": "'",
-			"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
-			"end": "'",
-			"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } },
-			"patterns": [ { "include": "#string-escaped-char" } ]
-		},
-		"strings-quoted-raw": {
-			"name": "string.quoted.raw.odin",
-			"begin": "`",
-			"beginCaptures": { "0": { "name": "punctuation.definition.string.begin.odin" } },
-			"end": "`",
-			"endCaptures": { "0": { "name": "punctuation.definition.string.end.odin" } }
 		},
 		"string-escaped-char": {
 			"patterns": [
@@ -615,12 +603,8 @@
 			]
 		},
 		"punctuation": {
-			"patterns": [
-				{
-					"name": "punctuation.odin",
-					"match": "\\(|\\)|\\{|\\}|;|\\[|\\]|\\.|,|\\\\"
-				}
-			]
+			"name": "punctuation.odin",
+			"match": "\\(|\\)|\\{|\\}|;|\\[|\\]|\\.|,|\\\\"
 		}
 	},
 	"scopeName": "source.odin"
