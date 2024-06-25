@@ -118,6 +118,10 @@ local_scope_deferred :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 @(deferred_in = local_scope_deferred)
 @(private = "file")
 local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
+	if stmt == nil {
+		return
+	}
+
 	data.ast_context.local_id += 1
 
 	add_local_group(data.ast_context, data.ast_context.local_id)
