@@ -390,11 +390,6 @@
 		"keywords": {
 			"patterns": [
 				{
-					"name": "keyword.tag.odin",
-					"comment": "Use #name to use a pattern",
-					"match": "\\b([#@]\\s*[A-Za-z_]\\w*)\\b"
-				},
-				{
 					"name": "keyword.control.odin",
 					"match": "\\b(import|foreign|package)\\b"
 				},
@@ -454,20 +449,28 @@
 					"match": "\\b(struct|enum|union|map|bit_set|bit_field|matrix)\\b"
 				},
 				{
-					"name": "keyword.operator.assignment.compound",
+					"name": "keyword.operator.assignment.compound.odin",
 					"match": "[+\\-*/%]=|%%="
 				},
 				{
-					"name": "keyword.operator.assignment.compound.bitwise",
+					"name": "keyword.operator.assignment.compound.bitwise.odin",
 					"match": "\\|=|~=|&~?=|<<=|>>="
 				},
 				{
-					"name": "keyword.operator.comparison",
+					"name": "keyword.operator.comparison.odin",
 					"match": "==|!="
 				},
 				{
-					"name": "keyword.operator.relational",
+					"name": "keyword.operator.relational.odin",
 					"match": "[<>]=?"
+				},
+				{
+					"name": "keyword.operator.range.odin",
+					"match": "\\.\\.[<=]"
+				},
+				{
+					"name": "keyword.operator.spread.odin",
+					"match": "\\.\\."
 				},
 				{
 					"name": "keyword.operator.assignment.odin",
@@ -475,7 +478,7 @@
 				},
 				{
 					"name": "keyword.operator.address.odin",
-					"match": "\\&"
+					"match": "&"
 				},
 				{
 					"name": "keyword.operator.address.odin",
@@ -491,7 +494,7 @@
 				},
 				{
 					"name": "keyword.operator.odin",
-					"match": "@|(\\||\\!|:|\\+|-|\\*|/|%|\\<\\<?|\\>\\>?|\\~)=?|=|: : ?|\\.\\.|\\$"
+					"match": "@|(\\||\\!|:|\\+|-|\\*|/|%|\\<\\<?|\\>\\>?|\\~)=?|=|: : ?|\\$"
 				},
 				{
 					"name": "entity.name.tag.odin",
