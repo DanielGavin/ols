@@ -130,6 +130,8 @@ get_definition_location :: proc(
 		); ok {
 			location.range = resolved.range
 			uri = resolved.uri
+		} else {
+			return {}, false
 		}
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
