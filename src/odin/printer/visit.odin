@@ -327,6 +327,13 @@ visit_decl :: proc(
 	case ^Import_Decl:
 		document := move_line(p, decl.pos)
 
+		if len(v.attributes) > 0 {
+			document = cons(
+				document,
+				visit_attributes(p, &v.attributes, v.pos),
+			)
+		}
+
 		if v.name.text != "" {
 			document = cons(
 				document,
