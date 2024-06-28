@@ -477,22 +477,21 @@ read_ols_initialize_options :: proc(
 					)
 				}
 			}
+
+			config.profile.os = strings.clone(profile.os)
+
+			break
 		}
+	}
+
+	if config.profile.os == "" {
+		config.profile.os = os_enum_to_string[ODIN_OS]
 	}
 
 	config.checker_targets = slice.clone(
 		ols_config.checker_targets,
 		context.allocator,
 	)
-
-	found_target := false
-
-	for target in config.checker_targets {
-		if ODIN_OS in os_enum_to_string {
-			found_target = true
-		}
-	}
-
 
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
@@ -558,7 +557,9 @@ read_ols_initialize_options :: proc(
 				context.temp_allocator,
 			)
 
-			config.collections[strings.clone(it.name)] =  strings.clone(slashed_path)
+			config.collections[strings.clone(it.name)] = strings.clone(
+				slashed_path,
+			)
 		} else {
 			log.errorf(
 				"Failed to find absolute address of collection: %v",
@@ -743,7 +744,7 @@ request_initialize :: proc(
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		global_ols_config_path := path.join(
-			elems =  {
+			elems = {
 				filepath.dir(os.args[0], context.temp_allocator),
 				"ols.json",
 			},
