@@ -7,7 +7,7 @@
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.1.29",
+	"version": "0.1.30",
 	"engines": {
 		"vscode": "^1.66.0"
 	},
@@ -114,6 +114,16 @@
 				"language": "odin",
 				"scopeName": "source.odin",
 				"path": "./syntaxes/odin.tmLanguage.json"
+			},
+			{
+				"scopeName": "markdown.odin.codeblock",
+				"path": "./syntaxes/codeblock.json",
+				"injectTo": [
+					"text.html.markdown"
+				],
+				"embeddedLanguages": {
+					  "meta.embedded.block.odin": "odin"
+					}
 			}
 		],
 		"breakpoints": [

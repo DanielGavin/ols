@@ -478,22 +478,21 @@ read_ols_initialize_options :: proc(
 					)
 				}
 			}
+
+			config.profile.os = strings.clone(profile.os)
+
+			break
 		}
+	}
+
+	if config.profile.os == "" {
+		config.profile.os = os_enum_to_string[ODIN_OS]
 	}
 
 	config.checker_targets = slice.clone(
 		ols_config.checker_targets,
 		context.allocator,
 	)
-
-	found_target := false
-
-	for target in config.checker_targets {
-		if ODIN_OS in os_enum_to_string {
-			found_target = true
-		}
-	}
-
 
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints

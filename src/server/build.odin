@@ -27,6 +27,9 @@ platform_os: map[string]bool = {
 	"openbsd" = true,
 	"wasi"    = true,
 	"wasm"    = true,
+	"haiku"   = true,
+	"netbsd"  = true,
+	"freebsd" = true,
 }
 
 
@@ -39,8 +42,28 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.WASI         = "wasi",
 	.JS           = "js",
 	.Freestanding = "freestanding",
-	.OpenBSD      = "openbsd",
 	.JS           = "wasm",
+	.Haiku        = "haiku",
+	.OpenBSD      = "openbsd",
+	.NetBSD       = "netbsd",
+	.FreeBSD      = "freebsd",
+}
+
+@(private = "file")
+is_bsd_variant :: proc(name: string) -> bool {
+	return(
+		common.config.profile.os == os_enum_to_string[.FreeBSD] ||
+		common.config.profile.os == os_enum_to_string[.OpenBSD] ||
+		common.config.profile.os == os_enum_to_string[.NetBSD] \
+	)
+}
+
+@(private = "file")
+is_unix_variant :: proc(name: string) -> bool {
+	return(
+		common.config.profile.os == os_enum_to_string[.Linux] ||
+		common.config.profile.os == os_enum_to_string[.Darwin] \
+	)
 }
 
 skip_file :: proc(filename: string) -> bool {
@@ -50,10 +73,16 @@ skip_file :: proc(filename: string) -> bool {
 	if last_underscore_index + 1 < last_dot_index {
 		name_between := filename[last_underscore_index + 1:last_dot_index]
 
+		if name_between == "unix" {
+			return !is_unix_variant(name_between)
+		}
+
+		if name_between == "bsd" {
+			return !is_bsd_variant(name_between)
+		}
+
 		if _, ok := platform_os[name_between]; ok {
-			if name_between != os_enum_to_string[ODIN_OS] {
-				return true
-			}
+			return name_between != common.config.profile.os
 		}
 	}
 
