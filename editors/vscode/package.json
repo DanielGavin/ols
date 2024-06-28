@@ -114,6 +114,16 @@
 				"language": "odin",
 				"scopeName": "source.odin",
 				"path": "./syntaxes/odin.tmLanguage.json"
+			},
+			{
+				"scopeName": "markdown.odin.codeblock",
+				"path": "./syntaxes/codeblock.json",
+				"injectTo": [
+					"text.html.markdown"
+				],
+				"embeddedLanguages": {
+					  "meta.embedded.block.odin": "odin"
+					}
 			}
 		],
 		"breakpoints": [
