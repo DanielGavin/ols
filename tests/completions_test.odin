@@ -266,6 +266,32 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_identifier_proc_group_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		raw_data_slice :: proc(v: $T/[]$E) -> [^]E {
+		}
+
+		zzcool :: proc {
+			raw_data_slice,
+		}
+
+		main :: proc() {
+			zzco{*}
+		}
+
+		`,
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.zzcool: proc(v: $T/[]$E) -> [^]E"},
+	)
+}
+
+@(test)
 ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test

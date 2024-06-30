@@ -629,6 +629,11 @@ resolve_function_overload :: proc(
 
 	call_expr := ast_context.call
 
+	//If there is nothing to resolve from, we actually want to get the invalid overloaded results through setting overloading to false
+	if call_expr == nil || len(call_expr.args) == 0 {
+		ast_context.overloading = false
+	}
+
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
