@@ -101,6 +101,7 @@ AstContext :: struct {
 	uri:              string,
 	fullpath:         string,
 	non_mutable_only: bool,
+	overloading:      bool,
 }
 
 make_ast_context :: proc(
@@ -617,6 +618,13 @@ resolve_function_overload :: proc(
 	Symbol,
 	bool,
 ) {
+	old_overloading := ast_context.overloading
+	ast_context.overloading = true
+
+	defer {
+		ast_context.overloading = old_overloading
+	}
+
 	using ast
 
 	call_expr := ast_context.call
@@ -1445,22 +1453,10 @@ internal_resolve_type_identifier :: proc(
 				make_symbol_bit_field_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
-			if !is_procedure_generic(v.type) {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(
-						ast_context,
-						local.rhs,
-						v.type^,
-						node,
-						{},
-						false,
-					),
-					true
-			} else {
-				if return_symbol, ok = resolve_generic_function(
-					ast_context,
-					v^,
-				); !ok {
+			if is_procedure_generic(v.type) {
+				return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+				if !ok && !ast_context.overloading {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -1472,6 +1468,18 @@ internal_resolve_type_identifier :: proc(
 						),
 						true
 				}
+			} else {
+
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						local.rhs,
+						v.type^,
+						node,
+						{},
+						false,
+					),
+					true
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
@@ -1581,22 +1589,11 @@ internal_resolve_type_identifier :: proc(
 				make_symbol_bit_field_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
-			if !is_procedure_generic(v.type) {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(
-						ast_context,
-						global.expr,
-						v.type^,
-						node,
-						global.attributes,
-						false,
-					),
-					true
-			} else {
-				if return_symbol, ok = resolve_generic_function(
-					ast_context,
-					v^,
-				); !ok {
+			if is_procedure_generic(v.type) {
+				return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+				//If we are not overloading just show the unresolved generic function
+				if !ok && !ast_context.overloading {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -1608,6 +1605,17 @@ internal_resolve_type_identifier :: proc(
 						),
 						true
 				}
+			} else {
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						global.expr,
+						v.type^,
+						node,
+						global.attributes,
+						false,
+					),
+					true
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)

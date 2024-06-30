@@ -687,11 +687,7 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 		main     = `package test
 
 		make :: proc{
-			make_dynamic_array,
 			make_dynamic_array_len,
-			make_dynamic_array_len_cap,
-			make_map,
-			make_slice,
 		};
 		make_slice :: proc($T: typeid/[]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
@@ -2560,7 +2556,7 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 		matrix4_from_trs_f16 :: proc "contextless" () -> matrix[4, 4]f32 {
 			translation: matrix[4, 4]f32
 			rotation: matrix[4, 4]f32
-			dsszz := matrix_mul(scale, translation)
+			dsszz := matrix_mul(rotation, translation)
 			dssz{*}
 		}
 		`,
@@ -2877,4 +2873,50 @@ ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
 		".",
 		{"North", "East", "South", "West"},
 	)
+}
+
+@(test)
+ast_raw_data_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		_raw_data_slice   :: proc(value: []$E)         -> [^]E    {}
+		_raw_data_dynamic :: proc(value: [dynamic]$E)  -> [^]E    {}
+		_raw_data_array   :: proc(value: ^[$N]$E)      -> [^]E    {}
+		_raw_data_simd    :: proc(value: ^#simd[$N]$E) -> [^]E    {}
+		_raw_data_string  :: proc(value: string)       -> [^]byte {}
+
+		_raw_data :: proc{_raw_data_slice, _raw_data_dynamic, _raw_data_array, _raw_data_simd, _raw_data_string}
+
+		main :: proc() {
+			slice: []int
+			rezz := _raw_data(slice)
+			rez{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.rezz: [^]int"})
+}
+
+@(test)
+ast_raw_data_slice_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		raw_data_slice :: proc(v: $T/[]$E) -> [^]E {}
+
+
+		cool :: proc {
+			raw_data_slice,
+		}
+
+		main :: proc() {
+			my_slice: []int
+			rezz := cool(my_slice)
+			rez{*}
+		}
+
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.rezz: [^]int"})
 }

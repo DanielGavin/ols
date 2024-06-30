@@ -40,6 +40,8 @@ resolve_poly :: proc(
 	case ^ast.Poly_Type:
 		specialization = v.specialization
 		type = v.type
+	case:
+		specialization = poly_node
 	}
 
 	if specialization == nil {
@@ -124,7 +126,7 @@ resolve_poly :: proc(
 		if call_struct, ok := call_node.derived.(^ast.Struct_Type); ok {
 			arg_index := 0
 			struct_value := call_symbol.value.(SymbolStructValue)
-
+			found := false
 			for arg in p.args {
 				if poly_type, ok := arg.derived.(^ast.Poly_Type); ok {
 					if poly_type.type == nil ||
@@ -140,8 +142,11 @@ resolve_poly :: proc(
 					)
 
 					arg_index += 1
+					found |= true
 				}
 			}
+
+			return found
 		}
 	case ^ast.Struct_Type:
 	case ^ast.Dynamic_Array_Type:
@@ -296,14 +301,13 @@ resolve_poly :: proc(
 						poly_map,
 					)
 				}
+				return true
 			}
 		}
 	case ^ast.Ident:
-		if n, ok := call_node.derived.(^ast.Ident); ok {
-			return true
-		}
+		return true
 	case:
-		log.error("Unhandled specialization %v", specialization.derived)
+		return false
 	}
 
 	return false
@@ -585,12 +589,17 @@ resolve_generic_function_symbol :: proc(
 							nil,
 						)
 					}
+				} else {
+					return {}, false
 				}
+			} else {
+				return {}, false
 			}
 
 			i += 1
 		}
 	}
+
 
 	for k, v in poly_map {
 		find_and_replace_poly_type(v, &poly_map)
@@ -643,27 +652,38 @@ resolve_generic_function_symbol :: proc(
 		append(&return_types, field)
 	}
 
+
 	for param in params {
-		if len(param.names) == 0 {
-			continue
+		field := cast(^ast.Field)clone_node(param, ast_context.allocator, nil)
+
+		if field.type != nil {
+			if poly_type, ok := field.type.derived.(^ast.Poly_Type); ok {
+				if expr, ok := poly_map[poly_type.type.name]; ok {
+					field.type = expr
+				}
+			} else {
+				if ident, ok := unwrap_ident(field.type); ok {
+					if expr, ok := poly_map[ident.name]; ok {
+						field.type = expr
+					}
+				}
+
+				find_and_replace_poly_type(field.type, &poly_map)
+			}
 		}
 
-		//check the name for poly
-		if poly_type, ok := param.names[0].derived.(^ast.Poly_Type);
-		   ok && param.type != nil {
-			if m, ok := poly_map[poly_type.type.name]; ok {
-				field := cast(^ast.Field)clone_node(
-					param,
-					ast_context.allocator,
-					nil,
-				)
-				field.type = m
-				append(&argument_types, field)
+		if len(param.names) > 0 {
+			if poly_type, ok := param.names[0].derived.(^ast.Poly_Type);
+			   ok && param.type != nil {
+				if m, ok := poly_map[poly_type.type.name]; ok {
+					field.type = m
+				}
 			}
-		} else {
-			append(&argument_types, param)
 		}
+
+		append(&argument_types, field)
 	}
+
 
 	symbol.value = SymbolProcedureValue {
 		return_types = return_types[:],
@@ -683,12 +703,9 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 			continue
 		}
 
-		if expr, _, ok := common.unwrap_pointer_expr(param.type); ok {
-			if _, ok := expr.derived.(^ast.Poly_Type); ok {
-				return true
-			}
+		if common.expr_contains_poly(param.type) {
+			return true
 		}
-
 	}
 
 	return false
