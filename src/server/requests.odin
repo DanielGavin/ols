@@ -275,6 +275,7 @@ call_map: map[string]proc(
 	"textDocument/inlayHint"            = request_inlay_hint,
 	"textDocument/documentLink"         = request_document_links,
 	"textDocument/rename"               = request_rename,
+	"textDocument/prepareRename"        = request_prepare_rename,
 	"textDocument/references"           = request_references,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
@@ -696,10 +697,10 @@ request_initialize :: proc(
 	config.enable_semantic_tokens = false
 	config.enable_procedure_context = false
 	config.enable_snippets = false
-	config.enable_references = false
+	config.enable_references = true
 	config.verbose = false
 	config.file_log = false
-	config.enable_rename = false
+	config.enable_rename = true
 	config.odin_command = ""
 	config.checker_args = ""
 	config.enable_inlay_hints = false
@@ -801,7 +802,7 @@ request_initialize :: proc(
 					change = 2,
 					save = {includeText = true},
 				},
-				renameProvider = config.enable_rename,
+				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
 				definitionProvider = true,
@@ -1271,17 +1272,18 @@ request_semantic_token_full :: proc(
 		end = common.Position{line = 9000000}, //should be enough
 	}
 
-	symbols: SemanticTokens
+	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
 		resolve_entire_file_cached(document)
 
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(document, range, file.symbols)
+			tokens := get_semantic_tokens(document, range, file.symbols)
+			tokens_params = semantic_tokens_to_response_params(tokens)
 		}
 	}
 
-	response := make_response_message(params = symbols, id = id)
+	response := make_response_message(params = tokens_params, id = id)
 
 	send_response(response, writer)
 
@@ -1312,21 +1314,22 @@ request_semantic_token_range :: proc(
 		return .InternalError
 	}
 
-	symbols: SemanticTokens
+	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
 		resolve_entire_file_cached(document)
 
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			symbols = get_semantic_tokens(
+			tokens := get_semantic_tokens(
 				document,
 				semantic_params.range,
 				file.symbols,
 			)
+			tokens_params = semantic_tokens_to_response_params(tokens)
 		}
 	}
 
-	response := make_response_message(params = symbols, id = id)
+	response := make_response_message(params = tokens_params, id = id)
 
 	send_response(response, writer)
 
@@ -1486,6 +1489,41 @@ request_document_links :: proc(
 	response := make_response_message(params = links, id = id)
 
 	send_response(response, writer)
+
+	return .None
+}
+
+request_prepare_rename :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	rename_param: PrepareRenameParams
+
+	if unmarshal(params, rename_param, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(rename_param.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	if range, ok := get_prepare_rename(document, rename_param.position); ok {
+		response := make_response_message(params = range, id = id)
+		send_response(response, writer)
+	} else {
+		response := make_response_message(params = nil, id = id)
+		send_response(response, writer)
+	}
 
 	return .None
 }

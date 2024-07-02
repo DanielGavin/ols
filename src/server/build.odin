@@ -189,17 +189,7 @@ setup_index :: proc() {
 	)
 	indexer.index = make_memory_index(symbol_collection)
 
-	dir_exe, ok := filepath.abs(
-		path.dir(os.args[0], context.temp_allocator),
-		context.temp_allocator,
-	)
-
-	if !ok {
-		log.error(
-			"Failed to find ols executable path to build the builtin packages",
-		)
-		return
-	}
+	dir_exe := common.get_executable_path()
 
 	try_build_package(path.join({dir_exe, "builtin"}, context.temp_allocator))
 }

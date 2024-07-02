@@ -185,3 +185,41 @@ ast_hover_on_bitset_variable :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.derived_bit_set: bit_set[Foo]")
 }
+
+@(test)
+ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+
+		import "my_package"
+		My_Foo :: struct {
+			bar: my_package.My_Stru{*}ct,
+		}
+
+		my_package :: proc() {
+		
+		}
+		
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.My_Struct: struct")
+}

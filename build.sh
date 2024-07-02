@@ -74,9 +74,9 @@ if [[ $1 == "debug" ]]
 then
     shift
 
-    odin build src/ -collection:src=src -out:ols -use-separate-modules -debug $@
+    odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -use-separate-modules -debug $@
     exit 0
 fi
 
 
-odin build src/ -collection:src=src -out:ols -o:speed $@
+odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -o:speed $@

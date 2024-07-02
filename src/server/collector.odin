@@ -39,6 +39,7 @@ SymbolPackage :: struct {
 	symbols:      map[string]Symbol,
 	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
 	methods:      map[Method][dynamic]Symbol,
+	imports:      [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
 }
 
 get_index_unique_string :: proc {
@@ -100,6 +101,7 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		delete(v.methods)
 		delete(v.objc_structs)
 		delete(v.symbols)
+		delete(v.imports)
 	}
 
 	delete(collection.packages)
@@ -566,6 +568,10 @@ collect_objc :: proc(
 	}
 }
 
+collect_imports :: proc(collection: ^SymbolCollection, file: ast.File) {
+
+}
+
 collect_symbols :: proc(
 	collection: ^SymbolCollection,
 	file: ast.File,
@@ -576,6 +582,8 @@ collect_symbols :: proc(
 	package_map := get_package_mapping(file, collection.config, directory)
 
 	exprs := common.collect_globals(file, true)
+
+	collect_imports(collection, file)
 
 	for expr in exprs {
 		symbol: Symbol

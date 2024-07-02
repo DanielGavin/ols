@@ -90,10 +90,10 @@ get_definition_location :: proc(
 
 	if position_context.import_stmt != nil {
 		if get_all_package_file_locations(
-			   document,
-			   position_context.import_stmt,
-			   &locations,
-		   ) {
+			document,
+			position_context.import_stmt,
+			&locations,
+		) {
 			return locations[:], true
 		}
 	} else if position_context.selector_expr != nil {
@@ -130,6 +130,8 @@ get_definition_location :: proc(
 		); ok {
 			location.range = resolved.range
 			uri = resolved.uri
+		} else {
+			return {}, false
 		}
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&

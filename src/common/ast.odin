@@ -207,6 +207,35 @@ unwrap_pointer_expr :: proc(expr: ^ast.Expr) -> (^ast.Expr, int, bool) {
 	return expr, n, true
 }
 
+expr_contains_poly :: proc(expr: ^ast.Expr) -> bool {
+	if expr == nil {
+		return false
+	}
+
+	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil {
+			return nil
+		}
+		if _, ok := node.derived.(^ast.Poly_Type); ok {
+			b := cast(^bool)visitor.data
+			b^ = true
+			return nil
+		}
+		return visitor
+	}
+
+	found := false
+
+	visitor := ast.Visitor {
+		visit = visit,
+		data  = &found,
+	}
+
+	ast.walk(&visitor, expr)
+
+	return found
+}
+
 is_expr_basic_lit :: proc(expr: ^ast.Expr) -> bool {
 	_, ok := expr.derived.(^ast.Basic_Lit)
 	return ok

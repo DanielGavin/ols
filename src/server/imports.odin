@@ -1,7 +1,7 @@
 package server
 
-import "core:odin/ast"
 import "core:mem"
+import "core:odin/ast"
 
 
 fix_imports :: proc(document: ^Document) {
@@ -11,7 +11,7 @@ fix_imports :: proc(document: ^Document) {
 
 	context.allocator = mem.arena_allocator(&arena)
 
-	symbols_and_nodes := resolve_entire_file(document, "", .None, true)
+	symbols_and_nodes := resolve_entire_file(document, .None)
 
 
 }

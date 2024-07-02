@@ -14,9 +14,8 @@ import "core:strings"
 import "src:common"
 
 SymbolAndNode :: struct {
-	symbol:      Symbol,
-	node:        ^ast.Node,
-	is_resolved: bool,
+	symbol: Symbol,
+	node:   ^ast.Node,
 }
 
 SymbolStructValue :: struct {
@@ -216,6 +215,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		common.free_ast(v.arg_types, allocator)
 	case SymbolStructValue:
 		delete(v.names, allocator)
+		delete(v.ranges, allocator)
 		common.free_ast(v.types, allocator)
 	case SymbolGenericValue:
 		common.free_ast(v.expr, allocator)
@@ -249,6 +249,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolPackageValue:
 	case SymbolBitFieldValue:
 		delete(v.names, allocator)
+		delete(v.ranges, allocator)
 		common.free_ast(v.types, allocator)
 	}
 }
