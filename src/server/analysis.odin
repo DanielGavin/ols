@@ -1394,6 +1394,20 @@ internal_resolve_type_identifier :: proc(
 		}
 	}
 
+	for imp in ast_context.imports {
+		if strings.compare(imp.base, node.name) == 0 {
+			symbol := Symbol {
+				type  = .Package,
+				pkg   = imp.name,
+				value = SymbolPackageValue{},
+			}
+
+			try_build_package(symbol.pkg)
+
+			return symbol, true
+		}
+	}
+
 	if local, ok := get_local(ast_context^, node);
 	   ok && ast_context.use_locals {
 		is_distinct := false
@@ -1703,20 +1717,6 @@ internal_resolve_type_identifier :: proc(
 		if !is_runtime {
 			if symbol, ok := lookup(node.name, "$builtin"); ok {
 				return resolve_symbol_return(ast_context, symbol)
-			}
-		}
-
-		for imp in ast_context.imports {
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type  = .Package,
-					pkg   = imp.name,
-					value = SymbolPackageValue{},
-				}
-
-				try_build_package(symbol.pkg)
-
-				return symbol, true
 			}
 		}
 

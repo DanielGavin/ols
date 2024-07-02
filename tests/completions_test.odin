@@ -407,9 +407,6 @@ index_package_completion :: proc(t: ^testing.T) {
 	)
 }
 
-import "core:odin/ast"
-import "core:odin/parser"
-
 @(test)
 ast_generic_make_slice :: proc(t: ^testing.T) {
 
