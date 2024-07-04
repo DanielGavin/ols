@@ -26,11 +26,10 @@ my_function :: proc() {
 		{0, 3, 6,  .Type,      {.ReadOnly}}, // [2]  string
 		{0, 11, 3, .Type,      {.ReadOnly}}, // [3]  int
 		{1, 0, 11, .Function,  {.ReadOnly}}, // [4]  my_function
-		{0, 0, 11, .Type,      {.ReadOnly}}, // [5]  !!! WRONG !!!
-		{1, 1, 1,  .Variable,  {}},          // [6]  a
-		{1, 1, 1,  .Variable,  {}},          // [7]  b
-		{0, 5, 1,  .Variable,  {}},          // [8]  a
-		{1, 1, 1,  .Variable,  {}},          // [9]  c
-		{0, 9, 1,  .Variable,  {}},          // [10] b
+		{1, 1, 1,  .Variable,  {}},          // [5]  a
+		{1, 1, 1,  .Variable,  {}},          // [6]  b
+		{0, 5, 1,  .Variable,  {}},          // [7]  a
+		{1, 1, 1,  .Variable,  {}},          // [8]  c
+		{0, 9, 1,  .Variable,  {}},          // [9] b
 	})
 }

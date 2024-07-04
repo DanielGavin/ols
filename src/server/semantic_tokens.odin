@@ -602,30 +602,30 @@ visit_ident :: proc(
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)
-	}
-
-	/* type idents */
-	switch v in symbol.value {
-	case SymbolPackageValue:
-		write_semantic_node(builder, ident, .Namespace, modifiers)
-	case SymbolStructValue, SymbolBitFieldValue:
-		write_semantic_node(builder, ident, .Struct, modifiers)
-	case SymbolEnumValue, SymbolUnionValue:
-		write_semantic_node(builder, ident, .Enum, modifiers)
-	case SymbolProcedureValue,
-	     SymbolMatrixValue,
-	     SymbolBitSetValue,
-	     SymbolDynamicArrayValue,
-	     SymbolFixedArrayValue,
-	     SymbolSliceValue,
-	     SymbolMapValue,
-	     SymbolMultiPointer,
-	     SymbolBasicValue:
-		write_semantic_node(builder, ident, .Type, modifiers)
-	case SymbolUntypedValue:
-	// handled by static syntax highlighting
-	case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
-	// unused
 	case:
+		/* type idents */
+		switch v in symbol.value {
+		case SymbolPackageValue:
+			write_semantic_node(builder, ident, .Namespace, modifiers)
+		case SymbolStructValue, SymbolBitFieldValue:
+			write_semantic_node(builder, ident, .Struct, modifiers)
+		case SymbolEnumValue, SymbolUnionValue:
+			write_semantic_node(builder, ident, .Enum, modifiers)
+		case SymbolProcedureValue,
+		     SymbolMatrixValue,
+		     SymbolBitSetValue,
+		     SymbolDynamicArrayValue,
+		     SymbolFixedArrayValue,
+		     SymbolSliceValue,
+		     SymbolMapValue,
+		     SymbolMultiPointer,
+		     SymbolBasicValue:
+			write_semantic_node(builder, ident, .Type, modifiers)
+		case SymbolUntypedValue:
+		// handled by static syntax highlighting
+		case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
+		// unused
+		case:
+		}
 	}
 }
