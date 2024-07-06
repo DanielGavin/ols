@@ -2658,12 +2658,30 @@ visit_proc_type :: proc(
 		document = cons(document, text("("))
 	}
 
+	contain_comments := contains_comments_in_range(
+		p,
+		proc_type.pos,
+		proc_type.end,
+	)
+
+	options: List_Options
+
+	if contain_comments {
+		options |= {.Enforce_Newline}
+	}
+
 	document = cons(
 		document,
 		nest(
 			cons(
 				len(proc_type.params.list) > 0 ? break_with("") : empty(),
-				visit_signature_list(p, proc_type.params, true, false),
+				visit_signature_list(
+					p,
+					proc_type.params,
+					true,
+					false,
+					options,
+				),
 			),
 		),
 	)
@@ -2723,6 +2741,10 @@ visit_proc_type :: proc(
 		document = cons_with_nopl(document, text("-"))
 		document = cons(document, text(">"))
 		document = cons_with_nopl(document, text("!"))
+	}
+
+	if contain_comments {
+		return enforce_break(document)
 	}
 
 	return document
@@ -2854,22 +2876,40 @@ visit_signature_list :: proc(
 	list: ^ast.Field_List,
 	contains_body: bool,
 	remove_blank: bool,
+	options := List_Options{},
 ) -> ^Document {
 	document := empty()
 
 	for field, i in list.list {
+		p.source_position = field.pos
+
 		document = cons(
 			document,
 			visit_signature_field(p, field, remove_blank),
 		)
 
 		if i != len(list.list) - 1 {
-			document = cons(document, text(","), break_with_space())
+			if .Enforce_Newline in options {
+				document = cons(document, text(","))
+			} else {
+				document = cons(document, text(","), break_with_space())
+			}
 		} else {
-			document =
-				len(list.list) > 1 || contains_body \
-				? cons(document, if_break(",")) \
-				: document
+			if .Enforce_Newline not_in options {
+				document =
+					len(list.list) > 1 || contains_body \
+					? cons(document, if_break(",")) \
+					: document
+			}
+
+		}
+
+		if (i != len(list.list) - 1 && .Enforce_Newline in options) {
+			comment, _ := visit_comments(p, list.list[i + 1].pos)
+			document = cons(document, comment, newline(1))
+		} else if .Enforce_Newline in options {
+			comment, _ := visit_comments(p, list.list[i].end)
+			document = cons(document, comment)
 		}
 	}
 

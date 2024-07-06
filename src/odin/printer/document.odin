@@ -1,5 +1,6 @@
 package odin_printer
 
+import "core:fmt"
 import "core:strings"
 
 Document :: union {
@@ -597,6 +598,7 @@ format :: proc(
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
 			} else if data.mode == .Fill && v.newline {
+				flush_line_suffix(builder, &suffix_builder)
 				format_newline(
 					data.indentation,
 					data.alignment,
