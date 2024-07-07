@@ -2900,6 +2900,8 @@ visit_signature_list :: proc(
 					len(list.list) > 1 || contains_body \
 					? cons(document, if_break(",")) \
 					: document
+			} else {
+				document = cons(document, text(","))
 			}
 
 		}
@@ -2912,6 +2914,9 @@ visit_signature_list :: proc(
 			document = cons(document, comment)
 		}
 	}
+
+	comment, _ := visit_comments(p, list.end)
+	document = cons(document, comment)
 
 	return document
 }
