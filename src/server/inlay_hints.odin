@@ -9,6 +9,7 @@ import "src:common"
 get_inlay_hints :: proc(
 	document: ^Document,
 	symbols: map[uintptr]SymbolAndNode,
+	config: ^common.Config,
 ) -> (
 	[]InlayHint,
 	bool,
@@ -112,6 +113,10 @@ get_inlay_hints :: proc(
 								continue loop
 							}
 
+							if !config.enable_inlay_hints_default_params {
+								continue loop
+							}
+
 							value := common.node_to_string(arg.default_value)
 
 							call_range := common.get_token_range(
@@ -154,7 +159,7 @@ get_inlay_hints :: proc(
 							append(&hints, hint)
 
 							has_added_default = true
-						} else {
+						} else if config.enable_inlay_hints_params {
 
 							// if the arg name and param name are the same, don't add it.
 							same_name: bool
