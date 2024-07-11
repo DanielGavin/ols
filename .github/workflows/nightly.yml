@@ -24,7 +24,7 @@ jobs:
         cd Odin
         ./build_odin.sh release
     - name: Build ols
-      run: ./build.sh CI_NO_TESTS -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
+      run: ./ci.sh CI_NO_TESTS -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
     - name: Move to Dist
       run: |
         mkdir dist
@@ -54,7 +54,7 @@ jobs:
         cd Odin
         make release
     - name: Build ols
-      run: ./build.sh CI
+      run: ./ci.sh CI
     - name: Move to Dist
       run: |
         mkdir dist
@@ -84,7 +84,7 @@ jobs:
         cd Odin
         ./build_odin.sh release
     - name: Build ols
-      run: ./build.sh CI
+      run: ./ci.sh CI
     - name: Move to Dist
       run: |
         mkdir dist
@@ -112,7 +112,7 @@ jobs:
         ./build.bat 1
     - name: Build ols
       shell: cmd
-      run: ./build.bat CI
+      run: ./ci.bat CI
     - name: Move to Dist
       shell: cmd
       run: | 

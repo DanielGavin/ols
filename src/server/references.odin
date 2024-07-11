@@ -10,6 +10,7 @@ import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
+import "core:slice"
 import "core:strings"
 
 import "src:common"
@@ -24,6 +25,8 @@ walk_directories :: proc(
 	err: os.Errno,
 	skip_dir: bool,
 ) {
+	document := cast(^Document)user_data
+
 	if info.is_dir {
 		return 0, false
 	}
@@ -33,29 +36,189 @@ walk_directories :: proc(
 	}
 
 	if strings.contains(info.name, ".odin") {
-		append(&fullpaths, strings.clone(info.fullpath))
+		slash_path, _ := filepath.to_slash(
+			info.fullpath,
+			context.temp_allocator,
+		)
+		if slash_path != document.fullpath {
+			append(
+				&fullpaths,
+				strings.clone(info.fullpath, context.temp_allocator),
+			)
+		}
 	}
 
 	return 0, false
 }
 
-position_in_struct_names :: proc(
+prepare_references :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	type: ^ast.Struct_Type,
-) -> bool {
-	for field in type.fields.list {
-		for name in field.names {
-			if position_in_node(name, position_context.position) {
-				return true
+) -> (
+	symbol: Symbol,
+	resolve_flag: ResolveReferenceFlag,
+	ok: bool,
+) {
+	ok = false
+	reference := ""
+	pkg := ""
+
+	if position_context.label != nil {
+		return
+	} else if position_context.struct_type != nil {
+		found := false
+		done_struct: for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(
+							name,
+							string(document.text),
+						),
+					}
+					found = true
+					resolve_flag = .Field
+					break done_struct
+				}
 			}
 		}
+		if !found {
+			return
+		}
+	} else if position_context.enum_type != nil {
+		/*
+		found := false
+		done_enum: for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(
+							name,
+							string(document.text),
+						),
+					}
+					found = true
+					resolve_flag = .Field
+					break done_enum
+				}
+			}
+		}
+		if !found {
+			return {}, false
+		}
+		*/
+	} else if position_context.bitset_type != nil {
+		return
+	} else if position_context.union_type != nil {
+		found := false
+		for variant in position_context.union_type.variants {
+			if position_in_node(variant, position_context.position) {
+				if ident, ok := variant.derived.(^ast.Ident); ok {
+					symbol, ok = resolve_location_identifier(
+						ast_context,
+						ident^,
+					)
+					reference = ident.name
+					resolve_flag = .Identifier
+
+					if !ok {
+						return
+					}
+
+					found = true
+
+					break
+				} else {
+					return
+				}
+			}
+		}
+		if !found {
+			return
+		}
+
+	} else if position_context.field_value != nil &&
+	   position_context.comp_lit != nil &&
+	   !common.is_expr_basic_lit(position_context.field_value.field) &&
+	   position_in_node(
+		   position_context.field_value.field,
+		   position_context.position,
+	   ) {
+		symbol, ok = resolve_location_comp_lit_field(
+			ast_context,
+			position_context,
+		)
+
+		if !ok {
+			return
+		}
+
+		//Only support structs for now
+		if _, ok := symbol.value.(SymbolStructValue); !ok {
+			return
+		}
+
+		resolve_flag = .Field
+	} else if position_context.selector_expr != nil {
+		resolve_flag = .Field
+
+		base: ^ast.Ident
+		base, ok = position_context.selector.derived.(^ast.Ident)
+
+		if position_in_node(base, position_context.position) &&
+		   position_context.identifier != nil &&
+		   ok {
+
+			ident := position_context.identifier.derived.(^ast.Ident)
+
+			symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+			if !ok {
+				return
+			}
+
+			resolve_flag = .Base
+		} else {
+			symbol, ok = resolve_location_selector(
+				ast_context,
+				position_context.selector_expr,
+			)
+
+			resolve_flag = .Field
+		}
+	} else if position_context.implicit {
+		resolve_flag = .Field
+
+		symbol, ok = resolve_location_implicit_selector(
+			ast_context,
+			position_context,
+			position_context.implicit_selector_expr,
+		)
+
+		if !ok {
+			return
+		}
+	} else if position_context.identifier != nil {
+		ident := position_context.identifier.derived.(^ast.Ident)
+
+		reference = ident.name
+		symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+		resolve_flag = .Identifier
+
+		if !ok {
+			return
+		}
+	} else {
+		return
 	}
 
-	return false
+	return symbol, resolve_flag, true
 }
 
-
 resolve_references :: proc(
+	document: ^Document,
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 ) -> (
@@ -65,198 +228,172 @@ resolve_references :: proc(
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
 	fullpaths = make([dynamic]string, 0, ast_context.allocator)
 
-	resolve_flag: ResolveReferenceFlag
-	reference := ""
-	symbol: Symbol
-	ok: bool
-	pkg := ""
-
-	filepath.walk(
-		filepath.dir(os.args[0], context.allocator),
-		walk_directories,
-		nil,
+	symbol, resolve_flag, ok := prepare_references(
+		document,
+		ast_context,
+		position_context,
 	)
-
-	for workspace in common.config.workspace_folders {
-		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-		filepath.walk(uri.path, walk_directories, nil)
-	}
-
-	reset_ast_context(ast_context)
-
-	if position_context.struct_type != nil &&
-	   position_in_struct_names(
-		   position_context,
-		   position_context.struct_type,
-	   ) {
-		return {}, true
-	} else if position_context.enum_type != nil {
-		return {}, true
-	} else if position_context.bitset_type != nil {
-		return {}, true
-	} else if position_context.union_type != nil {
-		return {}, true
-	} else if position_context.selector_expr != nil {
-		if resolved, ok := resolve_type_expression(
-			ast_context,
-			position_context.selector,
-		); ok {
-			if _, is_package := resolved.value.(SymbolPackageValue);
-			   !is_package {
-				return {}, true
-			}
-			resolve_flag = .Constant
-		}
-
-		symbol, ok = resolve_location_selector(
-			ast_context,
-			position_context.selector_expr,
-		)
-
-		if !ok {
-			return {}, true
-		}
-
-		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			reference = ident.name
-		} else {
-			return {}, true
-		}
-	} else if position_context.implicit {
-		return {}, true
-	} else if position_context.identifier != nil {
-		ident := position_context.identifier.derived.(^ast.Ident)
-
-		if resolved, ok := resolve_type_identifier(ast_context, ident^); ok {
-			if resolved.type == .Variable {
-				resolve_flag = .Variable
-			} else {
-				resolve_flag = .Constant
-			}
-		} else {
-			log.errorf(
-				"Failed to resolve identifier for indexing: %v",
-				ident.name,
-			)
-			return {}, true
-		}
-
-		reference = ident.name
-		symbol, ok = resolve_location_identifier(ast_context, ident^)
-
-		if !ok {
-			return {}, true
-		}
-	}
 
 	if !ok {
 		return {}, true
 	}
 
-	resolve_arena: mem.Arena
-	mem.arena_init(&resolve_arena, make([]byte, mem.Megabyte * 25))
-
-	context.allocator = mem.arena_allocator(&resolve_arena)
-
-	for fullpath in fullpaths {
-		data, ok := os.read_entire_file(fullpath, context.allocator)
-
-		if !ok {
-			log.errorf("failed to read entire file for indexing %v", fullpath)
-			continue
+	when !ODIN_TEST {
+		for workspace in common.config.workspace_folders {
+			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+			filepath.walk(uri.path, walk_directories, document)
 		}
+	}
 
-		p := parser.Parser {
-			err   = log_error_handler,
-			warn  = log_warning_handler,
-			flags = {.Optional_Semicolons},
-		}
+	reset_ast_context(ast_context)
 
-		dir := filepath.dir(fullpath)
-		base := filepath.base(dir)
-		forward_dir, _ := filepath.to_slash(dir)
 
-		pkg := new(ast.Package)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = base
+	arena: runtime.Arena
 
-		if base == "runtime" {
-			pkg.kind = .Runtime
-		}
+	_ = runtime.arena_init(
+		&arena,
+		mem.Megabyte * 40,
+		runtime.default_allocator(),
+	)
 
-		file := ast.File {
-			fullpath = fullpath,
-			src      = string(data),
-			pkg      = pkg,
-		}
+	defer runtime.arena_destroy(&arena)
 
-		ok = parser.parse_file(&p, &file)
+	context.allocator = runtime.arena_allocator(&arena)
 
-		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") &&
-			   !strings.contains(fullpath, "intrinsics.odin") {
-				log.errorf("error in parse file for indexing %v", fullpath)
-			}
-			continue
-		}
+	fullpaths := slice.unique(fullpaths[:])
 
-		uri := common.create_uri(fullpath, context.allocator)
+	if .Local not_in symbol.flags {
+		for fullpath in fullpaths {
+			dir := filepath.dir(fullpath)
+			base := filepath.base(dir)
+			forward_dir, _ := filepath.to_slash(dir)
 
-		document := Document {
-			ast = file,
-		}
+			data, ok := os.read_entire_file(fullpath, context.allocator)
 
-		document.uri = uri
-		document.text = transmute([]u8)file.src
-		document.used_text = len(file.src)
-
-		document_setup(&document)
-
-		parse_imports(&document, &common.config)
-
-		in_pkg := false
-
-		for pkg in document.imports {
-			if pkg.name == symbol.pkg || forward_dir == symbol.pkg {
-				in_pkg = true
+			if !ok {
+				log.errorf(
+					"failed to read entire file for indexing %v",
+					fullpath,
+				)
 				continue
 			}
-		}
 
-		if in_pkg {
-			symbols_and_nodes := resolve_entire_file(
-				&document,
-				reference,
-				resolve_flag,
-				false,
-				context.allocator,
-			)
+			p := parser.Parser {
+				err   = log_error_handler,
+				warn  = log_warning_handler,
+				flags = {.Optional_Semicolons},
+			}
 
-			for k, v in symbols_and_nodes {
-				if v.symbol.uri == symbol.uri &&
-				   v.symbol.range == symbol.range {
-					node_uri := common.create_uri(
-						v.node.pos.file,
-						ast_context.allocator,
-					)
 
-					location := common.Location {
-						range = common.get_token_range(
-							v.node^,
-							string(document.text),
-						),
-						uri   = strings.clone(
-							node_uri.uri,
-							ast_context.allocator,
-						),
-					}
-					append(&locations, location)
+			pkg := new(ast.Package)
+			pkg.kind = .Normal
+			pkg.fullpath = fullpath
+			pkg.name = base
+
+			if base == "runtime" {
+				pkg.kind = .Runtime
+			}
+
+			file := ast.File {
+				fullpath = fullpath,
+				src      = string(data),
+				pkg      = pkg,
+			}
+
+			ok = parser.parse_file(&p, &file)
+
+			if !ok {
+				if !strings.contains(fullpath, "builtin.odin") &&
+				   !strings.contains(fullpath, "intrinsics.odin") {
+					log.errorf("error in parse file for indexing %v", fullpath)
+				}
+				continue
+			}
+
+			uri := common.create_uri(fullpath, context.allocator)
+
+			document := Document {
+				ast = file,
+			}
+
+			document.uri = uri
+			document.text = transmute([]u8)file.src
+			document.used_text = len(file.src)
+
+			document_setup(&document)
+
+			parse_imports(&document, &common.config)
+
+			in_pkg := false
+
+			for pkg in document.imports {
+				if pkg.name == symbol.pkg {
+					in_pkg = true
+					continue
 				}
 			}
-		}
 
-		free_all(context.allocator)
+			if in_pkg || symbol.pkg == document.package_name {
+				symbols_and_nodes := resolve_entire_file(
+					&document,
+					resolve_flag,
+					context.allocator,
+				)
+
+				for k, v in symbols_and_nodes {
+					if v.symbol.uri == symbol.uri &&
+					   v.symbol.range == symbol.range {
+						node_uri := common.create_uri(
+							v.node.pos.file,
+							ast_context.allocator,
+						)
+
+						location := common.Location {
+							range = common.get_token_range(
+								v.node^,
+								string(document.text),
+							),
+							uri   = strings.clone(
+								node_uri.uri,
+								ast_context.allocator,
+							),
+						}
+						append(&locations, location)
+					}
+				}
+			}
+
+			free_all(context.allocator)
+		}
+	}
+
+	symbols_and_nodes := resolve_entire_file(
+		document,
+		resolve_flag,
+		context.allocator,
+	)
+
+	for k, v in symbols_and_nodes {
+		if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
+			node_uri := common.create_uri(
+				v.node.pos.file,
+				ast_context.allocator,
+			)
+
+			range := common.get_token_range(v.node^, string(document.text))
+
+			//We don't have to have the `.` with, otherwise it renames the dot.
+			if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
+				range.start.character += 1
+			}
+
+			location := common.Location {
+				range = range,
+				uri   = strings.clone(node_uri.uri, ast_context.allocator),
+			}
+
+			append(&locations, location)
+		}
 	}
 
 	return locations[:], true
@@ -269,21 +406,13 @@ get_references :: proc(
 	[]common.Location,
 	bool,
 ) {
-	data := make([]byte, mem.Megabyte * 55, runtime.default_allocator())
-	defer delete(data)
-
-	arena: mem.Arena
-	mem.arena_init(&arena, data)
-
-	context.allocator = mem.arena_allocator(&arena)
-
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
 		document.package_name,
 		document.uri.uri,
 		document.fullpath,
-		context.allocator,
+		context.temp_allocator,
 	)
 
 	position_context, ok := get_document_position_context(
@@ -305,7 +434,11 @@ get_references :: proc(
 		)
 	}
 
-	locations, ok2 := resolve_references(&ast_context, &position_context)
+	locations, ok2 := resolve_references(
+		document,
+		&ast_context,
+		&position_context,
+	)
 
 	temp_locations := make([dynamic]common.Location, 0, context.temp_allocator)
 

@@ -15,7 +15,7 @@ import "core:unicode/utf8"
 
 import "src:common"
 
-SemanticTokenTypes :: enum u8 {
+SemanticTokenTypes :: enum u32 {
 	Namespace,
 	Type,
 	Enum,
@@ -101,22 +101,40 @@ SemanticTokensRangeParams :: struct {
 	range:        common.Range,
 }
 
-SemanticTokens :: struct {
+SemanticToken :: struct {
+	// token line number, relative to the previous token
+	delta_line: u32,
+	// token start character, relative to the previous token
+	// (relative to 0 or the previous token’s start if they are on the same line)
+	delta_char: u32,
+	len:        u32,
+	type:       SemanticTokenTypes,
+	modifiers:  SemanticTokenModifiers,
+}
+#assert(size_of(SemanticToken) == 5 * size_of(u32))
+
+SemanticTokensResponseParams :: struct {
 	data: []u32,
 }
 
 SemanticTokenBuilder :: struct {
 	current_start: int,
-	tokens:        [dynamic]u32,
+	tokens:        [dynamic]SemanticToken,
 	symbols:       map[uintptr]SymbolAndNode,
 	src:           string,
+}
+
+semantic_tokens_to_response_params :: proc(
+	tokens: []SemanticToken,
+) -> SemanticTokensResponseParams {
+	return {data = (cast([^]u32)raw_data(tokens))[:len(tokens) * 5]}
 }
 
 get_semantic_tokens :: proc(
 	document: ^Document,
 	range: common.Range,
 	symbols: map[uintptr]SymbolAndNode,
-) -> SemanticTokens {
+) -> []SemanticToken {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -127,7 +145,12 @@ get_semantic_tokens :: proc(
 	ast_context.current_package = ast_context.document_package
 
 	builder: SemanticTokenBuilder = {
-		tokens  = make([dynamic]u32, 0, 10000, context.temp_allocator),
+		tokens  = make(
+			[dynamic]SemanticToken,
+			0,
+			2000,
+			context.temp_allocator,
+		),
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
@@ -139,7 +162,7 @@ get_semantic_tokens :: proc(
 		}
 	}
 
-	return {data = builder.tokens[:]}
+	return builder.tokens[:]
 }
 
 write_semantic_at_pos :: proc(
@@ -156,11 +179,13 @@ write_semantic_at_pos :: proc(
 	)
 	append(
 		&builder.tokens,
-		cast(u32)position.line,
-		cast(u32)position.character,
-		cast(u32)len,
-		cast(u32)type,
-		transmute(u32)modifiers,
+		SemanticToken {
+			delta_line = cast(u32)position.line,
+			delta_char = cast(u32)position.character,
+			len = cast(u32)len,
+			type = type,
+			modifiers = modifiers,
+		},
 	)
 	builder.current_start = pos
 }
@@ -562,43 +587,45 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
+	//log.errorf("%# \n", symbol)
+
 	/* variable idents */
 	#partial switch symbol.type {
 	case .Variable, .Constant, .Function:
 		#partial switch _ in symbol.value {
-		case SymbolProcedureValue, SymbolProcedureGroupValue, SymbolAggregateValue:
+		case SymbolProcedureValue,
+		     SymbolProcedureGroupValue,
+		     SymbolAggregateValue:
 			write_semantic_node(builder, ident, .Function, modifiers)
 		case:
 			write_semantic_node(builder, ident, .Variable, modifiers)
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)
-	}
-
-	/* type idents */
-	switch v in symbol.value {
-	case SymbolPackageValue:
-		write_semantic_node(builder, ident, .Namespace, modifiers)
-	case SymbolStructValue, SymbolBitFieldValue:
-		write_semantic_node(builder, ident, .Struct, modifiers)
-	case SymbolEnumValue, SymbolUnionValue:
-		write_semantic_node(builder, ident, .Enum, modifiers)
-	case SymbolProcedureValue,
-	     SymbolMatrixValue,
-	     SymbolBitSetValue,
-	     SymbolDynamicArrayValue,
-	     SymbolFixedArrayValue,
-	     SymbolSliceValue,
-	     SymbolMapValue,
-	     SymbolMultiPointer,
-	     SymbolBasicValue:
-		write_semantic_node(builder, ident, .Type, modifiers)
-	case SymbolUntypedValue:
-	// handled by static syntax highlighting
-	case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
-	// unused
 	case:
-	// log.errorf("Unexpected symbol value: %v", symbol.value);
-	// panic(fmt.tprintf("Unexpected symbol value: %v", symbol.value));
+		/* type idents */
+		switch v in symbol.value {
+		case SymbolPackageValue:
+			write_semantic_node(builder, ident, .Namespace, modifiers)
+		case SymbolStructValue, SymbolBitFieldValue:
+			write_semantic_node(builder, ident, .Struct, modifiers)
+		case SymbolEnumValue, SymbolUnionValue:
+			write_semantic_node(builder, ident, .Enum, modifiers)
+		case SymbolProcedureValue,
+		     SymbolMatrixValue,
+		     SymbolBitSetValue,
+		     SymbolDynamicArrayValue,
+		     SymbolFixedArrayValue,
+		     SymbolSliceValue,
+		     SymbolMapValue,
+		     SymbolMultiPointer,
+		     SymbolBasicValue:
+			write_semantic_node(builder, ident, .Type, modifiers)
+		case SymbolUntypedValue:
+		// handled by static syntax highlighting
+		case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
+		// unused
+		case:
+		}
 	}
 }

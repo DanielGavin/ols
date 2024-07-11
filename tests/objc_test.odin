@@ -145,7 +145,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 	)
 }
 
-//@(test) TODO: Disabled for now until refractor
+@(test)
 objc_implicit_enum_completion :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 

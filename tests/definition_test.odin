@@ -230,3 +230,126 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		{{range = {{line = 2, character = 4}, {line = 2, character = 7}}}},
 	)
 }
+
+@(test)
+ast_goto_implicit_super_enum_infer_from_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		Sub_Enum1 :: enum {
+			ONE,
+		}
+		Sub_Enum2 :: enum {
+			TWO,
+		}
+
+		Super_Enum :: union {
+			Sub_Enum1,
+			Sub_Enum2,
+		}
+
+		main :: proc() {
+			my_enum: Super_Enum
+			my_enum = .ON{*}E
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 2, character = 3},
+			end = {line = 2, character = 6},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_implicit_enum_infer_from_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		My_Enum :: enum {
+			One,
+			Two,
+			Three,
+			Four,
+		}
+
+		my_function :: proc() {
+			my_enum: My_Enum
+			my_enum = .Fo{*}ur
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 5, character = 3},
+			end = {line = 5, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_implicit_enum_infer_from_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		My_Enum :: enum {
+			One,
+			Two,
+			Three,
+			Four,
+		}
+
+		my_function :: proc() -> My_Enum {
+			return .Fo{*}ur
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 5, character = 3},
+			end = {line = 5, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_implicit_enum_infer_from_function :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		My_Enum :: enum {
+			One,
+			Two,
+			Three,
+			Four,
+		}
+
+		my_fn :: proc(my_enum: My_Enum) {
+
+		}
+
+		my_function :: proc() {
+			my_fn(.Fo{*}ur)
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 5, character = 3},
+			end = {line = 5, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}

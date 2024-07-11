@@ -32,7 +32,7 @@ jobs:
           ./build.bat 1
       - name: Build ols
         shell: cmd
-        run: ./build.bat CI
+        run: ./ci.bat CI
   linux:
     strategy:
       matrix:
@@ -53,7 +53,7 @@ jobs:
           git clone --depth 1 https://github.com/odin-lang/Odin
           cd Odin && ./build_odin.sh release
       - name: Build ols
-        run: ./build.sh CI
+        run: ./ci.sh CI
 
   macos:
     strategy:
@@ -75,4 +75,4 @@ jobs:
           git clone --depth 1 https://github.com/odin-lang/Odin
           cd Odin && ./build_odin.sh release
       - name: Build ols
-        run: ./build.sh CI
+        run: ./ci.sh CI

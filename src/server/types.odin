@@ -23,13 +23,14 @@ ResponseParams :: union {
 	CompletionList,
 	SignatureHelp,
 	[]DocumentSymbol,
-	SemanticTokens,
+	SemanticTokensResponseParams,
 	Hover,
 	[]TextEdit,
 	[]InlayHint,
 	[]DocumentLink,
 	[]WorkspaceSymbol,
 	WorkspaceEdit,
+	common.Range,
 }
 
 ResponseMessage :: struct {
@@ -102,11 +103,16 @@ ServerCapabilities :: struct {
 	hoverProvider:              bool,
 	documentFormattingProvider: bool,
 	inlayHintProvider:          bool,
-	renameProvider:             bool,
+	renameProvider:             RenameOptions,
 	referencesProvider:         bool,
 	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
 }
+
+RenameOptions :: struct {
+	prepareProvider: bool,
+}
+
 
 CompletionOptions :: struct {
 	resolveProvider:   bool,
@@ -470,6 +476,11 @@ RenameParams :: struct {
 	position:     common.Position,
 }
 
+PrepareRenameParams :: struct {
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
 ReferenceParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
@@ -486,7 +497,7 @@ TextDocumentEdit :: struct {
 }
 
 WorkspaceEdit :: struct {
-	documentChanges: []TextDocumentEdit,
+	changes: map[string][]TextEdit,
 }
 
 WorkspaceSymbolParams :: struct {

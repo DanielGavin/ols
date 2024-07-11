@@ -125,8 +125,10 @@ Support Language server features:
 
 -   Completion
 -   Go to definition
--   Semantic tokens(really unstable and unfinished)
+-   Semantic tokens
 -   Document symbols
+-   Rename
+-   References
 -   Signature help
 -   Hover
 

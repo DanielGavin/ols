@@ -266,6 +266,32 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_identifier_proc_group_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		raw_data_slice :: proc(v: $T/[]$E) -> [^]E {
+		}
+
+		zzcool :: proc {
+			raw_data_slice,
+		}
+
+		main :: proc() {
+			zzco{*}
+		}
+
+		`,
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"",
+		{"test.zzcool: proc(v: $T/[]$E) -> [^]E"},
+	)
+}
+
+@(test)
 ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
@@ -380,9 +406,6 @@ index_package_completion :: proc(t: ^testing.T) {
 		{"my_package.My_Struct: struct"},
 	)
 }
-
-import "core:odin/ast"
-import "core:odin/parser"
 
 @(test)
 ast_generic_make_slice :: proc(t: ^testing.T) {
@@ -687,11 +710,7 @@ ast_generic_make_completion :: proc(t: ^testing.T) {
 		main     = `package test
 
 		make :: proc{
-			make_dynamic_array,
 			make_dynamic_array_len,
-			make_dynamic_array_len_cap,
-			make_map,
-			make_slice,
 		};
 		make_slice :: proc($T: typeid/[]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
 		}
@@ -2560,7 +2579,7 @@ ast_poly_proc_matrix_whole :: proc(t: ^testing.T) {
 		matrix4_from_trs_f16 :: proc "contextless" () -> matrix[4, 4]f32 {
 			translation: matrix[4, 4]f32
 			rotation: matrix[4, 4]f32
-			dsszz := matrix_mul(scale, translation)
+			dsszz := matrix_mul(rotation, translation)
 			dssz{*}
 		}
 		`,
@@ -2663,6 +2682,33 @@ ast_simple_bit_field_completion :: proc(t: ^testing.T) {
 			"My_Bit_Field.three: int",
 		},
 	)
+}
+
+@(test)
+ast_simple_union_of_enums_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			Sub_Enum_1 :: enum {
+				ONE,
+			}
+			Sub_Enum_2 :: enum {
+				TWO,
+			}
+
+			Super_Enum :: union {
+				Sub_Enum_1,
+				Sub_Enum_2,
+			}
+
+			fn :: proc(mode: Super_Enum) {}
+
+			main :: proc() {
+				fn(.{*})
+			}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"ONE", "TWO"})
 }
 
 
@@ -2818,4 +2864,82 @@ ast_generics_function_with_comp_lit_struct :: proc(t: ^testing.T) {
 			"CoolStruct.val3: int",
 		},
 	)
+}
+
+@(test)
+ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Direction :: enum {
+			North,
+			East,
+			South,
+			West,
+		}
+
+		Direction_Vectors :: [Direction][2]int {
+			.North = {0, -1},
+			.East  = {+1, 0},
+			.South = {0, +1},
+			.West  = {-1, 0},
+		}
+
+		main :: proc() {
+			Direction_Vectors[.{*}]
+		}
+		`,
+	}
+
+	test.expect_completion_labels(
+		t,
+		&source,
+		".",
+		{"North", "East", "South", "West"},
+	)
+}
+
+@(test)
+ast_raw_data_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		_raw_data_slice   :: proc(value: []$E)         -> [^]E    {}
+		_raw_data_dynamic :: proc(value: [dynamic]$E)  -> [^]E    {}
+		_raw_data_array   :: proc(value: ^[$N]$E)      -> [^]E    {}
+		_raw_data_simd    :: proc(value: ^#simd[$N]$E) -> [^]E    {}
+		_raw_data_string  :: proc(value: string)       -> [^]byte {}
+
+		_raw_data :: proc{_raw_data_slice, _raw_data_dynamic, _raw_data_array, _raw_data_simd, _raw_data_string}
+
+		main :: proc() {
+			slice: []int
+			rezz := _raw_data(slice)
+			rez{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.rezz: [^]int"})
+}
+
+@(test)
+ast_raw_data_slice_2 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		raw_data_slice :: proc(v: $T/[]$E) -> [^]E {}
+
+
+		cool :: proc {
+			raw_data_slice,
+		}
+
+		main :: proc() {
+			my_slice: []int
+			rezz := cool(my_slice)
+			rez{*}
+		}
+
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.rezz: [^]int"})
 }

@@ -24,9 +24,7 @@ resolve_entire_file_cached :: proc(
 		file_resolve_cache.files[document.uri.uri] = FileResolve {
 			symbols = resolve_entire_file(
 				document,
-				"",
 				.None,
-				false,
 				common.scratch_allocator(document.allocator),
 			),
 		}

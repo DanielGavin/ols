@@ -31,9 +31,12 @@ DocumentPositionContext :: struct {
 	function:               ^ast.Proc_Lit, //used to help with type resolving in function scope
 	functions:              [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
 	selector:               ^ast.Expr, //used for completion
-	selector_expr:          ^ast.Selector_Expr,
+	selector_expr:          ^ast.Node,
 	identifier:             ^ast.Node,
+	label:                  ^ast.Ident,
 	implicit_context:       ^ast.Implicit,
+	index:                  ^ast.Index_Expr,
+	previous_index:         ^ast.Index_Expr,
 	tag:                    ^ast.Node,
 	field:                  ^ast.Expr, //used for completion
 	call:                   ^ast.Expr, //used for signature help
@@ -76,7 +79,7 @@ DocumentLocal :: struct {
 	parameter:       bool,
 }
 
-DeferredDepth :: 100
+DeferredDepth :: 35
 
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
@@ -98,6 +101,7 @@ AstContext :: struct {
 	uri:              string,
 	fullpath:         string,
 	non_mutable_only: bool,
+	overloading:      bool,
 }
 
 make_ast_context :: proc(
@@ -133,14 +137,19 @@ make_ast_context :: proc(
 }
 
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_deferred)
 set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -148,14 +157,19 @@ set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
 }
 
 set_ast_package_none_deferred :: proc(ast_context: ^AstContext) {
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_none_deferred)
 set_ast_package_scoped :: proc(ast_context: ^AstContext) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -165,10 +179,12 @@ set_ast_package_from_symbol_deferred :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
-	assert(ast_context.deferred_count >= 0)
 }
 
 @(deferred_in = set_ast_package_from_symbol_deferred)
@@ -176,6 +192,10 @@ set_ast_package_from_symbol_scoped :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
+
 	ast_context.deferred_package[ast_context.deferred_count] =
 		ast_context.current_package
 	ast_context.deferred_count += 1
@@ -604,9 +624,21 @@ resolve_function_overload :: proc(
 	Symbol,
 	bool,
 ) {
+	old_overloading := ast_context.overloading
+	ast_context.overloading = true
+
+	defer {
+		ast_context.overloading = old_overloading
+	}
+
 	using ast
 
 	call_expr := ast_context.call
+
+	//If there is nothing to resolve from, we actually want to get the invalid overloaded results through setting overloading to false
+	if call_expr == nil || len(call_expr.args) == 0 {
+		ast_context.overloading = false
+	}
 
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
@@ -822,11 +854,6 @@ resolve_type_expression :: proc(
 	Symbol,
 	bool,
 ) {
-	//Try to prevent stack overflows and prevent indexing out of bounds.
-	if ast_context.deferred_count >= DeferredDepth {
-		return {}, false
-	}
-
 	clear(&ast_context.recursion_map)
 	return internal_resolve_type_expression(ast_context, node)
 }
@@ -839,6 +866,11 @@ internal_resolve_type_expression :: proc(
 	bool,
 ) {
 	if node == nil {
+		return {}, false
+	}
+
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
 		return {}, false
 	}
 
@@ -1317,11 +1349,6 @@ resolve_type_identifier :: proc(
 	Symbol,
 	bool,
 ) {
-	//Try to prevent stack overflows and prevent indexing out of bounds.
-	if ast_context.deferred_count > DeferredDepth {
-		return {}, false
-	}
-
 	return internal_resolve_type_identifier(ast_context, node)
 }
 
@@ -1335,6 +1362,11 @@ internal_resolve_type_identifier :: proc(
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+		return {}, false
+	}
+
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
 		return {}, false
 	}
 
@@ -1365,6 +1397,20 @@ internal_resolve_type_identifier :: proc(
 					value = SymbolBasicValue{ident = ident},
 				},
 				true
+		}
+	}
+
+	for imp in ast_context.imports {
+		if strings.compare(imp.base, node.name) == 0 {
+			symbol := Symbol {
+				type  = .Package,
+				pkg   = imp.name,
+				value = SymbolPackageValue{},
+			}
+
+			try_build_package(symbol.pkg)
+
+			return symbol, true
 		}
 	}
 
@@ -1432,22 +1478,10 @@ internal_resolve_type_identifier :: proc(
 				make_symbol_bit_field_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
-			if !is_procedure_generic(v.type) {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(
-						ast_context,
-						local.rhs,
-						v.type^,
-						node,
-						{},
-						false,
-					),
-					true
-			} else {
-				if return_symbol, ok = resolve_generic_function(
-					ast_context,
-					v^,
-				); !ok {
+			if is_procedure_generic(v.type) {
+				return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+				if !ok && !ast_context.overloading {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -1459,6 +1493,18 @@ internal_resolve_type_identifier :: proc(
 						),
 						true
 				}
+			} else {
+
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						local.rhs,
+						v.type^,
+						node,
+						{},
+						false,
+					),
+					true
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
@@ -1568,22 +1614,11 @@ internal_resolve_type_identifier :: proc(
 				make_symbol_bit_field_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
-			if !is_procedure_generic(v.type) {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(
-						ast_context,
-						global.expr,
-						v.type^,
-						node,
-						global.attributes,
-						false,
-					),
-					true
-			} else {
-				if return_symbol, ok = resolve_generic_function(
-					ast_context,
-					v^,
-				); !ok {
+			if is_procedure_generic(v.type) {
+				return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+				//If we are not overloading just show the unresolved generic function
+				if !ok && !ast_context.overloading {
 					return_symbol, ok =
 						make_symbol_procedure_from_ast(
 							ast_context,
@@ -1595,6 +1630,17 @@ internal_resolve_type_identifier :: proc(
 						),
 						true
 				}
+			} else {
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						global.expr,
+						v.type^,
+						node,
+						global.attributes,
+						false,
+					),
+					true
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
@@ -1677,20 +1723,6 @@ internal_resolve_type_identifier :: proc(
 		if !is_runtime {
 			if symbol, ok := lookup(node.name, "$builtin"); ok {
 				return resolve_symbol_return(ast_context, symbol)
-			}
-		}
-
-		for imp in ast_context.imports {
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type  = .Package,
-					pkg   = imp.name,
-					value = SymbolPackageValue{},
-				}
-
-				try_build_package(symbol.pkg)
-
-				return symbol, true
 			}
 		}
 
@@ -1851,6 +1883,34 @@ resolve_comp_literal :: proc(
 			symbol = resolve_type_expression(
 				ast_context,
 				value.arg_types[arg_index].type,
+			) or_return
+		}
+	} else if position_context.returns != nil {
+		return_index: int
+
+		if position_context.returns.results == nil {
+			return {}, false
+		}
+
+		for result, i in position_context.returns.results {
+			if position_in_node(result, position_context.position) {
+				return_index = i
+				break
+			}
+		}
+
+		if position_context.function.type == nil {
+			return {}, false
+		}
+
+		if position_context.function.type.results == nil {
+			return {}, false
+		}
+
+		if len(position_context.function.type.results.list) > return_index {
+			symbol = resolve_type_expression(
+				ast_context,
+				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
 	}
@@ -2212,6 +2272,7 @@ resolve_location_identifier :: proc(
 		uri := common.create_uri(local.lhs.pos.file, ast_context.allocator)
 		symbol.pkg = ast_context.document_package
 		symbol.uri = uri.uri
+		symbol.flags |= {.Local}
 		return symbol, true
 	} else if global, ok := ast_context.globals[node.name]; ok {
 		symbol.range = common.get_token_range(
@@ -2278,6 +2339,8 @@ resolve_location_implicit_selector :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
+	ok = true
+
 	reset_ast_context(ast_context)
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
@@ -2295,6 +2358,15 @@ resolve_location_implicit_selector :: proc(
 				symbol.range = v.ranges[i]
 			}
 		}
+	case SymbolUnionValue:
+		enum_value := unwrap_super_enum(ast_context, v) or_return
+		for name, i in enum_value.names {
+			if strings.compare(name, implicit_selector.field.name) == 0 {
+				symbol.range = enum_value.ranges[i]
+			}
+		}
+	case:
+		ok = false
 	}
 
 	return symbol, ok
@@ -2302,7 +2374,7 @@ resolve_location_implicit_selector :: proc(
 
 resolve_location_selector :: proc(
 	ast_context: ^AstContext,
-	selector: ^ast.Selector_Expr,
+	selector_expr: ^ast.Node,
 ) -> (
 	symbol: Symbol,
 	ok: bool,
@@ -2311,40 +2383,45 @@ resolve_location_selector :: proc(
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	symbol = resolve_type_expression(ast_context, selector.expr) or_return
+	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
 
-	field: string
+		symbol = resolve_type_expression(ast_context, selector.expr) or_return
 
-	if selector.field != nil {
-		#partial switch v in selector.field.derived {
-		case ^ast.Ident:
-			field = v.name
-		}
-	}
+		field: string
 
-	#partial switch v in symbol.value {
-	case SymbolStructValue:
-		for name, i in v.names {
-			if strings.compare(name, field) == 0 {
-				symbol.range = v.ranges[i]
+		if selector.field != nil {
+			#partial switch v in selector.field.derived {
+			case ^ast.Ident:
+				field = v.name
 			}
 		}
-	case SymbolBitFieldValue:
-		for name, i in v.names {
-			if strings.compare(name, field) == 0 {
-				symbol.range = v.ranges[i]
+
+		#partial switch v in symbol.value {
+		case SymbolStructValue:
+			for name, i in v.names {
+				if strings.compare(name, field) == 0 {
+					symbol.range = v.ranges[i]
+				}
+			}
+		case SymbolBitFieldValue:
+			for name, i in v.names {
+				if strings.compare(name, field) == 0 {
+					symbol.range = v.ranges[i]
+				}
+			}
+		case SymbolPackageValue:
+			if pkg, ok := lookup(field, symbol.pkg); ok {
+				symbol.range = pkg.range
+				symbol.uri = pkg.uri
+			} else {
+				return {}, false
 			}
 		}
-	case SymbolPackageValue:
-		if pkg, ok := lookup(field, symbol.pkg); ok {
-			symbol.range = pkg.range
-			symbol.uri = pkg.uri
-		} else {
-			return {}, false
-		}
+
+		return symbol, true
 	}
 
-	return symbol, true
+	return {}, false
 }
 
 
@@ -2552,6 +2629,17 @@ make_int_ast :: proc(
 	ident.name = "int"
 	return ident
 }
+
+make_rune_ast :: proc(
+	ast_context: ^AstContext,
+	pos: tokenizer.Pos,
+	end: tokenizer.Pos,
+) -> ^ast.Ident {
+	ident := new_type(ast.Ident, pos, end, ast_context.allocator)
+	ident.name = "rune"
+	return ident
+}
+
 
 make_ident_ast :: proc(
 	ast_context: ^AstContext,
@@ -3464,6 +3552,24 @@ get_locals_for_range_stmt :: proc(
 
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
 		#partial switch v in symbol.value {
+		case SymbolBasicValue:
+			if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+				if v.ident.name == "string" {
+					store_local(
+						ast_context,
+						ident,
+						make_rune_ast(ast_context, ident.pos, ident.end),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+						ast_context.non_mutable_only,
+						false,
+						true,
+						symbol.pkg,
+						false,
+					)
+				}
+			}
 		case SymbolMapValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
@@ -3837,296 +3943,6 @@ clear_locals :: proc(ast_context: ^AstContext) {
 	clear(&ast_context.usings)
 }
 
-ResolveReferenceFlag :: enum {
-	None,
-	Variable,
-	Constant,
-	StructElement,
-	EnumElement,
-}
-
-resolve_entire_file :: proc(
-	document: ^Document,
-	reference := "",
-	flag := ResolveReferenceFlag.None,
-	save_unresolved := false,
-	allocator := context.allocator,
-) -> map[uintptr]SymbolAndNode {
-	ast_context := make_ast_context(
-		document.ast,
-		document.imports,
-		document.package_name,
-		document.uri.uri,
-		document.fullpath,
-		allocator,
-	)
-
-	get_globals(document.ast, &ast_context)
-
-	set_ast_package_set_scoped(&ast_context, ast_context.document_package)
-
-	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
-
-	for decl in document.ast.decls {
-		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
-			continue
-		}
-
-		resolve_entire_decl(
-			&ast_context,
-			document,
-			decl,
-			&symbols,
-			reference,
-			flag,
-			save_unresolved,
-			allocator,
-		)
-		clear(&ast_context.locals)
-	}
-
-	return symbols
-}
-
-resolve_entire_decl :: proc(
-	ast_context: ^AstContext,
-	document: ^Document,
-	decl: ^ast.Node,
-	symbols: ^map[uintptr]SymbolAndNode,
-	reference := "",
-	flag := ResolveReferenceFlag.None,
-	save_unresolved := false,
-	allocator := context.allocator,
-) {
-	Scope :: struct {
-		offset: int,
-		id:     int,
-	}
-
-	Visit_Data :: struct {
-		ast_context:     ^AstContext,
-		symbols:         ^map[uintptr]SymbolAndNode,
-		scopes:          [dynamic]Scope,
-		id_counter:      int,
-		last_visit:      ^ast.Node,
-		resolve_flag:    ResolveReferenceFlag,
-		reference:       string,
-		save_unresolved: bool,
-		document:        ^Document,
-	}
-
-	data := Visit_Data {
-		ast_context     = ast_context,
-		symbols         = symbols,
-		scopes          = make([dynamic]Scope, allocator),
-		resolve_flag    = flag,
-		reference       = reference,
-		document        = document,
-		save_unresolved = save_unresolved,
-	}
-
-	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
-		if node == nil || visitor == nil {
-			return nil
-		}
-		data := cast(^Visit_Data)visitor.data
-		ast_context := data.ast_context
-
-		reset_ast_context(ast_context)
-
-		data.last_visit = node
-
-		//It's somewhat silly to check the scope everytime, but the alternative is to implement my own walker function.
-		if len(data.scopes) > 0 {
-			current_scope := data.scopes[len(data.scopes) - 1]
-
-			if current_scope.offset < node.end.offset {
-				clear_local_group(ast_context, current_scope.id)
-
-				pop(&data.scopes)
-
-				if len(data.scopes) > 0 {
-					current_scope = data.scopes[len(data.scopes) - 1]
-					ast_context.local_id = current_scope.id
-				} else {
-					ast_context.local_id = 0
-				}
-			}
-		}
-
-		#partial switch v in node.derived {
-		case ^ast.Proc_Lit:
-			if v.body == nil {
-				break
-			}
-
-			scope: Scope
-			scope.id = data.id_counter
-			scope.offset = node.end.offset
-			data.id_counter += 1
-			ast_context.local_id = scope.id
-
-			append(&data.scopes, scope)
-			add_local_group(ast_context, scope.id)
-
-			position_context: DocumentPositionContext
-			position_context.position = node.end.offset
-
-			get_locals_proc_param_and_results(
-				ast_context.file,
-				v^,
-				ast_context,
-				&position_context,
-			)
-			get_locals_stmt(
-				ast_context.file,
-				cast(^ast.Stmt)node,
-				ast_context,
-				&position_context,
-			)
-		case ^ast.If_Stmt,
-		     ^ast.For_Stmt,
-		     ^ast.Range_Stmt,
-		     ^ast.Inline_Range_Stmt:
-			scope: Scope
-			scope.id = data.id_counter
-			scope.offset = node.end.offset
-			data.id_counter += 1
-			ast_context.local_id = scope.id
-
-			append(&data.scopes, scope)
-			add_local_group(ast_context, scope.id)
-
-			position_context: DocumentPositionContext
-			position_context.position = node.end.offset
-			get_locals_stmt(
-				ast_context.file,
-				cast(^ast.Stmt)node,
-				ast_context,
-				&position_context,
-			)
-		}
-
-		if data.resolve_flag == .None {
-			#partial switch v in node.derived {
-			case ^ast.Ident:
-				if symbol, ok := resolve_type_identifier(ast_context, v^); ok {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node        = v,
-						symbol      = symbol,
-						is_resolved = true,
-					}
-				} else if data.save_unresolved {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
-					}
-				}
-			case ^ast.Selector_Expr:
-				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				   ok {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node        = v,
-						symbol      = symbol,
-						is_resolved = true,
-					}
-				} else if data.save_unresolved {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
-					}
-				}
-			case ^ast.Call_Expr:
-				if symbol, ok := resolve_type_expression(ast_context, &v.node);
-				   ok {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node        = v,
-						symbol      = symbol,
-						is_resolved = true,
-					}
-				} else if data.save_unresolved {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node = v,
-					}
-				}
-			}
-		} else {
-			#partial done: switch v in node.derived {
-			case ^ast.Selector_Expr:
-				document: ^Document = data.document
-
-				position_context := DocumentPositionContext {
-					position = v.pos.offset,
-				}
-
-				get_document_position_decls(
-					document.ast.decls[:],
-					&position_context,
-				)
-
-				if symbol, ok := resolve_location_selector(ast_context, v);
-				   ok {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v.field,
-						symbol = symbol,
-					}
-				}
-
-				if _, is_ident := v.field.derived.(^ast.Ident); is_ident {
-					if data.resolve_flag == .Constant ||
-					   data.resolve_flag == .Variable {
-						return nil
-					}
-				}
-			case ^ast.Ident:
-				if data.resolve_flag == .Variable && v.name != data.reference {
-					break done
-				}
-
-				document: ^Document = data.document
-
-				position_context := DocumentPositionContext {
-					position = v.pos.offset,
-				}
-
-				get_document_position_decls(
-					document.ast.decls[:],
-					&position_context,
-				)
-
-				if position_context.field_value != nil &&
-				   position_in_node(
-					   position_context.field_value.field,
-					   v.pos.offset,
-				   ) {
-					break done
-				} else if position_context.struct_type != nil &&
-				   data.resolve_flag != .StructElement {
-					break done
-				} else if position_context.enum_type != nil &&
-				   data.resolve_flag != .EnumElement {
-					break done
-				}
-
-				if symbol, ok := resolve_location_identifier(ast_context, v^);
-				   ok {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = v,
-						symbol = symbol,
-					}
-				}
-			}
-		}
-
-		return visitor
-	}
-
-	visitor := ast.Visitor {
-		data  = &data,
-		visit = visit,
-	}
-
-	ast.walk(&visitor, decl)
-}
-
 concatenate_symbol_information :: proc {
 	concatenate_raw_symbol_information,
 	concatenate_raw_string_information,
@@ -4246,10 +4062,35 @@ unwrap_enum :: proc(
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 		if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 			return enum_value, true
+		} else if union_value, ok := enum_symbol.value.(SymbolUnionValue); ok {
+			return unwrap_super_enum(ast_context, union_value)
 		}
 	}
 
 	return {}, false
+}
+
+unwrap_super_enum :: proc(
+	ast_context: ^AstContext,
+	symbol_union: SymbolUnionValue,
+) -> (
+	ret_value: SymbolEnumValue,
+	ret_ok: bool,
+) {
+	names := make([dynamic]string, 0, 20, ast_context.allocator)
+	ranges := make([dynamic]common.Range, 0, 20, ast_context.allocator)
+
+	for type in symbol_union.types {
+		symbol := resolve_type_expression(ast_context, type) or_return
+		value := symbol.value.(SymbolEnumValue) or_return
+		append(&names, ..value.names)
+		append(&ranges, ..value.ranges)
+	}
+
+	ret_value.names = names[:]
+	ret_value.ranges = ranges[:]
+
+	return ret_value, true
 }
 
 unwrap_union :: proc(
@@ -4284,6 +4125,9 @@ unwrap_bitset :: proc(
 		); ok {
 			if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 				return enum_value, true
+			} else if union_value, ok := enum_symbol.value.(SymbolUnionValue);
+			   ok {
+				return unwrap_super_enum(ast_context, union_value)
 			}
 		}
 	}
@@ -5045,6 +4889,19 @@ position_in_node :: proc(
 	)
 }
 
+get_document_position_label :: proc(
+	label: ^ast.Expr,
+	position_context: ^DocumentPositionContext,
+) {
+	if label == nil {
+		return
+	}
+
+	if ident, ok := label.derived.(^ast.Ident); ok {
+		position_context.label = ident
+	}
+}
+
 get_document_position_node :: proc(
 	node: ^ast.Node,
 	position_context: ^DocumentPositionContext,
@@ -5081,12 +4938,14 @@ get_document_position_node :: proc(
 	case ^Ellipsis:
 		get_document_position(n.expr, position_context)
 	case ^Proc_Lit:
-		get_document_position(n.type, position_context)
-
 		if position_in_node(n.body, position_context.position) {
+			get_document_position(n.type, position_context)
 			position_context.function = cast(^Proc_Lit)node
 			append(&position_context.functions, position_context.function)
 			get_document_position(n.body, position_context)
+		} else if position_in_node(n.type, position_context.position) {
+			position_context.function = cast(^Proc_Lit)node
+			get_document_position(n.type, position_context)
 		}
 	case ^Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
@@ -5104,28 +4963,25 @@ get_document_position_node :: proc(
 		get_document_position(n.expr, position_context)
 	case ^Binary_Expr:
 		if position_context.parent_binary == nil {
-			position_context.parent_binary = cast(^Binary_Expr)node
+			position_context.parent_binary = n
 		}
-		position_context.binary = cast(^Binary_Expr)node
+		position_context.binary = n
 		get_document_position(n.left, position_context)
 		get_document_position(n.right, position_context)
 	case ^Paren_Expr:
 		get_document_position(n.expr, position_context)
 	case ^Call_Expr:
-		if position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion ||
-		   position_context.hint == .Definition {
-			position_context.call = cast(^Expr)node
-		}
+		position_context.call = n
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
 		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp {
+		   position_context.hint == .SignatureHelp ||
+		   position_context.hint == .Completion {
 			position_context.selector = n.expr
 			position_context.field = n.call
-			position_context.selector_expr = cast(^Selector_Expr)node
+			position_context.selector_expr = node
 
 			if _, ok := n.call.derived.(^ast.Call_Expr); ok {
 				position_context.call = n.call
@@ -5139,18 +4995,11 @@ get_document_position_node :: proc(
 			}
 		}
 	case ^Selector_Expr:
-		if position_context.hint == .Completion {
-			if n.field != nil &&
-			   n.field.pos.line - 1 == position_context.line {
-				//The parser is not fault tolerant enough, relying on the fallback as the main completion parsing for now
-				//position_context.selector = n.expr;
-				//position_context.field = n.field;
-			}
-		} else if position_context.hint == .Definition ||
+		if position_context.hint == .Definition ||
 		   position_context.hint == .Hover && n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
-			position_context.selector_expr = cast(^Selector_Expr)node
+			position_context.selector_expr = node
 			get_document_position(n.expr, position_context)
 			get_document_position(n.field, position_context)
 		} else {
@@ -5158,6 +5007,8 @@ get_document_position_node :: proc(
 			get_document_position(n.field, position_context)
 		}
 	case ^Index_Expr:
+		position_context.previous_index = position_context.index
+		position_context.index = n
 		get_document_position(n.expr, position_context)
 		get_document_position(n.index, position_context)
 	case ^Deref_Expr:
@@ -5167,7 +5018,7 @@ get_document_position_node :: proc(
 		get_document_position(n.low, position_context)
 		get_document_position(n.high, position_context)
 	case ^Field_Value:
-		position_context.field_value = cast(^Field_Value)node
+		position_context.field_value = n
 		get_document_position(n.field, position_context)
 		get_document_position(n.value, position_context)
 	case ^Ternary_If_Expr:
@@ -5191,17 +5042,17 @@ get_document_position_node :: proc(
 	case ^Expr_Stmt:
 		get_document_position(n.expr, position_context)
 	case ^Tag_Stmt:
-		r := cast(^Tag_Stmt)node
+		r := n
 		get_document_position(r.stmt, position_context)
 	case ^Assign_Stmt:
-		position_context.assign = cast(^Assign_Stmt)node
+		position_context.assign = n
 		get_document_position(n.lhs, position_context)
 		get_document_position(n.rhs, position_context)
 	case ^Block_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.stmts, position_context)
 	case ^If_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
@@ -5211,18 +5062,18 @@ get_document_position_node :: proc(
 		get_document_position(n.body, position_context)
 		get_document_position(n.else_stmt, position_context)
 	case ^Return_Stmt:
-		position_context.returns = cast(^Return_Stmt)node
+		position_context.returns = n
 		get_document_position(n.results, position_context)
 	case ^Defer_Stmt:
 		get_document_position(n.stmt, position_context)
 	case ^For_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.post, position_context)
 		get_document_position(n.body, position_context)
 	case ^Range_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.vals, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
@@ -5238,18 +5089,18 @@ get_document_position_node :: proc(
 		get_document_position(n.body, position_context)
 	case ^Switch_Stmt:
 		position_context.switch_stmt = cast(^Switch_Stmt)node
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
 	case ^Type_Switch_Stmt:
 		position_context.switch_type_stmt = cast(^Type_Switch_Stmt)node
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.tag, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
 	case ^Branch_Stmt:
-		get_document_position(n.label, position_context)
+		get_document_position_label(n.label, position_context)
 	case ^Using_Stmt:
 		get_document_position(n.list, position_context)
 	case ^Bad_Decl:
@@ -5307,21 +5158,21 @@ get_document_position_node :: proc(
 	case ^Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
 	case ^Struct_Type:
-		position_context.struct_type = cast(^Struct_Type)node
+		position_context.struct_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Union_Type:
-		position_context.union_type = cast(^Union_Type)node
+		position_context.union_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.variants, position_context)
 	case ^Enum_Type:
-		position_context.enum_type = cast(^Enum_Type)node
+		position_context.enum_type = n
 		get_document_position(n.base_type, position_context)
 		get_document_position(n.fields, position_context)
 	case ^Bit_Set_Type:
-		position_context.bitset_type = cast(^Bit_Set_Type)node
+		position_context.bitset_type = n
 		get_document_position(n.elem, position_context)
 		get_document_position(n.underlying, position_context)
 	case ^Map_Type:
@@ -5337,7 +5188,7 @@ get_document_position_node :: proc(
 	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
 	case ^ast.Bit_Field_Type:
-		position_context.bit_field_type = cast(^Bit_Field_Type)node
+		position_context.bit_field_type = n
 		get_document_position(n.backing_type, position_context)
 		get_document_position(n.fields, position_context)
 	case ^ast.Bit_Field_Field:
@@ -5345,8 +5196,8 @@ get_document_position_node :: proc(
 		get_document_position(n.type, position_context)
 		get_document_position(n.bit_size, position_context)
 	case ^ast.Or_Branch_Expr:
+		get_document_position_label(n.label, position_context)
 		get_document_position(n.expr, position_context)
-		get_document_position(n.label, position_context)
 	case:
 	}
 }

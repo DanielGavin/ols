@@ -62,7 +62,8 @@ setup :: proc(src: ^Source) {
 		} else if current == '\n' {
 			current_line += 1
 			current_character = 0
-		} else if src.main[current_index:current_index + 3] == "{*}" {
+		} else if len(src.main) > current_index + 3 &&
+		   src.main[current_index:current_index + 3] == "{*}" {
 			dst_slice := transmute([]u8)src.main[current_index:]
 			src_slice := transmute([]u8)src.main[current_index + 3:]
 			copy(dst_slice, src_slice)
@@ -380,5 +381,69 @@ expect_definition_locations :: proc(
 				locations,
 			)
 		}
+	}
+}
+
+expect_reference_locations :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expect_locations: []common.Location,
+) {
+	setup(src)
+	defer teardown(src)
+
+	locations, ok := server.get_references(src.document, src.position)
+
+	for expect_location in expect_locations {
+		match := false
+		for location in locations {
+			if location.range == expect_location.range {
+				match = true
+			}
+		}
+		if !match {
+			ok = false
+			log.errorf("Failed to match with location: %v", expect_location)
+		}
+	}
+
+	if !ok {
+		log.error("Received:")
+		for location in locations {
+			log.errorf("%v \n", location)
+		}
+	}
+}
+
+expect_semantic_tokens :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expected: []server.SemanticToken,
+) {
+	setup(src)
+	defer teardown(src)
+
+	
+	resolve_flag: server.ResolveReferenceFlag
+	symbols_and_nodes := server.resolve_entire_file(
+		src.document,
+		resolve_flag,
+		context.temp_allocator,
+	)
+
+	range := common.Range{end = {line = 9000000}} //should be enough
+	tokens := server.get_semantic_tokens(src.document, range, symbols_and_nodes)
+
+	testing.expectf(t, len(expected) == len(tokens), "\nExpected %d tokens, but received %d", len(expected), len(tokens))
+
+	for i in 0..<min(len(expected), len(tokens)) {
+		e, a := expected[i], tokens[i]
+		testing.expectf(t,
+			e == a,
+			"\n[%d]: Expected \n(%d, %d, %d, %v, %w)\nbut received\n(%d, %d, %d, %v, %w)",
+			i,
+			e.delta_line, e.delta_char, e.len, e.type, e.modifiers,
+			a.delta_line, a.delta_char, a.len, a.type, a.modifiers,
+		)
 	}
 }
