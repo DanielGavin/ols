@@ -304,6 +304,9 @@ collect_value_decl :: proc(
 							is_private_file = true
 						}
 					}
+				} else if strings.has_prefix(txt, "//+build ignore") {
+					is_private_pkg = true
+					is_private_file = true
 				}
 			}
 		}
