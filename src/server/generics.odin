@@ -143,7 +143,6 @@ resolve_poly :: proc(
 				}
 			}
 		}
-	case ^ast.Struct_Type:
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
@@ -283,6 +282,7 @@ resolve_poly :: proc(
 		if n, ok := call_node.derived.(^ast.Ident); ok {
 			return true
 		}
+	case ^ast.Struct_Type, ^ast.Proc_Type:
 	case:
 		log.panicf("Unhandled specialization %v", specialization.derived)
 	}
@@ -433,6 +433,26 @@ find_and_replace_poly_type :: proc(
 				v.elem = expr
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
+			}
+		case ^ast.Proc_Type:
+			if v.params != nil {
+				for param in v.params.list {
+					if expr, ok := get_poly_map(param.type, poly_map); ok {
+						param.type = expr
+						param.pos.file = expr.pos.file
+						param.end.file = expr.end.file
+					}
+				}
+			}
+
+			if v.results != nil {
+				for result in v.results.list {
+					if expr, ok := get_poly_map(result.type, poly_map); ok {
+						result.type = expr
+						result.pos.file = expr.pos.file
+						result.end.file = expr.end.file
+					}
+				}
 			}
 		}
 
