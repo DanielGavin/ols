@@ -43,6 +43,16 @@
 			"type": "boolean",
 			"description": "Turn on inlay hints for editors that support it."
 		},
+		"enable_inlay_hints_params": {
+			"type": "boolean",
+			"description": "Turn on inlay hints for (non-default) parameters.",
+			"default": true
+		},
+		"enable_inlay_hints_default_params": {
+			"type": "boolean",
+			"description": "Turn on inlay hints for default parameters.",
+			"default": true
+		},
 		"enable_procedure_snippet": {
 			"type": "boolean",
 			"description": "Use snippets when completing procedures—adds parenthesis after the name.",

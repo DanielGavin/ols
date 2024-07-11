@@ -496,6 +496,11 @@ read_ols_initialize_options :: proc(
 
 	config.enable_inlay_hints =
 		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+	config.enable_inlay_hints_params =
+		ols_config.enable_inlay_hints_params.(bool) or_else config.enable_inlay_hints_params
+	config.enable_inlay_hints_default_params =
+		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
+
 	config.enable_fake_method =
 		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
@@ -689,6 +694,10 @@ request_initialize :: proc(
 	config.enable_hover = true
 	config.enable_format = true
 
+	config.enable_inlay_hints = false
+	config.enable_inlay_hints_params = true
+	config.enable_inlay_hints_default_params = true
+
 	config.disable_parser_errors = false
 	config.thread_count = 2
 	config.enable_document_symbols = true
@@ -703,7 +712,6 @@ request_initialize :: proc(
 	config.enable_rename = true
 	config.odin_command = ""
 	config.checker_args = ""
-	config.enable_inlay_hints = false
 	config.enable_fake_method = false
 	config.enable_procedure_snippet = true
 	config.enable_checker_only_saved = false
@@ -1441,7 +1449,7 @@ request_inlay_hint :: proc(
 	resolve_entire_file_cached(document)
 
 	if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-		hints, ok = get_inlay_hints(document, file.symbols)
+		hints, ok = get_inlay_hints(document, file.symbols, config)
 	}
 
 	if !ok {
