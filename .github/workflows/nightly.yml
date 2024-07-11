@@ -109,7 +109,7 @@ jobs:
       run: |
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
         cd Odin
-        ./ci.bat 1
+        ./build.bat 1
     - name: Build ols
       shell: cmd
       run: ./ci.bat CI
