@@ -137,7 +137,9 @@ make_ast_context :: proc(
 }
 
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
-	assert(ast_context.deferred_count > 0)
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
@@ -155,7 +157,9 @@ set_ast_package_set_scoped :: proc(ast_context: ^AstContext, pkg: string) {
 }
 
 set_ast_package_none_deferred :: proc(ast_context: ^AstContext) {
-	assert(ast_context.deferred_count > 0)
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
@@ -175,7 +179,9 @@ set_ast_package_from_symbol_deferred :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
 ) {
-	assert(ast_context.deferred_count > 0)
+	if ast_context.deferred_count <= 0 {
+		return
+	}
 	ast_context.deferred_count -= 1
 	ast_context.current_package =
 		ast_context.deferred_package[ast_context.deferred_count]
