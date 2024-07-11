@@ -2630,6 +2630,17 @@ make_int_ast :: proc(
 	return ident
 }
 
+make_rune_ast :: proc(
+	ast_context: ^AstContext,
+	pos: tokenizer.Pos,
+	end: tokenizer.Pos,
+) -> ^ast.Ident {
+	ident := new_type(ast.Ident, pos, end, ast_context.allocator)
+	ident.name = "rune"
+	return ident
+}
+
+
 make_ident_ast :: proc(
 	ast_context: ^AstContext,
 	pos: tokenizer.Pos,
@@ -3541,6 +3552,24 @@ get_locals_for_range_stmt :: proc(
 
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
 		#partial switch v in symbol.value {
+		case SymbolBasicValue:
+			if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+				if v.ident.name == "string" {
+					store_local(
+						ast_context,
+						ident,
+						make_rune_ast(ast_context, ident.pos, ident.end),
+						ident.pos.offset,
+						ident.name,
+						ast_context.local_id,
+						ast_context.non_mutable_only,
+						false,
+						true,
+						symbol.pkg,
+						false,
+					)
+				}
+			}
 		case SymbolMapValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
