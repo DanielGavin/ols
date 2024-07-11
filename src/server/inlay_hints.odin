@@ -58,9 +58,12 @@ get_inlay_hints :: proc(
 	loop: for node_call in &data.calls {
 		symbol_arg_count := 0
 		is_selector_call := false
+		is_ellipsis := false
+		has_added_default := false
 
 		call := node_call.derived.(^ast.Call_Expr)
 
+		// TODO: support this (inlay hints in calls that use named args, e.g. `foobar(foo=bar)`
 		for arg in call.args {
 			if _, ok := arg.derived.(^ast.Field_Value); ok {
 				continue loop
@@ -81,17 +84,13 @@ get_inlay_hints :: proc(
 					}
 
 					for name in arg.names {
-						if symbol_arg_count >= len(call.args) {
-							continue loop
-						}
-
 						label := ""
-						is_ellipsis := false
+						is_current_ellipsis := false
 
 						if arg.type != nil {
 							if ellipsis, ok := arg.type.derived.(^ast.Ellipsis);
 							   ok {
-								is_ellipsis = true
+								is_current_ellipsis = true
 							}
 						}
 
@@ -108,24 +107,88 @@ get_inlay_hints :: proc(
 							continue loop
 						}
 
-						range := common.get_token_range(
-							call.args[symbol_arg_count],
-							string(document.text),
-						)
-						hint := InlayHint {
-							kind     = .Parameter,
-							label    = fmt.tprintf("%v = ", label),
-							position = range.start,
+						if is_ellipsis || symbol_arg_count >= len(call.args) {
+							if arg.default_value == nil {
+								continue loop
+							}
+
+							value := common.node_to_string(arg.default_value)
+
+							call_range := common.get_token_range(
+								call,
+								string(document.text),
+							)
+
+							position: common.Position
+							position = call_range.end
+							position.character -= 1
+
+							has_trailing_comma: bool;{
+								if !has_added_default {
+									till_end := string(
+										document.text[:call.close.offset],
+									)
+									trailing_loop: #reverse for ch in till_end {
+										switch ch {
+										case ' ', '\t', '\n':
+										case ',':
+											has_trailing_comma = true
+											break trailing_loop
+										case:
+											break trailing_loop
+										}
+									}
+								}
+							}
+
+							hint := InlayHint {
+								kind     = .Parameter,
+								label    = fmt.tprintf(
+									"%s %v := %v",
+									has_trailing_comma ? "" : ",",
+									label,
+									value,
+								),
+								position = position,
+							}
+							append(&hints, hint)
+
+							has_added_default = true
+						} else {
+
+							// if the arg name and param name are the same, don't add it.
+							same_name: bool
+							#partial switch v in
+								call.args[symbol_arg_count].derived_expr {
+							case ^ast.Ident:
+								same_name = label == v.name
+							case ^ast.Poly_Type:
+								if ident, ok := v.type.derived.(^ast.Ident);
+								   ok {
+									same_name = label == ident.name
+								}
+							}
+
+							if !same_name {
+								range := common.get_token_range(
+									call.args[symbol_arg_count],
+									string(document.text),
+								)
+								hint := InlayHint {
+									kind     = .Parameter,
+									label    = fmt.tprintf("%v = ", label),
+									position = range.start,
+								}
+								append(&hints, hint)
+							}
 						}
-						append(&hints, hint)
+
+						if is_current_ellipsis {
+							is_ellipsis = true
+						}
 
 						symbol_arg_count += 1
-
-						if is_ellipsis {
-							continue loop
-						}
 					}
-
 				}
 			}
 		}
