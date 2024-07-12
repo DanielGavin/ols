@@ -76,7 +76,7 @@ get_inlay_hints :: proc(
 			is_selector_call = true
 		}
 
-		if symbol_and_node, ok := symbols[cast(uintptr)node_call]; ok {
+		if symbol_and_node, ok := symbols[cast(uintptr)call.expr]; ok {
 			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue);
 			   ok {
 				for arg, i in symbol_call.arg_types {
