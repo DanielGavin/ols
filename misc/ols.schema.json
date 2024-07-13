@@ -110,6 +110,5 @@
 			}
 		}
 	},
-	"required": [],
-	"additionalProperties": false
+	"required": []
 }
