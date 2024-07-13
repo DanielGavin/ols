@@ -144,7 +144,7 @@ Install the package https://github.com/sublimelsp/LSP
 
 Configuration of the LSP:
 
-```
+```json
 {
 	"clients": {
 		"odin": {
@@ -177,7 +177,7 @@ Install [Coc](https://github.com/neoclide/coc.nvim).
 
 Configuration of the LSP:
 
-```
+```json
 {
   "languageserver": {
 	"odin": {
@@ -185,7 +185,6 @@ Configuration of the LSP:
 	  "filetypes": ["odin"],
 	  "rootPatterns": ["ols.json"]
 	}
-  }
 }
 ```
 
@@ -205,7 +204,7 @@ lspconfig.ols.setup({})
 
 ### Emacs
 
-```
+```elisp
 ;; With odin-mode (https://github.com/mattt-b/odin-mode) and lsp-mode already added to your init.el of course!.
 (setq-default lsp-auto-guess-root t) ;; if you work with Projectile/project.el this will help find the ols.json file.
 (defvar lsp-language-id-configuration '((odin-mode . "odin")))
