@@ -9,7 +9,9 @@
 				"properties": {
 					"name": { "type": "string" },
 					"path": { "type": "string" }
-				}
+				},
+				"required": ["name", "checker_path"],
+				"additionalProperties": false
 			}
 		},
 		"thread_pool_count": { "type": "integer" },
@@ -76,7 +78,38 @@
 		"checker_args": {
 			"type": "string",
 			"description": "Pass custom arguments to `odin check`."
+		},
+		"profile": {
+			"type": "string",
+			"description": "What profile to currently use."
+		},
+		"profiles": {
+			"type": "array",
+			"description": "List of different profiles that describe the environment ols is running under.",
+			"items": {
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The name of the profile."
+					},
+					"os": {
+						"type": "string",
+						"description": "The operating system for the profile."
+					},
+					"checker_path": {
+						"type": "array",
+						"description": "List of paths where to run the checker.",
+						"items": {
+							"type": "string"
+						}
+					}
+				},
+				"required": ["name", "checker_path"],
+				"additionalProperties": false
+			}
 		}
 	},
-	"required": []
+	"required": [],
+	"additionalProperties": false
 }
