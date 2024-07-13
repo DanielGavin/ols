@@ -179,11 +179,12 @@ Configuration of the LSP:
 
 ```json
 {
-  "languageserver": {
-	"odin": {
-	  "command": "ols",
-	  "filetypes": ["odin"],
-	  "rootPatterns": ["ols.json"]
+	"languageserver": {
+		"odin": {
+			"command": "ols",
+			"filetypes": ["odin"],
+			"rootPatterns": ["ols.json"]
+		}
 	}
 }
 ```
