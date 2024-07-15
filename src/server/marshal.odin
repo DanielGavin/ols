@@ -2,14 +2,14 @@ package server
 
 import "base:runtime"
 
-import "core:mem"
+import "core:encoding/json"
+import "core:io"
+import "core:log"
 import "core:math/bits"
+import "core:mem"
+import "core:reflect"
 import "core:strconv"
 import "core:strings"
-import "core:reflect"
-import "core:io"
-import "core:encoding/json"
-import "core:log"
 
 Marshal_Data_Error :: enum {
 	None,
@@ -419,7 +419,7 @@ marshal_to_writer :: proc(
 	case runtime.Type_Info_Struct:
 		opt_write_start(w, opt, '{') or_return
 
-		for name, i in info.names {
+		for name, i in info.names[0:info.field_count] {
 			id := info.types[i].id
 			data := rawptr(uintptr(v.data) + info.offsets[i])
 
