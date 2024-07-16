@@ -128,21 +128,20 @@ get_inlay_hints :: proc(
 							position = call_range.end
 							position.character -= 1
 
-							has_trailing_comma: bool;{
-								if !has_added_default {
-									till_end := string(
-										document.text[:call.close.offset],
-									)
-									trailing_loop: #reverse for ch in till_end {
-										switch ch {
-										case ' ', '\t', '\n':
-										case ',':
-											has_trailing_comma = true
-											break trailing_loop
-										case:
-											break trailing_loop
-										}
+							needs_training_comma := i > 0
+
+							if !has_added_default && needs_training_comma {
+								till_end := string(
+									document.text[:call.close.offset],
+								)
+								#reverse for ch in till_end {
+									switch ch {
+									case ' ', '\t', '\n':
+										continue
+									case ',':
+										needs_training_comma = false
 									}
+									break
 								}
 							}
 
@@ -150,7 +149,7 @@ get_inlay_hints :: proc(
 								kind     = .Parameter,
 								label    = fmt.tprintf(
 									"%s %v := %v",
-									has_trailing_comma ? "" : ",",
+									needs_training_comma ? "," : "",
 									label,
 									value,
 								),
