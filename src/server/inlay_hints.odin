@@ -128,9 +128,9 @@ get_inlay_hints :: proc(
 							position = call_range.end
 							position.character -= 1
 
-							needs_training_comma := i > 0
+							needs_leading_comma := i > 0
 
-							if !has_added_default && needs_training_comma {
+							if !has_added_default && needs_leading_comma {
 								till_end := string(
 									document.text[:call.close.offset],
 								)
@@ -139,7 +139,7 @@ get_inlay_hints :: proc(
 									case ' ', '\t', '\n':
 										continue
 									case ',':
-										needs_training_comma = false
+										needs_leading_comma = false
 									}
 									break
 								}
@@ -149,7 +149,7 @@ get_inlay_hints :: proc(
 								kind     = .Parameter,
 								label    = fmt.tprintf(
 									"%s %v := %v",
-									needs_training_comma ? "," : "",
+									needs_leading_comma ? "," : "",
 									label,
 									value,
 								),
