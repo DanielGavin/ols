@@ -10,7 +10,7 @@
 					"name": { "type": "string" },
 					"path": { "type": "string" }
 				},
-				"required": ["name", "checker_path"],
+				"required": ["name", "path"],
 				"additionalProperties": false
 			}
 		},
