@@ -109,7 +109,7 @@ check :: proc(
 		}
 		strings.write_string(
 			&collection_builder,
-			fmt.aprintf("-collection:%v=%v ", k, v),
+			fmt.aprintf("-collection:%v=\"%v\" ", k, v),
 		)
 	}
 
