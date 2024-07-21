@@ -190,6 +190,76 @@ get_attribute_completion :: proc(
 
 }
 
+DIRECTIVE_NAME_LIST :: []string {
+	/* basic directives */
+	"file",
+	"directory",
+	"line",
+	"procedure",
+	"caller_location",
+	/* call directives */
+	"location",
+	"exists",
+	"load",
+	"load_directory",
+	"load_hash",
+	"hash",
+	"assert",
+	"panic",
+	"defined",
+	"config",
+	/* type helper */
+	"type",
+	/* struct type */
+	"packed",
+	"raw_union",
+	"align",
+	/* union type */
+	"no_nil",
+	"shared_nil",
+	/* array type */
+	"simd",
+	"soa",
+	"sparse",
+	/* ptr type */
+	"relative",
+	/* field flags */
+	"no_alias",
+	"c_vararg",
+	"const",
+	"any_int",
+	"subtype",
+	"by_ptr",
+	"no_broadcast",
+	"no_capture",
+	/* swich flags */
+	"partial",
+	/* block flags */
+	"bounds_check",
+	"no_bounds_check",
+	"type_assert",
+	"no_type_assert",
+	/* proc inlining */
+	"force_inline",
+	"force_no_inline",
+	/* return values flags */
+	"optional_ok",
+	"optional_allocator_error",
+}
+
+completion_items_directives: []CompletionItem
+
+@init _init_completion_items_directives :: proc () {
+	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc (name: string) -> CompletionItem {
+		return {
+			detail     = strings.concatenate({"#", name}),
+			label      = name,
+			insertText = name,
+			kind       = .Constant,
+		}
+	})
+}
+
 get_directive_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -198,46 +268,11 @@ get_directive_completion :: proc(
 
 	list.isIncomplete = false
 
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-
 	/*
 		Right now just return all the possible completions, but later on I should give the context specific ones
 	*/
 
-	directive_list := []string {
-		"file",
-		"line",
-		"packed",
-		"raw_union",
-		"align",
-		"no_nil",
-		"shared_nil",
-		"complete",
-		"no_alias",
-		"caller_location",
-		"require_results",
-		"type",
-		"bounds_check",
-		"no_bounds_check",
-		"assert",
-		"defined",
-		"procedure",
-		"load",
-		"partial",
-		"force_inline",
-	}
-
-	for elem in directive_list {
-		item := CompletionItem {
-			detail = elem,
-			label  = elem,
-			kind   = .Constant,
-		}
-
-		append(&items, item)
-	}
-
-	list.items = items[:]
+	list.items = completion_items_directives[:]
 }
 
 get_comp_lit_completion :: proc(
