@@ -252,10 +252,9 @@ completion_items_directives: []CompletionItem
 @init _init_completion_items_directives :: proc () {
 	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc (name: string) -> CompletionItem {
 		return {
-			detail     = strings.concatenate({"#", name}),
-			label      = name,
-			insertText = name,
-			kind       = .Constant,
+			detail = strings.concatenate({"#", name}) or_else name,
+			label  = name,
+			kind   = .Constant,
 		}
 	})
 }
