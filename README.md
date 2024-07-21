@@ -231,3 +231,55 @@ Configure the plugin in micro's settings.json:
 	"lsp.server": "c=clangd,go=gopls,odin=ols"
 }
 ```
+### Kate
+
+First, make sure you have the LSP plugin enabled. Then, you can find LSP settings for Kate in Settings -> Configure Kate -> LSP Client -> User Server Settings.
+
+You may have to set the folders for your Odin home path directly, like in the following example:
+```json
+{
+    "servers": {
+        "odin": {
+            "command": [
+                "ols"
+            ],
+            "filetypes": [
+                "odin"
+            ],
+            "url": "https://github.com/DanielGavin/ols",
+            "root": "%{Project:NativePath}",
+            "highlightingModeRegex": "^Odin$",
+            "initializationOptions": {
+                "collections": [
+                    {
+                        "name": "core",
+                        "path": "/path/to/Odin/core"
+                    },
+                    {
+                        "name": "vendor",
+                        "path": "/path/to/Odin/vendor"
+                    },
+                    {
+                        "name": "shared",
+                        "path": "/path/to/Odin/shared"
+                    },
+                    {
+                        "name": "src", // If your project has src-collection in root folder, 
+                        "path": "src"  // this will add it as a collection
+                    },
+                    {
+                        "name": "collection_a",
+                        "path": "/path/to/collection_a"
+                    }
+                ],
+                "odin_command": "path/to/Odin",
+                "verbose": true,
+                "enable_document_symbols": true,
+                "enable_hover": true,
+            }
+        }
+    }
+}
+```
+Kate can infer inlay hints on its own when enabled in LSP settings, so enabling it separately in the server config
+can cause some weird behavior.
