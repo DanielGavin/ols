@@ -275,7 +275,7 @@ You may have to set the folders for your Odin home path directly, like in the fo
                 "odin_command": "path/to/Odin",
                 "verbose": true,
                 "enable_document_symbols": true,
-                "enable_hover": true,
+                "enable_hover": true
             }
         }
     }
