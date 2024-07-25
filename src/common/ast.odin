@@ -207,6 +207,26 @@ unwrap_pointer_expr :: proc(expr: ^ast.Expr) -> (^ast.Expr, int, bool) {
 	return expr, n, true
 }
 
+array_is_soa :: proc(array: ast.Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive);
+		   ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
+dynamic_array_is_soa :: proc(array: ast.Dynamic_Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive);
+		   ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
 expr_contains_poly :: proc(expr: ^ast.Expr) -> bool {
 	if expr == nil {
 		return false

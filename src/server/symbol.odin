@@ -146,6 +146,7 @@ SymbolFlag :: enum {
 	Local,
 	ObjC,
 	ObjCIsClassMethod, // should be set true only when ObjC is enabled
+	Soa,
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

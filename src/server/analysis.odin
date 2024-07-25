@@ -489,7 +489,13 @@ is_symbol_same_typed :: proc(
 			return false
 		}
 
-		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
+		a_is_soa := .Soa in a_symbol.flags
+		b_is_soa := .Soa in a_symbol.flags
+
+		return(
+			is_symbol_same_typed(ast_context, a_symbol, b_symbol) &&
+			a_is_soa == b_is_soa \
+		)
 	case SymbolFixedArrayValue:
 		b_value := b.value.(SymbolFixedArrayValue)
 
@@ -561,7 +567,13 @@ is_symbol_same_typed :: proc(
 			return false
 		}
 
-		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
+		a_is_soa := .Soa in a_symbol.flags
+		b_is_soa := .Soa in a_symbol.flags
+
+		return(
+			is_symbol_same_typed(ast_context, a_symbol, b_symbol) &&
+			a_is_soa == b_is_soa \
+		)
 	case SymbolMapValue:
 		b_value := b.value.(SymbolMapValue)
 
@@ -2826,6 +2838,10 @@ make_symbol_array_from_ast :: proc(
 		}
 	}
 
+	if common.array_is_soa(v) {
+		symbol.flags |= {.Soa}
+	}
+
 	return symbol
 }
 
@@ -2844,6 +2860,12 @@ make_symbol_dynamic_array_from_ast :: proc(
 	symbol.value = SymbolDynamicArrayValue {
 		expr = v.elem,
 	}
+
+
+	if common.dynamic_array_is_soa(v) {
+		symbol.flags |= {.Soa}
+	}
+
 
 	return symbol
 }

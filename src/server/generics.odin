@@ -150,6 +150,27 @@ resolve_poly :: proc(
 		}
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
+
+			a_soa := common.dynamic_array_is_soa(p^)
+			b_soa := common.dynamic_array_is_soa(call_array^)
+
+			if (a_soa || b_soa) && a_soa != b_soa {
+				return false
+			}
+
+			//It's not enough for them to both arrays, they also have to share soa attributes
+			if p.tag != nil && call_array.tag != nil {
+				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
+				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
+
+				if ok1 &&
+				   ok2 &&
+				   (a.name == "soa" || b.name == "soa") &&
+				   a.name != b.name {
+					return false
+				}
+			}
+
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
 					save_poly_map(ident, call_array.elem, poly_map)
@@ -170,6 +191,27 @@ resolve_poly :: proc(
 	case ^ast.Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
 			found := false
+
+			a_soa := common.array_is_soa(p^)
+			b_soa := common.array_is_soa(call_array^)
+
+			if (a_soa || b_soa) && a_soa != b_soa {
+				return false
+			}
+
+			//It's not enough for them to both arrays, they also have to share soa attributes
+			if p.tag != nil && call_array.tag != nil {
+				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
+				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
+
+				if ok1 &&
+				   ok2 &&
+				   (a.name == "soa" || b.name == "soa") &&
+				   a.name != b.name {
+					return false
+				}
+			}
+
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
 					save_poly_map(ident, call_array.elem, poly_map)
