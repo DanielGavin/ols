@@ -151,10 +151,8 @@ resolve_poly :: proc(
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
 
-			a_soa := common.dynamic_array_is_soa(p^)
-			b_soa := common.dynamic_array_is_soa(call_array^)
-
-			if (a_soa || b_soa) && a_soa != b_soa {
+			if common.dynamic_array_is_soa(p^) !=
+			   common.dynamic_array_is_soa(call_array^) {
 				return false
 			}
 
@@ -192,10 +190,7 @@ resolve_poly :: proc(
 		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
 			found := false
 
-			a_soa := common.array_is_soa(p^)
-			b_soa := common.array_is_soa(call_array^)
-
-			if (a_soa || b_soa) && a_soa != b_soa {
+			if common.array_is_soa(p^) != common.array_is_soa(call_array^) {
 				return false
 			}
 
