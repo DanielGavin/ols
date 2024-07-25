@@ -751,7 +751,7 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 			make_map,
 			make_slice,
 		};
-		make_slice :: proc($T: typeid/[]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+		make_slice :: proc($T: typeid/[]$E, #any_int len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_allocator_error {
 		}
 		make_map :: proc($T: typeid/map[$K]$E, #any_int cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
 		}
@@ -767,7 +767,6 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {
-			allocator: Allocator;
 			my_array := make([]My_Struct, 343);
 			my_array[2].{*}
 		}
@@ -776,6 +775,61 @@ ast_generic_make_completion_2 :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, ".", {"My_Struct.my_int: int"})
+}
+
+
+@(test)
+ast_generic_make_completion_3 :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+				make :: proc{
+					make_dynamic_array,
+					make_dynamic_array_len,
+					make_dynamic_array_len_cap,
+					make_map,
+					make_slice,
+				};
+				make_slice :: proc($T: typeid/[]$E, #any_int len: int, allocator := context.allocator, loc := #caller_location) -> (T, Allocator_Error) #optional_allocator_error {
+				}
+				make_map :: proc($T: typeid/map[$K]$E, #any_int cap: int = DEFAULT_RESERVE_CAPACITY, loc := #caller_location) -> T {
+				}
+				make_dynamic_array :: proc($T: typeid/[dynamic]$E, loc := #caller_location) -> (T, Allocator_Error) #optional_second {		
+				}
+				make_dynamic_array_len :: proc($T: typeid/[dynamic]$E, #any_int len: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+				}
+				make_dynamic_array_len_cap :: proc($T: typeid/[dynamic]$E, #any_int len: int, #any_int cap: int, loc := #caller_location) -> (T, Allocator_Error) #optional_second {
+				}	
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		
+		My_Struct :: struct {
+			my_int: int,
+		}
+
+		main :: proc() {
+			my_array := my_package.make([]My_Struct, 343);
+			my_ar{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		".",
+		{"test.my_array: []My_Struct"},
+	)
 }
 
 @(test)

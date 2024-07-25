@@ -473,11 +473,15 @@ is_symbol_same_typed :: proc(
 		b_symbol: Symbol
 		ok: bool
 
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
 
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
 
 		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
 
@@ -493,11 +497,15 @@ is_symbol_same_typed :: proc(
 		b_symbol: Symbol
 		ok: bool
 
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
 
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
 
 		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
 
@@ -513,11 +521,15 @@ is_symbol_same_typed :: proc(
 		b_symbol: Symbol
 		ok: bool
 
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
 
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
 
 		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
 
@@ -533,11 +545,15 @@ is_symbol_same_typed :: proc(
 		b_symbol: Symbol
 		ok: bool
 
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
 
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
 
 		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
 
@@ -555,17 +571,24 @@ is_symbol_same_typed :: proc(
 		b_value_symbol: Symbol
 		ok: bool
 
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 		a_key_symbol, ok = resolve_type_expression(ast_context, a_value.key)
 
 		if !ok {
 			return false
 		}
 
+		set_ast_package_from_symbol_scoped(ast_context, b)
+
 		b_key_symbol, ok = resolve_type_expression(ast_context, b_value.key)
 
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
 
 		a_value_symbol, ok = resolve_type_expression(
 			ast_context,
@@ -575,6 +598,8 @@ is_symbol_same_typed :: proc(
 		if !ok {
 			return false
 		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
 
 		b_value_symbol, ok = resolve_type_expression(
 			ast_context,
