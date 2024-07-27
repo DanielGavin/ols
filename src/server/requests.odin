@@ -714,7 +714,7 @@ request_initialize :: proc(
 	config.checker_args = ""
 	config.enable_fake_method = false
 	config.enable_procedure_snippet = true
-	config.enable_checker_only_saved = false
+	config.enable_checker_only_saved = true
 
 	read_ols_config :: proc(
 		file: string,
