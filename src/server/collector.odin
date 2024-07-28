@@ -313,6 +313,22 @@ collect_slice :: proc(
 	collection: ^SymbolCollection,
 	array: ast.Array_Type,
 	package_map: map[string]string,
+) -> SymbolSliceValue {
+	elem := clone_type(
+		array.elem,
+		collection.allocator,
+		&collection.unique_strings,
+	)
+
+	replace_package_alias(elem, package_map, collection)
+
+	return SymbolSliceValue{expr = elem}
+}
+
+collect_array :: proc(
+	collection: ^SymbolCollection,
+	array: ast.Array_Type,
+	package_map: map[string]string,
 ) -> SymbolFixedArrayValue {
 	elem := clone_type(
 		array.elem,
@@ -329,22 +345,6 @@ collect_slice :: proc(
 	replace_package_alias(len, package_map, collection)
 
 	return SymbolFixedArrayValue{expr = elem, len = len}
-}
-
-collect_array :: proc(
-	collection: ^SymbolCollection,
-	array: ast.Array_Type,
-	package_map: map[string]string,
-) -> SymbolSliceValue {
-	elem := clone_type(
-		array.elem,
-		collection.allocator,
-		&collection.unique_strings,
-	)
-
-	replace_package_alias(elem, package_map, collection)
-
-	return SymbolSliceValue{expr = elem}
 }
 
 collect_map :: proc(
@@ -610,7 +610,7 @@ collect_symbols :: proc(
 		#partial switch v in col_expr.derived {
 		case ^ast.Matrix_Type:
 			token = v^
-			token_type = .Variable
+			token_type = .Type
 			symbol.value = collect_matrix(collection, v^, package_map)
 		case ^ast.Proc_Lit:
 			token = v^
@@ -636,7 +636,7 @@ collect_symbols :: proc(
 			}
 		case ^ast.Proc_Type:
 			token = v^
-			token_type = .Function
+			token_type = .Type_Function
 			symbol.value = collect_procedure_fields(
 				collection,
 				cast(^ast.Proc_Type)col_expr,
@@ -706,11 +706,11 @@ collect_symbols :: proc(
 			symbol.signature = "bit_field"
 		case ^ast.Map_Type:
 			token = v^
-			token_type = .Variable
+			token_type = .Type
 			symbol.value = collect_map(collection, v^, package_map)
 		case ^ast.Array_Type:
 			token = v^
-			token_type = .Variable
+			token_type = .Type
 			if v.len == nil {
 				symbol.value = collect_slice(collection, v^, package_map)
 			} else {
@@ -718,11 +718,11 @@ collect_symbols :: proc(
 			}
 		case ^ast.Dynamic_Array_Type:
 			token = v^
-			token_type = .Variable
+			token_type = .Type
 			symbol.value = collect_dynamic_array(collection, v^, package_map)
 		case ^ast.Multi_Pointer_Type:
 			token = v^
-			token_type = .Variable
+			token_type = .Type
 			symbol.value = collect_multi_pointer(collection, v^, package_map)
 		case ^ast.Typeid_Type:
 			if v.specialization == nil {

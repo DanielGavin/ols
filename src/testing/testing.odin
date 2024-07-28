@@ -329,18 +329,18 @@ expect_hover :: proc(
 		log.error(t, "Failed get_hover_information")
 	}
 
-	if expect_hover_string == "" && hover.contents.value != "" {
-		log.errorf(
-			"Expected empty hover string, but received %v",
-			hover.contents.value,
-		)
-	}
+	/*
+	```odin\n
+	content\n
+	```
+	*/
+	content_without_markdown := hover.contents.value[8:len(hover.contents.value)-5]
 
-	if !strings.contains(hover.contents.value, expect_hover_string) {
+	if content_without_markdown != expect_hover_string {
 		log.errorf(
-			"Expected hover string %v, but received %v",
+			"Expected hover string:\n\"%v\", but received:\n\"%v\"",
 			expect_hover_string,
-			hover.contents.value,
+			content_without_markdown,
 		)
 	}
 }

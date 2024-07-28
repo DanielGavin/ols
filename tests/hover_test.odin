@@ -53,7 +53,7 @@ ast_hover_parameter :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_hover(t, &source, "cool: int")
+	test.expect_hover(t, &source, "test.cool: int")
 }
 
 @(test)
@@ -223,3 +223,24 @@ ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "my_package.My_Struct: struct")
 }
+
+/*
+TODO: Allow for testing multiple files
+*/
+// @(test)
+// ast_hover_array_type_multiple_files_hover :: proc(t: ^testing.T) {
+// 	source := test.Source {
+// 		main     = \
+// 		`package test
+
+// 		Vec :: [2]f32
+// 		`,
+// 		another_file = \
+// 		`package test
+
+// 		v: Ve{*}c
+// 		`
+// 	}
+
+// 	test.expect_hover(t, &source, "test.Vec: [2]f32")
+// }

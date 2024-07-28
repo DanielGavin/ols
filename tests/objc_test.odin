@@ -141,7 +141,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"Window.initWithContentRect: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL)",
+		"Window.initWithContentRect: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window",
 	)
 }
 
