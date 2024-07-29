@@ -225,9 +225,7 @@ ast_hover_on_union_assertion_with_or_else :: proc(t: ^testing.T) {
 		test :: proc () {
 			Foo :: union {int}
 			foo: Foo = int(0)
-			for {
-				nu{*}m := foo.(int) or_else 0
-			}
+			nu{*}m := foo.(int) or_else 0
 		}
 		`,
 	}
