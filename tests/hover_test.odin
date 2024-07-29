@@ -251,31 +251,6 @@ ast_hover_on_union_assertion_with_or_return :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.num: int")
 }
 
-
-
-// @(test)
-// ast_hover_on_array_variable :: proc(t: ^testing.T) {
-// 	source := test.Source {
-// 		main = `package test
-// 		Vec :: [2]f32
-// 		vec: Ve{*}c
-// 		`,
-// 	}
-
-// 	test.expect_hover(t, &source, "test.Vec: [2]f32")
-// }
-
-// @(test)
-// ast_hover_on_array_infer_length_variable :: proc(t: ^testing.T) {
-// 	source := test.Source {
-// 		main = `package test
-// 		ve{*}c :: [?]f32{1, 2, 3}
-// 		`,
-// 	}
-
-// 	test.expect_hover(t, &source, "test.vec: [3]f32")
-// }
-
 @(test)
 ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 
