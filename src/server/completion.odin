@@ -2284,6 +2284,8 @@ language_keywords: []string = {
 	"using",
 	"or_return",
 	"or_else",
+	"or_continue",
+	"or_break"
 }
 
 swizzle_color_map: map[u8]bool = {

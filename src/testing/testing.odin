@@ -338,7 +338,7 @@ expect_hover :: proc(
 
 	if content_without_markdown != expect_hover_string {
 		log.errorf(
-			"Expected hover string:\n\"%v\", but received:\n\"%v\"",
+			"Expected hover string:\n%q, but received:\n%q",
 			expect_hover_string,
 			content_without_markdown,
 		)

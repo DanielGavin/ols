@@ -1779,7 +1779,7 @@ visit_expr :: proc(
 		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.token))
 		document = cons_with_nopl(document, visit_expr(p, v.y))
-	case ^ast.Or_Branch_Expr:
+	case ^Or_Branch_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons_with_nopl(document, text_token(p, v.token))
 		document = cons_with_nopl(document, visit_expr(p, v.label))

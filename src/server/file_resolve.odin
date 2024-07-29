@@ -510,22 +510,22 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Map_Type:
 		resolve_node(n.key, data)
 		resolve_node(n.value, data)
-	case ^ast.Or_Else_Expr:
+	case ^Or_Else_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.y, data)
-	case ^ast.Or_Return_Expr:
+	case ^Or_Return_Expr:
 		resolve_node(n.expr, data)
-	case ^ast.Bit_Field_Type:
+	case ^Or_Branch_Expr:
+		resolve_node(n.expr, data)
+		resolve_node(n.label, data)
+	case ^Bit_Field_Type:
 		data.position_context.bit_field_type = n
 		resolve_node(n.backing_type, data)
 		resolve_nodes(n.fields, data)
-	case ^ast.Bit_Field_Field:
+	case ^Bit_Field_Field:
 		resolve_node(n.name, data)
 		resolve_node(n.type, data)
 		resolve_node(n.bit_size, data)
-	case ^ast.Or_Branch_Expr:
-		resolve_node(n.expr, data)
-		resolve_node(n.label, data)
 	case:
 	}
 
