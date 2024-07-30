@@ -180,7 +180,13 @@ clone_node :: proc(
 	case ^Tag_Expr:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 	case ^Unary_Expr:
+		n := node.derived.(^Unary_Expr)
 		r.expr = clone_type(r.expr, allocator, unique_strings)
+		if unique_strings == nil {
+			r.op.text = strings.clone(n.op.text, allocator)
+		} else {
+			r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
+		}
 	case ^Binary_Expr:
 		n := node.derived.(^Binary_Expr)
 		r.left = clone_type(r.left, allocator, unique_strings)
