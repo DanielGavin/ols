@@ -3203,6 +3203,10 @@ get_generic_assignment :: proc(
 	#partial switch v in value.derived {
 	case ^Or_Return_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls)
+	case ^Or_Else_Expr:
+		get_generic_assignment(file, v.x, ast_context, results, calls)
+	case ^Or_Branch_Expr:
+		get_generic_assignment(file, v.expr, ast_context, results, calls)
 	case ^Call_Expr:
 		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
@@ -5229,22 +5233,22 @@ get_document_position_node :: proc(
 		position_context.implicit = true
 		position_context.implicit_selector_expr = n
 		get_document_position(n.field, position_context)
-	case ^ast.Or_Else_Expr:
+	case ^Or_Else_Expr:
 		get_document_position(n.x, position_context)
 		get_document_position(n.y, position_context)
-	case ^ast.Or_Return_Expr:
+	case ^Or_Return_Expr:
 		get_document_position(n.expr, position_context)
-	case ^ast.Bit_Field_Type:
+	case ^Or_Branch_Expr:
+		get_document_position_label(n.label, position_context)
+		get_document_position(n.expr, position_context)
+	case ^Bit_Field_Type:
 		position_context.bit_field_type = n
 		get_document_position(n.backing_type, position_context)
 		get_document_position(n.fields, position_context)
-	case ^ast.Bit_Field_Field:
+	case ^Bit_Field_Field:
 		get_document_position(n.name, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.bit_size, position_context)
-	case ^ast.Or_Branch_Expr:
-		get_document_position_label(n.label, position_context)
-		get_document_position(n.expr, position_context)
 	case:
 	}
 }

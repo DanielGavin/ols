@@ -374,7 +374,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^Or_Else_Expr:
 		visit_node(n.x, builder)
 		visit_node(n.y, builder)
-	case ^ast.Or_Branch_Expr:
+	case ^Or_Branch_Expr:
 		visit_node(n.expr, builder)
 		visit_node(n.label, builder)
 	case ^Ternary_If_Expr:
