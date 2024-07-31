@@ -53,10 +53,12 @@ Odin_OS_Type :: enum int {
 	Linux,
 	Essence,
 	FreeBSD,
-	Haiku,
 	OpenBSD,
+	NetBSD,
+	Haiku,
 	WASI,
 	JS,
+	Orca,
 	Freestanding,
 }
 
@@ -104,13 +106,24 @@ Odin_Platform_Subtarget_Type :: enum int {
 ODIN_PLATFORM_SUBTARGET: Odin_Platform_Subtarget_Type
 
 Odin_Sanitizer_Flag :: enum u32 {
-	Address,
-	Memory,
-	Thread,
+	Address = 0,
+	Memory  = 1,
+	Thread  = 2,
 }
+Odin_Sanitizer_Flags :: distinct bit_set[Odin_Sanitizer_Flag; u32]
 
 @builtin
-ODIN_SANITIZER_FLAGS: distinct bit_set[Odin_Sanitizer_Flag; u32]
+ODIN_SANITIZER_FLAGS: Odin_Sanitizer_Flags
+
+Odin_Optimization_Mode :: enum int {
+	None       = -1,
+	Minimal    =  0,
+	Size       =  1,
+	Speed      =  2,
+	Aggressive =  3,
+}
+
+ODIN_OPTIMIZATION_MODE: Odin_Optimization_Mode
 
 @builtin
 ODIN_DEBUG: bool
