@@ -171,6 +171,28 @@ ast_hover_on_sliced_result :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.slice: []byte")
 }
 
+@(test)
+ast_hover_on_array_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Vec :: [2]f32
+		vec: Ve{*}c
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Vec: [2]f32")
+}
+
+@(test)
+ast_hover_on_array_infer_length_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		ve{*}c :: [?]f32{1, 2, 3}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.vec: [?]f32")
+}
 
 @(test)
 ast_hover_on_bitset_variable :: proc(t: ^testing.T) {

@@ -1086,6 +1086,7 @@ build_string_node :: proc(
 	case ^Tag_Expr:
 		build_string(n.expr, builder, remove_pointers)
 	case ^Unary_Expr:
+		strings.write_string(builder, n.op.text)
 		build_string(n.expr, builder, remove_pointers)
 	case ^Binary_Expr:
 		build_string(n.left, builder, remove_pointers)
