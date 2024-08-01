@@ -1768,7 +1768,8 @@ visit_expr :: proc(
 				group(visit_expr(p, v.y)),
 			)
 		}
-		document = group(document)
+		//Temp enforce fit until we figure out whether the issue is with Odin's parser.
+		document = enforce_fit(group(document))
 	case ^Ternary_When_Expr:
 		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.op1))
