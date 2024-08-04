@@ -33,7 +33,7 @@ unmarshal :: proc(
 	case json.Object:
 		#partial switch variant in type_info.variant {
 		case Type_Info_Struct:
-			for field, i in variant.names[0:variant.field_count] {
+			for field, i in variant.names {
 				a := any {
 					rawptr(uintptr(v.data) + uintptr(variant.offsets[i])),
 					variant.types[i].id,

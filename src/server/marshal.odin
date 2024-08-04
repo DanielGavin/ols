@@ -419,7 +419,7 @@ marshal_to_writer :: proc(
 	case runtime.Type_Info_Struct:
 		opt_write_start(w, opt, '{') or_return
 
-		for name, i in info.names[0:info.field_count] {
+		for name, i in info.names {
 			id := info.types[i].id
 			data := rawptr(uintptr(v.data) + info.offsets[i])
 
