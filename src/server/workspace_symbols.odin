@@ -14,7 +14,7 @@ walk_dir :: proc(
 	in_err: os.Errno,
 	user_data: rawptr,
 ) -> (
-	err: os.Errno,
+	err: os.Error,
 	skip_dir: bool,
 ) {
 	pkgs := cast(^[dynamic]string)user_data
@@ -24,7 +24,7 @@ walk_dir :: proc(
 		append(pkgs, dir)
 	}
 
-	return 0, false
+	return nil, false
 }
 
 get_workspace_symbols :: proc(
@@ -56,7 +56,7 @@ get_workspace_symbols :: proc(
 			for result in results {
 				symbol := WorkspaceSymbol {
 					name = result.symbol.name,
-					location =  {
+					location = {
 						range = result.symbol.range,
 						uri = result.symbol.uri,
 					},

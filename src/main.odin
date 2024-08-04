@@ -14,19 +14,22 @@ import "core:strings"
 import "core:sync"
 import "core:thread"
 
+import "core:sys/windows"
+
 import "src:common"
 import "src:server"
+
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr := cast(^os.Handle)handle
 	a, b := os.read(ptr^, data)
-	return a, cast(int)b
+	return a, cast(int)(b != nil)
 }
 
 os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr := cast(^os.Handle)handle
 	a, b := os.write(ptr^, data)
-	return a, cast(int)b
+	return a, cast(int)(b != nil)
 }
 
 //Note(Daniel, Should look into handling errors without crashing from parsing)

@@ -634,23 +634,17 @@ visit_exprs :: proc(
 		if .Enforce_Newline in options {
 			document = cons(
 				document,
-				.Group in options \
-				? group(visit_expr(p, expr, called_from, options)) \
-				: visit_expr(p, expr, called_from, options),
+				.Group in options ? group(visit_expr(p, expr, called_from, options)) : visit_expr(p, expr, called_from, options),
 			)
 		} else if .Glue in options {
 			document = cons_with_nopl(
 				document,
-				.Group in options \
-				? group(visit_expr(p, expr, called_from, options)) \
-				: visit_expr(p, expr, called_from, options),
+				.Group in options ? group(visit_expr(p, expr, called_from, options)) : visit_expr(p, expr, called_from, options),
 			)
 		} else {
 			document = cons_with_opl(
 				document,
-				.Group in options \
-				? group(visit_expr(p, expr, called_from, options)) \
-				: visit_expr(p, expr, called_from, options),
+				.Group in options ? group(visit_expr(p, expr, called_from, options)) : visit_expr(p, expr, called_from, options),
 			)
 		}
 
@@ -2898,9 +2892,7 @@ visit_signature_list :: proc(
 		} else {
 			if .Enforce_Newline not_in options {
 				document =
-					len(list.list) > 1 || contains_body \
-					? cons(document, if_break(",")) \
-					: document
+					len(list.list) > 1 || contains_body ? cons(document, if_break(",")) : document
 			} else {
 				document = cons(document, text(","))
 			}

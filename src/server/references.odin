@@ -22,17 +22,17 @@ walk_directories :: proc(
 	in_err: os.Errno,
 	user_data: rawptr,
 ) -> (
-	err: os.Errno,
+	err: os.Error,
 	skip_dir: bool,
 ) {
 	document := cast(^Document)user_data
 
 	if info.is_dir {
-		return 0, false
+		return nil, false
 	}
 
 	if info.fullpath == "" {
-		return 0, false
+		return nil, false
 	}
 
 	if strings.contains(info.name, ".odin") {
@@ -48,7 +48,7 @@ walk_directories :: proc(
 		}
 	}
 
-	return 0, false
+	return nil, false
 }
 
 prepare_references :: proc(
