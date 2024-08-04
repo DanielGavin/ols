@@ -71,20 +71,20 @@ walk_files :: proc(
 	in_err: os.Errno,
 	user_data: rawptr,
 ) -> (
-	err: os.Errno,
+	err: os.Error,
 	skip_dir: bool,
 ) {
 	if info.is_dir {
-		return 0, false
+		return nil, false
 	}
 
 	if filepath.ext(info.name) != ".odin" {
-		return 0, false
+		return nil, false
 	}
 
 	append(&files, strings.clone(info.fullpath))
 
-	return 0, false
+	return nil, false
 }
 
 main :: proc() {
@@ -213,4 +213,3 @@ main :: proc() {
 
 	os.exit(1 if write_failure else 0)
 }
-
