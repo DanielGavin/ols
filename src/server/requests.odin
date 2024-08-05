@@ -425,7 +425,7 @@ read_ols_initialize_options :: proc(
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 	config.enable_rename =
-		ols_config.enable_references.(bool) or_else config.enable_rename
+		ols_config.enable_rename.(bool) or_else config.enable_rename
 
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
