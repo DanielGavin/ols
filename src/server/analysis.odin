@@ -3121,19 +3121,38 @@ get_locals_for_range_stmt :: proc(
 
 			if len(stmt.vals) >= 2 {
 				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
-					store_local(
-						ast_context,
-						ident,
-						make_int_ast(ast_context, ident.pos, ident.end),
-						ident.pos.offset,
-						ident.name,
-						ast_context.local_id,
-						ast_context.non_mutable_only,
-						false,
-						true,
-						symbol.pkg,
-						false,
-					)
+					//Look for enumarated arrays
+					if len_symbol, ok := resolve_type_expression(ast_context, v.len); ok {
+						if _, is_enum := len_symbol.value.(SymbolEnumValue); is_enum {
+							store_local(
+								ast_context,
+								ident,
+								v.len,
+								ident.pos.offset,
+								ident.name,
+								ast_context.local_id,
+								ast_context.non_mutable_only,
+								false,
+								true,
+								len_symbol.pkg,
+								false,
+							)
+						}
+					} else {
+						store_local(
+							ast_context,
+							ident,
+							make_int_ast(ast_context, ident.pos, ident.end),
+							ident.pos.offset,
+							ident.name,
+							ast_context.local_id,
+							ast_context.non_mutable_only,
+							false,
+							true,
+							symbol.pkg,
+							false,
+						)
+					}
 				}
 			}
 		case SymbolSliceValue:

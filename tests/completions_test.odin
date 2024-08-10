@@ -2823,6 +2823,34 @@ ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
 	test.expect_completion_labels(t, &source, ".", {"North", "East", "South", "West"})
 }
 
+
+@(test)
+ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Enum :: enum {
+			Foo,
+			Bar,
+			Baz,
+		}
+
+		ARRAY :: [Enum]string{
+			.Foo = "foo",
+			.Bar = "bar",
+			.Baz = "baz",
+		}
+
+		main :: proc() {
+			for item, indezx in ARRAY {
+				indez{*} 
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.indezx: Enum"})
+}
+
 @(test)
 ast_raw_data_slice :: proc(t: ^testing.T) {
 	source := test.Source {
