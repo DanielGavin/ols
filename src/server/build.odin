@@ -189,7 +189,7 @@ setup_index :: proc() {
 	)
 	indexer.index = make_memory_index(symbol_collection)
 
-	dir_exe := common.get_executable_path()
+	dir_exe := common.get_executable_path(context.temp_allocator)
 
 	try_build_package(path.join({dir_exe, "builtin"}, context.temp_allocator))
 }

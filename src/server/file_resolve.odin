@@ -305,9 +305,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
 	case ^When_Stmt:
+		local_scope(data, n)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
+	case ^Block_Stmt:
+		resolve_node(n.label, data)
+		resolve_nodes(n.stmts, data)
 	case ^Implicit:
 		if n.tok.text == "context" {
 			data.position_context.implicit_context = n
@@ -388,9 +392,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Tag_Stmt:
 		r := cast(^Tag_Stmt)node
 		resolve_node(r.stmt, data)
-	case ^Block_Stmt:
-		resolve_node(n.label, data)
-		resolve_nodes(n.stmts, data)
 	case ^Return_Stmt:
 		data.position_context.returns = n
 		resolve_nodes(n.results, data)
