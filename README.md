@@ -84,6 +84,10 @@ Options:
 
 `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. 
 
+`enable_references`: Turns on finding references for a symbol.
+
+`enable_rename`: Turns on renaming a symbol.
+
 `odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
 `checker_args`: Pass custom arguments to `odin check`.
