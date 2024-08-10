@@ -29,10 +29,7 @@ get_all_package_file_locations :: proc(
 		}
 	}
 
-	matches, err := filepath.glob(
-		fmt.tprintf("%v/*.odin", path),
-		context.temp_allocator,
-	)
+	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", path), context.temp_allocator)
 
 	for match in matches {
 		uri := common.create_uri(match, context.temp_allocator)
@@ -45,13 +42,7 @@ get_all_package_file_locations :: proc(
 	return true
 }
 
-get_definition_location :: proc(
-	document: ^Document,
-	position: common.Position,
-) -> (
-	[]common.Location,
-	bool,
-) {
+get_definition_location :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	location: common.Location
@@ -66,11 +57,7 @@ get_definition_location :: proc(
 
 	uri: string
 
-	position_context, ok := get_document_position_context(
-		document,
-		position,
-		.Definition,
-	)
+	position_context, ok := get_document_position_context(document, position, .Definition)
 
 	if !ok {
 		log.warn("Failed to get position context")
@@ -80,33 +67,20 @@ get_definition_location :: proc(
 	get_globals(document.ast, &ast_context)
 
 	if position_context.function != nil {
-		get_locals(
-			document.ast,
-			position_context.function,
-			&ast_context,
-			&position_context,
-		)
+		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
 	if position_context.import_stmt != nil {
-		if get_all_package_file_locations(
-			document,
-			position_context.import_stmt,
-			&locations,
-		) {
+		if get_all_package_file_locations(document, position_context.import_stmt, &locations) {
 			return locations[:], true
 		}
 	} else if position_context.selector_expr != nil {
 		//if the base selector is the client wants to go to.
-		if base, ok := position_context.selector.derived.(^ast.Ident);
-		   ok && position_context.identifier != nil {
+		if base, ok := position_context.selector.derived.(^ast.Ident); ok && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
 
 			if position_in_node(base, position_context.position) {
-				if resolved, ok := resolve_location_identifier(
-					&ast_context,
-					ident^,
-				); ok {
+				if resolved, ok := resolve_location_identifier(&ast_context, ident^); ok {
 					location.range = resolved.range
 
 					if resolved.uri == "" {
@@ -124,10 +98,7 @@ get_definition_location :: proc(
 			}
 		}
 
-		if resolved, ok := resolve_location_selector(
-			&ast_context,
-			position_context.selector_expr,
-		); ok {
+		if resolved, ok := resolve_location_selector(&ast_context, position_context.selector_expr); ok {
 			location.range = resolved.range
 			uri = resolved.uri
 		} else {
@@ -136,14 +107,8 @@ get_definition_location :: proc(
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
 	   !common.is_expr_basic_lit(position_context.field_value.field) &&
-	   position_in_node(
-		   position_context.field_value.field,
-		   position_context.position,
-	   ) {
-		if resolved, ok := resolve_location_comp_lit_field(
-			&ast_context,
-			&position_context,
-		); ok {
+	   position_in_node(position_context.field_value.field, position_context.position) {
+		if resolved, ok := resolve_location_comp_lit_field(&ast_context, &position_context); ok {
 			location.range = resolved.range
 			uri = resolved.uri
 		} else {

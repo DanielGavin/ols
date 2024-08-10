@@ -62,12 +62,7 @@ SemanticTokenModifier :: enum u8 {
 	ReadOnly,
 }
 // Need to be in the same order as SemanticTokenModifier
-semantic_token_modifier_names: []string = {
-	"declaration",
-	"definition",
-	"deprecated",
-	"readonly",
-}
+semantic_token_modifier_names: []string = {"declaration", "definition", "deprecated", "readonly"}
 SemanticTokenModifiers :: bit_set[SemanticTokenModifier;u32]
 
 SemanticTokensClientCapabilities :: struct {
@@ -124,9 +119,7 @@ SemanticTokenBuilder :: struct {
 	src:           string,
 }
 
-semantic_tokens_to_response_params :: proc(
-	tokens: []SemanticToken,
-) -> SemanticTokensResponseParams {
+semantic_tokens_to_response_params :: proc(tokens: []SemanticToken) -> SemanticTokensResponseParams {
 	return {data = (cast([^]u32)raw_data(tokens))[:len(tokens) * 5]}
 }
 
@@ -145,19 +138,13 @@ get_semantic_tokens :: proc(
 	ast_context.current_package = ast_context.document_package
 
 	builder: SemanticTokenBuilder = {
-		tokens  = make(
-			[dynamic]SemanticToken,
-			0,
-			2000,
-			context.temp_allocator,
-		),
+		tokens  = make([dynamic]SemanticToken, 0, 2000, context.temp_allocator),
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
 
 	for decl in document.ast.decls {
-		if range.start.line <= decl.pos.line &&
-		   decl.end.line <= range.end.line {
+		if range.start.line <= decl.pos.line && decl.end.line <= range.end.line {
 			visit_node(decl, &builder)
 		}
 	}
@@ -172,11 +159,7 @@ write_semantic_at_pos :: proc(
 	type: SemanticTokenTypes,
 	modifiers: SemanticTokenModifiers = {},
 ) {
-	position := common.get_relative_token_position(
-		pos,
-		transmute([]u8)builder.src,
-		builder.current_start,
-	)
+	position := common.get_relative_token_position(pos, transmute([]u8)builder.src, builder.current_start)
 	append(
 		&builder.tokens,
 		SemanticToken {
@@ -212,13 +195,7 @@ write_semantic_token :: proc(
 	type: SemanticTokenTypes,
 	modifiers: SemanticTokenModifiers = {},
 ) {
-	write_semantic_at_pos(
-		builder,
-		token.pos.offset,
-		len(token.text),
-		type,
-		modifiers,
-	)
+	write_semantic_at_pos(builder, token.pos.offset, len(token.text), type, modifiers)
 }
 
 visit_nodes :: proc(array: []$T/^ast.Node, builder: ^SemanticTokenBuilder) {
@@ -411,14 +388,10 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	}
 }
 
-visit_value_decl :: proc(
-	value_decl: ast.Value_Decl,
-	builder: ^SemanticTokenBuilder,
-) {
+visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	using ast
 
-	modifiers: SemanticTokenModifiers =
-		value_decl.is_mutable ? {} : {.ReadOnly}
+	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
 
 	for name in value_decl.names {
 		ident := name.derived.(^Ident) or_continue
@@ -459,10 +432,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 	}
 }
 
-visit_enum_fields :: proc(
-	node: ast.Enum_Type,
-	builder: ^SemanticTokenBuilder,
-) {
+visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder) {
 	using ast
 
 	if node.fields == nil {
@@ -481,10 +451,7 @@ visit_enum_fields :: proc(
 	}
 }
 
-visit_struct_fields :: proc(
-	node: ast.Struct_Type,
-	builder: ^SemanticTokenBuilder,
-) {
+visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilder) {
 	if node.fields == nil {
 		return
 	}
@@ -500,10 +467,7 @@ visit_struct_fields :: proc(
 	}
 }
 
-visit_bit_field_fields :: proc(
-	node: ast.Bit_Field_Type,
-	builder: ^SemanticTokenBuilder,
-) {
+visit_bit_field_fields :: proc(node: ast.Bit_Field_Type, builder: ^SemanticTokenBuilder) {
 	if node.fields == nil {
 		return
 	}
@@ -518,10 +482,7 @@ visit_bit_field_fields :: proc(
 	}
 }
 
-visit_import_decl :: proc(
-	decl: ^ast.Import_Decl,
-	builder: ^SemanticTokenBuilder,
-) {
+visit_import_decl :: proc(decl: ^ast.Import_Decl, builder: ^SemanticTokenBuilder) {
 	/*
 	hightlight the namespace in the import declaration
 	
@@ -544,9 +505,7 @@ visit_import_decl :: proc(
 
 		for {
 			if pos > 1 {
-				ch, w := utf8.decode_last_rune_in_string(
-					decl.relpath.text[:pos],
-				)
+				ch, w := utf8.decode_last_rune_in_string(decl.relpath.text[:pos])
 
 				switch ch {
 				case ':', '/': // break
@@ -559,12 +518,7 @@ visit_import_decl :: proc(
 			break
 		}
 
-		write_semantic_at_pos(
-			builder,
-			decl.relpath.pos.offset + pos,
-			end - pos,
-			.Namespace,
-		)
+		write_semantic_at_pos(builder, decl.relpath.pos.offset + pos, end - pos, .Namespace)
 	}
 }
 
@@ -593,9 +547,7 @@ visit_ident :: proc(
 	#partial switch symbol.type {
 	case .Variable, .Constant, .Function:
 		#partial switch _ in symbol.value {
-		case SymbolProcedureValue,
-		     SymbolProcedureGroupValue,
-		     SymbolAggregateValue:
+		case SymbolProcedureValue, SymbolProcedureGroupValue, SymbolAggregateValue:
 			write_semantic_node(builder, ident, .Function, modifiers)
 		case:
 			write_semantic_node(builder, ident, .Variable, modifiers)

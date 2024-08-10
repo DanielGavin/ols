@@ -20,13 +20,7 @@ DocumentFormattingParams :: struct {
 	options:      FormattingOptions,
 }
 
-get_complete_format :: proc(
-	document: ^Document,
-	config: ^common.Config,
-) -> (
-	[]TextEdit,
-	bool,
-) {
+get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]TextEdit, bool) {
 	if document.ast.syntax_error_count > 0 {
 		return {}, true
 	}
@@ -39,18 +33,14 @@ get_complete_format :: proc(
 		fix_imports(document)
 	}
 
-	style := format.find_config_file_or_default(
-		filepath.dir(document.fullpath, context.temp_allocator),
-	)
+	style := format.find_config_file_or_default(filepath.dir(document.fullpath, context.temp_allocator))
 	prnt := printer.make_printer(style, context.temp_allocator)
 
 	src := printer.print(&prnt, &document.ast)
 
 	edit := TextEdit {
 		newText = src,
-		range   = common.get_document_range(
-			document.text[0:document.used_text],
-		),
+		range   = common.get_document_range(document.text[0:document.used_text]),
 	}
 
 	edits := make([dynamic]TextEdit, context.temp_allocator)

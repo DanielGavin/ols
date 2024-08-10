@@ -1,12 +1,9 @@
 package server
 
-import "core:fmt"
 import "core:encoding/json"
+import "core:fmt"
 
-send_notification :: proc(
-	notification: Notification,
-	writer: ^Writer,
-) -> bool {
+send_notification :: proc(notification: Notification, writer: ^Writer) -> bool {
 	data, error := marshal(notification, {}, context.temp_allocator)
 
 	header := fmt.tprintf("Content-Length: %v\r\n\r\n", len(data))

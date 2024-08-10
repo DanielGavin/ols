@@ -19,12 +19,7 @@ import "src:common"
 
 
 @(private)
-create_remove_edit :: proc(
-	position_context: ^DocumentPositionContext,
-) -> (
-	[]TextEdit,
-	bool,
-) {
+create_remove_edit :: proc(position_context: ^DocumentPositionContext) -> ([]TextEdit, bool) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
@@ -74,9 +69,7 @@ append_method_completion :: proc(
 				resolve_unresolved_symbol(ast_context, &symbol)
 				build_procedure_symbol_signature(&symbol)
 
-				range, ok := get_range_from_selection_start_to_dot(
-					position_context,
-				)
+				range, ok := get_range_from_selection_start_to_dot(position_context)
 
 				if !ok {
 					return
@@ -89,23 +82,18 @@ append_method_completion :: proc(
 					continue
 				}
 
-				if len(value.arg_types) == 0 ||
-				   value.arg_types[0].type == nil {
+				if len(value.arg_types) == 0 || value.arg_types[0].type == nil {
 					continue
 				}
 
 				first_arg: Symbol
-				first_arg, ok = resolve_type_expression(
-					ast_context,
-					value.arg_types[0].type,
-				)
+				first_arg, ok = resolve_type_expression(ast_context, value.arg_types[0].type)
 
 				if !ok {
 					continue
 				}
 
-				pointers_to_add :=
-					first_arg.pointers - selector_symbol.pointers
+				pointers_to_add := first_arg.pointers - selector_symbol.pointers
 
 				references := ""
 				dereferences := ""
@@ -125,11 +113,7 @@ append_method_completion :: proc(
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
 						"%v.%v",
-						path.base(
-							get_symbol_pkg_name(ast_context, symbol),
-							false,
-							ast_context.allocator,
-						),
+						path.base(get_symbol_pkg_name(ast_context, symbol), false, ast_context.allocator),
 						symbol.name,
 					)
 				} else {
@@ -137,36 +121,17 @@ append_method_completion :: proc(
 				}
 
 				if len(symbol.value.(SymbolProcedureValue).arg_types) > 1 {
-					new_text = fmt.tprintf(
-						"%v(%v%v%v$0)",
-						new_text,
-						references,
-						receiver,
-						dereferences,
-					)
+					new_text = fmt.tprintf("%v(%v%v%v$0)", new_text, references, receiver, dereferences)
 				} else {
-					new_text = fmt.tprintf(
-						"%v(%v%v%v)$0",
-						new_text,
-						references,
-						receiver,
-						dereferences,
-					)
+					new_text = fmt.tprintf("%v(%v%v%v)$0", new_text, references, receiver, dereferences)
 				}
 
 				item := CompletionItem {
 					label = symbol.name,
 					kind = symbol_type_to_completion_kind(symbol.type),
-					detail = concatenate_symbol_information(
-						ast_context,
-						symbol,
-						true,
-					),
+					detail = concatenate_symbol_information(ast_context, symbol, true),
 					additionalTextEdits = remove_edit,
-					textEdit = TextEdit {
-						newText = new_text,
-						range = {start = range.end, end = range.end},
-					},
+					textEdit = TextEdit{newText = new_text, range = {start = range.end, end = range.end}},
 					insertTextFormat = .Snippet,
 					InsertTextMode = .adjustIndentation,
 					documentation = symbol.doc,

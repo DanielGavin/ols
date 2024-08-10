@@ -94,10 +94,7 @@ try_build_package :: proc(pkg_name: string) {
 		return
 	}
 
-	matches, err := filepath.glob(
-		fmt.tprintf("%v/*.odin", pkg_name),
-		context.temp_allocator,
-	)
+	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
 
 	if err != .None {
 		log.errorf("Failed to glob %v for indexing package", pkg_name)
@@ -105,11 +102,7 @@ try_build_package :: proc(pkg_name: string) {
 	}
 
 	arena: runtime.Arena
-	result := runtime.arena_init(
-		&arena,
-		mem.Megabyte * 40,
-		runtime.default_allocator(),
-	)
+	result := runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
 	defer runtime.arena_destroy(&arena)
 
 	{
@@ -123,10 +116,7 @@ try_build_package :: proc(pkg_name: string) {
 			data, ok := os.read_entire_file(fullpath, context.allocator)
 
 			if !ok {
-				log.errorf(
-					"failed to read entire file for indexing %v",
-					fullpath,
-				)
+				log.errorf("failed to read entire file for indexing %v", fullpath)
 				continue
 			}
 
@@ -156,8 +146,7 @@ try_build_package :: proc(pkg_name: string) {
 			ok = parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") &&
-				   !strings.contains(fullpath, "intrinsics.odin") {
+				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -171,22 +160,14 @@ try_build_package :: proc(pkg_name: string) {
 		}
 	}
 
-	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] =
-		PackageCacheInfo {
-			timestamp = time.now(),
-		}
+	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
+		timestamp = time.now(),
+	}
 }
 
 setup_index :: proc() {
-	build_cache.loaded_pkgs = make(
-		map[string]PackageCacheInfo,
-		50,
-		context.allocator,
-	)
-	symbol_collection := make_symbol_collection(
-		context.allocator,
-		&common.config,
-	)
+	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
+	symbol_collection := make_symbol_collection(context.allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
 
 	dir_exe := common.get_executable_path(context.temp_allocator)
