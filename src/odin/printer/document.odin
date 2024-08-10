@@ -97,10 +97,7 @@ newline :: proc(amount: int, allocator := context.allocator) -> ^Document {
 	return document
 }
 
-nest :: proc(
-	nested_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+nest :: proc(nested_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nest {
 		document = nested_document,
@@ -108,10 +105,7 @@ nest :: proc(
 	return document
 }
 
-escape_nest :: proc(
-	nested_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+escape_nest :: proc(nested_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nest {
 		document = nested_document,
@@ -120,24 +114,11 @@ escape_nest :: proc(
 	return document
 }
 
-nest_if_break :: proc(
-	nested_document: ^Document,
-	group_id := "",
-	allocator := context.allocator,
-) -> ^Document {
-	return if_break_or_document(
-		nest(nested_document, allocator),
-		nested_document,
-		group_id,
-		allocator,
-	)
+nest_if_break :: proc(nested_document: ^Document, group_id := "", allocator := context.allocator) -> ^Document {
+	return if_break_or_document(nest(nested_document, allocator), nested_document, group_id, allocator)
 }
 
-hang :: proc(
-	align: int,
-	hanged_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+hang :: proc(align: int, hanged_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nest {
 		alignment = align,
@@ -146,10 +127,7 @@ hang :: proc(
 	return document
 }
 
-enforce_fit :: proc(
-	fitted_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+enforce_fit :: proc(fitted_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Group {
 		document = fitted_document,
@@ -158,10 +136,7 @@ enforce_fit :: proc(
 	return document
 }
 
-fill :: proc(
-	filled_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+fill :: proc(filled_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Group {
 		document = filled_document,
@@ -184,10 +159,7 @@ enforce_break :: proc(
 	return document
 }
 
-align :: proc(
-	aligned_document: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+align :: proc(aligned_document: ^Document, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Align {
 		document = aligned_document,
@@ -210,12 +182,7 @@ if_break_or_string :: proc(
 	group_id := "",
 	allocator := context.allocator,
 ) -> ^Document {
-	return if_break_or_document(
-		text(break_value, allocator),
-		text(fit_value, allocator),
-		group_id,
-		allocator,
-	)
+	return if_break_or_document(text(break_value, allocator), text(fit_value, allocator), group_id, allocator)
 }
 
 if_break_or_document :: proc(
@@ -233,11 +200,7 @@ if_break_or_document :: proc(
 	return document
 }
 
-break_with :: proc(
-	value: string,
-	newline := true,
-	allocator := context.allocator,
-) -> ^Document {
+break_with :: proc(value: string, newline := true, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Break {
 		value   = value,
@@ -252,10 +215,7 @@ break_parent :: proc(allocator := context.allocator) -> ^Document {
 	return document
 }
 
-line_suffix :: proc(
-	value: string,
-	allocator := context.allocator,
-) -> ^Document {
+line_suffix :: proc(value: string, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Line_Suffix {
 		value = value,
@@ -299,11 +259,7 @@ cons :: proc(elems: ..^Document, allocator := context.allocator) -> ^Document {
 	return document
 }
 
-cons_with_opl :: proc(
-	lhs: ^Document,
-	rhs: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+cons_with_opl :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
 	if _, ok := lhs.(Document_Nil); ok {
 		return rhs
 	}
@@ -312,17 +268,10 @@ cons_with_opl :: proc(
 		return lhs
 	}
 
-	return cons(
-		elems = {lhs, break_with_space(allocator), rhs},
-		allocator = allocator,
-	)
+	return cons(elems = {lhs, break_with_space(allocator), rhs}, allocator = allocator)
 }
 
-cons_with_nopl :: proc(
-	lhs: ^Document,
-	rhs: ^Document,
-	allocator := context.allocator,
-) -> ^Document {
+cons_with_nopl :: proc(lhs: ^Document, rhs: ^Document, allocator := context.allocator) -> ^Document {
 	if _, ok := lhs.(Document_Nil); ok {
 		return rhs
 	}
@@ -331,10 +280,7 @@ cons_with_nopl :: proc(
 		return lhs
 	}
 
-	return cons(
-		elems = {lhs, break_with_no_newline(allocator), rhs},
-		allocator = allocator,
-	)
+	return cons(elems = {lhs, break_with_no_newline(allocator), rhs}, allocator = allocator)
 }
 
 Tuple :: struct {
@@ -389,12 +335,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 		case Document_Align:
 			append(
 				list,
-				Tuple {
-					indentation = 0,
-					mode = data.mode,
-					document = v.document,
-					alignment = start_width - width,
-				},
+				Tuple{indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width},
 			)
 
 		case Document_Nest:
@@ -466,13 +407,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 	return width > 0
 }
 
-format_newline :: proc(
-	indentation: int,
-	alignment: int,
-	consumed: ^int,
-	builder: ^strings.Builder,
-	p: ^Printer,
-) {
+format_newline :: proc(indentation: int, alignment: int, consumed: ^int, builder: ^strings.Builder, p: ^Printer) {
 	strings.write_string(builder, p.newline)
 	for i := 0; i < indentation; i += 1 {
 		strings.write_string(builder, p.indentation)
@@ -484,20 +419,12 @@ format_newline :: proc(
 	consumed^ = indentation * p.indentation_width + alignment
 }
 
-flush_line_suffix :: proc(
-	builder: ^strings.Builder,
-	suffix_builder: ^strings.Builder,
-) {
+flush_line_suffix :: proc(builder: ^strings.Builder, suffix_builder: ^strings.Builder) {
 	strings.write_string(builder, strings.to_string(suffix_builder^))
 	strings.builder_reset(suffix_builder)
 }
 
-format :: proc(
-	width: int,
-	list: ^[dynamic]Tuple,
-	builder: ^strings.Builder,
-	p: ^Printer,
-) {
+format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: ^Printer) {
 	assert(list != nil)
 	assert(builder != nil)
 
@@ -528,8 +455,7 @@ format :: proc(
 				for i := 0; i < data.alignment; i += 1 {
 					strings.write_string(builder, " ")
 				}
-				consumed =
-					data.indentation * p.indentation_width + data.alignment
+				consumed = data.indentation * p.indentation_width + data.alignment
 
 				if data.mode == .Flat {
 					recalculate = true
@@ -574,12 +500,7 @@ format :: proc(
 			align := consumed - data.indentation * p.indentation_width
 			append(
 				list,
-				Tuple {
-					indentation = data.indentation,
-					mode = data.mode,
-					document = v.document,
-					alignment = align,
-				},
+				Tuple{indentation = data.indentation, mode = data.mode, document = v.document, alignment = align},
 			)
 		case Document_Text:
 			strings.write_string(builder, v.value)
@@ -587,25 +508,13 @@ format :: proc(
 		case Document_Break:
 			if data.mode == .Break && v.newline {
 				flush_line_suffix(builder, &suffix_builder)
-				format_newline(
-					data.indentation,
-					data.alignment,
-					&consumed,
-					builder,
-					p,
-				)
+				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else if data.mode == .Fill && consumed < width {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
 			} else if data.mode == .Fill && v.newline {
 				flush_line_suffix(builder, &suffix_builder)
-				format_newline(
-					data.indentation,
-					data.alignment,
-					&consumed,
-					builder,
-					p,
-				)
+				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
@@ -655,12 +564,7 @@ format :: proc(
 
 			append(
 				&list_fits,
-				Tuple {
-					indentation = data.indentation,
-					mode = .Flat,
-					document = v.document,
-					alignment = data.alignment,
-				},
+				Tuple{indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment},
 			)
 
 			recalculate = false
@@ -675,9 +579,7 @@ format :: proc(
 						alignment = data.alignment,
 					},
 				)
-			} else if fits(width - consumed, &list_fits) &&
-			   v.mode != .Break &&
-			   v.mode != .Fit {
+			} else if fits(width - consumed, &list_fits) && v.mode != .Break && v.mode != .Fit {
 				append(
 					list,
 					Tuple {

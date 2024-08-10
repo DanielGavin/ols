@@ -384,6 +384,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		}
 	case ^Bit_Field_Type:
 		visit_bit_field_fields(n^, builder)
+	case ^ast.Helper_Type:
+		visit_node(n.type, builder)
 	case:
 	}
 }
