@@ -49,12 +49,7 @@ resolve_poly :: proc(
 			if ident, ok := unwrap_ident(type); ok {
 				save_poly_map(
 					ident,
-					make_ident_ast(
-						ast_context,
-						call_node.pos,
-						call_node.end,
-						call_symbol.name,
-					),
+					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
 					poly_map,
 				)
 			}
@@ -76,13 +71,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_matrix.row_count,
-						call_symbol,
-						p.row_count,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_matrix.row_count, call_symbol, p.row_count, poly_map)
 				}
 				found |= true
 			}
@@ -93,13 +82,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_matrix.column_count,
-						call_symbol,
-						p.column_count,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_matrix.column_count, call_symbol, p.column_count, poly_map)
 				}
 				found |= true
 			}
@@ -110,13 +93,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_matrix.elem,
-						call_symbol,
-						p.elem,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_matrix.elem, call_symbol, p.elem, poly_map)
 				}
 				found |= true
 			}
@@ -129,17 +106,11 @@ resolve_poly :: proc(
 			found := false
 			for arg in p.args {
 				if poly_type, ok := arg.derived.(^ast.Poly_Type); ok {
-					if poly_type.type == nil ||
-					   struct_value.poly == nil ||
-					   len(struct_value.args) <= arg_index {
+					if poly_type.type == nil || struct_value.poly == nil || len(struct_value.args) <= arg_index {
 						return false
 					}
 
-					save_poly_map(
-						poly_type.type,
-						struct_value.args[arg_index],
-						poly_map,
-					)
+					save_poly_map(poly_type.type, struct_value.args[arg_index], poly_map)
 
 					arg_index += 1
 					found |= true
@@ -151,8 +122,7 @@ resolve_poly :: proc(
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
 
-			if common.dynamic_array_is_soa(p^) !=
-			   common.dynamic_array_is_soa(call_array^) {
+			if common.dynamic_array_is_soa(p^) != common.dynamic_array_is_soa(call_array^) {
 				return false
 			}
 
@@ -161,10 +131,7 @@ resolve_poly :: proc(
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
 
-				if ok1 &&
-				   ok2 &&
-				   (a.name == "soa" || b.name == "soa") &&
-				   a.name != b.name {
+				if ok1 && ok2 && (a.name == "soa" || b.name == "soa") && a.name != b.name {
 					return false
 				}
 			}
@@ -175,13 +142,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_array.elem,
-						call_symbol,
-						p.elem,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_array.elem, call_symbol, p.elem, poly_map)
 				}
 				return true
 			}
@@ -199,10 +160,7 @@ resolve_poly :: proc(
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
 
-				if ok1 &&
-				   ok2 &&
-				   (a.name == "soa" || b.name == "soa") &&
-				   a.name != b.name {
+				if ok1 && ok2 && (a.name == "soa" || b.name == "soa") && a.name != b.name {
 					return false
 				}
 			}
@@ -213,13 +171,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_array.elem,
-						call_symbol,
-						p.elem,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_array.elem, call_symbol, p.elem, poly_map)
 				}
 				found |= true
 			}
@@ -230,13 +182,7 @@ resolve_poly :: proc(
 					}
 
 					if poly_type.specialization != nil {
-						return resolve_poly(
-							ast_context,
-							call_array.len,
-							call_symbol,
-							p.len,
-							poly_map,
-						)
+						return resolve_poly(ast_context, call_array.len, call_symbol, p.len, poly_map)
 					}
 					found |= true
 				}
@@ -253,13 +199,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_map.key,
-						call_symbol,
-						p.key,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_map.key, call_symbol, p.key, poly_map)
 				}
 				found |= true
 			}
@@ -270,34 +210,21 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_map.value,
-						call_symbol,
-						p.value,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_map.value, call_symbol, p.value, poly_map)
 				}
 				found |= true
 			}
 			return found
 		}
 	case ^ast.Multi_Pointer_Type:
-		if call_pointer, ok := call_node.derived.(^ast.Multi_Pointer_Type);
-		   ok {
+		if call_pointer, ok := call_node.derived.(^ast.Multi_Pointer_Type); ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
 					save_poly_map(ident, call_pointer.elem, poly_map)
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_pointer.elem,
-						call_symbol,
-						p.elem,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
 				}
 				return true
 			}
@@ -310,13 +237,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						call_pointer.elem,
-						call_symbol,
-						p.elem,
-						poly_map,
-					)
+					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
 				}
 				return true
 			}
@@ -329,13 +250,7 @@ resolve_poly :: proc(
 				}
 
 				if poly_type.specialization != nil {
-					return resolve_poly(
-						ast_context,
-						comp_lit.type,
-						call_symbol,
-						p.type,
-						poly_map,
-					)
+					return resolve_poly(ast_context, comp_lit.type, call_symbol, p.type, poly_map)
 				}
 				return true
 			}
@@ -356,10 +271,7 @@ is_generic_type_recursive :: proc(expr: ^ast.Expr, name: string) -> bool {
 		exists: bool,
 	}
 
-	visit_function :: proc(
-		visitor: ^ast.Visitor,
-		node: ^ast.Node,
-	) -> ^ast.Visitor {
+	visit_function :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
 		if node == nil {
 			return nil
 		}
@@ -390,37 +302,25 @@ is_generic_type_recursive :: proc(expr: ^ast.Expr, name: string) -> bool {
 	return data.exists
 }
 
-save_poly_map :: proc(
-	ident: ^ast.Ident,
-	expr: ^ast.Expr,
-	poly_map: ^map[string]^ast.Expr,
-) {
+save_poly_map :: proc(ident: ^ast.Ident, expr: ^ast.Expr, poly_map: ^map[string]^ast.Expr) {
 	if ident == nil || expr == nil {
 		return
 	}
 	poly_map[ident.name] = expr
 }
 
-get_poly_map :: proc(
-	node: ^ast.Node,
-	poly_map: ^map[string]^ast.Expr,
-) -> (
-	^ast.Expr,
-	bool,
-) {
+get_poly_map :: proc(node: ^ast.Node, poly_map: ^map[string]^ast.Expr) -> (^ast.Expr, bool) {
 	if node == nil {
 		return {}, false
 	}
 
 	if ident, ok := node.derived.(^ast.Ident); ok {
-		if v, ok := poly_map[ident.name];
-		   ok && !is_generic_type_recursive(v, ident.name) {
+		if v, ok := poly_map[ident.name]; ok && !is_generic_type_recursive(v, ident.name) {
 			return v, ok
 		}
 	}
 	if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
-		if v, ok := poly_map[poly.type.name];
-		   ok && !is_generic_type_recursive(v, poly.type.name) {
+		if v, ok := poly_map[poly.type.name]; ok && !is_generic_type_recursive(v, poly.type.name) {
 			return v, ok
 		}
 	}
@@ -428,14 +328,8 @@ get_poly_map :: proc(
 	return nil, false
 }
 
-find_and_replace_poly_type :: proc(
-	expr: ^ast.Expr,
-	poly_map: ^map[string]^ast.Expr,
-) {
-	visit_function :: proc(
-		visitor: ^ast.Visitor,
-		node: ^ast.Node,
-	) -> ^ast.Visitor {
+find_and_replace_poly_type :: proc(expr: ^ast.Expr, poly_map: ^map[string]^ast.Expr) {
+	visit_function :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
 		if node == nil {
 			return nil
 		}
@@ -532,13 +426,7 @@ resolve_generic_function :: proc {
 	resolve_generic_function_symbol,
 }
 
-resolve_generic_function_ast :: proc(
-	ast_context: ^AstContext,
-	proc_lit: ast.Proc_Lit,
-) -> (
-	Symbol,
-	bool,
-) {
+resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
 
 	using ast
 
@@ -554,11 +442,7 @@ resolve_generic_function_ast :: proc(
 		return Symbol{}, false
 	}
 
-	return resolve_generic_function_symbol(
-		ast_context,
-		proc_lit.type.params.list,
-		proc_lit.type.results.list,
-	)
+	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list)
 }
 
 
@@ -607,44 +491,19 @@ resolve_generic_function_symbol :: proc(
 
 			ast_context.current_package = ast_context.document_package
 
-			if symbol, ok := resolve_type_expression(
-				ast_context,
-				call_expr.args[i],
-			); ok {
-				symbol_expr := symbol_to_expr(
-					symbol,
-					call_expr.args[i].pos.file,
-					context.temp_allocator,
-				)
+			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
+				symbol_expr := symbol_to_expr(symbol, call_expr.args[i].pos.file, context.temp_allocator)
 
 				if symbol_expr == nil {
 					return {}, false
 				}
 
-				symbol_expr = clone_expr(
-					symbol_expr,
-					ast_context.allocator,
-					nil,
-				)
-				param_type := clone_expr(
-					param.type,
-					ast_context.allocator,
-					nil,
-				)
+				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
+				param_type := clone_expr(param.type, ast_context.allocator, nil)
 
-				if resolve_poly(
-					ast_context,
-					symbol_expr,
-					symbol,
-					param_type,
-					&poly_map,
-				) {
+				if resolve_poly(ast_context, symbol_expr, symbol, param_type, &poly_map) {
 					if poly, ok := name.derived.(^ast.Poly_Type); ok {
-						poly_map[poly.type.name] = clone_expr(
-							call_expr.args[i],
-							ast_context.allocator,
-							nil,
-						)
+						poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
 					}
 				} else {
 					return {}, false
@@ -662,9 +521,7 @@ resolve_generic_function_symbol :: proc(
 		find_and_replace_poly_type(v, &poly_map)
 	}
 
-	if count_required_params > len(call_expr.args) ||
-	   count_required_params == 0 ||
-	   len(call_expr.args) == 0 {
+	if count_required_params > len(call_expr.args) || count_required_params == 0 || len(call_expr.args) == 0 {
 		return {}, false
 	}
 
@@ -730,8 +587,7 @@ resolve_generic_function_symbol :: proc(
 		}
 
 		if len(param.names) > 0 {
-			if poly_type, ok := param.names[0].derived.(^ast.Poly_Type);
-			   ok && param.type != nil {
+			if poly_type, ok := param.names[0].derived.(^ast.Poly_Type); ok && param.type != nil {
 				if m, ok := poly_map[poly_type.type.name]; ok {
 					field.type = m
 				}
@@ -769,11 +625,7 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 }
 
 
-resolve_poly_struct :: proc(
-	ast_context: ^AstContext,
-	poly_params: ^ast.Field_List,
-	symbol: ^Symbol,
-) {
+resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
 	if ast_context.call == nil {
 		return
 	}
@@ -873,11 +725,7 @@ resolve_poly_struct :: proc(
 }
 
 
-resolve_poly_union :: proc(
-	ast_context: ^AstContext,
-	poly_params: ^ast.Field_List,
-	symbol: ^Symbol,
-) {
+resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
 	if ast_context.call == nil {
 		return
 	}

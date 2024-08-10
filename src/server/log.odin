@@ -1,14 +1,13 @@
 package server
 
 import "core:fmt"
-import "core:strings"
-import "core:os"
-import "core:time"
 import "core:log"
+import "core:os"
+import "core:strings"
+import "core:time"
 
 Default_Console_Logger_Opts ::
-	log.Options{.Level, .Terminal_Color, .Short_File_Path, .Line, .Procedure} |
-	log.Full_Timestamp_Opts
+	log.Options{.Level, .Terminal_Color, .Short_File_Path, .Line, .Procedure} | log.Full_Timestamp_Opts
 
 Lsp_Logger_Data :: struct {
 	writer: ^Writer,
@@ -55,10 +54,7 @@ lsp_logger_proc :: proc(
 	notification := Notification {
 		jsonrpc = "2.0",
 		method = "window/logMessage",
-		params = NotificationLoggingParams{
-			type = message_type,
-			message = message,
-		},
+		params = NotificationLoggingParams{type = message_type, message = message},
 	}
 
 	send_notification(notification, data.writer)

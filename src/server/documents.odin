@@ -113,12 +113,7 @@ document_release :: proc(document: ^Document) {
 	Client opens a document with transferred text
 */
 
-document_open :: proc(
-	uri_string: string,
-	text: string,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
 	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 
 	if !parsed_ok {
@@ -128,10 +123,7 @@ document_open :: proc(
 
 	if document := &document_storage.documents[uri.path]; document != nil {
 		if document.client_owned {
-			log.errorf(
-				"Client called open on an already open document: %v ",
-				document.uri.path,
-			)
+			log.errorf("Client called open on an already open document: %v ", document.uri.path)
 			return .InvalidRequest
 		}
 
@@ -173,10 +165,7 @@ document_setup :: proc(document: ^Document) {
 	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
 		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.to_slash(
-			common.get_case_sensitive_path(package_name),
-			context.temp_allocator,
-		)
+		forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
 		if forward == "" {
 			document.package_name = package_name
 		} else {
@@ -221,20 +210,14 @@ document_apply_changes :: proc(
 	document.version = version
 
 	if !document.client_owned {
-		log.errorf(
-			"Client called change on an document not opened: %v ",
-			document.uri.path,
-		)
+		log.errorf("Client called change on an document not opened: %v ", document.uri.path)
 		return .InvalidRequest
 	}
 
 	for change in changes {
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
-			absolute_range, ok := common.get_absolute_range(
-				range,
-				document.text[:document.used_text],
-			)
+			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text])
 
 			if !ok {
 				return .ParseError
@@ -299,10 +282,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	document := &document_storage.documents[uri.path]
 
 	if document == nil || !document.client_owned {
-		log.errorf(
-			"Client called close on a document that was never opened: %v ",
-			document.uri.path,
-		)
+		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path)
 		return .InvalidRequest
 	}
 
@@ -325,11 +305,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	return .None
 }
 
-document_refresh :: proc(
-	document: ^Document,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
 	errors, ok := parse_document(document, config)
 
 	if !ok {
@@ -341,20 +317,13 @@ document_refresh :: proc(
 
 		params := NotificationPublishDiagnosticsParams {
 			uri         = document.uri.uri,
-			diagnostics = make(
-				[]Diagnostic,
-				len(errors),
-				context.temp_allocator,
-			),
+			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
 		}
 
 		for error, i in errors {
 			params.diagnostics[i] = Diagnostic {
 				range = common.Range {
-					start = common.Position {
-						line = error.line - 1,
-						character = 0,
-					},
+					start = common.Position{line = error.line - 1, character = 0},
 					end = common.Position{line = error.line, character = 0},
 				},
 				severity = DiagnosticSeverity.Error,
@@ -381,11 +350,7 @@ document_refresh :: proc(
 				method = "textDocument/publishDiagnostics",
 				params = NotificationPublishDiagnosticsParams {
 					uri = document.uri.uri,
-					diagnostics = make(
-						[]Diagnostic,
-						len(errors),
-						context.temp_allocator,
-					),
+					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
 				},
 			}
 
@@ -411,13 +376,7 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 	append(&current_errors, error)
 }
 
-parse_document :: proc(
-	document: ^Document,
-	config: ^common.Config,
-) -> (
-	[]ParserError,
-	bool,
-) {
+parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
 	p := parser.Parser {
 		err   = parser_error_handler,
 		warn  = common.parser_warning_handler,
@@ -460,8 +419,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 		}
 
 		//collection specified
-		if i := strings.index(imp.fullpath, ":");
-		   i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
+		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
 			if len(imp.fullpath) < 2 {
 				continue
 			}
@@ -477,12 +435,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 
 			import_: Package
 			import_.original = imp.fullpath
-			import_.name = strings.clone(
-				path.join(
-					elems = {dir, p},
-					allocator = context.temp_allocator,
-				),
-			)
+			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -501,10 +454,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = path.join(
-				elems = {
-					document.package_name,
-					imp.fullpath[1:len(imp.fullpath) - 1],
-				},
+				elems = {document.package_name, imp.fullpath[1:len(imp.fullpath) - 1]},
 				allocator = context.temp_allocator,
 			)
 			import_.name = path.clean(import_.name)

@@ -42,21 +42,13 @@ text_token :: proc(p: ^Printer, token: tokenizer.Token) -> ^Document {
 }
 
 @(private)
-text_position :: proc(
-	p: ^Printer,
-	value: string,
-	pos: tokenizer.Pos,
-) -> ^Document {
+text_position :: proc(p: ^Printer, value: string, pos: tokenizer.Pos) -> ^Document {
 	document, _ := visit_comments(p, pos)
 	return cons(document, text(value))
 }
 
 @(private)
-newline_position :: proc(
-	p: ^Printer,
-	amount: int,
-	pos: tokenizer.Pos,
-) -> ^Document {
+newline_position :: proc(p: ^Printer, amount: int, pos: tokenizer.Pos) -> ^Document {
 	document, _ := visit_comments(p, pos)
 	return cons(document, newline(amount))
 }
@@ -73,14 +65,7 @@ move_line :: proc(p: ^Printer, pos: tokenizer.Pos) -> ^Document {
 }
 
 @(private)
-move_line_limit :: proc(
-	p: ^Printer,
-	pos: tokenizer.Pos,
-	limit: int,
-) -> (
-	^Document,
-	bool,
-) {
+move_line_limit :: proc(p: ^Printer, pos: tokenizer.Pos, limit: int) -> (^Document, bool) {
 	lines := pos.line - p.source_position.line
 
 	if lines < 0 {
@@ -91,64 +76,42 @@ move_line_limit :: proc(
 
 	p.source_position = pos
 
-	return cons(
-			document,
-			newline(max(min(lines - comments_newlined, limit), 0)),
-		),
-		lines > 0
+	return cons(document, newline(max(min(lines - comments_newlined, limit), 0))), lines > 0
 }
 
 @(private)
-visit_comment :: proc(
-	p: ^Printer,
-	comment: tokenizer.Token,
-) -> (
-	int,
-	^Document,
-) {
+visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document) {
 	document := empty()
 	if len(comment.text) == 0 {
 		return 0, document
 	}
 
 	newlines_before_comment := comment.pos.line - p.source_position.line
-	newlines_before_comment_limited := min(
-		newlines_before_comment,
-		p.config.newline_limit + 1,
-	)
+	newlines_before_comment_limited := min(newlines_before_comment, p.config.newline_limit + 1)
 
 	document = cons(document, newline(newlines_before_comment_limited))
 
 	if comment.text[:2] != "/*" {
-		if info, is_disabled := p.disabled_lines[comment.pos.line];
-		   is_disabled {
+		if info, is_disabled := p.disabled_lines[comment.pos.line]; is_disabled {
 			p.source_position = comment.pos
 			if info.start_line == comment.pos.line && info.empty {
 				return info.end_line - info.start_line, cons(escape_nest(document), text(info.text))
 			}
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line &&
-		   p.source_position.column != 1 {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
-			if comment_option, exist := p.comments_option[comment.pos.line];
-			   exist && comment_option == .Indent {
+			if comment_option, exist := p.comments_option[comment.pos.line]; exist && comment_option == .Indent {
 				delete_key(&p.comments_option, comment.pos.line)
 				return newlines_before_comment, cons_with_nopl(
 					document,
 					cons(text(p.indentation), line_suffix(comment.text)),
 				)
 			} else {
-				return newlines_before_comment, cons_with_nopl(
-					document,
-					line_suffix(comment.text),
-				)
+				return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text))
 			}
 		} else {
 			p.source_position = comment.pos
-			return newlines_before_comment, cons(
-				document,
-				line_suffix(comment.text),
-			)
+			return newlines_before_comment, cons(document, line_suffix(comment.text))
 		}
 	} else {
 		newlines := strings.count(comment.text, "\n")
@@ -157,8 +120,7 @@ visit_comment :: proc(
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return 1, empty()
-		} else if comment.pos.line == p.source_position.line &&
-		   p.source_position.column != 1 {
+		} else if comment.pos.line == p.source_position.line && p.source_position.column != 1 {
 			p.source_position = comment.pos
 			p.source_position.line += newlines
 			return newlines_before_comment + newlines, cons_with_opl(document, text(comment.text))
@@ -220,10 +182,7 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 	pos_one_line_before := node_pos
 	pos_one_line_before.line -= 1
 
-	move := cons(
-		move_line(p, pos_one_line_before),
-		escape_nest(move_line(p, node_pos)),
-	)
+	move := cons(move_line(p, pos_one_line_before), escape_nest(move_line(p, node_pos)))
 
 	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
 		next_comment_group(p)
@@ -237,11 +196,7 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 }
 
 @(private)
-visit_decl :: proc(
-	p: ^Printer,
-	decl: ^ast.Decl,
-	called_in_stmt := false,
-) -> ^Document {
+visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Document {
 	using ast
 
 	if decl == nil {
@@ -267,23 +222,14 @@ visit_decl :: proc(
 	case ^Foreign_Import_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
-			document = cons(
-				document,
-				visit_attributes(p, &v.attributes, v.pos),
-			)
+			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
 		}
 
 		document = cons(document, move_line(p, decl.pos))
-		document = cons(
-			document,
-			cons_with_opl(text(v.foreign_tok.text), text(v.import_tok.text)),
-		)
+		document = cons(document, cons_with_opl(text(v.foreign_tok.text), text(v.import_tok.text)))
 
 		if v.name != nil {
-			document = cons_with_opl(
-				document,
-				text_position(p, v.name.name, v.pos),
-			)
+			document = cons_with_opl(document, text_position(p, v.name.name, v.pos))
 		}
 
 		if len(v.fullpaths) > 1 {
@@ -303,17 +249,11 @@ visit_decl :: proc(
 	case ^Foreign_Block_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
-			document = cons(
-				document,
-				visit_attributes(p, &v.attributes, v.pos),
-			)
+			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
 		}
 
 		document = cons(document, move_line(p, decl.pos))
-		document = cons(
-			document,
-			cons_with_opl(text("foreign"), visit_expr(p, v.foreign_library)),
-		)
+		document = cons(document, cons_with_opl(text("foreign"), visit_expr(p, v.foreign_library)))
 
 		if v.body != nil && is_foreign_block_only_procedures(v.body) {
 			p.force_statement_fit = true
@@ -328,10 +268,7 @@ visit_decl :: proc(
 		document := move_line(p, decl.pos)
 
 		if len(v.attributes) > 0 {
-			document = cons(
-				document,
-				visit_attributes(p, &v.attributes, v.pos),
-			)
+			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
 		}
 
 		if v.name.text != "" {
@@ -344,28 +281,16 @@ visit_decl :: proc(
 				text(v.fullpath),
 			)
 		} else {
-			document = cons(
-				document,
-				text_token(p, v.import_tok),
-				break_with_space(),
-				text(v.fullpath),
-			)
+			document = cons(document, text_token(p, v.import_tok), break_with_space(), text(v.fullpath))
 		}
 		return document
 	case ^Value_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
-			document = cons(
-				document,
-				visit_attributes(p, &v.attributes, v.pos),
-			)
+			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
 		}
 
-		document = cons(
-			document,
-			move_line(p, decl.pos),
-			visit_state_flags(p, v.state_flags),
-		)
+		document = cons(document, move_line(p, decl.pos), visit_state_flags(p, v.state_flags))
 
 		lhs := empty()
 		rhs := empty()
@@ -394,49 +319,22 @@ visit_decl :: proc(
 				lhs = cons(lhs, text("="))
 			}
 
-			rhs = cons_with_nopl(
-				rhs,
-				visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl),
-			)
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		} else if len(v.values) > 0 && v.type != nil {
-			rhs = cons_with_nopl(
-				rhs,
-				cons_with_nopl(
-					text(":"),
-					visit_exprs(p, v.values, {.Add_Comma}),
-				),
-			)
+			rhs = cons_with_nopl(rhs, cons_with_nopl(text(":"), visit_exprs(p, v.values, {.Add_Comma})))
 		} else {
-			rhs = cons_with_nopl(
-				rhs,
-				visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl),
-			)
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		}
 
 		if len(v.values) > 0 {
 			if is_values_nestable_assign(v.values) {
-				return cons(
-					document,
-					group(nest(cons_with_opl(lhs, group(rhs)))),
-				)
+				return cons(document, group(nest(cons_with_opl(lhs, group(rhs)))))
 			} else if is_values_nestable_if_break_assign(v.values) {
-				assignments := cons(
-					lhs,
-					group(
-						nest(break_with_space()),
-						Document_Group_Options{id = "assignments"},
-					),
-				)
-				assignments = cons(
-					assignments,
-					nest_if_break(group(rhs), "assignments"),
-				)
+				assignments := cons(lhs, group(nest(break_with_space()), Document_Group_Options{id = "assignments"}))
+				assignments = cons(assignments, nest_if_break(group(rhs), "assignments"))
 				return cons(document, group(assignments))
 			} else {
-				return cons(
-					document,
-					group(cons_with_nopl(group(lhs), group(rhs))),
-				)
+				return cons(document, group(cons_with_nopl(group(lhs), group(rhs))))
 			}
 		} else {
 			return cons(document, group(lhs))
@@ -485,8 +383,7 @@ is_value_decl_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
 			return false
 		}
 
-		#partial switch v in
-			value_decl.values[len(value_decl.values) - 1].derived {
+		#partial switch v in value_decl.values[len(value_decl.values) - 1].derived {
 		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
 			return true
 		}
@@ -502,8 +399,7 @@ is_assign_statement_ending_with_call :: proc(stmt: ^ast.Stmt) -> bool {
 			return false
 		}
 
-		#partial switch v in
-			assign_stmt.rhs[len(assign_stmt.rhs) - 1].derived {
+		#partial switch v in assign_stmt.rhs[len(assign_stmt.rhs) - 1].derived {
 		case ^ast.Call_Expr, ^ast.Selector_Call_Expr:
 			return true
 		}
@@ -648,8 +544,7 @@ visit_exprs :: proc(
 			)
 		}
 
-		if (i != len(list) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(list) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
@@ -666,11 +561,7 @@ visit_exprs :: proc(
 }
 
 @(private)
-visit_enum_exprs :: proc(
-	p: ^Printer,
-	enum_type: ast.Enum_Type,
-	options := List_Options{},
-) -> ^Document {
+visit_enum_exprs :: proc(p: ^Printer, enum_type: ast.Enum_Type, options := List_Options{}) -> ^Document {
 	if len(enum_type.fields) == 0 {
 		return empty()
 	}
@@ -689,17 +580,14 @@ visit_enum_exprs :: proc(
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_enum_alignment(enum_type.fields)
 
-			if value, ok := expr.derived.(^ast.Field_Value);
-			   ok && alignment > 0 {
+			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				document = cons(
 					document,
 					cons_with_nopl(
 						visit_expr(p, value.field),
 						cons_with_nopl(
 							cons(
-								repeat_space(
-									alignment - get_node_length(value.field),
-								),
+								repeat_space(alignment - get_node_length(value.field)),
 								text_position(p, "=", value.sep),
 							),
 							visit_expr(p, value.value),
@@ -707,21 +595,13 @@ visit_enum_exprs :: proc(
 					),
 				)
 			} else {
-				document = group(
-					cons(document, visit_expr(p, expr, .Generic, options)),
-				)
+				document = group(cons(document, visit_expr(p, expr, .Generic, options)))
 			}
 		} else {
-			document = group(
-				cons_with_opl(
-					document,
-					visit_expr(p, expr, .Generic, options),
-				),
-			)
+			document = group(cons_with_opl(document, visit_expr(p, expr, .Generic, options)))
 		}
 
-		if (i != len(enum_type.fields) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(enum_type.fields) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
@@ -749,9 +629,7 @@ visit_bit_field_fields :: proc(
 
 	document := empty()
 
-	name_alignment, type_alignment := get_possible_bit_field_alignment(
-		bit_field_type.fields,
-	)
+	name_alignment, type_alignment := get_possible_bit_field_alignment(bit_field_type.fields)
 
 	for field, i in bit_field_type.fields {
 		if i == 0 && .Enforce_Newline in options {
@@ -766,23 +644,12 @@ visit_bit_field_fields :: proc(
 			document = cons(
 				document,
 				cons_with_nopl(
-					cons(
-						visit_expr(p, field.name),
-						text_position(p, ":", field.name.end),
-					),
+					cons(visit_expr(p, field.name), text_position(p, ":", field.name.end)),
 					cons_with_nopl(
-						cons(
-							repeat_space(
-								name_alignment - get_node_length(field.name),
-							),
-							visit_expr(p, field.type),
-						),
+						cons(repeat_space(name_alignment - get_node_length(field.name)), visit_expr(p, field.type)),
 						cons_with_nopl(
 							cons(
-								repeat_space(
-									type_alignment -
-									get_node_length(field.type),
-								),
+								repeat_space(type_alignment - get_node_length(field.type)),
 								text_position(p, "|", field.type.end),
 							),
 							visit_expr(p, field.bit_size),
@@ -795,15 +662,9 @@ visit_bit_field_fields :: proc(
 				cons_with_opl(
 					document,
 					cons_with_nopl(
-						cons(
-							visit_expr(p, field.name),
-							text_position(p, ":", field.name.end),
-						),
+						cons(visit_expr(p, field.name), text_position(p, ":", field.name.end)),
 						cons_with_nopl(
-							cons_with_nopl(
-								visit_expr(p, field.type),
-								text_position(p, "|", field.type.end),
-							),
+							cons_with_nopl(visit_expr(p, field.type), text_position(p, "|", field.type.end)),
 							visit_expr(p, field.bit_size),
 						),
 					),
@@ -811,13 +672,11 @@ visit_bit_field_fields :: proc(
 			)
 		}
 
-		if (i != len(bit_field_type.fields) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(bit_field_type.fields) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
-		if (i != len(bit_field_type.fields) - 1 &&
-			   .Enforce_Newline in options) {
+		if (i != len(bit_field_type.fields) - 1 && .Enforce_Newline in options) {
 			comment, _ := visit_comments(p, bit_field_type.fields[i + 1].pos)
 			document = cons(document, comment, newline(1))
 		} else if .Enforce_Newline in options {
@@ -830,11 +689,7 @@ visit_bit_field_fields :: proc(
 }
 
 @(private)
-visit_union_exprs :: proc(
-	p: ^Printer,
-	union_type: ast.Union_Type,
-	options := List_Options{},
-) -> ^Document {
+visit_union_exprs :: proc(p: ^Printer, union_type: ast.Union_Type, options := List_Options{}) -> ^Document {
 	if len(union_type.variants) == 0 {
 		return empty()
 	}
@@ -853,17 +708,14 @@ visit_union_exprs :: proc(
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_enum_alignment(union_type.variants)
 
-			if value, ok := expr.derived.(^ast.Field_Value);
-			   ok && alignment > 0 {
+			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				document = cons(
 					document,
 					cons_with_nopl(
 						visit_expr(p, value.field),
 						cons_with_nopl(
 							cons(
-								repeat_space(
-									alignment - get_node_length(value.field),
-								),
+								repeat_space(alignment - get_node_length(value.field)),
 								text_position(p, "=", value.sep),
 							),
 							visit_expr(p, value.value),
@@ -871,21 +723,13 @@ visit_union_exprs :: proc(
 					),
 				)
 			} else {
-				document = group(
-					cons(document, visit_expr(p, expr, .Generic, options)),
-				)
+				document = group(cons(document, visit_expr(p, expr, .Generic, options)))
 			}
 		} else {
-			document = group(
-				cons_with_opl(
-					document,
-					visit_expr(p, expr, .Generic, options),
-				),
-			)
+			document = group(cons_with_opl(document, visit_expr(p, expr, .Generic, options)))
 		}
 
-		if (i != len(union_type.variants) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(union_type.variants) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
@@ -902,11 +746,7 @@ visit_union_exprs :: proc(
 }
 
 @(private)
-visit_comp_lit_exprs :: proc(
-	p: ^Printer,
-	comp_lit: ast.Comp_Lit,
-	options := List_Options{},
-) -> ^Document {
+visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := List_Options{}) -> ^Document {
 	if len(comp_lit.elems) == 0 {
 		return empty()
 	}
@@ -924,40 +764,26 @@ visit_comp_lit_exprs :: proc(
 
 		if (.Enforce_Newline in options) {
 			alignment := get_possible_comp_lit_alignment(comp_lit.elems)
-			if value, ok := expr.derived.(^ast.Field_Value);
-			   ok && alignment > 0 {
+			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				align := empty()
 				if should_align_comp_lit(p, comp_lit) {
-					align = repeat_space(
-						alignment - get_node_length(value.field),
-					)
+					align = repeat_space(alignment - get_node_length(value.field))
 				}
 				document = cons(
 					document,
 					cons_with_nopl(
 						visit_expr(p, value.field),
-						cons_with_nopl(
-							cons(align, text_position(p, "=", value.sep)),
-							visit_expr(p, value.value),
-						),
+						cons_with_nopl(cons(align, text_position(p, "=", value.sep)), visit_expr(p, value.value)),
 					),
 				)
 			} else {
-				document = group(
-					cons(document, visit_expr(p, expr, .Generic, options)),
-				)
+				document = group(cons(document, visit_expr(p, expr, .Generic, options)))
 			}
 		} else {
-			document = group(
-				cons_with_nopl(
-					document,
-					visit_expr(p, expr, .Generic, options),
-				),
-			)
+			document = group(cons_with_nopl(document, visit_expr(p, expr, .Generic, options)))
 		}
 
-		if (i != len(comp_lit.elems) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(comp_lit.elems) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
@@ -974,11 +800,7 @@ visit_comp_lit_exprs :: proc(
 }
 
 @(private)
-visit_attributes :: proc(
-	p: ^Printer,
-	attributes: ^[dynamic]^ast.Attribute,
-	pos: tokenizer.Pos,
-) -> ^Document {
+visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos: tokenizer.Pos) -> ^Document {
 	document := empty()
 	if len(attributes) == 0 {
 		return document
@@ -991,13 +813,7 @@ visit_attributes :: proc(
 	document = cons(document, move_line(p, attributes[0].pos))
 
 	for attribute, i in attributes {
-		document = cons(
-			document,
-			text("@"),
-			text("("),
-			visit_exprs(p, attribute.elems, {.Add_Comma}),
-			text(")"),
-		)
+		document = cons(document, text("@"), text("("), visit_exprs(p, attribute.elems, {.Add_Comma}), text(")"))
 
 		if i != len(attributes) - 1 {
 			document = cons(document, newline(1))
@@ -1010,10 +826,7 @@ visit_attributes :: proc(
 }
 
 @(private)
-visit_state_flags :: proc(
-	p: ^Printer,
-	flags: ast.Node_State_Flags,
-) -> ^Document {
+visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document {
 	if .No_Bounds_Check in flags {
 		return cons(text("#no_bounds_check"), break_with_no_newline())
 	}
@@ -1077,39 +890,18 @@ visit_stmt :: proc(
 		//Hack to fix a bug in the odin parser
 		v.end = v.stmt.end
 
-		document = cons(
-			document,
-			text(v.op.text),
-			text(v.name),
-			break_with_no_newline(),
-			visit_stmt(p, v.stmt),
-		)
+		document = cons(document, text(v.op.text), text(v.name), break_with_no_newline(), visit_stmt(p, v.stmt))
 	case ^Using_Stmt:
-		document = cons(
-			document,
-			cons_with_nopl(
-				text("using"),
-				visit_exprs(p, v.list, {.Add_Comma}),
-			),
-		)
+		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^Block_Stmt:
 		uses_do := v.uses_do
 
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		if .Bounds_Check in v.state_flags {
-			document = cons(
-				document,
-				text("#bounds_check"),
-				break_with_space(),
-			)
+			document = cons(document, text("#bounds_check"), break_with_space())
 		}
 
 		if !uses_do {
@@ -1122,10 +914,7 @@ visit_stmt :: proc(
 
 		block := visit_block_stmts(p, v.stmts)
 
-		comment_end, _ := visit_comments(
-			p,
-			tokenizer.Pos{line = v.end.line, offset = v.end.offset},
-		)
+		comment_end, _ := visit_comments(p, tokenizer.Pos{line = v.end.line, offset = v.end.offset})
 
 		if block_type == .Switch_Stmt && !p.config.indent_cases {
 			document = cons(document, block, comment_end)
@@ -1140,12 +929,7 @@ visit_stmt :: proc(
 		}
 	case ^If_Stmt:
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		begin_document := text("if")
@@ -1154,25 +938,14 @@ visit_stmt :: proc(
 		if v.init != nil {
 			begin_document = cons_with_nopl(
 				begin_document,
-				cons(
-					group(
-						visit_stmt(p, v.init),
-						Document_Group_Options{id = "init"},
-					),
-					text(";"),
-				),
+				cons(group(visit_stmt(p, v.init), Document_Group_Options{id = "init"}), text(";")),
 			)
 		}
 
 		if v.cond != nil && v.init != nil {
-			end_document = cons(
-				group(cons(break_with_space(), group(visit_expr(p, v.cond)))),
-			)
+			end_document = cons(group(cons(break_with_space(), group(visit_expr(p, v.cond)))))
 		} else if v.cond != nil {
-			end_document = cons(
-				break_with_no_newline(),
-				group(visit_expr(p, v.cond)),
-			)
+			end_document = cons(break_with_no_newline(), group(visit_expr(p, v.cond)))
 		}
 
 		//Special case for when the if statement ends with a call expression
@@ -1185,22 +958,13 @@ visit_stmt :: proc(
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
 		   v.init != nil && is_assign_statement_ending_with_call(v.init) ||
 		   v.cond != nil && v.init == nil && is_value_expression_call(v.cond) {
-			break_end_document :=
-				hang(3, end_document) if v.init != nil else end_document
+			break_end_document := hang(3, end_document) if v.init != nil else end_document
 			document = cons(
 				document,
-				group(
-					cons(
-						begin_document,
-						if_break_or(end_document, break_end_document, "init"),
-					),
-				),
+				group(cons(begin_document, if_break_or(end_document, break_end_document, "init"))),
 			)
 		} else {
-			document = cons(
-				document,
-				group(hang(3, cons(begin_document, end_document))),
-			)
+			document = cons(document, group(hang(3, cons(begin_document, end_document))))
 		}
 
 		set_source_position(p, v.body.pos)
@@ -1210,24 +974,16 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-			if p.config.brace_style == .Allman ||
-			   p.config.brace_style == .Stroustrup ||
-			   block_uses_do(v.body) {
+			if p.config.brace_style == .Allman || p.config.brace_style == .Stroustrup || block_uses_do(v.body) {
 				document = cons(document, newline(1))
 			}
 
 			set_source_position(p, v.else_stmt.pos)
 
 			if block_uses_do(v.body) {
-				document = cons(
-					document,
-					cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)),
-				)
+				document = cons(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			} else {
-				document = cons_with_opl(
-					document,
-					cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)),
-				)
+				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			}
 
 
@@ -1239,12 +995,7 @@ visit_stmt :: proc(
 		}
 
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		document = cons(document, text("switch"))
@@ -1258,10 +1009,7 @@ visit_stmt :: proc(
 		}
 
 		document = cons_with_opl(document, visit_expr(p, v.cond))
-		document = cons_with_nopl(
-			document,
-			visit_stmt(p, v.body, .Switch_Stmt),
-		)
+		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 	case ^Case_Clause:
 		document = cons(document, text("case"))
 
@@ -1269,28 +1017,18 @@ visit_stmt :: proc(
 		if v.list != nil && len(v.list) > 0 {
 			options: List_Options = {.Add_Comma}
 
-			if contains_comments_in_range(
-				p,
-				v.list[0].pos,
-				v.list[len(v.list) - 1].end,
-			) {
+			if contains_comments_in_range(p, v.list[0].pos, v.list[len(v.list) - 1].end) {
 				options |= {.Enforce_Newline}
 			}
 
-			document = cons_with_nopl(
-				document,
-				align(group(visit_exprs(p, v.list, options))),
-			)
+			document = cons_with_nopl(document, align(group(visit_exprs(p, v.list, options))))
 		}
 
 		document = cons(document, text(v.terminator.text))
 
 		if len(v.body) != 0 {
 			set_source_position(p, v.body[0].pos)
-			document = cons(
-				document,
-				nest(cons(newline(1), visit_block_stmts(p, v.body))),
-			)
+			document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
 		}
 	case ^Type_Switch_Stmt:
 		if v.partial {
@@ -1298,40 +1036,22 @@ visit_stmt :: proc(
 		}
 
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		document = cons(document, text("switch"))
 		document = cons_with_nopl(document, visit_stmt(p, v.tag, .Switch_Stmt))
-		document = cons_with_nopl(
-			document,
-			visit_stmt(p, v.body, .Switch_Stmt),
-		)
+		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 	case ^Assign_Stmt:
 		assign_document: ^Document
 
 		//If the switch contains `switch in v`
 		if exprs_contain_empty_idents(v.lhs) && block_type == .Switch_Stmt {
-			assign_document = cons(
-				document,
-				text("_"),
-				break_with_space(),
-				text(v.op.text),
-			)
+			assign_document = cons(document, text("_"), break_with_space(), text(v.op.text))
 		} else {
 			assign_document = cons(
 				document,
-				group(
-					cons(
-						visit_exprs(p, v.lhs, {.Add_Comma, .Glue}),
-						cons(text(" "), text(v.op.text)),
-					),
-				),
+				group(cons(visit_exprs(p, v.lhs, {.Add_Comma, .Glue}), cons(text(" "), text(v.op.text)))),
 			)
 		}
 
@@ -1341,10 +1061,7 @@ visit_stmt :: proc(
 		} else if is_values_nestable_if_break_assign(v.rhs) {
 			document = cons(
 				assign_document,
-				group(
-					nest(break_with_space()),
-					Document_Group_Options{id = "assignments"},
-				),
+				group(nest(break_with_space()), Document_Group_Options{id = "assignments"}),
 			)
 			document = cons(document, nest_if_break(group(rhs), "assignments"))
 			document = group(document)
@@ -1355,22 +1072,14 @@ visit_stmt :: proc(
 		document = cons(document, visit_expr(p, v.expr))
 	case ^For_Stmt:
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		for_document := text("for")
 
 		if v.init != nil {
 			set_source_position(p, v.init.pos)
-			for_document = cons_with_nopl(
-				for_document,
-				cons(group(visit_stmt(p, v.init)), text(";")),
-			)
+			for_document = cons_with_nopl(for_document, cons(group(visit_stmt(p, v.init)), text(";")))
 		} else if v.post != nil {
 			for_document = cons_with_nopl(for_document, text(";"))
 		}
@@ -1387,10 +1096,7 @@ visit_stmt :: proc(
 		if v.post != nil {
 			set_source_position(p, v.post.pos)
 			for_document = cons(for_document, text(";"))
-			for_document = cons_with_opl(
-				for_document,
-				group(visit_stmt(p, v.post)),
-			)
+			for_document = cons_with_opl(for_document, group(visit_stmt(p, v.post)))
 		} else if v.post == nil && v.cond != nil && v.init != nil {
 			for_document = cons(for_document, text(";"))
 		}
@@ -1404,12 +1110,7 @@ visit_stmt :: proc(
 		document = enforce_fit_if_do(v.body, document)
 	case ^Inline_Range_Stmt:
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		document = cons(document, text("#unroll"))
@@ -1418,10 +1119,7 @@ visit_stmt :: proc(
 		document = cons_with_nopl(document, visit_expr(p, v.val0))
 
 		if v.val1 != nil {
-			document = cons(
-				document,
-				cons_with_opl(text(","), visit_expr(p, v.val1)),
-			)
+			document = cons(document, cons_with_opl(text(","), visit_expr(p, v.val1)))
 		}
 
 		document = cons_with_nopl(document, text("in"))
@@ -1435,20 +1133,11 @@ visit_stmt :: proc(
 		document = enforce_fit_if_do(v.body, document)
 	case ^Range_Stmt:
 		if v.label != nil {
-			document = cons(
-				document,
-				visit_expr(p, v.label),
-				text(":"),
-				break_with_space(),
-			)
+			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
 		if v.reverse {
-			document = cons(
-				document,
-				text("#reverse"),
-				break_with_no_newline(),
-			)
+			document = cons(document, text("#reverse"), break_with_no_newline())
 		}
 
 		document = cons(document, text("for"))
@@ -1459,10 +1148,7 @@ visit_stmt :: proc(
 
 		if len(v.vals) >= 2 {
 			for val in v.vals[1:] {
-				document = cons(
-					document,
-					cons_with_opl(text(","), visit_expr(p, val)),
-				)
+				document = cons(document, cons_with_opl(text(","), visit_expr(p, val)))
 			}
 		}
 
@@ -1488,17 +1174,10 @@ visit_stmt :: proc(
 				result = paren.expr
 			}
 
-			document = cons(
-				text("return"),
-				if_break("("),
-				break_with(" "),
-				visit_expr(p, result),
-			)
+			document = cons(text("return"), if_break("("), break_with(" "), visit_expr(p, result))
 
 			document = nest(document)
-			document = group(
-				cons(document, if_break(" \\"), break_with(""), if_break(")")),
-			)
+			document = group(cons(document, if_break(" \\"), break_with(""), if_break(")")))
 		} else {
 			document = cons(document, text("return"))
 
@@ -1509,27 +1188,16 @@ visit_stmt :: proc(
 					visit_exprs(p, v.results, {.Add_Comma}),
 				)
 			} else if !is_return_stmt_ending_with_call_expr(v.results) {
-				document = cons_with_nopl(
-					document,
-					group(
-						nest(visit_exprs(p, v.results, {.Add_Comma, .Group})),
-					),
-				)
+				document = cons_with_nopl(document, group(nest(visit_exprs(p, v.results, {.Add_Comma, .Group}))))
 			} else {
-				document = cons_with_nopl(
-					document,
-					visit_exprs(p, v.results, {.Add_Comma}),
-				)
+				document = cons_with_nopl(document, visit_exprs(p, v.results, {.Add_Comma}))
 			}
 		}
 	case ^Defer_Stmt:
 		document = cons(document, text("defer"))
 		document = cons_with_nopl(document, visit_stmt(p, v.stmt))
 	case ^When_Stmt:
-		document = cons(
-			document,
-			cons_with_nopl(text("when"), visit_expr(p, v.cond)),
-		)
+		document = cons(document, cons_with_nopl(text("when"), visit_expr(p, v.cond)))
 
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 
@@ -1540,10 +1208,7 @@ visit_stmt :: proc(
 
 			set_source_position(p, v.else_stmt.pos)
 
-			document = cons_with_nopl(
-				document,
-				cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)),
-			)
+			document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 		}
 	case ^Branch_Stmt:
 		document = cons(document, text(v.tok.text))
@@ -1613,11 +1278,7 @@ comp_lit_contains_blocks :: proc(p: ^Printer, comp_lit: ast.Comp_Lit) -> bool {
 }
 
 @(private)
-contains_comments_in_range :: proc(
-	p: ^Printer,
-	pos: tokenizer.Pos,
-	end: tokenizer.Pos,
-) -> bool {
+contains_comments_in_range :: proc(p: ^Printer, pos: tokenizer.Pos, end: tokenizer.Pos) -> bool {
 	for i := p.latest_comment_index; i < len(p.comments); i += 1 {
 		for c in p.comments[i].list {
 			if pos.offset <= c.pos.offset && c.pos.offset <= end.offset {
@@ -1663,25 +1324,13 @@ visit_where_clauses :: proc(p: ^Printer, clauses: []^ast.Expr) -> ^Document {
 		return empty()
 	}
 
-	return nest(
-		cons_with_nopl(
-			text("where"),
-			visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline}),
-		),
-	)
+	return nest(cons_with_nopl(text("where"), visit_exprs(p, clauses, {.Add_Comma, .Enforce_Newline})))
 }
 
 @(private)
-visit_poly_params :: proc(
-	p: ^Printer,
-	poly_params: ^ast.Field_List,
-) -> ^Document {
+visit_poly_params :: proc(p: ^Printer, poly_params: ^ast.Field_List) -> ^Document {
 	if poly_params != nil {
-		return cons(
-			text("("),
-			visit_signature_list(p, poly_params, true, false),
-			text(")"),
-		)
+		return cons(text("("), visit_signature_list(p, poly_params, true, false), text(")"))
 	} else {
 		return empty()
 	}
@@ -1711,12 +1360,7 @@ visit_expr :: proc(
 
 	#partial switch v in expr.derived {
 	case ^Inline_Asm_Expr:
-		document = cons(
-			text_token(p, v.tok),
-			text("("),
-			visit_exprs(p, v.param_types, {.Add_Comma}),
-			text(")"),
-		)
+		document = cons(text_token(p, v.tok), text("("), visit_exprs(p, v.param_types, {.Add_Comma}), text(")"))
 		document = cons_with_opl(document, cons(text("-"), text(">")))
 		document = cons_with_opl(document, visit_expr(p, v.return_type))
 
@@ -1779,10 +1423,7 @@ visit_expr :: proc(
 		document = cons_with_nopl(document, text_token(p, v.token))
 		document = cons_with_nopl(document, visit_expr(p, v.label))
 	case ^Or_Return_Expr:
-		document = cons_with_nopl(
-			visit_expr(p, v.expr),
-			text_token(p, v.token),
-		)
+		document = cons_with_nopl(visit_expr(p, v.expr), text_token(p, v.token))
 	case ^Selector_Call_Expr:
 		document = visit_expr(p, v.call)
 	case ^Ellipsis:
@@ -1791,12 +1432,7 @@ visit_expr :: proc(
 		document = cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
 	case ^Slice_Expr:
 		document = visit_expr(p, v.expr)
-		document = cons(
-			visit_expr(p, v.expr),
-			text("["),
-			visit_expr(p, v.low),
-			text(v.interval.text),
-		)
+		document = cons(visit_expr(p, v.expr), text("["), visit_expr(p, v.low), text(v.interval.text))
 
 		if v.high != nil {
 			document = cons(document, visit_expr(p, v.high))
@@ -1807,50 +1443,23 @@ visit_expr :: proc(
 	case ^Deref_Expr:
 		document = cons(visit_expr(p, v.expr), text_token(p, v.op))
 	case ^Type_Cast:
-		document = cons(
-			text_token(p, v.tok),
-			text("("),
-			visit_expr(p, v.type),
-			text(")"),
-			visit_expr(p, v.expr),
-		)
+		document = cons(text_token(p, v.tok), text("("), visit_expr(p, v.type), text(")"), visit_expr(p, v.expr))
 	case ^Basic_Directive:
 		document = cons(text_token(p, v.tok), text_position(p, v.name, v.pos))
 	case ^Distinct_Type:
-		document = cons_with_opl(
-			text_position(p, "distinct", v.pos),
-			visit_expr(p, v.type),
-		)
+		document = cons_with_opl(text_position(p, "distinct", v.pos), visit_expr(p, v.type))
 	case ^Dynamic_Array_Type:
-		document = cons(
-			visit_expr(p, v.tag),
-			document,
-			text("["),
-			text("dynamic"),
-			text("]"),
-			visit_expr(p, v.elem),
-		)
+		document = cons(visit_expr(p, v.tag), document, text("["), text("dynamic"), text("]"), visit_expr(p, v.elem))
 	case ^Bit_Set_Type:
-		document = cons(
-			text_position(p, "bit_set", v.pos),
-			document,
-			text("["),
-			visit_expr(p, v.elem),
-		)
+		document = cons(text_position(p, "bit_set", v.pos), document, text("["), visit_expr(p, v.elem))
 
 		if v.underlying != nil {
-			document = cons(
-				document,
-				cons(text(";"), visit_expr(p, v.underlying)),
-			)
+			document = cons(document, cons(text(";"), visit_expr(p, v.underlying)))
 		}
 
 		document = cons(document, text("]"))
 	case ^Union_Type:
-		document = cons(
-			text_position(p, "union", v.pos),
-			visit_poly_params(p, v.poly_params),
-		)
+		document = cons(text_position(p, "union", v.pos), visit_poly_params(p, v.poly_params))
 
 		#partial switch v.kind {
 		case .no_nil:
@@ -1859,30 +1468,20 @@ visit_expr :: proc(
 			document = cons_with_opl(document, text("#shared_nil"))
 		}
 
-		document = cons_with_nopl(
-			document,
-			visit_where_clauses(p, v.where_clauses),
-		)
+		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
 		if len(v.variants) == 0 {
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, text("}"))
 		} else {
-			document = cons_with_nopl(
-				document,
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.variants[0].pos)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.pos),
-						visit_union_exprs(
-							p,
-							v^,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_union_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
@@ -1901,22 +1500,14 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, text("}"))
 		} else {
-			document = cons(
-				document,
-				break_with_space(),
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.fields[0].pos)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.open),
-						visit_enum_exprs(
-							p,
-							v^,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_enum_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
@@ -1949,24 +1540,13 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, visit_expr(p, v.field_align))
 		}
 
-		document = cons_with_nopl(
-			document,
-			visit_where_clauses(p, v.where_clauses),
-		)
+		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
 		if v.fields != nil && len(v.fields.list) == 0 {
 			document = cons_with_nopl(document, text("{"))
-			document = cons(
-				document,
-				visit_struct_field_list(p, v.fields, {.Add_Comma}),
-				text("}"),
-			)
+			document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
 		} else if v.fields != nil {
-			document = cons(
-				document,
-				break_with_space(),
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 
 			set_source_position(p, v.fields.pos)
 			document = cons(
@@ -1974,11 +1554,7 @@ visit_expr :: proc(
 				nest(
 					cons(
 						newline_position(p, 1, v.fields.open),
-						visit_struct_field_list(
-							p,
-							v.fields,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
@@ -1997,22 +1573,14 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("{"))
 			document = cons(document, text("}"))
 		} else {
-			document = cons(
-				document,
-				break_with_space(),
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.fields[0].pos)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.open),
-						visit_bit_field_fields(
-							p,
-							v^,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_bit_field_fields(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
@@ -2031,15 +1599,9 @@ visit_expr :: proc(
 			document = cons(document, text("#force_no_inline"))
 		}
 
-		document = cons_with_nopl(
-			document,
-			visit_proc_type(p, v.type^, v.body != nil),
-		)
+		document = cons_with_nopl(document, visit_proc_type(p, v.type^, v.body != nil))
 
-		document = cons_with_nopl(
-			document,
-			visit_where_clauses(p, v.where_clauses),
-		)
+		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
 		document = group(document)
 
@@ -2047,10 +1609,7 @@ visit_expr :: proc(
 
 		if v.body != nil {
 			set_source_position(p, v.body.pos)
-			document = cons_with_nopl(
-				document,
-				group(visit_stmt(p, v.body, .Proc)),
-			)
+			document = cons_with_nopl(document, group(visit_stmt(p, v.body, .Proc)))
 		} else {
 			document = cons_with_nopl(document, text("---"))
 		}
@@ -2066,17 +1625,9 @@ visit_expr :: proc(
 		switch v.inlining {
 		case .None:
 		case .Inline:
-			document = cons(
-				document,
-				text("#force_inline"),
-				break_with_no_newline(),
-			)
+			document = cons(document, text("#force_inline"), break_with_no_newline())
 		case .No_Inline:
-			document = cons(
-				document,
-				text("#force_no_inline"),
-				break_with_no_newline(),
-			)
+			document = cons(document, text("#force_no_inline"), break_with_no_newline())
 		}
 
 		document = cons(document, visit_expr(p, v.expr), text("("))
@@ -2089,18 +1640,9 @@ visit_expr :: proc(
 		}
 
 		if is_call_expr_nestable(v.args) {
-			document = cons(
-				document,
-				nest(cons(break_with(""), visit_call_exprs(p, v))),
-			)
+			document = cons(document, nest(cons(break_with(""), visit_call_exprs(p, v))))
 		} else {
-			document = cons(
-				document,
-				nest_if_break(
-					cons(break_with(""), visit_call_exprs(p, v)),
-					"call_expr",
-				),
-			)
+			document = cons(document, nest_if_break(cons(break_with(""), visit_call_exprs(p, v)), "call_expr"))
 		}
 
 		document = cons(document, break_with(""), text(")"))
@@ -2112,53 +1654,29 @@ visit_expr :: proc(
 
 		//We enforce a break if comments exists inside the call args
 		if contains_comments {
-			document = enforce_break(
-				document,
-				Document_Group_Options{id = "call_expr"},
-			)
+			document = enforce_break(document, Document_Group_Options{id = "call_expr"})
 		} else if contains_do {
 			document = enforce_fit(document)
 		} else {
-			document = group(
-				document,
-				Document_Group_Options{id = "call_expr"},
-			)
+			document = group(document, Document_Group_Options{id = "call_expr"})
 		}
 	case ^Typeid_Type:
 		document = text("typeid")
 
 		if v.specialization != nil {
-			document = cons(
-				document,
-				text("/"),
-				visit_expr(p, v.specialization),
-			)
+			document = cons(document, text("/"), visit_expr(p, v.specialization))
 		}
 	case ^Selector_Expr:
-		document = enforce_fit(
-			cons(
-				visit_expr(p, v.expr),
-				text_token(p, v.op),
-				visit_expr(p, v.field),
-			),
-		)
+		document = enforce_fit(cons(visit_expr(p, v.expr), text_token(p, v.op), visit_expr(p, v.field)))
 	case ^Paren_Expr:
-		document = group(
-			cons(text("("), nest(visit_expr(p, v.expr)), text(")")),
-		)
+		document = group(cons(text("("), nest(visit_expr(p, v.expr)), text(")")))
 	case ^Index_Expr:
 		//Switch back to enforce fit, it just doesn't look good when breaking.
 		document = enforce_fit(
 			cons(
 				visit_expr(p, v.expr),
 				text("["),
-				nest(
-					cons(
-						break_with("", true),
-						group(visit_expr(p, v.index)),
-						if_break(" \\"),
-					),
-				),
+				nest(cons(break_with("", true), group(visit_expr(p, v.index)), if_break(" \\"))),
 				break_with("", true),
 				text("]"),
 			),
@@ -2167,32 +1685,20 @@ visit_expr :: proc(
 		document = text_token(p, v.tok)
 
 		if len(v.args) != 0 {
-			document = cons_with_nopl(
-				document,
-				visit_begin_brace(p, v.pos, .Generic),
-			)
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Generic))
 			set_source_position(p, v.args[0].pos)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.args[0].pos),
-						visit_exprs(
-							p,
-							v.args,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_exprs(p, v.args, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
 			document = cons(document, visit_end_brace(p, v.end, 1))
 		} else {
-			document = cons(
-				document,
-				text("{"),
-				visit_exprs(p, v.args, {.Add_Comma}),
-				text("}"),
-			)
+			document = cons(document, text("{"), visit_exprs(p, v.args, {.Add_Comma}), text("}"))
 		}
 	case ^Comp_Lit:
 		if v.tag != nil {
@@ -2204,28 +1710,16 @@ visit_expr :: proc(
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
 			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
-				document = cons(
-					document,
-					visit_begin_brace(p, v.pos, .Comp_Lit),
-				)
+				document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 				set_source_position(p, v.open)
 				document = cons(
 					document,
-					nest(
-						cons(
-							newline_position(p, 1, v.elems[0].pos),
-							visit_matrix_comp_lit(p, v, matrix_type),
-						),
-					),
+					nest(cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))),
 				)
 				set_source_position(p, v.end)
 
-				document = cons(
-					document,
-					newline(1),
-					text_position(p, "}", v.end),
-				)
+				document = cons(document, newline(1), text_position(p, "}", v.end))
 
 				break
 			}
@@ -2242,21 +1736,14 @@ visit_expr :: proc(
 		should_newline |= contains_comments_in_range(p, v.pos, v.end)
 
 		if should_newline {
-			document = cons_with_nopl(
-				document,
-				visit_begin_brace(p, v.pos, .Comp_Lit),
-			)
+			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 			set_source_position(p, v.open)
 			document = cons(
 				document,
 				nest(
 					cons(
 						newline_position(p, 1, v.elems[0].pos),
-						visit_comp_lit_exprs(
-							p,
-							v^,
-							{.Add_Comma, .Trailing, .Enforce_Newline},
-						),
+						visit_comp_lit_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
 				),
 			)
@@ -2271,12 +1758,7 @@ visit_expr :: proc(
 					cons(
 						if_break(break_string),
 						text("{"),
-						nest(
-							cons(
-								break_with(""),
-								visit_exprs(p, v.elems, {.Add_Comma, .Group}),
-							),
-						),
+						nest(cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma, .Group}))),
 						if_break(","),
 						break_with(""),
 						text("}"),
@@ -2290,25 +1772,15 @@ visit_expr :: proc(
 	case ^Field_Value:
 		document = cons_with_nopl(
 			visit_expr(p, v.field),
-			cons_with_nopl(
-				text_position(p, "=", v.sep),
-				visit_expr(p, v.value),
-			),
+			cons_with_nopl(text_position(p, "=", v.sep), visit_expr(p, v.value)),
 		)
 	case ^Type_Assertion:
 		document = visit_expr(p, v.expr)
 
-		if unary, ok := v.type.derived.(^Unary_Expr);
-		   ok && unary.op.text == "?" {
+		if unary, ok := v.type.derived.(^Unary_Expr); ok && unary.op.text == "?" {
 			document = cons(document, text("."), visit_expr(p, v.type))
 		} else {
-			document = cons(
-				document,
-				text("."),
-				text("("),
-				visit_expr(p, v.type),
-				text(")"),
-			)
+			document = cons(document, text("."), text("("), visit_expr(p, v.type), text(")"))
 		}
 	case ^Pointer_Type:
 		document = cons(visit_expr(p, v.tag), text("^"), visit_expr(p, v.elem))
@@ -2320,40 +1792,19 @@ visit_expr :: proc(
 		document = cons(text("$"), visit_expr(p, v.type))
 
 		if v.specialization != nil {
-			document = cons(
-				document,
-				text("/"),
-				visit_expr(p, v.specialization),
-			)
+			document = cons(document, text("/"), visit_expr(p, v.specialization))
 		}
 	case ^Array_Type:
-		document = cons(
-			visit_expr(p, v.tag),
-			text("["),
-			visit_expr(p, v.len),
-			text("]"),
-			visit_expr(p, v.elem),
-		)
+		document = cons(visit_expr(p, v.tag), text("["), visit_expr(p, v.len), text("]"), visit_expr(p, v.elem))
 	case ^Map_Type:
-		document = cons(
-			text("map"),
-			text("["),
-			visit_expr(p, v.key),
-			text("]"),
-			visit_expr(p, v.value),
-		)
+		document = cons(text("map"), text("["), visit_expr(p, v.key), text("]"), visit_expr(p, v.value))
 	case ^Helper_Type:
 		if v.tok == .Hash {
 			document = cons(document, text("#type"))
 		}
 		document = cons_with_nopl(document, visit_expr(p, v.type))
 	case ^Matrix_Type:
-		document = cons(
-			text_position(p, "matrix", v.pos),
-			text("["),
-			visit_expr(p, v.row_count),
-			text(","),
-		)
+		document = cons(text_position(p, "matrix", v.pos), text("["), visit_expr(p, v.row_count), text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_count))
 		document = cons(document, text("]"))
 		document = cons(group(document), visit_expr(p, v.elem))
@@ -2366,12 +1817,7 @@ visit_expr :: proc(
 			visit_expr(p, v.expr),
 		)
 	case ^Matrix_Index_Expr:
-		document = cons(
-			visit_expr(p, v.expr),
-			text("["),
-			visit_expr(p, v.row_index),
-			text(","),
-		)
+		document = cons(visit_expr(p, v.expr), text("["), visit_expr(p, v.row_index), text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_index))
 		document = cons(document, text("]"))
 	case:
@@ -2383,14 +1829,12 @@ visit_expr :: proc(
 
 @(private)
 is_matrix_type_constant :: proc(matrix_type: ^ast.Matrix_Type) -> bool {
-	if row_count, is_lit := matrix_type.row_count.derived.(^ast.Basic_Lit);
-	   is_lit {
+	if row_count, is_lit := matrix_type.row_count.derived.(^ast.Basic_Lit); is_lit {
 		_, ok := strconv.parse_int(row_count.tok.text)
 		return ok
 	}
 
-	if column_count, is_lit := matrix_type.column_count.derived.(^ast.Basic_Lit);
-	   is_lit {
+	if column_count, is_lit := matrix_type.column_count.derived.(^ast.Basic_Lit); is_lit {
 		_, ok := strconv.parse_int(column_count.tok.text)
 		return ok
 	}
@@ -2399,27 +1843,16 @@ is_matrix_type_constant :: proc(matrix_type: ^ast.Matrix_Type) -> bool {
 }
 
 @(private)
-visit_matrix_comp_lit :: proc(
-	p: ^Printer,
-	comp_lit: ^ast.Comp_Lit,
-	matrix_type: ^ast.Matrix_Type,
-) -> ^Document {
+visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type: ^ast.Matrix_Type) -> ^Document {
 	document := empty()
 
 	//these values have already been validated
-	row_count, _ := strconv.parse_int(
-		matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text,
-	)
-	column_count, _ := strconv.parse_int(
-		matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text,
-	)
+	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
+	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
 
 	for row := 0; row < row_count; row += 1 {
 		for column := 0; column < column_count; column += 1 {
-			document = cons(
-				document,
-				visit_expr(p, comp_lit.elems[column + row * column_count]),
-			)
+			document = cons(document, visit_expr(p, comp_lit.elems[column + row * column_count]))
 			document = cons(document, text(", "))
 		}
 
@@ -2433,11 +1866,7 @@ visit_matrix_comp_lit :: proc(
 
 
 @(private)
-visit_begin_brace :: proc(
-	p: ^Printer,
-	begin: tokenizer.Pos,
-	type: Block_Type,
-) -> ^Document {
+visit_begin_brace :: proc(p: ^Printer, begin: tokenizer.Pos, type: Block_Type) -> ^Document {
 	set_source_position(p, begin)
 	set_comment_option(p, begin.line, .Indent)
 
@@ -2456,11 +1885,7 @@ visit_begin_brace :: proc(
 }
 
 @(private)
-visit_end_brace :: proc(
-	p: ^Printer,
-	end: tokenizer.Pos,
-	limit := 0,
-) -> ^Document {
+visit_end_brace :: proc(p: ^Printer, end: tokenizer.Pos, limit := 0) -> ^Document {
 	if limit == 0 {
 		return cons(move_line(p, end), text("}"))
 	} else {
@@ -2479,22 +1904,14 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt) -> ^Document {
 
 	for stmt, i in stmts {
 		last_index := max(0, i - 1)
-		if stmts[last_index].end.line == stmt.pos.line &&
-		   i != 0 &&
-		   stmt.pos.line not_in p.disabled_lines {
+		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
 			document = cons(document, break_with(";"))
 		}
 
 		if p.force_statement_fit {
-			document = cons(
-				document,
-				enforce_fit(visit_stmt(p, stmt, .Generic, false, true)),
-			)
+			document = cons(document, enforce_fit(visit_stmt(p, stmt, .Generic, false, true)))
 		} else {
-			document = cons(
-				document,
-				visit_stmt(p, stmt, .Generic, false, true),
-			)
+			document = cons(document, visit_stmt(p, stmt, .Generic, false, true))
 		}
 	}
 
@@ -2512,11 +1929,7 @@ List_Option :: enum u8 {
 List_Options :: distinct bit_set[List_Option]
 
 @(private)
-visit_struct_field_list :: proc(
-	p: ^Printer,
-	list: ^ast.Field_List,
-	options := List_Options{},
-) -> ^Document {
+visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := List_Options{}) -> ^Document {
 	document := empty()
 	if list.list == nil {
 		return document
@@ -2540,11 +1953,7 @@ visit_struct_field_list :: proc(
 		}
 
 		if .Subtype in field.flags {
-			document = cons(
-				document,
-				text("#subtype"),
-				break_with_no_newline(),
-			)
+			document = cons(document, text("#subtype"), break_with_no_newline())
 		}
 
 		name_options := List_Options{.Add_Comma}
@@ -2565,15 +1974,9 @@ visit_struct_field_list :: proc(
 				}
 				align = repeat_space(alignment - length)
 			}
-			document = cons(
-				document,
-				visit_exprs(p, field.names, name_options),
-			)
+			document = cons(document, visit_exprs(p, field.names, name_options))
 		} else {
-			document = cons_with_opl(
-				document,
-				visit_exprs(p, field.names, name_options),
-			)
+			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
 		}
 
 		if field.type != nil {
@@ -2583,18 +1986,14 @@ visit_struct_field_list :: proc(
 			document = cons_with_opl(document, visit_expr(p, field.type))
 		} else {
 			document = cons(document, text(":"), text("="))
-			document = cons_with_opl(
-				document,
-				visit_expr(p, field.default_value),
-			)
+			document = cons_with_opl(document, visit_expr(p, field.default_value))
 		}
 
 		if field.tag.text != "" {
 			document = cons_with_nopl(document, text_token(p, field.tag))
 		}
 
-		if (i != len(list.list) - 1 || .Trailing in options) &&
-		   .Add_Comma in options {
+		if (i != len(list.list) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
 
@@ -2633,11 +2032,7 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 }
 
 @(private)
-visit_proc_type :: proc(
-	p: ^Printer,
-	proc_type: ast.Proc_Type,
-	contains_body: bool,
-) -> ^Document {
+visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bool) -> ^Document {
 	document := text("proc")
 
 	explicit_calling := false
@@ -2653,11 +2048,7 @@ visit_proc_type :: proc(
 		document = cons(document, text("("))
 	}
 
-	contain_comments := contains_comments_in_range(
-		p,
-		proc_type.pos,
-		proc_type.end,
-	)
+	contain_comments := contains_comments_in_range(p, proc_type.pos, proc_type.end)
 
 	options: List_Options
 
@@ -2670,13 +2061,7 @@ visit_proc_type :: proc(
 		nest(
 			cons(
 				len(proc_type.params.list) > 0 ? break_with("") : empty(),
-				visit_signature_list(
-					p,
-					proc_type.params,
-					true,
-					false,
-					options,
-				),
+				visit_signature_list(p, proc_type.params, true, false, options),
 			),
 		),
 	)
@@ -2704,32 +2089,13 @@ visit_proc_type :: proc(
 			document = cons_with_nopl(document, text("("))
 			document = cons(
 				document,
-				nest(
-					cons(
-						break_with(""),
-						visit_signature_list(
-							p,
-							proc_type.results,
-							contains_body,
-							true,
-						),
-					),
-				),
+				nest(cons(break_with(""), visit_signature_list(p, proc_type.results, contains_body, true))),
 			)
 			document = cons(document, break_with(""), text(")"))
 		} else {
 			document = cons_with_nopl(
 				document,
-				nest(
-					group(
-						visit_signature_list(
-							p,
-							proc_type.results,
-							contains_body,
-							true,
-						),
-					),
-				),
+				nest(group(visit_signature_list(p, proc_type.results, contains_body, true))),
 			)
 		}
 	} else if proc_type.diverging {
@@ -2747,11 +2113,7 @@ visit_proc_type :: proc(
 
 
 @(private)
-visit_binary_expr :: proc(
-	p: ^Printer,
-	binary: ast.Binary_Expr,
-	nested := false,
-) -> ^Document {
+visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false) -> ^Document {
 	document := empty()
 
 	nest_expression := false
@@ -2761,18 +2123,10 @@ visit_binary_expr :: proc(
 			pa := parser.Parser {
 				allow_in_expr = true,
 			}
-			nest_expression =
-				parser.token_precedence(&pa, b.op.kind) !=
-				parser.token_precedence(&pa, binary.op.kind)
-			document = cons(
-				document,
-				visit_binary_expr(p, b^, nest_expression),
-			)
+			nest_expression = parser.token_precedence(&pa, b.op.kind) != parser.token_precedence(&pa, binary.op.kind)
+			document = cons(document, visit_binary_expr(p, b^, nest_expression))
 		} else {
-			document = cons(
-				document,
-				visit_expr(p, binary.left, nested ? .Binary_Expr : .Generic),
-			)
+			document = cons(document, visit_expr(p, binary.left, nested ? .Binary_Expr : .Generic))
 		}
 	}
 
@@ -2785,15 +2139,9 @@ visit_binary_expr :: proc(
 
 	if binary.right != nil {
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-			document = cons_with_opl(
-				document,
-				group(nest(visit_binary_expr(p, b^, true))),
-			)
+			document = cons_with_opl(document, group(nest(visit_binary_expr(p, b^, true))))
 		} else {
-			document = cons_with_opl(
-				document,
-				group(nest(visit_expr(p, binary.right, .Binary_Expr))),
-			)
+			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, .Binary_Expr))))
 		}
 	}
 
@@ -2832,10 +2180,7 @@ visit_call_exprs :: proc(p: ^Printer, call_expr: ^ast.Call_Expr) -> ^Document {
 }
 
 @(private)
-visit_signature_field_flag :: proc(
-	p: ^Printer,
-	flags: ast.Field_Flags,
-) -> ^Document {
+visit_signature_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Document {
 	document := empty()
 
 	if .Any_Int in flags {
@@ -2878,10 +2223,7 @@ visit_signature_list :: proc(
 	for field, i in list.list {
 		p.source_position = field.pos
 
-		document = cons(
-			document,
-			visit_signature_field(p, field, remove_blank),
-		)
+		document = cons(document, visit_signature_field(p, field, remove_blank))
 
 		if i != len(list.list) - 1 {
 			if .Enforce_Newline in options {
@@ -2891,8 +2233,7 @@ visit_signature_list :: proc(
 			}
 		} else {
 			if .Enforce_Newline not_in options {
-				document =
-					len(list.list) > 1 || contains_body ? cons(document, if_break(",")) : document
+				document = len(list.list) > 1 || contains_body ? cons(document, if_break(",")) : document
 			} else {
 				document = cons(document, text(","))
 			}
@@ -2915,11 +2256,7 @@ visit_signature_list :: proc(
 }
 
 @(private)
-visit_signature_field :: proc(
-	p: ^Printer,
-	field: ^ast.Field,
-	remove_blank := true,
-) -> ^Document {
+visit_signature_field :: proc(p: ^Printer, field: ^ast.Field, remove_blank := true) -> ^Document {
 	document := empty()
 	flag := visit_signature_field_flag(p, field.flags)
 
@@ -2938,10 +2275,7 @@ visit_signature_field :: proc(
 	}
 
 	if named {
-		document = cons(
-			document,
-			cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})),
-		)
+		document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
 
 		if len(field.names) != 0 && field.type != nil {
 			document = cons(document, text(":"), break_with_no_newline())
@@ -2987,11 +2321,7 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 	case ^ast.Pointer_Type:
 		return 1 + get_node_length(v.elem)
 	case ^ast.Selector_Expr:
-		return(
-			get_node_length(v.expr) +
-			strings.rune_count(v.op.text) +
-			strings.rune_count(v.field.name) \
-		)
+		return get_node_length(v.expr) + strings.rune_count(v.op.text) + strings.rune_count(v.field.name)
 	case:
 		return 0
 	}
@@ -3058,12 +2388,7 @@ get_possible_enum_alignment :: proc(exprs: []^ast.Expr) -> int {
 }
 
 @(private)
-get_possible_bit_field_alignment :: proc(
-	fields: []^ast.Bit_Field_Field,
-) -> (
-	longest_name: int,
-	longest_type: int,
-) {
+get_possible_bit_field_alignment :: proc(fields: []^ast.Bit_Field_Field) -> (longest_name: int, longest_type: int) {
 	for field in fields {
 		longest_name = max(longest_name, get_node_length(field.name))
 		longest_type = max(longest_type, get_node_length(field.type))

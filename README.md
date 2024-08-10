@@ -2,6 +2,10 @@
 
 Language server for Odin. This project is still in early development.
 
+Note: This project is made to be up to date with the master branch of Odin.
+
+
+
 ## Table Of Contents
 
 -   [Installation](#installation)

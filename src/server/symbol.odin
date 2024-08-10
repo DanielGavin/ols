@@ -180,10 +180,7 @@ SymbolType :: enum {
 	Unresolved    = 1, //Use text if not being able to resolve it.
 }
 
-new_clone_symbol :: proc(
-	data: Symbol,
-	allocator := context.allocator,
-) -> ^Symbol {
+new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> ^Symbol {
 	new_symbol := new(Symbol, allocator)
 	new_symbol^ = data
 	new_symbol.value = data.value
@@ -255,9 +252,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	}
 }
 
-symbol_type_to_completion_kind :: proc(
-	type: SymbolType,
-) -> CompletionItemKind {
+symbol_type_to_completion_kind :: proc(type: SymbolType) -> CompletionItemKind {
 	switch type {
 	case .Function:
 		return .Function
@@ -311,11 +306,7 @@ symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 	}
 }
 
-symbol_to_expr :: proc(
-	symbol: Symbol,
-	file: string,
-	allocator := context.temp_allocator,
-) -> ^ast.Expr {
+symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_allocator) -> ^ast.Expr {
 
 	pos := tokenizer.Pos {
 		file = file,

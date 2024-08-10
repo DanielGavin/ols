@@ -9,14 +9,7 @@ import "core:strings"
 
 import "src:common"
 
-get_rename :: proc(
-	document: ^Document,
-	new_text: string,
-	position: common.Position,
-) -> (
-	WorkspaceEdit,
-	bool,
-) {
+get_rename :: proc(document: ^Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -26,30 +19,17 @@ get_rename :: proc(
 		context.temp_allocator,
 	)
 
-	position_context, ok := get_document_position_context(
-		document,
-		position,
-		.Hover,
-	)
+	position_context, ok := get_document_position_context(document, position, .Hover)
 
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
 	if position_context.function != nil {
-		get_locals(
-			document.ast,
-			position_context.function,
-			&ast_context,
-			&position_context,
-		)
+		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	locations, ok2 := resolve_references(
-		document,
-		&ast_context,
-		&position_context,
-	)
+	locations, ok2 := resolve_references(document, &ast_context, &position_context)
 
 	changes := make(map[string][dynamic]TextEdit, 0, context.temp_allocator)
 
@@ -57,8 +37,10 @@ get_rename :: proc(
 		edits: ^[dynamic]TextEdit
 
 		if edits = &changes[location.uri]; edits == nil {
-			changes[strings.clone(location.uri, context.temp_allocator)] =
-				make([dynamic]TextEdit, context.temp_allocator)
+			changes[strings.clone(location.uri, context.temp_allocator)] = make(
+				[dynamic]TextEdit,
+				context.temp_allocator,
+			)
 			edits = &changes[location.uri]
 		}
 
@@ -67,11 +49,7 @@ get_rename :: proc(
 
 	workspace: WorkspaceEdit
 
-	workspace.changes = make(
-		map[string][]TextEdit,
-		len(changes),
-		context.temp_allocator,
-	)
+	workspace.changes = make(map[string][]TextEdit, len(changes), context.temp_allocator)
 
 	for k, v in changes {
 		workspace.changes[k] = v[:]
@@ -81,13 +59,7 @@ get_rename :: proc(
 }
 
 
-get_prepare_rename :: proc(
-	document: ^Document,
-	position: common.Position,
-) -> (
-	common.Range,
-	bool,
-) {
+get_prepare_rename :: proc(document: ^Document, position: common.Position) -> (common.Range, bool) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -97,30 +69,17 @@ get_prepare_rename :: proc(
 		context.temp_allocator,
 	)
 
-	position_context, ok := get_document_position_context(
-		document,
-		position,
-		.Hover,
-	)
+	position_context, ok := get_document_position_context(document, position, .Hover)
 
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
 	if position_context.function != nil {
-		get_locals(
-			document.ast,
-			position_context.function,
-			&ast_context,
-			&position_context,
-		)
+		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	symbol, _, ok2 := prepare_references(
-		document,
-		&ast_context,
-		&position_context,
-	)
+	symbol, _, ok2 := prepare_references(document, &ast_context, &position_context)
 
 
 	return symbol.range, ok2

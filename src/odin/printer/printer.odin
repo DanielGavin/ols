@@ -115,10 +115,7 @@ when ODIN_OS == .Windows {
 	}
 }
 
-make_printer :: proc(
-	config: Config,
-	allocator := context.allocator,
-) -> Printer {
+make_printer :: proc(config: Config, allocator := context.allocator) -> Printer {
 	return {config = config, allocator = allocator}
 }
 
@@ -131,19 +128,13 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 
 	for group in p.comments {
 		for comment in group.list {
-			comment_text, _ := strings.replace_all(
-				comment.text[:],
-				" ",
-				"",
-				context.temp_allocator,
-			)
+			comment_text, _ := strings.replace_all(comment.text[:], " ", "", context.temp_allocator)
 
 			if strings.contains(comment_text, "//odinfmt:disable") {
 				found_disable = true
 				empty = true
 				disable_position = comment.pos
-			} else if strings.contains(comment_text, "//odinfmt:enable") &&
-			   found_disable {
+			} else if strings.contains(comment_text, "//odinfmt:enable") && found_disable {
 				begin := disable_position.offset - (comment.pos.column - 1)
 				end := comment.pos.offset + len(comment.text)
 
@@ -154,9 +145,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 					empty      = empty,
 				}
 
-				for line := disable_position.line;
-				    line <= comment.pos.line;
-				    line += 1 {
+				for line := disable_position.line; line <= comment.pos.line; line += 1 {
 					p.disabled_lines[line] = disabled_info
 				}
 
@@ -168,11 +157,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 }
 
 @(private)
-set_comment_option :: proc(
-	p: ^Printer,
-	line: int,
-	option: Line_Suffix_Option,
-) {
+set_comment_option :: proc(p: ^Printer, line: int, option: Line_Suffix_Option) {
 	p.comments_option[line] = option
 }
 
@@ -222,10 +207,7 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.source_position.column = 1
 
 	p.document = move_line(p, file.pkg_token.pos)
-	p.document = cons(
-		p.document,
-		cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)),
-	)
+	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))
 
 	// Keep track of the first import in a row, to sort them later.
 	import_group_start: Maybe(int)
@@ -233,8 +215,7 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	for decl, i in file.decls {
 		decl := cast(^ast.Decl)decl
 
-		if imp, is_import := decl.derived.(^ast.Import_Decl);
-		   p.config.sort_imports && is_import {
+		if imp, is_import := decl.derived.(^ast.Import_Decl); p.config.sort_imports && is_import {
 			// First import in this group.
 			if import_group_start == nil {
 				import_group_start = i
@@ -284,10 +265,7 @@ print_sorted_imports :: proc(p: ^Printer, decls: []^ast.Stmt) {
 	start_line := decls[0].pos.line
 
 	slice.stable_sort_by(decls, proc(imp1, imp2: ^ast.Stmt) -> bool {
-		return(
-			imp1.derived.(^ast.Import_Decl).fullpath <
-			imp2.derived.(^ast.Import_Decl).fullpath \
-		)
+		return imp1.derived.(^ast.Import_Decl).fullpath < imp2.derived.(^ast.Import_Decl).fullpath
 	})
 
 	for decl, i in decls {

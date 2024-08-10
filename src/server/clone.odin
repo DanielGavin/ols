@@ -12,11 +12,7 @@ import "core:strings"
 
 _ :: intrinsics
 
-new_type :: proc(
-	$T: typeid,
-	pos, end: tokenizer.Pos,
-	allocator: mem.Allocator,
-) -> ^T {
+new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n, _ := mem.new(T, allocator)
 	n.pos = pos
 	n.end = end
@@ -39,11 +35,7 @@ clone_type :: proc {
 	clone_dynamic_array,
 }
 
-clone_array :: proc(
-	array: $A/[]^$T,
-	allocator: mem.Allocator,
-	unique_strings: ^map[string]string,
-) -> A {
+clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
 	if len(array) == 0 {
 		return nil
 	}
@@ -69,19 +61,11 @@ clone_dynamic_array :: proc(
 	return res
 }
 
-clone_expr :: proc(
-	node: ^ast.Expr,
-	allocator: mem.Allocator,
-	unique_strings: ^map[string]string,
-) -> ^ast.Expr {
+clone_expr :: proc(node: ^ast.Expr, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Expr {
 	return cast(^ast.Expr)clone_node(node, allocator, unique_strings)
 }
 
-clone_node :: proc(
-	node: ^ast.Node,
-	allocator: mem.Allocator,
-	unique_strings: ^map[string]string,
-) -> ^ast.Node {
+clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Node {
 	using ast
 	if node == nil {
 		return nil
@@ -112,21 +96,13 @@ clone_node :: proc(
 	res_ptr_any.id = ti.id
 
 	if unique_strings != nil && node.pos.file != "" {
-		res.pos.file = get_index_unique_string(
-			unique_strings,
-			allocator,
-			node.pos.file,
-		)
+		res.pos.file = get_index_unique_string(unique_strings, allocator, node.pos.file)
 	} else {
 		res.pos.file = node.pos.file
 	}
 
 	if unique_strings != nil && node.end.file != "" {
-		res.end.file = get_index_unique_string(
-			unique_strings,
-			allocator,
-			node.end.file,
-		)
+		res.end.file = get_index_unique_string(unique_strings, allocator, node.end.file)
 	} else {
 		res.end.file = node.end.file
 	}
@@ -135,12 +111,10 @@ clone_node :: proc(
 
 	res_ptr := reflect.deref(res_ptr_any)
 
-	if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true);
-	   de != nil {
+	if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
 		reflect.set_union_value(de, res_ptr_any)
 	}
-	if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true);
-	   ds != nil {
+	if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
 		reflect.set_union_value(ds, res_ptr_any)
 	}
 

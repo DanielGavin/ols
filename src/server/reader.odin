@@ -1,7 +1,7 @@
 package server
 
-import "core:os"
 import "core:mem"
+import "core:os"
 import "core:strings"
 
 ReaderFn :: proc(_: rawptr, _: []byte) -> (int, int)
@@ -27,11 +27,7 @@ read_u8 :: proc(reader: ^Reader) -> (u8, bool) {
 	return value[0], true
 }
 
-read_until_delimiter :: proc(
-	reader: ^Reader,
-	delimiter: u8,
-	builder: ^strings.Builder,
-) -> bool {
+read_until_delimiter :: proc(reader: ^Reader, delimiter: u8, builder: ^strings.Builder) -> bool {
 	for true {
 
 		value, success := read_u8(reader)

@@ -58,17 +58,11 @@ RequestInfo :: struct {
 }
 
 
-make_response_message :: proc(
-	id: RequestId,
-	params: ResponseParams,
-) -> ResponseMessage {
+make_response_message :: proc(id: RequestId, params: ResponseParams) -> ResponseMessage {
 	return ResponseMessage{jsonrpc = "2.0", id = id, result = params}
 }
 
-make_response_message_error :: proc(
-	id: RequestId,
-	error: ResponseError,
-) -> ResponseMessageError {
+make_response_message_error :: proc(id: RequestId, error: ResponseError) -> ResponseMessageError {
 	return ResponseMessageError{jsonrpc = "2.0", id = id, error = error}
 }
 
@@ -218,13 +212,7 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
 	return header, found_content_length
 }
 
-read_and_parse_body :: proc(
-	reader: ^Reader,
-	header: Header,
-) -> (
-	json.Value,
-	bool,
-) {
+read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, bool) {
 	value: json.Value
 
 	data := make([]u8, header.content_length, context.temp_allocator)
@@ -236,11 +224,7 @@ read_and_parse_body :: proc(
 
 	err: json.Error
 
-	value, err = json.parse(
-		data = data,
-		allocator = context.allocator,
-		parse_integers = true,
-	)
+	value, err = json.parse(data = data, allocator = context.allocator, parse_integers = true)
 
 	if (err != json.Error.None) {
 		log.error("Failed to parse body")
@@ -250,12 +234,7 @@ read_and_parse_body :: proc(
 	return value, true
 }
 
-call_map: map[string]proc(
-	_: json.Value,
-	_: RequestId,
-	_: ^common.Config,
-	_: ^Writer,
-) -> common.Error = {
+call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Writer) -> common.Error = {
 	"initialize"                        = request_initialize,
 	"initialized"                       = request_initialized,
 	"shutdown"                          = request_shutdown,
@@ -306,12 +285,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 			}
 		}
 		if delete_index != -1 {
-			cancel(
-				requests[delete_index].value,
-				requests[delete_index].id,
-				writer,
-				config,
-			)
+			cancel(requests[delete_index].value, requests[delete_index].id, writer, config)
 			ordered_remove(&requests, delete_index)
 		}
 	}
@@ -352,12 +326,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 }
 
 
-cancel :: proc(
-	value: json.Value,
-	id: RequestId,
-	writer: ^Writer,
-	config: ^common.Config,
-) {
+cancel :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
 	response := make_response_message(id = id, params = ResponseParams{})
 
 	json.destroy_value(value)
@@ -365,12 +334,7 @@ cancel :: proc(
 	send_response(response, writer)
 }
 
-call :: proc(
-	value: json.Value,
-	id: RequestId,
-	writer: ^Writer,
-	config: ^common.Config,
-) {
+call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
 	root := value.(json.Object)
 	method := root["method"].(json.String)
 
@@ -387,10 +351,7 @@ call :: proc(
 		} else {
 			err := fn(root["params"], id, config, writer)
 			if err != .None {
-				response := make_response_message_error(
-					id = id,
-					error = ResponseError{code = err, message = ""},
-				)
+				response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
 				send_error(response, writer)
 			}
 		}
@@ -399,33 +360,21 @@ call :: proc(
 	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
-read_ols_initialize_options :: proc(
-	config: ^common.Config,
-	ols_config: OlsConfig,
-	uri: common.Uri,
-) {
-	config.disable_parser_errors =
-		ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
-	config.thread_count =
-		ols_config.thread_pool_count.(int) or_else config.thread_count
-	config.enable_document_symbols =
-		ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
-	config.enable_format =
-		ols_config.enable_format.(bool) or_else config.enable_format
-	config.enable_hover =
-		ols_config.enable_hover.(bool) or_else config.enable_hover
-	config.enable_semantic_tokens =
-		ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
+	config.disable_parser_errors = ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count
+	config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
+	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
+	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
 	config.enable_procedure_context =
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
-	config.enable_snippets =
-		ols_config.enable_snippets.(bool) or_else config.enable_snippets
-	config.enable_references =
-		ols_config.enable_references.(bool) or_else config.enable_references
+	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
+	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
-	config.enable_rename =
-		ols_config.enable_rename.(bool) or_else config.enable_rename
+
+	config.enable_rename = ols_config.enable_rename.(bool) or_else config.enable_rename
 
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
@@ -434,48 +383,30 @@ read_ols_initialize_options :: proc(
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
 
 	if ols_config.odin_command != "" {
-		config.odin_command = strings.clone(
-			ols_config.odin_command,
-			context.temp_allocator,
-		)
+		config.odin_command = strings.clone(ols_config.odin_command, context.temp_allocator)
 
 		allocated: bool
-		config.odin_command, allocated = common.resolve_home_dir(
-			config.odin_command,
-		)
+		config.odin_command, allocated = common.resolve_home_dir(config.odin_command)
 		if !allocated {
-			config.odin_command = strings.clone(
-				config.odin_command,
-				context.allocator,
-			)
+			config.odin_command = strings.clone(config.odin_command, context.allocator)
 		}
 	}
 
 	if ols_config.checker_args != "" {
-		config.checker_args = strings.clone(
-			ols_config.checker_args,
-			context.allocator,
-		)
+		config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 	}
 
 	for profile in ols_config.profiles {
 		if ols_config.profile == profile.name {
-			config.profile.checker_path = make(
-				[dynamic]string,
-				len(profile.checker_path),
-			)
+			config.profile.checker_path = make([dynamic]string, len(profile.checker_path))
 
 			if filepath.is_abs(ols_config.profile) {
 				for checker_path, i in profile.checker_path {
-					config.profile.checker_path[i] = strings.clone(
-						checker_path,
-					)
+					config.profile.checker_path[i] = strings.clone(checker_path)
 				}
 			} else {
 				for checker_path, i in profile.checker_path {
-					config.profile.checker_path[i] = path.join(
-						elems = {uri.path, checker_path},
-					)
+					config.profile.checker_path[i] = path.join(elems = {uri.path, checker_path})
 				}
 			}
 
@@ -489,20 +420,15 @@ read_ols_initialize_options :: proc(
 		config.profile.os = os_enum_to_string[ODIN_OS]
 	}
 
-	config.checker_targets = slice.clone(
-		ols_config.checker_targets,
-		context.allocator,
-	)
+	config.checker_targets = slice.clone(ols_config.checker_targets, context.allocator)
 
-	config.enable_inlay_hints =
-		ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
+	config.enable_inlay_hints = ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 	config.enable_inlay_hints_params =
 		ols_config.enable_inlay_hints_params.(bool) or_else config.enable_inlay_hints_params
 	config.enable_inlay_hints_default_params =
 		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
 
-	config.enable_fake_method =
-		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
+	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
 
 	for it in ols_config.collections {
@@ -513,29 +439,20 @@ read_ols_initialize_options :: proc(
 
 		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
 
-		forward_path = common.resolve_home_dir(
-			forward_path,
-			context.temp_allocator,
-		)
+		forward_path = common.resolve_home_dir(forward_path, context.temp_allocator)
 
 		final_path := ""
 
 		when ODIN_OS == .Windows {
 			if filepath.is_abs(it.path) {
 				final_path, _ = filepath.to_slash(
-					common.get_case_sensitive_path(
-						forward_path,
-						context.temp_allocator,
-					),
+					common.get_case_sensitive_path(forward_path, context.temp_allocator),
 					context.temp_allocator,
 				)
 			} else {
 				final_path, _ = filepath.to_slash(
 					common.get_case_sensitive_path(
-						path.join(
-							elems = {uri.path, forward_path},
-							allocator = context.temp_allocator,
-						),
+						path.join(elems = {uri.path, forward_path}, allocator = context.temp_allocator),
 						context.temp_allocator,
 					),
 					context.temp_allocator,
@@ -545,35 +462,19 @@ read_ols_initialize_options :: proc(
 			final_path = strings.clone(final_path, context.temp_allocator)
 		} else {
 			if filepath.is_abs(it.path) {
-				final_path = strings.clone(
-					forward_path,
-					context.temp_allocator,
-				)
+				final_path = strings.clone(forward_path, context.temp_allocator)
 			} else {
-				final_path = path.join(
-					{uri.path, forward_path},
-					context.temp_allocator,
-				)
+				final_path = path.join({uri.path, forward_path}, context.temp_allocator)
 			}
 		}
 
 		if abs_final_path, ok := filepath.abs(final_path); ok {
-			slashed_path, _ := filepath.to_slash(
-				abs_final_path,
-				context.temp_allocator,
-			)
+			slashed_path, _ := filepath.to_slash(abs_final_path, context.temp_allocator)
 
-			config.collections[strings.clone(it.name)] = strings.clone(
-				slashed_path,
-			)
+			config.collections[strings.clone(it.name)] = strings.clone(slashed_path)
 		} else {
-			log.errorf(
-				"Failed to find absolute address of collection: %v",
-				final_path,
-			)
-			config.collections[strings.clone(it.name)] = strings.clone(
-				final_path,
-			)
+			log.errorf("Failed to find absolute address of collection: %v", final_path)
+			config.collections[strings.clone(it.name)] = strings.clone(final_path)
 		}
 	}
 
@@ -586,10 +487,7 @@ read_ols_initialize_options :: proc(
 
 	root_buf: [1024]byte
 	root_slice := root_buf[:]
-	root_command := strings.concatenate(
-		{odin_bin, " root"},
-		context.temp_allocator,
-	)
+	root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
 	code, ok, out := common.run_executable(root_command, &root_slice)
 	if ok && !strings.contains(string(out), "Usage") {
 		odin_core_env = string(out)
@@ -607,10 +505,7 @@ read_ols_initialize_options :: proc(
 			}
 		}
 
-		if abs_core_env, ok := filepath.abs(
-			odin_core_env,
-			context.temp_allocator,
-		); ok {
+		if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
 			odin_core_env = abs_core_env
 		}
 	}
@@ -618,10 +513,7 @@ read_ols_initialize_options :: proc(
 	log.infof("resolved odin root to: %q", odin_core_env)
 
 	if "core" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 		config.collections[strings.clone("core")] = path.join(
 			elems = {forward_path, "core"},
 			allocator = context.allocator,
@@ -629,10 +521,7 @@ read_ols_initialize_options :: proc(
 	}
 
 	if "vendor" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 		config.collections[strings.clone("vendor")] = path.join(
 			elems = {forward_path, "vendor"},
 			allocator = context.allocator,
@@ -640,10 +529,7 @@ read_ols_initialize_options :: proc(
 	}
 
 	if "base" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 		config.collections[strings.clone("base")] = path.join(
 			elems = {forward_path, "base"},
 			allocator = context.allocator,
@@ -651,10 +537,7 @@ read_ols_initialize_options :: proc(
 	}
 
 	if "shared" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(
-			odin_core_env,
-			context.temp_allocator,
-		)
+		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 		config.collections[strings.clone("shared")] = path.join(
 			elems = {forward_path, "shared"},
 			allocator = context.allocator,
@@ -716,21 +599,13 @@ request_initialize :: proc(
 	config.enable_procedure_snippet = true
 	config.enable_checker_only_saved = true
 
-	read_ols_config :: proc(
-		file: string,
-		config: ^common.Config,
-		uri: common.Uri,
-	) {
+	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
-			if value, err := json.parse(
-				data = data,
-				allocator = context.temp_allocator,
-				parse_integers = true,
-			); err == .None {
+			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true);
+			   err == .None {
 				ols_config: OlsConfig
 
-				if unmarshal(value, ols_config, context.temp_allocator) ==
-				   nil {
+				if unmarshal(value, ols_config, context.temp_allocator) == nil {
 					read_ols_initialize_options(config, ols_config, uri)
 				} else {
 					log.warnf("Failed to unmarshal %v", file)
@@ -753,27 +628,17 @@ request_initialize :: proc(
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		global_ols_config_path := path.join(
-			elems = {
-				filepath.dir(os.args[0], context.temp_allocator),
-				"ols.json",
-			},
+			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
 			allocator = context.temp_allocator,
 		)
 
 		read_ols_config(global_ols_config_path, config, uri)
 
-		ols_config_path := path.join(
-			elems = {uri.path, "ols.json"},
-			allocator = context.temp_allocator,
-		)
+		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
 
 		read_ols_config(ols_config_path, config, uri)
 
-		read_ols_initialize_options(
-			config,
-			initialize_params.initializationOptions,
-			uri,
-		)
+		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 	}
 
 
@@ -792,8 +657,7 @@ request_initialize :: proc(
 	config.enable_label_details =
 		initialize_params.capabilities.textDocument.completion.completionItem.labelDetailsSupport
 
-	config.enable_snippets &=
-		initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
+	config.enable_snippets &= initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
 
 	config.signature_offset_support =
 		initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport
@@ -805,11 +669,7 @@ request_initialize :: proc(
 	response := make_response_message(
 		params = ResponseInitializeParams {
 			capabilities = ServerCapabilities {
-				textDocumentSync = TextDocumentSyncOptions {
-					openClose = true,
-					change = 2,
-					save = {includeText = true},
-				},
+				textDocumentSync = TextDocumentSyncOptions{openClose = true, change = 2, save = {includeText = true}},
 				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
@@ -871,12 +731,7 @@ request_initialized :: proc(
 	return .None
 }
 
-request_shutdown :: proc(
-	params: json.Value,
-	id: RequestId,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+request_shutdown :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	response := make_response_message(params = nil, id = id)
 
 	send_response(response, writer)
@@ -908,10 +763,7 @@ request_definition :: proc(
 		return .InternalError
 	}
 
-	locations, ok2 := get_definition_location(
-		document,
-		definition_params.position,
-	)
+	locations, ok2 := get_definition_location(document, definition_params.position)
 
 	if !ok2 {
 		log.warn("Failed to get definition location")
@@ -954,11 +806,7 @@ request_completion :: proc(
 	}
 
 	list: CompletionList
-	list, ok = get_completion_list(
-		document,
-		completition_params.position,
-		completition_params.context_,
-	)
+	list, ok = get_completion_list(document, completition_params.position, completition_params.context_)
 
 	if !ok {
 		return .InternalError
@@ -1052,12 +900,7 @@ request_format_document :: proc(
 	return .None
 }
 
-notification_exit :: proc(
-	params: json.Value,
-	id: RequestId,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	config.running = false
 	return .None
 }
@@ -1082,12 +925,7 @@ notification_did_open :: proc(
 		return .ParseError
 	}
 
-	if n := document_open(
-		open_params.textDocument.uri,
-		open_params.textDocument.text,
-		config,
-		writer,
-	); n != .None {
+	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
 		return .InternalError
 	}
 
@@ -1168,10 +1006,7 @@ notification_did_save :: proc(
 
 	uri: common.Uri
 
-	if uri, ok = common.parse_uri(
-		save_params.textDocument.uri,
-		context.temp_allocator,
-	); !ok {
+	if uri, ok = common.parse_uri(save_params.textDocument.uri, context.temp_allocator); !ok {
 		return .ParseError
 	}
 
@@ -1184,10 +1019,7 @@ notification_did_save :: proc(
 	}
 
 	when ODIN_OS == .Windows {
-		correct := common.get_case_sensitive_path(
-			fullpath,
-			context.temp_allocator,
-		)
+		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
 		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
 	}
 
@@ -1211,8 +1043,7 @@ notification_did_save :: proc(
 	ok = parser.parse_file(&p, &file)
 
 	if !ok {
-		if !strings.contains(fullpath, "builtin.odin") &&
-		   !strings.contains(fullpath, "intrinsics.odin") {
+		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
 			log.errorf("error in parse file for indexing %v", fullpath)
 		}
 	}
@@ -1238,11 +1069,7 @@ notification_did_save :: proc(
 		}
 	}
 
-	if ret := collect_symbols(
-		&indexer.index.collection,
-		file,
-		corrected_uri.uri,
-	); ret != .None {
+	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
 	}
 
@@ -1328,11 +1155,7 @@ request_semantic_token_range :: proc(
 		resolve_entire_file_cached(document)
 
 		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			tokens := get_semantic_tokens(
-				document,
-				semantic_params.range,
-				file.symbols,
-			)
+			tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
 			tokens_params = semantic_tokens_to_response_params(tokens)
 		}
 	}
@@ -1377,12 +1200,7 @@ request_document_symbols :: proc(
 	return .None
 }
 
-request_hover :: proc(
-	params: json.Value,
-	id: RequestId,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+request_hover :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object)
 
 	if !ok {
@@ -1536,12 +1354,7 @@ request_prepare_rename :: proc(
 	return .None
 }
 
-request_rename :: proc(
-	params: json.Value,
-	id: RequestId,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+request_rename :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	params_object, ok := params.(json.Object)
 
 	if !ok {
@@ -1561,11 +1374,7 @@ request_rename :: proc(
 	}
 
 	workspace_edit: WorkspaceEdit
-	workspace_edit, ok = get_rename(
-		document,
-		rename_param.newName,
-		rename_param.position,
-	)
+	workspace_edit, ok = get_rename(document, rename_param.newName, rename_param.position)
 
 	if !ok {
 		return .InternalError
@@ -1630,17 +1439,13 @@ notification_workspace_did_change_configuration :: proc(
 
 	workspace_config_params: DidChangeConfigurationParams
 
-	if unmarshal(params, workspace_config_params, context.temp_allocator) !=
-	   nil {
+	if unmarshal(params, workspace_config_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
 	ols_config := workspace_config_params.settings
 
-	if uri, ok := common.parse_uri(
-		config.workspace_folders[0].uri,
-		context.temp_allocator,
-	); ok {
+	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
 	}
 
@@ -1661,8 +1466,7 @@ request_workspace_symbols :: proc(
 
 	workspace_symbol_params: WorkspaceSymbolParams
 
-	if unmarshal(params, workspace_symbol_params, context.temp_allocator) !=
-	   nil {
+	if unmarshal(params, workspace_symbol_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
@@ -1680,11 +1484,6 @@ request_workspace_symbols :: proc(
 	return .None
 }
 
-request_noop :: proc(
-	params: json.Value,
-	id: RequestId,
-	config: ^common.Config,
-	writer: ^Writer,
-) -> common.Error {
+request_noop :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
 	return .None
 }

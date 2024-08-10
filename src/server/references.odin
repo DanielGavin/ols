@@ -17,14 +17,7 @@ import "src:common"
 
 fullpaths: [dynamic]string
 
-walk_directories :: proc(
-	info: os.File_Info,
-	in_err: os.Errno,
-	user_data: rawptr,
-) -> (
-	err: os.Error,
-	skip_dir: bool,
-) {
+walk_directories :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
 	document := cast(^Document)user_data
 
 	if info.is_dir {
@@ -36,15 +29,9 @@ walk_directories :: proc(
 	}
 
 	if strings.contains(info.name, ".odin") {
-		slash_path, _ := filepath.to_slash(
-			info.fullpath,
-			context.temp_allocator,
-		)
+		slash_path, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
 		if slash_path != document.fullpath {
-			append(
-				&fullpaths,
-				strings.clone(info.fullpath, context.temp_allocator),
-			)
+			append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
 		}
 	}
 
@@ -72,10 +59,7 @@ prepare_references :: proc(
 			for name in field.names {
 				if position_in_node(name, position_context.position) {
 					symbol = Symbol {
-						range = common.get_token_range(
-							name,
-							string(document.text),
-						),
+						range = common.get_token_range(name, string(document.text)),
 					}
 					found = true
 					resolve_flag = .Field
@@ -115,10 +99,7 @@ prepare_references :: proc(
 		for variant in position_context.union_type.variants {
 			if position_in_node(variant, position_context.position) {
 				if ident, ok := variant.derived.(^ast.Ident); ok {
-					symbol, ok = resolve_location_identifier(
-						ast_context,
-						ident^,
-					)
+					symbol, ok = resolve_location_identifier(ast_context, ident^)
 					reference = ident.name
 					resolve_flag = .Identifier
 
@@ -141,14 +122,8 @@ prepare_references :: proc(
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
 	   !common.is_expr_basic_lit(position_context.field_value.field) &&
-	   position_in_node(
-		   position_context.field_value.field,
-		   position_context.position,
-	   ) {
-		symbol, ok = resolve_location_comp_lit_field(
-			ast_context,
-			position_context,
-		)
+	   position_in_node(position_context.field_value.field, position_context.position) {
+		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
 
 		if !ok {
 			return
@@ -166,9 +141,7 @@ prepare_references :: proc(
 		base: ^ast.Ident
 		base, ok = position_context.selector.derived.(^ast.Ident)
 
-		if position_in_node(base, position_context.position) &&
-		   position_context.identifier != nil &&
-		   ok {
+		if position_in_node(base, position_context.position) && position_context.identifier != nil && ok {
 
 			ident := position_context.identifier.derived.(^ast.Ident)
 
@@ -180,10 +153,7 @@ prepare_references :: proc(
 
 			resolve_flag = .Base
 		} else {
-			symbol, ok = resolve_location_selector(
-				ast_context,
-				position_context.selector_expr,
-			)
+			symbol, ok = resolve_location_selector(ast_context, position_context.selector_expr)
 
 			resolve_flag = .Field
 		}
@@ -228,11 +198,7 @@ resolve_references :: proc(
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
 	fullpaths = make([dynamic]string, 0, ast_context.allocator)
 
-	symbol, resolve_flag, ok := prepare_references(
-		document,
-		ast_context,
-		position_context,
-	)
+	symbol, resolve_flag, ok := prepare_references(document, ast_context, position_context)
 
 	if !ok {
 		return {}, true
@@ -250,11 +216,7 @@ resolve_references :: proc(
 
 	arena: runtime.Arena
 
-	_ = runtime.arena_init(
-		&arena,
-		mem.Megabyte * 40,
-		runtime.default_allocator(),
-	)
+	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
 
 	defer runtime.arena_destroy(&arena)
 
@@ -271,10 +233,7 @@ resolve_references :: proc(
 			data, ok := os.read_entire_file(fullpath, context.allocator)
 
 			if !ok {
-				log.errorf(
-					"failed to read entire file for indexing %v",
-					fullpath,
-				)
+				log.errorf("failed to read entire file for indexing %v", fullpath)
 				continue
 			}
 
@@ -303,8 +262,7 @@ resolve_references :: proc(
 			ok = parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") &&
-				   !strings.contains(fullpath, "intrinsics.odin") {
+				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -334,29 +292,15 @@ resolve_references :: proc(
 			}
 
 			if in_pkg || symbol.pkg == document.package_name {
-				symbols_and_nodes := resolve_entire_file(
-					&document,
-					resolve_flag,
-					context.allocator,
-				)
+				symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
 
 				for k, v in symbols_and_nodes {
-					if v.symbol.uri == symbol.uri &&
-					   v.symbol.range == symbol.range {
-						node_uri := common.create_uri(
-							v.node.pos.file,
-							ast_context.allocator,
-						)
+					if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
+						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 						location := common.Location {
-							range = common.get_token_range(
-								v.node^,
-								string(document.text),
-							),
-							uri   = strings.clone(
-								node_uri.uri,
-								ast_context.allocator,
-							),
+							range = common.get_token_range(v.node^, string(document.text)),
+							uri   = strings.clone(node_uri.uri, ast_context.allocator),
 						}
 						append(&locations, location)
 					}
@@ -367,18 +311,11 @@ resolve_references :: proc(
 		}
 	}
 
-	symbols_and_nodes := resolve_entire_file(
-		document,
-		resolve_flag,
-		context.allocator,
-	)
+	symbols_and_nodes := resolve_entire_file(document, resolve_flag, context.allocator)
 
 	for k, v in symbols_and_nodes {
 		if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
-			node_uri := common.create_uri(
-				v.node.pos.file,
-				ast_context.allocator,
-			)
+			node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 			range := common.get_token_range(v.node^, string(document.text))
 
@@ -399,13 +336,7 @@ resolve_references :: proc(
 	return locations[:], true
 }
 
-get_references :: proc(
-	document: ^Document,
-	position: common.Position,
-) -> (
-	[]common.Location,
-	bool,
-) {
+get_references :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -415,30 +346,17 @@ get_references :: proc(
 		context.temp_allocator,
 	)
 
-	position_context, ok := get_document_position_context(
-		document,
-		position,
-		.Hover,
-	)
+	position_context, ok := get_document_position_context(document, position, .Hover)
 
 	get_globals(document.ast, &ast_context)
 
 	ast_context.current_package = ast_context.document_package
 
 	if position_context.function != nil {
-		get_locals(
-			document.ast,
-			position_context.function,
-			&ast_context,
-			&position_context,
-		)
+		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	locations, ok2 := resolve_references(
-		document,
-		&ast_context,
-		&position_context,
-	)
+	locations, ok2 := resolve_references(document, &ast_context, &position_context)
 
 	temp_locations := make([dynamic]common.Location, 0, context.temp_allocator)
 

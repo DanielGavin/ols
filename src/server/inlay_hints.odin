@@ -71,14 +71,12 @@ get_inlay_hints :: proc(
 			}
 		}
 
-		if selector, ok := call.expr.derived.(^ast.Selector_Expr);
-		   ok && selector.op.kind == .Arrow_Right {
+		if selector, ok := call.expr.derived.(^ast.Selector_Expr); ok && selector.op.kind == .Arrow_Right {
 			is_selector_call = true
 		}
 
 		if symbol_and_node, ok := symbols[cast(uintptr)call.expr]; ok {
-			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue);
-			   ok {
+			if symbol_call, ok := symbol_and_node.symbol.value.(SymbolProcedureValue); ok {
 				for arg, i in symbol_call.arg_types {
 					if i == 0 && is_selector_call {
 						continue
@@ -89,8 +87,7 @@ get_inlay_hints :: proc(
 						is_current_ellipsis := false
 
 						if arg.type != nil {
-							if ellipsis, ok := arg.type.derived.(^ast.Ellipsis);
-							   ok {
+							if ellipsis, ok := arg.type.derived.(^ast.Ellipsis); ok {
 								is_current_ellipsis = true
 							}
 						}
@@ -119,10 +116,7 @@ get_inlay_hints :: proc(
 
 							value := common.node_to_string(arg.default_value)
 
-							call_range := common.get_token_range(
-								call,
-								string(document.text),
-							)
+							call_range := common.get_token_range(call, string(document.text))
 
 							position: common.Position
 							position = call_range.end
@@ -131,9 +125,7 @@ get_inlay_hints :: proc(
 							needs_leading_comma := i > 0
 
 							if !has_added_default && needs_leading_comma {
-								till_end := string(
-									document.text[:call.close.offset],
-								)
+								till_end := string(document.text[:call.close.offset])
 								#reverse for ch in till_end {
 									switch ch {
 									case ' ', '\t', '\n':
@@ -147,12 +139,7 @@ get_inlay_hints :: proc(
 
 							hint := InlayHint {
 								kind     = .Parameter,
-								label    = fmt.tprintf(
-									"%s %v := %v",
-									needs_leading_comma ? "," : "",
-									label,
-									value,
-								),
+								label    = fmt.tprintf("%s %v := %v", needs_leading_comma ? "," : "", label, value),
 								position = position,
 							}
 							append(&hints, hint)
@@ -162,22 +149,17 @@ get_inlay_hints :: proc(
 
 							// if the arg name and param name are the same, don't add it.
 							same_name: bool
-							#partial switch v in
-								call.args[symbol_arg_count].derived_expr {
+							#partial switch v in call.args[symbol_arg_count].derived_expr {
 							case ^ast.Ident:
 								same_name = label == v.name
 							case ^ast.Poly_Type:
-								if ident, ok := v.type.derived.(^ast.Ident);
-								   ok {
+								if ident, ok := v.type.derived.(^ast.Ident); ok {
 									same_name = label == ident.name
 								}
 							}
 
 							if !same_name {
-								range := common.get_token_range(
-									call.args[symbol_arg_count],
-									string(document.text),
-								)
+								range := common.get_token_range(call.args[symbol_arg_count], string(document.text))
 								hint := InlayHint {
 									kind     = .Parameter,
 									label    = fmt.tprintf("%v = ", label),

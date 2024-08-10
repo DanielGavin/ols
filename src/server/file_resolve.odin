@@ -63,15 +63,7 @@ resolve_entire_file :: proc(
 			continue
 		}
 
-		resolve_decl(
-			&position_context,
-			&ast_context,
-			document,
-			decl,
-			&symbols,
-			flag,
-			allocator,
-		)
+		resolve_decl(&position_context, &ast_context, document, decl, &symbols, flag, allocator)
 		clear(&ast_context.locals)
 	}
 
@@ -128,12 +120,7 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 
 	data.position_context.position = stmt.end.offset
 
-	get_locals_stmt(
-		data.ast_context.file,
-		stmt,
-		data.ast_context,
-		data.position_context,
-	)
+	get_locals_stmt(data.ast_context.file, stmt, data.ast_context, data.position_context)
 }
 
 @(private = "file")
@@ -151,16 +138,14 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Ident:
 		data.position_context.identifier = node
 		if data.flag != .None {
-			if symbol, ok := resolve_location_identifier(data.ast_context, n^);
-			   ok {
+			if symbol, ok := resolve_location_identifier(data.ast_context, n^); ok {
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node   = n,
 					symbol = symbol,
 				}
 			}
 		} else {
-			if symbol, ok := resolve_type_identifier(data.ast_context, n^);
-			   ok {
+			if symbol, ok := resolve_type_identifier(data.ast_context, n^); ok {
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node   = n,
 					symbol = symbol,
@@ -183,11 +168,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.implicit_selector_expr = n
 		if data.flag != .None {
 			data.position_context.position = n.pos.offset
-			if symbol, ok := resolve_location_implicit_selector(
-				data.ast_context,
-				data.position_context,
-				n,
-			); ok {
+			if symbol, ok := resolve_location_implicit_selector(data.ast_context, data.position_context, n); ok {
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node   = n,
 					symbol = symbol,
@@ -201,8 +182,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.selector_expr = node
 
 		if data.flag != .None {
-			if symbol, ok := resolve_location_selector(data.ast_context, n);
-			   ok {
+			if symbol, ok := resolve_location_selector(data.ast_context, n); ok {
 				if data.flag != .Base {
 					data.symbols[cast(uintptr)node] = SymbolAndNode {
 						node   = n.field,
@@ -217,10 +197,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 			}
 		} else {
-			if symbol, ok := resolve_type_expression(
-				data.ast_context,
-				&n.node,
-			); ok {
+			if symbol, ok := resolve_type_expression(data.ast_context, &n.node); ok {
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node   = n,
 					symbol = symbol,
@@ -236,10 +213,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		if data.flag != .None && data.position_context.comp_lit != nil {
 			data.position_context.position = n.pos.offset
 
-			if symbol, ok := resolve_location_comp_lit_field(
-				data.ast_context,
-				data.position_context,
-			); ok {
+			if symbol, ok := resolve_location_comp_lit_field(data.ast_context, data.position_context); ok {
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node   = n.field,
 					symbol = symbol,
@@ -254,21 +228,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Proc_Lit:
 		local_scope(data, n.body)
 
-		get_locals_proc_param_and_results(
-			data.ast_context.file,
-			n^,
-			data.ast_context,
-			data.position_context,
-		)
+		get_locals_proc_param_and_results(data.ast_context.file, n^, data.ast_context, data.position_context)
 
 		resolve_node(n.type, data)
 
 		data.position_context.function = cast(^Proc_Lit)node
 
-		append(
-			&data.position_context.functions,
-			data.position_context.function,
-		)
+		append(&data.position_context.functions, data.position_context.function)
 
 		resolve_node(n.body, data)
 	case ^ast.Inline_Range_Stmt:
@@ -305,9 +271,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
 	case ^When_Stmt:
+		local_scope(data, n)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
+	case ^Block_Stmt:
+		resolve_node(n.label, data)
+		resolve_nodes(n.stmts, data)
 	case ^Implicit:
 		if n.tok.text == "context" {
 			data.position_context.implicit_context = n
@@ -388,9 +358,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Tag_Stmt:
 		r := cast(^Tag_Stmt)node
 		resolve_node(r.stmt, data)
-	case ^Block_Stmt:
-		resolve_node(n.label, data)
-		resolve_nodes(n.stmts, data)
 	case ^Return_Stmt:
 		data.position_context.returns = n
 		resolve_nodes(n.results, data)
@@ -470,12 +437,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				for name in field.names {
 					data.symbols[cast(uintptr)name] = SymbolAndNode {
 						node = name,
-						symbol = Symbol {
-							range = common.get_token_range(
-								name,
-								string(data.document.text),
-							),
-						},
+						symbol = Symbol{range = common.get_token_range(name, string(data.document.text))},
 					}
 				}
 			}
@@ -494,12 +456,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			for field in n.fields {
 				data.symbols[cast(uintptr)field] = SymbolAndNode {
 					node = field,
-					symbol = Symbol {
-						range = common.get_token_range(
-							field,
-							string(data.document.text),
-						),
-					},
+					symbol = Symbol{range = common.get_token_range(field, string(data.document.text))},
 				}
 			}
 		}

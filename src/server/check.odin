@@ -44,14 +44,7 @@ Json_Errors :: struct {
 
 //If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
 fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
-	walk_proc :: proc(
-		info: os.File_Info,
-		in_err: os.Errno,
-		user_data: rawptr,
-	) -> (
-		err: os.Errno,
-		skip_dir: bool,
-	) {
+	walk_proc :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Errno, skip_dir: bool) {
 		data := cast(^[dynamic]string)user_data
 
 		if !info.is_dir && filepath.ext(info.name) == ".odin" {
@@ -67,10 +60,7 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	data := make([dynamic]string, context.temp_allocator)
 
 	if len(config.workspace_folders) > 0 {
-		if uri, ok := common.parse_uri(
-			config.workspace_folders[0].uri,
-			context.temp_allocator,
-		); ok {
+		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 			filepath.walk(uri.path, walk_proc, &data)
 		}
 	}
@@ -78,12 +68,7 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	return data[:]
 }
 
-check :: proc(
-	paths: []string,
-	uri: common.Uri,
-	writer: ^Writer,
-	config: ^common.Config,
-) {
+check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common.Config) {
 	paths := paths
 
 	if len(paths) == 0 {
@@ -107,10 +92,7 @@ check :: proc(
 		if k == "" || k == "core" || k == "vendor" || k == "base" {
 			continue
 		}
-		strings.write_string(
-			&collection_builder,
-			fmt.aprintf("-collection:%v=\"%v\" ", k, v),
-		)
+		strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=\"%v\" ", k, v))
 	}
 
 	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
@@ -124,8 +106,7 @@ check :: proc(
 			command = "odin"
 		}
 
-		entry_point_opt :=
-			filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
+		entry_point_opt := filepath.ext(path) == ".odin" ? "-file" : "-no-entry-point"
 
 		slice.zero(data)
 
@@ -142,11 +123,7 @@ check :: proc(
 			),
 			&data,
 		); !ok {
-			log.errorf(
-				"Odin check failed with code %v for file %v",
-				code,
-				path,
-			)
+			log.errorf("Odin check failed with code %v for file %v", code, path)
 			return
 		}
 
@@ -156,17 +133,9 @@ check :: proc(
 
 		json_errors: Json_Errors
 
-		if res := json.unmarshal(
-			buffer,
-			&json_errors,
-			json.DEFAULT_SPECIFICATION,
-			context.temp_allocator,
-		); res != nil {
-			log.errorf(
-				"Failed to unmarshal check results: %v, %v",
-				res,
-				string(buffer),
-			)
+		if res := json.unmarshal(buffer, &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
+		   res != nil {
+			log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer))
 		}
 
 		for error in json_errors.errors {
@@ -176,18 +145,12 @@ check :: proc(
 
 			message := strings.join(error.msgs, " ", context.temp_allocator)
 
-			if strings.contains(
-				message,
-				"Redeclaration of 'main' in this scope",
-			) {
+			if strings.contains(message, "Redeclaration of 'main' in this scope") {
 				continue
 			}
 
 			if error.pos.file not_in errors {
-				errors[error.pos.file] = make(
-					[dynamic]Diagnostic,
-					context.temp_allocator,
-				)
+				errors[error.pos.file] = make([dynamic]Diagnostic, context.temp_allocator)
 			}
 
 			append(
@@ -196,14 +159,8 @@ check :: proc(
 					code = "checker",
 					severity = .Error if error.type == "error" else .Warning,
 					range = {
-						start = {
-							character = error.pos.column - 1,
-							line = error.pos.line - 1,
-						},
-						end = {
-							character = error.pos.end_column - 1,
-							line = error.pos.line - 1,
-						},
+						start = {character = error.pos.column - 1, line = error.pos.line - 1},
+						end = {character = error.pos.end_column - 1, line = error.pos.line - 1},
 					},
 					message = message,
 				},
