@@ -3050,22 +3050,44 @@ get_locals_for_range_stmt :: proc(
 
 	if symbol, ok := resolve_type_expression(ast_context, stmt.expr); ok {
 		#partial switch v in symbol.value {
+		case SymbolUntypedValue:
+			if len(stmt.vals) == 1 {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+					if v.type == .String {
+						store_local(
+							ast_context,
+							ident,
+							make_rune_ast(ast_context, ident.pos, ident.end),
+							ident.pos.offset,
+							ident.name,
+							ast_context.local_id,
+							ast_context.non_mutable_only,
+							false,
+							true,
+							symbol.pkg,
+							false,
+						)
+					}
+				}
+			}
 		case SymbolBasicValue:
-			if ident, ok := unwrap_ident(stmt.vals[0]); ok {
-				if v.ident.name == "string" {
-					store_local(
-						ast_context,
-						ident,
-						make_rune_ast(ast_context, ident.pos, ident.end),
-						ident.pos.offset,
-						ident.name,
-						ast_context.local_id,
-						ast_context.non_mutable_only,
-						false,
-						true,
-						symbol.pkg,
-						false,
-					)
+			if len(stmt.vals) == 1 {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+					if v.ident.name == "string" {
+						store_local(
+							ast_context,
+							ident,
+							make_rune_ast(ast_context, ident.pos, ident.end),
+							ident.pos.offset,
+							ident.name,
+							ast_context.local_id,
+							ast_context.non_mutable_only,
+							false,
+							true,
+							symbol.pkg,
+							false,
+						)
+					}
 				}
 			}
 		case SymbolMapValue:
