@@ -855,12 +855,31 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
 			if unary.op.kind == .Question {
 				if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+					//To handle type assertions for unions, i.e. my_maybe_variable.?
 					if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 						if len(union_value.types) != 1 {
 							return {}, false
 						}
 						return internal_resolve_type_expression(ast_context, union_value.types[0])
+					} else if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
+						//To handle type assertions for unions returned from procedures, i.e: my_function().?
+						if len(proc_value.return_types) != 1 || proc_value.return_types[0].type == nil {
+							return {}, false
+						}
+
+						if symbol, ok := internal_resolve_type_expression(
+							ast_context,
+							proc_value.return_types[0].type,
+						); ok {
+							if union_value, ok := symbol.value.(SymbolUnionValue); ok {
+								if len(union_value.types) != 1 {
+									return {}, false
+								}
+								return internal_resolve_type_expression(ast_context, union_value.types[0])
+							}
+						}
 					}
+
 				}
 			}
 		} else {
