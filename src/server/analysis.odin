@@ -2679,6 +2679,20 @@ get_generic_assignment :: proc(
 			ast_context.call = old_call
 		}
 
+		//Check for basic type casts
+		if len(v.args) == 1 {
+			if ident, ok := v.expr.derived.(^ast.Ident); ok {
+				//Handle the old way of type casting
+				if v, ok := common.keyword_map[ident.name]; ok {
+					//keywords
+					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+					type_ident.name = ident.name
+					append(results, type_ident)
+					break
+				}
+			}
+		}
+
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
@@ -2691,6 +2705,11 @@ get_generic_assignment :: proc(
 						append(results, ret.default_value)
 					}
 				}
+			} else if ident, ok := v.expr.derived.(^ast.Ident); ok {
+				//TODO: Simple assumption that you are casting it the type. 
+				type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+				type_ident.name = ident.name
+				append(results, type_ident)
 			}
 		}
 	case ^Comp_Lit:
