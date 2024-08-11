@@ -100,7 +100,7 @@ AstContext :: struct {
 	field_name:       ast.Ident,
 	uri:              string,
 	fullpath:         string,
-	non_mutable_only: bool,
+	non_mutable_only: bool, //Only store local value declarations that are non mutable.
 	overloading:      bool,
 }
 
@@ -1111,7 +1111,7 @@ get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, 
 get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) -> int {
 	for _, locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
-			for i := len(local_stack) - 1; i >= 0; i -= 1 {
+			#reverse for local, i in local_stack {
 				if local_stack[i].offset <= offset || local_stack[i].local_global {
 					if i < 0 {
 						return -1
@@ -3407,10 +3407,6 @@ get_locals :: proc(
 		return
 	}
 
-	for stmt in block.stmts {
-		get_locals_stmt(file, stmt, ast_context, document_position)
-	}
-
 	old_position := document_position.position
 
 	for function in document_position.functions {
@@ -3420,6 +3416,12 @@ get_locals :: proc(
 	}
 
 	document_position.position = old_position
+	ast_context.non_mutable_only = false
+
+	for stmt in block.stmts {
+		get_locals_stmt(file, stmt, ast_context, document_position)
+	}
+
 }
 
 clear_locals :: proc(ast_context: ^AstContext) {
