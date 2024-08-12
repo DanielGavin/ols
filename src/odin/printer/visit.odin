@@ -812,6 +812,15 @@ visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos:
 
 	document = cons(document, move_line(p, attributes[0].pos))
 
+	//Ensure static is not forced newline, but until if the width is full
+	if len(attributes) == 1 && len(attributes[0].elems) == 1 {
+		if ident, ok := attributes[0].elems[0].derived.(^ast.Ident); ok && ident.name == "static" {
+			document = cons(document, text("@"), text("("), visit_expr(p, attributes[0].elems[0]), text(")"))
+			set_source_position(p, pos)
+			return document
+		}
+	}
+
 	for attribute, i in attributes {
 		document = cons(document, text("@"), text("("), visit_exprs(p, attribute.elems, {.Add_Comma}), text(")"))
 
