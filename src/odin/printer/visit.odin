@@ -672,6 +672,12 @@ visit_bit_field_fields :: proc(
 			)
 		}
 
+
+		if field.tag.text != "" {
+			document = cons_with_nopl(document, text_token(p, field.tag))
+		}
+
+
 		if (i != len(bit_field_type.fields) - 1 || .Trailing in options) && .Add_Comma in options {
 			document = cons(document, text(","))
 		}
