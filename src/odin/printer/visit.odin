@@ -1545,6 +1545,10 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("#raw_union"))
 		}
 
+		if v.is_no_copy  {
+			document = cons_with_nopl(document, text("#no_copy"))
+		}
+
 		if v.align != nil {
 			document = cons_with_nopl(document, text("#align"))
 			document = cons_with_nopl(document, visit_expr(p, v.align))
