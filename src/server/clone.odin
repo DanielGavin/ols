@@ -276,6 +276,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.name = clone_type(r.name, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
 		r.bit_size = clone_type(r.bit_size, allocator, unique_strings)
+	case ^Or_Else_Expr:
+		r.x = clone_type(r.x, allocator, unique_strings)
+		r.y = clone_type(r.y, allocator, unique_strings)
 	case:
 	}
 
