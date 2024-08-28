@@ -1044,7 +1044,7 @@ visit_stmt :: proc(
 		if count := len(v.body); count > 0 {
 			set_source_position(p, v.body[0].pos)
 			fst_stmt, is_assign := v.body[0].derived_stmt.(^Assign_Stmt)
-			if is_assign && count == 1 {
+			if is_assign && count == 1 && p.config.inline_single_stmt_case {
 				document = cons_with_opl(document, nest(visit_stmt(p, fst_stmt)))
 			} else {
 				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
@@ -1550,7 +1550,7 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("#raw_union"))
 		}
 
-		if v.is_no_copy  {
+		if v.is_no_copy {
 			document = cons_with_nopl(document, text("#no_copy"))
 		}
 

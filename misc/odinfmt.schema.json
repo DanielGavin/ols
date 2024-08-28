@@ -50,6 +50,11 @@
 			"type": "string",
 			"enum": ["CRLF", "LF"],
 			"default": "CRLF"
+		},
+		"inline_single_stmt_case": {
+			"type": "boolean",
+			"default": false,
+			"description": "When statement in the clause contains one simple statement, it will inline the case and statement in one line"
 		}
 	},
 	"required": []
