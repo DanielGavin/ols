@@ -1041,9 +1041,14 @@ visit_stmt :: proc(
 
 		document = cons(document, text(v.terminator.text))
 
-		if len(v.body) != 0 {
+		if count := len(v.body); count > 0 {
 			set_source_position(p, v.body[0].pos)
-			document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
+			fst_stmt, is_assign := v.body[0].derived_stmt.(^Assign_Stmt)
+			if is_assign && count == 1 {
+				document = cons_with_opl(document, nest(visit_stmt(p, fst_stmt)))
+			} else {
+				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
+			}
 		}
 	case ^Type_Switch_Stmt:
 		if v.partial {
