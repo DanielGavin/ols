@@ -242,6 +242,11 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 		}
 	}
 
+	// If the file ends with imports.
+	if import_group_start != nil {
+		print_sorted_imports(p, file.decls[import_group_start.?:])
+	}
+
 	if len(p.comments) > 0 {
 		infinite := p.comments[len(p.comments) - 1].end
 		infinite.offset = 9999999
