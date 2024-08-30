@@ -644,11 +644,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.Deprecated}
 		}
 
-		if expr.file_private {
+		if expr.private == .File {
 			symbol.flags |= {.PrivateFile}
 		}
 
-		if expr.package_private {
+		if expr.private == .Package {
 			symbol.flags |= {.PrivatePackage}
 		}
 
