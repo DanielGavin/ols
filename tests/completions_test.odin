@@ -2,6 +2,7 @@ package tests
 
 import "core:fmt"
 import "core:testing"
+import "core:strings"
 
 import test "src:testing"
 
@@ -1067,6 +1068,44 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, ".", {})
+}
+
+@(test)
+ast_file_tag_private_completion :: proc(t: ^testing.T) {
+	comments := []string{
+		"// +private",
+		"//+private file",
+		"// +build  ignore",
+	}
+
+	for comment in comments {
+		
+		b := strings.builder_make(context.temp_allocator)
+		
+		strings.write_string(&b, comment)
+		strings.write_string(&b, `
+			package my_package
+
+			my_proc :: proc() -> bool {}
+		`)
+
+		source := test.Source {
+			main     = `package main
+			import "my_package"
+			main :: proc() {
+				my_package.{*}
+			}
+			`,
+			packages = {
+				{
+					pkg = "my_package",
+					source = strings.to_string(b),
+				}
+			},
+		}
+
+		test.expect_completion_details(t, &source, ".", {})
+	}
 }
 
 @(test)
