@@ -265,11 +265,12 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 		return document
 	case ^Import_Decl:
-		document := move_line(p, decl.pos)
-
+		document := empty()
 		if len(v.attributes) > 0 {
 			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
 		}
+
+		document = cons(document, move_line(p, decl.pos))
 
 		if v.name.text != "" {
 			document = cons(
@@ -820,8 +821,8 @@ visit_attributes :: proc(p: ^Printer, attributes: ^[dynamic]^ast.Attribute, pos:
 
 	//Ensure static is not forced newline, but until if the width is full
 	if len(attributes) == 1 && len(attributes[0].elems) == 1 {
-		if ident, ok := attributes[0].elems[0].derived.(^ast.Ident); ok && ident.name == "static" {
-			document = cons(document, text("@"), text("("), visit_expr(p, attributes[0].elems[0]), text(")"))
+		if ident, ok := attributes[0].elems[0].derived.(^ast.Ident); ok && (ident.name == "static" || ident.name == "require") {
+			document = cons(document, text("@"), text("("), visit_expr(p, attributes[0].elems[0]), text(")"), break_with_no_newline())
 			set_source_position(p, pos)
 			return document
 		}

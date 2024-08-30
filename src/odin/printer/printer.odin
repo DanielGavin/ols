@@ -273,6 +273,12 @@ print_sorted_imports :: proc(p: ^Printer, decls: []^ast.Stmt) {
 		decl.pos.line = start_line + i
 		decl.end.line = start_line + i
 
+		imp := decl.derived.(^ast.Import_Decl)
+		for attr in imp.attributes {
+			attr.pos.line = start_line + i
+			attr.end.line = start_line + i
+		}
+
 		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
 	}
 }
