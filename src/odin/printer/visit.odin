@@ -849,6 +849,12 @@ visit_state_flags :: proc(p: ^Printer, flags: ast.Node_State_Flags) -> ^Document
 	if .Bounds_Check in flags {
 		return cons(text("#bounds_check"), break_with_no_newline())
 	}
+	if .No_Type_Assert in flags {
+		return cons(text("#no_type_assert"), break_with_no_newline())
+	}
+	if .Type_Assert in flags {
+		return cons(text("#type_assert"), break_with_no_newline())
+	}
 	return empty()
 }
 
