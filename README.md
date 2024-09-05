@@ -214,14 +214,22 @@ lspconfig.ols.setup({})
 ### Emacs
 
 ```elisp
-;; With odin-mode (https://github.com/mattt-b/odin-mode) and lsp-mode already added to your init.el of course!.
-(setq-default lsp-auto-guess-root t) ;; if you work with Projectile/project.el this will help find the ols.json file.
-(defvar lsp-language-id-configuration '((odin-mode . "odin")))
-(lsp-register-client
- (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable")
-				  :major-modes '(odin-mode)
-				  :server-id 'ols
-				  :multi-root t)) ;; This is just so lsp-mode sends the "workspaceFolders" param to the server.
+;; Enable odin-mode and configure OLS as the language server
+(use-package! odin-mode
+  :mode ("\\.odin\\'" . odin-mode)
+  :hook (odin-mode . lsp))
+
+;; Set up OLS as the language server for Odin, ensuring lsp-mode is loaded first
+(with-eval-after-load 'lsp-mode
+  (setq-default lsp-auto-guess-root t) ;; Helps find the ols.json file with Projectile or project.el
+  (setq lsp-language-id-configuration (cons '(odin-mode . "odin") lsp-language-id-configuration))
+
+  (lsp-register-client
+   (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable") ;; Adjust the path here
+                    :major-modes '(odin-mode)
+                    :server-id 'ols
+                    :multi-root t))) ;; Ensures lsp-mode sends "workspaceFolders" to the server
+
 (add-hook 'odin-mode-hook #'lsp)
 ```
 
