@@ -234,8 +234,18 @@ lspconfig.ols.setup({})
 ```
 
 ### Helix
-Guide for installing helix with ols:
-https://github.com/joaocarvalhoopen/Helix_editor_for_the_Odin_programming_Language
+
+Helix supports Odin and OLS by default. One can enable it through their languages.toml. Example config:
+```toml
+# Optional. The default configration requires OLS in PATH env. variable. If not,
+# you can set path to the executable like so:
+# [language-server.ols]
+# command = "path/to/executable"
+
+[[language]]
+name = "odin"
+```
+
 ### Micro
 
 Install the [LSP plugin](https://github.com/AndCake/micro-plugin-lsp)
