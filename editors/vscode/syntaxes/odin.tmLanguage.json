@@ -3,11 +3,54 @@
 	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
 	"name": "Odin",
 	"patterns": [
+		{ "include": "#file-tags" },
 		{ "include": "#package-name-declaration" },
 		{ "include": "#import-declaration" },
 		{ "include": "#statements" }
 	],
 	"repository": {
+		"file-tags": {
+			"name": "comment.line.double-slash.odin",
+			"begin": "#\\+[A-Za-z_][A-Za-z0-9_\\-]*",
+			"beginCaptures": {"0": {"name": "entity.name.tag.odin"}},
+			"patterns": [{
+				"name": "punctuation.odin",
+				"match": ","
+			}, {
+				"name": "keyword.operator.logical.odin",
+				"match": "!"
+			}, {
+				"name": "entity.other.attribute-name.odin",
+				"match": "[A-Za-z_][A-Za-z0-9_\\-]*"
+			}],
+			"end": "\n"
+		},
+		"package-name-declaration": {
+			"match": "^\\s*(package)\\s+([A-Za-z_]\\w*)",
+			"captures": {
+				"1": { "name": "keyword.control.odin" },
+				"2": { "name": "entity.name.type.module.odin" }
+			}
+		},
+		"import-declaration": {
+			"name": "meta.import.odin",
+			"begin": "\\b(import|foreign\\s+import)\\b",
+			"beginCaptures": {"0": {"name": "keyword.control.import.odin"}},
+			"end": "(?=^|;)",
+			"patterns": [
+				{	"name": "entity.name.alias.odin",
+					"begin": "\\b[A-Za-z_]\\w*",
+					"beginCaptures": {"0": {"name": "entity.name.namespace.odin"}},
+					"end": "(?=^|;)",
+					"patterns": [
+						{"include": "#strings"},
+						{"include": "#comments"}
+					]
+				},
+				{"include": "#strings"},
+				{"include": "#comments"}
+			]
+		},
 		"statements": {
 			"patterns": [
 				{ "include": "#attribute" },
@@ -243,32 +286,6 @@
 				{ "include": "#type-name" }
 			]
 		},
-		"package-name-declaration": {
-			"match": "^\\s*(package)\\s+([A-Za-z_]\\w*)",
-			"captures": {
-				"1": { "name": "keyword.control.odin" },
-				"2": { "name": "entity.name.type.module.odin" }
-			}
-		},
-		"import-declaration": {
-			"name": "meta.import.odin",
-			"begin": "\\b(import|foreign\\s+import)\\b",
-			"beginCaptures": {"0": {"name": "keyword.control.import.odin"}},
-			"end": "(?=^|;)",
-			"patterns": [
-				{	"name": "entity.name.alias.odin",
-					"begin": "\\b[A-Za-z_]\\w*",
-					"beginCaptures": {"0": {"name": "entity.name.namespace.odin"}},
-					"end": "(?=^|;)",
-					"patterns": [
-						{"include": "#strings"},
-						{"include": "#comments"}
-					]
-				},
-				{"include": "#strings"},
-				{"include": "#comments"}
-			]
-		},
 		"map-bitset": {
 			"begin": "\\b(bit_set|map)\\b",
 			"beginCaptures": { "0": { "name": "storage.type.odin" } },
@@ -359,6 +376,11 @@
 				{
 					"name": "comment.line.double-slash.odin",
 					"begin": "//",
+					"beginCaptures": {"0": {"name": "punctuation.definition.comment.odin"}},
+					"end": "\n"
+				}, {
+					"name": "comment.line.shebang.odin",
+					"begin": "#!",
 					"beginCaptures": {"0": {"name": "punctuation.definition.comment.odin"}},
 					"end": "\n"
 				}
