@@ -357,8 +357,8 @@ simd_reduce_and :: proc(a: #simd[N]T) -> T ---
 simd_reduce_or :: proc(a: #simd[N]T) -> T ---
 simd_reduce_xor :: proc(a: #simd[N]T) -> T ---
 
-simd_reduce_any         :: proc(a: #simd[N]T) -> T ---
-simd_reduce_all         :: proc(a: #simd[N]T) -> T ---
+simd_reduce_any	:: proc(a: #simd[N]T) -> T ---
+simd_reduce_all :: proc(a: #simd[N]T) -> T ---
 
 simd_gather       :: proc(ptr: #simd[N]rawptr, val: #simd[N]T, mask: #simd[N]U) -> #simd[N]T ---
 simd_scatter      :: proc(ptr: #simd[N]rawptr, val: #simd[N]T, mask: #simd[N]U) ---
