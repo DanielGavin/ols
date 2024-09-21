@@ -75,7 +75,7 @@ Odin_Arch_Type :: enum int {
 }
 
 @builtin
-ODIN_ARCH:  Odin_Arch_Type
+ODIN_ARCH: Odin_Arch_Type
 
 Odin_Build_Mode_Type :: enum int {
 	Executable,
@@ -87,6 +87,14 @@ Odin_Build_Mode_Type :: enum int {
 
 @builtin
 ODIN_BUILD_MODE: Odin_Build_Mode_Type
+
+Odin_Error_Pos_Style_Type :: enum int {
+	Default = 0,
+	Unix    = 1,
+}
+
+@builtin
+ODIN_ERROR_POS_STYLE: Odin_Error_Pos_Style_Type
 
 Odin_Endian_Type :: enum int {
 	Unknown,
@@ -127,3 +135,36 @@ ODIN_OPTIMIZATION_MODE: Odin_Optimization_Mode
 
 @builtin
 ODIN_DEBUG: bool
+
+@builtin
+ODIN_WINDOWS_SUBSTSTEM: string
+
+@builtin
+ODIN_VENDOR: string
+
+@builtin
+ODIN_VERSION: string
+
+@builtin
+ODIN_ROOT: string
+
+@builtin
+ODIN_DISABLE_ASSERT: bool
+
+@builtin
+ODIN_DEFAULT_TO_NIL_ALLOCATOR: bool
+
+@builtin
+ODIN_DEFAULT_TO_PANIC_ALLOCATOR: bool
+
+@builtin
+ODIN_NO_CRT: bool
+
+@builtin
+ODIN_NO_ENTRY_POINT: bool
+
+@builtin
+ODIN_NO_RTTI: bool
+
+@builtin
+ODIN_COMPILE_TIMESTAMP: int
