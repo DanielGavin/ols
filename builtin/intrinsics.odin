@@ -287,7 +287,7 @@ type_map_cell_info :: proc($T: typeid)           -> ^runtime.Map_Cell_Info ---
 type_convert_variants_to_pointers :: proc($T: typeid) -> typeid ---
 type_merge :: proc($U, $V: typeid) -> typeid ---
 
-type_has_shared_fields :: proc($U, $V: typeid) -> bool typeid ---
+type_has_shared_fields :: proc($U, $V: typeid) -> bool ---
 
 constant_utf16_cstring :: proc($literal: string) -> [^]u16 ---
 
