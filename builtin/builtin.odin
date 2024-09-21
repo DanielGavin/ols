@@ -137,7 +137,7 @@ ODIN_OPTIMIZATION_MODE: Odin_Optimization_Mode
 ODIN_DEBUG: bool
 
 @builtin
-ODIN_WINDOWS_SUBSTSTEM: string
+ODIN_WINDOWS_SUBSYSTEM: string
 
 @builtin
 ODIN_VENDOR: string
