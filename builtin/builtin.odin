@@ -75,7 +75,13 @@ Odin_Arch_Type :: enum int {
 }
 
 @builtin
+ODIN_OS_STRING: string
+
+@builtin
 ODIN_ARCH: Odin_Arch_Type
+
+@builtin
+ODIN_ARCH_STRING: string
 
 Odin_Build_Mode_Type :: enum int {
 	Executable,
@@ -109,6 +115,9 @@ Odin_Platform_Subtarget_Type :: enum int {
 	Default,
 	iOS,
 }
+
+@builtin
+ODIN_ENDIAN_STRING: string
 
 @builtin
 ODIN_PLATFORM_SUBTARGET: Odin_Platform_Subtarget_Type
@@ -168,3 +177,21 @@ ODIN_NO_RTTI: bool
 
 @builtin
 ODIN_COMPILE_TIMESTAMP: int
+
+@builtin
+ODIN_NO_DYNAMIC_LITERALS: bool
+
+@builtin
+ODIN_USE_SEPARATE_MODULES: bool
+
+@builtin
+ODIN_TEST: bool
+
+@builtin
+ODIN_FOREIGN_ERROR_PROCEDURES: bool
+
+@builtin
+ODIN_BUILD_PROJECT_NAME: string
+
+@builtin
+ODIN_VALGRIND_SUPPORT: bool
