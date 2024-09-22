@@ -210,12 +210,11 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.document = empty()
 
 	for tag in file.tags {
-		p.document = cons(p.document, text(tag.text), newline(1))
+		p.document = cons(p.document, text(strings.trim(tag.text, "\r\n")), newline(1))
 		pos := tag.pos
 		pos.line += 1
 		set_source_position(p, pos)
 	}
-
 
 	p.document = cons(p.document, move_line(p, file.pkg_token.pos))
 	p.document = cons(p.document, cons_with_nopl(text(file.pkg_token.text), text(file.pkg_name)))
