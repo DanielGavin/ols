@@ -3,6 +3,12 @@ package ols_builtin
 // Package-Related
 is_package_imported :: proc(package_name: string) -> bool ---
 
+// Matrix Related Procedures
+transpose        :: proc(m: $T/matrix[$R, $C]$E)    -> matrix[C, R]E ---
+outer_product    :: proc(a: $A/[$X]$E, b: $B/[$Y]E) -> matrix[X, Y]E ---
+hadamard_product :: proc(a, b: $T/matrix[$R, $C]$E) -> T ---
+matrix_flatten   :: proc(m: $T/matrix[$R, $C]$E)    -> [R*C]E ---
+
 // Types
 soa_struct :: proc($N: int, $T: typeid) -> type / #soa[N]T
 
@@ -33,6 +39,9 @@ byte_swap :: proc(x: $T) -> T ---
 overflow_add :: proc(lhs, rhs: $T) -> (T, bool) #optional_ok ---
 overflow_sub :: proc(lhs, rhs: $T) -> (T, bool) #optional_ok ---
 overflow_mul :: proc(lhs, rhs: $T) -> (T, bool) #optional_ok ---
+
+saturating_add :: proc(lhs, rhs: $T) -> T ---
+saturating_sub :: proc(lhs, rhs: $T) -> T ---
 
 sqrt :: proc(x: $T) -> T ---
 
@@ -71,7 +80,8 @@ expect :: proc(val, expected_val: T) -> T ---
 
 // Linux and Darwin Only
 syscall :: proc(id: uintptr, args: ..uintptr) -> uintptr ---
-
+// FreeBSD, NetBSD, et cetera
+syscall_bsd :: proc(id: uintptr, args: ..uintptr) -> (uintptr, bool) ---
 
 // Atomics
 Atomic_Memory_Order :: enum {
@@ -219,8 +229,21 @@ type_is_matrix :: proc($T: typeid) -> bool ---
 
 type_has_nil :: proc($T: typeid) -> bool ---
 
+type_is_matrix_row_major    :: proc($T: typeid) -> bool ---
+type_is_matrix_column_major :: proc($T: typeid) -> bool ---
+
 type_is_specialization_of :: proc($T, $S: typeid) -> bool ---
+
 type_is_variant_of :: proc($U, $V: typeid) -> bool ---
+type_union_tag_type       :: proc($T: typeid)              -> typeid ---
+type_union_tag_offset     :: proc($T: typeid)              -> uintptr ---
+type_union_base_tag_value :: proc($T: typeid)              -> int ---
+type_union_variant_count  :: proc($T: typeid)              -> int ---
+type_variant_type_of      :: proc($T: typeid, $index: int) -> typeid ---
+type_variant_index_of     :: proc($U, $V: typeid)          -> int ---
+
+type_bit_set_elem_type       :: proc($T: typeid) -> typeid ---
+type_bit_set_underlying_type :: proc($T: typeid) -> typeid ---
 
 type_has_field :: proc($T: typeid, $name: string) -> bool ---
 type_field_type :: proc($T: typeid, $name: string) -> typeid ---
@@ -232,6 +255,7 @@ type_proc_parameter_type :: proc($T: typeid, index: int) -> typeid ---
 type_proc_return_type :: proc($T: typeid, index: int) -> typeid ---
 
 type_struct_field_count :: proc($T: typeid) -> int ---
+type_struct_has_implicit_padding :: proc($T: typeid) -> bool ---
 
 type_polymorphic_record_parameter_count :: proc($T: typeid) -> typeid ---
 type_polymorphic_record_parameter_value :: proc(
@@ -257,13 +281,26 @@ type_hasher_proc :: proc(
 	hasher: proc "contextless" (data: rawptr, seed: uintptr) -> uintptr
 ) ---
 
+type_map_info      :: proc($T: typeid/map[$K]$V) -> ^runtime.Map_Info ---
+type_map_cell_info :: proc($T: typeid)           -> ^runtime.Map_Cell_Info ---
+
+type_convert_variants_to_pointers :: proc($T: typeid) -> typeid ---
+type_merge :: proc($U, $V: typeid) -> typeid ---
+
+type_has_shared_fields :: proc($U, $V: typeid) -> bool ---
+
 constant_utf16_cstring :: proc($literal: string) -> [^]u16 ---
+
+constant_log2 :: proc($v: $T) -> T ---
 
 // SIMD related
 simd_add :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 simd_sub :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 simd_mul :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 simd_div :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+
+simd_saturating_add  :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+simd_saturating_sub  :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 
 // Keeps Odin's Behaviour
 // (x << y) if y <= mask else 0
@@ -284,10 +321,10 @@ simd_shr_masked :: proc(
 simd_add_sat :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 simd_sub_sat :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 
-simd_and :: proc(a, b: #simd[N]T) -> #simd[N]T ---
-simd_or :: proc(a, b: #simd[N]T) -> #simd[N]T ---
-simd_xor :: proc(a, b: #simd[N]T) -> #simd[N]T ---
-simd_and_not :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+simd_bit_and :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+simd_bit_or :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+simd_bit_xor :: proc(a, b: #simd[N]T) -> #simd[N]T ---
+simd_bit_and_not :: proc(a, b: #simd[N]T) -> #simd[N]T ---
 
 simd_neg :: proc(a: #simd[N]T) -> #simd[N]T ---
 
@@ -320,6 +357,18 @@ simd_reduce_and :: proc(a: #simd[N]T) -> T ---
 simd_reduce_or :: proc(a: #simd[N]T) -> T ---
 simd_reduce_xor :: proc(a: #simd[N]T) -> T ---
 
+simd_reduce_any	:: proc(a: #simd[N]T) -> T ---
+simd_reduce_all :: proc(a: #simd[N]T) -> T ---
+
+simd_gather       :: proc(ptr: #simd[N]rawptr, val: #simd[N]T, mask: #simd[N]U) -> #simd[N]T ---
+simd_scatter      :: proc(ptr: #simd[N]rawptr, val: #simd[N]T, mask: #simd[N]U) ---
+
+simd_masked_load  :: proc(ptr: rawptr, val: #simd[N]T, mask: #simd[N]U) -> #simd[N]T ---
+simd_masked_store :: proc(ptr: rawptr, val: #simd[N]T, mask: #simd[N]U) ---
+
+simd_masked_expand_load    :: proc(ptr: rawptr, val: #simd[N]T, mask: #simd[N]U) -> #simd[N]T ---
+simd_masked_compress_store :: proc(ptr: rawptr, val: #simd[N]T, mask: #simd[N]U) ---
+
 simd_shuffle :: proc(
 	a, b: #simd[N]T,
 	indices: ..int,
@@ -339,11 +388,20 @@ simd_nearest :: proc(a: #simd[N]any_float) -> #simd[N]any_float ---
 simd_to_bits :: proc(v: #simd[N]T) -> #simd[N]Integer ---
 
 // equivalent a swizzle with descending indices, e.g. reserve(a, 3, 2, 1, 0)
-simd_reverse :: proc(a: #simd[N]T) -> #simd[N]T ---
+simd_lanes_reverse :: proc(a: #simd[N]T) -> #simd[N]T ---
 
-simd_rotate_left :: proc(a: #simd[N]T, $offset: int) -> #simd[N]T ---
-simd_rotate_right :: proc(a: #simd[N]T, $offset: int) -> #simd[N]T ---
+simd_lanes_rotate_left :: proc(a: #simd[N]T, $offset: int) -> #simd[N]T ---
+simd_lanes_rotate_right :: proc(a: #simd[N]T, $offset: int) -> #simd[N]T ---
 
+// Checks if the current target supports the given target features.
+//
+// Takes a constant comma-seperated string (eg: "sha512,sse4.1"), or a procedure type which has either
+// `@(require_target_feature)` or `@(enable_target_feature)` as its input and returns a boolean indicating
+// if all listed features are supported.
+has_target_feature :: proc($test: $T) -> bool ---
+
+// Returns the value of the procedure where `x` must be a call expression
+procedure_of :: proc(x: $T) -> T ---
 
 // WASM targets only
 wasm_memory_grow :: proc(index, delta: uintptr) -> int ---

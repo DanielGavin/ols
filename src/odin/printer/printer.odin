@@ -252,6 +252,11 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 		}
 	}
 
+	// If the file ends with imports.
+	if import_group_start != nil {
+		print_sorted_imports(p, file.decls[import_group_start.?:])
+	}
+
 	if len(p.comments) > 0 {
 		infinite := p.comments[len(p.comments) - 1].end
 		infinite.offset = 9999999
@@ -282,6 +287,12 @@ print_sorted_imports :: proc(p: ^Printer, decls: []^ast.Stmt) {
 	for decl, i in decls {
 		decl.pos.line = start_line + i
 		decl.end.line = start_line + i
+
+		imp := decl.derived.(^ast.Import_Decl)
+		for attr in imp.attributes {
+			attr.pos.line = start_line + i
+			attr.end.line = start_line + i
+		}
 
 		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
 	}
