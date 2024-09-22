@@ -122,7 +122,7 @@ jobs:
         cd dist
         ren ols.exe ols-x86_64-pc-windows-msvc.exe
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: dist-x86_64-pc-windows-msvc
         path: ./dist
