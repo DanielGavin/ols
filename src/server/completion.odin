@@ -180,6 +180,7 @@ DIRECTIVE_NAME_LIST :: []string {
 	"caller_location",
 	/* call directives */
 	"location",
+	"caller_expression",
 	"exists",
 	"load",
 	"load_directory",
