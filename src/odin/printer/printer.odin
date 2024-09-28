@@ -129,13 +129,18 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 
 	for group in p.comments {
 		for comment in group.list {
-			comment_text, _ := strings.replace_all(comment.text[:], " ", "", context.temp_allocator)
 
-			if strings.contains(comment_text, "//odinfmt:disable") {
+			if !strings.starts_with(comment.text, "//") do continue
+			comment_text := strings.trim_left_space(comment.text[len("//"):])
+
+			if !strings.starts_with(comment_text, "odinfmt:") do continue
+			action := strings.trim_space(comment_text[len("odinfmt:"):])
+
+			if action == "disable" {
 				found_disable = true
 				empty = true
 				disable_position = comment.pos
-			} else if strings.contains(comment_text, "//odinfmt:enable") && found_disable {
+			} else if found_disable && action == "enable" {
 				begin := disable_position.offset - (comment.pos.column - 1)
 				end := comment.pos.offset + len(comment.text)
 
@@ -146,7 +151,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 					empty      = empty,
 				}
 
-				for line := disable_position.line; line <= comment.pos.line; line += 1 {
+				for line in disable_position.line..=comment.pos.line {
 					p.disabled_lines[line] = disabled_info
 				}
 
