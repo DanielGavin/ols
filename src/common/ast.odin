@@ -253,7 +253,7 @@ collect_value_decl :: proc(
 		return
 	}
 
-	global_expr := GlobalExpr{
+	global_expr := GlobalExpr {
 		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
 		attributes = value_decl.attributes[:],

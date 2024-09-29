@@ -1,19 +1,19 @@
 package common
 
-import "core:strings"
 import "core:fmt"
+import "core:strings"
 
 /*
 	Ported from https://github.com/llvm/llvm-project/blob/master/clang-tools-extra/clangd/FuzzyMatch.cpp
 */
 
 max_pattern :: 63
-max_word    :: 256
+max_word :: 256
 
 awful_score: int = -(1 << 13)
 perfect_bonus :: 4
-miss          :: 0
-match         :: 1
+miss :: 0
+match :: 1
 
 FuzzyCharTypeSet :: u8
 
@@ -84,19 +84,19 @@ make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator)
 	matcher := new(FuzzyMatcher, allocator)
 
 	matcher.pattern_count = min(len(pattern), max_pattern)
-	matcher.score_scale   = matcher.pattern_count > 0 ? 1 / cast(f32)(perfect_bonus * matcher.pattern_count) : 0
-	matcher.pattern       = pattern[0:matcher.pattern_count]
+	matcher.score_scale = matcher.pattern_count > 0 ? 1 / cast(f32)(perfect_bonus * matcher.pattern_count) : 0
+	matcher.pattern = pattern[0:matcher.pattern_count]
 	matcher.lower_pattern = strings.to_lower(matcher.pattern, context.temp_allocator)
 
 	score_info_miss: FuzzyScoreInfo
 	score_info_miss.score = 0
-	score_info_miss.prev  = miss
+	score_info_miss.prev = miss
 
 	matcher.scores[0][0][miss] = score_info_miss
 
 	score_info_match: FuzzyScoreInfo
 	score_info_match.score = awful_score
-	score_info_match.prev  = match
+	score_info_match.prev = match
 
 	matcher.scores[0][0][match] = score_info_match
 
@@ -106,8 +106,8 @@ make_fuzzy_matcher :: proc(pattern: string, allocator := context.temp_allocator)
 
 			for a := 0; a < 2; a += 1 {
 				score_info: FuzzyScoreInfo
-				score_info.score        = awful_score
-				score_info.prev         = miss
+				score_info.score = awful_score
+				score_info.prev = miss
 				matcher.scores[p][w][a] = score_info
 				ref := matcher.pattern_role[:matcher.pattern_count]
 				matcher.pattern_type_set = fuzzy_calculate_roles(matcher.pattern, &ref)
@@ -125,7 +125,7 @@ fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
 		return "", false
 	}
 
-	i         := 1
+	i := 1
 	last_char := word[0]
 
 	strings.write_byte(&builder, last_char)
@@ -151,7 +151,7 @@ fuzzy_to_acronym :: proc(word: string) -> (string, bool) {
 }
 //changed from bool to int because of a linux bug - 10.05.2021
 fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, int) {
-	
+
 	if !fuzzy_init(matcher, word) {
 		return 0, 0
 	}
@@ -168,8 +168,10 @@ fuzzy_match :: proc(matcher: ^FuzzyMatcher, word: string) -> (f32, int) {
 
 	fuzzy_build_graph(matcher)
 
-	best := max(cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score,
-	   cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score)
+	best := max(
+		cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][miss].score,
+		cast(int)matcher.scores[matcher.pattern_count][matcher.word_count][match].score,
+	)
 
 	if fuzzy_is_awful(best) {
 		return 0.0, 0
@@ -228,7 +230,7 @@ fuzzy_packed_lookup :: proc(data: $A/[]$T, i: uint) -> T {
 }
 
 fuzzy_init :: proc(matcher: ^FuzzyMatcher, word: string) -> bool {
-	matcher.word       = word
+	matcher.word = word
 	matcher.word_count = min(max_word, len(matcher.word))
 
 	if matcher.pattern_count > matcher.word_count {
@@ -261,11 +263,11 @@ fuzzy_init :: proc(matcher: ^FuzzyMatcher, word: string) -> bool {
 }
 
 fuzzy_skip_penalty :: proc(matcher: ^FuzzyMatcher, w: int) -> int {
-	if w == 0 { // Skipping the first character.
+	if w == 0 { 	// Skipping the first character.
 		return 3
 	}
 
-	if matcher.word_role[w] == .Head { // Skipping a segment.
+	if matcher.word_role[w] == .Head { 	// Skipping a segment.
 		return 1
 	}
 
@@ -277,61 +279,63 @@ fuzzy_build_graph :: proc(matcher: ^FuzzyMatcher) {
 
 		s: FuzzyScoreInfo
 
-		score   := cast(int)matcher.scores[0][w][miss].score
+		score := cast(int)matcher.scores[0][w][miss].score
 		penalty := fuzzy_skip_penalty(matcher, w)
-		sum     := score - penalty
+		sum := score - penalty
 
 		s.score = sum
-		s.prev  = miss
+		s.prev = miss
 
 		matcher.scores[0][w + 1][miss] = s
 
 		s.score = awful_score
-		s.prev  = miss
+		s.prev = miss
 
 		matcher.scores[0][w + 1][match] = s
 	}
 
 	for p := 0; p < matcher.pattern_count; p += 1 {
 		for w := p; w < matcher.word_count; w += 1 {
-			score    := &matcher.scores[p + 1][w + 1]
+			score := &matcher.scores[p + 1][w + 1]
 			pre_miss := &matcher.scores[p + 1][w]
 
 			match_miss_score := pre_miss[match].score
-			miss_miss_score  := pre_miss[miss].score
+			miss_miss_score := pre_miss[miss].score
 
 			if p < matcher.pattern_count - 1 {
 				match_miss_score -= fuzzy_skip_penalty(matcher, w)
-				miss_miss_score  -= fuzzy_skip_penalty(matcher, w)
+				miss_miss_score -= fuzzy_skip_penalty(matcher, w)
 			}
 
 			if match_miss_score > miss_miss_score {
 				s: FuzzyScoreInfo
-				s.score     = match_miss_score
-				s.prev      = match
+				s.score = match_miss_score
+				s.prev = match
 				score[miss] = s
 			} else {
 				s: FuzzyScoreInfo
-				s.score     = miss_miss_score
-				s.prev      = miss
+				s.score = miss_miss_score
+				s.prev = miss
 				score[miss] = s
 			}
 
 			pre_match := &matcher.scores[p][w]
 
-			match_match_score := fuzzy_allow_match(matcher, p, w, match) ? cast(int)pre_match[match].score + fuzzy_match_bonus(matcher, p, w, match) : awful_score
+			match_match_score :=
+				fuzzy_allow_match(matcher, p, w, match) ? cast(int)pre_match[match].score + fuzzy_match_bonus(matcher, p, w, match) : awful_score
 
-			miss_match_score := fuzzy_allow_match(matcher, p, w, miss) ? cast(int)pre_match[miss].score + fuzzy_match_bonus(matcher, p, w, miss) : awful_score
+			miss_match_score :=
+				fuzzy_allow_match(matcher, p, w, miss) ? cast(int)pre_match[miss].score + fuzzy_match_bonus(matcher, p, w, miss) : awful_score
 
 			if match_match_score > miss_match_score {
 				s: FuzzyScoreInfo
-				s.score      = match_match_score
-				s.prev       = match
+				s.score = match_match_score
+				s.prev = match
 				score[match] = s
 			} else {
 				s: FuzzyScoreInfo
-				s.score      = miss_match_score
-				s.prev       = miss
+				s.score = miss_match_score
+				s.prev = miss
 				score[match] = s
 			}
 		}
@@ -350,8 +354,8 @@ fuzzy_match_bonus :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> 
 	// Single-case patterns lack segmentation signals and we assume any character
 	// can be a head of a segment.
 	if matcher.pattern[p] == matcher.word[w] ||
-	(matcher.word_role[w] == FuzzyCharRole.Head &&
-	(is_pattern_single_case || matcher.pattern_role[p] == FuzzyCharRole.Head)) {
+	   (matcher.word_role[w] == FuzzyCharRole.Head &&
+			   (is_pattern_single_case || matcher.pattern_role[p] == FuzzyCharRole.Head)) {
 		s += 1
 		//fmt.println("match 1");
 	}
@@ -393,8 +397,9 @@ fuzzy_allow_match :: proc(matcher: ^FuzzyMatcher, p: int, w: int, last: int) -> 
 
 	if last == miss {
 
-		if matcher.word_role[w] == FuzzyCharRole.Tail && (matcher.word[w] == matcher.lower_word[w] ||
-		0 >= (cast(uint)matcher.word_type_set & 1 << cast(uint)FuzzyCharType.Lower)) {
+		if matcher.word_role[w] == FuzzyCharRole.Tail &&
+		   (matcher.word[w] == matcher.lower_word[w] ||
+				   0 >= (cast(uint)matcher.word_type_set & 1 << cast(uint)FuzzyCharType.Lower)) {
 			return false
 		}
 	}

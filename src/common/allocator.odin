@@ -12,17 +12,8 @@ Scratch_Allocator :: struct {
 	leaked_allocations: [dynamic][]byte,
 }
 
-scratch_allocator_init :: proc(
-	s: ^Scratch_Allocator,
-	size: int,
-	backup_allocator := context.allocator,
-) {
-	s.data, _ = mem.make_aligned(
-		[]byte,
-		size,
-		2 * align_of(rawptr),
-		backup_allocator,
-	)
+scratch_allocator_init :: proc(s: ^Scratch_Allocator, size: int, backup_allocator := context.allocator) {
+	s.data, _ = mem.make_aligned([]byte, size, 2 * align_of(rawptr), backup_allocator)
 	s.curr_offset = 0
 	s.prev_allocation = nil
 	s.backup_allocator = backup_allocator
@@ -57,8 +48,7 @@ scratch_allocator_proc :: proc(
 
 	if s.data == nil {
 		DEFAULT_BACKING_SIZE :: 1 << 22
-		if !(context.allocator.procedure != scratch_allocator_proc &&
-			   context.allocator.data != allocator_data) {
+		if !(context.allocator.procedure != scratch_allocator_proc && context.allocator.data != allocator_data) {
 			panic("cyclic initialization of the scratch allocator with itself")
 		}
 		scratch_allocator_init(s, DEFAULT_BACKING_SIZE)
@@ -126,29 +116,13 @@ scratch_allocator_proc :: proc(
 		end := begin + uintptr(len(s.data))
 		old_ptr := uintptr(old_memory)
 
-		data, err := scratch_allocator_proc(
-			allocator_data,
-			.Alloc,
-			size,
-			alignment,
-			old_memory,
-			old_size,
-			loc,
-		)
+		data, err := scratch_allocator_proc(allocator_data, .Alloc, size, alignment, old_memory, old_size, loc)
 		if err != nil {
 			return data, err
 		}
 
 		runtime.copy(data, mem.byte_slice(old_memory, old_size))
-		_, err = scratch_allocator_proc(
-			allocator_data,
-			.Free,
-			0,
-			alignment,
-			old_memory,
-			old_size,
-			loc,
-		)
+		_, err = scratch_allocator_proc(allocator_data, .Free, 0, alignment, old_memory, old_size, loc)
 		return data, err
 
 	case .Query_Features:

@@ -151,7 +151,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 					empty      = empty,
 				}
 
-				for line in disable_position.line..=comment.pos.line {
+				for line in disable_position.line ..= comment.pos.line {
 					p.disabled_lines[line] = disabled_info
 				}
 

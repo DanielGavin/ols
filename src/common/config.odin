@@ -4,6 +4,7 @@ ConfigProfile :: struct {
 	os:           string,
 	name:         string,
 	checker_path: [dynamic]string,
+	defines:      map[string]string,
 }
 
 Config :: struct {
