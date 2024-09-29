@@ -1,8 +1,8 @@
 package tests
 
 import "core:fmt"
-import "core:testing"
 import "core:strings"
+import "core:testing"
 
 import test "src:testing"
 
@@ -1072,16 +1072,12 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 
 @(test)
 ast_file_tag_private_completion :: proc(t: ^testing.T) {
-	comments := []string{
-		"// +private",
-		"//+private file",
-		"// +build  ignore",
-	}
+	comments := []string{"// +private", "//+private file", "// +build  ignore"}
 
 	for comment in comments {
-		
+
 		b := strings.builder_make(context.temp_allocator)
-		
+
 		strings.write_string(&b, comment)
 		strings.write_string(&b, `
 			package my_package
@@ -1096,12 +1092,7 @@ ast_file_tag_private_completion :: proc(t: ^testing.T) {
 				my_package.{*}
 			}
 			`,
-			packages = {
-				{
-					pkg = "my_package",
-					source = strings.to_string(b),
-				}
-			},
+			packages = {{pkg = "my_package", source = strings.to_string(b)}},
 		}
 
 		test.expect_completion_details(t, &source, ".", {})
@@ -2833,6 +2824,35 @@ ast_generics_function_with_comp_lit_struct :: proc(t: ^testing.T) {
 		".",
 		{"CoolStruct.val1: int", "CoolStruct.val2: int", "CoolStruct.val3: int"},
 	)
+}
+
+@(test)
+ast_generics_struct_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+	Pair :: struct($A, $B: typeid) {
+		a: A,
+		b: B,
+	}
+
+	Foo :: struct {
+		cool: int,
+	}
+
+	select :: proc($T: typeid, search: []Pair(string, any), allocator := context.temp_allocator) -> []T {
+
+	}
+
+
+	main :: proc() {
+		d := select(Foo, []Pair(string, any){})
+		d[0].c{*}
+	}
+	`,
+	}
+
+	test.expect_completion_details(t, &source, ".", {"Foo.cool: int"})
+
 }
 
 @(test)

@@ -427,9 +427,6 @@ resolve_generic_function :: proc {
 }
 
 resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
-
-	using ast
-
 	if proc_lit.type.params == nil {
 		return Symbol{}, false
 	}
@@ -505,8 +502,6 @@ resolve_generic_function_symbol :: proc(
 					if poly, ok := name.derived.(^ast.Poly_Type); ok {
 						poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
 					}
-				} else {
-					return {}, false
 				}
 			} else {
 				return {}, false
