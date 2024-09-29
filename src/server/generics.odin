@@ -503,8 +503,6 @@ resolve_generic_function_symbol :: proc(
 						poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
 					}
 				}
-			} else {
-				return {}, false
 			}
 
 			i += 1
