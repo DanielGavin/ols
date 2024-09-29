@@ -79,6 +79,7 @@
 		"expressions": {
 			"patterns": [
 				{ "include": "#comments" },
+				{ "include": "#ternary" },
 				{ "include": "#map-bitset" },
 				{ "include": "#slice" },
 				{ "include": "#keywords" },
@@ -86,6 +87,8 @@
 				{ "include": "#basic-types" },
 				{ "include": "#procedure-calls" },
 				{ "include": "#property-access" },
+				{ "include": "#union-member-access" },
+				{ "include": "#union-non-nil-access" },
 				{ "include": "#strings" },
 				{ "include": "#punctuation" },
 				{ "include": "#variable-name" }
@@ -355,20 +358,51 @@
 				}
 			]
 		},
+		"ternary": {
+			"name": "meta.ternary.odin",
+			"begin": "\\?",
+			"beginCaptures": { "0": { "name": "keyword.operator.ternary.odin" } },
+			"end": ":",
+			"endCaptures": { "0": { "name": "keyword.operator.ternary.odin" } },
+			"patterns": [{ "include": "#expressions" }]
+		},
 		"slice": {
 			"name": "meta.slice.odin",
 			"begin": "\\[",
 			"beginCaptures": { "0": { "name": "meta.brace.square.odin" } },
 			"end": "\\]",
 			"endCaptures": { "0": { "name": "meta.brace.square.odin" } },
-			"patterns": [ { "include": "#expressions" } ]
+			"patterns": [
+				{ "match": "\\?", "name": "keyword.operator.array.odin" },
+				{ "match": ":", "name": "keyword.operator.slice.odin" },
+				{ "include": "#expressions" }
+			]
 		},
 		"property-access": {
+			"match": "([A-Za-z_]\\w*)\\s*(\\.)\\s*(?=[A-Za-z_]\\w*)",
 			"captures": {
 				"1": { "name": "variable.other.object.odin" },
 				"2": { "name": "punctuation.accessor.odin" }
+			}
+		},
+		"union-member-access": {
+			"begin": "([A-Za-z_]\\w*)\\s*(\\.)\\s*(\\()",
+			"beginCaptures": {
+				"1": { "name": "variable.other.object.odin" },
+				"2": { "name": "punctuation.accessor.odin" },
+				"3": { "name": "meta.brace.round.odin" }
 			},
-			"match": "([A-Za-z_]\\w*)\\s*(\\.)(?=\\s*[A-Za-z_]\\w*)"
+			"end": "\\)",
+			"endCaptures": {"0": { "name": "meta.brace.round.odin" }},
+			"patterns": [{ "include": "#type-declaration" }]
+		},
+		"union-non-nil-access": {
+			"match": "([A-Za-z_]\\w*)\\s*(\\.)\\s*(\\?)",
+			"captures": {
+				"1": { "name": "variable.other.object.odin" },
+				"2": { "name": "punctuation.accessor.odin" },
+				"3": { "name": "punctuation.accessor.optional.odin" }
+			}
 		},
 		"comments": {
 			"patterns": [
@@ -509,10 +543,6 @@
 				{
 					"match": "->",
 					"name": "storage.type.function.arrow.odin"
-				},
-				{
-					"name": "keyword.operator.ternary.odin",
-					"match": "\\?"
 				},
 				{
 					"name": "keyword.operator.odin",

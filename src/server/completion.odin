@@ -178,8 +178,10 @@ DIRECTIVE_NAME_LIST :: []string {
 	"line",
 	"procedure",
 	"caller_location",
+	"reverse",
 	/* call directives */
 	"location",
+	"caller_expression",
 	"exists",
 	"load",
 	"load_directory",
