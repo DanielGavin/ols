@@ -1574,6 +1574,11 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, visit_expr(p, v.align))
 		}
 
+		if v.max_field_align != nil {
+			document = cons_with_nopl(document, text("#field_align"))
+			document = cons_with_nopl(document, visit_expr(p, v.max_field_align))
+    }
+
 		if v.min_field_align != nil {
 			document = cons_with_nopl(document, text("#field_align"))
 			document = cons_with_nopl(document, visit_expr(p, v.min_field_align))
