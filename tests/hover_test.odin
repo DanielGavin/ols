@@ -132,11 +132,7 @@ ast_hover_procedure_with_default_comp_lit :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(
-		t,
-		&source,
-		"test.fa: proc(color_: Color = {255, 255, 255, 255})",
-	)
+	test.expect_hover(t, &source, "test.fa: proc(color_: Color = {255, 255, 255, 255})")
 }
 
 @(test)
@@ -308,6 +304,24 @@ ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "my_package.My_Struct: struct")
 }
+
+/*
+Issue in `core:odin/parser` it sets the wrong column and end offset for line 2.
+
+@(test)
+ast_hover_consecutive_non_mutable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+a :: int
+{*}b :: int
+		`,
+		packages = {},
+	}
+
+	test.expect_hover(t, &source, "test.a: boffol")
+}
+*/
+
 
 /*
 TODO: Allow for testing multiple files

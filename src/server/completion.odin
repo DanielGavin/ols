@@ -1299,7 +1299,7 @@ get_identifier_completion :: proc(
 						CombinedResult {
 							score = score * 1.7,
 							type = symbol.type,
-							name = ident.name,
+							name = clean_ident(ident.name),
 							doc = symbol.doc,
 							flags = symbol.flags,
 							pkg = symbol.pkg,
@@ -1532,6 +1532,12 @@ get_package_completion :: proc(
 	}
 
 	list.items = items[:]
+}
+
+clean_ident :: proc(ident: string) -> string {
+	//Identifiers can be attached with $ for poly types, but we don't want to show those on completion.
+	name, _ := strings.replace(ident, "$", "", 1, context.temp_allocator)
+	return name
 }
 
 search_for_packages :: proc(fullpath: string) -> []string {
