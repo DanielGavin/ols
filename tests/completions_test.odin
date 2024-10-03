@@ -1666,7 +1666,7 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 	}
 
 	//TODO(Add proper completion support, but right now it's just to ensure no crashes)
-	test.expect_completion_details(t, &source, ".", {})
+	test.expect_completion_details(t, &source, ".", {"two"})
 }
 
 @(test)
