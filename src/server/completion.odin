@@ -834,6 +834,35 @@ get_implicit_completion :: proc(
 		reset_ast_context(ast_context)
 	}
 
+	/*
+		if it's comp literals for enumerated array:
+			asset_paths := [Asset]cstring {
+				.Layer0 = "assets/layer0.png",
+			}
+		
+		Right now `core:odin/parser` is not tolerant enough, so I just look at the type and if it's a enumerated array. I can't get the field value is on the left side.
+	*/
+	if position_context.comp_lit != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.comp_lit); ok {
+			if symbol_value, ok := symbol.value.(SymbolFixedArrayValue); ok {
+				if enum_value, ok := unwrap_enum(ast_context, symbol_value.len); ok {
+					for enum_name in enum_value.names {
+						item := CompletionItem {
+							label  = enum_name,
+							kind   = .EnumMember,
+							detail = enum_name,
+						}
+
+						append(&items, item)
+					}
+
+					list.items = items[:]
+					return
+				}
+			}
+		}
+	}
+
 	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
 	if position_context.comp_lit != nil {
 		if position_context.parent_comp_lit.type != nil {
