@@ -2870,11 +2870,25 @@ get_locals_stmt :: proc(
 		get_locals_stmt(file, v.else_stmt, ast_context, document_position)
 		get_locals_stmt(file, v.body, ast_context, document_position)
 	case ^Case_Clause:
-		for stmt in v.body {
-			get_locals_stmt(file, stmt, ast_context, document_position)
-		}
+		get_locals_case_clause(file, v, ast_context, document_position)
 	case:
 	//log.debugf("default node local stmt %v", v);
+	}
+}
+
+get_locals_case_clause :: proc(
+	file: ast.File,
+	case_clause: ^ast.Case_Clause,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(case_clause.pos.offset <= document_position.position &&
+		   document_position.position <= case_clause.end.offset) {
+		return
+	}
+
+	for stmt in case_clause.body {
+		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
 }
 

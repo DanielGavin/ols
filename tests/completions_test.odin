@@ -2955,3 +2955,21 @@ ast_raw_data_slice_2 :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.rezz: [^]int"})
 }
+
+@(test)
+ast_switch_completion_multiple_cases :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			switch {
+			case true:
+				foozz: int
+			case false:
+				fooz{*}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {})
+}
