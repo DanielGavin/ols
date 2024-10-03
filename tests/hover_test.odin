@@ -305,6 +305,31 @@ ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "my_package.My_Struct: struct")
 }
 
+@(test)
+ast_hover_package_with_value_decl_same_name :: proc(t: ^testing.T) {
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package{pkg = "my_package", source = `package my_package
+		my_package :: proc() -> int {}
+		`},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc() {
+			_ = my_package.my_pack{*}age()
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.my_package: proc() -> int")
+}
+
 /*
 Issue in `core:odin/parser` it sets the wrong column and end offset for line 2.
 

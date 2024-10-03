@@ -1172,20 +1172,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 	}
 
-	for imp in ast_context.imports {
-		if strings.compare(imp.base, node.name) == 0 {
-			symbol := Symbol {
-				type  = .Package,
-				pkg   = imp.name,
-				value = SymbolPackageValue{},
-			}
-
-			try_build_package(symbol.pkg)
-
-			return symbol, true
-		}
-	}
-
 	if local, ok := get_local(ast_context^, node); ok && ast_context.use_locals {
 		is_distinct := false
 
@@ -1284,7 +1270,27 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 		return return_symbol, ok
 
-	} else if global, ok := ast_context.globals[node.name];
+	}
+
+	for imp in ast_context.imports {
+		if imp.name == ast_context.current_package {
+			continue
+		}
+
+		if strings.compare(imp.base, node.name) == 0 {
+			symbol := Symbol {
+				type  = .Package,
+				pkg   = imp.name,
+				value = SymbolPackageValue{},
+			}
+
+			try_build_package(symbol.pkg)
+
+			return symbol, true
+		}
+	}
+
+	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
 		is_distinct := false
 		ast_context.use_locals = false
