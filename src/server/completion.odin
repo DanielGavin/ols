@@ -393,6 +393,8 @@ get_selector_completion :: proc(
 					containsColor += 1
 				} else if _, ok := swizzle_coord_map[c]; ok {
 					containsCoord += 1
+				} else {
+					return
 				}
 			}
 		}

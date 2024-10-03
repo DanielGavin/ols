@@ -973,6 +973,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 				for c in v.field.name {
 					if c == 'x' || c == 'y' || c == 'z' || c == 'w' || c == 'r' || c == 'g' || c == 'b' || c == 'a' {
 						components_count += 1
+					} else {
+						return {}, false
 					}
 				}
 
