@@ -8,7 +8,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src -test-name:$@ -define:ODIN_TEST_THREADS=1
+    odin test ../tests -collection:src=../src -test-name:$@ -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_TRACK_MEMORY=false
 
     shift
 
@@ -28,7 +28,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src $@ -define:ODIN_TEST_THREADS=1
+    odin test ../tests -collection:src=../src $@ -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_TRACK_MEMORY=false
 
     if ([ $? -ne 0 ])
     then

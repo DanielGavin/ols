@@ -495,6 +495,25 @@ resolve_generic_function_symbol :: proc(
 					return {}, false
 				}
 
+				//If we have a function call, we should instead look at the return value: bar(foo(123))
+				if symbol_value, ok := symbol.value.(SymbolProcedureValue); ok && len(symbol_value.return_types) > 0 {
+					if _, ok := call_expr.args[i].derived.(^ast.Call_Expr); ok {
+						if symbol_value.return_types[0].type != nil {
+							if symbol, ok = resolve_type_expression(ast_context, symbol_value.return_types[0].type);
+							   ok {
+								symbol_expr = symbol_to_expr(
+									symbol,
+									call_expr.args[i].pos.file,
+									context.temp_allocator,
+								)
+								if symbol_expr == nil {
+									return {}, false
+								}
+							}
+						}
+					}
+				}
+
 				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
 				param_type := clone_expr(param.type, ast_context.allocator, nil)
 

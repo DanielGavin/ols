@@ -2973,3 +2973,26 @@ ast_switch_completion_multiple_cases :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {})
 }
+
+
+@(test)
+ast_generics_chained_procedures :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		foo :: proc (v: int) -> int {
+			return v
+		}
+
+		bar :: proc (v: $T) -> T {
+			return v
+		}
+
+		main :: proc () {
+			valzz := bar(foo(123))
+			valz{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.valzz: int"})
+}
