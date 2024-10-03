@@ -365,8 +365,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 			visit_node(n.y, builder)
 		}
 	case ^Ternary_When_Expr:
-		visit_node(n.cond, builder)
 		visit_node(n.x, builder)
+		visit_node(n.cond, builder)
 		visit_node(n.y, builder)
 	case ^Union_Type:
 		visit_nodes(n.variants, builder)
