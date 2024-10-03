@@ -276,6 +276,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
 	case ^Block_Stmt:
+		local_scope(data, n)
 		resolve_node(n.label, data)
 		resolve_nodes(n.stmts, data)
 	case ^Implicit:
