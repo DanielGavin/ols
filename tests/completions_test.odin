@@ -2878,6 +2878,26 @@ ast_generics_struct_poly :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_generics_pointer_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		AAA :: struct($T: typeid) {
+			value: ^T,
+		}
+
+		main :: proc() {
+			ttt: AAA(int)
+			ttt.{*}
+		}
+	`,
+	}
+
+	test.expect_completion_details(t, &source, ".", {"AAA.value: ^int"})
+
+}
+
+
+@(test)
 ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main

@@ -708,6 +708,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 						v.elem = expr
 					case ^ast.Dynamic_Array_Type:
 						v.elem = expr
+					case ^ast.Pointer_Type:
+						v.elem = expr
 					}
 				} else {
 					data.symbol_value.types[data.i] = expr
@@ -717,7 +719,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr:
+		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type:
 			data.parent = node
 		}
 
