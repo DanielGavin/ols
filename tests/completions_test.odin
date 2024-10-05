@@ -2995,3 +2995,39 @@ ast_generics_chained_procedures :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.valzz: int"})
 }
+
+@(test)
+ast_generics_untyped_int_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		foo :: proc(x: $T) -> T {
+			return x + 1
+		}
+
+		test :: proc() {
+			valzz := foo(2)
+			valz{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.valzz: int"})
+}
+
+@(test)
+ast_generics_untyped_bool_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		foo :: proc(x: $T) -> T {
+			return x + 1
+		}
+
+		test :: proc() {
+			valzz := foo(false)
+			valz{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.valzz: bool"})
+}

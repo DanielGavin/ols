@@ -55,29 +55,29 @@ build_procedure_symbol_signature :: proc(symbol: ^Symbol) {
 
 		strings.write_string(&builder, "proc")
 		strings.write_string(&builder, "(")
-		for arg, i in value.arg_types {
+		for arg, i in value.orig_arg_types {
 			strings.write_string(&builder, common.node_to_string(arg))
-			if i != len(value.arg_types) - 1 {
+			if i != len(value.orig_arg_types) - 1 {
 				strings.write_string(&builder, ", ")
 			}
 		}
 		strings.write_string(&builder, ")")
 
-		if len(value.return_types) != 0 {
+		if len(value.orig_return_types) != 0 {
 			strings.write_string(&builder, " -> ")
 
-			if len(value.return_types) > 1 {
+			if len(value.orig_return_types) > 1 {
 				strings.write_string(&builder, "(")
 			}
 
-			for arg, i in value.return_types {
+			for arg, i in value.orig_return_types {
 				strings.write_string(&builder, common.node_to_string(arg))
-				if i != len(value.return_types) - 1 {
+				if i != len(value.orig_return_types) - 1 {
 					strings.write_string(&builder, ", ")
 				}
 			}
 
-			if len(value.return_types) > 1 {
+			if len(value.orig_return_types) > 1 {
 				strings.write_string(&builder, ")")
 			}
 		}
@@ -91,7 +91,7 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 	if value, ok := &procedure.value.(SymbolProcedureValue); ok {
 		types := make([dynamic]^ast.Field, context.temp_allocator)
 
-		for arg, i in value.arg_types {
+		for arg, i in value.orig_arg_types {
 			if len(arg.names) == 1 {
 				append(&types, arg)
 				continue
@@ -106,7 +106,7 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 			}
 		}
 
-		value.arg_types = types[:]
+		value.orig_arg_types = types[:]
 	}
 }
 
@@ -162,9 +162,9 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
-		parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator)
+		parameters := make([]ParameterInformation, len(value.orig_arg_types), context.temp_allocator)
 
-		for arg, i in value.arg_types {
+		for arg, i in value.orig_arg_types {
 			if arg.type != nil {
 				if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
 					signature_help.activeParameter = min(i, signature_help.activeParameter)
@@ -188,9 +188,9 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 			symbol := symbol
 
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
-				parameters := make([]ParameterInformation, len(value.arg_types), context.temp_allocator)
+				parameters := make([]ParameterInformation, len(value.orig_arg_types), context.temp_allocator)
 
-				for arg, i in value.arg_types {
+				for arg, i in value.orig_arg_types {
 					if arg.type != nil {
 						if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
 							signature_help.activeParameter = min(i, signature_help.activeParameter)

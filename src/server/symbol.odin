@@ -36,9 +36,11 @@ SymbolBitFieldValue :: struct {
 SymbolPackageValue :: struct {}
 
 SymbolProcedureValue :: struct {
-	return_types: []^ast.Field,
-	arg_types:    []^ast.Field,
-	generic:      bool,
+	return_types:      []^ast.Field,
+	arg_types:         []^ast.Field,
+	orig_return_types: []^ast.Field, //If there has been generics, we still store the unaltered version here
+	orig_arg_types:    []^ast.Field, //If there has been generics, we still store the unaltered version here
+	generic:           bool,
 }
 
 SymbolProcedureGroupValue :: struct {
@@ -342,6 +344,7 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 		return type
 	case SymbolUntypedValue:
 		type := new_type(ast.Basic_Lit, pos, end, allocator)
+		type.tok = v.tok
 		return type
 	case SymbolMatrixValue:
 		type := new_type(ast.Matrix_Type, pos, end, allocator)

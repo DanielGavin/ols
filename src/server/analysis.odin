@@ -1155,11 +1155,14 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		case "nil":
 			return {}, false
 		case "true", "false":
+			token := tokenizer.Token {
+				text = ident.name,
+			}
 			return {
 					type = .Keyword,
 					signature = node.name,
 					pkg = ast_context.current_package,
-					value = SymbolUntypedValue{type = .Bool},
+					value = SymbolUntypedValue{type = .Bool, tok = token},
 				},
 				true
 		case:
@@ -1237,7 +1240,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false), true
 				}
 			} else {
-
 				return_symbol, ok =
 					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false), true
 			}
@@ -2303,9 +2305,11 @@ make_symbol_procedure_from_ast :: proc(
 	}
 
 	symbol.value = SymbolProcedureValue {
-		return_types = return_types[:],
-		arg_types    = arg_types[:],
-		generic      = v.generic,
+		return_types      = return_types[:],
+		orig_return_types = return_types[:],
+		arg_types         = arg_types[:],
+		orig_arg_types    = arg_types[:],
+		generic           = v.generic,
 	}
 
 	if _, ok := common.get_attribute_objc_name(attributes); ok {

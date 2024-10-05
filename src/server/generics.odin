@@ -47,11 +47,15 @@ resolve_poly :: proc(
 	if specialization == nil {
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
-				save_poly_map(
-					ident,
-					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
-					poly_map,
-				)
+				if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
+					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
+				} else {
+					save_poly_map(
+						ident,
+						make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
+						poly_map,
+					)
+				}
 			}
 		}
 		return true
@@ -611,8 +615,10 @@ resolve_generic_function_symbol :: proc(
 
 
 	symbol.value = SymbolProcedureValue {
-		return_types = return_types[:],
-		arg_types    = argument_types[:],
+		return_types      = return_types[:],
+		arg_types         = argument_types[:],
+		orig_arg_types    = params[:],
+		orig_return_types = results[:],
 	}
 
 	return symbol, true

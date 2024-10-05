@@ -126,9 +126,11 @@ collect_procedure_fields :: proc(
 	}
 
 	value := SymbolProcedureValue {
-		return_types = returns[:],
-		arg_types    = args[:],
-		generic      = is_procedure_generic(proc_type),
+		return_types      = returns[:],
+		orig_return_types = returns[:],
+		arg_types         = args[:],
+		orig_arg_types    = args[:],
+		generic           = is_procedure_generic(proc_type),
 	}
 
 	return value
