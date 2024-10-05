@@ -219,13 +219,14 @@ resolve_type_comp_literal :: proc(
 
 	set_ast_package_set_scoped(ast_context, current_symbol.pkg)
 
+
 	for elem, element_index in current_comp_lit.elems {
 		if !position_in_node(elem, position_context.position) {
 			continue
 		}
 
 		if field_value, ok := elem.derived.(^ast.Field_Value); ok { 	//named
-			if comp_lit, ok := field_value.value.derived.(^ast.Comp_Lit); ok {
+			if comp_lit, ref_n, ok := common.unwrap_comp_literal(field_value.value); ok {
 				if s, ok := current_symbol.value.(SymbolStructValue); ok {
 					for name, i in s.names {
 						if name == field_value.field.derived.(^ast.Ident).name {
@@ -250,12 +251,7 @@ resolve_type_comp_literal :: proc(
 									}
 								}
 
-								return resolve_type_comp_literal(
-									ast_context,
-									position_context,
-									symbol,
-									cast(^ast.Comp_Lit)field_value.value,
-								)
+								return resolve_type_comp_literal(ast_context, position_context, symbol, comp_lit)
 							}
 						}
 					}

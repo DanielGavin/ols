@@ -3031,3 +3031,30 @@ ast_generics_untyped_bool_value :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.valzz: bool"})
 }
+
+
+@(test)
+ast_generics_call_reference_comp_literal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: struct {
+			something: f32,
+			bar:       ^Bar,
+		}
+
+		Bar :: struct {
+			something_else: i32,
+		}
+
+		my_proc :: proc(foo: ^Foo) {
+
+		}
+
+		main :: proc() {
+			my_proc(&{bar = &Bar{ {*} }})
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"Bar.something_else: i32"})
+}

@@ -146,6 +146,31 @@ get_attribute_objc_is_class_method :: proc(attributes: []^ast.Attribute) -> bool
 	return false
 }
 
+unwrap_comp_literal :: proc(expr: ^ast.Expr) -> (^ast.Comp_Lit, int, bool) {
+	n := 0
+	expr := expr
+	for expr != nil {
+		if unary, ok := expr.derived.(^ast.Unary_Expr); ok {
+			if unary.op.kind == .And {
+				expr = unary.expr
+				n += 1
+			}
+		} else {
+			break
+		}
+	}
+
+	if expr != nil {
+		if comp_literal, ok := expr.derived.(^ast.Comp_Lit); ok {
+			return comp_literal, n, ok
+		}
+
+		return {}, n, false
+	}
+
+	return {}, n, false
+}
+
 unwrap_pointer_ident :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 	n := 0
 	expr := expr
