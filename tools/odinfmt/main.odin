@@ -43,22 +43,9 @@ print_arg_error :: proc(args: []string, error: flag.Flag_Error) {
 }
 
 
-format_file :: proc(
-	filepath: string,
-	config: printer.Config,
-	allocator := context.allocator,
-) -> (
-	string,
-	bool,
-) {
+format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
-		return format.format(
-			filepath,
-			string(data),
-			config,
-			{.Optional_Semicolons},
-			allocator,
-		)
+		return format.format(filepath, string(data), config, {.Optional_Semicolons}, allocator)
 	} else {
 		return "", false
 	}
@@ -66,14 +53,7 @@ format_file :: proc(
 
 files: [dynamic]string
 
-walk_files :: proc(
-	info: os.File_Info,
-	in_err: os.Errno,
-	user_data: rawptr,
-) -> (
-	err: os.Error,
-	skip_dir: bool,
-) {
+walk_files :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
 	if info.is_dir {
 		return nil, false
 	}
@@ -138,13 +118,7 @@ main :: proc() {
 			append(&data, ..tmp[:r])
 		}
 
-		source, ok := format.format(
-			"<stdin>",
-			string(data[:]),
-			config,
-			{.Optional_Semicolons},
-			arena_allocator,
-		)
+		source, ok := format.format("<stdin>", string(data[:]), config, {.Optional_Semicolons}, arena_allocator)
 
 		if ok {
 			fmt.println(source)

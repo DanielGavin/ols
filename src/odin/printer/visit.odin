@@ -1,6 +1,7 @@
 package odin_printer
 
 import "core:fmt"
+import "core:log"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:odin/tokenizer"
@@ -341,7 +342,9 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 			return cons(document, group(lhs))
 		}
 	case:
-		panic(fmt.aprint(decl.derived))
+		log.error(decl.derived)
+		p.errored_out = true
+		return nil
 	}
 
 	return empty()
@@ -1252,7 +1255,9 @@ visit_stmt :: proc(
 			document = cons_with_nopl(document, visit_expr(p, v.label))
 		}
 	case:
-		panic(fmt.aprint(stmt.derived))
+		log.error(stmt.derived)
+		p.errored_out = true
+		return nil
 	}
 
 	set_source_position(p, stmt.end)
@@ -1865,7 +1870,9 @@ visit_expr :: proc(
 		document = cons_with_opl(document, visit_expr(p, v.column_index))
 		document = cons(document, text("]"))
 	case:
-		panic(fmt.aprint(expr.derived))
+		log.error(expr.derived)
+		p.errored_out = true
+		return nil
 	}
 
 	return cons(comments, document)

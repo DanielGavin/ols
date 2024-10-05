@@ -34,10 +34,7 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 			}
 		}
 	} else {
-		new_path := filepath.join(
-			elems = {path, ".."},
-			allocator = context.temp_allocator,
-		)
+		new_path := filepath.join(elems = {path, ".."}, allocator = context.temp_allocator)
 		//Currently the filepath implementation seems to stop at the root level, this might not be the best solution.
 		if new_path == path {
 			return default_style
@@ -87,5 +84,7 @@ format :: proc(
 
 	prnt := printer.make_printer(config, allocator)
 
-	return printer.print(&prnt, &file), true
+	src := printer.print(&prnt, &file)
+
+	return src, !prnt.errored_out
 }

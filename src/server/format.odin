@@ -38,6 +38,10 @@ get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]T
 
 	src := printer.print(&prnt, &document.ast)
 
+	if prnt.errored_out {
+		return {}, true
+	}
+
 	edit := TextEdit {
 		newText = src,
 		range   = common.get_document_range(document.text[0:document.used_text]),

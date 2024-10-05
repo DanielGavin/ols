@@ -30,6 +30,7 @@ Printer :: struct {
 	group_modes:          map[string]Document_Group_Mode,
 	force_statement_fit:  bool,
 	src:                  string,
+	errored_out:          bool,
 }
 
 Disabled_Info :: struct {
@@ -254,6 +255,10 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 
 			p.document = cons(p.document, visit_decl(p, decl))
 		}
+	}
+
+	if p.errored_out {
+		return ""
 	}
 
 	// If the file ends with imports.
