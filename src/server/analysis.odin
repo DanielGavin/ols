@@ -2682,12 +2682,19 @@ get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
 	}
 }
 
+GetGenericAssignmentFlag :: enum {
+	SameLhsRhsCount,
+}
+
+GetGenericAssignmentFlags :: bit_set[GetGenericAssignmentFlag]
+
 get_generic_assignment :: proc(
 	file: ast.File,
 	value: ^ast.Expr,
 	ast_context: ^AstContext,
 	results: ^[dynamic]^ast.Expr,
 	calls: ^map[int]bool,
+	flags: GetGenericAssignmentFlags,
 ) {
 	using ast
 
@@ -2695,11 +2702,11 @@ get_generic_assignment :: proc(
 
 	#partial switch v in value.derived {
 	case ^Or_Return_Expr:
-		get_generic_assignment(file, v.expr, ast_context, results, calls)
+		get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
 	case ^Or_Else_Expr:
-		get_generic_assignment(file, v.x, ast_context, results, calls)
+		get_generic_assignment(file, v.x, ast_context, results, calls, flags)
 	case ^Or_Branch_Expr:
-		get_generic_assignment(file, v.expr, ast_context, results, calls)
+		get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
 	case ^Call_Expr:
 		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
@@ -2759,8 +2766,11 @@ get_generic_assignment :: proc(
 		}
 	case ^ast.Index_Expr:
 		append(results, v)
-		b := make_bool_ast(ast_context, v.expr.pos, v.expr.end)
-		append(results, b)
+		//In order to prevent having to actually resolve the expression, we make the assumption that we need to always add a bool node, if the lhs and rhs don't match.
+		if .SameLhsRhsCount not_in flags {
+			b := make_bool_ast(ast_context, v.expr.pos, v.expr.end)
+			append(results, b)
+		}
 	case ^Type_Assertion:
 		if v.type != nil {
 			if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.kind == .Question {
@@ -2774,7 +2784,6 @@ get_generic_assignment :: proc(
 			append(results, b)
 		}
 	case:
-		//log.debugf("default node get_generic_assignment %v", v);
 		append(results, value)
 	}
 }
@@ -2819,8 +2828,14 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	results := make([dynamic]^Expr, context.temp_allocator)
 	calls := make(map[int]bool, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
 
+	flags: GetGenericAssignmentFlags
+
+	if len(value_decl.names) == len(value_decl.values) {
+		flags |= {.SameLhsRhsCount}
+	}
+
 	for value in value_decl.values {
-		get_generic_assignment(file, value, ast_context, &results, &calls)
+		get_generic_assignment(file, value, ast_context, &results, &calls, flags)
 	}
 
 	if len(results) == 0 {
@@ -3010,7 +3025,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 	calls := make(map[int]bool, 0, context.temp_allocator)
 
 	for rhs in stmt.rhs {
-		get_generic_assignment(file, rhs, ast_context, &results, &calls)
+		get_generic_assignment(file, rhs, ast_context, &results, &calls, {})
 	}
 
 	if len(stmt.lhs) != len(results) {

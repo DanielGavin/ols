@@ -1210,6 +1210,24 @@ ast_value_decl_multiple_name_same_type :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_value_decl_multi_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			x: []int
+			y: []int
+			xzz, yzz := x[0], y[0]
+
+			yz{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.yzz: int"})
+}
+
+
+@(test)
 ast_value_decl_comp_lit :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
