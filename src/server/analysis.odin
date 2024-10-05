@@ -2092,6 +2092,8 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 		return {}, false
 	}
 
+	set_ast_package_scoped(ast_context)
+
 	symbol_a, symbol_b: Symbol
 	ok_a, ok_b: bool
 
@@ -2741,6 +2743,9 @@ get_generic_assignment :: proc(
 						append(results, ret.default_value)
 					}
 				}
+			} else if aggregate, ok := symbol.value.(SymbolAggregateValue); ok {
+				//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
+				append(results, value)
 			} else if ident, ok := v.expr.derived.(^ast.Ident); ok {
 				//TODO: Simple assumption that you are casting it the type. 
 				type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
