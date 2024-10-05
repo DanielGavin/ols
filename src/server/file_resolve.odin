@@ -320,7 +320,16 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Paren_Expr:
 		resolve_node(n.expr, data)
 	case ^Call_Expr:
+		old_call := data.ast_context.call
+
 		data.position_context.call = n
+		data.ast_context.call = n
+
+		defer {
+			data.position_context.call = old_call
+			data.ast_context.call = old_call
+		}
+
 		resolve_node(n.expr, data)
 
 		for arg in n.args {
