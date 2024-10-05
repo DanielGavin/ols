@@ -1492,7 +1492,7 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 		pkg := indexer.index.collection.packages[symbol.pkg]
 
 		if obj_struct, ok := pkg.objc_structs[symbol.name]; ok {
-			for function, i in obj_struct.functions {
+			_objc_function: for function, i in obj_struct.functions {
 				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
 				base.name = obj_struct.pkg
 
@@ -1503,6 +1503,16 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 
 				selector.field = field
 				selector.expr = base
+
+				//Check if the base functions need to be overridden. Potentially look at some faster approach than a linear loop.
+				for name, j in names {
+					if name == function.logical_name {
+						names[j] = function.logical_name
+						types[j] = selector
+						ranges[j] = obj_struct.ranges[i]
+						continue _objc_function
+					}
+				}
 
 				append(&names, function.logical_name)
 				append(&types, selector)
