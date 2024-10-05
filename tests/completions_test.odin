@@ -283,6 +283,29 @@ ast_completion_identifier_proc_group_2 :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_untyped_proc_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		add_num :: proc(a, b: int) -> int {return a + b}
+		add_vec :: proc(a, b: [2]f32) -> [2]f32 {return a + b}
+
+		add :: proc {
+			add_num,
+			add_vec,
+		}
+
+		main :: proc() {
+			foozz := add(2, 10)
+			fooz{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.foozz: int"})
+}
+
+
+@(test)
 ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test

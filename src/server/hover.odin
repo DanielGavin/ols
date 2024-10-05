@@ -247,6 +247,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		hover.range = common.get_token_range(position_context.identifier^, document.ast.src)
 
+		if position_context.call != nil {
+			if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+				ast_context.call = call
+			}
+		}
+
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
 			resolved.signature = get_signature(&ast_context, ident, resolved)
 			resolved.name = ident.name

@@ -592,74 +592,85 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 			}
 
 			if procedure, ok := f.value.(SymbolProcedureValue); ok {
-				count_required_params := 0
+				i := 0
+				named := false
 
-				for arg in procedure.arg_types {
-					if arg.default_value == nil {
-						count_required_params += 1
-					}
-				}
+				for proc_arg in procedure.arg_types {
+					for name in proc_arg.names {
+						if i >= len(call_expr.args) {
+							continue
+						}
 
-				if len(procedure.arg_types) < len(call_expr.args) {
-					continue
-				}
+						call_arg := call_expr.args[i]
 
-				for arg, i in call_expr.args {
-					ast_context.use_locals = true
+						ast_context.use_locals = true
 
-					call_symbol: Symbol
-					arg_symbol: Symbol
-					ok: bool
-					i := i
+						call_symbol: Symbol
+						arg_symbol: Symbol
+						ok: bool
 
-					if _, ok = arg.derived.(^ast.Bad_Expr); ok {
-						continue
-					}
+						if _, ok = call_arg.derived.(^ast.Bad_Expr); ok {
+							continue
+						}
 
-					//named parameter
-					if field, is_field := arg.derived.(^ast.Field_Value); is_field {
-						call_symbol, ok = resolve_type_expression(ast_context, field.value)
+						//named parameter
+						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
+							named = true
+							call_symbol, ok = resolve_type_expression(ast_context, field.value)
+							if !ok {
+								break next_fn
+							}
+
+							if ident, is_ident := field.field.derived.(^ast.Ident); is_ident {
+								i, ok = get_field_list_name_index(
+									field.field.derived.(^ast.Ident).name,
+									procedure.arg_types,
+								)
+							} else {
+								break next_fn
+							}
+						} else {
+							if named {
+								log.error("Expected name parameter after starting named parmeter phase")
+								return {}, false
+							}
+							call_symbol, ok = resolve_type_expression(ast_context, call_arg)
+						}
+
 						if !ok {
 							break next_fn
 						}
 
-						if ident, is_ident := field.field.derived.(^ast.Ident); is_ident {
-							i, ok = get_field_list_name_index(
-								field.field.derived.(^ast.Ident).name,
-								procedure.arg_types,
-							)
+						if p, ok := call_symbol.value.(SymbolProcedureValue); ok {
+							if len(p.return_types) != 1 {
+								break next_fn
+							}
+							if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
+								call_symbol = s
+							}
+						}
+
+						proc_arg := proc_arg
+
+						if named {
+							proc_arg = procedure.arg_types[i]
+						}
+
+						if proc_arg.type != nil {
+							arg_symbol, ok = resolve_type_expression(ast_context, proc_arg.type)
 						} else {
+							arg_symbol, ok = resolve_type_expression(ast_context, proc_arg.default_value)
+						}
+
+						if !ok {
 							break next_fn
 						}
-					} else {
-						call_symbol, ok = resolve_type_expression(ast_context, arg)
-					}
 
-					if !ok {
-						break next_fn
-					}
-
-					if p, ok := call_symbol.value.(SymbolProcedureValue); ok {
-						if len(p.return_types) != 1 {
+						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
 							break next_fn
 						}
-						if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
-							call_symbol = s
-						}
-					}
 
-					if procedure.arg_types[i].type != nil {
-						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].type)
-					} else {
-						arg_symbol, ok = resolve_type_expression(ast_context, procedure.arg_types[i].default_value)
-					}
-
-					if !ok {
-						break next_fn
-					}
-
-					if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, procedure.arg_types[i].flags) {
-						break next_fn
+						i += 1
 					}
 				}
 

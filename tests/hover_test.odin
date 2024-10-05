@@ -330,8 +330,34 @@ ast_hover_package_with_value_decl_same_name :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "my_package.my_package: proc() -> int")
 }
 
+
+@(test)
+ast_hover_proc_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		add_num :: proc(a, b: int) -> int {return a + b}
+
+		add_vec :: proc(a, b: [2]f32) -> [2]f32 {return a + b}
+
+		add :: proc {
+			add_num,
+			add_vec,
+		}
+		main :: proc() {
+			foo := ad{*}d(2, 2)
+		}	
+
+		`,
+		packages = {},
+	}
+
+	test.expect_hover(t, &source, "test.add: proc(a, b: int) -> int")
+}
+
+
 /*
-Issue in `core:odin/parser` it sets the wrong column and end offset for line 2.
+
+Waiting for odin fix
 
 @(test)
 ast_hover_consecutive_non_mutable :: proc(t: ^testing.T) {
@@ -346,7 +372,6 @@ a :: int
 	test.expect_hover(t, &source, "test.a: boffol")
 }
 */
-
 
 /*
 TODO: Allow for testing multiple files
