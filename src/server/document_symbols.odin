@@ -36,16 +36,6 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 		return {}
 	}
 
-	package_symbol.kind = .Package
-	package_symbol.name = path.base(document.package_name, false, context.temp_allocator)
-	package_symbol.range = {
-		start = {line = document.ast.decls[0].pos.line},
-		end = {line = document.ast.decls[len(document.ast.decls) - 1].end.line},
-	}
-	package_symbol.selectionRange = package_symbol.range
-
-	children_symbols := make([dynamic]DocumentSymbol, context.temp_allocator)
-
 	for k, global in ast_context.globals {
 		symbol: DocumentSymbol
 		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
@@ -63,12 +53,9 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 			symbol.kind = .Variable
 		}
 
-		append(&children_symbols, symbol)
+		append(&symbols, symbol)
 	}
 
-	package_symbol.children = children_symbols[:]
-
-	append(&symbols, package_symbol)
 
 	return symbols[:]
 }
