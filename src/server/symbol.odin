@@ -39,6 +39,7 @@ SymbolProcedureValue :: struct {
 	return_types: []^ast.Field,
 	arg_types:    []^ast.Field,
 	generic:      bool,
+	diverging:	  bool,
 }
 
 SymbolProcedureGroupValue :: struct {

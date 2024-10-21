@@ -80,6 +80,8 @@ build_procedure_symbol_signature :: proc(symbol: ^Symbol) {
 			if len(value.return_types) > 1 {
 				strings.write_string(&builder, ")")
 			}
+		} else if value.diverging {
+			strings.write_string(&builder, " -> !")
 		}
 		symbol.signature = strings.to_string(builder)
 	} else if value, ok := symbol.value.(SymbolAggregateValue); ok {
