@@ -71,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(disposable);
- 
+
     if (!serverPath) {
         vscode.window.showErrorMessage("Failed to find ols executable!");
         return;
@@ -103,7 +103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     ctx.registerCommand("runTest", runTest);
 
     const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
-    
+
     fs.access(olsFile, constants.F_OK).catch(async err => {
         if (err) {
 
@@ -194,7 +194,7 @@ async function removeOldServers(config: Config, state: PersistentState): Promise
     return;
   }
   const releasesFolder = config.globalStorageUri.fsPath;
-  
+
   // get list of all old releases
   const currentRelease = state.releaseId?.toString() ?? ""
   const releases = (await fs.readdir(releasesFolder, { withFileTypes: true }))
@@ -248,7 +248,7 @@ export async function parseOlsFile(config: Config, file: string) {
         const conf = JSON.parse(data.toString());
         config.collections = conf.collections;
     });
-} 
+}
 
 function serverPath(config: Config): string | null {
     return config.serverPath;
@@ -303,12 +303,12 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     /*
         Temp: right now it doesn't check for versions, since ols has no versioning right now
     */
-    
+
     if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000)  > Date.now()) {
         return destExecutable;
     }
 
-    const release = await downloadWithRetryDialog(state, async () => {
+    const release = await downloadWithRetryDialog(state, !exists, async () => {
         return await fetchRelease("nightly", state.githubToken, config.httpProxy);
     });
 
@@ -328,10 +328,10 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 
     const artifact = release.assets.find(artifact => artifact.name === `ols-${platform}.zip`);
     assert(!!artifact, `Bad release: ${JSON.stringify(release)}`);
-    
+
     const destZip = path.join(zipFolder, `ols-${platform}.zip`);
 
-    await downloadWithRetryDialog(state, async () => {
+    await downloadWithRetryDialog(state, true, async () => {
         await download({
             url: artifact.browser_download_url,
             dest: destZip,
@@ -363,7 +363,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
     return latestExecutable;
 }
 
-async function downloadWithRetryDialog<T>(state: PersistentState, downloadFunc: () => Promise<T>): Promise<T> {
+async function downloadWithRetryDialog<T>(state: PersistentState, required: boolean, downloadFunc: () => Promise<T>): Promise<T> {
     while (true) {
         try {
             return await downloadFunc();
@@ -383,6 +383,8 @@ async function downloadWithRetryDialog<T>(state: PersistentState, downloadFunc: 
                 continue;
             } else if (selected?.retry) {
                 continue;
+            } else if (!required) {
+                return;
             }
             throw e;
         };
