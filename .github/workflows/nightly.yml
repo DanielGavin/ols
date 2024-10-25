@@ -164,15 +164,19 @@ jobs:
         ls -al ./dist
         cd dist
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
+        rm ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe
 
         chmod +x ols-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
+        rm ols-x86_64-unknown-linux-gnu
 
         chmod +x ols-x86_64-darwin
         zip -r ols-x86_64-darwin.zip ols-x86_64-darwin builtin
+        rm ols-x86_64-darwin
 
         chmod +x ols-arm64-darwin
         zip -r ols-arm64-darwin.zip ols-arm64-darwin builtin
+        rm ols-arm64-darwin
 
         rm -rf builtin
     - name: Publish Release
