@@ -164,7 +164,7 @@ jobs:
         ls -al ./dist
         cd dist
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
-        rm ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe
+        rm ols-x86_64-pc-windows-msvc.exe
 
         chmod +x ols-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
