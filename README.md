@@ -235,15 +235,14 @@ lspconfig.ols.setup({})
 
 ### Helix
 
-Helix supports Odin and OLS by default. One can enable it through their languages.toml. Example config:
+Helix supports Odin and OLS by default. It is already enabled in the [default languages.toml](https://github.com/helix-editor/helix/blob/master/languages.toml). 
+
+If `ols` or `odinfmt` are not on your PATH environment variable, you can enable them like this:
 ```toml
 # Optional. The default configration requires OLS in PATH env. variable. If not,
 # you can set path to the executable like so:
 # [language-server.ols]
 # command = "path/to/executable"
-
-[[language]]
-name = "odin"
 ```
 
 ### Micro
