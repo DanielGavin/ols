@@ -27,9 +27,13 @@ cd ols
 
 # for windows
 ./build.bat
+# To install the odinfmt formatter
+./odinfmt.bat
 
 # for linux and macos
 ./build.sh
+# To install the odinfmt formatter
+./odinfmt.sh
 ```
 
 ### Configuration
