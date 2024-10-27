@@ -38,8 +38,8 @@ SymbolPackageValue :: struct {}
 SymbolProcedureValue :: struct {
 	return_types:      []^ast.Field,
 	arg_types:         []^ast.Field,
-	orig_return_types: []^ast.Field, //If there has been generics, we still store the unaltered version here
-	orig_arg_types:    []^ast.Field, //If there has been generics, we still store the unaltered version here
+	orig_return_types: []^ast.Field, //When generics have overloaded the types, we store the original version here.
+	orig_arg_types:    []^ast.Field, //When generics have overloaded the types, we store the original version here.
 	generic:           bool,
 }
 

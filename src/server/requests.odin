@@ -538,10 +538,13 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	if "shared" not_in config.collections && odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
-		config.collections[strings.clone("shared")] = path.join(
-			elems = {forward_path, "shared"},
-			allocator = context.allocator,
-		)
+		shared_path := path.join(elems = {forward_path, "shared"}, allocator = context.allocator)
+
+		if os.exists(shared_path) {
+			config.collections[strings.clone("shared")] = shared_path
+		} else {
+			delete(shared_path)
+		}
 	}
 
 	log.info(config.collections)
