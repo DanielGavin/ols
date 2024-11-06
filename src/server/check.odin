@@ -143,7 +143,7 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 				break
 			}
 
-			message := strings.join(error.msgs, " ", context.temp_allocator)
+			message := strings.join(error.msgs, "\n", context.temp_allocator)
 
 			if strings.contains(message, "Redeclaration of 'main' in this scope") {
 				continue
