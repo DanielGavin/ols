@@ -205,14 +205,25 @@ Configuration of the LSP:
 
 Neovim has a builtin support for LSP.
 
-There is a plugin that turns easier the setup, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can
-install it with you prefered package manager.
+There is a plugin that makes the setup easier, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can install it with your prefered package manager.
 
-A simple configuration to use with Odin would be like this:
+A simple configuration that uses the default `ols` settings would be like this:
 
 ```lua
-local lspconfig = require('lspconfig')
-lspconfig.ols.setup({})
+require'lspconfig'.ols.setup {}
+```
+
+And here is an example of a configuration with a couple of settings applied:
+
+```lua
+require'lspconfig'.ols.setup {
+	init_options = {
+		checker_args = "-strict-style",
+		collections = {
+			{ name = "shared", path = vim.fn.expand('$HOME/odin-lib') }
+		},
+	},
+}
 ```
 
 ### Emacs
