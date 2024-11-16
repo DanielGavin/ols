@@ -131,6 +131,7 @@ collect_procedure_fields :: proc(
 		arg_types         = args[:],
 		orig_arg_types    = args[:],
 		generic           = is_procedure_generic(proc_type),
+		diverging         = proc_type.diverging,
 	}
 
 	return value

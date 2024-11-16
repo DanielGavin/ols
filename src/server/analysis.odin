@@ -2329,6 +2329,7 @@ make_symbol_procedure_from_ast :: proc(
 		arg_types         = arg_types[:],
 		orig_arg_types    = arg_types[:],
 		generic           = v.generic,
+		diverging         = v.diverging,
 	}
 
 	if _, ok := common.get_attribute_objc_name(attributes); ok {

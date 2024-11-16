@@ -41,6 +41,7 @@ SymbolProcedureValue :: struct {
 	orig_return_types: []^ast.Field, //When generics have overloaded the types, we store the original version here.
 	orig_arg_types:    []^ast.Field, //When generics have overloaded the types, we store the original version here.
 	generic:           bool,
+	diverging:         bool,
 }
 
 SymbolProcedureGroupValue :: struct {
