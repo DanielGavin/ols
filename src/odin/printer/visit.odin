@@ -2266,14 +2266,6 @@ visit_signature_field_flag :: proc(p: ^Printer, flags: ast.Field_Flags) -> ^Docu
 		document = cons_with_nopl(document, text("#no_capture"))
 	}
 
-	if .Subtype in flags {
-		document = cons_with_nopl(document, text("#subtype"))
-	}
-
-	if .By_Ptr in flags {
-		document = cons_with_nopl(document, text("#by_ptr"))
-	}
-
 	return document
 }
 
