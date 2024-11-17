@@ -655,6 +655,31 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_for_in_call_expr_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test	
+		Step :: struct {
+			data: int,
+		}
+
+		main :: proc() {
+			list :: proc() -> []Step {
+				return nil
+			}
+			for zstep in list() {
+				zst{*}
+			}
+		}
+		`,
+		packages = {},
+	}
+
+
+	test.expect_completion_details(t, &source, ".", {"test.zstep: Step"})
+}
+
+
+@(test)
 ast_completion_poly_struct_proc :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test	
