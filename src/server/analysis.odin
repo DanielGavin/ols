@@ -3128,67 +3128,14 @@ get_locals_for_range_stmt :: proc(
 	if ok {
 		#partial switch v in symbol.value {
 		case SymbolProcedureValue:
-			//This can only be custom iterators
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			for val, i in stmt.vals {
+				if ident, ok := unwrap_ident(val); ok {
 					expr: ^ast.Expr
 
-					if v.return_types[0].type != nil {
-						expr = v.return_types[0].type
-					} else if v.return_types[0].default_value != nil {
-						expr = v.return_types[0].default_value
-					}
-
-					store_local(
-						ast_context,
-						ident,
-						expr,
-						ident.pos.offset,
-						ident.name,
-						ast_context.local_id,
-						ast_context.non_mutable_only,
-						false,
-						true,
-						symbol.pkg,
-						false,
-					)
-				}
-			}
-
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
-					expr: ^ast.Expr
-
-					if v.return_types[1].type != nil {
-						expr = v.return_types[1].type
-					} else if v.return_types[1].default_value != nil {
-						expr = v.return_types[1].default_value
-					}
-
-					store_local(
-						ast_context,
-						ident,
-						expr,
-						ident.pos.offset,
-						ident.name,
-						ast_context.local_id,
-						ast_context.non_mutable_only,
-						false,
-						true,
-						symbol.pkg,
-						false,
-					)
-				}
-			}
-
-			if len(stmt.vals) >= 3 {
-				if ident, ok := unwrap_ident(stmt.vals[2]); ok {
-					expr: ^ast.Expr
-
-					if v.return_types[2].type != nil {
-						expr = v.return_types[2].type
-					} else if v.return_types[2].default_value != nil {
-						expr = v.return_types[2].default_value
+					if v.return_types[i].type != nil {
+						expr = v.return_types[i].type
+					} else if v.return_types[i].default_value != nil {
+						expr = v.return_types[i].default_value
 					}
 
 					store_local(
