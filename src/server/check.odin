@@ -174,14 +174,14 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 			diagnostics = {},
 		}
 
-		notifaction := Notification {
+		notification := Notification {
 			jsonrpc = "2.0",
 			method  = "textDocument/publishDiagnostics",
 			params  = params,
 		}
 
 		if writer != nil {
-			send_notification(notifaction, writer)
+			send_notification(notification, writer)
 		}
 
 		delete(uri)

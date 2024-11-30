@@ -1497,6 +1497,9 @@ expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: Sy
 				}
 			}
 		}
+
+		//We have to resolve the expressions two times, so clear it to prevent it from being picked up as recursion.
+		delete_key(&ast_context.recursion_map, value.types[k])
 	}
 
 	if .ObjC in symbol.flags {
