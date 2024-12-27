@@ -336,7 +336,7 @@
 				},
 				{
 					"name": "meta.function-call.odin",
-					"begin": "\\b(len|cap|offset_of_selector|offset_of_member|offset_of|offset_of_by_string|type_of|type_info_of|typeid_of|swizzle|complex|quaternion|real|imag|jmag|kmag|conj|expand_values|min|max|abs|clamp|soa_zip|soa_unzip|make|new|resize|reserve|append|delete|assert|panic)\\b\\s*(\\()",
+					"begin": "\\b(len|cap|offset_of_selector|offset_of_member|offset_of|offset_of_by_string|type_of|type_info_of|typeid_of|swizzle|complex|quaternion|real|imag|jmag|kmag|conj|expand_values|min|max|abs|clamp|soa_zip|soa_unzip|make|new|new_clone|resize|reserve|append|delete|free|free_all|assert|panic)\\b\\s*(\\()",
 					"beginCaptures": {
 						"1": { "name": "support.function.builtin.odin" },
 						"2": { "name": "meta.brace.round.odin" }
