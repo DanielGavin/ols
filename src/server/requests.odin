@@ -399,15 +399,13 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	for profile in ols_config.profiles {
 		if ols_config.profile == profile.name {
 			config.profile.checker_path = make([dynamic]string, len(profile.checker_path))
+			config.profile.exclude_path = make([dynamic]string, len(profile.exclude_path))
 
-			if filepath.is_abs(ols_config.profile) {
-				for checker_path, i in profile.checker_path {
-					config.profile.checker_path[i] = strings.clone(checker_path)
-				}
-			} else {
-				for checker_path, i in profile.checker_path {
-					config.profile.checker_path[i] = path.join(elems = {uri.path, checker_path})
-				}
+			for checker_path, i in profile.checker_path {
+				config.profile.checker_path[i] = path.join(elems = {uri.path, checker_path})
+			}
+			for exclude_path, i in profile.exclude_path {
+				config.profile.exclude_path[i] = path.join(elems = {uri.path, exclude_path})
 			}
 
 			config.profile.os = strings.clone(profile.os)

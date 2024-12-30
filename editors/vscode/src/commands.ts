@@ -12,12 +12,13 @@ export function runDebugTest(ctx: Ctx): Cmd {
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
         const pkg = path.basename(cwd);
+        const importPkg = debugConfig.pkg;
 
         var args = [];
 
         args.push("test");
-        args.push(cwd);
-        args.push(`-test-name:${fn}`);
+        args.push(".");
+        args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
         args.push("-debug");
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
@@ -36,20 +37,12 @@ export function runDebugTest(ctx: Ctx): Cmd {
         }
 
         const odinExecution = execFile("odin", args, {cwd : workspaceFolder}, (err, stdout, stderr) => {
-            if (err) {
-                vscode.window.showErrorMessage(err.message);
-            }
         });
  
         odinExecution.on("exit", (code) => {
-
-            if(code !== 0) {
-                throw Error("Odin test failed!");
-            }
-
             const possibleExecutables = [
                 path.join(workspaceFolder, pkg),
-                path.join(workspaceFolder, pkg) + '.bin'
+                path.join(workspaceFolder, pkg) + '.exe'
             ];
 
             let promises : Promise<string | null>[] = [];
@@ -68,7 +61,7 @@ export function runDebugTest(ctx: Ctx): Cmd {
                 results.forEach((r) => {
                     if (r !== null && !found) {
                         found = true;
-                        vscode.debug.startDebugging(undefined, getDebugConfiguration(ctx.config, r)).then(r => console.log("Result", r));
+                        vscode.debug.startDebugging(cwd, getDebugConfiguration(ctx.config, r)).then(r => console.log("Result", r));
                     }
                 });
                 if (!found) {
@@ -84,13 +77,13 @@ export function runTest(ctx: Ctx): Cmd {
     return async(debugConfig: any) => {
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
-        const pkg = path.basename(cwd);
+        const importPkg = debugConfig.pkg;
 
         var args = [];
 
         args.push("test");
         args.push(cwd);
-        args.push(`-test-name:${fn}`);
+        args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;

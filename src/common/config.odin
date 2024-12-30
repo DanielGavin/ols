@@ -5,6 +5,7 @@ ConfigProfile :: struct {
 	name:         string,
 	checker_path: [dynamic]string,
 	defines:      map[string]string,
+	exclude_path: [dynamic]string,
 }
 
 Config :: struct {

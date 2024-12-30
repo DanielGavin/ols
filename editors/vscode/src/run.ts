@@ -53,29 +53,38 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 		const text = doc.getText();
 		const reTest = /\@\(?test\)?/g;
 		const reFnTest = /\s*\w+\s*::\s*proc\s*\s*\(/g;
+		const rePackageName = /package\s+\w+/g;
+
 		var testMatch: RegExpExecArray | null = null;
 
 		let lenses: CodeLens[] = [];
 		while ((testMatch = reTest.exec(text)) !== null) {
 
 			reFnTest.lastIndex = reTest.lastIndex;
-			const match = reFnTest.exec(text);
+			const fnMatch = reFnTest.exec(text);
 
-			if (match === null) {
+			if (fnMatch === null) {
 				continue;
 			}
 
-			const fn = match[0].split(":")[0];
+			const pkgMatch = rePackageName.exec(text);
+
+			if (pkgMatch === null) {
+				continue;
+			}
+
+			const fn = fnMatch[0].split(":")[0];
+			const pkg = pkgMatch[0].split(" ")[1];
 
 			if (fn && fn[0]) {
 
-				const debugCodelens = this.makeDebugLens(reTest.lastIndex, testMatch[0].length, fn.trim(), doc);
+				const debugCodelens = this.makeDebugLens(reTest.lastIndex, testMatch[0].length, pkg, fn.trim(), doc);
 
 				if (debugCodelens !== undefined) {
 					lenses.push(debugCodelens);
 				}
 
-				const runCodelens = this.makeRunLens(reTest.lastIndex, testMatch[0].length, fn.trim(), doc);
+				const runCodelens = this.makeRunLens(reTest.lastIndex, testMatch[0].length, pkg, fn.trim(), doc);
 
 				if (runCodelens !== undefined) {
 					lenses.push(runCodelens);
@@ -88,7 +97,7 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 		return lenses;
 	}
 
-	private makeDebugLens(index: number, length: number, fn: string, doc: TextDocument) {
+	private makeDebugLens(index: number, length: number, pkg:string, fn: string, doc: TextDocument) {
 		const startIdx = index - length;
 		const start = doc.positionAt(startIdx);
 		const end = doc.positionAt(index);
@@ -100,13 +109,14 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 			tooltip: "Debug",
 			arguments: [{
 				function: fn,
-				cwd: path.dirname(doc.uri.fsPath)
+				cwd: path.dirname(doc.uri.fsPath),
+				pkg: pkg
 			}]
 		});
 		
 	}
 
-	private makeRunLens(index: number, length: number, fn: string, doc: TextDocument): any | undefined {
+	private makeRunLens(index: number, length: number, pkg: string, fn: string, doc: TextDocument): any | undefined {
 		const startIdx = index - length;
 		const start = doc.positionAt(startIdx);
 		const end = doc.positionAt(index);
@@ -118,7 +128,8 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 			tooltip: "Run",
 			arguments: [{
 				function: fn,
-				cwd: path.dirname(doc.uri.fsPath)
+				cwd: path.dirname(doc.uri.fsPath),
+				pkg: pkg
 			}]
 		});
 	}

@@ -42,7 +42,7 @@ function getLldbDebugConfig(executable: string): vscode.DebugConfiguration {
         request: "launch",
         name: "test debug",
         program: executable,
-        cwd: vscode.workspace.workspaceFolders?.[0].uri.path
+        cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
     };
 }
 
@@ -52,6 +52,6 @@ function getCppvsDebugConfig(executable: string): vscode.DebugConfiguration {
         request: "launch",
         name: "test debug",
         program: executable,
-        cwd: vscode.workspace.workspaceFolders?.[0].uri.path
+        cwd: vscode.workspace.workspaceFolders?.[0].uri.fsPath
     };
 }

@@ -172,7 +172,13 @@ setup_index :: proc() {
 
 	dir_exe := common.get_executable_path(context.temp_allocator)
 
-	try_build_package(path.join({dir_exe, "builtin"}, context.temp_allocator))
+	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
+
+	if !os.exists(builtin_path) {
+		log.error("Failed to find the builtin folder at %v", builtin_path)
+	}
+
+	try_build_package(builtin_path)
 }
 
 free_index :: proc() {

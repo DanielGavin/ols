@@ -103,6 +103,13 @@
 						"items": {
 							"type": "string"
 						}
+					},
+					"workspace_exclude_path": {
+						"type": "array",
+						"description": "List of paths that will be exldued from workspace symbol searches.",
+						"items": {
+							"type": "string"
+						}
 					}
 				},
 				"required": ["name", "checker_path"],

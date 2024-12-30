@@ -1443,6 +1443,7 @@ get_identifier_completion :: proc(
 				insertText       = result.snippet.insert,
 				kind             = .Snippet,
 				detail           = result.snippet.detail,
+				documentation    = result.doc,
 				insertTextFormat = .Snippet,
 			}
 

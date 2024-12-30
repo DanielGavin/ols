@@ -45,7 +45,7 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 
 	fuzzy_matcher := common.make_fuzzy_matcher(name)
 
-	top := 20
+	top := 100
 
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
