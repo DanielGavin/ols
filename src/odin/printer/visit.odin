@@ -1648,7 +1648,7 @@ visit_expr :: proc(
 			document = cons(document, text("#force_no_inline"))
 		}
 
-		document = cons_with_nopl(document, visit_proc_type(p, v.type^, v.body != nil))
+		document = cons_with_nopl(document, visit_proc_type(p, v.type^, v.body != nil, len(v.where_clauses) > 0))
 
 		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
@@ -1663,7 +1663,7 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("---"))
 		}
 	case ^Proc_Type:
-		document = group(visit_proc_type(p, v^, false))
+		document = group(visit_proc_type(p, v^, false, false))
 	case ^Basic_Lit:
 		document = text_token(p, v.tok)
 	case ^Binary_Expr:
@@ -2083,7 +2083,12 @@ visit_proc_tags :: proc(p: ^Printer, proc_tags: ast.Proc_Tags) -> ^Document {
 }
 
 @(private)
-visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bool) -> ^Document {
+visit_proc_type :: proc(
+	p: ^Printer,
+	proc_type: ast.Proc_Type,
+	contains_body: bool,
+	contains_where_clauses: bool,
+) -> ^Document {
 	document := text("proc")
 
 	explicit_calling := false
@@ -2132,6 +2137,14 @@ visit_proc_type :: proc(p: ^Printer, proc_type: ast.Proc_Type, contains_body: bo
 					if ident.name != "_" {
 						use_parens = true
 					}
+				}
+			}
+		}
+
+		if contains_where_clauses {
+			if len(proc_type.results.list) == 1 {
+				if _, ok := proc_type.results.list[0].type.derived.(^ast.Proc_Type); ok {
+					use_parens = true
 				}
 			}
 		}
