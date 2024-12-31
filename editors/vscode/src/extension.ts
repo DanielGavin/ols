@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from "path";
 import * as os from "os";
-import { promises as fs, PathLike, constants, writeFileSync } from "fs";
+import { promises as fs, constants, writeFileSync} from "fs";
 
 var AdmZip = require('adm-zip');
 
@@ -20,12 +20,19 @@ import { RunnableCodeLensProvider } from "./run";
 import { PersistentState } from './persistent_state';
 import { Config } from './config';
 import { fetchRelease, download } from './net';
-import { getPathForExecutable, isOdinInstalled } from './toolchain';
+import { isOdinInstalled } from './toolchain';
 import { Ctx } from './ctx';
 import { runDebugTest, runTest } from './commands';
 import { watchOlsConfigFile } from './watch';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+
+const defaultConfig = {
+    $schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
+    enable_document_symbols: true,
+    enable_hover: true,
+    enable_snippets: true
+};
 
 let ctx: Ctx;
 
@@ -151,6 +158,10 @@ export async function activate(context: vscode.ExtensionContext) {
         createOlsConfig(ctx);
     });
 
+    vscode.commands.registerCommand("ols.editGlobalOls", async () => {
+        editGlobalOlsConfig(serverPath);
+    });
+
     client.start();
 
     parseOlsFile(config, olsFile);
@@ -219,25 +230,26 @@ async function removeOldServers(config: Config, state: PersistentState): Promise
   }
 }
 
-export function createOlsConfig(ctx: Ctx) {
-    const odinPath = getPathForExecutable("odin");
-
-    const corePath = path.resolve(path.join(path.dirname(odinPath), "core"));
-
-    const config = {
-		$schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
-        enable_document_symbols: true,
-        enable_hover: true,
-        enable_snippets: true
-    };
-
+export function createOlsConfig(_ctx: Ctx) {
     const olsPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
-
-    const edit = new vscode.WorkspaceEdit();
-
-    const content = JSON.stringify(config, null, 4);
-
+    const content = JSON.stringify(defaultConfig, null, 4);
     writeFileSync(path.join(olsPath, "ols.json"), content);
+}
+
+export async function editGlobalOlsConfig(serverPath: string) {
+    const configPath = path.join(path.dirname(serverPath), "ols.json");
+    
+    vscode.workspace.openTextDocument(configPath).then(
+        (document) => { vscode.window.showTextDocument(document) },
+        () => {
+            const content = JSON.stringify(defaultConfig, null, 4);
+            writeFileSync(configPath, content);
+            vscode.workspace.openTextDocument(configPath).then(
+                (document) => { vscode.window.showTextDocument(document) }
+            );
+        }
+    );
+    
 }
 
 export async function parseOlsFile(config: Config, file: string) {
