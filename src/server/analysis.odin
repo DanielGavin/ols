@@ -1617,7 +1617,7 @@ resolve_comp_literal :: proc(
 				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
-	} else if ast_context.value_decl.type != nil {
+	} else if ast_context.value_decl != nil && ast_context.value_decl.type != nil {
 		symbol = resolve_type_expression(ast_context, ast_context.value_decl.type) or_return
 	}
 
