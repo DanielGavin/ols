@@ -19,6 +19,7 @@ import "core:sys/windows"
 import "src:common"
 import "src:server"
 
+VERSION :: "dev-2024-11-9:g584f01b"
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr := cast(^os.Handle)handle
@@ -101,6 +102,10 @@ end :: proc() {
 }
 
 main :: proc() {
+	if len(os.args) > 1 && os.args[1] == "version" {
+		fmt.println("ols version", VERSION)
+		os.exit(0)
+	}
 	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
 	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
 

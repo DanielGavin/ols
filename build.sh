@@ -46,5 +46,8 @@ then
     exit 0
 fi
 
+version="$(git describe --tags --abbrev=7)"
+version="${version%-*}:${version##*-}"
+sed -i "s|VERSION :: .*|VERSION :: \"${version}\"|g" src/main.odin
 
 odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -o:speed $@
