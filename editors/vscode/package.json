@@ -37,6 +37,11 @@
 				"category": "Odin Language Server"
 			},
 			{
+				"command": "ols.editGlobalOls",
+				"title": "Edit global ols.json file",
+				"category": "Odin Language Server"
+			},
+			{
 				"command": "ols.createOls",
 				"title": "Create ols.json file in project",
 				"category": "Odin Language Server"
