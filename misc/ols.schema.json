@@ -106,7 +106,7 @@
 					},
 					"exclude_path": {
 						"type": "array",
-						"description": "List of paths that will be exldued from workspace symbol searches.",
+						"description": "List of paths that will be excluded from workspace symbol searches.",
 						"items": {
 							"type": "string"
 						}
