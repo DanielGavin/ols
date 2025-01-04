@@ -113,31 +113,40 @@ export async function activate(context: vscode.ExtensionContext) {
     ctx.registerCommand("runDebugTest", runDebugTest);
     ctx.registerCommand("runTest", runTest);
 
-    const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
+    const projectConfigPath = path.join(workspaceFolder.uri.fsPath, "ols.json");
+    const userConfigPath = path.join(path.dirname(serverPath), "ols.json");
 
-    fs.access(olsFile, constants.F_OK).catch(async err => {
-        if (err) {
-
+    fs.access(projectConfigPath, constants.F_OK).catch(async (_e1) => {
+        fs.access(userConfigPath, constants.F_OK).catch( async (_e2) => {
             if (!config.askCreateOLS) {
                 return;
             }
 
             const userResponse = await vscode.window.showInformationMessage(
-                "No ols config file in the workspace root folder. Do you wish to create one?",
+                "No ols config file found. Do you wish to create one?",
                 "Yes",
                 "No",
-                "Don't ask again"
+                "Don't ask again",
             );
 
             if (userResponse === "Yes") {
-                createOrEditProjectConfig();
+                const clarification = await vscode.window.showInformationMessage(
+                    "should it be specific to this project or to all your odin projects?",
+                    "This project",
+                    "All projects",
+                );
+                if (clarification == "This project") {
+                    createOrEditProjectConfig();
+                    parseOlsFile(config, projectConfigPath);
+                } else {
+                    createOrEditUserConfig(serverPath);
+                    parseOlsFile(config, userConfigPath);
+                }
             } else if (userResponse === "Don't ask again") {
                 config.updateAskCreateOLS(false);
                 return;
             }
-
-        }
-        parseOlsFile(config, olsFile);
+        })
     });
 
     if(!isOdinInstalled()) {
@@ -167,8 +176,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
     client.start();
 
-    parseOlsFile(config, olsFile);
-    watchOlsConfigFile(ctx, olsFile);
+    parseOlsFile(config, projectConfigPath);
+    watchOlsConfigFile(ctx, projectConfigPath);
 }
 
 async function bootstrap(config: Config, state: PersistentState): Promise<string> {
