@@ -27,12 +27,16 @@ import { watchOlsConfigFile } from './watch';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
-const defaultConfig = {
-    $schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
-    enable_document_symbols: true,
-    enable_hover: true,
-    enable_snippets: true
-};
+const defaultConfig = JSON.stringify(
+    {
+        $schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
+        enable_document_symbols: true,
+        enable_hover: true,
+        enable_snippets: true
+    },
+    null,
+    4,
+);
 
 let ctx: Ctx;
 
@@ -109,32 +113,40 @@ export async function activate(context: vscode.ExtensionContext) {
     ctx.registerCommand("runDebugTest", runDebugTest);
     ctx.registerCommand("runTest", runTest);
 
-    const olsFile = path.join(workspaceFolder.uri.fsPath, "ols.json");
+    const projectConfigPath = path.join(workspaceFolder.uri.fsPath, "ols.json");
+    const userConfigPath = path.join(path.dirname(serverPath), "ols.json");
 
-    fs.access(olsFile, constants.F_OK).catch(async err => {
-        if (err) {
-
+    fs.access(projectConfigPath, constants.F_OK).catch(async (_e1) => {
+        fs.access(userConfigPath, constants.F_OK).catch( async (_e2) => {
             if (!config.askCreateOLS) {
                 return;
             }
 
             const userResponse = await vscode.window.showInformationMessage(
-                "No ols config file in the workspace root folder. Do you wish to create one?",
+                "No ols config file found. Do you wish to create one?",
                 "Yes",
                 "No",
-                "Don't ask again"
+                "Don't ask again",
             );
 
             if (userResponse === "Yes") {
-                createOlsConfig(ctx);
+                const clarification = await vscode.window.showInformationMessage(
+                    "should it be specific to this project or to all your odin projects?",
+                    "This project",
+                    "All projects",
+                );
+                if (clarification == "This project") {
+                    createOrEditProjectConfig();
+                    parseOlsFile(config, projectConfigPath);
+                } else {
+                    createOrEditUserConfig(serverPath);
+                    parseOlsFile(config, userConfigPath);
+                }
             } else if (userResponse === "Don't ask again") {
                 config.updateAskCreateOLS(false);
                 return;
             }
-
-        }
-
-        parseOlsFile(config, olsFile);
+        })
     });
 
     if(!isOdinInstalled()) {
@@ -154,18 +166,18 @@ export async function activate(context: vscode.ExtensionContext) {
         client.start();
     });
 
-    vscode.commands.registerCommand("ols.createOls", async() => {
-        createOlsConfig(ctx);
+    vscode.commands.registerCommand("ols.editProjectConfig", async() => {
+        createOrEditProjectConfig();
     });
 
-    vscode.commands.registerCommand("ols.editGlobalOls", async () => {
-        editGlobalOlsConfig(serverPath);
+    vscode.commands.registerCommand("ols.editUserConfig", async () => {
+        createOrEditUserConfig(serverPath);
     });
 
     client.start();
 
-    parseOlsFile(config, olsFile);
-    watchOlsConfigFile(ctx, olsFile);
+    parseOlsFile(config, projectConfigPath);
+    watchOlsConfigFile(ctx, projectConfigPath);
 }
 
 async function bootstrap(config: Config, state: PersistentState): Promise<string> {
@@ -230,21 +242,25 @@ async function removeOldServers(config: Config, state: PersistentState): Promise
   }
 }
 
-export function createOlsConfig(_ctx: Ctx) {
-    const olsPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
-    const content = JSON.stringify(defaultConfig, null, 4);
-    writeFileSync(path.join(olsPath, "ols.json"), content);
+export function createOrEditProjectConfig() {
+    const projectConfigPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+    openFileAndCreateIfNotExists("ols.json", projectConfigPath, defaultConfig);
 }
 
-export async function editGlobalOlsConfig(serverPath: string) {
-    const configPath = path.join(path.dirname(serverPath), "ols.json");
-    
-    vscode.workspace.openTextDocument(configPath).then(
+export function createOrEditUserConfig(serverPath: string) {
+    const userConfigPath = path.dirname(serverPath);
+    openFileAndCreateIfNotExists("ols.json", userConfigPath, defaultConfig);
+}
+
+function openFileAndCreateIfNotExists(file: string, folder: string, defaultContents: string) {
+    const filePath = path.join(folder, file);
+    console.log(filePath);
+
+    vscode.workspace.openTextDocument(filePath).then(
         (document) => { vscode.window.showTextDocument(document) },
         () => {
-            const content = JSON.stringify(defaultConfig, null, 4);
-            writeFileSync(configPath, content);
-            vscode.workspace.openTextDocument(configPath).then(
+            writeFileSync(filePath, defaultContents);
+            vscode.workspace.openTextDocument(filePath).then(
                 (document) => { vscode.window.showTextDocument(document) }
             );
         }
@@ -256,10 +272,15 @@ export async function parseOlsFile(config: Config, file: string) {
     /*
         We have to parse the collections that they have specificed through the json(This will be changed when odin gets it's own builder files)
     */
-    fs.readFile(file).then((data) => {
-        const conf = JSON.parse(data.toString());
-        config.collections = conf.collections;
-    });
+    fs.readFile(file).then(
+        (data) => {
+            const conf = JSON.parse(data.toString());
+            config.collections = conf.collections;
+        },
+        (error) => {
+            console.info("no ols.json found in workspace");
+        },
+    );
 }
 
 function serverPath(config: Config): string | null {
