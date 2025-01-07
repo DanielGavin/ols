@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package server
 
 import "base:runtime"
