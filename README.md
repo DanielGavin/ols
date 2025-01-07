@@ -228,24 +228,64 @@ require'lspconfig'.ols.setup {
 
 ### Emacs
 
+For Emacs, there are two packages available for LSP; lsp-mode and eglot.
+
+The latter is built-in, spec-compliant and favours built-in Emacs functionality and the former offers richer UI elements and automatic installation for some of the servers.
+
+In either case, you'll also need an associated major mode.
+
+Pick either of the below, the former is likely to be more stable but the latter will allow you to take advantage of tree-sitter and other packages that integrate with it.
+
+The `use-package` statements below assume you're using a package manager like Straight or Elpaca and as such should be taken as references rather than guaranteed copy/pasteable. If you're using `package.el` or another package manager then you'll have to look into instructions for that yourself.
+
 ```elisp
 ;; Enable odin-mode and configure OLS as the language server
-(use-package! odin-mode
-  :mode ("\\.odin\\'" . odin-mode)
-  :hook (odin-mode . lsp))
+(use-package odin-mode
+  :ensure (:host github :repo "mattt-b/odin-mode")
+  :mode ("\\.odin\\'" . odin-mode))
+
+;; Or use the WIP tree-sitter mode
+(use-package odin-ts-mode
+  :ensure (:host github :repo "Sampie159/odin-ts-mode")
+  :mode ("\\.odin\\'" . odin-ts-mode))
+```
+
+And then choose either the built-in `eglot` or `lsp-mode` packages below. Both should work very similarly.
+
+#### lsp-mode
+
+```elisp
+;; Pull the lsp-mode package
+(use-package lsp-mode
+  :commands (lsp lsp-deferred))
 
 ;; Set up OLS as the language server for Odin, ensuring lsp-mode is loaded first
 (with-eval-after-load 'lsp-mode
   (setq-default lsp-auto-guess-root t) ;; Helps find the ols.json file with Projectile or project.el
-  (setq lsp-language-id-configuration (cons '(odin-mode . "odin") lsp-language-id-configuration))
+  (add-to-list 'lsp-language-id-configuration '(odin-mode . "odin"))
+  (add-to-list 'lsp-language-id-configuration '(odin-ts-mode . "odin"))
 
   (lsp-register-client
    (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable") ;; Adjust the path here
-                    :major-modes '(odin-mode)
+                    :major-modes '(odin-mode odin-ts-mode)
                     :server-id 'ols
                     :multi-root t))) ;; Ensures lsp-mode sends "workspaceFolders" to the server
 
-(add-hook 'odin-mode-hook #'lsp)
+;; Add a hook to autostart OLS
+(add-hook 'odin-mode-hook #'lsp-deferred)
+(add-hook 'odin-ts-mode-hook #'lsp-deferred) ;; If you're using the TS mode
+```
+
+#### eglot
+
+```elisp
+;; Add OLS to the list of available programs
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs '((odin-mode odin-ts-mode) . ("ols"))))
+
+;; Add a hook to autostart OLS
+(add-hook 'odin-mode-hook #'eglot-ensure)
+(add-hook 'odin-ts-mode-hook #'eglot-ensure) ;; If you're using the TS mode
 ```
 
 ### Helix
