@@ -192,7 +192,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			set_ast_package_set_scoped(&ast_context, selector.pkg)
 
 			if selector, ok = resolve_type_expression(&ast_context, v.return_types[0].type); !ok {
-				return {}, false, false
+				return {}, false, true
 			}
 		}
 

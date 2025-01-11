@@ -157,7 +157,7 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 				&errors[error.pos.file],
 				Diagnostic {
 					code = "checker",
-					severity = .Error if error.type == "error" else .Warning,
+					severity = .Error,
 					range = {
 						start = {character = error.pos.column - 1, line = error.pos.line - 1},
 						end = {character = error.pos.end_column - 1, line = error.pos.line - 1},
