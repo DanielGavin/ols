@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package common
 
 import "core:fmt"

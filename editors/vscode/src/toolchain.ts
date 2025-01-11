@@ -45,7 +45,7 @@ function lookupInPath(exec: string): string | undefined {
                 return pathToOdin;
             } 
         } catch (realpathError) {
-            console.error("realpathError:", realpathError)
+            console.debug("couldn't find odin at", candidates[i], "on account of", realpathError)
         }
     }
 

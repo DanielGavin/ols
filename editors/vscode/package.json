@@ -14,9 +14,6 @@
 	"categories": [
 		"Programming Languages"
 	],
-	"activationEvents": [
-		"onLanguage:odin"
-	],
 	"icon": "images/emblem.png",
 	"main": "./out/extension.js",
 	"contributes": {
@@ -37,8 +34,13 @@
 				"category": "Odin Language Server"
 			},
 			{
-				"command": "ols.createOls",
-				"title": "Create ols.json file in project",
+				"command": "ols.editProjectConfig",
+				"title": "Edit per-project config file (ols.json), creating it if necessary",
+				"category": "Odin Language Server"
+			},
+			{
+				"command": "ols.editUserConfig",
+				"title": "Edit per-user config file (ols.json), creating it if necessary",
 				"category": "Odin Language Server"
 			}
 		],
