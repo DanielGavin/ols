@@ -652,6 +652,14 @@
 					"match": "\\\\(\\\\|[abefnrutv''\"]|x\\h{2}|u\\h{4}|U\\h{8}|[0-7]{3})"
 				},
 				{
+					"name": "constant.character.escape.placeholders.odin",
+					"match": "%(v|w|T|%|t|b|c|r|o|d|i|z|x|X|U|e|E|f|F|g|G|h|H|m|M|s|q|x|X|p|p|s)"
+				},
+				{
+					"name": "constant.character.escape.placeholders-floats.odin",
+					"match": "%(\\d*\\.?\\d*f)"
+				},
+				{
 					"name": "invalid.illegal.unknown-escape.odin",
 					"match": "\\\\."
 				}
