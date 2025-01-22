@@ -1,36 +1,44 @@
 package odinfmt_testing
 
-import "core:testing"
+import "core:encoding/json"
+import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
+import "core:testing"
 import "core:text/scanner"
-import "core:fmt"
 
 import "src:odin/format"
+import "src:odin/printer"
 
-format_file :: proc(
-	filepath: string,
-	allocator := context.allocator,
-) -> (
-	string,
-	bool,
-) {
-	style := format.default_style
-	style.character_width = 80
-	style.newline_style = .LF //We want to make sure it works on linux and windows.
-
+format_file :: proc(filepath: string, allocator := context.allocator) -> (string, bool) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
-		return format.format(
-			filepath,
-			string(data),
-			style,
-			{.Optional_Semicolons},
-			allocator,
-		)
+		config := read_config_file_or_default(filepath)
+		return format.format(filepath, string(data), config, {.Optional_Semicolons}, allocator)
 	} else {
 		return "", false
 	}
+}
+
+read_config_file_or_default :: proc(fullpath: string, allocator := context.allocator) -> printer.Config {
+	default_style := format.default_style
+	default_style.character_width = 80
+	default_style.newline_style = .LF //We want to make sure it works on linux and windows.
+
+	dirpath := filepath.dir(fullpath, allocator)
+	configpath := fmt.tprintf("%v/odinfmt.json", dirpath)
+
+	if (os.exists(configpath)) {
+		json_config := default_style
+		if data, ok := os.read_entire_file(configpath, allocator); ok {
+			if json.unmarshal(data, &json_config) == nil {
+				return json_config
+			}
+		}
+	}
+
+	return default_style
+
 }
 
 snapshot_directory :: proc(directory: string) -> bool {
@@ -62,11 +70,7 @@ snapshot_file :: proc(path: string) -> bool {
 
 
 	snapshot_path := filepath.join(
-		elems = {
-			filepath.dir(path, context.temp_allocator),
-			"/.snapshots",
-			filepath.base(path),
-		},
+		elems = {filepath.dir(path, context.temp_allocator), "/.snapshots", filepath.base(path)},
 		allocator = context.temp_allocator,
 	)
 
@@ -78,10 +82,7 @@ snapshot_file :: proc(path: string) -> bool {
 	}
 
 	if os.exists(snapshot_path) {
-		if snapshot_data, ok := os.read_entire_file(
-			snapshot_path,
-			context.temp_allocator,
-		); ok {
+		if snapshot_data, ok := os.read_entire_file(snapshot_path, context.temp_allocator); ok {
 			snapshot_scanner := scanner.Scanner{}
 			scanner.init(&snapshot_scanner, string(snapshot_data))
 			formatted_scanner := scanner.Scanner{}
@@ -105,14 +106,8 @@ snapshot_file :: proc(path: string) -> bool {
 				}
 
 				if s_ch != f_ch {
-					fmt.eprintf(
-						"\nFormatted file was different from snapshot file: %v",
-						snapshot_path,
-					)
-					os.write_entire_file(
-						fmt.tprintf("%v_failed", snapshot_path),
-						transmute([]u8)formatted,
-					)
+					fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
+					os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
 					return false
 				}
 			}
