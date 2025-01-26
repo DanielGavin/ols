@@ -695,6 +695,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^ast.Or_Else_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.y, allocator)
+	case ^ast.Or_Return_Expr:
+		free_ast(n.expr, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}
