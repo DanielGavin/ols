@@ -1042,7 +1042,9 @@ visit_stmt :: proc(
 		}
 
 		document = cons_with_opl(document, visit_expr(p, v.cond))
+		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
+		set_source_position(p, v.body.end)
 	case ^Case_Clause:
 		document = cons(document, text("case"))
 
