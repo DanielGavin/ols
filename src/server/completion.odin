@@ -1697,6 +1697,16 @@ append_magic_map_completion :: proc(
 		return
 	}
 
+	// allocator
+	{
+		item := CompletionItem {
+			label  = "allocator",
+			kind   = .Field,
+			detail = fmt.tprintf("%v.%v: %v", "Raw_Map", "allocator", "runtime.Allocator"),
+		}
+		append(items, item)
+	}
+
 	remove_range := common.Range {
 		start = range.start,
 		end   = range.end,
@@ -1801,6 +1811,16 @@ append_magic_dynamic_array_completion :: proc(
 	// This proc is shared between slices and dynamic arrays.
 	if _, ok := symbol.value.(SymbolDynamicArrayValue); !ok {
 		return
+	}
+
+	// allocator
+	{
+		item := CompletionItem {
+			label  = "allocator",
+			kind   = .Field,
+			detail = fmt.tprintf("%v.%v: %v", "Raw_Dynamic_Array", "allocator", "runtime.Allocator"),
+		}
+		append(items, item)
 	}
 
 	prefix := "&"
@@ -2054,3 +2074,4 @@ swizzle_coord_map: map[u8]bool = {
 }
 
 swizzle_coord_components: []string = {"x", "y", "z", "w"}
+
