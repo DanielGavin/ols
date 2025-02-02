@@ -1725,7 +1725,14 @@ append_magic_map_completion :: proc(
 
 	additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
 	additionalTextEdits[0] = remove_edit
+
 	symbol_str := get_expression_string_from_position_context(position_context)
+	deref_suffix := ""
+	if symbol.pointers > 1 {
+		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
+
 	//for
 	{
 		item := CompletionItem {
@@ -1734,7 +1741,7 @@ append_magic_map_completion :: proc(
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", symbol_str),
+				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", dereferenced_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
@@ -1746,7 +1753,7 @@ append_magic_map_completion :: proc(
 
 	//len
 	{
-		text := fmt.tprintf("len(%v)", symbol_str)
+		text := fmt.tprintf("len(%v)", dereferenced_symbol_str)
 
 		item := CompletionItem {
 			label = "len",
@@ -1761,7 +1768,7 @@ append_magic_map_completion :: proc(
 
 	//cap
 	{
-		text := fmt.tprintf("cap(%v)", symbol_str)
+		text := fmt.tprintf("cap(%v)", dereferenced_symbol_str)
 
 		item := CompletionItem {
 			label = "cap",
@@ -1811,10 +1818,15 @@ append_magic_dynamic_array_completion :: proc(
 	additionalTextEdits[0] = remove_edit
 
 	symbol_str := get_expression_string_from_position_context(position_context)
+	deref_suffix := ""
+	if symbol.pointers > 1 {
+		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
 
 	//len
 	{
-		text := fmt.tprintf("len(%v)", symbol_str)
+		text := fmt.tprintf("len(%v)", dereferenced_symbol_str)
 
 		item := CompletionItem {
 			label = "len",
@@ -1835,7 +1847,7 @@ append_magic_dynamic_array_completion :: proc(
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", symbol_str),
+				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", dereferenced_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
@@ -1852,7 +1864,7 @@ append_magic_dynamic_array_completion :: proc(
 
 	//cap
 	{
-		text := fmt.tprintf("cap(%v)", symbol_str)
+		text := fmt.tprintf("cap(%v)", dereferenced_symbol_str)
 
 		item := CompletionItem {
 			label = "cap",
