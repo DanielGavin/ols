@@ -373,7 +373,7 @@ get_selector_completion :: proc(
 	#partial switch v in selector.value {
 	case SymbolFixedArrayValue:
 		list.isIncomplete = true
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_array_like_completion(position_context, selector, &items)
 
 		containsColor := 1
 		containsCoord := 1
@@ -689,10 +689,10 @@ get_selector_completion :: proc(
 		}
 	case SymbolDynamicArrayValue:
 		list.isIncomplete = false
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_array_like_completion(position_context, selector, &items)
 	case SymbolSliceValue:
 		list.isIncomplete = false
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_array_like_completion(position_context, selector, &items)
 
 	case SymbolMapValue:
 		list.isIncomplete = false
@@ -700,7 +700,7 @@ get_selector_completion :: proc(
 
 	case SymbolBasicValue:
 		if selector.signature == "string" {
-			append_magic_dynamic_array_completion(position_context, selector, &items)
+			append_magic_array_like_completion(position_context, selector, &items)
 		}
 	}
 
@@ -1846,7 +1846,7 @@ get_expression_string_from_position_context :: proc(position_context: ^DocumentP
 	return ""
 }
 
-append_magic_dynamic_array_completion :: proc(
+append_magic_array_like_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	symbol: Symbol,
 	items: ^[dynamic]CompletionItem,
