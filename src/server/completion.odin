@@ -1895,14 +1895,21 @@ append_magic_dynamic_array_completion :: proc(
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 
-	//pop
-	{
+	dynamic_array_builtins_no_arg := []string {
+		"pop",
+		"pop_safe",
+		"pop_front",
+		"pop_front_safe",
+		"clear",
+	}
+
+	for name in dynamic_array_builtins_no_arg {
 		item := CompletionItem {
-			label = "pop",
+			label = name,
 			kind = .Function,
-			detail = "pop",
+			detail = name,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("pop(%v)", ptr_symbol_str),
+				newText = fmt.tprintf("%s(%v)", name, ptr_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			additionalTextEdits = additionalTextEdits,
@@ -1915,11 +1922,15 @@ append_magic_dynamic_array_completion :: proc(
 		"append",
 		"unordered_remove",
 		"ordered_remove",
+		"remove_range",
 		"resize",
 		"reserve",
 		"shrink",
 		"inject_at",
 		"assign_at",
+		"non_zero_append",
+		"non_zero_reserve",
+		"non_zero_resize",
 	}
 
 	for name in dynamic_array_builtins {
