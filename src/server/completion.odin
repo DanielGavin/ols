@@ -1743,6 +1743,36 @@ append_magic_map_completion :: proc(
 
 		append(items, item)
 	}
+
+	//len
+	{
+		text := fmt.tprintf("len(%v)", symbol_str)
+
+		item := CompletionItem {
+			label = "len",
+			kind = .Function,
+			detail = "len",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	//cap
+	{
+		text := fmt.tprintf("cap(%v)", symbol_str)
+
+		item := CompletionItem {
+			label = "cap",
+			kind = .Function,
+			detail = "cap",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
 }
 get_expression_string_from_position_context :: proc(position_context: ^DocumentPositionContext) -> string {
 	src := position_context.file.src
@@ -1818,6 +1848,21 @@ append_magic_dynamic_array_completion :: proc(
 	// This proc is shared between slices and dynamic arrays.
 	if _, ok := symbol.value.(SymbolDynamicArrayValue); !ok {
 		return
+	}
+
+	//cap
+	{
+		text := fmt.tprintf("cap(%v)", symbol_str)
+
+		item := CompletionItem {
+			label = "cap",
+			kind = .Function,
+			detail = "cap",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
 	}
 
 	// allocator
