@@ -1780,6 +1780,59 @@ append_magic_map_completion :: proc(
 
 		append(items, item)
 	}
+
+	prefix := "&"
+	suffix := ""
+	if symbol.pointers > 0 {
+		prefix = ""
+		suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
+
+	map_builtins_no_arg := []string {
+		"clear",
+		"shrink",
+	}
+
+	for name in map_builtins_no_arg {
+		item := CompletionItem {
+			label = name,
+			kind = .Function,
+			detail = name,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("%s(%v)", name, ptr_symbol_str),
+				range = {start = range.end, end = range.end},
+			},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	map_builtins_with_args := []string {
+		"delete_key",
+		"reserve",
+		"map_insert",
+		"map_upsert",
+		"map_entry",
+	}
+
+	for name in map_builtins_with_args {
+		item := CompletionItem {
+			label = name,
+			kind = .Snippet,
+			detail = name,
+			additionalTextEdits = additionalTextEdits,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("%s(%v, $0)", name, ptr_symbol_str),
+				range = {start = range.end, end = range.end},
+			},
+			insertTextFormat = .Snippet,
+			InsertTextMode = .adjustIndentation,
+		}
+
+		append(items, item)
+	}
 }
 get_expression_string_from_position_context :: proc(position_context: ^DocumentPositionContext) -> string {
 	src := position_context.file.src
