@@ -373,6 +373,7 @@ get_selector_completion :: proc(
 	#partial switch v in selector.value {
 	case SymbolFixedArrayValue:
 		list.isIncomplete = true
+		append_magic_array_like_completion(position_context, selector, &items)
 
 		containsColor := 1
 		containsCoord := 1
@@ -688,14 +689,19 @@ get_selector_completion :: proc(
 		}
 	case SymbolDynamicArrayValue:
 		list.isIncomplete = false
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_array_like_completion(position_context, selector, &items)
 	case SymbolSliceValue:
 		list.isIncomplete = false
-		append_magic_dynamic_array_completion(position_context, selector, &items)
+		append_magic_array_like_completion(position_context, selector, &items)
 
 	case SymbolMapValue:
 		list.isIncomplete = false
 		append_magic_map_completion(position_context, selector, &items)
+
+	case SymbolBasicValue:
+		if selector.signature == "string" {
+			append_magic_array_like_completion(position_context, selector, &items)
+		}
 	}
 
 	list.items = items[:]
@@ -1719,7 +1725,14 @@ append_magic_map_completion :: proc(
 
 	additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
 	additionalTextEdits[0] = remove_edit
+
 	symbol_str := get_expression_string_from_position_context(position_context)
+	deref_suffix := ""
+	if symbol.pointers > 1 {
+		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
+
 	//for
 	{
 		item := CompletionItem {
@@ -1728,7 +1741,90 @@ append_magic_map_completion :: proc(
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", symbol_str),
+				newText = fmt.tprintf("for ${{1:k}}, ${{2:v}} in %v {{\n\t$0 \n}}", dereferenced_symbol_str),
+				range = {start = range.end, end = range.end},
+			},
+			insertTextFormat = .Snippet,
+			InsertTextMode = .adjustIndentation,
+		}
+
+		append(items, item)
+	}
+
+	//len
+	{
+		text := fmt.tprintf("len(%v)", dereferenced_symbol_str)
+
+		item := CompletionItem {
+			label = "len",
+			kind = .Function,
+			detail = "len",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	//cap
+	{
+		text := fmt.tprintf("cap(%v)", dereferenced_symbol_str)
+
+		item := CompletionItem {
+			label = "cap",
+			kind = .Function,
+			detail = "cap",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	prefix := "&"
+	suffix := ""
+	if symbol.pointers > 0 {
+		prefix = ""
+		suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
+
+	map_builtins_no_arg := []string {
+		"clear",
+		"shrink",
+	}
+
+	for name in map_builtins_no_arg {
+		item := CompletionItem {
+			label = name,
+			kind = .Function,
+			detail = name,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("%s(%v)", name, ptr_symbol_str),
+				range = {start = range.end, end = range.end},
+			},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
+	}
+
+	map_builtins_with_args := []string {
+		"delete_key",
+		"reserve",
+		"map_insert",
+		"map_upsert",
+		"map_entry",
+	}
+
+	for name in map_builtins_with_args {
+		item := CompletionItem {
+			label = name,
+			kind = .Snippet,
+			detail = name,
+			additionalTextEdits = additionalTextEdits,
+			textEdit = TextEdit {
+				newText = fmt.tprintf("%s(%v, $0)", name, ptr_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
@@ -1749,7 +1845,8 @@ get_expression_string_from_position_context :: proc(position_context: ^DocumentP
 	}
 	return ""
 }
-append_magic_dynamic_array_completion :: proc(
+
+append_magic_array_like_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	symbol: Symbol,
 	items: ^[dynamic]CompletionItem,
@@ -1774,10 +1871,15 @@ append_magic_dynamic_array_completion :: proc(
 	additionalTextEdits[0] = remove_edit
 
 	symbol_str := get_expression_string_from_position_context(position_context)
+	deref_suffix := ""
+	if symbol.pointers > 1 {
+		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+	}
+	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
 
 	//len
 	{
-		text := fmt.tprintf("len(%v)", symbol_str)
+		text := fmt.tprintf("len(%v)", dereferenced_symbol_str)
 
 		item := CompletionItem {
 			label = "len",
@@ -1798,7 +1900,7 @@ append_magic_dynamic_array_completion :: proc(
 			detail = "for",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", symbol_str),
+				newText = fmt.tprintf("for i in %v {{\n\t$0 \n}}", dereferenced_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
@@ -1811,6 +1913,21 @@ append_magic_dynamic_array_completion :: proc(
 	// This proc is shared between slices and dynamic arrays.
 	if _, ok := symbol.value.(SymbolDynamicArrayValue); !ok {
 		return
+	}
+
+	//cap
+	{
+		text := fmt.tprintf("cap(%v)", dereferenced_symbol_str)
+
+		item := CompletionItem {
+			label = "cap",
+			kind = .Function,
+			detail = "cap",
+			textEdit = TextEdit{newText = text, range = {start = range.end, end = range.end}},
+			additionalTextEdits = additionalTextEdits,
+		}
+
+		append(items, item)
 	}
 
 	// allocator
@@ -1831,14 +1948,21 @@ append_magic_dynamic_array_completion :: proc(
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 
-	//pop
-	{
+	dynamic_array_builtins_no_arg := []string {
+		"pop",
+		"pop_safe",
+		"pop_front",
+		"pop_front_safe",
+		"clear",
+	}
+
+	for name in dynamic_array_builtins_no_arg {
 		item := CompletionItem {
-			label = "pop",
+			label = name,
 			kind = .Function,
-			detail = "pop",
+			detail = name,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("pop(%v)", ptr_symbol_str),
+				newText = fmt.tprintf("%s(%v)", name, ptr_symbol_str),
 				range = {start = range.end, end = range.end},
 			},
 			additionalTextEdits = additionalTextEdits,
@@ -1851,11 +1975,15 @@ append_magic_dynamic_array_completion :: proc(
 		"append",
 		"unordered_remove",
 		"ordered_remove",
+		"remove_range",
 		"resize",
 		"reserve",
 		"shrink",
 		"inject_at",
 		"assign_at",
+		"non_zero_append",
+		"non_zero_reserve",
+		"non_zero_resize",
 	}
 
 	for name in dynamic_array_builtins {
