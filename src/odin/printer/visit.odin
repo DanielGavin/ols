@@ -304,7 +304,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		lhs = cons(lhs, visit_exprs(p, v.names, {.Add_Comma, .Glue}))
 
 		if v.type != nil {
-			lhs = cons(lhs, text(":"))
+			lhs = cons(lhs, text(" :" if p.config.spaces_around_colons else ":"))
 			lhs = cons_with_nopl(lhs, visit_expr(p, v.type))
 		} else {
 			if !v.is_mutable {
@@ -323,7 +323,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		} else if len(v.values) > 0 && v.type != nil {
-			rhs = cons_with_nopl(rhs, cons_with_nopl(text(":"), visit_exprs(p, v.values, {.Add_Comma})))
+			rhs = cons_with_nopl(rhs, cons_with_nopl(text(" :" if p.config.spaces_around_colons else ":"), visit_exprs(p, v.values, {.Add_Comma})))
 		} else {
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		}
@@ -2034,7 +2034,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 
 		if field.type != nil {
 			if len(field.names) != 0 {
-				document = cons(document, text(":"), align)
+				document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), align)
 			}
 			document = cons_with_opl(document, visit_expr(p, field.type))
 		} else {
@@ -2352,7 +2352,7 @@ visit_signature_field :: proc(p: ^Printer, field: ^ast.Field, remove_blank := tr
 		document = cons(document, cons_with_nopl(flag, visit_exprs(p, field.names, {.Add_Comma})))
 
 		if len(field.names) != 0 && field.type != nil {
-			document = cons(document, text(":"), break_with_no_newline())
+			document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), break_with_no_newline())
 		}
 	}
 
