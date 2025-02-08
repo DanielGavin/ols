@@ -52,6 +52,7 @@ Config :: struct {
 	newline_style:           Newline_Style,
 	sort_imports:            bool,
 	inline_single_stmt_case: bool,
+	spaces_around_colons:    bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
 }
 
 Brace_Style :: enum {
@@ -91,29 +92,31 @@ Line_Suffix_Option :: enum {
 
 when ODIN_OS == .Windows {
 	default_style := Config {
-		spaces          = 4,
-		newline_limit   = 2,
-		convert_do      = false,
-		tabs            = true,
-		tabs_width      = 4,
-		brace_style     = ._1TBS,
-		indent_cases    = false,
-		newline_style   = .CRLF,
-		character_width = 100,
-		sort_imports    = true,
+		spaces               = 4,
+		newline_limit        = 2,
+		convert_do           = false,
+		tabs                 = true,
+		tabs_width           = 4,
+		brace_style          = ._1TBS,
+		indent_cases         = false,
+		newline_style        = .CRLF,
+		character_width      = 100,
+		sort_imports         = true,
+		spaces_around_colons = false,
 	}
 } else {
 	default_style := Config {
-		spaces          = 4,
-		newline_limit   = 2,
-		convert_do      = false,
-		tabs            = true,
-		tabs_width      = 4,
-		brace_style     = ._1TBS,
-		indent_cases    = false,
-		newline_style   = .LF,
-		character_width = 100,
-		sort_imports    = true,
+		spaces               = 4,
+		newline_limit        = 2,
+		convert_do           = false,
+		tabs                 = true,
+		tabs_width           = 4,
+		brace_style          = ._1TBS,
+		indent_cases         = false,
+		newline_style        = .LF,
+		character_width      = 100,
+		sort_imports         = true,
+		spaces_around_colons = false,
 	}
 }
 
