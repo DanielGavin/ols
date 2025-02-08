@@ -55,6 +55,11 @@
 			"type": "boolean",
 			"default": false,
 			"description": "When statement in the clause contains one simple statement, it will inline the case and statement in one line"
+		},
+		"sort_imports": {
+			"type": "boolean",
+			"default": true,
+			"description": "Sorts imports alphabetically"
 		}
 	},
 	"required": []
