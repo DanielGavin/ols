@@ -1795,15 +1795,21 @@ visit_expr :: proc(
 		if should_newline {
 			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 			set_source_position(p, v.open)
-			document = cons(
-				document,
-				nest(
+
+			nested := empty()
+			if len(v.elems) > 0 {
+				nested = nest(
 					cons(
 						newline_position(p, 1, v.elems[0].pos),
 						visit_comp_lit_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
 					),
-				),
-			)
+				)
+			} else {
+				comments, _ := visit_comments(p, v.end)
+				nested = nest(comments)
+			}
+
+			document = cons(document, nested)
 			set_source_position(p, v.end)
 
 			document = cons(document, newline(1), text_position(p, "}", v.end))
