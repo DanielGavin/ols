@@ -329,7 +329,13 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		} else if len(v.values) > 0 && v.type != nil {
-			rhs = cons_with_nopl(rhs, cons_with_nopl(text(" :" if p.config.spaces_around_colons else ":"), visit_exprs(p, v.values, {.Add_Comma})))
+			rhs = cons_with_nopl(
+				rhs,
+				cons_with_nopl(
+					text(" :" if p.config.spaces_around_colons else ":"),
+					visit_exprs(p, v.values, {.Add_Comma}),
+				),
+			)
 		} else {
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		}
@@ -1601,7 +1607,8 @@ visit_expr :: proc(
 
 		if v.fields != nil && len(v.fields.list) == 0 {
 			document = cons_with_nopl(document, text("{"))
-			document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
+			comments, _ := visit_comments(p, v.end)
+			document = cons(document, nest(comments), newline(1), text("}"))
 		} else if v.fields != nil {
 			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 
@@ -1794,19 +1801,16 @@ visit_expr :: proc(
 
 		if should_newline {
 			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Comp_Lit))
-			set_source_position(p, v.open)
-			document = cons(
-				document,
-				nest(
-					cons(
-						newline_position(p, 1, v.elems[0].pos),
-						visit_comp_lit_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
-					),
-				),
-			)
-			set_source_position(p, v.end)
-
-			document = cons(document, newline(1), text_position(p, "}", v.end))
+			inner_document := empty()
+			if len(v.elems) > 0 {
+				inner_document = cons(
+					newline_position(p, 1, v.elems[0].pos),
+					visit_comp_lit_exprs(p, v^, {.Add_Comma, .Trailing, .Enforce_Newline}),
+				)
+			} else {
+				inner_document, _ = visit_comments(p, v.end)
+			}
+			document = cons(document, nest(inner_document), newline(1), text_position(p, "}", v.end))
 		} else {
 			break_string := " " if v.type != nil else ""
 			document = cons(
