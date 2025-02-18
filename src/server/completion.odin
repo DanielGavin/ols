@@ -1444,7 +1444,7 @@ get_identifier_completion :: proc(
 			continue
 		}
 
-		if result.snippet.insert != "" && false {
+		if result.snippet.insert != "" {
 			item := CompletionItem {
 				label            = result.name,
 				insertText       = result.snippet.insert,
@@ -1670,7 +1670,7 @@ get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: s
 		}
 	}
 
-	strings.write_string(&builder, fmt.tprintf("import \"core:%v\"", pkg))
+	strings.write_string(&builder, fmt.tprintf("import \"core:%v\" \n", pkg))
 
 	return {
 			newText = strings.to_string(builder),
