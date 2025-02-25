@@ -945,10 +945,6 @@ visit_stmt :: proc(
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
-		if .Bounds_Check in v.state_flags {
-			document = cons(document, text("#bounds_check"), break_with_space())
-		}
-
 		if !uses_do {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type))
 		} else {
