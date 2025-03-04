@@ -41,18 +41,19 @@ Disabled_Info :: struct {
 }
 
 Config :: struct {
-	character_width:         int,
-	spaces:                  int, //Spaces per indentation
-	newline_limit:           int, //The limit of newlines between statements and declarations.
-	tabs:                    bool, //Enable or disable tabs
-	tabs_width:              int,
-	convert_do:              bool, //Convert all do statements to brace blocks
-	brace_style:             Brace_Style,
-	indent_cases:            bool,
-	newline_style:           Newline_Style,
-	sort_imports:            bool,
-	inline_single_stmt_case: bool,
-	spaces_around_colons:    bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
+	character_width:          int,
+	spaces:                   int, //Spaces per indentation
+	newline_limit:            int, //The limit of newlines between statements and declarations.
+	tabs:                     bool, //Enable or disable tabs
+	tabs_width:               int,
+	convert_do:               bool, //Convert all do statements to brace blocks
+	brace_style:              Brace_Style,
+	indent_cases:             bool,
+	newline_style:            Newline_Style,
+	sort_imports:             bool,
+	inline_single_stmt_case:  bool,
+	spaces_around_colons:     bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
+	space_single_line_blocks: bool,
 }
 
 Brace_Style :: enum {
