@@ -940,6 +940,7 @@ visit_stmt :: proc(
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^Block_Stmt:
 		uses_do := v.uses_do
+		is_single_line := v.open.line == v.end.line
 
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
@@ -947,6 +948,9 @@ visit_stmt :: proc(
 
 		if !uses_do {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type))
+			if p.config.space_single_line_blocks && is_single_line {
+				document = cons(document, break_with_no_newline())
+			}
 		} else {
 			document = cons(document, text("do"), break_with(" ", false))
 		}
@@ -966,6 +970,9 @@ visit_stmt :: proc(
 		}
 
 		if !uses_do {
+			if p.config.space_single_line_blocks && is_single_line {
+				document = cons(document, break_with_no_newline())
+			}
 			document = cons(document, visit_end_brace(p, v.end))
 		}
 	case ^If_Stmt:
