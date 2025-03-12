@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:strings"
+import "core:time"
 
 import win32 "core:sys/windows"
 
@@ -126,6 +127,8 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 
 	success: win32.BOOL = true
 
+	current_time := time.now()
+
 	for success {
 		success = win32.ReadFile(stdout_read, &read_buffer[0], len(read_buffer), &read, nil)
 
@@ -134,6 +137,17 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 		}
 
 		index += cast(int)read
+
+		elapsed_time := time.now()
+		duration := time.diff(current_time, elapsed_time)
+ 
+		if time.duration_seconds(duration) > 20 {
+			log.error("odin check timed out")
+			win32.TerminateProcess(process_info.hProcess, 1)
+			return 0, false, stdout[0:]
+		}
+
+		current_time = elapsed_time
 	}
 
 	stdout[index + 1] = 0

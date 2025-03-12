@@ -8,6 +8,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:path/slashpath"
 import "core:strings"
+import "core:time"
 
 foreign import libc "system:c"
 
@@ -84,6 +85,8 @@ when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 		read_buffer: [50]byte
 		index: int
 
+		current_time := time.now()
+
 		for fgets(&read_buffer[0], size_of(read_buffer), fp) != nil {
 			read := bytes.index_byte(read_buffer[:], 0)
 			defer index += cast(int)read
@@ -91,6 +94,16 @@ when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 			if read > 0 && index + cast(int)read <= len(stdout) {
 				mem.copy(&stdout[index], &read_buffer[0], cast(int)read)
 			}
+
+			elapsed_time := time.now()
+			duration := time.diff(current_time, elapsed_time)
+
+			if time.duration_seconds(duration) > 20 {
+				log.error("odin check timed out")
+				return 0, false, stdout[0:]
+			}
+
+			current_time = elapsed_time
 		}
 
 
@@ -102,7 +115,6 @@ when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 		popen :: proc(command: cstring, type: cstring) -> ^FILE ---
 		pclose :: proc(stream: ^FILE) -> i32 ---
 		fgets :: proc "cdecl" (s: [^]byte, n: i32, stream: ^FILE) -> [^]u8 ---
-		fgetc :: proc "cdecl" (stream: ^FILE) -> i32 ---
 	}
 }
 
