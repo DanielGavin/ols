@@ -484,6 +484,15 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	odin_core_env: string
 	odin_bin := "odin" if config.odin_command == "" else config.odin_command
 
+	// If we don't have an absolute path
+	if !filepath.is_abs(odin_bin) {
+		// Join with the project path
+		tmp_path := path.join(elems = {uri.path, odin_bin})
+		if os.exists(tmp_path) {
+			odin_bin = tmp_path
+		}
+	}
+
 	root_buf: [1024]byte
 	root_slice := root_buf[:]
 	root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
@@ -497,7 +506,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 		odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
 		if odin_core_env == "" {
-			if filepath.is_abs(odin_bin) {
+			if os.exists(odin_bin) {
 				odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
 			} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
 				odin_core_env = filepath.dir(exe_path, context.temp_allocator)
