@@ -3144,3 +3144,45 @@ ast_generics_call_reference_comp_literal :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"Bar.something_else: i32"})
 }
+
+@(test)
+ast_completion_on_struct_using_field_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Inner :: struct {
+			field: int,
+		}
+		Outer :: struct {
+			using inner: Inner,
+		}
+
+		main :: proc() {
+			data: Outer
+			data.inner.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, ".", {"Inner.field: int"})
+}
+
+
+@(test)
+ast_completion_on_string_iterator :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		split_lines_iterator :: proc(s: ^string) -> (line: string, ok: bool) {
+		}
+
+		main :: proc() {
+			s: string
+
+			for linze in split_lines_iterator(&s) {
+				linz{*}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.linze: string"})
+}
