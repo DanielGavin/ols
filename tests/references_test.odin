@@ -21,18 +21,8 @@ reference_variables_in_function :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 3, character = 3},
-					end = {line = 3, character = 4},
-				},
-			},
-			{
-				range = {
-					start = {line = 4, character = 12},
-					end = {line = 4, character = 13},
-				},
-			},
+			{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+			{range = {start = {line = 4, character = 12}, end = {line = 4, character = 13}}},
 		},
 	)
 }
@@ -50,14 +40,7 @@ reference_variables_in_function_parameters :: proc(t: ^testing.T) {
 	test.expect_reference_locations(
 		t,
 		&source,
-		{
-			{
-				range = {
-					start = {line = 1, character = 22},
-					end = {line = 1, character = 23},
-				},
-			},
-		},
+		{{range = {start = {line = 1, character = 22}, end = {line = 1, character = 23}}}},
 	)
 }
 
@@ -80,18 +63,8 @@ reference_selectors_in_function :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 2, character = 3},
-					end = {line = 2, character = 4},
-				},
-			},
-			{
-				range = {
-					start = {line = 7, character = 6},
-					end = {line = 7, character = 7},
-				},
-			},
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
+			{range = {start = {line = 7, character = 6}, end = {line = 7, character = 7}}},
 		},
 	)
 }
@@ -121,18 +94,8 @@ reference_field_comp_lit :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 2, character = 3},
-					end = {line = 2, character = 17},
-				},
-			},
-			{
-				range = {
-					start = {line = 11, character = 11},
-					end = {line = 11, character = 25},
-				},
-			},
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 17}}},
+			{range = {start = {line = 11, character = 11}, end = {line = 11, character = 25}}},
 		},
 	)
 }
@@ -159,18 +122,8 @@ reference_field_comp_lit_infer_from_function :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 2, character = 3},
-					end = {line = 2, character = 17},
-				},
-			},
-			{
-				range = {
-					start = {line = 10, character = 23},
-					end = {line = 10, character = 37},
-				},
-			},
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 17}}},
+			{range = {start = {line = 10, character = 23}, end = {line = 10, character = 37}}},
 		},
 	)
 }
@@ -197,18 +150,8 @@ reference_field_comp_lit_infer_from_return :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 2, character = 3},
-					end = {line = 2, character = 17},
-				},
-			},
-			{
-				range = {
-					start = {line = 10, character = 18},
-					end = {line = 10, character = 32},
-				},
-			},
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 17}}},
+			{range = {start = {line = 10, character = 18}, end = {line = 10, character = 32}}},
 		},
 	)
 }
@@ -241,18 +184,36 @@ reference_enum_field_infer_from_assignment :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			{
-				range = {
-					start = {line = 2, character = 3},
-					end = {line = 2, character = 6},
-				},
-			},
-			{
-				range = {
-					start = {line = 15, character = 14},
-					end = {line = 15, character = 17},
-				},
-			},
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 6}}},
+			{range = {start = {line = 15, character = 14}, end = {line = 15, character = 17}}},
+		},
+	)
+}
+
+
+@(test)
+reference_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Mouse :: struct {
+			x, y: f32,
+		}
+
+		mouse: Mouse
+
+		random_procedure :: proc(x, y: f32) {
+			mouse.x += x{*}
+			mouse.y += y
+		}
+		`,
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{range = {start = {line = 8, character = 14}, end = {line = 8, character = 15}}},
+			{range = {start = {line = 7, character = 27}, end = {line = 7, character = 28}}},
 		},
 	)
 }

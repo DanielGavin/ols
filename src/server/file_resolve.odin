@@ -194,7 +194,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 						symbol = symbol,
 					}
 				}
+			}
 
+			if _, ok := n.expr.derived.(^ast.Selector_Expr); ok {
+				resolve_node(n.expr, data)
 			}
 		} else {
 			if symbol, ok := resolve_type_expression(data.ast_context, &n.node); ok {
@@ -203,10 +206,12 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 					symbol = symbol,
 				}
 			}
+
+			resolve_node(n.expr, data)
+			resolve_node(n.field, data)
 		}
 
-		resolve_node(n.expr, data)
-		resolve_node(n.field, data)
+
 	case ^Field_Value:
 		data.position_context.field_value = n
 
