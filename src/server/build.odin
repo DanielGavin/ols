@@ -166,6 +166,108 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
+
+remove_index_file :: proc(uri: common.Uri) -> common.Error {
+	ok: bool
+
+	fullpath := uri.path
+
+	when ODIN_OS == .Windows {
+		fullpath, _ = filepath.to_slash(fullpath, context.temp_allocator)
+	}
+
+	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
+
+	for k, &v in indexer.index.collection.packages {
+		for k2, v2 in v.symbols {
+			if strings.equal_fold(corrected_uri.uri, v2.uri) {
+				free_symbol(v2, indexer.index.collection.allocator)
+				delete_key(&v.symbols, k2)
+			}
+		}
+
+		for method, &symbols in v.methods {
+			for i := len(symbols) - 1; i >= 0; i -= 1 {
+				#no_bounds_check symbol := symbols[i]
+				if strings.equal_fold(corrected_uri.uri, symbol.uri) {
+					unordered_remove(&symbols, i)
+				}
+			}
+		}
+	}
+
+	return .None
+}
+
+index_file :: proc(uri: common.Uri, text: string) -> common.Error {
+	ok: bool
+
+	fullpath := uri.path
+
+	p := parser.Parser {
+		err   = log_error_handler,
+		warn  = log_warning_handler,
+		flags = {.Optional_Semicolons},
+	}
+
+	when ODIN_OS == .Windows {
+		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
+		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
+	}
+
+	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
+
+	pkg := new(ast.Package)
+	pkg.kind = .Normal
+	pkg.fullpath = fullpath
+	pkg.name = dir
+
+	if dir == "runtime" {
+		pkg.kind = .Runtime
+	}
+
+	file := ast.File {
+		fullpath = fullpath,
+		src      = text,
+		pkg      = pkg,
+	}
+
+	ok = parser.parse_file(&p, &file)
+
+	if !ok {
+		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			log.errorf("error in parse file for indexing %v", fullpath)
+		}
+	}
+
+	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
+
+	for k, &v in indexer.index.collection.packages {
+		for k2, v2 in v.symbols {
+			if corrected_uri.uri == v2.uri {
+				free_symbol(v2, indexer.index.collection.allocator)
+				delete_key(&v.symbols, k2)
+			}
+		}
+
+		for method, &symbols in v.methods {
+			for i := len(symbols) - 1; i >= 0; i -= 1 {
+				#no_bounds_check symbol := symbols[i]
+				if corrected_uri.uri == symbol.uri {
+					unordered_remove(&symbols, i)
+				}
+			}
+		}
+	}
+
+	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
+		log.errorf("failed to collect symbols on save %v", ret)
+	}
+
+	return .None
+}
+
+
 setup_index :: proc() {
 	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
 	symbol_collection := make_symbol_collection(context.allocator, &common.config)

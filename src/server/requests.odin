@@ -27,27 +27,6 @@ Header :: struct {
 	content_type:   string,
 }
 
-RequestType :: enum {
-	Initialize,
-	Initialized,
-	Shutdown,
-	Exit,
-	DidOpen,
-	DidChange,
-	DidClose,
-	DidSave,
-	Definition,
-	Completion,
-	SignatureHelp,
-	DocumentSymbol,
-	SemanticTokensFull,
-	SemanticTokensRange,
-	FormatDocument,
-	Hover,
-	CancelRequest,
-	InlayHint,
-}
-
 RequestInfo :: struct {
 	root:     json.Value,
 	params:   json.Value,
@@ -57,7 +36,6 @@ RequestInfo :: struct {
 	writer:   ^Writer,
 	result:   common.Error,
 }
-
 
 make_response_message :: proc(id: RequestId, params: ResponseParams) -> ResponseMessage {
 	return ResponseMessage{jsonrpc = "2.0", id = id, result = params}
@@ -122,6 +100,11 @@ thread_request_main :: proc(data: rawptr) {
 			#partial switch v in id_value {
 			case json.String:
 				id = v
+				//Hack to support dynamic registering without changing too much
+				if v == "REGISTER_DYNAMIC_CAPABILITIES" {
+					json.destroy_value(root)
+					continue
+				}
 			case json.Integer:
 				id = v
 			case:
@@ -260,15 +243,17 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
 	"workspace/didChangeConfiguration"  = notification_workspace_did_change_configuration,
+	"workspace/didChangeWatchedFiles"   = notification_did_change_watched_files,
 }
 
 notification_map: map[string]bool = {
-	"textDocument/didOpen"   = true,
-	"textDocument/didChange" = true,
-	"textDocument/didClose"  = true,
-	"textDocument/didSave"   = true,
-	"initialized"            = true,
-	"window/progress"        = true,
+	"textDocument/didOpen"            = true,
+	"textDocument/didChange"          = true,
+	"textDocument/didClose"           = true,
+	"textDocument/didSave"            = true,
+	"initialized"                     = true,
+	"window/progress"                 = true,
+	"workspace/didChangeWatchedFiles" = true,
 }
 
 consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
@@ -721,7 +706,32 @@ request_initialize :: proc(
 		try_build_package(pkg)
 	}
 
+	register_dynamic_capabilities(writer)
+
 	return .None
+}
+
+register_dynamic_capabilities :: proc(writer: ^Writer) {
+	params: RegistrationParams
+
+	registration: Registration
+
+	registration.id = "GLOBAL_ODIN_FILES"
+	registration.method = "workspace/didChangeWatchedFiles"
+	registration.registerOptions = DidChangeWatchedFilesRegistrationOptions {
+		watchers = []FileSystemWatcher{{globPattern = "**/*.odin"}},
+	}
+
+	params.registrations = {registration}
+
+	request_message := RequestMessage {
+		jsonrpc = "2.0",
+		method  = "client/registerCapability",
+		params  = params,
+		id      = "REGISTER_DYNAMIC_CAPABILITIES",
+	}
+
+	send_request(request_message, writer)
 }
 
 request_initialized :: proc(
@@ -1012,68 +1022,18 @@ notification_did_save :: proc(
 		return .ParseError
 	}
 
-	fullpath := uri.path
-
-	p := parser.Parser {
-		err   = log_error_handler,
-		warn  = log_warning_handler,
-		flags = {.Optional_Semicolons},
+	if result := index_file(uri, save_params.text); result != .None {
+		return result
 	}
+
+	fullpath := uri.path
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
 		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
 	}
 
-	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
-
-	pkg := new(ast.Package)
-	pkg.kind = .Normal
-	pkg.fullpath = fullpath
-	pkg.name = dir
-
-	if dir == "runtime" {
-		pkg.kind = .Runtime
-	}
-
-	file := ast.File {
-		fullpath = fullpath,
-		src      = save_params.text,
-		pkg      = pkg,
-	}
-
-	ok = parser.parse_file(&p, &file)
-
-	if !ok {
-		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-			log.errorf("error in parse file for indexing %v", fullpath)
-		}
-	}
-
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
-
-	for k, &v in indexer.index.collection.packages {
-		for k2, v2 in v.symbols {
-			if corrected_uri.uri == v2.uri {
-				free_symbol(v2, indexer.index.collection.allocator)
-				delete_key(&v.symbols, k2)
-			}
-		}
-
-		for method, &symbols in v.methods {
-			for i := 0; i < len(symbols); i += 1 {
-				#no_bounds_check symbol := symbols[i]
-				if corrected_uri.uri == symbol.uri {
-					unordered_remove(&symbols, i)
-					i -= 1
-				}
-			}
-		}
-	}
-
-	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
-		log.errorf("failed to collect symbols on save %v", ret)
-	}
 
 	check(config.profile.checker_path[:], corrected_uri, writer, config)
 
@@ -1423,6 +1383,41 @@ request_references :: proc(
 	response := make_response_message(params = locations, id = id)
 
 	send_response(response, writer)
+
+	return .None
+}
+
+notification_did_change_watched_files :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	did_change_watched_files_params: DidChangeWatchedFilesParams
+
+	if unmarshal(params, did_change_watched_files_params, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	for change in did_change_watched_files_params.changes {
+		if change.type == cast(int)FileChangeType.Deleted {
+			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
+				remove_index_file(uri)
+			}
+		} else {
+			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
+				if data, ok := os.read_entire_file(uri.path); ok {
+					index_file(uri, cast(string)data)
+				}
+			}
+		}
+	}
 
 	return .None
 }

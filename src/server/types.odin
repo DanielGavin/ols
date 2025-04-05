@@ -33,6 +33,15 @@ ResponseParams :: union {
 	common.Range,
 }
 
+RequestMessage :: struct {
+	jsonrpc: string,
+	method:  string,
+	id:      RequestId,
+	params:  union {
+		RegistrationParams,
+	},
+}
+
 ResponseMessage :: struct {
 	jsonrpc: string,
 	id:      RequestId,
@@ -84,6 +93,33 @@ RequestInitializeParams :: struct {
 	clientInfo:            ClientInfo,
 }
 
+FileChangeType :: enum {
+	Created = 1,
+	Changed = 2,
+	Deleted = 3,
+}
+
+FileEvent :: struct {
+	uri:  string,
+	type: int,
+}
+
+DidChangeWatchedFilesParams :: struct {
+	changes: [dynamic]FileEvent,
+}
+
+Registration :: struct {
+	id:              string,
+	method:          string,
+	registerOptions: union {
+		DidChangeWatchedFilesRegistrationOptions,
+	},
+}
+
+RegistrationParams :: struct {
+	registrations: []Registration,
+}
+
 ClientInfo :: struct {
 	name: string,
 }
@@ -109,10 +145,13 @@ ServerCapabilities :: struct {
 	documentLinkProvider:       DocumentLinkOptions,
 }
 
+DidChangeWatchedFilesRegistrationOptions :: struct {
+	watchers: []FileSystemWatcher,
+}
+
 RenameOptions :: struct {
 	prepareProvider: bool,
 }
-
 
 CompletionOptions :: struct {
 	resolveProvider:   bool,
@@ -339,6 +378,10 @@ TextDocumentSyncOptions :: struct {
 	openClose: bool,
 	change:    int,
 	save:      SaveOptions,
+}
+
+FileSystemWatcher :: struct {
+	globPattern: string,
 }
 
 OlsConfig :: struct {
