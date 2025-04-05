@@ -90,6 +90,9 @@ main :: proc() {
 	path := os.args[len(os.args) - 1]
 	if strings.has_prefix(os.args[len(os.args) - 1], "-") {
 		args_to_parse = os.args[1:]
+	}
+
+	if len(path) <= 1 {
 		path = "." // if no file was specified, use current directory as the starting path to look for `odinfmt.json`
 	}
 
