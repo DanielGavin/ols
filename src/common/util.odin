@@ -72,8 +72,8 @@ resolve_home_dir :: proc(
 	}
 }
 
-when ODIN_OS == .Darwin || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 	FILE :: struct {}
+when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 
 	run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) {
 		fp := popen(strings.clone_to_cstring(command, context.temp_allocator), "r")
