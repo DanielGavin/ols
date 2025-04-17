@@ -635,6 +635,8 @@ request_initialize :: proc(
 		read_ols_config(ols_config_path, config, uri)
 
 		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+	} else {
+		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
 	}
 
 
