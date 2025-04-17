@@ -1184,7 +1184,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 	}
 
-	if local, ok := get_local(ast_context^, node); ok && ast_context.use_locals {
+	if local, ok := get_local(ast_context^, node); ok && (ast_context.use_locals || local.local_global) {
 		is_distinct := false
 
 		if local.parameter {
@@ -2806,6 +2806,11 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		return
 	}
 
+	//We have two stages of getting locals: local non mutable and mutables, since they are treated differently in scopes my Odin.
+	if value_decl.is_mutable == ast_context.non_mutable_only {
+		return
+	}
+
 	if value_decl.is_using {
 		if value_decl.type != nil {
 			get_locals_using(value_decl.type, ast_context)
@@ -2958,13 +2963,7 @@ get_locals_block_stmt :: proc(
 	}
 
 	for stmt in block.stmts {
-		if ast_context.non_mutable_only {
-			if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok && !value_decl.is_mutable {
-				get_locals_stmt(file, stmt, ast_context, document_position)
-			}
-		} else {
-			get_locals_stmt(file, stmt, ast_context, document_position)
-		}
+		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
 }
 

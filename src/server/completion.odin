@@ -1788,10 +1788,7 @@ append_magic_map_completion :: proc(
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 
-	map_builtins_no_arg := []string {
-		"clear",
-		"shrink",
-	}
+	map_builtins_no_arg := []string{"clear", "shrink"}
 
 	for name in map_builtins_no_arg {
 		item := CompletionItem {
@@ -1808,13 +1805,7 @@ append_magic_map_completion :: proc(
 		append(items, item)
 	}
 
-	map_builtins_with_args := []string {
-		"delete_key",
-		"reserve",
-		"map_insert",
-		"map_upsert",
-		"map_entry",
-	}
+	map_builtins_with_args := []string{"delete_key", "reserve", "map_insert", "map_upsert", "map_entry"}
 
 	for name in map_builtins_with_args {
 		item := CompletionItem {
@@ -1947,13 +1938,7 @@ append_magic_array_like_completion :: proc(
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 
-	dynamic_array_builtins_no_arg := []string {
-		"pop",
-		"pop_safe",
-		"pop_front",
-		"pop_front_safe",
-		"clear",
-	}
+	dynamic_array_builtins_no_arg := []string{"pop", "pop_safe", "pop_front", "pop_front_safe", "clear"}
 
 	for name in dynamic_array_builtins_no_arg {
 		item := CompletionItem {
@@ -2201,4 +2186,3 @@ swizzle_coord_map: map[u8]bool = {
 }
 
 swizzle_coord_components: []string = {"x", "y", "z", "w"}
-

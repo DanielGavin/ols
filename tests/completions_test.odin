@@ -1624,6 +1624,27 @@ ast_new_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_new_completion_for_proc_defined :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		new :: proc($T: typeid) -> (^T, Allocator_Error) #optional_second {
+		}
+
+		main :: proc() {
+			Http_Ctx :: struct {
+				user_ctx: rawptr,
+			}
+			http_ctx := new(Http_Ctx)
+			http_c{*}
+		}
+
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"test.Http_Ctx: struct"})
+}
+
+@(test)
 ast_new_clone_completion :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package main
