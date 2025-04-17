@@ -205,7 +205,7 @@ Configuration of the LSP:
 
 Neovim has a builtin support for LSP.
 
-There is a plugin that makes the setup easier, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can install it with your prefered package manager.
+There is a plugin that makes the setup easier, called [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig). You can install it with your preferred package manager.
 
 A simple configuration that uses the default `ols` settings would be like this:
 
@@ -224,6 +224,32 @@ require'lspconfig'.ols.setup {
 		},
 	},
 }
+```
+
+Neovim can run Odinfmt on save using the [conform](https://github.com/stevearc/conform.nvim) plugin. Here is a sample configuration using the [lazy.nvim](https://github.com/folke/lazy.nvim) package manager:
+
+```lua
+local M = {
+   "stevearc/conform.nvim",
+   opts = {
+      notify_on_error = false,
+      -- Odinfmt gets its configuration from odinfmt.json. It defaults
+      -- writing to stdout but needs to be told to read from stdin.
+      formatters = {
+         odinfmt = {
+            -- Change where to find the command if it isn't in your path.
+            command = "odinfmt",
+            args = { "-stdin" },
+            stdin = true,
+         },
+      },
+      -- and instruct conform to use odinfmt.
+      formatters_by_ft = {
+         odin = { "odinfmt" },
+      },
+   },
+}
+return M
 ```
 
 ### Emacs
