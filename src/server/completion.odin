@@ -731,6 +731,7 @@ get_implicit_completion :: proc(
 
 		if position_context.comp_lit != nil {
 			if bitset_symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
+				set_ast_package_from_symbol_scoped(ast_context, bitset_symbol)
 				if _enum_value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
 					enum_value = _enum_value
 				}
@@ -949,19 +950,22 @@ get_implicit_completion :: proc(
 								return
 							}
 						}
-					} else if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
-						for enum_name in s.names {
-							item := CompletionItem {
-								label  = enum_name,
-								kind   = .EnumMember,
-								detail = enum_name,
+					} else {
+						set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
+						if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
+							for enum_name in s.names {
+								item := CompletionItem {
+									label  = enum_name,
+									kind   = .EnumMember,
+									detail = enum_name,
+								}
+
+								append(&items, item)
 							}
 
-							append(&items, item)
+							list.items = items[:]
+							return
 						}
-
-						list.items = items[:]
-						return
 					}
 				}
 			}
