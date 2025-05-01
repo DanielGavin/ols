@@ -1332,13 +1332,15 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 				ast_context.call = old_call
 			}
 
-			call_symbol := internal_resolve_type_expression(ast_context, v.expr) or_return
-
-			proc_value := call_symbol.value.(SymbolProcedureValue) or_return
-
-			if len(proc_value.return_types) >= 1 && proc_value.return_types[0].type != nil {
-				return_symbol, ok = internal_resolve_type_expression(ast_context, proc_value.return_types[0].type)
+			if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
+				if proc_value, ok := return_symbol.value.(SymbolProcedureValue); ok {
+					if len(proc_value.return_types) >= 1 && proc_value.return_types[0].type != nil {
+						return_symbol, ok = internal_resolve_type_expression(ast_context, proc_value.return_types[0].type)
+					}
+				}
+				// Otherwise should be a parapoly style
 			}
+
 		case ^Struct_Type:
 			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node, global.attributes), true
 			return_symbol.name = node.name
@@ -2744,24 +2746,36 @@ get_generic_assignment :: proc(
 
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-			if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
-				for ret in procedure.return_types {
-					if ret.type != nil {
-						calls[len(results)] = true
-						append(results, ret.type)
-					} else if ret.default_value != nil {
-						calls[len(results)] = true
-						append(results, ret.default_value)
+
+			#partial switch symbol_value in symbol.value {
+				case SymbolProcedureValue:
+					for ret in symbol_value.return_types {
+						if ret.type != nil {
+							calls[len(results)] = true
+							append(results, ret.type)
+						} else if ret.default_value != nil {
+							calls[len(results)] = true
+							append(results, ret.default_value)
+						}
 					}
-				}
-			} else if aggregate, ok := symbol.value.(SymbolAggregateValue); ok {
-				//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
-				append(results, value)
-			} else if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				//TODO: Simple assumption that you are casting it the type. 
-				type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
-				type_ident.name = ident.name
-				append(results, type_ident)
+				case SymbolAggregateValue:
+					//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
+					append(results, value)
+				
+				case SymbolStructValue:
+					// Parametrized struct
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
+				case SymbolUnionValue:
+					// Parametrized union
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
+
+				case:
+					if ident, ok := v.expr.derived.(^ast.Ident); ok {
+						//TODO: Simple assumption that you are casting it the type. 
+						type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+						type_ident.name = ident.name
+						append(results, type_ident)
+					}
 			}
 		}
 	case ^Comp_Lit:
