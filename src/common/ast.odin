@@ -184,6 +184,13 @@ unwrap_pointer_ident :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 		}
 	}
 
+	// Check for parapoly specialization
+	if expr != nil {
+		if poly, ok := expr.derived.(^ast.Poly_Type); ok {
+			expr = poly.specialization
+		}
+	}
+
 	// Check for parapoly self
 	if expr != nil {
 		if call, ok := expr.derived.(^ast.Call_Expr); ok {
