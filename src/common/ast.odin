@@ -184,6 +184,13 @@ unwrap_pointer_ident :: proc(expr: ^ast.Expr) -> (ast.Ident, int, bool) {
 		}
 	}
 
+	// Check for parapoly self
+	if expr != nil {
+		if call, ok := expr.derived.(^ast.Call_Expr); ok {
+			expr = call.expr
+		}
+	}
+
 	if expr != nil {
 		if ident, ok := expr.derived.(^ast.Ident); ok {
 			return ident^, n, ok
