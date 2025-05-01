@@ -1049,6 +1049,11 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 				return selector, true
 			}
 		}
+	case ^ast.Poly_Type:
+		if v.specialization != nil {
+			return internal_resolve_type_expression(ast_context, v.specialization)
+		}
+
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
 	}
