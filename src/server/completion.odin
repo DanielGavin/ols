@@ -1831,12 +1831,22 @@ append_magic_map_completion :: proc(
 get_expression_string_from_position_context :: proc(position_context: ^DocumentPositionContext) -> string {
 	src := position_context.file.src
 	if position_context.call != nil {
-		return src[position_context.call.pos.offset:position_context.call.end.offset]
-	} else if position_context.field != nil {
+		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if position_in_node(call_expr.expr, position_context.position) {
+				return src[position_context.call.pos.offset:position_context.call.end.offset]
+			}
+		}
+
+	}
+
+	if position_context.field != nil {
 		return src[position_context.field.pos.offset:position_context.field.end.offset]
-	} else if position_context.selector != nil {
+	}
+
+	if position_context.selector != nil {
 		return src[position_context.selector.pos.offset:position_context.selector.end.offset]
 	}
+
 	return ""
 }
 

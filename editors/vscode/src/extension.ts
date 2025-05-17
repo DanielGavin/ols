@@ -5,7 +5,7 @@
 import * as vscode from 'vscode';
 import * as path from "path";
 import * as os from "os";
-import { promises as fs, constants, writeFileSync} from "fs";
+import { promises as fs, constants, writeFileSync } from "fs";
 
 var AdmZip = require('adm-zip');
 
@@ -27,7 +27,9 @@ import { watchOlsConfigFile } from './watch';
 
 const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
-const defaultConfig = JSON.stringify(
+const JSON5 = require('json5')
+
+const defaultConfig = JSON5.stringify(
 	{
 		$schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
 		enable_document_symbols: true,
@@ -117,7 +119,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const userConfigPath = path.join(path.dirname(serverPath), "ols.json");
 
 	fs.access(projectConfigPath, constants.F_OK).catch(async (_e1) => {
-        fs.access(userConfigPath, constants.F_OK).catch( async (_e2) => {
+		fs.access(userConfigPath, constants.F_OK).catch(async (_e2) => {
 			if (!config.askCreateOLS) {
 				return;
 			}
@@ -151,7 +153,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// parse ols file first, so we can pass it to "isOdinInstalled"
 	// in order to check if the path to odin was defined in the ols file
-	await parseOlsFile(config, projectConfigPath);
+	try {
+		await parseOlsFile(config, projectConfigPath);
+	}
+	catch (error) {
+		log.error("Failed to parse ols configuration");
+	}
 
 	if (!isOdinInstalled(config)) {
 		vscode.window.showErrorMessage("Odin cannot be found in your path environment. Please install Odin or add it into your path environment before going any further: [Install](https://odin-lang.org/docs/install/).");
@@ -170,7 +177,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		client.start();
 	});
 
-    vscode.commands.registerCommand("ols.editProjectConfig", async() => {
+	vscode.commands.registerCommand("ols.editProjectConfig", async () => {
 		createOrEditProjectConfig();
 	});
 
@@ -277,7 +284,7 @@ export async function parseOlsFile(config: Config, file: string) {
 	*/
 	await fs.readFile(file).then(
 		(data) => {
-			const conf = JSON.parse(data.toString());
+			const conf = JSON5.parse(data.toString());
 			config.collections = conf.collections;
 			if (conf.hasOwnProperty("odin_command")) {
 				config.odinCommand = conf.odin_command;
@@ -344,7 +351,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 		Temp: right now it doesn't check for versions, since ols has no versioning right now
 	*/
 
-    if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000)  > Date.now()) {
+	if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000) > Date.now()) {
 		return destExecutable;
 	}
 

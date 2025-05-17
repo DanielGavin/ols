@@ -7,7 +7,7 @@
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.1.33",
+	"version": "0.1.36",
 	"engines": {
 		"vscode": "^1.96.0"
 	},
@@ -124,8 +124,8 @@
 					"text.html.markdown"
 				],
 				"embeddedLanguages": {
-					  "meta.embedded.block.odin": "odin"
-					}
+					"meta.embedded.block.odin": "odin"
+				}
 			}
 		],
 		"breakpoints": [
@@ -136,17 +136,19 @@
 		"problemMatchers": [
 			{
 				"name": "odin",
-                "owner": "odin",
-                "fileLocation": ["absolute"],
-                "pattern": {
-                    "regexp": "^(.+)\\(([0-9]+)\\:([0-9]+)\\) ([^:]+)(.+)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
+				"owner": "odin",
+				"fileLocation": [
+					"absolute"
+				],
+				"pattern": {
+					"regexp": "^(.+)\\(([0-9]+)\\:([0-9]+)\\) ([^:]+)(.+)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			}
 		]
 	},
 	"scripts": {
@@ -166,16 +168,17 @@
 		"@types/vscode": "^1.96.0",
 		"@typescript-eslint/eslint-plugin": "^4.33.0",
 		"@typescript-eslint/parser": "^4.33.0",
+		"@vscode/vsce": "^3.2.1",
 		"eslint": "^7.32.0",
 		"glob": "^7.2.0",
 		"mocha": "^10.2.0",
 		"typescript": "^4.6.2",
-		"@vscode/vsce": "^3.2.1",
 		"vscode-test": "^1.6.1"
 	},
 	"dependencies": {
 		"adm-zip": "^0.5.9",
 		"https-proxy-agent": "^5.0.0",
+		"json5": "^2.2.1",
 		"node-fetch": "^2.6.7",
 		"vscode-languageclient": "9.0.1"
 	},

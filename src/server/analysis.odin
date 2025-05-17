@@ -1335,7 +1335,10 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
 				if proc_value, ok := return_symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.return_types) >= 1 && proc_value.return_types[0].type != nil {
-						return_symbol, ok = internal_resolve_type_expression(ast_context, proc_value.return_types[0].type)
+						return_symbol, ok = internal_resolve_type_expression(
+							ast_context,
+							proc_value.return_types[0].type,
+						)
 					}
 				}
 				// Otherwise should be a parapoly style
@@ -2748,34 +2751,34 @@ get_generic_assignment :: proc(
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 
 			#partial switch symbol_value in symbol.value {
-				case SymbolProcedureValue:
-					for ret in symbol_value.return_types {
-						if ret.type != nil {
-							calls[len(results)] = true
-							append(results, ret.type)
-						} else if ret.default_value != nil {
-							calls[len(results)] = true
-							append(results, ret.default_value)
-						}
+			case SymbolProcedureValue:
+				for ret in symbol_value.return_types {
+					if ret.type != nil {
+						calls[len(results)] = true
+						append(results, ret.type)
+					} else if ret.default_value != nil {
+						calls[len(results)] = true
+						append(results, ret.default_value)
 					}
-				case SymbolAggregateValue:
-					//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
-					append(results, value)
-				
-				case SymbolStructValue:
-					// Parametrized struct
-					get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
-				case SymbolUnionValue:
-					// Parametrized union
-					get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
+				}
+			case SymbolAggregateValue:
+				//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
+				append(results, value)
 
-				case:
-					if ident, ok := v.expr.derived.(^ast.Ident); ok {
-						//TODO: Simple assumption that you are casting it the type. 
-						type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
-						type_ident.name = ident.name
-						append(results, type_ident)
-					}
+			case SymbolStructValue:
+				// Parametrized struct
+				get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
+			case SymbolUnionValue:
+				// Parametrized union
+				get_generic_assignment(file, v.expr, ast_context, results, calls, flags)
+
+			case:
+				if ident, ok := v.expr.derived.(^ast.Ident); ok {
+					//TODO: Simple assumption that you are casting it the type. 
+					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+					type_ident.name = ident.name
+					append(results, type_ident)
+				}
 			}
 		}
 	case ^Comp_Lit:
@@ -3155,25 +3158,28 @@ get_locals_for_range_stmt :: proc(
 				if ident, ok := unwrap_ident(val); ok {
 					expr: ^ast.Expr
 
-					if v.return_types[i].type != nil {
-						expr = v.return_types[i].type
-					} else if v.return_types[i].default_value != nil {
-						expr = v.return_types[i].default_value
-					}
+					if len(v.return_types) > i {
 
-					store_local(
-						ast_context,
-						ident,
-						expr,
-						ident.pos.offset,
-						ident.name,
-						ast_context.local_id,
-						ast_context.non_mutable_only,
-						false,
-						true,
-						symbol.pkg,
-						false,
-					)
+						if v.return_types[i].type != nil {
+							expr = v.return_types[i].type
+						} else if v.return_types[i].default_value != nil {
+							expr = v.return_types[i].default_value
+						}
+
+						store_local(
+							ast_context,
+							ident,
+							expr,
+							ident.pos.offset,
+							ident.name,
+							ast_context.local_id,
+							ast_context.non_mutable_only,
+							false,
+							true,
+							symbol.pkg,
+							false,
+						)
+					}
 				}
 			}
 		case SymbolUntypedValue:
@@ -4400,6 +4406,16 @@ get_document_position_dynamic_array :: proc(array: $A/[dynamic]^$T, position_con
 
 position_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> bool {
 	return node != nil && node.pos.offset <= position && position <= node.end.offset
+}
+
+position_in_exprs :: proc(nodes: []^ast.Expr, position: common.AbsolutePosition) -> bool {
+	for node in nodes {
+		if node != nil && node.pos.offset <= position && position <= node.end.offset {
+			return true
+		}
+	}
+
+	return false
 }
 
 get_document_position_label :: proc(label: ^ast.Expr, position_context: ^DocumentPositionContext) {
