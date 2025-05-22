@@ -250,7 +250,9 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		if position_context.call != nil {
 			if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-				ast_context.call = call
+				if !position_in_exprs(call.args, position_context.position) {
+					ast_context.call = call
+				}
 			}
 		}
 

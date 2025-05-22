@@ -332,10 +332,11 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		defer {
 			data.position_context.call = old_call
-			data.ast_context.call = old_call
 		}
 
 		resolve_node(n.expr, data)
+
+		data.ast_context.call = old_call
 
 		for arg in n.args {
 			data.position_context.position = arg.pos.offset
