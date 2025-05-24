@@ -1518,6 +1518,11 @@ visit_expr :: proc(
 			document = cons_with_opl(document, text("#shared_nil"))
 		}
 
+		if v.align != nil {
+			document = cons_with_nopl(document, text("#align"))
+			document = cons(document, visit_expr(p, v.align))
+		}
+
 		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
 		if len(v.variants) == 0 {
@@ -1586,17 +1591,17 @@ visit_expr :: proc(
 
 		if v.align != nil {
 			document = cons_with_nopl(document, text("#align"))
-			document = cons_with_nopl(document, visit_expr(p, v.align))
+			document = cons(document, visit_expr(p, v.align))
 		}
 
 		if v.max_field_align != nil {
 			document = cons_with_nopl(document, text("#max_field_align"))
-			document = cons_with_nopl(document, visit_expr(p, v.max_field_align))
+			document = cons(document, visit_expr(p, v.max_field_align))
 		}
 
 		if v.min_field_align != nil {
 			document = cons_with_nopl(document, text("#min_field_align"))
-			document = cons_with_nopl(document, visit_expr(p, v.min_field_align))
+			document = cons(document, visit_expr(p, v.min_field_align))
 		}
 
 		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
