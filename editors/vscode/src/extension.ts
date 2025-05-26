@@ -29,7 +29,7 @@ const onDidChange: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 
 const JSON5 = require('json5')
 
-const defaultConfig = JSON5.stringify(
+const defaultConfig = JSON.stringify(
 	{
 		$schema: "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
 		enable_document_symbols: true,

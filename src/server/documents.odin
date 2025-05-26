@@ -312,6 +312,11 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .ParseError
 	}
 
+	if strings.contains(document.uri.uri, "base/builtin/builtin.odin") ||
+	   strings.contains(document.uri.uri, "base/intrinsics/intrinsics.odin") {
+		return .None
+	}
+
 	if writer != nil && len(errors) > 0 && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
@@ -396,6 +401,10 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 	pkg := new(ast.Package)
 	pkg.kind = .Normal
 	pkg.fullpath = document.fullpath
+
+	if strings.contains(document.fullpath, "base/runtime") {
+		pkg.kind = .Runtime
+	}
 
 	document.ast = ast.File {
 		fullpath = document.fullpath,
