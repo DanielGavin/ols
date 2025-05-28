@@ -322,7 +322,15 @@ cancel :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^commo
 
 call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.Config) {
 	root := value.(json.Object)
-	method := root["method"].(json.String)
+
+	method, ok := root["method"].(json.String)
+
+	if !ok {
+		log.errorf("Failed to find method: %#v", root)
+		response := make_response_message_error(id = id, error = ResponseError{code = .MethodNotFound, message = ""})
+		send_error(response, writer)
+		return
+	}
 
 	diff: time.Duration
 	{
