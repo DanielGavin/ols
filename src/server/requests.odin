@@ -725,7 +725,9 @@ request_initialize :: proc(
 		try_build_package(pkg)
 	}
 
-	register_dynamic_capabilities(writer)
+	if initialize_params.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration {
+		register_dynamic_capabilities(writer)
+	}
 
 	return .None
 }

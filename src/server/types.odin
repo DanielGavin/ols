@@ -213,7 +213,17 @@ ParameterInformationCapabilities :: struct {
 ClientCapabilities :: struct {
 	textDocument: TextDocumentClientCapabilities,
 	general:      GeneralClientCapabilities,
+	workspace:    WorkspaceCapabilities,
 }
+
+WorkspaceCapabilities :: struct {
+	didChangeWatchedFiles: DidChangeWatchedFilesClientCapabilities,
+}
+
+DidChangeWatchedFilesClientCapabilities :: struct {
+	dynamicRegistration: bool,
+}
+
 
 RangeOptional :: union {
 	common.Range,
