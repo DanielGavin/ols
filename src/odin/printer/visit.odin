@@ -1575,7 +1575,21 @@ visit_expr :: proc(
 	case ^Struct_Type:
 		document = text_position(p, "struct", v.pos)
 
-		document = cons(document, visit_poly_params(p, v.poly_params))
+		if v.poly_params != nil {
+			document = cons(document, text("("))
+			document = cons(
+				document,
+				nest(
+					cons(
+						break_with(""),
+						visit_signature_list(p, v.poly_params, false, false, options),
+					),
+				),
+			)
+			document = cons(document, break_with(""), text(")"))
+		} else {
+			document = cons(document, empty())
+		}
 
 		if v.is_packed {
 			document = cons_with_nopl(document, text("#packed"))
@@ -1619,7 +1633,9 @@ visit_expr :: proc(
 				nest(
 					cons(
 						newline_position(p, 1, v.fields.open),
-						visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline}),
+						group(
+							visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline})
+						),
 					),
 				),
 			)
