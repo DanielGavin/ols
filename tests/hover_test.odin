@@ -354,6 +354,27 @@ ast_hover_proc_group :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.add: proc(a, b: int) -> int")
 }
 
+@(test)
+ast_hover_proc_with_proc_parameter :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		a{*}a :: proc(p: proc()) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.aa: proc(p: proc())")
+}
+
+@(test)
+ast_hover_proc_with_proc_parameter_with_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		a{*}a :: proc(p: proc() -> int) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.aa: proc(p: proc() -> int)")
+}
 
 /*
 
