@@ -1115,8 +1115,11 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 	case ^Proc_Type:
 		strings.write_string(builder, "proc(")
 		build_string(n.params, builder, remove_pointers)
-		strings.write_string(builder, ") -> ")
-		build_string(n.results, builder, remove_pointers)
+		strings.write_string(builder, ")")
+		if n.results != nil {
+			strings.write_string(builder, " -> ")
+			build_string(n.results, builder, remove_pointers)
+		}
 	case ^Pointer_Type:
 		if !remove_pointers {
 			strings.write_string(builder, "^")
