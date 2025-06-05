@@ -234,6 +234,33 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		}
+	} else if position_context.implicit_selector_expr != nil {
+		implicit_selector := position_context.implicit_selector_expr
+		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context, implicit_selector); ok {
+			#partial switch v in symbol.value {
+			case SymbolEnumValue:
+				for name, i in v.names {
+					if strings.compare(name, implicit_selector.field.name) == 0 {
+						symbol.pkg = symbol.name
+						symbol.name = name
+						hover.contents = write_hover_content(&ast_context, symbol)
+						return hover, true, true
+					}
+				}
+			case SymbolUnionValue:
+				if enum_value, ok := unwrap_super_enum(&ast_context, v); ok {
+					for name, i in enum_value.names {
+						if strings.compare(name, implicit_selector.field.name) == 0 {
+							symbol.pkg = symbol.name
+							symbol.name = name
+							hover.contents = write_hover_content(&ast_context, symbol)
+							return hover, true, true
+						}
+					}
+				}
+			}
+		}	
+		return {}, false, true
 	} else if position_context.identifier != nil {
 		reset_ast_context(&ast_context)
 

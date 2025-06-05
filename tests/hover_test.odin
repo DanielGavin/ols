@@ -376,6 +376,42 @@ ast_hover_proc_with_proc_parameter_with_return :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.aa: proc(p: proc() -> int)")
 }
 
+@(test)
+ast_hover_enum_implicit_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		foo: Foo
+		foo = .Fo{*}o1
+		`
+	}
+
+	test.expect_hover(t, &source, "Foo.Foo1")
+}
+
+@(test)
+ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		Bar :: union { Foo }
+
+		bar: Bar
+		bar = .Fo{*}o1
+		`
+	}
+
+	test.expect_hover(t, &source, "Bar.Foo1")
+}
+
 /*
 
 Waiting for odin fix
