@@ -1669,17 +1669,16 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.switch_stmt != nil {
-		return resolve_type_expression(ast_context, position_context.switch_stmt.cond)
-	}
-
 	if position_context.assign != nil && len(position_context.assign.lhs) == len(position_context.assign.rhs) {
-
 		for _, i in position_context.assign.lhs {
 			if position_in_node(position_context.assign.rhs[i], position_context.position) {
 				return resolve_type_expression(ast_context, position_context.assign.lhs[i])
 			}
 		}
+	}
+
+	if position_context.switch_stmt != nil {
+		return resolve_type_expression(ast_context, position_context.switch_stmt.cond)
 	}
 
 	if position_context.binary != nil {
