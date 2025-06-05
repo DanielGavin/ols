@@ -353,3 +353,42 @@ ast_goto_implicit_enum_infer_from_function :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_implicit_enum_infer_from_assignment_within_switch :: proc(t: ^testing.T) {
+	source := test.Source{
+		main = `package test
+		Bar :: enum {
+			Bar1,
+			Bar2,
+		}
+
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+
+		main :: proc() {
+			my_foo: Foo
+			my_bar: Bar
+			switch my_foo {
+			case .Foo1:
+				my_bar = .B{*}ar2
+			case .Foo2:
+				my_bar = .Bar1
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 3, character = 3},
+			end = {line = 3, character = 7},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
