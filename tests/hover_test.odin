@@ -402,7 +402,7 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 			Foo2,
 		}
 
-		Bar :: union { Foo }
+		Bar :: union { Foo, int }
 
 		bar: Bar
 		bar = .Fo{*}o1
