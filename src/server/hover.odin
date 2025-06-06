@@ -241,8 +241,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			case SymbolEnumValue:
 				for name, i in v.names {
 					if strings.compare(name, implicit_selector.field.name) == 0 {
-						symbol.pkg = symbol.name
-						symbol.name = name
+						symbol.signature = fmt.tprintf(".%s", name)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -251,8 +250,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				if enum_value, ok := unwrap_super_enum(&ast_context, v); ok {
 					for name, i in enum_value.names {
 						if strings.compare(name, implicit_selector.field.name) == 0 {
-							symbol.pkg = symbol.name
-							symbol.name = name
+							symbol.signature = fmt.tprintf(".%s", name)
 							hover.contents = write_hover_content(&ast_context, symbol)
 							return hover, true, true
 						}

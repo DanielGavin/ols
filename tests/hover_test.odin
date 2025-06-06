@@ -390,7 +390,7 @@ ast_hover_enum_implicit_selector :: proc(t: ^testing.T) {
 		`
 	}
 
-	test.expect_hover(t, &source, "Foo.Foo1")
+	test.expect_hover(t, &source, "test.Foo: .Foo1")
 }
 
 @(test)
@@ -409,7 +409,7 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 		`
 	}
 
-	test.expect_hover(t, &source, "Bar.Foo1")
+	test.expect_hover(t, &source, "test.Bar: .Foo1")
 }
 
 /*
