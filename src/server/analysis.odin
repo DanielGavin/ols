@@ -3805,12 +3805,18 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 		if is_variable {
 			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
 		} else {
+			longestNameLen := 0
+			for name in v.names {
+				if len(name) > longestNameLen {
+					longestNameLen = len(name)
+				}
+			}
 			builder := strings.builder_make(ast_context.allocator)
 			strings.write_string(&builder, "struct {\n")
 			for i in 0..<len(v.names) {
 				strings.write_string(&builder, "\t")
 				strings.write_string(&builder, v.names[i])
-				strings.write_string(&builder, ": ")
+				fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
 				common.build_string_node(v.types[i], &builder, false)
 				strings.write_string(&builder, ",\n")
 			}
