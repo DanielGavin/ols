@@ -3810,27 +3810,26 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 	case SymbolProcedureValue:
 		return "proc"
 	case SymbolStructValue:
+		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
-		} else {
-			longestNameLen := 0
-			for name in v.names {
-				if len(name) > longestNameLen {
-					longestNameLen = len(name)
-				}
-			}
-			builder := strings.builder_make(ast_context.allocator)
-			strings.write_string(&builder, "struct {\n")
-			for i in 0..<len(v.names) {
-				strings.write_string(&builder, "\t")
-				strings.write_string(&builder, v.names[i])
-				fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
-				common.build_string_node(v.types[i], &builder, false)
-				strings.write_string(&builder, ",\n")
-			}
-			strings.write_string(&builder, "}")
-			return strings.to_string(builder)
+			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
 		}
+		longestNameLen := 0
+		for name in v.names {
+			if len(name) > longestNameLen {
+				longestNameLen = len(name)
+			}
+		}
+		strings.write_string(&builder, "struct {\n")
+		for i in 0..<len(v.names) {
+			strings.write_string(&builder, "\t")
+			strings.write_string(&builder, v.names[i])
+			fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
+			common.build_string_node(v.types[i], &builder, false)
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolUnionValue:
 		if is_variable {
 			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
