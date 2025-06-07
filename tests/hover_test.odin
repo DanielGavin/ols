@@ -507,6 +507,24 @@ ast_hover_union_variable :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.foo: test.Foo :: union {\n\tstring,\n\tint,\n}")
 }
+
+@(test)
+ast_hover_struct_field_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			b{*}ar: int,
+			f: proc(a: int) -> int,
+		}
+
+		foo := Foo{
+			bar = 1
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "Foo.bar: int")
+}
 /*
 
 Waiting for odin fix

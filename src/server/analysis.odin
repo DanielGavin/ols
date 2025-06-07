@@ -3765,7 +3765,7 @@ unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: Symbol) -> (Symbo
 	return {}, false
 }
 
-get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol, was_variable := false) -> string {
+get_signature :: proc(ast_context: ^AstContext, ident: ast.Any_Node, symbol: Symbol, was_variable := false) -> string {
 	if symbol.type == .Function {
 		return symbol.signature
 	}

@@ -108,6 +108,28 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	}
 
+	if position_context.struct_type != nil {
+		for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					if identifier, ok := name.derived.(^ast.Ident); ok && field.type != nil {
+						if position_context.value_decl != nil && len(position_context.value_decl.names) != 0 {
+							if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
+								if struct_symbol, ok := resolve_type_expression(&ast_context, position_context.value_decl.names[0]); ok {
+									symbol.pkg = struct_symbol.name
+									symbol.name = identifier.name
+									symbol.signature = get_signature(&ast_context, field.type.derived, symbol)
+									hover.contents = write_hover_content(&ast_context, symbol)
+									return hover, true, true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if position_context.field_value != nil && position_context.comp_lit != nil {
 		if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
@@ -155,7 +177,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-					resolved.signature = get_signature(&ast_context, ident, resolved)
+					resolved.signature = get_signature(&ast_context, &ident, resolved)
 					resolved.name = ident.name
 
 					if resolved.type == .Variable {
@@ -282,7 +304,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			resolved.signature = get_signature(&ast_context, ident, resolved)
+			resolved.signature = get_signature(&ast_context, &ident, resolved)
 			resolved.name = ident.name
 
 			if resolved.type == .Variable {
