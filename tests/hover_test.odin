@@ -412,6 +412,22 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Bar: .Foo1")
 }
 
+@(test)
+ast_hover_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			f: proc(a: int) -> int,
+		}
+
+		foo := F{*}oo{}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf: proc(a: int) -> int,\n}")
+}
+
 /*
 
 Waiting for odin fix
