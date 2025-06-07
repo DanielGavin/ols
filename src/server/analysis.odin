@@ -3792,7 +3792,15 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 		if is_variable {
 			return symbol.name
 		} else {
-			return "enum"
+			builder := strings.builder_make(ast_context.allocator)
+			strings.write_string(&builder, "enum {\n")
+			for i in 0..<len(v.names) {
+				strings.write_string(&builder, "\t")
+				strings.write_string(&builder, v.names[i])
+				strings.write_string(&builder, ",\n")
+			}
+			strings.write_string(&builder, "}")
+			return strings.to_string(builder)
 		}
 	case SymbolMapValue:
 		return strings.concatenate(
@@ -3827,7 +3835,15 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 		if is_variable {
 			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
 		} else {
-			return "union"
+			builder := strings.builder_make(ast_context.allocator)
+			strings.write_string(&builder, "union {\n")
+			for i in 0..<len(v.types) {
+				strings.write_string(&builder, "\t")
+				common.build_string_node(v.types[i], &builder, false)
+				strings.write_string(&builder, ",\n")
+			}
+			strings.write_string(&builder, "}")
+			return strings.to_string(builder)
 		}
 	case SymbolBitFieldValue:
 		if is_variable {
