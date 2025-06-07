@@ -3727,9 +3727,10 @@ unwrap_super_enum :: proc(
 
 	for type in symbol_union.types {
 		symbol := resolve_type_expression(ast_context, type) or_return
-		value := symbol.value.(SymbolEnumValue) or_return
-		append(&names, ..value.names)
-		append(&ranges, ..value.ranges)
+		if value, ok := symbol.value.(SymbolEnumValue); ok {
+			append(&names, ..value.names)
+			append(&ranges, ..value.ranges)
+		}
 	}
 
 	ret_value.names = names[:]
