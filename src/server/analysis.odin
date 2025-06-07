@@ -3789,19 +3789,18 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 			allocator = ast_context.allocator,
 		)
 	case SymbolEnumValue:
+		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			return symbol.name
-		} else {
-			builder := strings.builder_make(ast_context.allocator)
-			strings.write_string(&builder, "enum {\n")
-			for i in 0..<len(v.names) {
-				strings.write_string(&builder, "\t")
-				strings.write_string(&builder, v.names[i])
-				strings.write_string(&builder, ",\n")
-			}
-			strings.write_string(&builder, "}")
-			return strings.to_string(builder)
+			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
 		}
+		strings.write_string(&builder, "enum {\n")
+		for i in 0..<len(v.names) {
+			strings.write_string(&builder, "\t")
+			strings.write_string(&builder, v.names[i])
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolMapValue:
 		return strings.concatenate(
 			a = {pointer_prefix, "map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)},
@@ -3831,19 +3830,18 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 		strings.write_string(&builder, "}")
 		return strings.to_string(builder)
 	case SymbolUnionValue:
+		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
-		} else {
-			builder := strings.builder_make(ast_context.allocator)
-			strings.write_string(&builder, "union {\n")
-			for i in 0..<len(v.types) {
-				strings.write_string(&builder, "\t")
-				common.build_string_node(v.types[i], &builder, false)
-				strings.write_string(&builder, ",\n")
-			}
-			strings.write_string(&builder, "}")
-			return strings.to_string(builder)
+			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
 		}
+		strings.write_string(&builder, "union {\n")
+		for i in 0..<len(v.types) {
+			strings.write_string(&builder, "\t")
+			common.build_string_node(v.types[i], &builder, false)
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolBitFieldValue:
 		if is_variable {
 			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
