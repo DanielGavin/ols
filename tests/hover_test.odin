@@ -425,9 +425,88 @@ ast_hover_struct :: proc(t: ^testing.T) {
 		`
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf: proc(a: int) -> int,\n}")
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
 }
 
+@(test)
+ast_hover_struct_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			f: proc(a: int) -> int,
+		}
+
+		fo{*}o := Foo{}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+}
+
+@(test)
+ast_hover_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		foo: F{*}oo
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Foo: enum {\n\tFoo1,\n\tFoo2,\n}")
+}
+
+@(test)
+ast_hover_enum_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		f{*}oo: Foo
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: enum {\n\tFoo1,\n\tFoo2,\n}")
+}
+
+@(test)
+ast_hover_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			string,
+			int,
+		}
+
+		foo: F{*}oo
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Foo: union {\n\tstring,\n\tint,\n}")
+}
+
+@(test)
+ast_hover_union_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			string,
+			int,
+		}
+
+		f{*}oo: Foo
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: union {\n\tstring,\n\tint,\n}")
+}
 /*
 
 Waiting for odin fix
