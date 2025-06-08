@@ -332,7 +332,7 @@ ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.My_Struct: struct")
+	test.expect_hover(t, &source, "my_package.My_Struct: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
 }
 
 @(test)
@@ -485,7 +485,7 @@ ast_hover_proc_param_with_struct_from_another_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.cool: My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int\n}")
+	test.expect_hover(t, &source, "my_package.My_Struct: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
 }
 
 @(test)
