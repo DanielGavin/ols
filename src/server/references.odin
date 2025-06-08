@@ -347,6 +347,12 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 	)
 
 	position_context, ok := get_document_position_context(document, position, .Hover)
+	if !ok {
+		log.warn("Failed to get position context")
+		return {}, false
+	}
+
+	ast_context.position_hint = position_context.hint
 
 	get_globals(document.ast, &ast_context)
 

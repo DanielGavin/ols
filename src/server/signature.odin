@@ -124,10 +124,11 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	)
 
 	position_context, ok := get_document_position_context(document, position, .SignatureHelp)
-
 	if !ok {
+		log.warn("Failed to get position context")
 		return signature_help, true
 	}
+	ast_context.position_hint = position_context.hint
 
 	//TODO(should probably not be an ast.Expr, but ast.Call_Expr)
 	if position_context.call == nil {

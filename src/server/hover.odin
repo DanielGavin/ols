@@ -71,6 +71,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	)
 
 	position_context, ok := get_document_position_context(document, position, .Hover)
+	if !ok {
+		log.warn("Failed to get position context")
+		return hover, false, false
+	}
+
+	ast_context.position_hint = position_context.hint
 
 	get_globals(document.ast, &ast_context)
 
@@ -227,8 +233,24 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		case SymbolPackageValue:
 			if position_context.field != nil {
 				if ident, ok := position_context.field.derived.(^ast.Ident); ok {
-					if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
-						hover.contents = write_hover_content(&ast_context, symbol)
+					// check to see if we are in a position call context
+					if position_context.call != nil && ast_context.call == nil {
+						if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+							if !position_in_exprs(call.args, position_context.position) {
+								ast_context.call = call
+							}
+						}
+					}
+					if resolved, ok := resolve_type_identifier(&ast_context, ident^); ok {
+						resolved.signature = get_signature(&ast_context, ident^, resolved)
+						resolved.name = ident.name
+
+						if resolved.type == .Variable {
+							resolved.pkg = ast_context.document_package
+						}
+
+
+						hover.contents = write_hover_content(&ast_context, resolved)
 						return hover, true, true
 					}
 				}

@@ -102,6 +102,7 @@ AstContext :: struct {
 	fullpath:         string,
 	non_mutable_only: bool, //Only store local value declarations that are non mutable.
 	overloading:      bool,
+	position_hint:    DocumentPositionContextHint,
 }
 
 make_ast_context :: proc(
@@ -562,10 +563,31 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 	return 0, false
 }
 
+get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
+	total := 0
+	for arg in args {
+		if field, is_field := arg.derived.(^ast.Field_Value); !is_field {
+			total += 1
+		}
+	}
+	return total
+}
+
+get_unnamed_field_count :: proc(fields: []^ast.Field) -> int {
+	total := 0
+	for field in fields {
+		if field.default_value == nil {
+			total += len(field.names)
+		}
+	}
+	return total
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
 resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (Symbol, bool) {
+	resolve_all_possibilities := ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp
 	old_overloading := ast_context.overloading
 	ast_context.overloading = true
 
@@ -577,24 +599,32 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	call_expr := ast_context.call
 
-	//If there is nothing to resolve from, we actually want to get the invalid overloaded results through setting overloading to false
 	if call_expr == nil || len(call_expr.args) == 0 {
 		ast_context.overloading = false
+	}
+	call_unnamed_arg_count := 0
+	if call_expr != nil {
+		call_unnamed_arg_count = get_unnamed_arg_count(call_expr.args)
 	}
 
 	candidates := make([dynamic]Symbol, context.temp_allocator)
 
 	for arg_expr in group.args {
 		next_fn: if f, ok := internal_resolve_type_expression(ast_context, arg_expr); ok {
-			if call_expr == nil || len(call_expr.args) == 0 {
+			if call_expr == nil || (resolve_all_possibilities && len(call_expr.args) == 0) {
 				append(&candidates, f)
 				break next_fn
 			}
-
 			if procedure, ok := f.value.(SymbolProcedureValue); ok {
 				i := 0
 				named := false
 
+				if !resolve_all_possibilities {
+					unnamed_field_count := get_unnamed_field_count(procedure.arg_types)
+					if call_expr != nil && unnamed_field_count != call_unnamed_arg_count {
+						break next_fn
+					}
+				}
 				for proc_arg in procedure.arg_types {
 					for name in proc_arg.names {
 						if i >= len(call_expr.args) {
