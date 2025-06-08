@@ -228,7 +228,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = common.node_to_string(v.types[i])
+						symbol.signature = get_signature(&ast_context, v.types[i].derived, symbol)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -250,6 +250,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			if position_context.field != nil {
 				if ident, ok := position_context.field.derived.(^ast.Ident); ok {
 					if symbol, ok := resolve_type_identifier(&ast_context, ident^); ok {
+						symbol.signature = get_signature(&ast_context, ident, symbol)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}

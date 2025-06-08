@@ -83,7 +83,37 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.cool: My_Struct")
+	test.expect_hover(t, &source, "test.cool: my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
+}
+
+@(test)
+ast_hover_external_package_parameter_pointer :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc(cool: ^my_package.My_Struct) {
+			cool{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.cool: ^my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
 }
 
 @(test)
@@ -426,6 +456,36 @@ ast_hover_struct :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+}
+
+@(test)
+ast_hover_proc_param_with_struct_from_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc(cool: my_package.My{*}_Struct) {
+			cool
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.cool: My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int\n}")
 }
 
 @(test)

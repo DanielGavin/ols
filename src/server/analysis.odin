@@ -3765,6 +3765,16 @@ unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: Symbol) -> (Symbo
 	return {}, false
 }
 
+append_variable_full_name :: proc(sb: ^strings.Builder,ast_context: ^AstContext, symbol: Symbol, pointer_prefix: string) {
+	pkg_name := get_symbol_pkg_name(ast_context, symbol)
+	if pkg_name == "" {
+		fmt.sbprintf(sb, "%s%s :: ", pointer_prefix, symbol.name)
+		return
+	}
+	fmt.sbprintf(sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.name)
+	return
+}
+
 get_signature :: proc(ast_context: ^AstContext, ident: ast.Any_Node, symbol: Symbol, was_variable := false) -> string {
 	if symbol.type == .Function {
 		return symbol.signature
@@ -3791,7 +3801,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Any_Node, symbol: Sym
 	case SymbolEnumValue:
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
 		}
 		strings.write_string(&builder, "enum {\n")
 		for i in 0..<len(v.names) {
@@ -3811,7 +3821,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Any_Node, symbol: Sym
 	case SymbolStructValue:
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
 		}
 		longestNameLen := 0
 		for name in v.names {
@@ -3832,7 +3842,7 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Any_Node, symbol: Sym
 	case SymbolUnionValue:
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			fmt.sbprintf(&builder, "%s%s.%s :: ", get_symbol_pkg_name(ast_context, symbol), pointer_prefix, symbol.name)
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
 		}
 		strings.write_string(&builder, "union {\n")
 		for i in 0..<len(v.types) {
