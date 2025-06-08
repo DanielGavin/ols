@@ -121,7 +121,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if identifier, ok := name.derived.(^ast.Ident); ok && field.type != nil {
 						if position_context.value_decl != nil && len(position_context.value_decl.names) != 0 {
 							if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
-								if struct_symbol, ok := resolve_type_expression(&ast_context, position_context.value_decl.names[0]); ok {
+								if struct_symbol, ok := resolve_type_expression(
+									&ast_context,
+									position_context.value_decl.names[0],
+								); ok {
 									symbol.pkg = struct_symbol.name
 									symbol.name = identifier.name
 									symbol.signature = get_signature(&ast_context, field.type.derived, symbol)
