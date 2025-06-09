@@ -132,6 +132,7 @@ MarkupContent :: struct {
 ServerCapabilities :: struct {
 	textDocumentSync:           TextDocumentSyncOptions,
 	definitionProvider:         bool,
+	typeDefinitionProvider:		bool,
 	completionProvider:         CompletionOptions,
 	signatureHelpProvider:      SignatureHelpOptions,
 	semanticTokensProvider:     SemanticTokensOptions,
