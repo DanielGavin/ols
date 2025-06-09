@@ -3,6 +3,8 @@ package tests
 import "core:fmt"
 import "core:testing"
 
+import "src:common"
+
 import test "src:testing"
 
 @(test)
@@ -216,4 +218,58 @@ reference_struct_field :: proc(t: ^testing.T) {
 			{range = {start = {line = 7, character = 27}, end = {line = 7, character = 28}}},
 		},
 	)
+}
+
+@(test)
+ast_reference_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			bar: [2]Bar
+			bar[0].foo = 5
+			b{*}ar[1].foo = 6
+		}
+		`,
+		packages = {},
+	}
+
+	locations := []common.Location{
+		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			bar: [2]Bar
+			bar[0].foo = 5
+			bar[1].f{*}oo = 6
+		}
+		`,
+		packages = {},
+	}
+
+	locations := []common.Location{
+		{range = { start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+		{range = { start = {line = 8, character = 10}, end = {line = 8, character = 13}}},
+		{range = { start = {line = 9, character = 10}, end = {line = 9, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
 }
