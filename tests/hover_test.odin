@@ -412,6 +412,30 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Bar: .Foo1")
 }
 
+
+@(test)
+ast_hover_within_struct_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		get_int :: proc() -> int {
+			return 42
+		}
+
+		Bar :: struct {
+			foo: int
+		}
+
+		main :: proc() {
+			bar := Bar {
+				foo = get_i{*}nt(),
+			}
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.get_int: proc() -> int")
+}
 /*
 
 Waiting for odin fix
