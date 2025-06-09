@@ -34,7 +34,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 		}
 	}
 
-	build_procedure_symbol_signature(&symbol)
+	build_procedure_symbol_signature(&symbol, false)
 
 	cat := concatenate_symbol_information(ast_context, symbol, false)
 
