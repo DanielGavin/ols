@@ -248,6 +248,60 @@ ast_reference_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_reference_variable_uses_from_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			b{*}ar: Bar
+			bar.foo = 5
+			bar.foo = 6
+		}
+		`,
+		packages = {},
+	}
+
+	locations := []common.Location{
+		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_variable_uses_from_declaration_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			b{*}ar: [2]Bar
+			bar[0].foo = 5
+			bar[1].foo = 6
+		}
+		`,
+		packages = {},
+	}
+
+	locations := []common.Location{
+		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
 ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
