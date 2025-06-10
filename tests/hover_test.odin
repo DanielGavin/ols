@@ -839,6 +839,20 @@ ast_hover_proc_overload_definition :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.foo: proc {\n\tfoo_none :: proc(allocator := context.allocator) -> (_: int, _: bool),\n\tfoo_int :: proc(i: int, allocator := context.allocator) -> (_: int, _: bool),\n}")
 }
+
+@(test)
+ast_hover_sub_string_slices :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			str := "Hello, World!"
+			s{*}ub_str := str[0:5]
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.sub_str: string")
+}
 /*
 
 Waiting for odin fix

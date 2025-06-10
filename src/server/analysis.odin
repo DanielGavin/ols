@@ -1596,6 +1596,11 @@ resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slic
 		expr = v.expr
 	case SymbolDynamicArrayValue:
 		expr = v.expr
+	case SymbolUntypedValue:
+		if v.type == .String {
+			return symbol, true
+		}
+		return {}, false
 	case:
 		return {}, false
 	}
