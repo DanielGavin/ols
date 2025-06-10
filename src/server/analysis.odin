@@ -1111,7 +1111,12 @@ get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, 
 		local_stack := locals[ident.name] or_continue
 
 		#reverse for local in local_stack {
-			if local.offset <= ident.pos.offset || local.local_global || local.lhs.pos.offset == ident.pos.offset {
+			if local.local_global {
+				return local, true
+			}
+			// Ensure that if the identifier has a file, the local is also part of the same file
+			correct_file := ident.pos.file == "" || local.lhs.pos.file == ident.pos.file
+			if correct_file && (local.offset <= ident.pos.offset || local.lhs.pos.offset == ident.pos.offset) {
 				// checking equal offsets is a hack to allow matching lhs ident in var decls
 				// because otherwise minimal offset begins after the decl
 				return local, true
