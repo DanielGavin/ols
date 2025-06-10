@@ -651,7 +651,7 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	}
 
 
-	test.expect_completion_details(t, &source, "", {"test.my_element: My_Struct"})
+	test.expect_completion_details(t, &source, "", {"test.my_element: test.My_Struct :: struct"})
 }
 
 @(test)
@@ -675,7 +675,7 @@ ast_for_in_call_expr_completion :: proc(t: ^testing.T) {
 	}
 
 
-	test.expect_completion_details(t, &source, ".", {"test.zstep: Step"})
+	test.expect_completion_details(t, &source, ".", {"test.zstep: test.Step :: struct"})
 }
 
 
@@ -1661,7 +1661,7 @@ ast_new_clone_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.adzz: ^Foo"})
+	test.expect_completion_details(t, &source, "", {"test.adzz: ^test.Foo :: struct"})
 }
 
 @(test)
@@ -1735,7 +1735,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"my_package.param: My_Struct"})
+	test.expect_completion_details(t, &source, ".", {"my_package.param: my_package.My_Struct :: struct"})
 }
 
 @(test)
@@ -2534,7 +2534,7 @@ ast_poly_struct_with_poly :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.first: ^Animal"})
+	test.expect_completion_details(t, &source, "", {"test.first: ^test.Animal :: struct"})
 }
 
 @(test)
@@ -3013,7 +3013,7 @@ ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.indezx: Enum"})
+	test.expect_completion_details(t, &source, "", {"test.indezx: test.Enum :: enum"})
 }
 
 @(test)

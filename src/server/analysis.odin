@@ -3765,7 +3765,28 @@ unwrap_bitset :: proc(ast_context: ^AstContext, bitset_symbol: Symbol) -> (Symbo
 	return {}, false
 }
 
-get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol, was_variable := false) -> string {
+append_variable_full_name :: proc(
+	sb: ^strings.Builder,
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	pointer_prefix: string,
+) {
+	pkg_name := get_symbol_pkg_name(ast_context, symbol)
+	if pkg_name == "" {
+		fmt.sbprintf(sb, "%s%s :: ", pointer_prefix, symbol.name)
+		return
+	}
+	fmt.sbprintf(sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.name)
+	return
+}
+
+get_signature :: proc(
+	ast_context: ^AstContext,
+	ident: ast.Any_Node,
+	symbol: Symbol,
+	was_variable := false,
+	short_signature := false,
+) -> string {
 	if symbol.type == .Function {
 		return symbol.signature
 	}
@@ -3789,11 +3810,26 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 			allocator = ast_context.allocator,
 		)
 	case SymbolEnumValue:
-		if is_variable {
-			return symbol.name
-		} else {
-			return "enum"
+		if short_signature {
+			builder := strings.builder_make(ast_context.allocator)
+			if is_variable {
+				append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+			}
+			strings.write_string(&builder, "enum")
+			return strings.to_string(builder)
 		}
+		builder := strings.builder_make(ast_context.allocator)
+		if is_variable {
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		}
+		strings.write_string(&builder, "enum {\n")
+		for i in 0 ..< len(v.names) {
+			strings.write_string(&builder, "\t")
+			strings.write_string(&builder, v.names[i])
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolMapValue:
 		return strings.concatenate(
 			a = {pointer_prefix, "map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)},
@@ -3802,17 +3838,55 @@ get_signature :: proc(ast_context: ^AstContext, ident: ast.Ident, symbol: Symbol
 	case SymbolProcedureValue:
 		return "proc"
 	case SymbolStructValue:
-		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
-		} else {
-			return "struct"
+		if short_signature {
+			builder := strings.builder_make(ast_context.allocator)
+			if is_variable {
+				append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+			}
+			strings.write_string(&builder, "struct")
+			return strings.to_string(builder)
 		}
+		builder := strings.builder_make(ast_context.allocator)
+		if is_variable {
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		}
+		longestNameLen := 0
+		for name in v.names {
+			if len(name) > longestNameLen {
+				longestNameLen = len(name)
+			}
+		}
+		strings.write_string(&builder, "struct {\n")
+		for i in 0 ..< len(v.names) {
+			strings.write_string(&builder, "\t")
+			strings.write_string(&builder, v.names[i])
+			fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
+			common.build_string_node(v.types[i], &builder, false)
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolUnionValue:
-		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
-		} else {
-			return "union"
+		if short_signature {
+			builder := strings.builder_make(ast_context.allocator)
+			if is_variable {
+				append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+			}
+			strings.write_string(&builder, "union")
+			return strings.to_string(builder)
 		}
+		builder := strings.builder_make(ast_context.allocator)
+		if is_variable {
+			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		}
+		strings.write_string(&builder, "union {\n")
+		for i in 0 ..< len(v.types) {
+			strings.write_string(&builder, "\t")
+			common.build_string_node(v.types[i], &builder, false)
+			strings.write_string(&builder, ",\n")
+		}
+		strings.write_string(&builder, "}")
+		return strings.to_string(builder)
 	case SymbolBitFieldValue:
 		if is_variable {
 			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
