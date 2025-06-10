@@ -451,6 +451,49 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_foreign_package_name_collision :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			data :: struct {
+				nodes: []node,
+			}
+
+			bar :: struct {
+			}
+
+			node :: struct {
+				bar: ^bar
+			}
+
+			get_data :: proc() -> ^data {
+				return &data{}
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc() {
+			data := my_package.get_data()
+
+			for node in data.nodes {
+				bar := node.b{*}ar
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "node.bar: ^bar")
+}
+@(test)
 ast_hover_struct :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
