@@ -47,13 +47,6 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 
 	location: common.Location
 
-	ast_context := make_ast_context(
-		document.ast,
-		document.imports,
-		document.package_name,
-		document.uri.uri,
-		document.fullpath,
-	)
 
 	uri: string
 
@@ -63,6 +56,16 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		log.warn("Failed to get position context")
 		return {}, false
 	}
+
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+	)
+
+	ast_context.position_hint = position_context.hint
 
 	get_globals(document.ast, &ast_context)
 

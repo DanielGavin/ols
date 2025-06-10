@@ -73,6 +73,7 @@ get_completion_list :: proc(
 		document.uri.uri,
 		document.fullpath,
 	)
+	ast_context.position_hint = position_context.hint
 
 	get_globals(document.ast, &ast_context)
 
