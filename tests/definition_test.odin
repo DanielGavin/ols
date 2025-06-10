@@ -392,3 +392,57 @@ ast_goto_implicit_enum_infer_from_assignment_within_switch :: proc(t: ^testing.T
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			bar: [1]Bar
+			b{*}ar[0].foo = 5
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 7, character = 3},
+			end = {line = 7, character = 6},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_variable_field_definition_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			bar: [1]Bar
+			bar[0].fo{*}o = 5
+		}
+		`,
+		packages = {},
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 3, character = 3},
+			end = {line = 3, character = 6},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
