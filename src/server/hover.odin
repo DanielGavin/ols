@@ -111,15 +111,17 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	if position_context.field_value != nil && position_context.comp_lit != nil {
 		if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-				if v, ok := comp_symbol.value.(SymbolStructValue); ok {
-					for name, i in v.names {
-						if name == field.name {
-							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-								symbol.name = name
-								symbol.pkg = comp_symbol.name
-								symbol.signature = common.node_to_string(v.types[i])
-								hover.contents = write_hover_content(&ast_context, symbol)
-								return hover, true, true
+				if position_in_node(field, position_context.position) {
+					if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+						for name, i in v.names {
+							if name == field.name {
+								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+									symbol.name = name
+									symbol.pkg = comp_symbol.name
+									symbol.signature = common.node_to_string(v.types[i])
+									hover.contents = write_hover_content(&ast_context, symbol)
+									return hover, true, true
+								}
 							}
 						}
 					}
@@ -234,6 +236,31 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		}
+	} else if position_context.implicit_selector_expr != nil {
+		implicit_selector := position_context.implicit_selector_expr
+		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context, implicit_selector); ok {
+			#partial switch v in symbol.value {
+			case SymbolEnumValue:
+				for name, i in v.names {
+					if strings.compare(name, implicit_selector.field.name) == 0 {
+						symbol.signature = fmt.tprintf(".%s", name)
+						hover.contents = write_hover_content(&ast_context, symbol)
+						return hover, true, true
+					}
+				}
+			case SymbolUnionValue:
+				if enum_value, ok := unwrap_super_enum(&ast_context, v); ok {
+					for name, i in enum_value.names {
+						if strings.compare(name, implicit_selector.field.name) == 0 {
+							symbol.signature = fmt.tprintf(".%s", name)
+							hover.contents = write_hover_content(&ast_context, symbol)
+							return hover, true, true
+						}
+					}
+				}
+			}
+		}	
+		return {}, false, true
 	} else if position_context.identifier != nil {
 		reset_ast_context(&ast_context)
 

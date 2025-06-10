@@ -354,7 +354,88 @@ ast_hover_proc_group :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.add: proc(a, b: int) -> int")
 }
 
+@(test)
+ast_hover_proc_with_proc_parameter :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		a{*}a :: proc(p: proc()) {}
+		`,
+	}
 
+	test.expect_hover(t, &source, "test.aa: proc(p: proc())")
+}
+
+@(test)
+ast_hover_proc_with_proc_parameter_with_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		a{*}a :: proc(p: proc() -> int) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.aa: proc(p: proc() -> int)")
+}
+
+@(test)
+ast_hover_enum_implicit_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		foo: Foo
+		foo = .Fo{*}o1
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Foo: .Foo1")
+}
+
+@(test)
+ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		Bar :: union { Foo, int }
+
+		bar: Bar
+		bar = .Fo{*}o1
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Bar: .Foo1")
+}
+
+
+@(test)
+ast_hover_within_struct_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		get_int :: proc() -> int {
+			return 42
+		}
+
+		Bar :: struct {
+			foo: int
+		}
+
+		main :: proc() {
+			bar := Bar {
+				foo = get_i{*}nt(),
+			}
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.get_int: proc() -> int")
+}
 /*
 
 Waiting for odin fix
