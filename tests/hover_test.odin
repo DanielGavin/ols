@@ -491,7 +491,7 @@ ast_hover_foreign_package_name_collision :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "node.bar: ^bar")
+	test.expect_hover(t, &source, "node.bar: struct {\n}")
 }
 @(test)
 ast_hover_struct :: proc(t: ^testing.T) {
@@ -659,6 +659,185 @@ ast_hover_within_struct_declaration :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.get_int: proc() -> int")
+}
+
+@(test)
+ast_hover_proc_overloading :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
+			return 2, true
+		}
+		foo_int2 :: proc(i: int, j: int, allocator := context.allocator) -> (int, bool) {
+			return 3, true
+		}
+		foo_string :: proc(s: string, allocator := context.allocator) -> (int, bool) {
+			return false
+		}
+		foo :: proc {
+			foo_none,
+			foo_int,
+			foo_int2,
+			foo_string,
+		}
+
+		main :: proc() {
+			result, ok := fo{*}o(10, 10)
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc(i: int, j: int, allocator := context.allocator) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_proc_overloading_no_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
+			return 2, true
+		}
+		foo_int2 :: proc(i: int, j: int, allocator := context.allocator) -> (int, bool) {
+			return 3, true
+		}
+		foo_string :: proc(s: string, allocator := context.allocator) -> (int, bool) {
+			return false
+		}
+		foo :: proc {
+			foo_none,
+			foo_int,
+			foo_int2,
+			foo_string,
+		}
+
+		main :: proc() {
+			result, ok := fo{*}o()
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc(allocator := context.allocator) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_proc_overloading_in_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc( allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return 2, true
+		}
+		foo_int2 :: proc(i, j: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return 3, true
+		}
+		foo_string :: proc(s: string, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return false
+		}
+		foo :: proc {
+			foo_none,
+			foo_int,
+			foo_int2,
+			foo_string,
+		}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			result, ok := my_package.fo{*}o(10)
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_proc_overloading_return_value_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc( allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return 2, true
+		}
+		foo_int2 :: proc(i, j: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return 3, true
+		}
+		foo_string :: proc(s: string, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
+			return false
+		}
+		foo :: proc {
+			foo_none,
+			foo_int,
+			foo_int2,
+			foo_string,
+		}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			res{*}ult, ok := my_package.foo("Hello, world!")
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "test.result: int")
+}
+
+@(test)
+ast_hover_proc_overload_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
+			return 2, true
+		}
+		fo{*}o :: proc {
+			foo_none,
+			foo_int,
+		}
+
+		main :: proc() {
+			result, ok := foo(10, 10)
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc {\n\tfoo_none :: proc(allocator := context.allocator) -> (_: int, _: bool),\n\tfoo_int :: proc(i: int, allocator := context.allocator) -> (_: int, _: bool),\n}")
 }
 /*
 

@@ -49,43 +49,61 @@ ParameterInformation :: struct {
 /*
 	Lazily build the signature and returns from ast.Nodes
 */
-build_procedure_symbol_signature :: proc(symbol: ^Symbol) {
+build_procedure_symbol_signature :: proc(symbol: ^Symbol, short_signature := true) {
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
 		builder := strings.builder_make(context.temp_allocator)
-
-		strings.write_string(&builder, "proc")
-		strings.write_string(&builder, "(")
-		for arg, i in value.orig_arg_types {
-			strings.write_string(&builder, common.node_to_string(arg))
-			if i != len(value.orig_arg_types) - 1 {
-				strings.write_string(&builder, ", ")
-			}
-		}
-		strings.write_string(&builder, ")")
-
-		if len(value.orig_return_types) != 0 {
-			strings.write_string(&builder, " -> ")
-
-			if len(value.orig_return_types) > 1 {
-				strings.write_string(&builder, "(")
-			}
-
-			for arg, i in value.orig_return_types {
-				strings.write_string(&builder, common.node_to_string(arg))
-				if i != len(value.orig_return_types) - 1 {
-					strings.write_string(&builder, ", ")
-				}
-			}
-
-			if len(value.orig_return_types) > 1 {
-				strings.write_string(&builder, ")")
-			}
-		} else if value.diverging {
-			strings.write_string(&builder, " -> !")
-		}
+		write_procedure_symbol_signature(&builder, &value)
 		symbol.signature = strings.to_string(builder)
 	} else if value, ok := symbol.value.(SymbolAggregateValue); ok {
-		symbol.signature = "proc"
+		if short_signature {
+			symbol.signature = "proc"
+			return
+		}
+
+		builder := strings.builder_make(context.temp_allocator)
+		strings.write_string(&builder, "proc {\n")
+		for symbol in value.symbols {
+			if value, ok := symbol.value.(SymbolProcedureValue); ok {
+				fmt.sbprintf(&builder, "\t%s :: ",symbol.name)
+				write_procedure_symbol_signature(&builder, &value)
+				strings.write_string(&builder, ",\n")
+			}
+		}
+		strings.write_string(&builder, "}")
+		symbol.signature = strings.to_string(builder)
+	}
+}
+
+write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: ^SymbolProcedureValue) {
+	strings.write_string(sb, "proc")
+	strings.write_string(sb, "(")
+	for arg, i in value.orig_arg_types {
+		strings.write_string(sb, common.node_to_string(arg))
+		if i != len(value.orig_arg_types) - 1 {
+			strings.write_string(sb, ", ")
+		}
+	}
+	strings.write_string(sb, ")")
+
+	if len(value.orig_return_types) != 0 {
+		strings.write_string(sb, " -> ")
+
+		if len(value.orig_return_types) > 1 {
+			strings.write_string(sb, "(")
+		}
+
+		for arg, i in value.orig_return_types {
+			strings.write_string(sb, common.node_to_string(arg))
+			if i != len(value.orig_return_types) - 1 {
+				strings.write_string(sb, ", ")
+			}
+		}
+
+		if len(value.orig_return_types) > 1 {
+			strings.write_string(sb, ")")
+		}
+	} else if value.diverging {
+		strings.write_string(sb, " -> !")
 	}
 }
 
