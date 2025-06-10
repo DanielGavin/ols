@@ -83,7 +83,45 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.cool: My_Struct")
+	test.expect_hover(
+		t,
+		&source,
+		"test.cool: my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}",
+	)
+}
+
+@(test)
+ast_hover_external_package_parameter_pointer :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc(cool: ^my_package.My_Struct) {
+			cool{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.cool: ^my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}",
+	)
 }
 
 @(test)
@@ -302,7 +340,7 @@ ast_hover_struct_field_selector_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.My_Struct: struct")
+	test.expect_hover(t, &source, "my_package.My_Struct: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
 }
 
 @(test)
@@ -387,7 +425,7 @@ ast_hover_enum_implicit_selector :: proc(t: ^testing.T) {
 
 		foo: Foo
 		foo = .Fo{*}o1
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.Foo: .Foo1")
@@ -406,12 +444,155 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 
 		bar: Bar
 		bar = .Fo{*}o1
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.Bar: .Foo1")
 }
 
+@(test)
+ast_hover_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			f: proc(a: int) -> int,
+		}
+
+		foo := F{*}oo{}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+}
+
+@(test)
+ast_hover_proc_param_with_struct_from_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		My_Struct :: struct {
+			one: int,
+			two: int,
+			three: int,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc(cool: my_package.My{*}_Struct) {
+			cool
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.My_Struct: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}")
+}
+
+@(test)
+ast_hover_struct_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			f: proc(a: int) -> int,
+		}
+
+		fo{*}o := Foo{}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+}
+
+@(test)
+ast_hover_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		foo: F{*}oo
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: enum {\n\tFoo1,\n\tFoo2,\n}")
+}
+
+@(test)
+ast_hover_enum_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		f{*}oo: Foo
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: enum {\n\tFoo1,\n\tFoo2,\n}")
+}
+
+@(test)
+ast_hover_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			string,
+			int,
+		}
+
+		foo: F{*}oo
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: union {\n\tstring,\n\tint,\n}")
+}
+
+@(test)
+ast_hover_union_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			string,
+			int,
+		}
+
+		f{*}oo: Foo
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: union {\n\tstring,\n\tint,\n}")
+}
+
+@(test)
+ast_hover_struct_field_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			b{*}ar: int,
+			f: proc(a: int) -> int,
+		}
+
+		foo := Foo{
+			bar = 1
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "Foo.bar: int")
+}
 
 @(test)
 ast_hover_within_struct_declaration :: proc(t: ^testing.T) {
@@ -431,7 +612,7 @@ ast_hover_within_struct_declaration :: proc(t: ^testing.T) {
 				foo = get_i{*}nt(),
 			}
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.get_int: proc() -> int")

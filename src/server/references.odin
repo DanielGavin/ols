@@ -136,13 +136,7 @@ prepare_references :: proc(
 
 		resolve_flag = .Field
 	} else if position_context.selector_expr != nil {
-		resolve_flag = .Field
-
-		base: ^ast.Ident
-		base, ok = position_context.selector.derived.(^ast.Ident)
-
-		if position_in_node(base, position_context.position) && position_context.identifier != nil && ok {
-
+		if position_in_node(position_context.selector, position_context.position) && position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
 
 			symbol, ok = resolve_location_identifier(ast_context, ident^)
@@ -151,7 +145,7 @@ prepare_references :: proc(
 				return
 			}
 
-			resolve_flag = .Base
+			resolve_flag = .Identifier
 		} else {
 			symbol, ok = resolve_location_selector(ast_context, position_context.selector_expr)
 
