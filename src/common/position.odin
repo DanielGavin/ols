@@ -43,7 +43,7 @@ get_absolute_position :: proc(position: Position, document_text: []u8) -> (Absol
 	}
 
 	line_count := 0
-	index := 1
+	index := 0
 	last := document_text[0]
 
 	if !get_index_at_line(&index, &line_count, &last, document_text, position.line) {

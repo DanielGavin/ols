@@ -895,6 +895,24 @@ ast_hover_struct_field_use :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "Bar.foo: test.Foo :: struct {\n\tvalue: int,\n}")
 }
+
+@(test)
+ast_hover_empty_line_at_top_of_file :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `
+		package test
+		Foo :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			foo := F{*}oo{}
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n}")
+}
 /*
 
 Waiting for odin fix

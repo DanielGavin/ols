@@ -446,3 +446,30 @@ ast_goto_variable_field_definition_with_selector_expr :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+
+@(test)
+ast_goto_struct_definition_with_empty_line_at_top_of_file :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `
+		package test
+
+		Foo :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			foo := F{*}oo{}
+		}
+		`
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 3, character = 2},
+			end = {line = 3, character = 5},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}

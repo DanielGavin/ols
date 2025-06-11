@@ -30,6 +30,29 @@ reference_variables_in_function :: proc(t: ^testing.T) {
 }
 
 @(test)
+reference_variables_in_function_with_empty_line_at_top_of_file :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `
+		package test
+		my_function :: proc() {
+			a := 2
+			b := a
+			c := 2 + b{*}
+		}
+		`,
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{range = {start = {line = 4, character = 3}, end = {line = 4, character = 4}}},
+			{range = {start = {line = 5, character = 12}, end = {line = 5, character = 13}}},
+		},
+	)
+}
+
+@(test)
 reference_variables_in_function_parameters :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
