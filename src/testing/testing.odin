@@ -117,18 +117,8 @@ setup :: proc(src: ^Source) {
 
 @(private)
 teardown :: proc(src: ^Source) {
-	//A lot of these deletes are managed by other systems in ols, but to simplify it, we just delete them here in tests.
-
 	server.free_index()
 	server.indexer.index = {}
-
-	delete(src.document.package_name)
-
-	for k, v in server.build_cache.loaded_pkgs {
-		delete(k)
-	}
-
-	delete(server.build_cache.loaded_pkgs)
 
 	common.scratch_allocator_destroy(src.document.allocator)
 }
