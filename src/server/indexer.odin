@@ -12,6 +12,7 @@ Indexer :: struct {
 	index:            MemoryIndex,
 }
 
+@(thread_local)
 indexer: Indexer
 
 FuzzyResult :: struct {
