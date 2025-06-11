@@ -74,28 +74,7 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 }
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
-	for k, v in collection.packages {
-		for k2, v2 in v.symbols {
-			free_symbol(v2, collection.allocator)
-		}
-	}
-
-	for k, v in collection.unique_strings {
-		delete(v, collection.allocator)
-	}
-
-	for k, v in collection.packages {
-		for k2, v2 in v.methods {
-			delete(v2)
-		}
-		delete(v.methods)
-		delete(v.objc_structs)
-		delete(v.symbols)
-		delete(v.imports)
-	}
-
-	delete(collection.packages)
-	delete(collection.unique_strings)
+	free_all(collection.allocator)
 }
 
 collect_procedure_fields :: proc(
