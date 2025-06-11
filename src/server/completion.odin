@@ -1290,7 +1290,7 @@ get_identifier_completion :: proc(
 		ident.name = k
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.signature = get_signature(ast_context, ident, symbol, short_signature=true)
+			symbol.signature = get_signature(ast_context, symbol, short_signature=true)
 
 			build_procedure_symbol_signature(&symbol)
 
@@ -1331,7 +1331,7 @@ get_identifier_completion :: proc(
 			ident.name = k
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-				symbol.signature = get_signature(ast_context, ident, symbol, short_signature=true)
+				symbol.signature = get_signature(ast_context, symbol, short_signature=true)
 
 				build_procedure_symbol_signature(&symbol)
 

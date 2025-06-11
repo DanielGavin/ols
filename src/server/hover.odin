@@ -125,9 +125,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									&ast_context,
 									position_context.value_decl.names[0],
 								); ok {
+									symbol.type_name = symbol.name
+									symbol.type_pkg = symbol.pkg
 									symbol.pkg = struct_symbol.name
 									symbol.name = identifier.name
-									symbol.signature = get_signature(&ast_context, field.type.derived, symbol)
+									symbol.signature = get_signature(&ast_context, symbol)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -188,7 +190,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-					resolved.signature = get_signature(&ast_context, &ident, resolved)
+					resolved.signature = get_signature(&ast_context, resolved)
 					resolved.name = ident.name
 
 					if resolved.type == .Variable {
@@ -237,9 +239,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			for name, i in v.names {
 				if name == field {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+						symbol.type_name = symbol.name
+						symbol.type_pkg = symbol.pkg
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = get_signature(&ast_context, v.types[i].derived, symbol)
+						symbol.signature = get_signature(&ast_context, symbol)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -269,7 +273,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 					if resolved, ok := resolve_type_identifier(&ast_context, ident^); ok {
-						resolved.signature = get_signature(&ast_context, ident, resolved)
+						resolved.signature = get_signature(&ast_context, resolved)
 						resolved.name = ident.name
 
 						if resolved.type == .Variable {
@@ -331,7 +335,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			resolved.signature = get_signature(&ast_context, &ident, resolved)
+			resolved.signature = get_signature(&ast_context, resolved)
 			resolved.name = ident.name
 
 			if resolved.type == .Variable {
