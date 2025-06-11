@@ -2328,7 +2328,6 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 }
 
 get_symbol_pkg_name :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
-
 	name := path.base(symbol.pkg, false, context.temp_allocator)
 
 	for imp in ast_context.imports {
@@ -3822,7 +3821,6 @@ append_variable_full_name :: proc(
 
 get_signature :: proc(
 	ast_context: ^AstContext,
-	ident: ast.Any_Node,
 	symbol: Symbol,
 	was_variable := false,
 	short_signature := false,
@@ -3889,12 +3887,26 @@ get_signature :: proc(
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			if symbol.type_pkg == "" {
+				fmt.sbprintf(&builder, "%s%s :: ", pointer_prefix, symbol.type_name)
+			} else {
+				// TODO: make this function just take a string
+				symbol := symbol
+				symbol.pkg = symbol.type_pkg
+				pkg_name := get_symbol_pkg_name(ast_context, symbol)
+				fmt.sbprintf(&builder, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
+			}
 		}
 		longestNameLen := 0
 		for name in v.names {
 			if len(name) > longestNameLen {
 				longestNameLen = len(name)
 			}
+		}
+		if len(v.names) == 0 {
+			strings.write_string(&builder, "struct {}")
+			return strings.to_string(builder)
 		}
 		strings.write_string(&builder, "struct {\n")
 		for i in 0 ..< len(v.names) {

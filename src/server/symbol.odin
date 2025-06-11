@@ -162,6 +162,8 @@ Symbol :: struct {
 	doc:       string,
 	signature: string, //type signature
 	type:      SymbolType,
+	type_pkg:  string,
+	type_name: string,
 	value:     SymbolValue,
 	pointers:  int, //how many `^` are applied to the symbol
 	flags:     SymbolFlags,
