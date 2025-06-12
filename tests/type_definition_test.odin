@@ -73,7 +73,7 @@ ast_type_definition_struct_field_definition_from_use :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			bar := Bar{}
-			bar.ba{*}r = "Test"
+			bar.ba{*}r = Foo{}
 		}
 		`,
 	}
@@ -82,6 +82,126 @@ ast_type_definition_struct_field_definition_from_use :: proc(t: ^testing.T) {
 		range = {
 			start = {line = 1, character = 2},
 			end = {line = 1, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_type_definition_struct_from_rhs_use :: proc(t: ^testing.T) {
+	source := test.Source{
+		main = `package test
+		Foo :: struct {
+			foo: string,
+		}
+
+		Bar :: struct {
+			bar: Foo,
+		}
+
+		main :: proc() {
+			bar := Bar{}
+
+			foo := b{*}ar.bar
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 5, character = 2},
+			end = {line = 5, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_type_definition_struct_field_from_rhs_use :: proc(t: ^testing.T) {
+	source := test.Source{
+		main = `package test
+		Foo :: struct {
+			foo: string,
+		}
+
+		Bar :: struct {
+			bar: Foo,
+		}
+
+		main :: proc() {
+			bar := Bar{}
+
+			foo := bar.b{*}ar
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 1, character = 2},
+			end = {line = 1, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_type_definition_struct_field_pointer_from_rhs_use :: proc(t: ^testing.T) {
+	source := test.Source{
+		main = `package test
+		Foo :: struct {
+			foo: string,
+		}
+
+		Bar :: struct {
+			bar: ^Foo,
+		}
+
+		main :: proc() {
+			bar := Bar{}
+
+			foo := bar.b{*}ar
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 1, character = 2},
+			end = {line = 1, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_type_definition_local_pointer_from_rhs_use :: proc(t: ^testing.T) {
+	source := test.Source{
+		main = `package test
+		Foo :: struct {
+			foo: string,
+		}
+
+		Bar :: struct {
+			bar: ^Foo,
+		}
+
+		main :: proc() {
+			bar := &Bar{}
+
+			foo := b{*}ar.bar
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 5, character = 2},
+			end = {line = 5, character = 5},
 		},
 	}
 

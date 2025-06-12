@@ -813,8 +813,7 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return {}, false
 	}
 
-	// TODO: there is likely more of these that will be needed as well.
-	// I think we'll need a better way to manage this all
+	// TODO: there is likely more of these that will need to be added
 	#partial switch n in node.derived {
 	case ^ast.Ident:
 		if _, ok := common.keyword_map[n.name]; ok {
@@ -825,6 +824,10 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return {}, true
 	case ^ast.Array_Type:
 		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Pointer_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Comp_Lit:
+		return resolve_location_type_expression(ast_context, n.type)
 	}
 	return resolve_type_expression(ast_context, node)
 }
@@ -2024,8 +2027,7 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 
 // Resolves the location of the underlying type of the identifier
 resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
-	// TODO: will likely need to clean this up and find a way for this flow to make sense.
-	// Ideally we need a way to extract the full symbol of a global
+	// TODO: Will also likely need to add more cases here as they come up
 	if local, ok := get_local(ast_context^, node); ok {
 		#partial switch n in local.rhs.derived {
 		case ^ast.Ident:
@@ -2038,8 +2040,14 @@ resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			}
 		case ^ast.Selector_Expr:
 			return resolve_selector_expression(ast_context, n)
+		case ^ast.Pointer_Type:
+			return resolve_location_type_expression(ast_context, n.elem)
+		case ^ast.Unary_Expr:
+			return resolve_location_type_expression(ast_context, n.expr)
 		}
 	} else if global, ok := ast_context.globals[node.name]; ok {
+		// Ideally we'd have a way to extract the full symbol of a global, but for now
+		// this seems to work. We may need to add more cases though.
 		if v, ok := global.expr.derived.(^ast.Proc_Lit); ok {
 			if symbol, ok := resolve_type_expression(ast_context, global.name_expr); ok {
 				return symbol, ok
