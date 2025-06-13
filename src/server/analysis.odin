@@ -449,8 +449,8 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		}
 
 		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
-	case SymbolMultiPointer:
-		b_value := b.value.(SymbolMultiPointer)
+	case SymbolMultiPointerValue:
+		b_value := b.value.(SymbolMultiPointerValue)
 
 		a_symbol: Symbol
 		b_symbol: Symbol
@@ -963,7 +963,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
 		case SymbolMapValue:
 			symbol, ok = internal_resolve_type_expression(ast_context, v2.value)
-		case SymbolMultiPointer:
+		case SymbolMultiPointerValue:
 			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
 		}
 
@@ -2481,7 +2481,7 @@ make_symbol_multi_pointer_from_ast :: proc(
 		name  = name.name,
 	}
 
-	symbol.value = SymbolMultiPointer {
+	symbol.value = SymbolMultiPointerValue {
 		expr = v.elem,
 	}
 
@@ -3950,7 +3950,7 @@ get_signature :: proc(
 		} else {
 			return "bit_field"
 		}
-	case SymbolMultiPointer:
+	case SymbolMultiPointerValue:
 		return strings.concatenate(
 			a = {pointer_prefix, "[^]", common.node_to_string(v.expr)},
 			allocator = ast_context.allocator,

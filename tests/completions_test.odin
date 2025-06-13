@@ -3207,3 +3207,61 @@ ast_completion_on_string_iterator :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"test.linze: string"})
 }
+
+@(test)
+ast_completion_multi_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		S1 :: struct {
+			s2_ptr: [^]S2,
+		}
+
+		S2 :: struct {
+			field: int,
+		}
+
+		main :: proc() {
+			x := S1 {
+				s2_ptr = &S2 {
+					{*}
+				}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"S2.field: int"})
+}
+
+@(test)
+ast_completion_multi_pointer_nested :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		S1 :: struct {
+			s2_ptr: [^]S2,
+		}
+
+		S2 :: struct {
+			field: S3,
+		}
+
+		S3 :: struct {
+			s3: int,
+		}
+
+		main :: proc() {
+			x := S1 {
+				s2_ptr = &S2 {
+					field = S3 {
+						{*}
+					}
+				}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"S3.s3: int"})
+}
