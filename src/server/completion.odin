@@ -267,7 +267,28 @@ get_comp_lit_completion :: proc(
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
 		case SymbolStructValue:
-			get_struct_field_completion(ast_context, position_context, &items, symbol)
+			for name, i in v.names {
+				if name == "_" {
+					continue
+				}
+
+				set_ast_package_set_scoped(ast_context, symbol.pkg)
+
+				if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+					if field_exists_in_comp_lit(position_context.comp_lit, name) {
+						continue
+					}
+
+					item := CompletionItem {
+						label         = name,
+						kind          = .Field,
+						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, common.node_to_string(v.types[i])),
+						documentation = resolved.doc,
+					}
+
+					append(&items, item)
+				}
+			}
 		case SymbolBitFieldValue:
 			for name, i in v.names {
 				if name == "_" {
@@ -291,54 +312,10 @@ get_comp_lit_completion :: proc(
 					append(&items, item)
 				}
 			}
-		case SymbolMultiPointerValue:
-			if resolved, ok := resolve_type_expression(ast_context, v.expr); ok {
-				if value, ok := resolved.value.(SymbolStructValue); ok {
-					get_struct_field_completion(ast_context, position_context, &items, resolved)
-				}
-			}
 		}
 	}
 
 	list.items = items[:]
-}
-
-get_struct_field_completion :: proc(
-	ast_context: ^AstContext,
-	position_context: ^DocumentPositionContext,
-	items: ^[dynamic]CompletionItem,
-	symbol: Symbol,
-) {
-	v := symbol.value.(SymbolStructValue)
-	for name, i in v.names {
-		if name == "_" {
-			continue
-		}
-
-		set_ast_package_set_scoped(ast_context, symbol.pkg)
-
-		if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-			if field_exists_in_comp_lit(position_context.comp_lit, name) {
-				continue
-			}
-			
-			if value, ok := resolved.value.(SymbolStructValue); ok {
-				get_struct_field_completion(ast_context, position_context, items, resolved)
-				continue
-			} else {
-				item := CompletionItem {
-					label         = name,
-					kind          = .Field,
-					detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, common.node_to_string(v.types[i])),
-					documentation = resolved.doc,
-				}
-
-				append(items, item)
-			}
-
-		}
-	}
-
 }
 
 get_selector_completion :: proc(

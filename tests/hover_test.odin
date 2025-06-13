@@ -946,6 +946,38 @@ ast_hover_empty_line_at_top_of_file :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n}")
 }
+
+@(test)
+ast_hover_inside_multi_pointer_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		S1 :: struct {
+			s2_ptr: [^]S2,
+		}
+
+		S2 :: struct {
+			field: S3,
+			i: int,
+			s: int,
+		}
+
+		S3 :: struct {
+			s3: int,
+		}
+
+		main :: proc() {
+			x := S1 {
+				s2_ptr = &S2 {
+					fi{*}eld = S3 {}
+				}
+			}
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "S2.field: S3")
+}
 /*
 
 Waiting for odin fix
