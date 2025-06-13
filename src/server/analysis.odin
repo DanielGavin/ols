@@ -357,6 +357,8 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 					return false
 				}
 			}
+		} else if untyped_b, ok := b.value.(SymbolUntypedValue); ok {
+			return untyped.type == untyped_b.type
 		}
 	}
 
@@ -573,11 +575,11 @@ get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	return total
 }
 
-get_unnamed_field_count :: proc(fields: []^ast.Field) -> int {
+get_procedure_arg_count :: proc(v: SymbolProcedureValue) -> int {
 	total := 0
-	for field in fields {
-		if field.default_value == nil {
-			total += len(field.names)
+	for proc_arg in v.arg_types {
+		for name in proc_arg.names {
+			total += 1
 		}
 	}
 	return total
@@ -587,7 +589,6 @@ get_unnamed_field_count :: proc(fields: []^ast.Field) -> int {
 	Figure out which function the call expression is using out of the list from proc group
 */
 resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (Symbol, bool) {
-	resolve_all_possibilities := ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp
 	old_overloading := ast_context.overloading
 	ast_context.overloading = true
 
@@ -595,13 +596,15 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		ast_context.overloading = old_overloading
 	}
 
-	using ast
-
 	call_expr := ast_context.call
 
 	if call_expr == nil || len(call_expr.args) == 0 {
 		ast_context.overloading = false
 	}
+
+	resolve_all_possibilities :=
+		ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
+
 	call_unnamed_arg_count := 0
 	if call_expr != nil {
 		call_unnamed_arg_count = get_unnamed_arg_count(call_expr.args)
@@ -620,8 +623,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				named := false
 
 				if !resolve_all_possibilities {
-					unnamed_field_count := get_unnamed_field_count(procedure.arg_types)
-					if call_expr != nil && unnamed_field_count != call_unnamed_arg_count {
+					arg_count := get_procedure_arg_count(procedure)
+					if call_expr != nil && arg_count < call_unnamed_arg_count {
 						break next_fn
 					}
 				}
@@ -709,7 +712,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		}
 	}
 
-	if len(candidates) > 1 {
+	if len(candidates) > 0 && !resolve_all_possibilities {
+		return candidates[0], true
+	} else if len(candidates) > 1 {
 		return Symbol {
 				type = candidates[0].type,
 				name = candidates[0].name,

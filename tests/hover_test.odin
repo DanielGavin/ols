@@ -686,7 +686,7 @@ ast_hover_proc_overloading :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
-		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+		foo_none :: proc(allocator := context.allocator) -> (int, bool) {
 			return 1, false
 		}
 		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
@@ -696,7 +696,7 @@ ast_hover_proc_overloading :: proc(t: ^testing.T) {
 			return 3, true
 		}
 		foo_string :: proc(s: string, allocator := context.allocator) -> (int, bool) {
-			return false
+			return 4, false
 		}
 		foo :: proc {
 			foo_none,
@@ -719,7 +719,7 @@ ast_hover_proc_overloading_no_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
-		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+		foo_none :: proc(allocator := context.allocator) -> (int, bool) {
 			return 1, false
 		}
 		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
@@ -729,7 +729,7 @@ ast_hover_proc_overloading_no_params :: proc(t: ^testing.T) {
 			return 3, true
 		}
 		foo_string :: proc(s: string, allocator := context.allocator) -> (int, bool) {
-			return false
+			return 4, false
 		}
 		foo :: proc {
 			foo_none,
@@ -748,6 +748,39 @@ ast_hover_proc_overloading_no_params :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_proc_overloading_named_arguments :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo_none :: proc() -> (int, bool) {
+			return 1, false
+		}
+		foo_int :: proc(i: int, s := "hello") -> (int, bool) {
+			return 2, true
+		}
+		foo_int2 :: proc(i: int, j: int, s := "hello") -> (int, bool) {
+			return 3, true
+		}
+		foo_string :: proc(s: string, allocator := context.allocator) -> (int, bool) {
+			return 4, false
+		}
+		foo :: proc {
+			foo_none,
+			foo_int,
+			foo_int2,
+			foo_string,
+		}
+
+		main :: proc() {
+			result, ok := fo{*}o(10, "testing")
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc(i: int, s := \"hello\") -> (_: int, _: bool)")
+}
+
+@(test)
 ast_hover_proc_overloading_in_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
@@ -756,7 +789,7 @@ ast_hover_proc_overloading_in_package :: proc(t: ^testing.T) {
 		test.Package {
 			pkg = "my_package",
 			source = `package my_package
-		foo_none :: proc( allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
+		foo_none :: proc(allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
 			return 1, false
 		}
 		foo_int :: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
@@ -766,7 +799,7 @@ ast_hover_proc_overloading_in_package :: proc(t: ^testing.T) {
 			return 3, true
 		}
 		foo_string :: proc(s: string, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
-			return false
+			return 4, false
 		}
 		foo :: proc {
 			foo_none,
@@ -800,7 +833,7 @@ ast_hover_proc_overloading_return_value_from_package :: proc(t: ^testing.T) {
 		test.Package {
 			pkg = "my_package",
 			source = `package my_package
-		foo_none :: proc( allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
+		foo_none :: proc(allocator := context.allocator,  loc := #caller_location) -> (int, bool) {
 			return 1, false
 		}
 		foo_int :: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
@@ -810,7 +843,7 @@ ast_hover_proc_overloading_return_value_from_package :: proc(t: ^testing.T) {
 			return 3, true
 		}
 		foo_string :: proc(s: string, allocator := context.allocator, loc := #caller_location) -> (int, bool) {
-			return false
+			return 4, false
 		}
 		foo :: proc {
 			foo_none,
@@ -840,7 +873,7 @@ ast_hover_proc_overload_definition :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
-		foo_none :: proc( allocator := context.allocator) -> (int, bool) {
+		foo_none :: proc(allocator := context.allocator) -> (int, bool) {
 			return 1, false
 		}
 		foo_int :: proc(i: int, allocator := context.allocator) -> (int, bool) {
