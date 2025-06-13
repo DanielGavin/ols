@@ -320,12 +320,12 @@ collect_multi_pointer :: proc(
 	collection: ^SymbolCollection,
 	array: ast.Multi_Pointer_Type,
 	package_map: map[string]string,
-) -> SymbolMultiPointer {
+) -> SymbolMultiPointerValue {
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 
 	replace_package_alias(elem, package_map, collection)
 
-	return SymbolMultiPointer{expr = elem}
+	return SymbolMultiPointerValue{expr = elem}
 }
 
 

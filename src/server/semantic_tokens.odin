@@ -572,7 +572,7 @@ visit_ident :: proc(
 		     SymbolFixedArrayValue,
 		     SymbolSliceValue,
 		     SymbolMapValue,
-		     SymbolMultiPointer,
+		     SymbolMultiPointerValue,
 		     SymbolBasicValue:
 			write_semantic_node(builder, ident, .Type, modifiers)
 		case SymbolUntypedValue:
