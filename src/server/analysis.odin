@@ -824,6 +824,8 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return {}, true
 	case ^ast.Array_Type:
 		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Dynamic_Array_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
 	case ^ast.Pointer_Type:
 		return resolve_location_type_expression(ast_context, n.elem)
 	case ^ast.Comp_Lit:
@@ -2035,9 +2037,9 @@ resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		case ^ast.Basic_Lit:
 			return {}, true
 		case ^ast.Array_Type:
-			if elem, ok := n.elem.derived.(^ast.Ident); ok {
-				return resolve_location_identifier(ast_context, elem^)
-			}
+			return resolve_location_type_expression(ast_context, n.elem)
+		case ^ast.Dynamic_Array_Type:
+			return resolve_location_type_expression(ast_context, n.elem)
 		case ^ast.Selector_Expr:
 			return resolve_selector_expression(ast_context, n)
 		case ^ast.Pointer_Type:

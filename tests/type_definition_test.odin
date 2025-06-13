@@ -813,3 +813,29 @@ ast_type_definition_external_package_from_external_proc :: proc(t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_type_definition_array_of_pointers :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			foos := []^Foo{}
+			l := len(f{*}oos)
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 2, character = 2},
+			end = {line = 2, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
