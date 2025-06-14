@@ -839,3 +839,32 @@ ast_type_definition_array_of_pointers :: proc(t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_type_definition_type_cast :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			data: ^int
+			foo := cast(^Foo)data
+
+			bar := fo{*}o.bar
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 2, character = 2},
+			end = {line = 2, character = 5},
+		},
+	}
+
+	test.expect_type_definition_locations(t, &source, {location})
+}
+

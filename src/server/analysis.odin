@@ -2046,6 +2046,8 @@ resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return resolve_location_type_expression(ast_context, n.elem)
 		case ^ast.Unary_Expr:
 			return resolve_location_type_expression(ast_context, n.expr)
+		case ^ast.Type_Cast:
+			return resolve_location_type_expression(ast_context, n.type)
 		}
 	} else if global, ok := ast_context.globals[node.name]; ok {
 		// Ideally we'd have a way to extract the full symbol of a global, but for now
