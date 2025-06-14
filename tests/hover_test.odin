@@ -1062,6 +1062,140 @@ ast_hover_proc_overloading_named_arg_with_selector_expr_multiple_packages :: pro
 
 	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
 }
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_proc :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			result, ok := my_package.f{*}oo(1)
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: struct {
+				foo: string,
+			}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc() {
+			foo := my_package.F{*}oo{}
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.Foo: struct {\n\tfoo: string,\n}")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_local_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: struct {
+				foo: string,
+			}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+
+		main :: proc() {
+			Foo :: struct {
+				i: int,
+			}
+
+			foo := my_package.F{*}oo{}
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.Foo: struct {\n\tfoo: string,\n}")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_variable :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			my_var := "my_var"
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+
+		main :: proc() {
+			my_var := 0
+
+			foo := my_package.my_va{*}r
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.my_var: string")
+}
 /*
 
 Waiting for odin fix

@@ -1165,12 +1165,18 @@ get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, 
 		local_stack := locals[ident.name] or_continue
 
 		#reverse for local in local_stack {
+			// Ensure that if the identifier has a file, the local is also part of the same file
+			// and the context is in the correct package
+			correct_file := ident.pos.file == "" || local.lhs.pos.file == ident.pos.file
+			correct_package := ast_context.current_package == ast_context.document_package
+			if !correct_file || !correct_package {
+				continue
+			}
+
 			if local.local_global {
 				return local, true
 			}
-			// Ensure that if the identifier has a file, the local is also part of the same file
-			correct_file := ident.pos.file == "" || local.lhs.pos.file == ident.pos.file
-			if correct_file && (local.offset <= ident.pos.offset || local.lhs.pos.offset == ident.pos.offset) {
+			if local.offset <= ident.pos.offset || local.lhs.pos.offset == ident.pos.offset {
 				// checking equal offsets is a hack to allow matching lhs ident in var decls
 				// because otherwise minimal offset begins after the decl
 				return local, true
@@ -2811,7 +2817,6 @@ get_generic_assignment :: proc(
 
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-
 			#partial switch symbol_value in symbol.value {
 			case SymbolProcedureValue:
 				for ret in symbol_value.return_types {
