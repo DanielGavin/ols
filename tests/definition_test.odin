@@ -34,6 +34,32 @@ ast_goto_comp_lit_field :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_goto_struct_definition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+        Point :: struct {
+            x, y, z : f32,
+        }
+        
+        main :: proc() {
+            point := Po{*}int {
+                x = 2, y = 5, z = 0,
+            }
+        } 
+		`,
+	}
+
+	location := common.Location {
+		range = {
+			start = {line = 1, character = 8},
+			end = {line = 1, character = 13},
+		},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
 ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test

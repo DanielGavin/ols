@@ -228,6 +228,7 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/didClose"             = notification_did_close,
 	"textDocument/didSave"              = notification_did_save,
 	"textDocument/definition"           = request_definition,
+	"textDocument/typeDefinition"		= request_type_definition,
 	"textDocument/completion"           = request_completion,
 	"textDocument/signatureHelp"        = request_signature_help,
 	"textDocument/documentSymbol"       = request_document_symbols,
@@ -680,6 +681,7 @@ request_initialize :: proc(
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
 				definitionProvider = true,
+				typeDefinitionProvider = true,
 				completionProvider = CompletionOptions {
 					resolveProvider = false,
 					triggerCharacters = completionTriggerCharacters,
@@ -800,6 +802,46 @@ request_definition :: proc(
 
 	if !ok2 {
 		log.warn("Failed to get definition location")
+	}
+
+	if len(locations) == 1 {
+		response := make_response_message(params = locations[0], id = id)
+		send_response(response, writer)
+	} else {
+		response := make_response_message(params = locations, id = id)
+		send_response(response, writer)
+	}
+
+	return .None
+}
+
+request_type_definition :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	definition_params: TextDocumentPositionParams
+
+	if unmarshal(params, definition_params, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(definition_params.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	locations, ok2 := get_type_definition_locations(document, definition_params.position)
+	if !ok2 {
+		log.warn("Failed to get type definition location")
 	}
 
 	if len(locations) == 1 {

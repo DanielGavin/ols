@@ -894,6 +894,49 @@ ast_hover_proc_overload_definition :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_distinguish_names_correctly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct {
+			bar: string
+		}
+
+		main :: proc() {
+			bar := Bar {
+				b{*}ar = "Hello, World",
+			}
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "Bar.bar: string")
+}
+
+@(test)
+ast_hover_distinguish_names_correctly_variable_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: ^Bar,
+		}
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			foo := &Foo{}
+			bar := foo.ba{*}r
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "Foo.bar: ^test.Bar :: struct {\n\tbar: int,\n}")
+}
+
+@(test)
 ast_hover_sub_string_slices :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
