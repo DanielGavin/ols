@@ -946,6 +946,122 @@ ast_hover_empty_line_at_top_of_file :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n}")
 }
+
+@(test)
+ast_hover_proc_overloading_arg_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: int,
+		}
+
+		foo_int :: proc(i: int) {}
+		foo_string :: proc(s: string) {}
+
+		foo :: proc {
+			foo_int,
+			foo_string,
+		}
+
+		main :: proc(f: Foo) {
+			fo{*}o(f.bar)
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc(i: int)")
+}
+
+@(test)
+ast_hover_proc_overloading_named_arg_with_selector_expr_with_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		foo_string :: proc(s: string, x := 1) -> (int, bool) {
+			return 2, true
+		}
+		foo :: proc {
+			foo_none,
+			foo_string,
+		}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc(f: ^Foo) {
+			result, ok := my_package.f{*}oo(f.i)
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_proc_overloading_named_arg_with_selector_expr_multiple_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		foo_string :: proc(s: string, x := 1) -> (int, bool) {
+			return 2, true
+		}
+		foo :: proc {
+			foo_none,
+			foo_string,
+		}
+		`
+		},
+		test.Package {
+			pkg = "my_package2",
+			source = `package my_package2
+			
+			Bar :: struct {
+				my_int: int
+			}
+		`
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+		import "my_package2"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc(bar: ^my_package2.Bar) {
+			result, ok := my_package.f{*}oo(bar.my_int)
+		}
+		`,
+		packages = packages[:]
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
 /*
 
 Waiting for odin fix

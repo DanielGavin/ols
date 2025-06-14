@@ -322,44 +322,53 @@ resolve_type_comp_literal :: proc(
 	return current_symbol, current_comp_lit, true
 }
 
-
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
-	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
+// NOTE: This function is not commutative
+are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 	if untyped, ok := a.value.(SymbolUntypedValue); ok {
 		if basic, ok := b.value.(SymbolBasicValue); ok {
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
 				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .Bool:
 				switch basic.ident.name {
 				case "bool", "b32", "b64":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .String:
 				switch basic.ident.name {
 				case "string", "cstring":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .Float:
 				switch basic.ident.name {
 				case "f32", "f64":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			}
 		} else if untyped_b, ok := b.value.(SymbolUntypedValue); ok {
-			return untyped.type == untyped_b.type
+			return untyped.type == untyped_b.type, true
 		}
+	}
+	return false, false
+}
+
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
+	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
+	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
+		return same
+	} else if same, ok := are_symbol_untyped_basic_same_typed(b, a); ok {
+		return same
 	}
 
 	a_id := reflect.union_variant_typeid(a.value)
@@ -649,7 +658,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						//named parameter
 						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
 							named = true
-							call_symbol, ok = resolve_type_expression(ast_context, field.value)
+							call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
 							if !ok {
 								break next_fn
 							}
@@ -667,7 +676,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 								log.error("Expected name parameter after starting named parmeter phase")
 								return {}, false
 							}
-							call_symbol, ok = resolve_type_expression(ast_context, call_arg)
+							call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
 						}
 
 						if !ok {
@@ -678,7 +687,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 							if len(p.return_types) != 1 {
 								break next_fn
 							}
-							if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
+							if s, ok := resolve_call_arg_type_expression(ast_context, p.return_types[0].type); ok {
 								call_symbol = s
 							}
 						}
@@ -727,6 +736,16 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	}
 
 	return Symbol{}, false
+}
+
+resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+	old_current_package := ast_context.current_package
+	ast_context.current_package = ast_context.document_package
+	defer {
+		ast_context.current_package = old_current_package
+	}
+
+	return resolve_type_expression(ast_context, node)
 }
 
 resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (Symbol, bool) {
