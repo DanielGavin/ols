@@ -118,40 +118,37 @@ collect_procedure_fields :: proc(
 
 collect_struct_fields :: proc(
 	collection: ^SymbolCollection,
-	struct_type: ast.Struct_Type,
+	struct_type: ^ast.Struct_Type,
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolStructValue {
-	names := make([dynamic]string, 0, collection.allocator)
-	types := make([dynamic]^ast.Expr, 0, collection.allocator)
-	usings := make(map[int]bool, 0, collection.allocator)
-	ranges := make([dynamic]common.Range, 0, collection.allocator)
+	b := symbol_struct_value_builder_make(collection.allocator)
+	construct_struct_field_docs(file, struct_type)
 
 	for field in struct_type.fields.list {
 		for n in field.names {
 			if ident, ok := n.derived.(^ast.Ident); ok {
-				append(&names, get_index_unique_string(collection, ident.name))
+				append(&b.names, get_index_unique_string(collection, ident.name))
 
 				cloned := clone_type(field.type, collection.allocator, &collection.unique_strings)
 				replace_package_alias(cloned, package_map, collection)
-				append(&types, cloned)
+				append(&b.types, cloned)
 
 				if .Using in field.flags {
-					usings[len(names) - 1] = true
+					append(&b.unexpanded_usings, len(b.names) - 1)
 				}
 
-				append(&ranges, common.get_token_range(n, file.src))
+				append(&b.ranges, common.get_token_range(n, file.src))
+
+				append(&b.docs, field.docs)
+				append(&b.comments, field.comment)
+				append(&b.from_usings, -1)
 			}
 		}
 	}
 
-	value := SymbolStructValue {
-		names  = names[:],
-		types  = types[:],
-		ranges = ranges[:],
-		usings = usings,
-		poly   = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings),
-	}
+	value := to_symbol_struct_value(b)
+	value.poly   = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 
 	return value
 }
@@ -522,7 +519,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Struct_Type:
 			token = v^
 			token_type = .Struct
-			symbol.value = collect_struct_fields(collection, v^, package_map, file)
+			symbol.value = collect_struct_fields(collection, v, package_map, file)
 			symbol.signature = "struct"
 
 			if _, is_objc := get_attribute_objc_class_name(expr.attributes); is_objc {

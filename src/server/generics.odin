@@ -643,21 +643,15 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 }
 
 
-resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
+// TODO: update to use builder
+resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder, poly_params: ^ast.Field_List) {
 	if ast_context.call == nil {
-		return
-	}
-
-	symbol_value := &symbol.value.(SymbolStructValue)
-
-	if symbol_value == nil {
 		return
 	}
 
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	args := make([dynamic]^ast.Expr, 0, context.temp_allocator)
 
 	for param in poly_params.list {
 		for name in param.names {
@@ -679,7 +673,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 				}
 			}
 
-			append(&args, ast_context.call.args[i])
+			append(&b.args, ast_context.call.args[i])
 
 			i += 1
 		}
@@ -687,7 +681,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 
 	Visit_Data :: struct {
 		poly_map:     map[string]^ast.Expr,
-		symbol_value: ^SymbolStructValue,
+		symbol_value_builder: ^SymbolStructValueBuilder,
 		parent:       ^ast.Node,
 		i:            int,
 		poly_index:   int,
@@ -712,7 +706,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 						v.elem = expr
 					}
 				} else {
-					data.symbol_value.types[data.i] = expr
+					data.symbol_value_builder.types[data.i] = expr
 					data.poly_index += 1
 				}
 			}
@@ -726,10 +720,10 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 		return visitor
 	}
 
-	for type, i in symbol_value.types {
+	for type, i in b.types {
 		data := Visit_Data {
 			poly_map     = poly_map,
-			symbol_value = symbol_value,
+			symbol_value_builder = b,
 			i            = i,
 		}
 
@@ -740,8 +734,6 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Li
 
 		ast.walk(&visitor, type)
 	}
-
-	symbol_value.args = args[:]
 }
 
 

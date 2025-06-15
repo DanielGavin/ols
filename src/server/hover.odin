@@ -125,10 +125,27 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									&ast_context,
 									position_context.value_decl.names[0],
 								); ok {
+									symbol.type = .Field
+									symbol.range = common.get_token_range(field.node, ast_context.file.src)
 									symbol.type_name = symbol.name
 									symbol.type_pkg = symbol.pkg
 									symbol.pkg = struct_symbol.name
 									symbol.name = identifier.name
+
+									// Get the inline comment from the field definition if it exists
+									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
+										index := -1
+										for n, i in value.names {
+											if n == symbol.name {
+												index = i
+												break
+											}
+										}
+										if index != -1  && value.comments[index] != nil && len(value.comments[index].list) > 0 {
+											symbol.comment = value.comments[index].list[0].text
+										}
+									}
+
 									symbol.signature = get_signature(&ast_context, symbol)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true

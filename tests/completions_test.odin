@@ -3187,6 +3187,45 @@ ast_completion_on_struct_using_field_selector :: proc(t: ^testing.T) {
 	test.expect_completion_details(t, &source, ".", {"Inner.field: int"})
 }
 
+@(test)
+ast_completion_on_struct_using_field_selector_directly :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		InnerInner :: struct {
+			field: int,
+		}
+
+		Inner :: struct {
+			using ii: InnerInner,
+		}
+
+		Outer :: struct {
+			using inner: Inner,
+		}
+
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+
+		main :: proc() {
+			data: my_package.Outer
+			data.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"Outer.field: int"})
+}
 
 @(test)
 ast_completion_on_string_iterator :: proc(t: ^testing.T) {

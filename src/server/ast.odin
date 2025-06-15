@@ -1174,3 +1174,51 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 	}
 	return strings.repeat(value, count, allocator)
 }
+
+construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
+	for field, i in v.fields.list {
+		// There is currently a bug in the odin parser where it adds line comments for a field to the
+		// docs of the following field, we address this problem here.
+		// see https://github.com/odin-lang/Odin/issues/5353
+		if field.comment == nil {
+			// We check if the comment is at the start of the next field
+			if i != len(v.fields.list) - 1 {
+				next_field := v.fields.list[i + 1]
+				if next_field.docs != nil && len(next_field.docs.list) > 0 {
+					list := next_field.docs.list
+					if list[0].pos.line == field.pos.line {
+						field.comment = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comment.list = list[:1]
+						if len(list) > 1 {
+							next_field.docs = ast.new(
+								ast.Comment_Group,
+								list[1].pos,
+								parser.end_pos(list[len(list) - 2]),
+							)
+							next_field.docs.list = list[1:]
+						} else {
+							next_field.docs = nil
+						}
+					}
+				}
+			} else {
+				// We need to check the file to see if it contains a line comment as there is no next field
+				// TODO: linear scan might be a bit slow for files with lots of comments?
+				for c in file.comments {
+					if c.pos.line == field.pos.line {
+						for item, j in c.list {
+							field.comment = ast.new(ast.Comment_Group, item.pos, parser.end_pos(item))
+							if j == len(c.list) - 1 {
+								field.comment.list = c.list[j:]
+							} else {
+								field.comment.list = c.list[j:j + 1]
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
