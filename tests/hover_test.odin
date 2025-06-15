@@ -708,10 +708,14 @@ ast_hover_proc_overloading :: proc(t: ^testing.T) {
 		main :: proc() {
 			result, ok := fo{*}o(10, 10)
 		}
-		`
+		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: proc(i: int, j: int, allocator := context.allocator) -> (_: int, _: bool)")
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: proc(i: int, j: int, allocator := context.allocator) -> (_: int, _: bool)",
+	)
 }
 
 @(test)
@@ -741,7 +745,7 @@ ast_hover_proc_overloading_no_params :: proc(t: ^testing.T) {
 		main :: proc() {
 			result, ok := fo{*}o()
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.foo: proc(allocator := context.allocator) -> (_: int, _: bool)")
@@ -774,7 +778,7 @@ ast_hover_proc_overloading_named_arguments :: proc(t: ^testing.T) {
 		main :: proc() {
 			result, ok := fo{*}o(10, "testing")
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.foo: proc(i: int, s := \"hello\") -> (_: int, _: bool)")
@@ -807,21 +811,25 @@ ast_hover_proc_overloading_in_package :: proc(t: ^testing.T) {
 			foo_int2,
 			foo_string,
 		}
-		`
+		`,
 		},
 	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
 			result, ok := my_package.fo{*}o(10)
 		}
 		`,
-		packages = packages[:]
+		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.foo: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (_: int, _: bool)")
+	test.expect_hover(
+		t,
+		&source,
+		"my_package.foo: proc(i: int, allocator := context.allocator, loc := #caller_location) -> (_: int, _: bool)",
+	)
 }
 
 @(test)
@@ -851,18 +859,18 @@ ast_hover_proc_overloading_return_value_from_package :: proc(t: ^testing.T) {
 			foo_int2,
 			foo_string,
 		}
-		`
+		`,
 		},
 	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
 			res{*}ult, ok := my_package.foo("Hello, world!")
 		}
 		`,
-		packages = packages[:]
+		packages = packages[:],
 	}
 
 	test.expect_hover(t, &source, "test.result: int")
@@ -887,10 +895,14 @@ ast_hover_proc_overload_definition :: proc(t: ^testing.T) {
 		main :: proc() {
 			result, ok := foo(10, 10)
 		}
-		`
+		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: proc {\n\tfoo_none :: proc(allocator := context.allocator) -> (_: int, _: bool),\n\tfoo_int :: proc(i: int, allocator := context.allocator) -> (_: int, _: bool),\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: proc {\n\tfoo_none :: proc(allocator := context.allocator) -> (_: int, _: bool),\n\tfoo_int :: proc(i: int, allocator := context.allocator) -> (_: int, _: bool),\n}",
+	)
 }
 
 @(test)
@@ -901,7 +913,7 @@ ast_hover_sub_string_slices :: proc(t: ^testing.T) {
 			str := "Hello, World!"
 			s{*}ub_str := str[0:5]
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.sub_str: string")
@@ -941,10 +953,254 @@ ast_hover_empty_line_at_top_of_file :: proc(t: ^testing.T) {
 		main :: proc() {
 			foo := F{*}oo{}
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n}")
+}
+
+@(test)
+ast_hover_proc_overloading_arg_with_selector_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: int,
+		}
+
+		foo_int :: proc(i: int) {}
+		foo_string :: proc(s: string) {}
+
+		foo :: proc {
+			foo_int,
+			foo_string,
+		}
+
+		main :: proc(f: Foo) {
+			fo{*}o(f.bar)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: proc(i: int)")
+}
+
+@(test)
+ast_hover_proc_overloading_named_arg_with_selector_expr_with_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		foo_string :: proc(s: string, x := 1) -> (int, bool) {
+			return 2, true
+		}
+		foo :: proc {
+			foo_none,
+			foo_string,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc(f: ^Foo) {
+			result, ok := my_package.f{*}oo(f.i)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_proc_overloading_named_arg_with_selector_expr_multiple_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo_none :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		foo_string :: proc(s: string, x := 1) -> (int, bool) {
+			return 2, true
+		}
+		foo :: proc {
+			foo_none,
+			foo_string,
+		}
+		`,
+		},
+		test.Package {
+			pkg = "my_package2",
+			source = `package my_package2
+			
+			Bar :: struct {
+				my_int: int
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		import "my_package2"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc(bar: ^my_package2.Bar) {
+			result, ok := my_package.f{*}oo(bar.my_int)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_proc :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		foo :: proc(x := 1) -> (int, bool) {
+			return 1, false
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			result, ok := my_package.f{*}oo(1)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: struct {
+				foo: string,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		Foo :: struct {
+			i: int,
+		}
+
+		main :: proc() {
+			foo := my_package.F{*}oo{}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.Foo: struct {\n\tfoo: string,\n}")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_local_struct :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: struct {
+				foo: string,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+
+		main :: proc() {
+			Foo :: struct {
+				i: int,
+			}
+
+			foo := my_package.F{*}oo{}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.Foo: struct {\n\tfoo: string,\n}")
+}
+
+@(test)
+ast_hover_distinguish_symbols_in_packages_variable :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+
+			my_var := "my_var"
+		`})
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+
+		main :: proc() {
+			my_var := 0
+
+			foo := my_package.my_va{*}r
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.my_var: string")
 }
 
 @(test)
@@ -973,7 +1229,7 @@ ast_hover_inside_multi_pointer_struct :: proc(t: ^testing.T) {
 				}
 			}
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "S2.field: S3")

@@ -330,44 +330,53 @@ resolve_type_comp_literal :: proc(
 	return current_symbol, current_comp_lit, true
 }
 
-
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
-	//relying on the fact that a is the call argument to avoid checking both sides for untyped.
+// NOTE: This function is not commutative
+are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 	if untyped, ok := a.value.(SymbolUntypedValue); ok {
 		if basic, ok := b.value.(SymbolBasicValue); ok {
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
 				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .Bool:
 				switch basic.ident.name {
 				case "bool", "b32", "b64":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .String:
 				switch basic.ident.name {
 				case "string", "cstring":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			case .Float:
 				switch basic.ident.name {
 				case "f32", "f64":
-					return true
+					return true, true
 				case:
-					return false
+					return false, true
 				}
 			}
 		} else if untyped_b, ok := b.value.(SymbolUntypedValue); ok {
-			return untyped.type == untyped_b.type
+			return untyped.type == untyped_b.type, true
 		}
+	}
+	return false, false
+}
+
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
+	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
+	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
+		return same
+	} else if same, ok := are_symbol_untyped_basic_same_typed(b, a); ok {
+		return same
 	}
 
 	a_id := reflect.union_variant_typeid(a.value)
@@ -657,7 +666,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						//named parameter
 						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
 							named = true
-							call_symbol, ok = resolve_type_expression(ast_context, field.value)
+							call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
 							if !ok {
 								break next_fn
 							}
@@ -675,7 +684,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 								log.error("Expected name parameter after starting named parmeter phase")
 								return {}, false
 							}
-							call_symbol, ok = resolve_type_expression(ast_context, call_arg)
+							call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
 						}
 
 						if !ok {
@@ -686,7 +695,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 							if len(p.return_types) != 1 {
 								break next_fn
 							}
-							if s, ok := resolve_type_expression(ast_context, p.return_types[0].type); ok {
+							if s, ok := resolve_call_arg_type_expression(ast_context, p.return_types[0].type); ok {
 								call_symbol = s
 							}
 						}
@@ -735,6 +744,16 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	}
 
 	return Symbol{}, false
+}
+
+resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+	old_current_package := ast_context.current_package
+	ast_context.current_package = ast_context.document_package
+	defer {
+		ast_context.current_package = old_current_package
+	}
+
+	return resolve_type_expression(ast_context, node)
 }
 
 resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) -> (Symbol, bool) {
@@ -1154,12 +1173,18 @@ get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, 
 		local_stack := locals[ident.name] or_continue
 
 		#reverse for local in local_stack {
+			// Ensure that if the identifier has a file, the local is also part of the same file
+			// and the context is in the correct package
+			correct_file := ident.pos.file == "" || local.lhs.pos.file == ident.pos.file
+			correct_package := ast_context.current_package == ast_context.document_package
+			if !correct_file || !correct_package {
+				continue
+			}
+
 			if local.local_global {
 				return local, true
 			}
-			// Ensure that if the identifier has a file, the local is also part of the same file
-			correct_file := ident.pos.file == "" || local.lhs.pos.file == ident.pos.file
-			if correct_file && (local.offset <= ident.pos.offset || local.lhs.pos.offset == ident.pos.offset) {
+			if local.offset <= ident.pos.offset || local.lhs.pos.offset == ident.pos.offset {
 				// checking equal offsets is a hack to allow matching lhs ident in var decls
 				// because otherwise minimal offset begins after the decl
 				return local, true
@@ -2800,7 +2825,6 @@ get_generic_assignment :: proc(
 
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-
 			#partial switch symbol_value in symbol.value {
 			case SymbolProcedureValue:
 				for ret in symbol_value.return_types {
