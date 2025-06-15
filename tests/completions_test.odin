@@ -3245,6 +3245,8 @@ ast_completion_multi_pointer_nested :: proc(t: ^testing.T) {
 
 		S2 :: struct {
 			field: S3,
+			i: int,
+			s: int,
 		}
 
 		S3 :: struct {

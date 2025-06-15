@@ -211,6 +211,14 @@ resolve_type_comp_literal :: proc(
 	^ast.Comp_Lit,
 	bool,
 ) {
+	// If the symbol is a MultiPointerValue, we retrieve the symbol of the underlying expression and
+	// retry with that.
+	if s, ok := current_symbol.value.(SymbolMultiPointerValue); ok {
+		if symbol, ok := resolve_type_expression(ast_context, s.expr); ok {
+			return resolve_type_comp_literal(ast_context, position_context, symbol, current_comp_lit)
+		}
+	}
+
 	if position_context.comp_lit == current_comp_lit {
 		return current_symbol, current_comp_lit, true
 	} else if current_comp_lit == nil {
