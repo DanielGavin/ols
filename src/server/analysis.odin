@@ -707,9 +707,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						}
 
 						if proc_arg.type != nil {
-							arg_symbol, ok = resolve_type_expression(ast_context, proc_arg.type)
+							arg_symbol, ok = resolve_call_arg_type_expression(ast_context, proc_arg.type)
 						} else {
-							arg_symbol, ok = resolve_type_expression(ast_context, proc_arg.default_value)
+							arg_symbol, ok = resolve_call_arg_type_expression(ast_context, proc_arg.default_value)
 						}
 
 						if !ok {
