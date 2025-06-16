@@ -1234,6 +1234,82 @@ ast_hover_inside_multi_pointer_struct :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "S2.field: S3")
 }
+
+@(test)
+ast_hover_proc_overloading_parametric_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: struct {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		new_ints :: proc($T: typeid, a, b: int) -> ^T {}
+		new_int_string :: proc($T: typeid, a: int, s: string) -> ^T {}
+
+		new :: proc {
+			new_ints,
+			new_int_string,
+		}
+
+
+		main :: proc() {
+			f{*}oo := new(my_package.Foo, 1, 2)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: ^my_package.Foo :: struct {}")
+}
+
+@(test)
+ast_hover_proc_overloading_parametric_type_external_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			new_ints :: proc($T: typeid, a, b: int) -> ^T {}
+			new_int_string :: proc($T: typeid, a: int, s: string) -> ^T {}
+
+			new :: proc {
+				new_ints,
+				new_int_string,
+			}
+
+			Foo :: struct {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+
+		import "my_package"		
+
+
+		main :: proc() {
+			f{*}oo := my_package.new(my_package.Foo, 1, 2)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: ^my_package.Foo :: struct {}")
+}
 /*
 
 Waiting for odin fix
