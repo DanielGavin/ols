@@ -823,6 +823,44 @@ check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool 
 	return false
 }
 
+// Resolves the location of the underlying type of the expression
+resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+	if node == nil {
+		return {}, false
+	}
+
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
+		return {}, false
+	}
+
+	set_ast_package_scoped(ast_context)
+
+	if check_node_recursion(ast_context, node) {
+		return {}, false
+	}
+
+	// TODO: there is likely more of these that will need to be added
+	#partial switch n in node.derived {
+	case ^ast.Ident:
+		if _, ok := common.keyword_map[n.name]; ok {
+			return {}, true
+		}
+		return resolve_location_type_identifier(ast_context, n^)
+	case ^ast.Basic_Lit:
+		return {}, true
+	case ^ast.Array_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Dynamic_Array_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Pointer_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Comp_Lit:
+		return resolve_location_type_expression(ast_context, n.type)
+	}
+	return resolve_type_expression(ast_context, node)
+}
+
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
 	clear(&ast_context.recursion_map)
 	return internal_resolve_type_expression(ast_context, node)
@@ -956,7 +994,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		}
 	case ^Proc_Lit:
 		if v.type.results != nil {
-			if len(v.type.results.list) == 1 {
+			if len(v.type.results.list) > 0 {
 				return internal_resolve_type_expression(ast_context, v.type.results.list[0].type)
 			}
 		}
@@ -1031,86 +1069,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			return selector, true
 		}
 	case ^Selector_Expr:
-		if selector, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
-			ast_context.use_locals = false
-
-			set_ast_package_from_symbol_scoped(ast_context, selector)
-
-			#partial switch s in selector.value {
-			case SymbolFixedArrayValue:
-				components_count := 0
-				for c in v.field.name {
-					if c == 'x' || c == 'y' || c == 'z' || c == 'w' || c == 'r' || c == 'g' || c == 'b' || c == 'a' {
-						components_count += 1
-					} else {
-						return {}, false
-					}
-				}
-
-				if components_count == 0 {
-					return {}, false
-				}
-
-				if components_count == 1 {
-					set_ast_package_from_symbol_scoped(ast_context, selector)
-
-					symbol, ok := internal_resolve_type_expression(ast_context, s.expr)
-					symbol.type = .Variable
-					return symbol, ok
-				} else {
-					value := SymbolFixedArrayValue {
-						expr = s.expr,
-						len  = make_int_basic_value(ast_context, components_count, s.len.pos, s.len.end),
-					}
-					selector.value = value
-					selector.type = .Variable
-					return selector, true
-				}
-			case SymbolProcedureValue:
-				if len(s.return_types) == 1 {
-					selector_expr := new_type(
-						ast.Selector_Expr,
-						s.return_types[0].node.pos,
-						s.return_types[0].node.end,
-						ast_context.allocator,
-					)
-					selector_expr.expr = s.return_types[0].type
-					selector_expr.field = v.field
-
-					return internal_resolve_type_expression(ast_context, selector_expr)
-				}
-			case SymbolStructValue:
-				for name, i in s.names {
-					if v.field != nil && name == v.field.name {
-						ast_context.field_name = v.field^
-						symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
-						symbol.type = .Variable
-						return symbol, ok
-					}
-				}
-			case SymbolBitFieldValue:
-				for name, i in s.names {
-					if v.field != nil && name == v.field.name {
-						ast_context.field_name = v.field^
-						symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
-						symbol.type = .Variable
-						return symbol, ok
-					}
-				}
-			case SymbolPackageValue:
-				try_build_package(ast_context.current_package)
-
-				if v.field != nil {
-					return resolve_symbol_return(ast_context, lookup(v.field.name, selector.pkg))
-				} else {
-					return Symbol{}, false
-				}
-			case SymbolEnumValue:
-				// enum members probably require own symbol value
-				selector.type = .EnumMember
-				return selector, true
-			}
-		}
+		return resolve_selector_expression(ast_context, v)
 	case ^ast.Poly_Type:
 		if v.specialization != nil {
 			return internal_resolve_type_expression(ast_context, v.specialization)
@@ -1121,6 +1080,112 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	}
 
 	return Symbol{}, false
+}
+
+resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
+	if selector, ok := internal_resolve_type_expression(ast_context, node.expr); ok {
+		ast_context.use_locals = false
+
+		set_ast_package_from_symbol_scoped(ast_context, selector)
+
+		#partial switch s in selector.value {
+		case SymbolFixedArrayValue:
+			components_count := 0
+			for c in node.field.name {
+				if c == 'x' || c == 'y' || c == 'z' || c == 'w' || c == 'r' || c == 'g' || c == 'b' || c == 'a' {
+					components_count += 1
+				} else {
+					return {}, false
+				}
+			}
+
+			if components_count == 0 {
+				return {}, false
+			}
+
+			if components_count == 1 {
+				set_ast_package_from_symbol_scoped(ast_context, selector)
+
+				symbol, ok := internal_resolve_type_expression(ast_context, s.expr)
+				symbol.type = .Variable
+				return symbol, ok
+			} else {
+				value := SymbolFixedArrayValue {
+					expr = s.expr,
+					len  = make_int_basic_value(ast_context, components_count, s.len.pos, s.len.end),
+				}
+				selector.value = value
+				selector.type = .Variable
+				return selector, true
+			}
+		case SymbolProcedureValue:
+			if len(s.return_types) == 1 {
+				selector_expr := new_type(
+					ast.Selector_Expr,
+					s.return_types[0].node.pos,
+					s.return_types[0].node.end,
+					ast_context.allocator,
+				)
+				selector_expr.expr = s.return_types[0].type
+				selector_expr.field = node.field
+
+				return internal_resolve_type_expression(ast_context, selector_expr)
+			}
+		case SymbolStructValue:
+			for name, i in s.names {
+				if node.field != nil && name == node.field.name {
+					ast_context.field_name = node.field^
+					symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
+					symbol.type = .Variable
+					return symbol, ok
+				}
+			}
+		case SymbolBitFieldValue:
+			for name, i in s.names {
+				if node.field != nil && name == node.field.name {
+					ast_context.field_name = node.field^
+					symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
+					symbol.type = .Variable
+					return symbol, ok
+				}
+			}
+		case SymbolPackageValue:
+			try_build_package(ast_context.current_package)
+
+			if node.field != nil {
+				return resolve_symbol_return(ast_context, lookup(node.field.name, selector.pkg))
+			} else {
+				return Symbol{}, false
+			}
+		case SymbolEnumValue:
+			// enum members probably require own symbol value
+			selector.type = .EnumMember
+			return selector, true
+		}
+	}
+
+	return {}, false
+}
+
+// returns the symbol of the first return type of a proc
+resolve_symbol_proc_first_return_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> (Symbol, bool) {
+	if v, ok := symbol.value.(SymbolProcedureValue); ok {
+		if len(v.return_types) > 0 {
+			if ast_context.current_package != symbol.pkg {
+				current_package := ast_context.current_package
+				defer {
+					ast_context.current_package = current_package
+				}
+				ast_context.current_package = symbol.pkg
+				return resolve_type_expression(ast_context, v.return_types[0].type)
+			} else {
+				return resolve_location_type_expression(ast_context, v.return_types[0].type)
+			}
+		} else {
+			return {}, true
+		}
+	}
+	return {}, false
 }
 
 store_local :: proc(
@@ -1995,6 +2060,40 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 	return true
 }
 
+// Resolves the location of the underlying type of the identifier
+resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
+	// TODO: Will also likely need to add more cases here as they come up
+	if local, ok := get_local(ast_context^, node); ok {
+		#partial switch n in local.rhs.derived {
+		case ^ast.Ident:
+			return resolve_location_identifier(ast_context, n^)
+		case ^ast.Basic_Lit:
+			return {}, true
+		case ^ast.Array_Type:
+			return resolve_location_type_expression(ast_context, n.elem)
+		case ^ast.Dynamic_Array_Type:
+			return resolve_location_type_expression(ast_context, n.elem)
+		case ^ast.Selector_Expr:
+			return resolve_selector_expression(ast_context, n)
+		case ^ast.Pointer_Type:
+			return resolve_location_type_expression(ast_context, n.elem)
+		case ^ast.Unary_Expr:
+			return resolve_location_type_expression(ast_context, n.expr)
+		case ^ast.Type_Cast:
+			return resolve_location_type_expression(ast_context, n.type)
+		}
+	} else if global, ok := ast_context.globals[node.name]; ok {
+		// Ideally we'd have a way to extract the full symbol of a global, but for now
+		// this seems to work. We may need to add more cases though.
+		if v, ok := global.expr.derived.(^ast.Proc_Lit); ok {
+			if symbol, ok := resolve_type_expression(ast_context, global.name_expr); ok {
+				return symbol, ok
+			}
+		}
+	}
+	return resolve_location_identifier(ast_context, node)
+}
+
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	symbol: Symbol
 
@@ -2027,6 +2126,7 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 
 	return {}, false
 }
+
 resolve_location_comp_lit_field :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
