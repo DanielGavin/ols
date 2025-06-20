@@ -114,7 +114,7 @@ get_inlay_hints :: proc(
 								continue loop
 							}
 
-							value := common.node_to_string(arg.default_value)
+							value := node_to_string(arg.default_value)
 
 							call_range := common.get_token_range(call, string(document.text))
 

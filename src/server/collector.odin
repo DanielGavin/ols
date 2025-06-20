@@ -368,7 +368,7 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 			return
 		}
 
-		expr, _, ok := common.unwrap_pointer_ident(value.arg_types[0].type)
+		expr, _, ok := unwrap_pointer_ident(value.arg_types[0].type)
 
 		if !ok {
 			return
@@ -406,9 +406,9 @@ collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute
 	pkg := &collection.packages[symbol.pkg]
 
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
-		objc_name, found_objc_name := common.get_attribute_objc_name(attributes)
+		objc_name, found_objc_name := get_attribute_objc_name(attributes)
 
-		if objc_type := common.get_attribute_objc_type(attributes); objc_type != nil && found_objc_name {
+		if objc_type := get_attribute_objc_type(attributes); objc_type != nil && found_objc_name {
 
 			if struct_ident, ok := objc_type.derived.(^ast.Ident); ok {
 				struct_name := get_index_unique_string_collection(collection, struct_ident.name)
@@ -446,7 +446,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 
-	exprs := common.collect_globals(file, true)
+	exprs := collect_globals(file, true)
 
 	collect_imports(collection, file)
 
@@ -492,9 +492,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				)
 			}
 
-			if _, is_objc := common.get_attribute_objc_name(expr.attributes); is_objc {
+			if _, is_objc := get_attribute_objc_name(expr.attributes); is_objc {
 				symbol.flags |= {.ObjC}
-				if common.get_attribute_objc_is_class_method(expr.attributes) {
+				if get_attribute_objc_is_class_method(expr.attributes) {
 					symbol.flags |= {.ObjCIsClassMethod}
 				}
 			}
@@ -521,9 +521,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.value = collect_struct_fields(collection, v^, package_map, file)
 			symbol.signature = "struct"
 
-			if _, is_objc := common.get_attribute_objc_class_name(expr.attributes); is_objc {
+			if _, is_objc := get_attribute_objc_class_name(expr.attributes); is_objc {
 				symbol.flags |= {.ObjC}
-				if common.get_attribute_objc_is_class_method(expr.attributes) {
+				if get_attribute_objc_is_class_method(expr.attributes) {
 					symbol.flags |= {.ObjCIsClassMethod}
 				}
 			}
@@ -605,7 +605,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
-		symbol.doc = common.get_doc(expr.docs, collection.allocator)
+		symbol.doc = get_doc(expr.docs, collection.allocator)
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"

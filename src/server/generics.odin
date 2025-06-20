@@ -32,7 +32,7 @@ resolve_poly :: proc(
 	type: ^ast.Expr
 
 	poly_node := poly_node
-	poly_node, _, _ = common.unwrap_pointer_expr(poly_node)
+	poly_node, _, _ = unwrap_pointer_expr(poly_node)
 
 	#partial switch v in poly_node.derived {
 	case ^ast.Typeid_Type:
@@ -126,7 +126,7 @@ resolve_poly :: proc(
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
 
-			if common.dynamic_array_is_soa(p^) != common.dynamic_array_is_soa(call_array^) {
+			if dynamic_array_is_soa(p^) != dynamic_array_is_soa(call_array^) {
 				return false
 			}
 
@@ -155,7 +155,7 @@ resolve_poly :: proc(
 		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
 			found := false
 
-			if common.array_is_soa(p^) != common.array_is_soa(call_array^) {
+			if array_is_soa(p^) != array_is_soa(call_array^) {
 				return false
 			}
 
@@ -634,7 +634,7 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 			continue
 		}
 
-		if common.expr_contains_poly(param.type) {
+		if expr_contains_poly(param.type) {
 			return true
 		}
 	}

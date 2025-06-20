@@ -228,7 +228,7 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/didClose"             = notification_did_close,
 	"textDocument/didSave"              = notification_did_save,
 	"textDocument/definition"           = request_definition,
-	"textDocument/typeDefinition"		= request_type_definition,
+	"textDocument/typeDefinition"       = request_type_definition,
 	"textDocument/completion"           = request_completion,
 	"textDocument/signatureHelp"        = request_signature_help,
 	"textDocument/documentSymbol"       = request_document_symbols,
@@ -410,7 +410,11 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	}
 
 	if config.profile.os == "" {
-		config.profile.os = os_enum_to_string[ODIN_OS]
+		config.profile.os = fmt.aprint(ODIN_OS)
+	}
+
+	if config.profile.arch == "" {
+		config.profile.arch = fmt.aprint(ODIN_ARCH)
 	}
 
 	config.checker_targets = slice.clone(ols_config.checker_targets, context.allocator)

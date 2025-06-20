@@ -79,7 +79,8 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		}
 	} else if position_context.selector_expr != nil {
 		//if the base selector is the client wants to go to.
-		if position_in_node(position_context.selector, position_context.position) && position_context.identifier != nil {
+		if position_in_node(position_context.selector, position_context.position) &&
+		   position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
 			if resolved, ok := resolve_location_identifier(&ast_context, ident^); ok {
 				location.range = resolved.range
@@ -106,7 +107,7 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		}
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
-	   !common.is_expr_basic_lit(position_context.field_value.field) &&
+	   !is_expr_basic_lit(position_context.field_value.field) &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
 		if resolved, ok := resolve_location_comp_lit_field(&ast_context, &position_context); ok {
 			location.range = resolved.range

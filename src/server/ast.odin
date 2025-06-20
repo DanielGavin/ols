@@ -1,5 +1,5 @@
 #+feature dynamic-literals
-package common
+package server
 
 import "core:fmt"
 import "core:log"
@@ -363,7 +363,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 	file_tags := parser.parse_file_tags(file, context.temp_allocator)
 
-	for decl in file.decls {
+	_next_decl: for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
 			collect_value_decl(&exprs, file, file_tags, decl, skip_private)
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
@@ -375,60 +375,34 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 				continue
 			}
 
-			if binary, ok := when_decl.cond.derived.(^ast.Binary_Expr); ok {
-				if binary.left == nil || binary.right == nil {
-					continue
-				}
-
-				ident: ^ast.Ident
-				implicit: ^ast.Implicit_Selector_Expr
-
-				if t, ok := binary.left.derived.(^ast.Ident); ok {
-					ident = cast(^ast.Ident)binary.left
-				} else if t, ok := binary.left.derived.(^ast.Implicit_Selector_Expr); ok {
-					implicit = cast(^ast.Implicit_Selector_Expr)binary.left
-				}
-
-				if t, ok := binary.right.derived.(^ast.Ident); ok {
-					ident = cast(^ast.Ident)binary.right
-				} else if t, ok := binary.right.derived.(^ast.Implicit_Selector_Expr); ok {
-					implicit = cast(^ast.Implicit_Selector_Expr)binary.right
-				}
-
-				if ident != nil && implicit != nil {
-					allowed := false
-
-					if binary.op.text == "==" {
-						allowed =
-							ident.name == "ODIN_OS" && implicit.field.name == fmt.tprint(ODIN_OS) ||
-							ident.name == "ODIN_ARCH" && implicit.field.name == fmt.tprint(ODIN_ARCH)
-					} else if binary.op.text == "!=" {
-						allowed =
-							ident.name == "ODIN_OS" && implicit.field.name != fmt.tprint(ODIN_OS) ||
-							ident.name == "ODIN_ARCH" && implicit.field.name != fmt.tprint(ODIN_ARCH)
-					}
-
-					if allowed {
-						if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
-							}
-						}
-					} else if ident.name != "ODIN_OS" && ident.name != "ODIN_ARCH" {
-						if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-							for stmt in block.stmts {
-								collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
-							}
-						}
-					}
-				}
-			} else {
+			if resolve_when_condition(when_decl.cond) {
 				if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
 					for stmt in block.stmts {
 						collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
 					}
 				}
+				continue
+			} else {
+				else_stmt := when_decl.else_stmt
+
+				for else_stmt != nil {
+					if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
+						if resolve_when_condition(else_when.cond) {
+							if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
+								for stmt in block.stmts {
+									collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
+								}
+							}
+							continue _next_decl
+						}
+						else_stmt = else_when.else_stmt
+					} else {
+						continue _next_decl
+					}
+				}
 			}
+
+
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body == nil {
 				continue

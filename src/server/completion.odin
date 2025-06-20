@@ -282,7 +282,7 @@ get_comp_lit_completion :: proc(
 					item := CompletionItem {
 						label         = name,
 						kind          = .Field,
-						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, common.node_to_string(v.types[i])),
+						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, node_to_string(v.types[i])),
 						documentation = resolved.doc,
 					}
 
@@ -305,7 +305,7 @@ get_comp_lit_completion :: proc(
 					item := CompletionItem {
 						label         = name,
 						kind          = .Field,
-						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, common.node_to_string(v.types[i])),
+						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, node_to_string(v.types[i])),
 						documentation = resolved.doc,
 					}
 
@@ -415,7 +415,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
-					detail = fmt.tprintf("%v%v: %v", field, k, common.node_to_string(v.expr)),
+					detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
 				}
 				append(&items, item)
 			}
@@ -432,7 +432,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
-					detail = fmt.tprintf("%v%v: %v", field, k, common.node_to_string(v.expr)),
+					detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
 				}
 				append(&items, item)
 			}
@@ -449,7 +449,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
-					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsColor, common.node_to_string(v.expr)),
+					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsColor, node_to_string(v.expr)),
 				}
 				append(&items, item)
 			}
@@ -464,7 +464,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label  = fmt.tprintf("%v%v", field, k),
 					kind   = .Property,
-					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsCoord, common.node_to_string(v.expr)),
+					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsCoord, node_to_string(v.expr)),
 				}
 				append(&items, item)
 			}
@@ -493,15 +493,15 @@ get_selector_completion :: proc(
 				   is_selector {
 					item.label = fmt.aprintf(
 						"(%v%v)",
-						common.repeat("^", symbol.pointers, context.temp_allocator),
-						common.node_to_string(type, true),
+						repeat("^", symbol.pointers, context.temp_allocator),
+						node_to_string(type, true),
 					)
 				} else {
 					item.label = fmt.aprintf(
 						"(%v%v.%v)",
-						common.repeat("^", symbol.pointers, context.temp_allocator),
+						repeat("^", symbol.pointers, context.temp_allocator),
 						get_symbol_pkg_name(ast_context, symbol),
-						common.node_to_string(type, true),
+						node_to_string(type, true),
 					)
 				}
 
@@ -603,7 +603,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label         = symbol.name,
 					kind          = .Field,
-					detail        = fmt.tprintf("%v: %v", name, common.node_to_string(v.types[i])),
+					detail        = fmt.tprintf("%v: %v", name, node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				}
 
@@ -640,7 +640,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label         = symbol.name,
 					kind          = .Field,
-					detail        = fmt.tprintf("%v: %v", name, common.node_to_string(v.types[i])),
+					detail        = fmt.tprintf("%v: %v", name, node_to_string(v.types[i])),
 					documentation = symbol.doc,
 				}
 
@@ -1380,7 +1380,7 @@ get_identifier_completion :: proc(
 		}
 	}
 
-	for keyword, _ in common.keyword_map {
+	for keyword, _ in keyword_map {
 		symbol := Symbol {
 			name = keyword,
 			type = .Keyword,
@@ -1643,15 +1643,11 @@ get_type_switch_completion :: proc(
 					}
 
 					if symbol.pkg == ast_context.document_package {
-						item.label = fmt.aprintf(
-							"%v%v",
-							common.repeat("^", symbol.pointers, context.temp_allocator),
-							name,
-						)
+						item.label = fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), name)
 					} else {
 						item.label = fmt.aprintf(
 							"%v%v.%v",
-							common.repeat("^", symbol.pointers, context.temp_allocator),
+							repeat("^", symbol.pointers, context.temp_allocator),
 							get_symbol_pkg_name(ast_context, symbol),
 							name,
 						)
@@ -1734,7 +1730,7 @@ append_magic_map_completion :: proc(
 	symbol_str := get_expression_string_from_position_context(position_context)
 	deref_suffix := ""
 	if symbol.pointers > 1 {
-		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+		deref_suffix = repeat("^", symbol.pointers - 1, context.temp_allocator)
 	}
 	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
 
@@ -1790,7 +1786,7 @@ append_magic_map_completion :: proc(
 	suffix := ""
 	if symbol.pointers > 0 {
 		prefix = ""
-		suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+		suffix = repeat("^", symbol.pointers - 1, context.temp_allocator)
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 
@@ -1879,7 +1875,7 @@ append_magic_array_like_completion :: proc(
 	symbol_str := get_expression_string_from_position_context(position_context)
 	deref_suffix := ""
 	if symbol.pointers > 1 {
-		deref_suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+		deref_suffix = repeat("^", symbol.pointers - 1, context.temp_allocator)
 	}
 	dereferenced_symbol_str := fmt.tprint(symbol_str, deref_suffix, sep = "")
 
@@ -1950,7 +1946,7 @@ append_magic_array_like_completion :: proc(
 	suffix := ""
 	if symbol.pointers > 0 {
 		prefix = ""
-		suffix = common.repeat("^", symbol.pointers - 1, context.temp_allocator)
+		suffix = repeat("^", symbol.pointers - 1, context.temp_allocator)
 	}
 	ptr_symbol_str := fmt.tprint(prefix, symbol_str, suffix, sep = "")
 

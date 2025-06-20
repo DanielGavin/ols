@@ -64,7 +64,7 @@ build_procedure_symbol_signature :: proc(symbol: ^Symbol, short_signature := tru
 		strings.write_string(&builder, "proc {\n")
 		for symbol in value.symbols {
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
-				fmt.sbprintf(&builder, "\t%s :: ",symbol.name)
+				fmt.sbprintf(&builder, "\t%s :: ", symbol.name)
 				write_procedure_symbol_signature(&builder, &value)
 				strings.write_string(&builder, ",\n")
 			}
@@ -78,7 +78,7 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: ^SymbolPro
 	strings.write_string(sb, "proc")
 	strings.write_string(sb, "(")
 	for arg, i in value.orig_arg_types {
-		strings.write_string(sb, common.node_to_string(arg))
+		strings.write_string(sb, node_to_string(arg))
 		if i != len(value.orig_arg_types) - 1 {
 			strings.write_string(sb, ", ")
 		}
@@ -93,7 +93,7 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: ^SymbolPro
 		}
 
 		for arg, i in value.orig_return_types {
-			strings.write_string(sb, common.node_to_string(arg))
+			strings.write_string(sb, node_to_string(arg))
 			if i != len(value.orig_return_types) - 1 {
 				strings.write_string(sb, ", ")
 			}
@@ -192,7 +192,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				}
 			}
 
-			parameters[i].label = common.node_to_string(arg)
+			parameters[i].label = node_to_string(arg)
 		}
 
 		build_procedure_symbol_signature(&call)
@@ -218,7 +218,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 						}
 					}
 
-					parameters[i].label = common.node_to_string(arg)
+					parameters[i].label = node_to_string(arg)
 				}
 
 				build_procedure_symbol_signature(&symbol)

@@ -2,6 +2,7 @@ package common
 
 ConfigProfile :: struct {
 	os:           string,
+	arch:         string,
 	name:         string,
 	checker_path: [dynamic]string,
 	defines:      map[string]string,

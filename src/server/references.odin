@@ -121,7 +121,7 @@ prepare_references :: proc(
 
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
-	   !common.is_expr_basic_lit(position_context.field_value.field) &&
+	   !is_expr_basic_lit(position_context.field_value.field) &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
 		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
 
@@ -136,7 +136,8 @@ prepare_references :: proc(
 
 		resolve_flag = .Field
 	} else if position_context.selector_expr != nil {
-		if position_in_node(position_context.selector, position_context.position) && position_context.identifier != nil {
+		if position_in_node(position_context.selector, position_context.position) &&
+		   position_context.identifier != nil {
 			ident := position_context.identifier.derived.(^ast.Ident)
 
 			symbol, ok = resolve_location_identifier(ast_context, ident^)

@@ -33,7 +33,8 @@ SymbolBitFieldValue :: struct {
 	types:  []^ast.Expr,
 }
 
-SymbolPackageValue :: struct {}
+SymbolPackageValue :: struct {
+}
 
 SymbolProcedureValue :: struct {
 	return_types:      []^ast.Field,
@@ -207,52 +208,52 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 
 	switch v in symbol.value {
 	case SymbolMatrixValue:
-		common.free_ast(v.expr, allocator)
-		common.free_ast(v.x, allocator)
-		common.free_ast(v.y, allocator)
+		free_ast(v.expr, allocator)
+		free_ast(v.x, allocator)
+		free_ast(v.y, allocator)
 	case SymbolMultiPointerValue:
-		common.free_ast(v.expr, allocator)
+		free_ast(v.expr, allocator)
 	case SymbolProcedureValue:
-		common.free_ast(v.return_types, allocator)
-		common.free_ast(v.arg_types, allocator)
+		free_ast(v.return_types, allocator)
+		free_ast(v.arg_types, allocator)
 	case SymbolStructValue:
 		delete(v.names, allocator)
 		delete(v.ranges, allocator)
-		common.free_ast(v.types, allocator)
+		free_ast(v.types, allocator)
 	case SymbolGenericValue:
-		common.free_ast(v.expr, allocator)
+		free_ast(v.expr, allocator)
 	case SymbolProcedureGroupValue:
-		common.free_ast(v.group, allocator)
+		free_ast(v.group, allocator)
 	case SymbolEnumValue:
 		delete(v.names, allocator)
 		delete(v.ranges, allocator)
 	case SymbolUnionValue:
-		common.free_ast(v.types, allocator)
+		free_ast(v.types, allocator)
 	case SymbolBitSetValue:
-		common.free_ast(v.expr, allocator)
+		free_ast(v.expr, allocator)
 	case SymbolDynamicArrayValue:
-		common.free_ast(v.expr, allocator)
+		free_ast(v.expr, allocator)
 	case SymbolFixedArrayValue:
-		common.free_ast(v.expr, allocator)
-		common.free_ast(v.len, allocator)
+		free_ast(v.expr, allocator)
+		free_ast(v.len, allocator)
 	case SymbolSliceValue:
-		common.free_ast(v.expr, allocator)
+		free_ast(v.expr, allocator)
 	case SymbolBasicValue:
-		common.free_ast(v.ident, allocator)
+		free_ast(v.ident, allocator)
 	case SymbolAggregateValue:
 		for symbol in v.symbols {
 			free_symbol(symbol, allocator)
 		}
 	case SymbolMapValue:
-		common.free_ast(v.key, allocator)
-		common.free_ast(v.value, allocator)
+		free_ast(v.key, allocator)
+		free_ast(v.value, allocator)
 	case SymbolUntypedValue:
 		delete(v.tok.text)
 	case SymbolPackageValue:
 	case SymbolBitFieldValue:
 		delete(v.names, allocator)
 		delete(v.ranges, allocator)
-		common.free_ast(v.types, allocator)
+		free_ast(v.types, allocator)
 	}
 }
 

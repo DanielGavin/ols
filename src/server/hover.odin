@@ -90,7 +90,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			if _, ok := common.keyword_map[ident.name]; ok {
+			if _, ok := keyword_map[ident.name]; ok {
 				hover.contents.kind = "plaintext"
 				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
 				return hover, true, true
@@ -151,7 +151,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 									symbol.name = name
 									symbol.pkg = comp_symbol.name
-									symbol.signature = common.node_to_string(v.types[i])
+									symbol.signature = node_to_string(v.types[i])
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -164,7 +164,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 								symbol.name = name
 								symbol.pkg = comp_symbol.name
-								symbol.signature = common.node_to_string(v.types[i])
+								symbol.signature = node_to_string(v.types[i])
 								hover.contents = write_hover_content(&ast_context, symbol)
 								return hover, true, true
 							}
@@ -255,7 +255,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = common.node_to_string(v.types[i])
+						symbol.signature = node_to_string(v.types[i])
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -310,7 +310,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					}
 				}
 			}
-		}	
+		}
 		return {}, false, true
 	} else if position_context.identifier != nil {
 		reset_ast_context(&ast_context)

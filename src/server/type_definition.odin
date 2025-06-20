@@ -3,8 +3,8 @@ package server
 import "core:fmt"
 import "core:log"
 import "core:mem"
-import "core:strings"
 import "core:odin/ast"
+import "core:strings"
 
 import "src:common"
 
@@ -56,7 +56,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			if _, ok := common.keyword_map[ident.name]; ok {
+			if _, ok := keyword_map[ident.name]; ok {
 				return {}, false
 			}
 
@@ -65,7 +65,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 			}
 		}
 	}
-	
+
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			if !position_in_exprs(call.args, position_context.position) {

@@ -83,7 +83,7 @@ DeferredDepth :: 35
 
 AstContext :: struct {
 	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
-	globals:          map[string]common.GlobalExpr,
+	globals:          map[string]GlobalExpr,
 	recursion_map:    map[rawptr]bool,
 	usings:           [dynamic]string,
 	file:             ast.File,
@@ -115,7 +115,7 @@ make_ast_context :: proc(
 ) -> AstContext {
 	ast_context := AstContext {
 		locals           = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
-		globals          = make(map[string]common.GlobalExpr, 0, allocator),
+		globals          = make(map[string]GlobalExpr, 0, allocator),
 		usings           = make([dynamic]string, allocator),
 		recursion_map    = make(map[rawptr]bool, 0, allocator),
 		file             = file,
@@ -235,7 +235,7 @@ resolve_type_comp_literal :: proc(
 		}
 
 		if field_value, ok := elem.derived.(^ast.Field_Value); ok { 	//named
-			if comp_lit, ref_n, ok := common.unwrap_comp_literal(field_value.value); ok {
+			if comp_lit, ref_n, ok := unwrap_comp_literal(field_value.value); ok {
 				if s, ok := current_symbol.value.(SymbolStructValue); ok {
 					for name, i in s.names {
 						if name == field_value.field.derived.(^ast.Ident).name {
@@ -843,7 +843,7 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	// TODO: there is likely more of these that will need to be added
 	#partial switch n in node.derived {
 	case ^ast.Ident:
-		if _, ok := common.keyword_map[n.name]; ok {
+		if _, ok := keyword_map[n.name]; ok {
 			return {}, true
 		}
 		return resolve_location_type_identifier(ast_context, n^)
@@ -1296,7 +1296,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	set_ast_package_scoped(ast_context)
 
-	if v, ok := common.keyword_map[node.name]; ok {
+	if v, ok := keyword_map[node.name]; ok {
 		//keywords
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
 		ident.name = node.name
@@ -1546,7 +1546,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol.type = .Variable
 		}
 
-		return_symbol.doc = common.get_doc(global.docs, ast_context.allocator)
+		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
 
 		return return_symbol, ok
 	} else {
@@ -2523,9 +2523,9 @@ make_symbol_procedure_from_ast :: proc(
 		diverging         = v.diverging,
 	}
 
-	if _, ok := common.get_attribute_objc_name(attributes); ok {
+	if _, ok := get_attribute_objc_name(attributes); ok {
 		symbol.flags |= {.ObjC}
-		if common.get_attribute_objc_is_class_method(attributes) {
+		if get_attribute_objc_is_class_method(attributes) {
 			symbol.flags |= {.ObjCIsClassMethod}
 		}
 	}
@@ -2552,7 +2552,7 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 		}
 	}
 
-	if common.array_is_soa(v) {
+	if array_is_soa(v) {
 		symbol.flags |= {.Soa}
 	}
 
@@ -2576,7 +2576,7 @@ make_symbol_dynamic_array_from_ast :: proc(
 	}
 
 
-	if common.dynamic_array_is_soa(v) {
+	if dynamic_array_is_soa(v) {
 		symbol.flags |= {.Soa}
 	}
 
@@ -2810,9 +2810,9 @@ make_symbol_struct_from_ast :: proc(
 		poly   = v.poly_params,
 	}
 
-	if _, ok := common.get_attribute_objc_class_name(attributes); ok {
+	if _, ok := get_attribute_objc_class_name(attributes); ok {
 		symbol.flags |= {.ObjC}
-		if common.get_attribute_objc_is_class_method(attributes) {
+		if get_attribute_objc_is_class_method(attributes) {
 			symbol.flags |= {.ObjCIsClassMethod}
 		}
 	}
@@ -2869,7 +2869,7 @@ make_symbol_bit_field_from_ast :: proc(
 }
 
 get_globals :: proc(file: ast.File, ast_context: ^AstContext) {
-	exprs := common.collect_globals(file)
+	exprs := collect_globals(file)
 
 	for expr in exprs {
 		ast_context.globals[expr.name] = expr
@@ -2913,7 +2913,7 @@ get_generic_assignment :: proc(
 		if len(v.args) == 1 {
 			if ident, ok := v.expr.derived.(^ast.Ident); ok {
 				//Handle the old way of type casting
-				if v, ok := common.keyword_map[ident.name]; ok {
+				if v, ok := keyword_map[ident.name]; ok {
 					//keywords
 					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
 					type_ident.name = ident.name
@@ -3020,7 +3020,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 	if value_decl.type != nil {
 		for name, i in value_decl.names {
-			str := common.get_ast_node_string(value_decl.names[i], file.src)
+			str := get_ast_node_string(value_decl.names[i], file.src)
 			store_local(
 				ast_context,
 				name,
@@ -3057,7 +3057,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 	for name, i in value_decl.names {
 		result_i := min(len(results) - 1, i)
-		str := common.get_ast_node_string(name, file.src)
+		str := get_ast_node_string(name, file.src)
 
 		call := false
 
@@ -3653,7 +3653,7 @@ get_locals_proc_param_and_results :: proc(
 		for arg in proc_lit.type.params.list {
 			for name in arg.names {
 				if arg.type != nil {
-					str := common.get_ast_node_string(name, file.src)
+					str := get_ast_node_string(name, file.src)
 					store_local(
 						ast_context,
 						name,
@@ -3675,7 +3675,7 @@ get_locals_proc_param_and_results :: proc(
 						get_locals_using_stmt(using_stmt, ast_context)
 					}
 				} else {
-					str := common.get_ast_node_string(name, file.src)
+					str := get_ast_node_string(name, file.src)
 					store_local(
 						ast_context,
 						name,
@@ -3698,7 +3698,7 @@ get_locals_proc_param_and_results :: proc(
 		for result in proc_lit.type.results.list {
 			for name in result.names {
 				if result.type != nil {
-					str := common.get_ast_node_string(name, file.src)
+					str := get_ast_node_string(name, file.src)
 					store_local(
 						ast_context,
 						name,
@@ -3713,7 +3713,7 @@ get_locals_proc_param_and_results :: proc(
 						true,
 					)
 				} else {
-					str := common.get_ast_node_string(name, file.src)
+					str := get_ast_node_string(name, file.src)
 					store_local(
 						ast_context,
 						name,
@@ -3973,15 +3973,15 @@ get_signature :: proc(
 	is_variable := symbol.type == .Variable
 
 
-	pointer_prefix := common.repeat("^", symbol.pointers, context.temp_allocator)
+	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
 
 
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
-		return strings.concatenate({pointer_prefix, common.node_to_string(v.ident)}, ast_context.allocator)
+		return strings.concatenate({pointer_prefix, node_to_string(v.ident)}, ast_context.allocator)
 	case SymbolBitSetValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "bit_set[", common.node_to_string(v.expr), "]"},
+			a = {pointer_prefix, "bit_set[", node_to_string(v.expr), "]"},
 			allocator = ast_context.allocator,
 		)
 	case SymbolEnumValue:
@@ -4007,7 +4007,7 @@ get_signature :: proc(
 		return strings.to_string(builder)
 	case SymbolMapValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "map[", common.node_to_string(v.key), "]", common.node_to_string(v.value)},
+			a = {pointer_prefix, "map[", node_to_string(v.key), "]", node_to_string(v.value)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolProcedureValue:
@@ -4050,7 +4050,7 @@ get_signature :: proc(
 			strings.write_string(&builder, "\t")
 			strings.write_string(&builder, v.names[i])
 			fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
-			common.build_string_node(v.types[i], &builder, false)
+			build_string_node(v.types[i], &builder, false)
 			strings.write_string(&builder, ",\n")
 		}
 		strings.write_string(&builder, "}")
@@ -4071,7 +4071,7 @@ get_signature :: proc(
 		strings.write_string(&builder, "union {\n")
 		for i in 0 ..< len(v.types) {
 			strings.write_string(&builder, "\t")
-			common.build_string_node(v.types[i], &builder, false)
+			build_string_node(v.types[i], &builder, false)
 			strings.write_string(&builder, ",\n")
 		}
 		strings.write_string(&builder, "}")
@@ -4084,22 +4084,22 @@ get_signature :: proc(
 		}
 	case SymbolMultiPointerValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "[^]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[^]", node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolDynamicArrayValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "[dynamic]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[dynamic]", node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolSliceValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "[]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[]", node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolFixedArrayValue:
 		return strings.concatenate(
-			a = {pointer_prefix, "[", common.node_to_string(v.len), "]", common.node_to_string(v.expr)},
+			a = {pointer_prefix, "[", node_to_string(v.len), "]", node_to_string(v.expr)},
 			allocator = ast_context.allocator,
 		)
 	case SymbolMatrixValue:
@@ -4108,11 +4108,11 @@ get_signature :: proc(
 				pointer_prefix,
 				"matrix",
 				"[",
-				common.node_to_string(v.x),
+				node_to_string(v.x),
 				",",
-				common.node_to_string(v.y),
+				node_to_string(v.y),
 				"]",
-				common.node_to_string(v.expr),
+				node_to_string(v.expr),
 			},
 			allocator = ast_context.allocator,
 		)
@@ -4248,7 +4248,7 @@ type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 		}
 	}
 
-	return common.node_to_string(expr)
+	return node_to_string(expr)
 }
 
 get_document_position_decls :: proc(decls: []^ast.Stmt, position_context: ^DocumentPositionContext) -> bool {
