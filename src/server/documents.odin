@@ -5,6 +5,7 @@ import "base:intrinsics"
 import "core:fmt"
 import "core:log"
 import "core:mem"
+import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:odin/tokenizer"
@@ -40,7 +41,7 @@ Document :: struct {
 	ast:              ast.File,
 	imports:          []Package,
 	package_name:     string,
-	allocator:        ^common.Scratch_Allocator, //because parser does not support freeing I use arena allocators for each document
+	allocator:        ^virtual.Arena, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
 	version:          Maybe(int),
 }
@@ -48,20 +49,20 @@ Document :: struct {
 
 DocumentStorage :: struct {
 	documents:       map[string]Document,
-	free_allocators: [dynamic]^common.Scratch_Allocator,
+	free_allocators: [dynamic]^virtual.Arena,
 }
 
 document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		common.scratch_allocator_destroy(v.allocator)
+		virtual.arena_destroy(v.allocator)
 		free(v.allocator)
 		delete(k)
 	}
 
 	for alloc in document_storage.free_allocators {
-		common.scratch_allocator_destroy(alloc)
+		virtual.arena_destroy(alloc)
 		free(alloc)
 	}
 
@@ -69,18 +70,18 @@ document_storage_shutdown :: proc() {
 	delete(document_storage.documents)
 }
 
-document_get_allocator :: proc() -> ^common.Scratch_Allocator {
+document_get_allocator :: proc() -> ^virtual.Arena {
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators)
 	} else {
-		allocator := new(common.Scratch_Allocator)
-		common.scratch_allocator_init(allocator, mem.Megabyte * 3)
+		allocator := new(virtual.Arena)
+		_ = virtual.arena_init_growing(allocator) 
 		return allocator
 	}
 }
 
-document_free_allocator :: proc(allocator: ^common.Scratch_Allocator) {
-	free_all(common.scratch_allocator(allocator))
+document_free_allocator :: proc(allocator: ^virtual.Arena) {
+	free_all(virtual.arena_allocator(allocator))
 	append(&document_storage.free_allocators, allocator)
 }
 
@@ -394,9 +395,9 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		delete_key(&file_resolve_cache.files, document.uri.uri)
 	}
 
-	free_all(common.scratch_allocator(document.allocator))
+	free_all(virtual.arena_allocator(document.allocator))
 
-	context.allocator = common.scratch_allocator(document.allocator)
+	context.allocator = virtual.arena_allocator(document.allocator)
 
 	pkg := new(ast.Package)
 	pkg.kind = .Normal

@@ -3,6 +3,7 @@ package ols_testing
 import "core:fmt"
 import "core:log"
 import "core:mem"
+import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:path/filepath"
@@ -34,10 +35,10 @@ setup :: proc(src: ^Source) {
 	src.document.client_owned = true
 	src.document.text = transmute([]u8)src.main
 	src.document.used_text = len(src.document.text)
-	src.document.allocator = new(common.Scratch_Allocator, context.temp_allocator)
+	src.document.allocator = new(virtual.Arena, context.temp_allocator)
 	src.document.package_name = "test"
 
-	common.scratch_allocator_init(src.document.allocator, mem.Kilobyte * 2000, context.temp_allocator)
+	_ = virtual.arena_init_growing(src.document.allocator)
 
 	//no unicode in tests currently
 	current, last: u8
@@ -73,7 +74,7 @@ setup :: proc(src: ^Source) {
 	server.document_refresh(src.document, &src.config, nil)
 
 	for src_pkg in src.packages {
-		context.allocator = common.scratch_allocator(src.document.allocator)
+		context.allocator = virtual.arena_allocator(src.document.allocator)
 
 		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator)
 
@@ -119,8 +120,7 @@ setup :: proc(src: ^Source) {
 teardown :: proc(src: ^Source) {
 	server.free_index()
 	server.indexer.index = {}
-
-	common.scratch_allocator_destroy(src.document.allocator)
+	virtual.arena_destroy(src.document.allocator)
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {

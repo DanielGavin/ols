@@ -1,11 +1,11 @@
 package common
 
-import "core:mem"
-import "core:strings"
-import "core:strconv"
 import "core:fmt"
-import "core:unicode/utf8"
+import "core:mem"
 import "core:path/filepath"
+import "core:strconv"
+import "core:strings"
+import "core:unicode/utf8"
 
 Uri :: struct {
 	uri:         string,
@@ -50,16 +50,13 @@ create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 	builder := strings.builder_make(allocator)
 
 	//bad
-	when ODIN_OS == .Windows {
+	when ODIN_OS == .Windows && !ODIN_TEST {
 		strings.write_string(&builder, "file:///")
 	} else {
 		strings.write_string(&builder, "file://")
 	}
 
-	strings.write_string(
-		&builder,
-		encode_percent(path_forward, context.temp_allocator),
-	)
+	strings.write_string(&builder, encode_percent(path_forward, context.temp_allocator))
 
 	uri: Uri
 
@@ -93,10 +90,7 @@ encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
 			for i := 0; i < w; i += 1 {
 				strings.write_string(
 					&builder,
-					strings.concatenate(
-						{"%", fmt.tprintf("%X", data[index + i])},
-						context.temp_allocator,
-					),
+					strings.concatenate({"%", fmt.tprintf("%X", data[index + i])}, context.temp_allocator),
 				)
 			}
 		} else {
@@ -125,13 +119,7 @@ starts_with :: proc(value: string, starts_with: string) -> bool {
 }
 
 @(private)
-decode_percent :: proc(
-	value: string,
-	allocator: mem.Allocator,
-) -> (
-	string,
-	bool,
-) {
+decode_percent :: proc(value: string, allocator: mem.Allocator) -> (string, bool) {
 	builder := strings.builder_make(allocator)
 
 	for i := 0; i < len(value); i += 1 {
