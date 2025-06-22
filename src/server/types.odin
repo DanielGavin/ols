@@ -132,7 +132,7 @@ MarkupContent :: struct {
 ServerCapabilities :: struct {
 	textDocumentSync:           TextDocumentSyncOptions,
 	definitionProvider:         bool,
-	typeDefinitionProvider:		bool,
+	typeDefinitionProvider:     bool,
 	completionProvider:         CompletionOptions,
 	signatureHelpProvider:      SignatureHelpOptions,
 	semanticTokensProvider:     SemanticTokensOptions,
@@ -412,6 +412,7 @@ OlsConfig :: struct {
 	enable_fake_methods:               Maybe(bool),
 	enable_procedure_snippet:          Maybe(bool),
 	enable_checker_only_saved:         Maybe(bool),
+	enable_auto_import:                Maybe(bool),
 	disable_parser_errors:             Maybe(bool),
 	verbose:                           Maybe(bool),
 	file_log:                          Maybe(bool),

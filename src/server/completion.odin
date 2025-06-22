@@ -1700,23 +1700,51 @@ append_non_imported_packages :: proc(
 	position_context: ^DocumentPositionContext,
 	items: ^[dynamic]CompletionItem,
 ) {
-
-
 	for collection, pkgs in build_cache.pkg_aliases {
-
-		for pkg in pkgs {
-
-			//filepath.is_separator()
-
+		//Right now only do it for core
+		if collection != "core" {
+			continue
 		}
+		for pkg in pkgs {
+			fullpath := path.join({common.config.collections[collection], pkg})
+			found := false
 
+			for doc_pkg in ast_context.imports {
+				if fullpath == doc_pkg.name {
+					found = true
+				}
+			}
+
+			if !found {
+				pkg_decl := ast_context.file.pkg_decl
+
+				import_edit := TextEdit {
+					range = {
+						start = {line = pkg_decl.end.line + 1, character = 0},
+						end = {line = pkg_decl.end.line + 1, character = 0},
+					},
+					newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+				}
+
+				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+				additionalTextEdits[0] = import_edit
+
+				item := CompletionItem {
+					label               = pkg,
+					kind                = .Module,
+					detail              = pkg,
+					insertText          = path.base(pkg),
+					additionalTextEdits = additionalTextEdits,
+					insertTextFormat    = .PlainText,
+					InsertTextMode      = .adjustIndentation,
+				}
+
+				log.error(item)
+
+				append(items, item)
+			}
+		}
 	}
-
-	for pkg in ast_context.imports {
-		//log.error(pkg)
-	}
-
-
 }
 
 append_magic_map_completion :: proc(

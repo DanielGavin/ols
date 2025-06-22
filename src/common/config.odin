@@ -34,6 +34,7 @@ Config :: struct {
 	enable_fake_method:                bool,
 	enable_procedure_snippet:          bool,
 	enable_checker_only_saved:         bool,
+	enable_auto_import:                bool,
 	disable_parser_errors:             bool,
 	thread_count:                      int,
 	file_log:                          bool,

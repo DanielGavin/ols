@@ -79,9 +79,6 @@ find_all_package_aliases :: proc() {
 		for pkg in pkgs {
 			if pkg, err := filepath.rel(v, pkg, context.temp_allocator); err == .None {
 				forward_pkg, _ := filepath.to_slash(pkg, context.temp_allocator)
-				if !strings.contains(forward_pkg, "/") {
-					continue
-				}
 				if k not_in build_cache.pkg_aliases {
 					build_cache.pkg_aliases[k] = make([dynamic]string)
 				}
