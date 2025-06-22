@@ -94,7 +94,39 @@ jobs:
       with:
         name: dist-x86_64-unknown-linux-gnu
         path: ./dist
-  
+
+  dist-arm64-unknown-linux-gnu:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Download LLVM
+      run:  |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 17
+        echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
+    - name: Download Odin
+      run: |
+        git clone https://github.com/odin-lang/Odin
+    - name: Build Odin
+      run: |
+        cd Odin
+        ./build_odin.sh release
+    - name: Install ARM64 cross-compilation toolchain (for linker)
+      run: sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+    - name: Build ols
+      run: ./ci.sh CI_NO_TESTS -target:linux_arm64 -linker:lld -microarch:generic -extra-linker-flags:'--target=aarch64-linux-gnu'
+    - name: Move to Dist
+      run: |
+        mkdir dist
+        mv ols dist/ols-arm64-unknown-linux-gnu
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist-arm64-unknown-linux-gnu
+        path: ./dist
+
   dist-x86_64-pc-windows-msvc:
     timeout-minutes: 30
     runs-on: windows-latest
@@ -130,7 +162,7 @@ jobs:
     name: publish
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-x86_64-darwin', 'dist-arm64-darwin']
+    needs: ['dist-x86_64-pc-windows-msvc', 'dist-x86_64-unknown-linux-gnu', 'dist-arm64-unknown-linux-gnu', 'dist-x86_64-darwin', 'dist-arm64-darwin']
     steps:
     - name: Install Nodejs
       uses: actions/setup-node@v1
@@ -143,10 +175,14 @@ jobs:
 
     - run: echo "HEAD_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
     - run: 'echo "HEAD_SHA: $HEAD_SHA"'
-    
+
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-x86_64-unknown-linux-gnu
+        path: dist
+    - uses: actions/download-artifact@v4.1.7
+      with:
+        name: dist-arm64-unknown-linux-gnu
         path: dist
     - uses: actions/download-artifact@v4.1.7
       with:
@@ -169,6 +205,10 @@ jobs:
         chmod +x ols-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
         rm ols-x86_64-unknown-linux-gnu
+
+        chmod +x ols-arm64-unknown-linux-gnu
+        zip -r ols-arm64-unknown-linux-gnu.zip ols-arm64-unknown-linux-gnu builtin
+        rm ols-arm64-unknown-linux-gnu
 
         chmod +x ols-x86_64-darwin
         zip -r ols-x86_64-darwin.zip ols-x86_64-darwin builtin
