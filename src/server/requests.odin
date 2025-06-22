@@ -410,7 +410,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	}
 
 	if config.profile.os == "" {
-		config.profile.os = fmt.aprint(ODIN_OS)
+		config.profile.os = os_enum_to_string[ODIN_OS]
 	}
 
 	if config.profile.arch == "" {
@@ -734,6 +734,8 @@ request_initialize :: proc(
 	if initialize_params.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration {
 		register_dynamic_capabilities(writer)
 	}
+
+	find_all_package_aliases()
 
 	return .None
 }
@@ -1477,13 +1479,21 @@ notification_did_change_watched_files :: proc(
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
 				remove_index_file(uri)
 			}
+			clear_all_package_aliases()
+			find_all_package_aliases()
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
 				if data, ok := os.read_entire_file(uri.path); ok {
 					index_file(uri, cast(string)data)
 				}
 			}
+			if change.type == cast(int)FileChangeType.Created {
+				clear_all_package_aliases()
+				find_all_package_aliases()
+			}
 		}
+
+
 	}
 
 	return .None

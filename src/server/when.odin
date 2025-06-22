@@ -1,5 +1,7 @@
+#+feature dynamic-literals
 package server
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:odin/ast"
@@ -14,11 +16,33 @@ When_Expr :: union {
 	^ast.Expr,
 }
 
+//Because we use configuration with os names that match the files instead of the enum, i.e. my_file_windows.odin, we have to convert back and fourth.
+@(private = "file")
+convert_os_string: map[string]string = {
+	"windows"      = "Windows",
+	"darwin"       = "Darwin",
+	"linux"        = "Linux",
+	"essence"      = "Essence",
+	"freebsd"      = "FreeBSD",
+	"wasi"         = "WASI",
+	"js"           = "JS",
+	"freestanding" = "Freestanding",
+	"haiku"        = "Haiku",
+	"openbsd"      = "OpenBSD",
+	"netbsd"       = "NetBSD",
+	"freebsd"      = "FreeBSD",
+}
+
 resolve_when_ident :: proc(when_expr_map: map[string]When_Expr, ident: string) -> (When_Expr, bool) {
 	switch ident {
 	case "ODIN_OS":
 		if common.config.profile.os != "" {
-			return common.config.profile.os, true
+			os, ok := convert_os_string[common.config.profile.os]
+			if ok {
+				return os, true
+			} else {
+				return fmt.tprint(ODIN_OS), true
+			}
 		} else {
 			return fmt.tprint(ODIN_OS), true
 		}

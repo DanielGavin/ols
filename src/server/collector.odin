@@ -437,9 +437,15 @@ collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute
 	}
 }
 
-collect_imports :: proc(collection: ^SymbolCollection, file: ast.File) {
+collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory: string) {
+	_pkg := get_index_unique_string(collection, directory)
+
+	if _pkg, ok := collection.packages[_pkg]; ok {
+
+	}
 
 }
+
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
@@ -447,8 +453,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	package_map := get_package_mapping(file, collection.config, directory)
 
 	exprs := collect_globals(file, true)
-
-	collect_imports(collection, file)
 
 	for expr in exprs {
 		symbol: Symbol
@@ -661,6 +665,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			free_symbol(symbol, collection.allocator)
 		}
 	}
+
+	collect_imports(collection, file, directory)
+
 
 	return .None
 }

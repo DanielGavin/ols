@@ -1501,6 +1501,8 @@ get_identifier_completion :: proc(
 		}
 	}
 
+	append_non_imported_packages(ast_context, position_context, &items)
+
 	list.items = items[:]
 }
 
@@ -1691,6 +1693,30 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	}
 
 	return {}, false
+}
+
+append_non_imported_packages :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	items: ^[dynamic]CompletionItem,
+) {
+
+
+	for collection, pkgs in build_cache.pkg_aliases {
+
+		for pkg in pkgs {
+
+			//filepath.is_separator()
+
+		}
+
+	}
+
+	for pkg in ast_context.imports {
+		//log.error(pkg)
+	}
+
+
 }
 
 append_magic_map_completion :: proc(
