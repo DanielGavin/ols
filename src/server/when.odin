@@ -41,7 +41,8 @@ resolve_when_ident :: proc(when_expr_map: map[string]When_Expr, ident: string) -
 		return v, true
 	}
 
-	return ident, true
+	//If nothing is found we return it as false boolean
+	return false, true
 }
 
 resolve_when_expr :: proc(
@@ -67,6 +68,12 @@ resolve_when_expr :: proc(
 			return resolve_when_ident(when_expr_map, odin_expr.tok.text)
 		case ^ast.Implicit_Selector_Expr:
 			return odin_expr.field.name, true
+		case ^ast.Unary_Expr:
+			if odin_expr.op.kind == .Not {
+				expr := resolve_when_expr(when_expr_map, odin_expr.expr) or_return
+				b := expr.(bool) or_return
+				return !b, true
+			}
 		case ^ast.Binary_Expr:
 			lhs := resolve_when_expr(when_expr_map, odin_expr.left) or_return
 			rhs := resolve_when_expr(when_expr_map, odin_expr.right) or_return
