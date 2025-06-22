@@ -1739,8 +1739,6 @@ append_non_imported_packages :: proc(
 					InsertTextMode      = .adjustIndentation,
 				}
 
-				log.error(item)
-
 				append(items, item)
 			}
 		}
