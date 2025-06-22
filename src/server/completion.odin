@@ -1700,6 +1700,10 @@ append_non_imported_packages :: proc(
 	position_context: ^DocumentPositionContext,
 	items: ^[dynamic]CompletionItem,
 ) {
+	if !common.config.enable_auto_import {
+		return
+	}
+
 	for collection, pkgs in build_cache.pkg_aliases {
 		//Right now only do it for core
 		if collection != "core" {
