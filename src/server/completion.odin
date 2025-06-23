@@ -1705,8 +1705,8 @@ append_non_imported_packages :: proc(
 	}
 
 	for collection, pkgs in build_cache.pkg_aliases {
-		//Right now only do it for core
-		if collection != "core" {
+		//Right now only do it for core and builtin
+		if collection != "core" && collection != "base" {
 			continue
 		}
 		for pkg in pkgs {
