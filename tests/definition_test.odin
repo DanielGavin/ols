@@ -30,6 +30,34 @@ ast_goto_bit_set_comp_literal :: proc(t: ^testing.T) {
 	test.expect_definition_locations(t, &source, {location})
 }
 
+@(test)
+ast_goto_bit_set_index_enumerated_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		TestEnum :: enum {
+			valueOne, 
+			valueTwo,
+		}
+
+		EnumIndexedArray :: [TestEnum]u32 {
+			.valueOne = 1,
+			.valueTwo = 2,
+		}
+
+		my_proc :: proc() -> u32 {
+			arr :: EnumIndexedArray
+			return arr[.valueO{*}ne]
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {start = {line = 2, character = 3}, end = {line = 2, character = 11}},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
 
 @(test)
 ast_goto_comp_lit_field :: proc(t: ^testing.T) {

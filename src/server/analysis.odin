@@ -1833,6 +1833,23 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.index != nil {
+		symbol: Symbol
+		ok := false
+		if position_context.previous_index != nil {
+			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
+			if !ok {
+				return {}, false
+			}
+		} else {
+			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
+		}
+
+		if array, ok := symbol.value.(SymbolFixedArrayValue); ok {
+			return resolve_type_expression(ast_context, array.len)
+		}
+	}
+
 	if position_context.returns != nil && position_context.function != nil {
 		return_index: int
 
