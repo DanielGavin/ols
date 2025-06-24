@@ -27,6 +27,7 @@ DocumentPositionContextHint :: enum {
 DocumentPositionContext :: struct {
 	file:                   ast.File,
 	position:               common.AbsolutePosition,
+	nested_position:        common.AbsolutePosition, //When doing the non-mutable local gathering we still need to know where in the nested block the position is.
 	line:                   int,
 	function:               ^ast.Proc_Lit, //used to help with type resolving in function scope
 	functions:              [dynamic]^ast.Proc_Lit, //stores all the functions that have been iterated through to find the position
@@ -3155,9 +3156,37 @@ get_locals_block_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
-		return
+	/* 
+	   We need to handle blocks for non mutable and mutable: non mutable has no order for their value declarations, except for nested blocks where they are hidden by scope
+	   For non_mutable_only we set the document_position.position to be the end of the function to get all the non-mutable locals, but that shouldn't apply to the nested block itself, 
+	   but will for it's content.
+	   
+	   Therefore we use nested_position that is the exact token we are interested in.
+
+	   Example:
+	   my_proc :: proc() {
+			{
+				my_variable = get_value() <-- document_position.nested_position
+				get_value :: proc() --- This should not be hidden
+
+				{
+					get_value_2 :: proc() --- This will be hidden
+				}
+			}
+	   } <-- document_position.position
+	*/
+
+	if ast_context.non_mutable_only {
+		if !(block.pos.offset <= document_position.nested_position &&
+			   document_position.nested_position <= block.end.offset) {
+			return
+		}
+	} else {
+		if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
+			return
+		}
 	}
+
 
 	for stmt in block.stmts {
 		get_locals_stmt(file, stmt, ast_context, document_position)
@@ -3755,7 +3784,7 @@ get_locals :: proc(
 		return
 	}
 
-	old_position := document_position.position
+	document_position.nested_position = document_position.position
 
 	for function in document_position.functions {
 		ast_context.non_mutable_only = true
@@ -3763,7 +3792,7 @@ get_locals :: proc(
 		get_locals_stmt(file, function.body, ast_context, document_position)
 	}
 
-	document_position.position = old_position
+	document_position.position = document_position.nested_position
 	ast_context.non_mutable_only = false
 
 	for stmt in block.stmts {

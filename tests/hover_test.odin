@@ -6,6 +6,26 @@ import "core:testing"
 import test "src:testing"
 
 @(test)
+ast_hover_in_nested_blocks :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		
+		main :: proc() {
+			{
+				My_Str{*}uct :: struct {
+					property: int,
+				}
+			}
+		}
+			
+		`,
+		packages = {},
+	}
+
+	test.expect_hover(t, &source, "test.My_Struct: struct {\n\tproperty: int,\n}")
+}
+
+@(test)
 ast_hover_default_intialized_parameter :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
@@ -919,7 +939,7 @@ ast_hover_distinguish_names_correctly :: proc(t: ^testing.T) {
 				b{*}ar = "Hello, World",
 			}
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "Bar.bar: string")
@@ -942,7 +962,7 @@ ast_hover_distinguish_names_correctly_variable_assignment :: proc(t: ^testing.T)
 			foo := &Foo{}
 			bar := foo.ba{*}r
 		}
-		`
+		`,
 	}
 
 	test.expect_hover(t, &source, "Foo.bar: ^test.Bar :: struct {\n\tbar: int,\n}")
@@ -1158,15 +1178,12 @@ ast_hover_distinguish_symbols_in_packages_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`,
-		},
+		`},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1192,15 +1209,12 @@ ast_hover_distinguish_symbols_in_packages_local_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`,
-		},
+		`},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1282,19 +1296,13 @@ ast_hover_inside_multi_pointer_struct :: proc(t: ^testing.T) {
 ast_hover_proc_overloading_parametric_type :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: struct {}
-		`,
-		},
-	)
+		`})
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		new_ints :: proc($T: typeid, a, b: int) -> ^T {}
@@ -1339,7 +1347,7 @@ ast_hover_proc_overloading_parametric_type_external_package :: proc(t: ^testing.
 	)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "my_package"		
 
