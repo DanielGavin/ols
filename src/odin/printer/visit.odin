@@ -1579,12 +1579,7 @@ visit_expr :: proc(
 			document = cons(document, text("("))
 			document = cons(
 				document,
-				nest(
-					cons(
-						break_with(""),
-						visit_signature_list(p, v.poly_params, false, false, options),
-					),
-				),
+				nest(cons(break_with(""), visit_signature_list(p, v.poly_params, false, false, options))),
 			)
 			document = cons(document, break_with(""), text(")"))
 		} else {
@@ -1605,7 +1600,7 @@ visit_expr :: proc(
 
 		if v.align != nil {
 			document = cons_with_nopl(document, text("#align"))
-			document = cons(document, visit_expr(p, v.align))
+			document = cons_with_nopl(document, visit_expr(p, v.align))
 		}
 
 		if v.max_field_align != nil {
@@ -1620,10 +1615,17 @@ visit_expr :: proc(
 
 		document = cons_with_nopl(document, visit_where_clauses(p, v.where_clauses))
 
+
 		if v.fields != nil && len(v.fields.list) == 0 {
+
 			document = cons_with_nopl(document, text("{"))
-			comments, _ := visit_comments(p, v.end)
-			document = cons(document, nest(comments), newline(1), text("}"))
+
+			if contains_comments_in_range(p, v.pos, v.end) {
+				comments, _ := visit_comments(p, v.end)
+				document = cons(document, nest(comments), newline(1), text("}"))
+			} else {
+				document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
+			}
 		} else if v.fields != nil {
 			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
 
@@ -1633,9 +1635,7 @@ visit_expr :: proc(
 				nest(
 					cons(
 						newline_position(p, 1, v.fields.open),
-						group(
-							visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline})
-						),
+						group(visit_struct_field_list(p, v.fields, {.Add_Comma, .Trailing, .Enforce_Newline})),
 					),
 				),
 			)
@@ -1929,6 +1929,11 @@ visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type:
 	//these values have already been validated
 	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
 	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
+
+	if row_count * column_count > len(comp_lit.elems) {
+		p.errored_out = true
+		return document
+	}
 
 	for row := 0; row < row_count; row += 1 {
 		for column := 0; column < column_count; column += 1 {
