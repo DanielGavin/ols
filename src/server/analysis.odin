@@ -1874,6 +1874,8 @@ resolve_implicit_selector :: proc(
 		if position_context.field_value != nil {
 			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
 				field_name = field.name
+			} else if field, ok := position_context.field_value.field.derived.(^ast.Implicit_Selector_Expr); ok {
+				field_name = field.field.name
 			} else {
 				return {}, false
 			}
@@ -1943,6 +1945,15 @@ resolve_implicit_selector :: proc(
 					}
 
 					return resolve_type_expression(ast_context, type)
+				} else if s, ok := comp_symbol.value.(SymbolFixedArrayValue); ok {
+					/*
+					This will be a comp_lit for an enumerated array
+					EnumIndexedArray :: [TestEnum]u32 {
+						.valueOne = 1,
+						.valueTwo = 2,
+					}
+					*/
+					return resolve_type_expression(ast_context, s.len)
 				}
 			}
 		}
@@ -2141,21 +2152,24 @@ resolve_location_comp_lit_field :: proc(
 
 	symbol = resolve_comp_literal(ast_context, position_context) or_return
 
-	field := position_context.field_value.field.derived.(^ast.Ident) or_return
-
-	if struct_value, ok := symbol.value.(SymbolStructValue); ok {
-		for name, i in struct_value.names {
-			if name == field.name {
-				symbol.range = struct_value.ranges[i]
+	if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+		if struct_value, ok := symbol.value.(SymbolStructValue); ok {
+			for name, i in struct_value.names {
+				if name == field.name {
+					symbol.range = struct_value.ranges[i]
+				}
+			}
+		} else if bit_field_value, ok := symbol.value.(SymbolBitFieldValue); ok {
+			for name, i in bit_field_value.names {
+				if name == field.name {
+					symbol.range = bit_field_value.ranges[i]
+				}
 			}
 		}
-	} else if bit_field_value, ok := symbol.value.(SymbolBitFieldValue); ok {
-		for name, i in bit_field_value.names {
-			if name == field.name {
-				symbol.range = bit_field_value.ranges[i]
-			}
-		}
+	} else if field, ok := position_context.field_value.field.derived.(^ast.Implicit_Selector_Expr); ok {
+		return resolve_location_implicit_selector(ast_context, position_context, field)
 	}
+
 
 	return symbol, true
 }

@@ -8,6 +8,30 @@ import "src:common"
 import test "src:testing"
 
 @(test)
+ast_goto_bit_set_comp_literal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		TestEnum :: enum {
+			valueOne, 
+			valueTwo,
+		}
+		
+		EnumIndexedArray :: [TestEnum]u32 {
+			.value{*}One = 1,
+			.valueTwo = 2,
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {start = {line = 2, character = 3}, end = {line = 2, character = 11}},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+
+@(test)
 ast_goto_comp_lit_field :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -24,10 +48,7 @@ ast_goto_comp_lit_field :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 12},
-			end = {line = 2, character = 13},
-		},
+		range = {start = {line = 2, character = 12}, end = {line = 2, character = 13}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -50,10 +71,7 @@ ast_goto_struct_definition :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 1, character = 8},
-			end = {line = 1, character = 13},
-		},
+		range = {start = {line = 1, character = 8}, end = {line = 1, character = 13}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -77,10 +95,7 @@ ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 12},
-			end = {line = 2, character = 13},
-		},
+		range = {start = {line = 2, character = 12}, end = {line = 2, character = 13}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -107,10 +122,7 @@ ast_goto_untyped_comp_lit_in_proc :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 4},
-			end = {line = 2, character = 7},
-		},
+		range = {start = {line = 2, character = 4}, end = {line = 2, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -133,10 +145,7 @@ ast_goto_bit_field_definition :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 1, character = 3},
-			end = {line = 1, character = 15},
-		},
+		range = {start = {line = 1, character = 3}, end = {line = 1, character = 15}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -160,10 +169,7 @@ ast_goto_bit_field_field_definition :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 4},
-			end = {line = 2, character = 7},
-		},
+		range = {start = {line = 2, character = 4}, end = {line = 2, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -190,10 +196,7 @@ ast_goto_bit_field_field_in_proc :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 4},
-			end = {line = 2, character = 7},
-		},
+		range = {start = {line = 2, character = 4}, end = {line = 2, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -213,11 +216,7 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		`,
 		packages = {},
 	}
-	test.expect_definition_locations(
-		t,
-		&source0,
-		{{range = {{line = 5, character = 5}, {line = 5, character = 8}}}},
-	)
+	test.expect_definition_locations(t, &source0, {{range = {{line = 5, character = 5}, {line = 5, character = 8}}}})
 
 	source1 := test.Source {
 		main     = `package test
@@ -232,11 +231,7 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		`,
 		packages = {},
 	}
-	test.expect_definition_locations(
-		t,
-		&source1,
-		{{range = {{line = 5, character = 5}, {line = 5, character = 8}}}},
-	)
+	test.expect_definition_locations(t, &source1, {{range = {{line = 5, character = 5}, {line = 5, character = 8}}}})
 
 	source3 := test.Source {
 		main     = `package test
@@ -250,11 +245,7 @@ ast_goto_shadowed_value_decls :: proc(t: ^testing.T) {
 		`,
 		packages = {},
 	}
-	test.expect_definition_locations(
-		t,
-		&source3,
-		{{range = {{line = 2, character = 4}, {line = 2, character = 7}}}},
-	)
+	test.expect_definition_locations(t, &source3, {{range = {{line = 2, character = 4}, {line = 2, character = 7}}}})
 }
 
 @(test)
@@ -282,10 +273,7 @@ ast_goto_implicit_super_enum_infer_from_assignment :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 2, character = 3},
-			end = {line = 2, character = 6},
-		},
+		range = {start = {line = 2, character = 3}, end = {line = 2, character = 6}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -311,10 +299,7 @@ ast_goto_implicit_enum_infer_from_assignment :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 5, character = 3},
-			end = {line = 5, character = 7},
-		},
+		range = {start = {line = 5, character = 3}, end = {line = 5, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -339,10 +324,7 @@ ast_goto_implicit_enum_infer_from_return :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 5, character = 3},
-			end = {line = 5, character = 7},
-		},
+		range = {start = {line = 5, character = 3}, end = {line = 5, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -371,10 +353,7 @@ ast_goto_implicit_enum_infer_from_function :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 5, character = 3},
-			end = {line = 5, character = 7},
-		},
+		range = {start = {line = 5, character = 3}, end = {line = 5, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -382,8 +361,8 @@ ast_goto_implicit_enum_infer_from_function :: proc(t: ^testing.T) {
 
 @(test)
 ast_goto_implicit_enum_infer_from_assignment_within_switch :: proc(t: ^testing.T) {
-	source := test.Source{
-		main = `package test
+	source := test.Source {
+		main     = `package test
 		Bar :: enum {
 			Bar1,
 			Bar2,
@@ -410,10 +389,7 @@ ast_goto_implicit_enum_infer_from_assignment_within_switch :: proc(t: ^testing.T
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 3, character = 3},
-			end = {line = 3, character = 7},
-		},
+		range = {start = {line = 3, character = 3}, end = {line = 3, character = 7}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -422,7 +398,7 @@ ast_goto_implicit_enum_infer_from_assignment_within_switch :: proc(t: ^testing.T
 @(test)
 ast_goto_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -437,10 +413,7 @@ ast_goto_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 7, character = 3},
-			end = {line = 7, character = 6},
-		},
+		range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -449,7 +422,7 @@ ast_goto_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 @(test)
 ast_goto_variable_field_definition_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -464,10 +437,7 @@ ast_goto_variable_field_definition_with_selector_expr :: proc(t: ^testing.T) {
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 3, character = 3},
-			end = {line = 3, character = 6},
-		},
+		range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
@@ -487,14 +457,11 @@ ast_goto_struct_definition_with_empty_line_at_top_of_file :: proc(t: ^testing.T)
 		main :: proc() {
 			foo := F{*}oo{}
 		}
-		`
+		`,
 	}
 
 	location := common.Location {
-		range = {
-			start = {line = 3, character = 2},
-			end = {line = 3, character = 5},
-		},
+		range = {start = {line = 3, character = 2}, end = {line = 3, character = 5}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})
