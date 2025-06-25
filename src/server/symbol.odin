@@ -255,6 +255,7 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		ranges = slice.to_dynamic(v.ranges, allocator),
 		docs = slice.to_dynamic(v.docs, allocator),
 		comments = slice.to_dynamic(v.comments, allocator),
+		usings = v.usings,
 		from_usings = slice.to_dynamic(v.from_usings, allocator),
 		unexpanded_usings = slice.to_dynamic(v.unexpanded_usings, allocator),
 	}
@@ -304,6 +305,7 @@ write_struct_type :: proc(
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
 				if .Using in field.flags {
 					append(&b.unexpanded_usings, len(b.types))
+					b.usings[len(b.types)] = struct{}{}
 				}
 
 				append(&b.names, identifier.name)

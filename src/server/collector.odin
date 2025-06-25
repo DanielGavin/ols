@@ -136,12 +136,15 @@ collect_struct_fields :: proc(
 
 				if .Using in field.flags {
 					append(&b.unexpanded_usings, len(b.names) - 1)
+					b.usings[len(b.names) - 1] = struct{}{}
 				}
 
 				append(&b.ranges, common.get_token_range(n, file.src))
 
-				append(&b.docs, field.docs)
-				append(&b.comments, field.comment)
+				cloned_docs := clone_type(field.docs, collection.allocator, &collection.unique_strings)
+				append(&b.docs, cloned_docs)
+				cloned_comment := clone_type(field.comment, collection.allocator, &collection.unique_strings)
+				append(&b.comments, cloned_comment)
 				append(&b.from_usings, -1)
 			}
 		}
