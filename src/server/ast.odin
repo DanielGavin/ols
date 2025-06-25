@@ -377,6 +377,16 @@ collect_when_stmt :: proc(
 			for stmt in block.stmts {
 				if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
 					collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
+				} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
+					if foreign_decl.body == nil {
+						continue
+					}
+
+					if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
+						for foreign_stmt in foreign_block.stmts {
+							collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
+						}
+					}
 				} else {
 					collect_value_decl(exprs, file, file_tags, stmt, skip_private)
 				}
@@ -392,11 +402,19 @@ collect_when_stmt :: proc(
 						for stmt in block.stmts {
 							if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
 								collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
+							} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
+								if foreign_decl.body != nil {
+									if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
+										for foreign_stmt in foreign_block.stmts {
+											collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
+										}
+									}
+								}
 							} else {
 								collect_value_decl(exprs, file, file_tags, stmt, skip_private)
 							}
-						}						
-					} 
+						}
+					}
 					return
 				}
 				else_stmt = else_when.else_stmt
