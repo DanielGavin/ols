@@ -7,6 +7,39 @@ import "src:common"
 
 import test "src:testing"
 
+
+@(test)
+reference_enum_type_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		TestEnum :: enum {
+			valueOne, 
+			valueTwo,
+		}
+
+		EnumIndexedArray :: [TestEnum]u32 {
+			.value{*}One = 1,
+			.valueTwo = 2,
+		}
+
+		my_proc :: proc() -> u32 {
+			arr :: EnumIndexedArray
+			return arr[.valueOne]
+		}
+		`,
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{range = {start = {line = 2, character = 3}, end = {line = 2, character = 11}}},
+			{range = {start = {line = 7, character = 4}, end = {line = 7, character = 12}}},
+			{range = {start = {line = 13, character = 15}, end = {line = 13, character = 23}}},
+		},
+	)
+}
+
 @(test)
 reference_variables_in_function :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -246,7 +279,7 @@ reference_struct_field :: proc(t: ^testing.T) {
 @(test)
 ast_reference_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -261,10 +294,10 @@ ast_reference_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	locations := []common.Location{
-		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
-		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
-		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	locations := []common.Location {
+		{range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = {start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = {start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
@@ -273,7 +306,7 @@ ast_reference_variable_declaration_with_selector_expr :: proc(t: ^testing.T) {
 @(test)
 ast_reference_variable_uses_from_declaration :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -288,10 +321,10 @@ ast_reference_variable_uses_from_declaration :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	locations := []common.Location{
-		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
-		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
-		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	locations := []common.Location {
+		{range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = {start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = {start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
@@ -300,7 +333,7 @@ ast_reference_variable_uses_from_declaration :: proc(t: ^testing.T) {
 @(test)
 ast_reference_variable_uses_from_declaration_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -315,10 +348,10 @@ ast_reference_variable_uses_from_declaration_with_selector_expr :: proc(t: ^test
 		packages = {},
 	}
 
-	locations := []common.Location{
-		{range = { start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
-		{range = { start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
-		{range = { start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
+	locations := []common.Location {
+		{range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
+		{range = {start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = {start = {line = 9, character = 3}, end = {line = 9, character = 6}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
@@ -327,7 +360,7 @@ ast_reference_variable_uses_from_declaration_with_selector_expr :: proc(t: ^test
 @(test)
 ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		Bar :: struct {
 			foo: int,
@@ -342,10 +375,10 @@ ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.
 		packages = {},
 	}
 
-	locations := []common.Location{
-		{range = { start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
-		{range = { start = {line = 8, character = 10}, end = {line = 8, character = 13}}},
-		{range = { start = {line = 9, character = 10}, end = {line = 9, character = 13}}},
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+		{range = {start = {line = 8, character = 10}, end = {line = 8, character = 13}}},
+		{range = {start = {line = 9, character = 10}, end = {line = 9, character = 13}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])

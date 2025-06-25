@@ -1797,6 +1797,9 @@ resolve_implicit_selector :: proc(
 			}
 		} else {
 			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
+			if !ok {
+				return {}, false
+			}
 		}
 
 		if array, ok := symbol.value.(SymbolFixedArrayValue); ok {

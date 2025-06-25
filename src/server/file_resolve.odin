@@ -119,6 +119,13 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 	add_local_group(data.ast_context, data.ast_context.local_id)
 
 	data.position_context.position = stmt.end.offset
+	data.position_context.nested_position = data.position_context.position
+
+	data.ast_context.non_mutable_only = true
+
+	get_locals_stmt(data.ast_context.file, stmt, data.ast_context, data.position_context)
+
+	data.ast_context.non_mutable_only = false
 
 	get_locals_stmt(data.ast_context.file, stmt, data.ast_context, data.position_context)
 }
@@ -345,6 +352,8 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			resolve_node(arg, data)
 		}
 	case ^Index_Expr:
+		data.position_context.previous_index = data.position_context.index
+		data.position_context.index = n
 		resolve_node(n.expr, data)
 		resolve_node(n.index, data)
 	case ^Deref_Expr:

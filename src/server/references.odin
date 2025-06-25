@@ -71,27 +71,23 @@ prepare_references :: proc(
 			return
 		}
 	} else if position_context.enum_type != nil {
-		/*
 		found := false
-		done_enum: for field in position_context.struct_type.fields.list {
-			for name in field.names {
-				if position_in_node(name, position_context.position) {
+		done_enum: for field in position_context.enum_type.fields {
+			if ident, ok := field.derived.(^ast.Ident); ok {
+				if position_in_node(ident, position_context.position) {
 					symbol = Symbol {
-						range = common.get_token_range(
-							name,
-							string(document.text),
-						),
+						range = common.get_token_range(ident, string(document.text)),
 					}
 					found = true
 					resolve_flag = .Field
 					break done_enum
 				}
 			}
+
 		}
 		if !found {
-			return {}, false
+			return
 		}
-		*/
 	} else if position_context.bitset_type != nil {
 		return
 	} else if position_context.union_type != nil {
@@ -126,11 +122,6 @@ prepare_references :: proc(
 		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
 
 		if !ok {
-			return
-		}
-
-		//Only support structs for now
-		if _, ok := symbol.value.(SymbolStructValue); !ok {
 			return
 		}
 
