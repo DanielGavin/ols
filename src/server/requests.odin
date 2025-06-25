@@ -722,8 +722,9 @@ request_initialize :: proc(
 		Add runtime package
 	*/
 
-	if core, ok := config.collections["base"]; ok {
-		append(&indexer.builtin_packages, path.join({core, "runtime"}))
+	if base, ok := config.collections["base"]; ok {
+		indexer.runtime_package = path.join({base, "runtime"})
+		append(&indexer.builtin_packages, indexer.runtime_package)
 	}
 
 	file_resolve_cache.files = make(map[string]FileResolve, 200)

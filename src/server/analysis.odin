@@ -1445,6 +1445,17 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 	}
 
+	//This could also be the runtime package, which is not required to be imported, but itself is used with selector expression in runtime functions: `my_runtime_proc :proc(a: runtime.*)`
+	if node.name == "runtime" {
+		symbol := Symbol {
+			type  = .Package,
+			pkg   = indexer.runtime_package,
+			value = SymbolPackageValue{},
+		}
+
+		return symbol, true
+	}
+
 	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
 		is_distinct := false
@@ -1601,7 +1612,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 
 		for u in ast_context.usings {
-			//TODO(Daniel, make into a map, not really required for performance but looks nicer)
 			for imp in ast_context.imports {
 				if strings.compare(imp.base, u) == 0 {
 					if symbol, ok := lookup(node.name, imp.name); ok {
