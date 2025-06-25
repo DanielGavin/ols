@@ -1559,6 +1559,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 
 		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
+		return_symbol.comment = get_comment(global.comment)
 
 		return return_symbol, ok
 	} else {
@@ -3764,6 +3765,7 @@ concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Sym
 		symbol.name,
 		symbol.signature,
 		symbol.type,
+		symbol.comment,
 		is_completion,
 	)
 }
@@ -3774,6 +3776,7 @@ concatenate_raw_string_information :: proc(
 	name: string,
 	signature: string,
 	type: SymbolType,
+	comment: string,
 	is_completion: bool,
 ) -> string {
 	pkg := path.base(pkg, false, context.temp_allocator)
@@ -3782,6 +3785,12 @@ concatenate_raw_string_information :: proc(
 		return fmt.tprintf("%v: package", name)
 	} else if type == .Keyword && is_completion {
 		return name
+	} else if type == .Function {
+		if comment != "" {
+			return fmt.tprintf("%v\n%v.%v: %v", comment, pkg, name, signature)
+		}
+		return fmt.tprintf("%v.%v: %v", pkg, name, signature)
+
 	} else {
 		if signature != "" {
 			return fmt.tprintf("%v.%v: %v", pkg, name, signature)

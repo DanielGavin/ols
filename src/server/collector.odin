@@ -610,6 +610,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
 		symbol.doc = get_doc(expr.docs, collection.allocator)
+		comment := get_file_comment(file, symbol.range.start.line + 1)
+		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
