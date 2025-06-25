@@ -518,6 +518,7 @@ ast_hover_struct :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		Foo :: struct {
+			// this is a doc
 			bar: int,
 			f: proc(a: int) -> int,
 		}
@@ -526,7 +527,7 @@ ast_hover_struct :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+	test.expect_hover(t, &source, "test.Foo: struct {\n\t// this is a doc\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
 }
 
 @(test)
@@ -664,7 +665,8 @@ ast_hover_struct_field_complex_definition :: proc(t: ^testing.T) {
 		Bar :: struct {}
 
 		Foo :: struct {
-			b{*}ar: ^Bar,
+			// Docs
+			b{*}ar: ^Bar, // inline docs
 			f: proc(a: int) -> int,
 		}
 
@@ -674,7 +676,7 @@ ast_hover_struct_field_complex_definition :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "Foo.bar: ^test.Bar :: struct {}")
+	test.expect_hover(t, &source, "Foo.bar: ^test.Bar // inline docs")
 }
 
 @(test)
@@ -1361,6 +1363,96 @@ ast_hover_proc_overloading_parametric_type_external_package :: proc(t: ^testing.
 
 	test.expect_hover(t, &source, "test.foo: ^my_package.Foo :: struct {}")
 }
+
+@(test)
+ast_hover_struct_documentation :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		F{*}oo :: struct {
+			// This is an int
+			foo_int: int,
+			bar: int, // this is bar
+			bazz: int,
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct {\n\t// This is an int\n\tfoo_int: int,\n\tbar:     int, // this is bar\n\tbazz:    int,\n}")
+}
+
+@(test)
+ast_hover_struct_documentation_using :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// This is an int
+			foo_int: int,
+			foo_string: string,
+		}
+
+		Bar :: struct {
+			// using a foo
+			using foo: Foo, // hi
+
+			// this is a string
+			bar_string: string,
+			bar_int: int, // This is a bar int
+		}
+
+		B{*}azz :: struct {
+			using bar: Bar,
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Bazz: struct {\n\tusing bar:  Bar,\n\n\t// from `using bar: Bar`\n\t// using a foo\n\tusing foo:  Foo, // hi\n\t// this is a string\n\tbar_string: string,\n\tbar_int:    int, // This is a bar int\n\n\t// from `using foo: Foo`\n\t// This is an int\n\tfoo_int:    int,\n\tfoo_string: string,\n}")
+}
+
+@(test)
+ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		InnerInner :: struct {
+			field: int,
+		}
+
+		Inner :: struct {
+			using ii: InnerInner, // InnerInner comment
+		}
+
+		Outer :: struct {
+			// Inner doc
+			using inner: Inner,
+		}
+
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		F{*}oo :: struct {
+			using outer: my_package.Outer,
+		}
+
+
+		main :: proc() {
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tusing outer:     my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner:     Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:  InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield: int,\n}")
+}
+
 /*
 
 Waiting for odin fix

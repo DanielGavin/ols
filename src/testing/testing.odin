@@ -225,7 +225,7 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 		for completion, j in completion_list.items {
 			if expect_detail == completion.detail {
 				flags[i] += 1
-			}
+			}	
 		}
 	}
 

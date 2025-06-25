@@ -33,6 +33,7 @@ clone_type :: proc {
 	clone_expr,
 	clone_array,
 	clone_dynamic_array,
+	clone_comment_group,
 }
 
 clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
@@ -279,8 +280,27 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Or_Else_Expr:
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Comment_Group:
+		list := make([dynamic]tokenizer.Token, 0, len(r.list), allocator)
+		for t in r.list {
+			append(&list, tokenizer.Token {
+				text = strings.clone(t.text, allocator),
+				kind = t.kind,
+				pos = tokenizer.Pos {
+					file = strings.clone(t.pos.file, allocator),
+					offset = t.pos.offset,
+					line = t.pos.line,
+					column = t.pos.column,
+				},
+			})
+		}
+		r.list = list[:]
 	case:
 	}
 
 	return res
+}
+
+clone_comment_group :: proc(node: ^ast.Comment_Group, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Comment_Group {
+	return cast(^ast.Comment_Group)clone_node(node, allocator, unique_strings)
 }

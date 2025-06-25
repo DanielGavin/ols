@@ -901,7 +901,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Enum_Type:
 		return make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name, true), true
 	case ^Struct_Type:
-		return make_symbol_struct_from_ast(ast_context, v^, ast_context.field_name, {}, true), true
+		return make_symbol_struct_from_ast(ast_context, v, ast_context.field_name, {}, true), true
 	case ^Bit_Set_Type:
 		return make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
 	case ^Array_Type:
@@ -1374,7 +1374,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node, {}), true
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, {}), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
 			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
@@ -1484,7 +1484,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			}
 
 		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v^, node, global.attributes), true
+			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, global.attributes), true
 			return_symbol.name = node.name
 		case ^Bit_Set_Type:
 			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
@@ -1615,78 +1615,32 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	return Symbol{}, false
 }
 
-expand_struct_usings :: proc(ast_context: ^AstContext, symbol: Symbol, value: SymbolStructValue) -> SymbolStructValue {
-	names := slice.to_dynamic(value.names, ast_context.allocator)
-	types := slice.to_dynamic(value.types, ast_context.allocator)
-	ranges := slice.to_dynamic(value.ranges, ast_context.allocator)
-
-	for k, v in value.usings {
-		set_ast_package_set_scoped(ast_context, symbol.pkg)
-
-		field_expr: ^ast.Expr
-
-		field_expr = value.types[k]
-
-		if field_expr == nil {
-			continue
-		}
-
-		if s, ok := resolve_type_expression(ast_context, field_expr); ok {
-			if struct_value, ok := s.value.(SymbolStructValue); ok {
-				for name in struct_value.names {
-					append(&names, name)
-				}
-
-				for type in struct_value.types {
-					append(&types, type)
-				}
-
-				for range in struct_value.ranges {
-					append(&ranges, range)
-				}
-			}
-		}
-
-		//We have to resolve the expressions two times, so clear it to prevent it from being picked up as recursion.
-		delete_key(&ast_context.recursion_map, value.types[k])
+struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (^ast.Struct_Type, bool) {
+	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+		return {}, false
 	}
 
-	if .ObjC in symbol.flags {
-		pkg := indexer.index.collection.packages[symbol.pkg]
-
-		if obj_struct, ok := pkg.objc_structs[symbol.name]; ok {
-			_objc_function: for function, i in obj_struct.functions {
-				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
-				base.name = obj_struct.pkg
-
-				field := new_type(ast.Ident, {}, {}, context.temp_allocator)
-				field.name = function.physical_name
-
-				selector := new_type(ast.Selector_Expr, {}, {}, context.temp_allocator)
-
-				selector.field = field
-				selector.expr = base
-
-				//Check if the base functions need to be overridden. Potentially look at some faster approach than a linear loop.
-				for name, j in names {
-					if name == function.logical_name {
-						names[j] = function.logical_name
-						types[j] = selector
-						ranges[j] = obj_struct.ranges[i]
-						continue _objc_function
-					}
-				}
-
-				append(&names, function.logical_name)
-				append(&types, selector)
-				append(&ranges, obj_struct.ranges[i])
-			}
-
-		}
+	//Try to prevent stack overflows and prevent indexing out of bounds.
+	if ast_context.deferred_count >= DeferredDepth {
+		return {}, false
 	}
 
-	return {names = names[:], types = types[:], ranges = ranges[:]}
+	set_ast_package_scoped(ast_context)
+
+	if local, ok := get_local(ast_context^, node); ok && (ast_context.use_locals || local.local_global) {
+		v, ok := local.rhs.derived.(^ast.Struct_Type)
+		return v, ok
+	}
+
+	if global, ok := ast_context.globals[node.name];
+	   ast_context.current_package == ast_context.document_package && ok {
+		v, ok := global.expr.derived.(^ast.Struct_Type)
+		return v, ok
+	}
+
+	return nil, false
 }
+
 
 resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slice_Expr) -> (symbol: Symbol, ok: bool) {
 	symbol = resolve_type_expression(ast_context, slice_expr.expr) or_return
@@ -2024,26 +1978,15 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		}
 		return symbol, ok
 	case SymbolStructValue:
+		b := symbol_struct_value_builder_make(symbol, v, ast_context.allocator)
 		if v.poly != nil {
-			types := make([dynamic]^ast.Expr, ast_context.allocator)
-
-			for type in v.types {
-				append(&types, clone_expr(type, context.temp_allocator, nil))
-			}
-
-			v.types = types[:]
-
-			resolve_poly_struct(ast_context, v.poly, &symbol)
+			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
-		if len(v.usings) > 0 || .ObjC in symbol.flags {
-			expanded := symbol
-			expanded.value = expand_struct_usings(ast_context, symbol, v)
-			return expanded, true
-		} else {
-			return symbol, true
-		}
+		expand_usings(ast_context, &b)
+		expand_objc(ast_context, &b)
+		return to_symbol(b), ok
 	case SymbolGenericValue:
 		ret, ok := resolve_type_expression(ast_context, v.expr)
 		if symbol.type == .Variable {
@@ -2498,8 +2441,11 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 }
 
 get_symbol_pkg_name :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
-	name := path.base(symbol.pkg, false, context.temp_allocator)
+	return get_pkg_name(ast_context, symbol.pkg)
+}
 
+get_pkg_name :: proc(ast_context: ^AstContext, pkg: string) -> string {
+	name := path.base(pkg, false, context.temp_allocator)
 	for imp in ast_context.imports {
 		if imp.base_original == name {
 			return imp.base
@@ -2793,11 +2739,12 @@ make_symbol_bitset_from_ast :: proc(
 
 make_symbol_struct_from_ast :: proc(
 	ast_context: ^AstContext,
-	v: ast.Struct_Type,
+	v: ^ast.Struct_Type,
 	ident: ast.Ident,
 	attributes: []^ast.Attribute,
 	inlined := false,
 ) -> Symbol {
+	node := v.node
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Struct,
@@ -2810,54 +2757,9 @@ make_symbol_struct_from_ast :: proc(
 		symbol.name = "struct"
 	}
 
-	names := make([dynamic]string, ast_context.allocator)
-	types := make([dynamic]^ast.Expr, ast_context.allocator)
-	usings := make(map[int]bool, 0, ast_context.allocator)
-	ranges := make([dynamic]common.Range, 0, ast_context.allocator)
-
-	for field in v.fields.list {
-		for n in field.names {
-			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
-				if .Using in field.flags {
-					usings[len(types)] = true
-				}
-
-				append(&names, identifier.name)
-				if v.poly_params != nil {
-					append(&types, clone_type(field.type, ast_context.allocator, nil))
-				} else {
-					append(&types, field.type)
-				}
-
-				append(&ranges, common.get_token_range(n, ast_context.file.src))
-			}
-		}
-	}
-
-	symbol.value = SymbolStructValue {
-		names  = names[:],
-		types  = types[:],
-		ranges = ranges[:],
-		usings = usings,
-		poly   = v.poly_params,
-	}
-
-	if _, ok := get_attribute_objc_class_name(attributes); ok {
-		symbol.flags |= {.ObjC}
-		if get_attribute_objc_is_class_method(attributes) {
-			symbol.flags |= {.ObjCIsClassMethod}
-		}
-	}
-
-	if v.poly_params != nil {
-		resolve_poly_struct(ast_context, v.poly_params, &symbol)
-	}
-
-	//TODO change the expand to not double copy the array, but just pass the dynamic arrays
-	if len(usings) > 0 || .ObjC in symbol.flags {
-		symbol.value = expand_struct_usings(ast_context, symbol, symbol.value.(SymbolStructValue))
-	}
-
+	b := symbol_struct_value_builder_make(symbol, ast_context.allocator)
+	write_struct_type(ast_context, &b, v^, ident, attributes, -1, inlined)
+	symbol = to_symbol(b)
 	return symbol
 }
 
@@ -4016,6 +3918,16 @@ append_variable_full_name :: proc(
 	return
 }
 
+make_comment_map :: proc(groups: []^ast.Comment_Group, allocator: mem.Allocator) -> map[int]^ast.Comment_Group {
+	comment_map := make(map[int]^ast.Comment_Group, allocator = allocator)
+
+	for cg in groups {
+		comment_map[cg.pos.line] = cg
+	}
+
+	return comment_map
+}
+
 get_signature :: proc(
 	ast_context: ^AstContext,
 	symbol: Symbol,
@@ -4031,7 +3943,7 @@ get_signature :: proc(
 	}
 
 	is_variable := symbol.type == .Variable
-
+	is_field := symbol.type == .Field
 
 	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
 
@@ -4084,36 +3996,30 @@ get_signature :: proc(
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		} else if is_field {
+			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
+			if pkg_name == "" {
+				fmt.sbprintf(&builder, "%s%s", pointer_prefix, symbol.type_name)
+			} else {
+				fmt.sbprintf(&builder, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
+			}
+			if symbol.comment != "" {
+				fmt.sbprintf(&builder, " %s", symbol.comment)
+			}
+			return strings.to_string(builder)
 		} else if symbol.type_name != "" {
 			if symbol.type_pkg == "" {
 				fmt.sbprintf(&builder, "%s%s :: ", pointer_prefix, symbol.type_name)
 			} else {
-				// TODO: make this function just take a string
-				symbol := symbol
-				symbol.pkg = symbol.type_pkg
-				pkg_name := get_symbol_pkg_name(ast_context, symbol)
+				pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 				fmt.sbprintf(&builder, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
-			}
-		}
-		longestNameLen := 0
-		for name in v.names {
-			if len(name) > longestNameLen {
-				longestNameLen = len(name)
 			}
 		}
 		if len(v.names) == 0 {
 			strings.write_string(&builder, "struct {}")
 			return strings.to_string(builder)
 		}
-		strings.write_string(&builder, "struct {\n")
-		for i in 0 ..< len(v.names) {
-			strings.write_string(&builder, "\t")
-			strings.write_string(&builder, v.names[i])
-			fmt.sbprintf(&builder, ":%*s", longestNameLen - len(v.names[i]) + 1, "")
-			build_string_node(v.types[i], &builder, false)
-			strings.write_string(&builder, ",\n")
-		}
-		strings.write_string(&builder, "}")
+		write_struct_hover(ast_context, &builder, v)
 		return strings.to_string(builder)
 	case SymbolUnionValue:
 		if short_signature {
@@ -4192,6 +4098,60 @@ get_signature :: proc(
 	}
 
 	return ""
+}
+
+write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: SymbolStructValue) {
+	using_prefix := "using "
+	longestNameLen := 0
+	for name, i in v.names {
+		l := len(name)
+		if _, ok := v.usings[i]; ok {
+			l += len(using_prefix)
+		}
+		if l > longestNameLen {
+			longestNameLen = len(name)
+		}
+	}
+
+	using_index := -1
+
+	strings.write_string(sb, "struct {\n")
+	for i in 0 ..< len(v.names) {
+		if i < len(v.from_usings) {
+			if index := v.from_usings[i]; index != using_index {
+				fmt.sbprintf(sb, "\n\t// from `using %s: ", v.names[index])
+				build_string_node(v.types[index], sb, false)
+				strings.write_string(sb, "`\n")
+				using_index = index
+			}
+		}
+		if i < len(v.docs) && v.docs[i] != nil {
+			for c in v.docs[i].list {
+				fmt.sbprintf(sb, "\t%s\n", c.text)
+			}
+		}
+
+		strings.write_string(sb, "\t")
+
+		name_len := len(v.names[i])
+		if _, ok := v.usings[i]; ok {
+			strings.write_string(sb, using_prefix)
+			name_len += len(using_prefix)
+		}
+		strings.write_string(sb, v.names[i])
+		fmt.sbprintf(sb, ":%*s", longestNameLen - name_len + 1, "")
+		build_string_node(v.types[i], sb, false)
+		strings.write_string(sb, ",")
+
+		if i < len(v.comments) && v.comments[i] != nil {
+			for c in v.comments[i].list {
+				fmt.sbprintf(sb, " %s\n", c.text)
+			}
+		} else {
+			strings.write_string(sb, "\n")
+		}
+	}
+	strings.write_string(sb, "}")
 }
 
 position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
