@@ -137,7 +137,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		call.signature = get_short_signature(&ast_context, call)
 
 		info := SignatureInformation {
-			label         = get_short_signature(&ast_context, call),
+			label         = concatenate_symbol_information(&ast_context, call),
 			documentation = call.doc,
 			parameters    = parameters,
 		}
@@ -163,7 +163,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				symbol.signature = get_short_signature(&ast_context, symbol)
 
 				info := SignatureInformation {
-					label         = get_short_signature(&ast_context, symbol),
+					label         = concatenate_symbol_information(&ast_context, symbol),
 					documentation = symbol.doc,
 				}
 

@@ -2048,7 +2048,7 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_details(t, &source, "", {"Int"})
+	test.expect_completion_details(t, &source, "", {"test.Int: int"})
 }
 
 @(test)

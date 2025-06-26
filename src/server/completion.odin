@@ -140,7 +140,6 @@ get_completion_list :: proc(
 		}
 	}
 
-
 	switch completion_type {
 	case .Comp_Lit:
 		get_comp_lit_completion(&ast_context, &position_context, &list)
@@ -584,16 +583,20 @@ get_selector_completion :: proc(
 				if !position_context.arrow && .ObjC in selector.flags {
 					continue
 				}
+
+				symbol.type_pkg = symbol.pkg
+				symbol.type_name = symbol.name
 				symbol.name = name
-				symbol.pkg = selector.pkg
+				symbol.pkg = selector.name
 				symbol.type = .Field
 				symbol.doc = get_doc(v.docs[i], context.temp_allocator)
 				symbol.comment = get_comment(v.comments[i])
+				symbol.signature = get_short_signature(ast_context, symbol)
 
 				item := CompletionItem {
 					label         = name,
 					kind          = .Field,
-					detail        = get_short_signature(ast_context, symbol),
+					detail        = concatenate_symbol_information(ast_context, symbol),
 					documentation = symbol.doc,
 				}
 
@@ -667,7 +670,7 @@ get_selector_completion :: proc(
 				item := CompletionItem {
 					label         = symbol.name,
 					kind          = symbol_type_to_completion_kind(symbol.type),
-					detail        = get_short_signature(ast_context, symbol),
+					detail        = concatenate_symbol_information(ast_context, symbol),
 					documentation = symbol.doc,
 				}
 
@@ -1275,6 +1278,7 @@ get_identifier_completion :: proc(
 		ident.name = k
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
+			symbol.name = k
 			symbol.signature = get_short_signature(ast_context, symbol)
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
@@ -1417,8 +1421,7 @@ get_identifier_completion :: proc(
 				}
 			}
 
-			item.detail = get_short_signature(ast_context, result.symbol)
-
+			item.detail = concatenate_symbol_information(ast_context, result.symbol)
 			append(&items, item)
 		}
 	}
