@@ -34,13 +34,10 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 		}
 	}
 
-	build_procedure_symbol_signature(&symbol, false)
 
-	cat := concatenate_symbol_information(ast_context, symbol, false)
-
-	if cat != "" {
+	if symbol.signature != "" {
 		content.kind = "markdown"
-		content.value = fmt.tprintf("```odin\n%v\n```%v", cat, symbol.doc)
+		content.value = fmt.tprintf("```odin\n%v\n```%v", symbol.signature, symbol.doc)
 	} else {
 		content.kind = "plaintext"
 	}

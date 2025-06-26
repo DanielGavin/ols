@@ -13,7 +13,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 
 		My_Struct :: struct {
 			one: int,
-			two: int,
+			two: int, // test comment
 			three: int,
 		}
 
@@ -29,7 +29,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+		{"My_Struct.one: int", "My_Struct.two: int // test comment", "My_Struct.three: int"},
 	)
 }
 

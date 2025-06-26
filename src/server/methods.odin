@@ -67,7 +67,7 @@ append_method_completion :: proc(
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
 				resolve_unresolved_symbol(ast_context, &symbol)
-				build_procedure_symbol_signature(&symbol)
+				symbol.signature = get_short_signature(ast_context, symbol)
 
 				range, ok := get_range_from_selection_start_to_dot(position_context)
 
@@ -129,7 +129,7 @@ append_method_completion :: proc(
 				item := CompletionItem {
 					label = symbol.name,
 					kind = symbol_type_to_completion_kind(symbol.type),
-					detail = concatenate_symbol_information(ast_context, symbol, true),
+					detail = get_short_signature(ast_context, symbol),
 					additionalTextEdits = remove_edit,
 					textEdit = TextEdit{newText = new_text, range = {start = range.end, end = range.end}},
 					insertTextFormat = .Snippet,
