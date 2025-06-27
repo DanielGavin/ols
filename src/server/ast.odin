@@ -76,6 +76,7 @@ GlobalExpr :: struct {
 	expr:       ^ast.Expr,
 	mutable:    bool,
 	docs:       ^ast.Comment_Group,
+	comment:    ^ast.Comment_Group,
 	attributes: []^ast.Attribute,
 	deprecated: bool,
 	private:    parser.Private_Flag,
@@ -296,6 +297,7 @@ collect_value_decl :: proc(
 	global_expr := GlobalExpr {
 		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
+		comment    = get_file_comment(file, value_decl.pos.line),
 		attributes = value_decl.attributes[:],
 		private    = file_tags.private,
 	}
@@ -474,6 +476,13 @@ get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string
 		}
 	}
 
+	return ""
+}
+
+get_comment :: proc(comment: ^ast.Comment_Group) -> string {
+	if comment != nil && len(comment.list) > 0 {
+		return comment.list[0].text
+	}
 	return ""
 }
 
@@ -1221,22 +1230,27 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 				}
 			} else {
 				// We need to check the file to see if it contains a line comment as there is no next field
-				// TODO: linear scan might be a bit slow for files with lots of comments?
-				for c in file.comments {
-					if c.pos.line == field.pos.line {
-						for item, j in c.list {
-							field.comment = ast.new(ast.Comment_Group, item.pos, parser.end_pos(item))
-							if j == len(c.list) - 1 {
-								field.comment.list = c.list[j:]
-							} else {
-								field.comment.list = c.list[j:j + 1]
-							}
-							break
-						}
-					}
-				}
+				field.comment = get_file_comment(file, field.pos.line)
 			}
 		}
 	}
+}
 
+// Retrives the comment group from the specified line of the file
+get_file_comment :: proc(file: ast.File, line: int) -> ^ast.Comment_Group {
+	// TODO: linear scan might be a bit slow for files with lots of comments?
+	for c in file.comments {
+		if c.pos.line == line {
+			for item, j in c.list {
+				comment := ast.new(ast.Comment_Group, item.pos, parser.end_pos(item))
+				if j == len(c.list) - 1 {
+					comment.list = c.list[j:]
+				} else {
+					comment.list = c.list[j:j + 1]
+				}
+				return comment
+			}
+		}
+	}
+	return nil
 }

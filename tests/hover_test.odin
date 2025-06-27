@@ -1453,6 +1453,57 @@ ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tusing outer:     my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner:     Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:  InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield: int,\n}")
 }
 
+@(test)
+ast_hover_proc_comments :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		// doc
+		foo :: proc() { // do foo
+
+		}
+
+		main :: proc() {
+			fo{*}o()
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "// do foo\ntest.foo: proc()\n doc")
+}
+
+@(test)
+ast_hover_proc_comments_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			foo :: proc() { // do foo
+
+			}
+
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package main
+		import "my_package"
+
+		main :: proc() {
+			my_package.fo{*}o()
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "// do foo\nmy_package.foo: proc()")
+}
+
 /*
 
 Waiting for odin fix

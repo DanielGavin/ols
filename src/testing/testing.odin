@@ -252,7 +252,7 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 		return
 	}
 
-	content_without_markdown := hover.contents.value[8:len(hover.contents.value) - 5]
+	content_without_markdown, _ := strings.remove(hover.contents.value[8:], "\n```", 1, context.temp_allocator)
 
 	if content_without_markdown != expect_hover_string {
 		log.errorf("Expected hover string:\n%q, but received:\n%q", expect_hover_string, content_without_markdown)

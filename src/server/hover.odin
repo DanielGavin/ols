@@ -40,7 +40,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 
 	if cat != "" {
 		content.kind = "markdown"
-		content.value = fmt.tprintf("```odin\n%v\n```\n%v", cat, symbol.doc)
+		content.value = fmt.tprintf("```odin\n%v\n```%v", cat, symbol.doc)
 	} else {
 		content.kind = "plaintext"
 	}
