@@ -208,6 +208,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.names = clone_type(r.names, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
 		r.default_value = clone_type(r.default_value, allocator, unique_strings)
+		r.docs = clone_type(r.docs, allocator, unique_strings)
 	case ^Field_List:
 		r.list = clone_type(r.list, allocator, unique_strings)
 	case ^Field_Value:
@@ -283,16 +284,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Comment_Group:
 		list := make([dynamic]tokenizer.Token, 0, len(r.list), allocator)
 		for t in r.list {
-			append(&list, tokenizer.Token {
-				text = strings.clone(t.text, allocator),
-				kind = t.kind,
-				pos = tokenizer.Pos {
-					file = strings.clone(t.pos.file, allocator),
-					offset = t.pos.offset,
-					line = t.pos.line,
-					column = t.pos.column,
-				},
-			})
+			append(&list, tokenizer.Token{text = strings.clone(t.text, allocator), kind = t.kind, pos = tokenizer.Pos{file = strings.clone(t.pos.file, allocator), offset = t.pos.offset, line = t.pos.line, column = t.pos.column}})
 		}
 		r.list = list[:]
 	case:
@@ -301,6 +293,10 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	return res
 }
 
-clone_comment_group :: proc(node: ^ast.Comment_Group, allocator: mem.Allocator, unique_strings: ^map[string]string) -> ^ast.Comment_Group {
+clone_comment_group :: proc(
+	node: ^ast.Comment_Group,
+	allocator: mem.Allocator,
+	unique_strings: ^map[string]string,
+) -> ^ast.Comment_Group {
 	return cast(^ast.Comment_Group)clone_node(node, allocator, unique_strings)
 }
