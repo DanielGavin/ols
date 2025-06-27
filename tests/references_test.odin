@@ -383,3 +383,36 @@ ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_cast_proc_param_with_param_expr :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct{
+			data: int,
+			len: int,
+		}
+
+		Bar :: struct{
+			data: int,
+			len: int,
+		}
+
+		foo :: proc(bu{*}f: ^Foo, n: int) {
+			(cast(^Bar)&buf.data).len -= n
+			buf.r_offset = (buf.r_offset + n) % cap(buf.data)
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 12, character = 14}, end = {line = 12, character = 17}}},
+		{range = {start = {line = 13, character = 15}, end = {line = 13, character = 18}}},
+		{range = {start = {line = 14, character = 19}, end = {line = 14, character = 22}}},
+		{range = {start = {line = 14, character = 43}, end = {line = 14, character = 46}}},
+		{range = {start = {line = 14, character = 3}, end = {line = 14, character = 6}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

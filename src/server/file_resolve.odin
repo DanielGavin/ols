@@ -205,7 +205,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 			#partial switch v in n.expr.derived {
 			// TODO: Should there be more here?
-			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident:
+			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident, ^ast.Paren_Expr:
 				resolve_node(n.expr, data)
 			}
 		} else {
