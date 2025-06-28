@@ -74,7 +74,6 @@ DocumentLocal :: struct {
 	offset:          int,
 	resolved_global: bool, //Some locals have already been resolved and are now in global space
 	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
-	id:              int, //Id that can used to connect the local to something, i.e. for stmt begin offset
 	pkg:             string,
 	variable:        bool,
 	parameter:       bool,
@@ -83,7 +82,7 @@ DocumentLocal :: struct {
 DeferredDepth :: 35
 
 AstContext :: struct {
-	locals:           map[int]map[string][dynamic]DocumentLocal, //locals all the way to the document position
+	locals:           [dynamic]map[string][dynamic]DocumentLocal, //locals all the way to the document position
 	globals:          map[string]GlobalExpr,
 	recursion_map:    map[rawptr]bool,
 	usings:           [dynamic]string,
@@ -115,7 +114,7 @@ make_ast_context :: proc(
 	allocator := context.temp_allocator,
 ) -> AstContext {
 	ast_context := AstContext {
-		locals           = make(map[int]map[string][dynamic]DocumentLocal, 0, allocator),
+		locals           = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals          = make(map[string]GlobalExpr, 0, allocator),
 		usings           = make([dynamic]string, allocator),
 		recursion_map    = make(map[rawptr]bool, 0, allocator),
@@ -129,7 +128,7 @@ make_ast_context :: proc(
 		allocator        = allocator,
 	}
 
-	add_local_group(&ast_context, 0)
+	add_local_group(&ast_context)
 
 	return ast_context
 }
@@ -1200,10 +1199,10 @@ store_local :: proc(
 	pkg: string,
 	parameter: bool,
 ) {
-	local_stack := &ast_context.locals[id][name]
+	local_stack := &ast_context.locals[len(ast_context.locals) - 1][name]
 
 	if local_stack == nil {
-		locals := &ast_context.locals[id]
+		locals := &ast_context.locals[len(ast_context.locals) - 1]
 		locals[name] = make([dynamic]DocumentLocal, ast_context.allocator)
 		local_stack = &locals[name]
 	}
@@ -1214,7 +1213,6 @@ store_local :: proc(
 			lhs = lhs,
 			rhs = rhs,
 			offset = offset,
-			id = id,
 			resolved_global = resolved_global,
 			local_global = local_global,
 			pkg = pkg,
@@ -1224,16 +1222,16 @@ store_local :: proc(
 	)
 }
 
-add_local_group :: proc(ast_context: ^AstContext, id: int) {
-	ast_context.locals[id] = make(map[string][dynamic]DocumentLocal, 100, ast_context.allocator)
+add_local_group :: proc(ast_context: ^AstContext) {
+	append(&ast_context.locals, make(map[string][dynamic]DocumentLocal, 100, ast_context.allocator))
 }
 
-clear_local_group :: proc(ast_context: ^AstContext, id: int) {
-	ast_context.locals[id] = {}
+pop_local_group :: proc(ast_context: ^AstContext) {
+	pop(&ast_context.locals)
 }
 
 get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, bool) {
-	for _, locals in ast_context.locals {
+	#reverse for locals in ast_context.locals {
 		local_stack := locals[ident.name] or_continue
 
 		#reverse for local in local_stack {
@@ -1260,14 +1258,14 @@ get_local :: proc(ast_context: AstContext, ident: ast.Ident) -> (DocumentLocal, 
 }
 
 get_local_offset :: proc(ast_context: ^AstContext, offset: int, name: string) -> int {
-	for _, locals in &ast_context.locals {
+	#reverse for locals in &ast_context.locals {
 		if local_stack, ok := locals[name]; ok {
 			#reverse for local, i in local_stack {
-				if local_stack[i].offset <= offset || local_stack[i].local_global {
+				if local.offset <= offset || local.local_global {
 					if i < 0 {
 						return -1
 					} else {
-						return local_stack[i].offset
+						return local.offset
 					}
 				}
 			}

@@ -103,7 +103,7 @@ resolve_decl :: proc(
 
 @(private = "file")
 local_scope_deferred :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
-	clear_local_group(data.ast_context, data.ast_context.local_id)
+	pop_local_group(data.ast_context)
 	data.ast_context.local_id -= 1
 }
 
@@ -116,7 +116,7 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 
 	data.ast_context.local_id += 1
 
-	add_local_group(data.ast_context, data.ast_context.local_id)
+	add_local_group(data.ast_context)
 
 	data.position_context.position = stmt.end.offset
 	data.position_context.nested_position = data.position_context.position
