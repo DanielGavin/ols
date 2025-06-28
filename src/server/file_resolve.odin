@@ -103,8 +103,7 @@ resolve_decl :: proc(
 
 @(private = "file")
 local_scope_deferred :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
-	clear_local_group(data.ast_context, data.ast_context.local_id)
-	data.ast_context.local_id -= 1
+	pop_local_group(data.ast_context)
 }
 
 @(deferred_in = local_scope_deferred)
@@ -114,9 +113,7 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 		return
 	}
 
-	data.ast_context.local_id += 1
-
-	add_local_group(data.ast_context, data.ast_context.local_id)
+	add_local_group(data.ast_context)
 
 	data.position_context.position = stmt.end.offset
 	data.position_context.nested_position = data.position_context.position
@@ -391,6 +388,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Defer_Stmt:
 		resolve_node(n.stmt, data)
 	case ^Case_Clause:
+		local_scope(data, n)
 		resolve_nodes(n.list, data)
 		resolve_nodes(n.body, data)
 	case ^Type_Switch_Stmt:
