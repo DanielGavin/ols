@@ -416,3 +416,39 @@ ast_reference_cast_proc_param_with_param_expr :: proc (t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_variable_in_switch_case :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Bar :: enum {
+			Bar1,
+			Bar2,
+		}
+
+		Foo :: struct {
+			foo1: int,
+		}
+
+		main :: proc() {
+			bar: Bar
+
+			#partial switch bar {
+			case .Bar1:
+				foo := Foo{}
+				f{*}oo.foo1 = 2
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 17, character = 4}, end = {line = 17, character = 7}}},
+		{range = {start = {line = 17, character = 4}, end = {line = 17, character = 7}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+

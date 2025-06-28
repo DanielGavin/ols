@@ -391,6 +391,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Defer_Stmt:
 		resolve_node(n.stmt, data)
 	case ^Case_Clause:
+		local_scope(data, n)
 		resolve_nodes(n.list, data)
 		resolve_nodes(n.body, data)
 	case ^Type_Switch_Stmt:
