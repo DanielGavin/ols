@@ -143,12 +143,12 @@ calls :: proc() {
 	_ = vk.CreateInsance(Composite{1, 2, 3, 4})
 	_ = vk.CreateInsance(Composite{1, 2, 3, 4})
 	_ = vk.CreateInsance(matrix[2, 2]i32{
-			1, 2, 
-			3, 4, 
+			1, 2,
+			3, 4,
 		})
 	_ = vk.CreateInsance(matrix[2, 2]i32{
-			1, 2, 
-			3, 4, 
+			1, 2,
+			3, 4,
 		})
 
 	test_2(

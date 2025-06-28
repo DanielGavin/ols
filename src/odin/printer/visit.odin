@@ -1938,7 +1938,11 @@ visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type:
 	for row := 0; row < row_count; row += 1 {
 		for column := 0; column < column_count; column += 1 {
 			document = cons(document, visit_expr(p, comp_lit.elems[column + row * column_count]))
-			document = cons(document, text(", "))
+			if column_count - 1 != column {
+				document = cons(document, text(", "))
+			} else {
+				document = cons(document, text(","))
+			}
 		}
 
 		if row_count - 1 != row {
