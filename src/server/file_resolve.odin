@@ -104,7 +104,6 @@ resolve_decl :: proc(
 @(private = "file")
 local_scope_deferred :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 	pop_local_group(data.ast_context)
-	data.ast_context.local_id -= 1
 }
 
 @(deferred_in = local_scope_deferred)
@@ -113,8 +112,6 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 	if stmt == nil {
 		return
 	}
-
-	data.ast_context.local_id += 1
 
 	add_local_group(data.ast_context)
 
