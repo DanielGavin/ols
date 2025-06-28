@@ -34,9 +34,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 		}
 	}
 
-	build_procedure_symbol_signature(&symbol, false)
-
-	cat := concatenate_symbol_information(ast_context, symbol, false)
+	cat := concatenate_symbol_information(ast_context, symbol)
 
 	if cat != "" {
 		content.kind = "markdown"
@@ -146,7 +144,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										}
 									}
 
-									symbol.signature = get_signature(&ast_context, symbol)
+									symbol.signature = get_short_signature(&ast_context, symbol)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}

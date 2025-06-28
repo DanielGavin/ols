@@ -13,7 +13,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 
 		My_Struct :: struct {
 			one: int,
-			two: int,
+			two: int, // test comment
 			three: int,
 		}
 
@@ -29,7 +29,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
+		{"My_Struct.one: int", "My_Struct.two: int // test comment", "My_Struct.three: int"},
 	)
 }
 
@@ -651,7 +651,7 @@ ast_for_in_identifier_completion :: proc(t: ^testing.T) {
 	}
 
 
-	test.expect_completion_details(t, &source, "", {"test.my_element: test.My_Struct :: struct"})
+	test.expect_completion_details(t, &source, "", {"test.my_element: test.My_Struct"})
 }
 
 @(test)
@@ -675,7 +675,7 @@ ast_for_in_call_expr_completion :: proc(t: ^testing.T) {
 	}
 
 
-	test.expect_completion_details(t, &source, ".", {"test.zstep: test.Step :: struct"})
+	test.expect_completion_details(t, &source, ".", {"test.zstep: test.Step"})
 }
 
 
@@ -1661,7 +1661,7 @@ ast_new_clone_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.adzz: ^test.Foo :: struct"})
+	test.expect_completion_details(t, &source, "", {"test.adzz: ^test.Foo"})
 }
 
 @(test)
@@ -1735,7 +1735,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"my_package.param: my_package.My_Struct :: struct"})
+	test.expect_completion_details(t, &source, ".", {"my_package.param: my_package.My_Struct"})
 }
 
 @(test)
@@ -2048,7 +2048,7 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_details(t, &source, "", {"Int"})
+	test.expect_completion_details(t, &source, "", {"test.Int: int"})
 }
 
 @(test)
@@ -2534,7 +2534,7 @@ ast_poly_struct_with_poly :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.first: ^test.Animal :: struct"})
+	test.expect_completion_details(t, &source, "", {"test.first: ^test.Animal"})
 }
 
 @(test)
@@ -3013,7 +3013,7 @@ ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.indezx: test.Enum :: enum"})
+	test.expect_completion_details(t, &source, "", {"test.indezx: test.Enum"})
 }
 
 @(test)
@@ -3305,4 +3305,38 @@ ast_completion_multi_pointer_nested :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {"S3.s3: int"})
+}
+
+@(test)
+ast_completion_struct_documentation :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			My_Struct :: struct {
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package main
+
+		import "my_package"
+
+		Foo :: struct {
+			bazz: my_package.My_Struct // bazz
+		}
+
+		main :: proc() {
+			p := Foo{}
+			p.b{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"Foo.bazz: my_package.My_Struct // bazz"})
 }

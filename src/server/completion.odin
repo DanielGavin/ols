@@ -140,7 +140,6 @@ get_completion_list :: proc(
 		}
 	}
 
-
 	switch completion_type {
 	case .Comp_Lit:
 		get_comp_lit_completion(&ast_context, &position_context, &list)
@@ -585,15 +584,19 @@ get_selector_completion :: proc(
 					continue
 				}
 
+				symbol.type_pkg = symbol.pkg
+				symbol.type_name = symbol.name
+				symbol.name = name
+				symbol.pkg = selector.name
+				symbol.type = .Field
+				symbol.doc = get_doc(v.docs[i], context.temp_allocator)
+				symbol.comment = get_comment(v.comments[i])
+				symbol.signature = get_short_signature(ast_context, symbol)
+
 				item := CompletionItem {
 					label         = name,
 					kind          = .Field,
-					detail        = fmt.tprintf(
-						"%v.%v: %v",
-						selector.name,
-						name,
-						type_to_string(ast_context, v.types[i]),
-					),
+					detail        = concatenate_symbol_information(ast_context, symbol),
 					documentation = symbol.doc,
 				}
 
@@ -662,12 +665,12 @@ get_selector_completion :: proc(
 				}
 
 				resolve_unresolved_symbol(ast_context, &symbol)
-				build_procedure_symbol_signature(&symbol)
+				symbol.signature = get_short_signature(ast_context, symbol)
 
 				item := CompletionItem {
 					label         = symbol.name,
 					kind          = symbol_type_to_completion_kind(symbol.type),
-					detail        = concatenate_symbol_information(ast_context, symbol, true),
+					detail        = concatenate_symbol_information(ast_context, symbol),
 					documentation = symbol.doc,
 				}
 
@@ -1210,15 +1213,9 @@ get_identifier_completion :: proc(
 	list: ^CompletionList,
 ) {
 	CombinedResult :: struct {
-		score:     f32,
-		snippet:   Snippet_Info,
-		name:      string,
-		type:      SymbolType,
-		doc:       string,
-		comment:   string,
-		pkg:       string,
-		signature: string,
-		flags:     SymbolFlags,
+		score:   f32,
+		snippet: Snippet_Info,
+		symbol:  Symbol,
 	}
 
 	items := make([dynamic]CompletionItem, context.temp_allocator)
@@ -1250,23 +1247,11 @@ get_identifier_completion :: proc(
 		for r in results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)
-			build_procedure_symbol_signature(&r.symbol)
+			r.symbol.signature = get_short_signature(ast_context, r.symbol)
 
 			uri, _ := common.parse_uri(r.symbol.uri, context.temp_allocator)
 			if uri.path != ast_context.fullpath {
-				append(
-					&combined,
-					CombinedResult {
-						score = r.score,
-						type = r.symbol.type,
-						name = r.symbol.name,
-						doc = r.symbol.doc,
-						comment = r.symbol.comment,
-						flags = r.symbol.flags,
-						signature = r.symbol.signature,
-						pkg = r.symbol.pkg,
-					},
-				)
+				append(&combined, CombinedResult{score = r.score, symbol = r.symbol})
 			}
 		}
 	}
@@ -1280,7 +1265,7 @@ get_identifier_completion :: proc(
 
 		//combined is sorted and should do binary search instead.
 		for result in combined {
-			if result.name == k {
+			if result.symbol.name == k {
 				continue global
 			}
 		}
@@ -1293,24 +1278,11 @@ get_identifier_completion :: proc(
 		ident.name = k
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-			symbol.signature = get_signature(ast_context, symbol, short_signature = true)
-
-			build_procedure_symbol_signature(&symbol)
+			symbol.name = k
+			symbol.signature = get_short_signature(ast_context, symbol)
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-				append(
-					&combined,
-					CombinedResult {
-						score = score * 1.1,
-						type = symbol.type,
-						name = ident.name,
-						doc = symbol.doc,
-						comment = symbol.comment,
-						flags = symbol.flags,
-						pkg = symbol.pkg,
-						signature = symbol.signature,
-					},
-				)
+				append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
 			}
 		}
 	}
@@ -1335,24 +1307,11 @@ get_identifier_completion :: proc(
 			ident.name = k
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-				symbol.signature = get_signature(ast_context, symbol, short_signature = true)
-
-				build_procedure_symbol_signature(&symbol)
+				symbol.signature = get_short_signature(ast_context, symbol)
 
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-					append(
-						&combined,
-						CombinedResult {
-							score = score * 1.7,
-							type = symbol.type,
-							name = clean_ident(ident.name),
-							doc = symbol.doc,
-							comment = symbol.comment,
-							flags = symbol.flags,
-							pkg = symbol.pkg,
-							signature = symbol.signature,
-						},
-					)
+					symbol.name = clean_ident(ident.name)
+					append(&combined, CombinedResult{score = score * 1.7, symbol = symbol})
 				}
 			}
 		}
@@ -1369,19 +1328,7 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-			append(
-				&combined,
-				CombinedResult {
-					score = score * 1.1,
-					type = symbol.type,
-					name = symbol.name,
-					doc = symbol.doc,
-					comment = symbol.comment,
-					flags = symbol.flags,
-					signature = symbol.signature,
-					pkg = symbol.pkg,
-				},
-			)
+			append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
 		}
 	}
 
@@ -1392,19 +1339,7 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(
-				&combined,
-				CombinedResult {
-					score = score,
-					type = symbol.type,
-					name = symbol.name,
-					doc = symbol.doc,
-					comment = symbol.comment,
-					flags = symbol.flags,
-					signature = symbol.signature,
-					pkg = symbol.pkg,
-				},
-			)
+			append(&combined, CombinedResult{score = score, symbol = symbol})
 		}
 	}
 
@@ -1415,26 +1350,17 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(
-				&combined,
-				CombinedResult {
-					score = score * 1.1,
-					type = symbol.type,
-					name = symbol.name,
-					doc = symbol.doc,
-					comment = symbol.comment,
-					flags = symbol.flags,
-					signature = symbol.signature,
-					pkg = symbol.pkg,
-				},
-			)
+			append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
 		}
 	}
 
 	if common.config.enable_snippets {
 		for k, v in snippets {
 			if score, ok := common.fuzzy_match(matcher, k); ok == 1 {
-				append(&combined, CombinedResult{score = score * 1.1, snippet = v, name = k})
+				symbol := Symbol {
+					name = k,
+				}
+				append(&combined, CombinedResult{score = score * 1.1, snippet = v, symbol = symbol})
 			}
 		}
 	}
@@ -1451,18 +1377,18 @@ get_identifier_completion :: proc(
 
 		//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) &&
-		   result.type == .Function &&
+		   result.symbol.type == .Function &&
 		   common.config.enable_procedure_context {
 			continue
 		}
 
 		if result.snippet.insert != "" {
 			item := CompletionItem {
-				label            = result.name,
+				label            = result.symbol.name,
 				insertText       = result.snippet.insert,
 				kind             = .Snippet,
 				detail           = result.snippet.detail,
-				documentation    = result.doc,
+				documentation    = result.symbol.doc,
 				insertTextFormat = .Snippet,
 			}
 
@@ -1480,31 +1406,22 @@ get_identifier_completion :: proc(
 			append(&items, item)
 		} else {
 			item := CompletionItem {
-				label         = result.name,
-				documentation = result.doc,
+				label         = result.symbol.name,
+				documentation = result.symbol.doc,
 			}
 
-			item.kind = symbol_type_to_completion_kind(result.type)
+			item.kind = symbol_type_to_completion_kind(result.symbol.type)
 
-			if result.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
+			if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
 				item.insertText = fmt.tprintf("%v($0)", item.label)
 				item.insertTextFormat = .Snippet
-				item.deprecated = .Deprecated in result.flags
+				item.deprecated = .Deprecated in result.symbol.flags
 				item.command = Command {
 					command = "editor.action.triggerParameterHints",
 				}
 			}
 
-			item.detail = concatenate_symbol_information(
-				ast_context,
-				result.pkg,
-				result.name,
-				result.signature,
-				result.type,
-				result.comment,
-				true,
-			)
-
+			item.detail = concatenate_symbol_information(ast_context, result.symbol)
 			append(&items, item)
 		}
 	}
