@@ -226,9 +226,7 @@ resolve_type_comp_literal :: proc(
 		return {}, nil, false
 	}
 
-
 	set_ast_package_set_scoped(ast_context, current_symbol.pkg)
-
 
 	for elem, element_index in current_comp_lit.elems {
 		if !position_in_node(elem, position_context.position) {

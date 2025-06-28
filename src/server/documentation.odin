@@ -1,6 +1,7 @@
 package server
 
 import "core:fmt"
+import "core:log"
 import path "core:path/slashpath"
 import "core:strings"
 
@@ -11,7 +12,6 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	}
 
 	is_variable := symbol.type == .Variable
-	is_field := symbol.type == .Field
 
 	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
 
@@ -21,6 +21,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+			strings.write_string(&builder, " :: ")
 		}
 		strings.write_string(&builder, "enum {\n")
 		for i in 0 ..< len(v.names) {
@@ -34,17 +35,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
-		} else if is_field {
-			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
-			if pkg_name == "" {
-				fmt.sbprintf(&builder, "%s%s", pointer_prefix, symbol.type_name)
-			} else {
-				fmt.sbprintf(&builder, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
-			}
-			if symbol.comment != "" {
-				fmt.sbprintf(&builder, " %s", symbol.comment)
-			}
-			return strings.to_string(builder)
+			strings.write_string(&builder, " :: ")
 		} else if symbol.type_name != "" {
 			if symbol.type_pkg == "" {
 				fmt.sbprintf(&builder, "%s%s :: ", pointer_prefix, symbol.type_name)
@@ -55,6 +46,9 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		}
 		if len(v.names) == 0 {
 			strings.write_string(&builder, "struct {}")
+			if symbol.comment != "" {
+				fmt.sbprintf(&builder, " %s", symbol.comment)
+			}
 			return strings.to_string(builder)
 		}
 		write_struct_hover(ast_context, &builder, v)
@@ -63,6 +57,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+			strings.write_string(&builder, " :: ")
 		}
 		strings.write_string(&builder, "union {\n")
 		for i in 0 ..< len(v.types) {
@@ -95,7 +90,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	}
 
 	is_variable := symbol.type == .Variable
-	is_field := symbol.type == .Field
 
 	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
 
@@ -117,8 +111,9 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		} else {
+			strings.write_string(&builder, "enum")
 		}
-		strings.write_string(&builder, "enum")
 		return strings.to_string(builder)
 	case SymbolMapValue:
 		return strings.concatenate(
@@ -139,15 +134,27 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
+			if pkg_name == "" {
+				fmt.sbprintf(&builder, "%s%s", pointer_prefix, symbol.type_name)
+			} else {
+				fmt.sbprintf(&builder, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
+			}
+		} else {
+			strings.write_string(&builder, "struct")
 		}
-		strings.write_string(&builder, "struct")
+		if symbol.comment != "" {
+			fmt.sbprintf(&builder, " %s", symbol.comment)
+		}
 		return strings.to_string(builder)
 	case SymbolUnionValue:
 		builder := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&builder, ast_context, symbol, pointer_prefix)
+		} else {
+			strings.write_string(&builder, "union")
 		}
-		strings.write_string(&builder, "union")
 		return strings.to_string(builder)
 	case SymbolBitFieldValue:
 		if is_variable {
@@ -302,10 +309,10 @@ append_variable_full_name :: proc(
 ) {
 	pkg_name := get_symbol_pkg_name(ast_context, symbol)
 	if pkg_name == "" {
-		fmt.sbprintf(sb, "%s%s :: ", pointer_prefix, symbol.name)
+		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.name)
 		return
 	}
-	fmt.sbprintf(sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.name)
+	fmt.sbprintf(sb, "%s%s.%s", pointer_prefix, pkg_name, symbol.name)
 	return
 }
 

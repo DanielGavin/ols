@@ -144,7 +144,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										}
 									}
 
-									symbol.signature = get_signature(&ast_context, symbol)
+									symbol.signature = get_short_signature(&ast_context, symbol)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
