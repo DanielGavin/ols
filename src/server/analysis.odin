@@ -2113,6 +2113,10 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		}
 	}
 
+	if symbol, ok := lookup(node.name, "$builtin"); ok {
+		return resolve_symbol_return(ast_context, symbol)
+	}
+
 	return {}, false
 }
 
