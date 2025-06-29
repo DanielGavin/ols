@@ -280,22 +280,39 @@ And then choose either the built-in `eglot` or `lsp-mode` packages below. Both s
 
 #### lsp-mode
 
+As of lsp-mode pull request [4818](https://github.com/emacs-lsp/lsp-mode/pull/4818) ols is included as a pre-configured client. You will need to install lsp-mode from source until version 9.1 has been released. Just `M-x lsp-install-server` and select ols. This will download and install the latest version of ols from the releases. Then start lsp-mode with `M-x lsp` or add hook on the below package
+
 ```elisp
-;; Pull the lsp-mode package
+;; Pull the lsp-mode package from elpa
 (use-package lsp-mode
   :commands (lsp lsp-deferred))
 
-;; Set up OLS as the language server for Odin, ensuring lsp-mode is loaded first
-(with-eval-after-load 'lsp-mode
-  (setq-default lsp-auto-guess-root t) ;; Helps find the ols.json file with Projectile or project.el
-  (add-to-list 'lsp-language-id-configuration '(odin-mode . "odin"))
-  (add-to-list 'lsp-language-id-configuration '(odin-ts-mode . "odin"))
+;; OR Pull lsp-mode from source using Straight this snippet has the install instructions for installing straight.el
+(defvar straight-use-package-by-default t)
+(defvar straight-recipes-repo-clone-depth 1)
+(defvar straight-enable-github-repos t)
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name
+        "straight/repos/straight.el/bootstrap.el"
+        (or (bound-and-true-p straight-base-dir)
+            user-emacs-directory)))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-  (lsp-register-client
-   (make-lsp-client :new-connection (lsp-stdio-connection "/path/to/ols/executable") ;; Adjust the path here
-                    :major-modes '(odin-mode odin-ts-mode)
-                    :server-id 'ols
-                    :multi-root t))) ;; Ensures lsp-mode sends "workspaceFolders" to the server
+;; Configure straight.el
+(straight-use-package 'use-package)
+
+(use-package lsp-mode
+  :straight (lsp-mode :host github :repo "emacs-lsp/lsp-mode")
+  :commands (lsp lsp-deferred))
 
 ;; Add a hook to autostart OLS
 (add-hook 'odin-mode-hook #'lsp-deferred)
