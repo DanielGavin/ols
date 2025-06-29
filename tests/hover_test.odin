@@ -1521,6 +1521,34 @@ ast_hover_struct_field_distinct :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "S.fb: B // type: fb")
 }
+
+@(test)
+ast_hover_struct_field_distinct_external_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			A :: distinct u64
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		S :: struct {
+			f{*}b: my_package.A,
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "S.fb: my_package.A")
+}
 /*
 
 Waiting for odin fix

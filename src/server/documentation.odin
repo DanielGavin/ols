@@ -90,11 +90,12 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	case SymbolBasicValue:
 		sb := strings.builder_make(ast_context.allocator)
 		if symbol.type_name != "" {
-			fmt.sbprintf(&sb, "%s%s", pointer_prefix, symbol.type_name)
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else if .Distinct in symbol.flags {
 			fmt.sbprintf(&sb, "%s%s", pointer_prefix, symbol.name)
 		} else {
-			fmt.sbprintf(&sb, "%s%s", pointer_prefix, node_to_string(v.ident))
+			strings.write_string(&sb, pointer_prefix)
+			build_string_node(v.ident, &sb, false)
 		}
 		if symbol.type == .Field && symbol.comment != "" {
 			fmt.sbprintf(&sb, " %s", symbol.comment)
@@ -133,12 +134,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		if is_variable {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
 		} else if symbol.type_name != "" {
-			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
-			if pkg_name == "" {
-				fmt.sbprintf(&sb, "%s%s", pointer_prefix, symbol.type_name)
-			} else {
-				fmt.sbprintf(&sb, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
-			}
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
 			strings.write_string(&sb, "struct")
 		}
@@ -212,11 +208,20 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	return ""
 }
 
+write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Builder, symbol: Symbol, pointer_prefix: string) {
+	pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
+	if pkg_name == "" || symbol.type_pkg == symbol.pkg {
+		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
+	} else {
+		fmt.sbprintf(sb, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
+	}
+}
+
 write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProcedureValue) {
 	strings.write_string(sb, "proc")
 	strings.write_string(sb, "(")
 	for arg, i in value.orig_arg_types {
-		strings.write_string(sb, node_to_string(arg))
+		build_string_node(arg, sb, false)
 		if i != len(value.orig_arg_types) - 1 {
 			strings.write_string(sb, ", ")
 		}
@@ -231,7 +236,7 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 		}
 
 		for arg, i in value.orig_return_types {
-			strings.write_string(sb, node_to_string(arg))
+			build_string_node(arg, sb, false)
 			if i != len(value.orig_return_types) - 1 {
 				strings.write_string(sb, ", ")
 			}
