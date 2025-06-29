@@ -109,11 +109,11 @@ local_scope_deferred :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 @(deferred_in = local_scope_deferred)
 @(private = "file")
 local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
+	add_local_group(data.ast_context)
+
 	if stmt == nil {
 		return
 	}
-
-	add_local_group(data.ast_context)
 
 	data.position_context.position = stmt.end.offset
 	data.position_context.nested_position = data.position_context.position
