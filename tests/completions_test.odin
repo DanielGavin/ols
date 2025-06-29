@@ -3340,3 +3340,25 @@ ast_completion_struct_documentation :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"Foo.bazz: my_package.My_Struct // bazz"})
 }
+
+@(test)
+ast_completion_inline_using :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		Foo :: struct {
+			using _ : struct {
+				a: int,
+				b: int,
+			}
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"Foo.a: int", "Foo.b: int"})
+}

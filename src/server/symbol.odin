@@ -409,6 +409,8 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 					write_symbol_struct_value(ast_context, b, v, u)
 				}
 			}
+		} else if v, ok := field_expr.derived.(^ast.Struct_Type); ok {
+			write_struct_type(ast_context, b, v^, ast_context.field_name, {}, u)
 		}
 		delete_key(&ast_context.recursion_map, b.types[u])
 	}
