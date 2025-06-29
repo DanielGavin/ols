@@ -140,6 +140,7 @@ prepare_references :: proc(
 			resolve_flag = .Identifier
 		} else {
 			symbol, ok = resolve_location_selector(ast_context, position_context.selector_expr)
+			symbol.flags -= {.Local}
 
 			resolve_flag = .Field
 		}
@@ -195,6 +196,7 @@ resolve_references :: proc(
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
 			filepath.walk(uri.path, walk_directories, document)
 		}
+	} else {
 	}
 
 	reset_ast_context(ast_context)
@@ -279,9 +281,9 @@ resolve_references :: proc(
 
 			if in_pkg || symbol.pkg == document.package_name {
 				symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
-
 				for k, v in symbols_and_nodes {
-					if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
+					// NOTE: the uri is sometimes empty for symbols used in the same file as they are derived
+					if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
 						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 						location := common.Location {

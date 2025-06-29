@@ -462,7 +462,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				for name in field.names {
 					data.symbols[cast(uintptr)name] = SymbolAndNode {
 						node = name,
-						symbol = Symbol{range = common.get_token_range(name, string(data.document.text))},
+						symbol = Symbol{
+							range = common.get_token_range(name, string(data.document.text)),
+							uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+						},
 					}
 				}
 			}

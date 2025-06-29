@@ -89,8 +89,141 @@ get_prepare_rename :: proc(document: ^Document, position: common.Position) -> (c
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	symbol, _, ok2 := prepare_references(document, &ast_context, &position_context)
-
-
+	symbol, ok2 := prepare_rename(document, &ast_context, &position_context)
 	return symbol.range, ok2
+}
+
+// For preparing the rename, we want to position of the token within the current file,
+// not the position of the declaration
+prepare_rename :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	ok = false
+	reference := ""
+	pkg := ""
+
+	if position_context.label != nil {
+		return
+	} else if position_context.struct_type != nil {
+		log.info("here?")
+		found := false
+		done_struct: for field in position_context.struct_type.fields.list {
+			for name in field.names {
+				if position_in_node(name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(name, string(document.text)),
+					}
+					found = true
+					break done_struct
+				}
+			}
+		}
+		if !found {
+			return
+		}
+	} else if position_context.enum_type != nil {
+		found := false
+		done_enum: for field in position_context.enum_type.fields {
+			if ident, ok := field.derived.(^ast.Ident); ok {
+				if position_in_node(ident, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(ident, string(document.text)),
+					}
+					found = true
+					break done_enum
+				}
+			}
+
+		}
+		if !found {
+			return
+		}
+	} else if position_context.bitset_type != nil {
+		return
+	} else if position_context.union_type != nil {
+		found := false
+		for variant in position_context.union_type.variants {
+			if position_in_node(variant, position_context.position) {
+				if ident, ok := variant.derived.(^ast.Ident); ok {
+					symbol, ok = resolve_location_identifier(ast_context, ident^)
+					reference = ident.name
+
+					if !ok {
+						return
+					}
+
+					found = true
+
+					break
+				} else {
+					return
+				}
+			}
+		}
+		if !found {
+			return
+		}
+
+	} else if position_context.field_value != nil &&
+	   position_context.comp_lit != nil &&
+	   !is_expr_basic_lit(position_context.field_value.field) &&
+	   position_in_node(position_context.field_value.field, position_context.position) {
+		log.info("here??")
+		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
+
+		if !ok {
+			return
+		}
+
+	} else if position_context.selector_expr != nil {
+		log.info("hi?")
+		if position_in_node(position_context.selector, position_context.position) &&
+		   position_context.identifier != nil {
+			log.info("1")
+			ident := position_context.identifier.derived.(^ast.Ident)
+
+			symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+			if !ok {
+				return
+			}
+
+		} else {
+			symbol, ok = resolve_location_selector(ast_context, position_context.selector_expr)
+			symbol.flags -= {.Local}
+			if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
+				symbol.range = common.get_token_range(selector.field.expr_base, ast_context.file.src)
+			}
+
+		}
+	} else if position_context.implicit {
+		symbol, ok = resolve_location_implicit_selector(
+			ast_context,
+			position_context,
+			position_context.implicit_selector_expr,
+		)
+
+		if !ok {
+			return
+		}
+	} else if position_context.identifier != nil {
+		ident := position_context.identifier.derived.(^ast.Ident)
+
+		reference = ident.name
+		symbol, ok = resolve_location_identifier(ast_context, ident^)
+		symbol.range = common.get_token_range(position_context.identifier^, string(document.text))
+
+		if !ok {
+			return
+		}
+	} else {
+		return
+	}
+
+	return symbol, true
 }
