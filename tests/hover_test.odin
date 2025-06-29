@@ -1519,7 +1519,7 @@ ast_hover_struct_field_distinct :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "S.fb: B // type: fb")
+	test.expect_hover(t, &source, "S.fb: test.B // type: fb")
 }
 
 @(test)

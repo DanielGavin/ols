@@ -209,11 +209,17 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 }
 
 write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Builder, symbol: Symbol, pointer_prefix: string) {
+	append_type_pkg := false
 	pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
-	if pkg_name == "" || symbol.type_pkg == symbol.pkg {
-		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
-	} else {
+	if pkg_name != "" {
+		if _, ok := keyword_map[symbol.type_name]; !ok {
+			append_type_pkg = true
+		}
+	}
+	if append_type_pkg {
 		fmt.sbprintf(sb, "%s%s.%s", pointer_prefix, pkg_name, symbol.type_name)
+	} else {
+		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
 	}
 }
 
