@@ -2113,6 +2113,10 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		}
 	}
 
+	if symbol, ok := lookup(node.name, "$builtin"); ok {
+		return resolve_symbol_return(ast_context, symbol)
+	}
+
 	return {}, false
 }
 
@@ -2175,10 +2179,16 @@ resolve_location_implicit_selector :: proc(
 			}
 		}
 	case SymbolUnionValue:
-		enum_value := unwrap_super_enum(ast_context, v) or_return
-		for name, i in enum_value.names {
-			if strings.compare(name, implicit_selector.field.name) == 0 {
-				symbol.range = enum_value.ranges[i]
+		for type in v.types {
+			enum_symbol := resolve_type_expression(ast_context, type) or_return
+			if value, ok := enum_symbol.value.(SymbolEnumValue); ok {
+				for name, i in value.names {
+					if strings.compare(name, implicit_selector.field.name) == 0 {
+						symbol.range = value.ranges[i]
+						symbol.uri = enum_symbol.uri
+						return symbol, ok
+					}
+				}
 			}
 		}
 	case:
