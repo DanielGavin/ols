@@ -1491,7 +1491,7 @@ ast_hover_proc_comments_package :: proc(t: ^testing.T) {
 		},
 	)
 	source := test.Source {
-		main = `package main
+		main = `package test
 		import "my_package"
 
 		main :: proc() {
@@ -1504,6 +1504,23 @@ ast_hover_proc_comments_package :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "// do foo\nmy_package.foo: proc()")
 }
 
+@(test)
+ast_hover_struct_field_distinct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		A :: distinct u64
+		B :: distinct A
+
+		S :: struct {
+			fa: A, // type: fa
+			f{*}b: B, // type: fb
+			fc: string, // type: string
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "S.fb: B // type: fb")
+}
 /*
 
 Waiting for odin fix
