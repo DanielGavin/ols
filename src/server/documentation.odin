@@ -84,15 +84,18 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	is_variable := symbol.type == .Variable
 
 	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
-
-
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
 		sb := strings.builder_make(ast_context.allocator)
 		if symbol.type_name != "" {
 			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else if .Distinct in symbol.flags {
-			fmt.sbprintf(&sb, "%s%s", pointer_prefix, symbol.name)
+			if symbol.type == .Keyword {
+				strings.write_string(&sb, "distinct ")
+				build_string_node(v.ident, &sb, false)
+			} else {
+				fmt.sbprintf(&sb, "%s%s", pointer_prefix, symbol.name)
+			}
 		} else {
 			strings.write_string(&sb, pointer_prefix)
 			build_string_node(v.ident, &sb, false)
