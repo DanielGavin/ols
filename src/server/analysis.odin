@@ -1230,7 +1230,7 @@ pop_local_group :: proc(ast_context: ^AstContext) {
 	pop(&ast_context.locals)
 }
 
-get_local_group :: proc(ast_context: ^AstContext) ->  ^LocalGroup {
+get_local_group :: proc(ast_context: ^AstContext) -> ^LocalGroup {
 	if len(ast_context.locals) == 0 {
 		add_local_group(ast_context)
 	}
@@ -2219,6 +2219,12 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 		}
 
 		#partial switch v in symbol.value {
+		case SymbolEnumValue:
+			for name, i in v.names {
+				if strings.compare(name, field) == 0 {
+					symbol.range = v.ranges[i]
+				}
+			}
 		case SymbolStructValue:
 			for name, i in v.names {
 				if strings.compare(name, field) == 0 {
@@ -3166,18 +3172,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(
-					ast_context,
-					expr,
-					selector,
-					0,
-					name,
-					false,
-					ast_context.non_mutable_only,
-					true,
-					"",
-					false,
-				)
+				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, true, "", false)
 			}
 		case SymbolBitFieldValue:
 			for name, i in v.names {
@@ -3185,18 +3180,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(
-					ast_context,
-					expr,
-					selector,
-					0,
-					name,
-					false,
-					ast_context.non_mutable_only,
-					true,
-					"",
-					false,
-				)
+				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, true, "", false)
 			}
 		}
 	}

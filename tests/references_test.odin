@@ -7,6 +7,27 @@ import "src:common"
 
 import test "src:testing"
 
+@(test)
+reference_enum_value_initialize_rhs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			a := e.Chang{*}e_Me
+		}
+
+		e :: enum { Change_Me }
+		`,
+	}
+
+	test.expect_reference_locations(
+		t,
+		&source,
+		{
+			{range = {start = {line = 2, character = 10}, end = {line = 2, character = 19}}},
+			{range = {start = {line = 5, character = 14}, end = {line = 5, character = 23}}},
+		},
+	)
+}
 
 @(test)
 reference_enum_type_field :: proc(t: ^testing.T) {
@@ -385,9 +406,9 @@ ast_reference_variable_declaration_field_with_selector_expr :: proc(t: ^testing.
 }
 
 @(test)
-ast_reference_cast_proc_param_with_param_expr :: proc (t: ^testing.T) {
+ast_reference_cast_proc_param_with_param_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Foo :: struct{
 			data: int,
@@ -418,9 +439,9 @@ ast_reference_cast_proc_param_with_param_expr :: proc (t: ^testing.T) {
 }
 
 @(test)
-ast_reference_variable_in_switch_case :: proc (t: ^testing.T) {
+ast_reference_variable_in_switch_case :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Bar :: enum {
 			Bar1,
@@ -452,9 +473,9 @@ ast_reference_variable_in_switch_case :: proc (t: ^testing.T) {
 }
 
 @(test)
-ast_reference_shouldnt_reference_variable_outside_body :: proc (t: ^testing.T) {
+ast_reference_shouldnt_reference_variable_outside_body :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Foo :: struct {
 			foo1: int,
@@ -479,9 +500,9 @@ ast_reference_shouldnt_reference_variable_outside_body :: proc (t: ^testing.T) {
 }
 
 @(test)
-ast_reference_shouldnt_reference_variable_inside_body :: proc (t: ^testing.T) {
+ast_reference_shouldnt_reference_variable_inside_body :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Foo :: struct {
 			foo1: int,
@@ -497,18 +518,16 @@ ast_reference_shouldnt_reference_variable_inside_body :: proc (t: ^testing.T) {
 		`,
 	}
 
-	locations := []common.Location {
-		{range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}}},
-	}
+	locations := []common.Location{{range = {start = {line = 7, character = 3}, end = {line = 7, character = 6}}}}
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
 
 
 @(test)
-ast_reference_should_reference_variable_inside_body :: proc (t: ^testing.T) {
+ast_reference_should_reference_variable_inside_body :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Foo :: struct {
 			foo1: int,
