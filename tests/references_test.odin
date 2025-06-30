@@ -549,3 +549,32 @@ ast_reference_should_reference_variable_inside_body :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_within_proc :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {
+			foo1: int,
+		}
+
+		main :: proc() {
+			InnerFoo :: struct {
+				foo: Fo{*}o,
+			}
+			foo := Foo{}
+
+			ifoo := InnerFoo {foo = foo}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 8, character = 9}, end = {line = 8, character = 12}}},
+		{range = {start = {line = 10, character = 10}, end = {line = 10, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

@@ -104,13 +104,11 @@ prepare_rename :: proc(
 	ok: bool,
 ) {
 	ok = false
-	reference := ""
 	pkg := ""
 
 	if position_context.label != nil {
 		return
 	} else if position_context.struct_type != nil {
-		log.info("here?")
 		found := false
 		done_struct: for field in position_context.struct_type.fields.list {
 			for name in field.names {
@@ -121,6 +119,14 @@ prepare_rename :: proc(
 					found = true
 					break done_struct
 				}
+			}
+			if position_in_node(field.type, position_context.position) {
+				symbol = Symbol {
+					range = common.get_token_range(field.type, string(document.text)),
+				}
+
+				found = true
+				break done_struct
 			}
 		}
 		if !found {
@@ -151,7 +157,6 @@ prepare_rename :: proc(
 			if position_in_node(variant, position_context.position) {
 				if ident, ok := variant.derived.(^ast.Ident); ok {
 					symbol, ok = resolve_location_identifier(ast_context, ident^)
-					reference = ident.name
 
 					if !ok {
 						return
@@ -173,7 +178,6 @@ prepare_rename :: proc(
 	   position_context.comp_lit != nil &&
 	   !is_expr_basic_lit(position_context.field_value.field) &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
-		log.info("here??")
 		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
 
 		if !ok {
@@ -181,10 +185,8 @@ prepare_rename :: proc(
 		}
 
 	} else if position_context.selector_expr != nil {
-		log.info("hi?")
 		if position_in_node(position_context.selector, position_context.position) &&
 		   position_context.identifier != nil {
-			log.info("1")
 			ident := position_context.identifier.derived.(^ast.Ident)
 
 			symbol, ok = resolve_location_identifier(ast_context, ident^)
@@ -214,7 +216,6 @@ prepare_rename :: proc(
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 
-		reference = ident.name
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
 		symbol.range = common.get_token_range(position_context.identifier^, string(document.text))
 

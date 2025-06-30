@@ -48,7 +48,6 @@ prepare_references :: proc(
 	ok: bool,
 ) {
 	ok = false
-	reference := ""
 	pkg := ""
 
 	if position_context.label != nil {
@@ -63,6 +62,18 @@ prepare_references :: proc(
 					}
 					found = true
 					resolve_flag = .Field
+					break done_struct
+				}
+			}
+			if position_in_node(field.type, position_context.position) {
+				if ident, ok := field.type.derived.(^ast.Ident); ok {
+					symbol, ok = resolve_location_identifier(ast_context, ident^)
+					if !ok {
+						return
+					}
+
+					found = true
+					resolve_flag = .Identifier
 					break done_struct
 				}
 			}
@@ -96,7 +107,6 @@ prepare_references :: proc(
 			if position_in_node(variant, position_context.position) {
 				if ident, ok := variant.derived.(^ast.Ident); ok {
 					symbol, ok = resolve_location_identifier(ast_context, ident^)
-					reference = ident.name
 					resolve_flag = .Identifier
 
 					if !ok {
@@ -158,8 +168,6 @@ prepare_references :: proc(
 		}
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
-
-		reference = ident.name
 		symbol, ok = resolve_location_identifier(ast_context, ident^)
 
 		resolve_flag = .Identifier
@@ -169,6 +177,9 @@ prepare_references :: proc(
 		}
 	} else {
 		return
+	}
+	if symbol.uri == "" {
+		symbol.uri = document.uri.uri
 	}
 
 	return symbol, resolve_flag, true
@@ -302,7 +313,8 @@ resolve_references :: proc(
 	symbols_and_nodes := resolve_entire_file(document, resolve_flag, context.allocator)
 
 	for k, v in symbols_and_nodes {
-		if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
+		// NOTE: the uri is sometimes empty for symbols used in the same file as they are derived
+		if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
 			node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 			range := common.get_token_range(v.node^, string(document.text))
