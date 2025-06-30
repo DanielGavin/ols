@@ -308,14 +308,20 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Ellipsis:
 		resolve_node(n.expr, data)
 	case ^Comp_Lit:
+		// We only want to resolve the values, not the types
+		resolve_node(n.type, data)
+
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
+		set := false
 		if data.position_context.parent_comp_lit == nil {
+			set = true
 			data.position_context.parent_comp_lit = n
+		}
+		defer if set {
+			data.position_context.parent_comp_lit = nil
 		}
 
 		data.position_context.comp_lit = n
-
-		resolve_node(n.type, data)
 		resolve_nodes(n.elems, data)
 	case ^Tag_Expr:
 		resolve_node(n.expr, data)

@@ -1717,7 +1717,7 @@ resolve_comp_literal :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
-	if position_context.parent_comp_lit.type != nil {
+	if position_context.parent_comp_lit != nil && position_context.parent_comp_lit.type != nil {
 		symbol = resolve_type_expression(ast_context, position_context.parent_comp_lit.type) or_return
 	} else if position_context.call != nil {
 		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr); ok {
