@@ -469,10 +469,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				col_expr = helper.type
 			}
 		}
+		is_distinct := false
 
 		if dist, ok := col_expr.derived.(^ast.Distinct_Type); ok {
 			if dist.type != nil {
 				col_expr = dist.type
+				is_distinct = true
 			}
 		}
 
@@ -612,6 +614,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.doc = get_doc(expr.docs, collection.allocator)
 		comment := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
+		symbol.flags |= {.Distinct}
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
