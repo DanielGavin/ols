@@ -527,7 +527,11 @@ ast_hover_struct :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct {\n\t// this is a doc\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\t// this is a doc\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}",
+	)
 }
 
 @(test)
@@ -1180,12 +1184,15 @@ ast_hover_distinguish_symbols_in_packages_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{pkg = "my_package", source = `package my_package
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`},
+		`,
+		},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1211,12 +1218,15 @@ ast_hover_distinguish_symbols_in_packages_local_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package{pkg = "my_package", source = `package my_package
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`},
+		`,
+		},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1378,7 +1388,11 @@ ast_hover_struct_documentation :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct {\n\t// This is an int\n\tfoo_int: int,\n\tbar:     int, // this is bar\n\tbazz:    int,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\t// This is an int\n\tfoo_int: int,\n\tbar:     int, // this is bar\n\tbazz:    int,\n}",
+	)
 }
 
 @(test)
@@ -1407,7 +1421,11 @@ ast_hover_struct_documentation_using :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Bazz: struct {\n\tusing bar:  Bar,\n\n\t// from `using bar: Bar`\n\t// using a foo\n\tusing foo:  Foo, // hi\n\t// this is a string\n\tbar_string: string,\n\tbar_int:    int, // This is a bar int\n\n\t// from `using foo: Foo`\n\t// This is an int\n\tfoo_int:    int,\n\tfoo_string: string,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Bazz: struct {\n\tusing bar:  Bar,\n\n\t// from `using bar: Bar`\n\t// using a foo\n\tusing foo:  Foo, // hi\n\t// this is a string\n\tbar_string: string,\n\tbar_int:    int, // This is a bar int\n\n\t// from `using foo: Foo`\n\t// This is an int\n\tfoo_int:    int,\n\tfoo_string: string,\n}",
+	)
 }
 
 @(test)
@@ -1436,7 +1454,7 @@ ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
 		},
 	)
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 
 		F{*}oo :: struct {
@@ -1450,7 +1468,11 @@ ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct {\n\tusing outer:     my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner:     Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:  InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield: int,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tusing outer:     my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner:     Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:  InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield: int,\n}",
+	)
 }
 
 @(test)
@@ -1479,19 +1501,16 @@ ast_hover_proc_comments_package :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			foo :: proc() { // do foo
 
 			}
 
-		`,
-		},
+		`},
 	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
@@ -1526,18 +1545,12 @@ ast_hover_struct_field_distinct :: proc(t: ^testing.T) {
 ast_hover_struct_field_distinct_external_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 
 			A :: distinct u64
-		`,
-		},
-	)
+		`})
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		S :: struct {
@@ -1565,18 +1578,12 @@ ast_hover_distinct_definition :: proc(t: ^testing.T) {
 ast_hover_distinct_definition_external_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 
 			A :: distinct u64
-		`,
-		},
-	)
+		`})
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		Foo :: struct {
@@ -1587,6 +1594,134 @@ ast_hover_distinct_definition_external_package :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "my_package.A: distinct u64")
+}
+@(test)
+ast_hover_poly_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "small_array"
+
+		Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+			data: [N]T,
+			len:  int,
+		}
+
+		slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+			return a.data[:a.len]
+		}
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+		foos: Small_Array(MAX, Foo)
+
+
+		main :: proc()
+		{
+			foo_slice := slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+}
+
+@(test)
+ast_hover_poly_type_external_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "small_array",
+			source = `package small_array
+
+			Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+				data: [N]T,
+				len:  int,
+			}
+
+			slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+				return a.data[:a.len]
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "small_array"
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+
+		foos: small_array.Small_Array(MAX, Foo)
+
+		main :: proc()
+		{
+			foo_slice := small_array.slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+}
+
+@(test)
+ast_hover_poly_type_external_package_with_external_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "small_array",
+			source = `package small_array
+
+			Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+				data: [N]T,
+				len:  int,
+			}
+
+			slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+				return a.data[:a.len]
+			}
+			
+			Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "small_array"
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+
+		foos: small_array.Small_Array(MAX, small_array.Foo)
+
+		main :: proc()
+		{
+			foo_slice := small_array.slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: small_array.Foo :: struct {}")
 }
 /*
 

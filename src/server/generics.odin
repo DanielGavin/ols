@@ -110,7 +110,7 @@ resolve_poly :: proc(
 			found := false
 			for arg in p.args {
 				if poly_type, ok := arg.derived.(^ast.Poly_Type); ok {
-					if poly_type.type == nil || struct_value.poly == nil || len(struct_value.args) <= arg_index {
+					if poly_type.type == nil || len(struct_value.args) <= arg_index {
 						return false
 					}
 
