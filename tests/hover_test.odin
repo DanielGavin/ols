@@ -1504,6 +1504,134 @@ ast_hover_proc_comments_package :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "// do foo\nmy_package.foo: proc()")
 }
 
+@(test)
+ast_hover_poly_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "small_array"
+
+		Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+			data: [N]T,
+			len:  int,
+		}
+
+		slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+			return a.data[:a.len]
+		}
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+		foos: Small_Array(MAX, Foo)
+
+
+		main :: proc()
+		{
+			foo_slice := slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+}
+
+@(test)
+ast_hover_poly_type_external_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "small_array",
+			source = `package small_array
+
+			Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+				data: [N]T,
+				len:  int,
+			}
+
+			slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+				return a.data[:a.len]
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "small_array"
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+
+		foos: small_array.Small_Array(MAX, Foo)
+
+		main :: proc()
+		{
+			foo_slice := small_array.slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+}
+
+@(test)
+ast_hover_poly_type_external_package_with_external_type :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "small_array",
+			source = `package small_array
+
+			Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+				data: [N]T,
+				len:  int,
+			}
+
+			slice :: proc "contextless" (a: ^$A/Small_Array($N, $T)) -> []T {
+				return a.data[:a.len]
+			}
+			
+			Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "small_array"
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+
+		foos: small_array.Small_Array(MAX, small_array.Foo)
+
+		main :: proc()
+		{
+			foo_slice := small_array.slice(&foos)
+			for f{*}oo in foo_slice {
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foo: small_array.Foo :: struct {}")
+}
 /*
 
 Waiting for odin fix
