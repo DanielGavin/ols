@@ -356,6 +356,25 @@ expect_reference_locations :: proc(t: ^testing.T, src: ^Source, expect_locations
 	}
 }
 
+expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
+	setup(src)
+	defer teardown(src)
+
+	range, ok := server.get_prepare_rename(src.document, src.position)
+	if !ok {
+		log.error("Failed to find range")
+	}
+
+	if range != expect_range {
+		ok = false
+		log.errorf("Failed to match with range: %v", expect_range)
+	}
+
+	if !ok {
+		log.error("Received: %v\n", range)
+	}
+}
+
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
 	setup(src)
 	defer teardown(src)

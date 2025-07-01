@@ -50,15 +50,13 @@ prepare_references :: proc(
 	ok = false
 	pkg := ""
 
-	if position_context.label != nil {
-		return
-	} else if position_context.struct_type != nil {
+	if position_context.struct_type != nil {
 		found := false
 		done_struct: for field in position_context.struct_type.fields.list {
 			for name in field.names {
 				if position_in_node(name, position_context.position) {
 					symbol = Symbol {
-						range = common.get_token_range(name, string(document.text)),
+						range = common.get_token_range(name, ast_context.file.src),
 					}
 					found = true
 					resolve_flag = .Field
@@ -67,6 +65,15 @@ prepare_references :: proc(
 			}
 			if position_in_node(field.type, position_context.position) {
 				if ident, ok := field.type.derived.(^ast.Ident); ok {
+					symbol, ok = resolve_location_identifier(ast_context, ident^)
+					if !ok {
+						return
+					}
+
+					found = true
+					resolve_flag = .Identifier
+					break done_struct
+				} else if selector, ok := field.type.derived.(^ast.Selector_Expr); ok {
 					symbol, ok = resolve_location_identifier(ast_context, ident^)
 					if !ok {
 						return
@@ -87,7 +94,7 @@ prepare_references :: proc(
 			if ident, ok := field.derived.(^ast.Ident); ok {
 				if position_in_node(ident, position_context.position) {
 					symbol = Symbol {
-						range = common.get_token_range(ident, string(document.text)),
+						range = common.get_token_range(ident, ast_context.file.src),
 					}
 					found = true
 					resolve_flag = .Field
@@ -96,7 +103,7 @@ prepare_references :: proc(
 			} else if value, ok := field.derived.(^ast.Field_Value); ok {
 				if position_in_node(value.field, position_context.position) {
 					symbol = Symbol {
-						range = common.get_token_range(value.field, string(document.text)),
+						range = common.get_token_range(value.field, ast_context.file.src),
 					}
 					found = true
 					resolve_flag = .Field
@@ -317,7 +324,7 @@ resolve_references :: proc(
 						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 						location := common.Location {
-							range = common.get_token_range(v.node^, string(document.text)),
+							range = common.get_token_range(v.node^, ast_context.file.src),
 							uri   = strings.clone(node_uri.uri, ast_context.allocator),
 						}
 						append(&locations, location)
@@ -336,7 +343,7 @@ resolve_references :: proc(
 		if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
 			node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
-			range := common.get_token_range(v.node^, string(document.text))
+			range := common.get_token_range(v.node^, ast_context.file.src)
 
 			//We don't have to have the `.` with, otherwise it renames the dot.
 			if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
