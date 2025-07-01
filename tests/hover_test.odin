@@ -1595,6 +1595,7 @@ ast_hover_distinct_definition_external_package :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "my_package.A: distinct u64")
 }
+
 @(test)
 ast_hover_poly_type :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -1722,6 +1723,19 @@ ast_hover_poly_type_external_package_with_external_type :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.foo: small_array.Foo :: struct {}")
+}
+
+@(test)
+ast_hover_struct_poly_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}oo :: struct($T: typeid) {
+			foo: T,
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct($T: typeid) {\n\tfoo: T,\n}")
 }
 /*
 

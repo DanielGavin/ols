@@ -274,7 +274,19 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 
 	using_index := -1
 
-	strings.write_string(sb, "struct {\n")
+	strings.write_string(sb, "struct")
+	if v.poly != nil {
+		strings.write_string(sb, "(")
+		for field in v.poly.list {
+			for name in field.names {
+				build_string_node(name, sb, false)
+			}
+			strings.write_string(sb, ": ")
+			build_string_node(field.type, sb, false)
+		}
+		strings.write_string(sb, ")")
+	}
+	strings.write_string(sb, " {\n")
 	for i in 0 ..< len(v.names) {
 		if i < len(v.from_usings) {
 			if index := v.from_usings[i]; index != using_index {
