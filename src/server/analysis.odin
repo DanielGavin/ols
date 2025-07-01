@@ -211,7 +211,7 @@ set_ast_package_from_node_scoped :: proc(ast_context: ^AstContext, node: ast.Nod
 	ast_context.deferred_count += 1
 	pkg := get_package_from_node(node)
 
-	if pkg != "" {
+	if pkg != "" && pkg != "." {
 		ast_context.current_package = pkg
 	} else {
 		ast_context.current_package = ast_context.document_package
@@ -900,7 +900,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return {}, false
 	}
 
-	set_ast_package_scoped(ast_context)
+	set_ast_package_from_node_scoped(ast_context, node)
 
 	if check_node_recursion(ast_context, node) {
 		return {}, false
@@ -1152,7 +1152,6 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				)
 				selector_expr.expr = s.return_types[0].type
 				selector_expr.field = node.field
-
 				return internal_resolve_type_expression(ast_context, selector_expr)
 			}
 		case SymbolStructValue:
@@ -1325,6 +1324,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	}
 
 	set_ast_package_scoped(ast_context)
+
 
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords

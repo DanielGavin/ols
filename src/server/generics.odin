@@ -493,7 +493,11 @@ resolve_generic_function_symbol :: proc(
 			ast_context.current_package = ast_context.document_package
 
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
-				symbol_expr := symbol_to_expr(symbol, call_expr.args[i].pos.file, context.temp_allocator)
+				file := strings.trim_prefix(symbol.uri, "file://")
+				if file == "" {
+					file = call_expr.args[i].pos.file
+				}
+				symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
 
 				if symbol_expr == nil {
 					return {}, false

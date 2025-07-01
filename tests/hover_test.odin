@@ -1737,6 +1737,48 @@ ast_hover_struct_poly_type :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Foo: struct($T: typeid) {\n\tfoo: T,\n}")
 }
+
+@(test)
+ast_hover_poly_proc_mixed_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "foo_package",
+			source = `package foo_package
+		foo :: proc(t: $T) -> T {
+			return t
+		}
+		`,
+		},
+		test.Package {
+			pkg = "bar_package",
+			source = `package bar_package
+			Bar :: struct {
+				bar: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+
+		import "foo_package"
+		import "bar_package"
+
+		main :: proc() {
+			b := bar_package.Bar{}
+			f{*} := foo_package.foo(b)
+		}
+	}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.f: bar_package.Bar :: struct {\n\tbar: int,\n}")
+}
 /*
 
 Waiting for odin fix

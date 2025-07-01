@@ -1586,7 +1586,7 @@ ast_maybe_index_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_labels(t, &source, ".", {"(my_package.int)"})
+	test.expect_completion_labels(t, &source, ".", {"(int)"})
 }
 
 @(test)
@@ -3361,4 +3361,123 @@ ast_completion_inline_using :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {"Foo.a: int", "Foo.b: int"})
+}
+
+@(test)
+ast_completion_poly_struct_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Runner :: struct($TState: typeid) {
+			state: TState, // state
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		app: my_package.Runner(State) = {
+			state = {score = 55},
+		}
+
+		main :: proc() {
+			app.{*}
+		}
+
+		State :: struct {
+			score: int,
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"Runner.state: test.State // state"})
+}
+
+@(test)
+ast_completion_poly_struct_another_package_field :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Runner :: struct($TState: typeid) {
+			state: TState, // state
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		app: my_package.Runner(State) = {
+			state = {score = 55},
+		}
+
+		main :: proc() {
+			app.state.{*}
+		}
+
+		State :: struct {
+			score: int,
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"State.score: int"})
+}
+
+@(test)
+ast_completion_poly_proc_mixed_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "foo_package",
+			source = `package foo_package
+		foo :: proc(t: $T) -> T {
+			return t
+		}
+		`,
+		},
+		test.Package {
+			pkg = "bar_package",
+			source = `package bar_package
+			Bar :: struct {
+				bar: int,
+			}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+
+		import "foo_package"
+		import "bar_package"
+
+		main :: proc() {
+			b := bar_package.Bar{}
+			f := foo_package.foo(b)
+			f.{*}
+		}
+	}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, "", {"Bar.bar: int"})
 }

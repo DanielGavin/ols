@@ -562,8 +562,6 @@ get_selector_completion :: proc(
 				continue
 			}
 
-			set_ast_package_from_node_scoped(ast_context, v.types[i])
-
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
 					if expr.op.text == "->" && symbol.type != .Function {
