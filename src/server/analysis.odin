@@ -1999,6 +1999,10 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	case SymbolStructValue:
 		b := symbol_struct_value_builder_make(symbol, v, ast_context.allocator)
 		if v.poly != nil {
+			clear(&b.types)
+			for type in v.types {
+				append(&b.types, clone_expr(type, context.temp_allocator, nil))
+			}
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
