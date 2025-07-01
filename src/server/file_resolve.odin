@@ -415,6 +415,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_nodes(n.rhs, data)
 	case ^Value_Decl:
 		data.position_context.value_decl = n
+
 		reset_position_context(data.position_context)
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
@@ -491,6 +492,20 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				data.symbols[cast(uintptr)field] = SymbolAndNode {
 					node = field,
 					symbol = Symbol{range = common.get_token_range(field, string(data.document.text))},
+				}
+				// In the case of a Field_Value, we explicitly add them so we can find the LHS correctly for things like renaming
+				if field, ok := field.derived.(^ast.Field_Value); ok {
+					if ident, ok := field.field.derived.(^ast.Ident); ok {
+						data.symbols[cast(uintptr)ident] = SymbolAndNode {
+							node = ident,
+							symbol = Symbol{name = ident.name, range = common.get_token_range(ident, string(data.document.text))},
+						}
+					} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
+						data.symbols[cast(uintptr)binary] = SymbolAndNode {
+							node = binary,
+							symbol = Symbol{name = "binary",range = common.get_token_range(binary, string(data.document.text))},
+						}
+					}
 				}
 			}
 		}

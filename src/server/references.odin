@@ -93,8 +93,27 @@ prepare_references :: proc(
 					resolve_flag = .Field
 					break done_enum
 				}
-			}
+			} else if value, ok := field.derived.(^ast.Field_Value); ok {
+				if position_in_node(value.field, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(value.field, string(document.text)),
+					}
+					found = true
+					resolve_flag = .Field
+					break done_enum
+				} else if position_in_node(value.value, position_context.position) {
+					if ident, ok := value.value.derived.(^ast.Ident); ok {
+						symbol, ok = resolve_location_identifier(ast_context, ident^)
+						if !ok {
+							return
+						}
 
+						found = true
+						resolve_flag = .Identifier
+						break done_enum
+					}
+				}
+			}
 		}
 		if !found {
 			return

@@ -1906,7 +1906,7 @@ resolve_implicit_selector :: proc(
 				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
 					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
-					//We can either have the final 
+					//We can either have the final
 					elem_index := -1
 
 					for elem, i in comp_lit.elems {
@@ -1934,7 +1934,7 @@ resolve_implicit_selector :: proc(
 				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
 					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
-					//We can either have the final 
+					//We can either have the final
 					elem_index := -1
 
 					for elem, i in comp_lit.elems {
@@ -2756,17 +2756,9 @@ make_symbol_enum_from_ast :: proc(
 	ranges := make([dynamic]common.Range, ast_context.allocator)
 
 	for n in v.fields {
-		append(&ranges, common.get_token_range(n, ast_context.file.src))
-
-		if ident, ok := n.derived.(^ast.Ident); ok {
-			append(&names, ident.name)
-		} else if field, ok := n.derived.(^ast.Field_Value); ok {
-			if ident, ok := field.field.derived.(^ast.Ident); ok {
-				append(&names, ident.name)
-			} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
-				append(&names, binary.left.derived.(^ast.Ident).name)
-			}
-		}
+		name, range := get_enum_field_name_and_range(n, ast_context.file.src)
+		append(&names, name)
+		append(&ranges, range)
 	}
 
 	symbol.value = SymbolEnumValue {
@@ -2775,6 +2767,20 @@ make_symbol_enum_from_ast :: proc(
 	}
 
 	return symbol
+}
+
+get_enum_field_name_and_range :: proc(n: ^ast.Expr, document_text: string) -> (string, common.Range) {
+	if ident, ok := n.derived.(^ast.Ident); ok {
+		return ident.name, common.get_token_range(ident, document_text)
+	}
+	if field, ok := n.derived.(^ast.Field_Value); ok {
+		if ident, ok := field.field.derived.(^ast.Ident); ok {
+			return ident.name, common.get_token_range(ident, document_text)
+		} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
+			return binary.left.derived.(^ast.Ident).name, common.get_token_range(binary, document_text)
+		}
+	}
+	return "", {}
 }
 
 make_symbol_bitset_from_ast :: proc(
