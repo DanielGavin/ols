@@ -642,8 +642,6 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 	return false
 }
 
-
-// TODO: update to use builder
 resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder, poly_params: ^ast.Field_List) {
 	if ast_context.call == nil {
 		return
@@ -722,9 +720,9 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 
 	for type, i in b.types {
 		data := Visit_Data {
-			poly_map     = poly_map,
+			poly_map             = poly_map,
 			symbol_value_builder = b,
-			i            = i,
+			i                    = i,
 		}
 
 		visitor := ast.Visitor {
