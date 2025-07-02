@@ -95,6 +95,7 @@ prepare_references :: proc(
 			if ident, ok := field.derived.(^ast.Ident); ok {
 				if position_in_node(ident, position_context.position) {
 					symbol = Symbol {
+						pkg = ast_context.current_package,
 						range = common.get_token_range(ident, ast_context.file.src),
 					}
 					found = true
@@ -190,6 +191,7 @@ prepare_references :: proc(
 			position_context,
 			position_context.implicit_selector_expr,
 		)
+		symbol.flags -= {.Local}
 
 		if !ok {
 			return
@@ -324,9 +326,14 @@ resolve_references :: proc(
 					// NOTE: the uri is sometimes empty for symbols used in the same file as they are derived
 					if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
 						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
+						range := common.get_token_range(v.node^, string(document.text))
+						//We don't have to have the `.` with, otherwise it renames the dot.
+						if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
+							range.start.character += 1
+						}
 
 						location := common.Location {
-							range = common.get_token_range(v.node^, string(document.text)),
+							range = range,
 							uri   = strings.clone(node_uri.uri, ast_context.allocator),
 						}
 						append(&locations, location)
