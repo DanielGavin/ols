@@ -32,6 +32,7 @@ SymbolStructValue :: struct {
 	from_usings:       []int,
 	unexpanded_usings: []int,
 	poly:              ^ast.Field_List,
+	poly_names:        []string, // The resolved names for the poly fields
 	args:              []^ast.Expr, //The arguments in the call expression for poly
 	docs:              []^ast.Comment_Group,
 	comments:          []^ast.Comment_Group,
@@ -208,6 +209,7 @@ SymbolStructValueBuilder :: struct {
 	from_usings:       [dynamic]int,
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
+	poly_names:        [dynamic]string,
 }
 
 symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) -> SymbolStructValueBuilder {
@@ -221,6 +223,7 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		usings = make(map[int]struct{}, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
+		poly_names = make([dynamic]string, allocator),
 	}
 }
 
@@ -239,6 +242,7 @@ symbol_struct_value_builder_make_symbol :: proc(
 		usings = make(map[int]struct{}, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
+		poly_names = make([dynamic]string, allocator),
 	}
 }
 
@@ -258,6 +262,7 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		usings = v.usings,
 		from_usings = slice.to_dynamic(v.from_usings, allocator),
 		unexpanded_usings = slice.to_dynamic(v.unexpanded_usings, allocator),
+		poly_names = slice.to_dynamic(v.poly_names, allocator),
 	}
 }
 
@@ -285,6 +290,7 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		from_usings = b.from_usings[:],
 		unexpanded_usings = b.unexpanded_usings[:],
 		poly = b.poly,
+		poly_names = b.poly_names[:],
 	}
 }
 

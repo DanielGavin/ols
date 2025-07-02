@@ -1779,6 +1779,106 @@ ast_hover_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.f: bar_package.Bar :: struct {\n\tbar: int,\n}")
 }
+
+@(test)
+ast_hover_poly_struct_proc_field :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Foo :: struct($T: typeid) {
+			foo: proc(t: ^T) -> T,
+		}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+
+		import "my_package"
+
+		Bar :: struct{}
+
+		my_proc :: proc(b: ^Bar) -> Bar {}
+
+		main :: proc() {
+			foo: my_package.Foo(Bar) = {
+				foo = my_proc,
+			}
+			foo.f{*}oo()
+
+		}
+	}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "Foo.foo: proc(t: ^Bar) -> Bar")
+}
+
+@(test)
+ast_hover_poly_struct_poly_proc_fields :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		F{*}oo :: struct($S: typeid, $T: typeid) {
+			my_proc1: proc(s: S) -> ^S,
+			my_proc2: proc(t: ^T) -> T,
+			my_proc3: proc(s: ^S, t: T) -> T,
+			my_proc4: proc() -> T,
+			my_proc5: proc(t: T),
+			foo1: T,
+			foo2: ^S,
+		}
+	}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct($S: typeid, $T: typeid) {\n\tmy_proc1: proc(s: S) -> ^S,\n\tmy_proc2: proc(t: ^T) -> T,\n\tmy_proc3: proc(s: ^S,t: T) -> T,\n\tmy_proc4: proc() -> T,\n\tmy_proc5: proc(t: T),\n\tfoo1:     T,\n\tfoo2:     ^S,\n}")
+}
+
+@(test)
+ast_hover_poly_struct_poly_proc_fields_resolved :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Bazz :: struct{}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		Foo :: struct($S: typeid, $T: typeid) {
+			my_proc1: proc(s: S) -> ^S,
+			my_proc2: proc(t: T) -> T,
+			my_proc3: proc(s: ^S, t: T) -> T,
+			foo1: T,
+			foo2: ^S,
+		}
+
+		Bar :: struct{}
+
+		main :: proc() {
+			foo := Fo{*}o(Bar, my_package.Bazz){}
+		}
+	}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.Foo: struct(Bar, my_package.Bazz) {\n\tmy_proc1: proc(s: Bar) -> ^Bar,\n\tmy_proc2: proc(t: my_package.Bazz) -> my_package.Bazz,\n\tmy_proc3: proc(s: ^my_package.Bazz,t: my_package.Bazz) -> my_package.Bazz,\n\tfoo1:     my_package.Bazz,\n\tfoo2:     ^Bar,\n}")
+}
 /*
 
 Waiting for odin fix

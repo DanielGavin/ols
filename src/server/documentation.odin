@@ -124,7 +124,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		)
 	case SymbolProcedureValue:
 		sb := strings.builder_make(context.temp_allocator)
-		if symbol.type_pkg != "" {
+		if symbol.type_pkg != "" && symbol.type_name != "" {
 			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 			fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
 		}
@@ -275,18 +275,38 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 	using_index := -1
 
 	strings.write_string(sb, "struct")
+	poly_name_index := 0
 	if v.poly != nil {
 		strings.write_string(sb, "(")
-		for field in v.poly.list {
-			for name in field.names {
-				build_string_node(name, sb, false)
+		for field, i in v.poly.list {
+			write_type := true
+			for name, j in field.names {
+				if poly_name_index < len(v.poly_names) {
+					poly_name := v.poly_names[poly_name_index]
+					if !strings.starts_with(poly_name, "$") {
+						write_type = false
+					}
+					strings.write_string(sb, poly_name)
+				} else {
+					build_string_node(name, sb, false)
+				}
+				if j != len(field.names) - 1 {
+					strings.write_string(sb, ", ")
+				}
+				poly_name_index += 1
 			}
-			strings.write_string(sb, ": ")
-			build_string_node(field.type, sb, false)
+			if write_type {
+				strings.write_string(sb, ": ")
+				build_string_node(field.type, sb, false)
+			}
+			if i != len(v.poly.list) - 1 {
+				strings.write_string(sb, ", ")
+			}
 		}
 		strings.write_string(sb, ")")
 	}
 	strings.write_string(sb, " {\n")
+
 	for i in 0 ..< len(v.names) {
 		if i < len(v.from_usings) {
 			if index := v.from_usings[i]; index != using_index {
