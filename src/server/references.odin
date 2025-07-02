@@ -57,6 +57,7 @@ prepare_references :: proc(
 				if position_in_node(name, position_context.position) {
 					symbol = Symbol {
 						range = common.get_token_range(name, ast_context.file.src),
+						pkg = ast_context.current_package,
 					}
 					found = true
 					resolve_flag = .Field
@@ -104,6 +105,7 @@ prepare_references :: proc(
 				if position_in_node(value.field, position_context.position) {
 					symbol = Symbol {
 						range = common.get_token_range(value.field, ast_context.file.src),
+						pkg = ast_context.current_package,
 					}
 					found = true
 					resolve_flag = .Field
@@ -324,7 +326,7 @@ resolve_references :: proc(
 						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 						location := common.Location {
-							range = common.get_token_range(v.node^, ast_context.file.src),
+							range = common.get_token_range(v.node^, string(document.text)),
 							uri   = strings.clone(node_uri.uri, ast_context.allocator),
 						}
 						append(&locations, location)
