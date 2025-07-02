@@ -549,3 +549,77 @@ ast_reference_should_reference_variable_inside_body :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_within_proc :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {
+			foo1: int,
+		}
+
+		main :: proc() {
+			InnerFoo :: struct {
+				foo: Fo{*}o,
+			}
+			foo := Foo{}
+
+			ifoo := InnerFoo {foo = foo}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 8, character = 9}, end = {line = 8, character = 12}}},
+		{range = {start = {line = 10, character = 10}, end = {line = 10, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_enum_field_list :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: enum {
+			a = 1,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo = .a{*}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 8, character = 10}, end = {line = 8, character = 11}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_enum_field_list_with_constant :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		one :: 1
+
+		Foo :: enum {
+			a = on{*}e,
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 5, character = 7}, end = {line = 5, character = 10}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

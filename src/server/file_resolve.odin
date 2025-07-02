@@ -308,14 +308,20 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Ellipsis:
 		resolve_node(n.expr, data)
 	case ^Comp_Lit:
+		// We only want to resolve the values, not the types
+		resolve_node(n.type, data)
+
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
+		set := false
 		if data.position_context.parent_comp_lit == nil {
+			set = true
 			data.position_context.parent_comp_lit = n
+		}
+		defer if set {
+			data.position_context.parent_comp_lit = nil
 		}
 
 		data.position_context.comp_lit = n
-
-		resolve_node(n.type, data)
 		resolve_nodes(n.elems, data)
 	case ^Tag_Expr:
 		resolve_node(n.expr, data)
@@ -409,6 +415,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_nodes(n.rhs, data)
 	case ^Value_Decl:
 		data.position_context.value_decl = n
+
 		reset_position_context(data.position_context)
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
@@ -462,7 +469,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				for name in field.names {
 					data.symbols[cast(uintptr)name] = SymbolAndNode {
 						node = name,
-						symbol = Symbol{range = common.get_token_range(name, string(data.document.text))},
+						symbol = Symbol{
+							range = common.get_token_range(name, string(data.document.text)),
+							uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+						},
 					}
 				}
 			}
@@ -482,6 +492,20 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				data.symbols[cast(uintptr)field] = SymbolAndNode {
 					node = field,
 					symbol = Symbol{range = common.get_token_range(field, string(data.document.text))},
+				}
+				// In the case of a Field_Value, we explicitly add them so we can find the LHS correctly for things like renaming
+				if field, ok := field.derived.(^ast.Field_Value); ok {
+					if ident, ok := field.field.derived.(^ast.Ident); ok {
+						data.symbols[cast(uintptr)ident] = SymbolAndNode {
+							node = ident,
+							symbol = Symbol{name = ident.name, range = common.get_token_range(ident, string(data.document.text))},
+						}
+					} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
+						data.symbols[cast(uintptr)binary] = SymbolAndNode {
+							node = binary,
+							symbol = Symbol{name = "binary",range = common.get_token_range(binary, string(data.document.text))},
+						}
+					}
 				}
 			}
 		}
