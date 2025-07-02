@@ -493,7 +493,11 @@ resolve_generic_function_symbol :: proc(
 			ast_context.current_package = ast_context.document_package
 
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
-				symbol_expr := symbol_to_expr(symbol, call_expr.args[i].pos.file, context.temp_allocator)
+				file := strings.trim_prefix(symbol.uri, "file://")
+				if file == "" {
+					file = call_expr.args[i].pos.file
+				}
+				symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
 
 				if symbol_expr == nil {
 					return {}, false
@@ -650,9 +654,11 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
+	clear(&b.poly_names)
 
 	for param in poly_params.list {
 		for name in param.names {
+			append(&b.poly_names, node_to_string(name))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -664,8 +670,10 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i]
+					b.poly_names[i] = node_to_string(ast_context.call.args[i])
 				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
 					if poly.type != nil {
+						b.poly_names[i] = node_to_string(ast_context.call.args[i])
 						poly_map[poly.type.name] = ast_context.call.args[i]
 					}
 				}
@@ -678,11 +686,12 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 	}
 
 	Visit_Data :: struct {
-		poly_map:     map[string]^ast.Expr,
+		poly_map:             map[string]^ast.Expr,
 		symbol_value_builder: ^SymbolStructValueBuilder,
-		parent:       ^ast.Node,
-		i:            int,
-		poly_index:   int,
+		parent:               ^ast.Node,
+		parent_proc:	      ^ast.Proc_Type,
+		i:                    int,
+		poly_index:           int,
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -694,6 +703,29 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 
 		if ident, ok := node.derived.(^ast.Ident); ok {
 			if expr, ok := data.poly_map[ident.name]; ok {
+				if data.parent_proc != nil {
+					// If the field is a parapoly procedure, we check to see if any of the params or return types
+					// need to be updated
+					if data.parent_proc.params != nil {
+						for &param in data.parent_proc.params.list {
+							if param_ident, ok := param.type.derived.(^ast.Ident); ok {
+								if param_ident.name == ident.name {
+									param.type = expr
+								}
+							}
+						}
+					}
+					if data.parent_proc.results != nil {
+						for &return_value in data.parent_proc.results.list {
+							if return_ident, ok := return_value.type.derived.(^ast.Ident); ok {
+								if return_ident.name == ident.name {
+									return_value.type = expr
+								}
+							}
+						}
+					}
+				}
+
 				if data.parent != nil {
 					#partial switch &v in data.parent.derived {
 					case ^ast.Array_Type:
@@ -703,7 +735,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 					case ^ast.Pointer_Type:
 						v.elem = expr
 					}
-				} else {
+				} else if data.parent_proc == nil {
 					data.symbol_value_builder.types[data.i] = expr
 					data.poly_index += 1
 				}
@@ -711,8 +743,10 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type:
+		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type: 
 			data.parent = node
+		case ^ast.Proc_Type:
+			data.parent_proc = v
 		}
 
 		return visitor

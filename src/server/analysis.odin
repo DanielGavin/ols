@@ -193,6 +193,31 @@ set_ast_package_from_symbol_scoped :: proc(ast_context: ^AstContext, symbol: Sym
 	}
 }
 
+set_ast_package_from_node_deferred :: proc(ast_context: ^AstContext, node: ast.Node) {
+	if ast_context.deferred_count <= 0 {
+		return
+	}
+	ast_context.deferred_count -= 1
+	ast_context.current_package = ast_context.deferred_package[ast_context.deferred_count]
+}
+
+@(deferred_in = set_ast_package_from_node_deferred)
+set_ast_package_from_node_scoped :: proc(ast_context: ^AstContext, node: ast.Node) {
+	if ast_context.deferred_count >= DeferredDepth {
+		return
+	}
+
+	ast_context.deferred_package[ast_context.deferred_count] = ast_context.current_package
+	ast_context.deferred_count += 1
+	pkg := get_package_from_node(node)
+
+	if pkg != "" && pkg != "." {
+		ast_context.current_package = pkg
+	} else {
+		ast_context.current_package = ast_context.document_package
+	}
+}
+
 reset_ast_context :: proc(ast_context: ^AstContext) {
 	ast_context.use_locals = true
 	clear(&ast_context.recursion_map)
@@ -875,7 +900,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return {}, false
 	}
 
-	set_ast_package_scoped(ast_context)
+	set_ast_package_from_node_scoped(ast_context, node)
 
 	if check_node_recursion(ast_context, node) {
 		return {}, false
@@ -1127,12 +1152,12 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				)
 				selector_expr.expr = s.return_types[0].type
 				selector_expr.field = node.field
-
 				return internal_resolve_type_expression(ast_context, selector_expr)
 			}
 		case SymbolStructValue:
 			for name, i in s.names {
 				if node.field != nil && name == node.field.name {
+					set_ast_package_from_node_scoped(ast_context, s.types[i])
 					ast_context.field_name = node.field^
 					symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
 					symbol.type = .Variable
@@ -1299,6 +1324,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	}
 
 	set_ast_package_scoped(ast_context)
+
 
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords
