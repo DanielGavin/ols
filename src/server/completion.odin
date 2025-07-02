@@ -2035,19 +2035,19 @@ format_to_label_details :: proc(list: ^CompletionList) {
 			comment := ""
 			proc_info := ""
 			detail_split := strings.split_n(item.detail, "\n", 2)
-			if detail_split[1] == "" {
+			if len(detail_split) == 1 {
 				// We have no comment
 				proc_info = detail_split[0]
-			} else {
+			} else if len(detail_split) == 2 {
 				comment = detail_split[0]
 				proc_info = detail_split[1]
 			}
 			// Split the leading name of the proc
 			proc_info_split := strings.split_n(proc_info, " ", 2)
-			if proc_info_split[1] == "" {
+			if len(proc_info_split) == 1 {
 				// We have no leading package.Name for the proc
 				proc_info = proc_info_split[0]
-			} else {
+			} else if len(proc_info_split) == 2 {
 				proc_info = proc_info_split[1]
 			}
 
