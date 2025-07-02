@@ -2032,28 +2032,28 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
 		#partial switch item.kind {
 		case .Function:
-			proc_index := strings.index(item.detail, ": proc")
-			// check if the function return somrthing
-			proc_return_index := strings.index(item.detail, "->")
-			if proc_return_index > 0 {
-				proc_end_index := strings.index(item.detail[0:proc_return_index], ")")
-				if proc_return_index + 2 >= len(item.detail) {
-					break
-				}
-				item.labelDetails = CompletionItemLabelDetails {
-					detail      = item.detail[proc_index + 6:proc_return_index],
-					description = item.detail[proc_return_index + 2:],
-				}
-				item.detail = item.label
+			comment := ""
+			proc_info := ""
+			detail_split := strings.split_n(item.detail, "\n", 2)
+			if detail_split[1] == "" {
+				// We have no comment
+				proc_info = detail_split[0]
 			} else {
-				if proc_index + 6 >= len(item.detail) {
-					break
-				}
-				item.labelDetails = CompletionItemLabelDetails {
-					detail      = item.detail[proc_index + 6:],
-					description = "",
-				}
-				item.detail = ""
+				comment = detail_split[0]
+				proc_info = detail_split[1]
+			}
+			// Split the leading name of the proc
+			proc_info_split := strings.split_n(proc_info, " ", 2)
+			if proc_info_split[1] == "" {
+				// We have no leading package.Name for the proc
+				proc_info = proc_info_split[0]
+			} else {
+				proc_info = proc_info_split[1]
+			}
+
+			item.labelDetails = CompletionItemLabelDetails {
+				detail      = proc_info,
+				description = fmt.tprintf(" %s", comment),
 			}
 		case .Variable, .Constant, .Field:
 			type_index := strings.index(item.detail, ":")
@@ -2061,16 +2061,12 @@ format_to_label_details :: proc(list: ^CompletionList) {
 				detail      = "",
 				description = item.detail[type_index + 1:],
 			}
-			item.detail = item.label
 		case .Struct, .Enum, .Class:
 			type_index := strings.index(item.detail, ":")
 			item.labelDetails = CompletionItemLabelDetails {
 				detail      = "",
 				description = item.detail[type_index + 1:],
 			}
-			item.detail = item.label
-		case .Keyword:
-			item.detail = "keyword"
 		}
 
 		// hack for sublime text's issue
