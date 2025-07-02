@@ -237,7 +237,6 @@ resolve_references :: proc(
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
 			filepath.walk(uri.path, walk_directories, document)
 		}
-	} else {
 	}
 
 	reset_ast_context(ast_context)
