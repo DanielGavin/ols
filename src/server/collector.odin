@@ -198,16 +198,9 @@ collect_enum_fields :: proc(
 
 	//ERROR no hover on n in the for, but elsewhere is fine
 	for n in fields {
-		append(&ranges, common.get_token_range(n, file.src))
-		if ident, ok := n.derived.(^ast.Ident); ok {
-			append(&names, get_index_unique_string(collection, ident.name))
-		} else if field, ok := n.derived.(^ast.Field_Value); ok {
-			if ident, ok := field.field.derived.(^ast.Ident); ok {
-				append(&names, get_index_unique_string(collection, ident.name))
-			} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
-				append(&names, get_index_unique_string(collection, binary.left.derived.(^ast.Ident).name))
-			}
-		}
+		name, range := get_enum_field_name_and_range(n, file.src)
+		append(&names, strings.clone(name, collection.allocator))
+		append(&ranges, range)
 	}
 
 	value := SymbolEnumValue {
