@@ -2055,8 +2055,8 @@ format_to_label_details :: proc(list: ^CompletionList) {
 			// Split the leading name of the proc
 			proc_info_split := strings.split_n(proc_info, " proc", 2)
 			if len(proc_info_split) == 1 {
-				// We have no leading package.Name for the proc
-				proc_info = proc_info_split[0]
+				// No proc declaration (eg for a proc group)
+				proc_info = ""
 			} else if len(proc_info_split) == 2 {
 				proc_info = proc_info_split[1]
 			}
