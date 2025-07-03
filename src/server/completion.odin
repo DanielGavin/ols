@@ -1196,8 +1196,24 @@ get_implicit_completion :: proc(
 			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
 		}
 
-		if array, ok := symbol.value.(SymbolFixedArrayValue); ok {
-			if enum_value, ok := unwrap_enum(ast_context, array.len); ok {
+		#partial switch v in symbol.value {
+		case SymbolFixedArrayValue:
+			if enum_value, ok := unwrap_enum(ast_context, v.len); ok {
+				for name in enum_value.names {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+
+					append(&items, item)
+				}
+
+				list.items = items[:]
+				return
+			}
+		case SymbolMapValue:
+			if enum_value, ok := unwrap_enum(ast_context, v.key); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
