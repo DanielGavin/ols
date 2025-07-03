@@ -1935,6 +1935,32 @@ ast_hover_enum_field_implicit_assignment :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_enum_field_definition :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A{*},
+			B,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+@(test)
+ast_hover_enum_field_definition_with_type :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A{*} = 1,
+			B,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
