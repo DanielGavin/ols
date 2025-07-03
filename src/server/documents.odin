@@ -410,7 +410,8 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		pkg.kind = .Runtime
 	}
 
-	doc_end := document.used_text if document.private_scope == -1 else document.private_scope
+	doc_end = document.used_text if document.private_scope == -1 else min(document.private_scope, document.used_text)
+
 	document.ast = ast.File {
 		fullpath = document.fullpath,
 		src      = string(document.text[:doc_end]),
