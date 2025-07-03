@@ -3497,3 +3497,21 @@ ast_completion_enum_slice :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		E :: enum { A, B, C }
+
+		Ebitset :: bit_set[E]
+
+		main :: proc() {
+			b: Ebitset = { .A, .C, .{*} }
+		}
+		`,
+	}
+
+	// I think this test will pass even if there is A and C
+	test.expect_completion_details(t, &source, "", {"B"})
+}

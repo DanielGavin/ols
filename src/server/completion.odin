@@ -727,6 +727,7 @@ get_implicit_completion :: proc(
 	//value decl infer a : My_Enum = .*
 	if position_context.value_decl != nil && position_context.value_decl.type != nil {
 		enum_value: Maybe(SymbolEnumValue)
+		exclude_names := make([dynamic]string, context.temp_allocator)
 
 		if _enum_value, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
 			enum_value = _enum_value
@@ -739,16 +740,25 @@ get_implicit_completion :: proc(
 					enum_value = _enum_value
 				}
 			}
+			for elem in position_context.comp_lit.elems {
+				if expr, ok := elem.derived.(^ast.Implicit_Selector_Expr); ok {
+					if expr.field.name != "_" {
+						append(&exclude_names, expr.field.name)
+					}
+				}
+			}
 		}
 
 		if ev, ok := enum_value.?; ok {
 			for name in ev.names {
-				item := CompletionItem {
-					label  = name,
-					kind   = .EnumMember,
-					detail = name,
+				if !slice.contains(exclude_names[:], name) {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+					append(&items, item)
 				}
-				append(&items, item)
 			}
 
 			list.items = items[:]
