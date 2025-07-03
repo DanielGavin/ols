@@ -19,10 +19,26 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
 			strings.write_string(&sb, " :: ")
 		}
-		strings.write_string(&sb, "enum {\n")
+
+		longestNameLen := 0
+		for name in v.names {
+			if len(name) > longestNameLen {
+				longestNameLen = len(name)
+			}
+		}
+		strings.write_string(&sb, "enum ")
+		if v.base_type != nil {
+			build_string_node(v.base_type, &sb, false)
+			strings.write_string(&sb, " ")
+		}
+		strings.write_string(&sb, "{\n")
 		for i in 0 ..< len(v.names) {
 			strings.write_string(&sb, "\t")
 			strings.write_string(&sb, v.names[i])
+			if v.values[i] != nil {
+				fmt.sbprintf(&sb, "%*s= ", longestNameLen - len(v.names[i]) + 1, "")
+				build_string_node(v.values[i], &sb, false)
+			}
 			strings.write_string(&sb, ",\n")
 		}
 		strings.write_string(&sb, "}")

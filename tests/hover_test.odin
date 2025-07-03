@@ -1978,6 +1978,20 @@ ast_hover_enum_map_key :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_enum_defintion_with_base_type :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		F{*}oo :: enum u8 {
+			A   = 1,
+			Bar = 2,
+			C   = 3,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: enum u8 {\n\tA   = 1,\n\tBar = 2,\n\tC   = 3,\n}")
+}
 /*
 
 Waiting for odin fix

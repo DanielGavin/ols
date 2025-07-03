@@ -67,8 +67,10 @@ SymbolAggregateValue :: struct {
 }
 
 SymbolEnumValue :: struct {
-	names:  []string,
-	ranges: []common.Range,
+	names:     []string,
+	values:    []^ast.Expr,
+	base_type: ^ast.Expr,
+	ranges:    []common.Range,
 }
 
 SymbolUnionValue :: struct {
@@ -345,7 +347,10 @@ write_struct_type :: proc(
 }
 
 write_symbol_struct_value :: proc(
-	ast_context: ^AstContext, b: ^SymbolStructValueBuilder, v: SymbolStructValue, base_using_index: int
+	ast_context: ^AstContext,
+	b: ^SymbolStructValueBuilder,
+	v: SymbolStructValue,
+	base_using_index: int,
 ) {
 	base_index := len(b.names)
 	for name in v.names {

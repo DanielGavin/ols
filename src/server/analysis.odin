@@ -2757,33 +2757,37 @@ make_symbol_enum_from_ast :: proc(
 
 	names := make([dynamic]string, ast_context.allocator)
 	ranges := make([dynamic]common.Range, ast_context.allocator)
+	values := make([dynamic]^ast.Expr, ast_context.allocator)
 
 	for n in v.fields {
-		name, range := get_enum_field_name_and_range(n, ast_context.file.src)
+		name, range, value := get_enum_field_name_range_value(n, ast_context.file.src)
 		append(&names, name)
 		append(&ranges, range)
+		append(&values, value)
 	}
 
 	symbol.value = SymbolEnumValue {
-		names  = names[:],
-		ranges = ranges[:],
+		names     = names[:],
+		ranges    = ranges[:],
+		base_type = v.base_type,
+		values    = values[:],
 	}
 
 	return symbol
 }
 
-get_enum_field_name_and_range :: proc(n: ^ast.Expr, document_text: string) -> (string, common.Range) {
+get_enum_field_name_range_value :: proc(n: ^ast.Expr, document_text: string) -> (string, common.Range, ^ast.Expr) {
 	if ident, ok := n.derived.(^ast.Ident); ok {
-		return ident.name, common.get_token_range(ident, document_text)
+		return ident.name, common.get_token_range(ident, document_text), nil
 	}
 	if field, ok := n.derived.(^ast.Field_Value); ok {
 		if ident, ok := field.field.derived.(^ast.Ident); ok {
-			return ident.name, common.get_token_range(ident, document_text)
+			return ident.name, common.get_token_range(ident, document_text), field.value
 		} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
-			return binary.left.derived.(^ast.Ident).name, common.get_token_range(binary, document_text)
+			return binary.left.derived.(^ast.Ident).name, common.get_token_range(binary, document_text), binary.right
 		}
 	}
-	return "", {}
+	return "", {}, nil
 }
 
 make_symbol_bitset_from_ast :: proc(
