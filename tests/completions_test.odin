@@ -3481,3 +3481,19 @@ ast_completion_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"Bar.bar: int"})
 }
+
+@(test)
+ast_completion_enum_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		E :: enum { A, B }
+		Eslice :: []E
+
+		main :: proc() {
+			a: Eslice = { .{*} }
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
