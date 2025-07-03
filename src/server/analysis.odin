@@ -1842,8 +1842,11 @@ resolve_implicit_selector :: proc(
 			}
 		}
 
-		if array, ok := symbol.value.(SymbolFixedArrayValue); ok {
-			return resolve_type_expression(ast_context, array.len)
+		#partial switch value in symbol.value {
+		case SymbolFixedArrayValue:
+			return resolve_type_expression(ast_context, value.len)
+		case SymbolMapValue:
+			return resolve_type_expression(ast_context, value.key)
 		}
 	}
 

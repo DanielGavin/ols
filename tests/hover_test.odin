@@ -1961,6 +1961,23 @@ ast_hover_enum_field_definition_with_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_enum_map_key :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A = 1,
+			B,
+		}
+		main :: proc() {
+			m: map[Foo]int
+			m[.A{*}] = 2
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
