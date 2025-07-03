@@ -301,6 +301,19 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					}
 				}
 			}
+		case SymbolEnumValue:
+			for name, i in v.names {
+				if name == field {
+					symbol := Symbol {
+						name = selector.name,
+						pkg = selector.pkg,
+					}
+					// TODO: update this to go through some kind of common `get_signature`
+					symbol.signature = fmt.tprintf(".%s", name)
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr

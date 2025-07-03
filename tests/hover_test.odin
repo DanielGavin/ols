@@ -1899,6 +1899,42 @@ ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.f: test.Foo :: enum {\n\tA,\n\tB,\n}")
 }
+
+@(test)
+ast_hover_enum_field_assignment :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			a := Foo.A{*}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+
+@(test)
+ast_hover_enum_field_implicit_assignment :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			a: Foo
+			a = .A{*}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
