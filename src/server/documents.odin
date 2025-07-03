@@ -36,6 +36,7 @@ Document :: struct {
 	fullpath:         string,
 	text:             []u8,
 	used_text:        int, //allow for the text to be reallocated with more data than needed
+	private_scope:    int,
 	client_owned:     bool,
 	diagnosed_errors: bool,
 	ast:              ast.File,
@@ -130,6 +131,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 		document.uri = uri
 		document.client_owned = true
+		document.private_scope = strings.index(text, "//ols:private")
 		document.text = transmute([]u8)text
 		document.used_text = len(document.text)
 		document.allocator = document_get_allocator()
@@ -268,6 +270,7 @@ document_apply_changes :: proc(
 		}
 	}
 
+	document.private_scope = strings.index(string(document.text), "//ols:private")
 	return document_refresh(document, config, writer)
 }
 
@@ -407,9 +410,10 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		pkg.kind = .Runtime
 	}
 
+	doc_end := document.used_text if document.private_scope == -1 else document.private_scope
 	document.ast = ast.File {
 		fullpath = document.fullpath,
-		src      = string(document.text[:document.used_text]),
+		src      = string(document.text[:doc_end]),
 		pkg      = pkg,
 	}
 
