@@ -1959,7 +1959,7 @@ ast_hover_enum_field_definition_with_type :: proc(t: ^testing.T) {
 		}
 		`
 	}
-	test.expect_hover(t, &source, "test.Foo: .A")
+	test.expect_hover(t, &source, "test.Foo: .A = 1")
 }
 
 @(test)
@@ -1976,7 +1976,7 @@ ast_hover_enum_map_key :: proc(t: ^testing.T) {
 		}
 		`
 	}
-	test.expect_hover(t, &source, "test.Foo: .A")
+	test.expect_hover(t, &source, "test.Foo: .A = 1")
 }
 
 @(test)

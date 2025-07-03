@@ -35,7 +35,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		for i in 0 ..< len(v.names) {
 			strings.write_string(&sb, "\t")
 			strings.write_string(&sb, v.names[i])
-			if v.values[i] != nil {
+			if i < len(v.values) && v.values[i] != nil {
 				fmt.sbprintf(&sb, "%*s= ", longestNameLen - len(v.names[i]) + 1, "")
 				build_string_node(v.values[i], &sb, false)
 			}
@@ -225,6 +225,16 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	}
 
 	return ""
+}
+
+get_enum_field_signature :: proc(value: SymbolEnumValue, index: int) -> string {
+	sb := strings.builder_make(context.temp_allocator)
+	fmt.sbprintf(&sb, ".%s", value.names[index])
+	if index < len(value.values) && value.values[index] != nil {
+		strings.write_string(&sb, " = ")
+		build_string_node(value.values[index], &sb, false)
+	}
+	return strings.to_string(sb)
 }
 
 write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Builder, symbol: Symbol, pointer_prefix: string) {

@@ -115,30 +115,40 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	if position_context.value_decl != nil && len(position_context.value_decl.names) != 0 {
 		if position_context.enum_type != nil {
 			if enum_symbol, ok := resolve_type_expression(&ast_context, position_context.value_decl.names[0]); ok {
-				for field in position_context.enum_type.fields {
-					if ident, ok := field.derived.(^ast.Ident); ok {
-						if position_in_node(ident, position_context.position) {
-							symbol := Symbol {
-								pkg       = ast_context.current_package,
-								name      = enum_symbol.name,
-								range     = common.get_token_range(ident, ast_context.file.src),
-								signature = fmt.tprintf(".%s", ident.name),
-							}
-							hover.contents = write_hover_content(&ast_context, symbol)
-							return hover, true, true
-						}
-					} else if value, ok := field.derived.(^ast.Field_Value); ok {
-						if position_in_node(value.field, position_context.position) {
-							if ident, ok := value.field.derived.(^ast.Ident); ok {
-								symbol := Symbol {
-									pkg       = ast_context.current_package,
-									range     = common.get_token_range(value.field, ast_context.file.src),
-									name      = enum_symbol.name,
-									signature = fmt.tprintf(".%s", ident.name),
+				if v, ok := enum_symbol.value.(SymbolEnumValue); ok {
+					for field in position_context.enum_type.fields {
+						if ident, ok := field.derived.(^ast.Ident); ok {
+							if position_in_node(ident, position_context.position) {
+								for name, i in v.names {
+									if name == ident.name {
+										symbol := Symbol {
+											pkg       = ast_context.current_package,
+											name      = enum_symbol.name,
+											range     = common.get_token_range(ident, ast_context.file.src),
+											signature = get_enum_field_signature(v, i),
+										}
+										hover.contents = write_hover_content(&ast_context, symbol)
+										return hover, true, true
+									}
 								}
-								hover.contents = write_hover_content(&ast_context, symbol)
 							}
-							return hover, true, true
+						} else if value, ok := field.derived.(^ast.Field_Value); ok {
+							if position_in_node(value.field, position_context.position) {
+								if ident, ok := value.field.derived.(^ast.Ident); ok {
+									for name, i in v.names {
+										if name == ident.name {
+											symbol := Symbol {
+												pkg       = ast_context.current_package,
+												range     = common.get_token_range(value.field, ast_context.file.src),
+												name      = enum_symbol.name,
+												signature = get_enum_field_signature(v, i),
+											}
+											hover.contents = write_hover_content(&ast_context, symbol)
+										}
+									}
+								}
+								return hover, true, true
+							}
 						}
 					}
 				}
@@ -339,11 +349,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			for name, i in v.names {
 				if name == field {
 					symbol := Symbol {
-						name = selector.name,
-						pkg  = selector.pkg,
+						name      = selector.name,
+						pkg       = selector.pkg,
+						signature = get_enum_field_signature(v, i),
 					}
-					// TODO: update this to go through some kind of common `get_signature`
-					symbol.signature = fmt.tprintf(".%s", name)
 					hover.contents = write_hover_content(&ast_context, symbol)
 					return hover, true, true
 				}
@@ -356,7 +365,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			case SymbolEnumValue:
 				for name, i in v.names {
 					if strings.compare(name, implicit_selector.field.name) == 0 {
-						symbol.signature = fmt.tprintf(".%s", name)
+						symbol.signature = get_enum_field_signature(v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
