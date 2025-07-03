@@ -1879,6 +1879,26 @@ ast_hover_poly_struct_poly_proc_fields_resolved :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Foo: struct(Bar, my_package.Bazz) {\n\tmy_proc1: proc(s: Bar) -> ^Bar,\n\tmy_proc2: proc(t: my_package.Bazz) -> my_package.Bazz,\n\tmy_proc3: proc(s: ^my_package.Bazz,t: my_package.Bazz) -> my_package.Bazz,\n\tfoo1:     my_package.Bazz,\n\tfoo2:     ^Bar,\n}")
 }
+
+@(test)
+ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foos: bit_set[Foo]
+			for f{*} in foos {
+
+			}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.f: test.Foo :: enum {\n\tA,\n\tB,\n}")
+}
 /*
 
 Waiting for odin fix

@@ -3550,6 +3550,39 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
+		case SymbolBitSetValue:
+			if len(stmt.vals) >= 1 {
+				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+					store_local(
+						ast_context,
+						ident,
+						v.expr,
+						ident.pos.offset,
+						ident.name,
+						ast_context.non_mutable_only,
+						false,
+						true,
+						symbol.pkg,
+						false,
+					)
+				}
+			}
+			if len(stmt.vals) >= 2 {
+				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+					store_local(
+						ast_context,
+						ident,
+						make_int_ast(ast_context, ident.pos, ident.end),
+						ident.pos.offset,
+						ident.name,
+						ast_context.non_mutable_only,
+						false,
+						true,
+						symbol.pkg,
+						false,
+					)
+				}
+			}
 		}
 	}
 
