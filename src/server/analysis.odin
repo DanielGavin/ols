@@ -3830,10 +3830,17 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 	}
 
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
-		if enum_value, ok := enum_symbol.value.(SymbolEnumValue); ok {
-			return enum_value, true
-		} else if union_value, ok := enum_symbol.value.(SymbolUnionValue); ok {
-			return unwrap_super_enum(ast_context, union_value)
+		#partial switch value in enum_symbol.value {
+		case SymbolEnumValue:
+			return value, true
+		case SymbolUnionValue:
+			return unwrap_super_enum(ast_context, value)
+		case SymbolSliceValue:
+			return unwrap_enum(ast_context, value.expr)
+		case SymbolFixedArrayValue:
+			return unwrap_enum(ast_context, value.expr)
+		case SymbolDynamicArrayValue:
+			return unwrap_enum(ast_context, value.expr)
 		}
 	}
 
