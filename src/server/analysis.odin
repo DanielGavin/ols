@@ -2836,7 +2836,7 @@ make_symbol_struct_from_ast :: proc(
 	}
 
 	b := symbol_struct_value_builder_make(symbol, ast_context.allocator)
-	write_struct_type(ast_context, &b, v^, ident, attributes, -1, inlined)
+	write_struct_type(ast_context, &b, v, ident, attributes, -1, inlined)
 	symbol = to_symbol(b)
 	return symbol
 }

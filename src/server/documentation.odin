@@ -352,7 +352,17 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			l += len(using_prefix)
 		}
 		if l > longestNameLen {
-			longestNameLen = len(name)
+			longestNameLen = l
+		}
+	}
+
+	longest_type_len := 0
+	type_names := make([dynamic]string, 0, len(v.types), ast_context.allocator)
+	for t in v.types {
+		type_name := node_to_string(t)
+		append(&type_names, type_name)
+		if len(type_name) > longest_type_len {
+			longest_type_len = len(type_name)
 		}
 	}
 
@@ -396,6 +406,11 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			if index := v.from_usings[i]; index != using_index {
 				fmt.sbprintf(sb, "\n\t// from `using %s: ", v.names[index])
 				build_string_node(v.types[index], sb, false)
+				if backing_type, ok := v.backing_types[index]; ok {
+					strings.write_string(sb, " (bit_field ")
+					build_string_node(backing_type, sb, false)
+					strings.write_string(sb, ")")
+				}
 				strings.write_string(sb, "`\n")
 				using_index = index
 			}
@@ -408,8 +423,11 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			strings.write_string(sb, using_prefix)
 			name_len += len(using_prefix)
 		}
-		fmt.sbprintf(sb, "%s:%*s", v.names[i], longestNameLen - name_len + 1, "")
-		build_string_node(v.types[i], sb, false)
+		fmt.sbprintf(sb, "%s:%*s%s", v.names[i], longestNameLen - name_len + 1, "", type_names[i])
+		if bit_size, ok := v.bit_sizes[i]; ok {
+			fmt.sbprintf(sb, "%*s| ", longest_type_len - len(type_names[i]) + 1, "")
+			build_string_node(bit_size, sb, false)
+		}
 		strings.write_string(sb, ",")
 		append_comments(sb, v.comments, i)
 		strings.write_string(sb, "\n")
