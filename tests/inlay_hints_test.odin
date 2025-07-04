@@ -6,7 +6,7 @@ import "core:testing"
 import test "src:testing"
 
 @(test)
-ast_inlay_hints_default_parameters :: proc(t: ^testing.T) {
+ast_inlay_hints_default_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
@@ -34,7 +34,7 @@ ast_inlay_hints_default_parameters :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_inlay_hints_default_parameters_after_required :: proc(t: ^testing.T) {
+ast_inlay_hints_default_params_after_required :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
@@ -62,7 +62,36 @@ ast_inlay_hints_default_parameters_after_required :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_inlay_hints_parameters :: proc(t: ^testing.T) {
+ast_inlay_hints_default_params_after_named :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		my_function :: proc(a: int, b := false, c := 42) {}
+
+		main :: proc() {
+			my_function(a=1)
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_params = true,
+			enable_inlay_hints_default_params = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source, {{
+		position = {5, 18},
+		kind     = .Parameter,
+		label    = ", b = false",
+	}, {
+		position = {5, 18},
+		kind     = .Parameter,
+		label    = ", c = 42",
+	}})
+}
+
+@(test)
+ast_inlay_hints_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
@@ -90,7 +119,7 @@ ast_inlay_hints_parameters :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_inlay_hints_mixed_parameters :: proc(t: ^testing.T) {
+ast_inlay_hints_mixed_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
@@ -173,7 +202,7 @@ ast_inlay_hints_no_hints_same_name :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_inlay_hints_variadic_parameters :: proc(t: ^testing.T) {
+ast_inlay_hints_variadic_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 

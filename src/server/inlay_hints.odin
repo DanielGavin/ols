@@ -64,13 +64,6 @@ get_inlay_hints :: proc(
 
 		call := node_call.derived.(^ast.Call_Expr)
 
-		// TODO: support this (inlay hints in calls that use named args, e.g. `foobar(foo=bar)`
-		for arg in call.args {
-			if _, ok := arg.derived.(^ast.Field_Value); ok {
-				continue loop
-			}
-		}
-
 		if selector, ok := call.expr.derived.(^ast.Selector_Expr); ok && selector.op.kind == .Arrow_Right {
 			is_selector_call = true
 		}
@@ -146,6 +139,12 @@ get_inlay_hints :: proc(
 
 							has_added_default = true
 						} else if config.enable_inlay_hints_params {
+
+							// if is already provided as a named argument
+							if _, ok := call.args[symbol_arg_count].derived.(^ast.Field_Value); ok {
+								symbol_arg_count += 1
+								continue
+							}
 
 							// if the arg name and param name are the same, don't add it.
 							same_name: bool

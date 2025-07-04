@@ -445,7 +445,7 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source, expected_hints: []server
 	for i in 0 ..< min(len(expected_hints), len(hints)) {
 		e, a := expected_hints[i], hints[i]
 		if e != a {
-			log.errorf("[%d]: Expected inlay hint %v, but received %v", i, e, a)
+			log.errorf("[%d]: Expected inlay hint\n%v, but received\n%v", i, e, a)
 		}
 	}
 }
