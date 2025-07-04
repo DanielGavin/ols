@@ -1236,6 +1236,40 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 	}
 }
 
+construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
+	for field, i in v.fields {
+		// There is currently a bug in the odin parser where it adds line comments for a field to the
+		// docs of the following field, we address this problem here.
+		// see https://github.com/odin-lang/Odin/issues/5353
+		if field.comments == nil {
+			// We check if the comment is at the start of the next field
+			if i != len(v.fields) - 1 {
+				next_field := v.fields[i + 1]
+				if next_field.docs != nil && len(next_field.docs.list) > 0 {
+					list := next_field.docs.list
+					if list[0].pos.line == field.pos.line {
+						field.comments = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comments.list = list[:1]
+						if len(list) > 1 {
+							next_field.docs = ast.new(
+								ast.Comment_Group,
+								list[1].pos,
+								parser.end_pos(list[len(list) - 2]),
+							)
+							next_field.docs.list = list[1:]
+						} else {
+							next_field.docs = nil
+						}
+					}
+				}
+			} else {
+				// We need to check the file to see if it contains a line comment as there is no next field
+				field.comments = get_file_comment(file, field.pos.line)
+			}
+		}
+	}
+}
+
 // Retrives the comment group from the specified line of the file
 get_file_comment :: proc(file: ast.File, line: int) -> ^ast.Comment_Group {
 	// TODO: linear scan might be a bit slow for files with lots of comments?

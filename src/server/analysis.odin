@@ -940,7 +940,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Proc_Type:
 		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true), true
 	case ^Bit_Field_Type:
-		return make_symbol_bit_field_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name, true), true
 	case ^Basic_Directive:
 		return resolve_basic_directive(ast_context, v^)
 	case ^Binary_Expr:
@@ -1409,7 +1409,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Field_Type:
-			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v^, node), true
+			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if is_procedure_generic(v.type) {
@@ -1536,7 +1536,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
 			return_symbol.name = node.name
 		case ^Bit_Field_Type:
-			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v^, node), true
+			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
 			return_symbol.name = node.name
 		case ^Proc_Lit:
 			if is_procedure_generic(v.type) {
@@ -2843,10 +2843,11 @@ make_symbol_struct_from_ast :: proc(
 
 make_symbol_bit_field_from_ast :: proc(
 	ast_context: ^AstContext,
-	v: ast.Bit_Field_Type,
+	v: ^ast.Bit_Field_Type,
 	ident: ast.Ident,
 	inlined := false,
 ) -> Symbol {
+	construct_bit_field_field_docs(ast_context.file, v)
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Struct,
@@ -2862,19 +2863,29 @@ make_symbol_bit_field_from_ast :: proc(
 	names := make([dynamic]string, ast_context.allocator)
 	types := make([dynamic]^ast.Expr, ast_context.allocator)
 	ranges := make([dynamic]common.Range, 0, ast_context.allocator)
+	docs := make([dynamic]^ast.Comment_Group, 0, ast_context.allocator)
+	comments := make([dynamic]^ast.Comment_Group, 0, ast_context.allocator)
+	bit_sizes := make([dynamic]^ast.Expr, 0, ast_context.allocator)
 
 	for field in v.fields {
 		if identifier, ok := field.name.derived.(^ast.Ident); ok && field.type != nil {
 			append(&names, identifier.name)
 			append(&types, field.type)
 			append(&ranges, common.get_token_range(identifier, ast_context.file.src))
+			append(&docs, field.docs)
+			append(&comments, field.comments)
+			append(&bit_sizes, field.bit_size)
 		}
 	}
 
 	symbol.value = SymbolBitFieldValue {
-		names  = names[:],
-		types  = types[:],
-		ranges = ranges[:],
+		backing_type = v.backing_type,
+		names        = names[:],
+		types        = types[:],
+		ranges       = ranges[:],
+		docs         = docs[:],
+		comments     = comments[:],
+		bit_sizes    = bit_sizes[:],
 	}
 
 	return symbol

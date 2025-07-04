@@ -1992,6 +1992,49 @@ ast_hover_enum_defintion_with_base_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: enum u8 {\n\tA   = 1,\n\tBar = 2,\n\tC   = 3,\n}")
 }
+
+@(test)
+ast_hover_bit_field :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		F{*}oo :: bit_field u8 {
+			foo_a: uint | 2,
+			foo_aa: uint | 4,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: bit_field u8 {\n\tfoo_a:  uint | 2,\n\tfoo_aa: uint | 4,\n}")
+}
+
+@(test)
+ast_hover_bit_field_array_backed :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		F{*}oo :: bit_field [4]u8 {
+			foo_a: uint | 1,
+			foo_aa: uint | 3,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: bit_field [4]u8 {\n\tfoo_a:  uint | 1,\n\tfoo_aa: uint | 3,\n}")
+}
+
+@(test)
+ast_hover_bit_field_with_docs :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		F{*}oo :: bit_field u8 {
+		    // documentation
+			foo_a: uintptr | 2,
+			foo_bbbb: uint | 4, // comment for b
+			// doc
+			foo_c: uint | 2, //comment
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: bit_field u8 {\n\t// documentation\n\tfoo_a:    uintptr | 2,\n\tfoo_bbbb: uint    | 4, // comment for b\n\t// doc\n\tfoo_c:    uint    | 2, //comment\n}")
+}
+
 /*
 
 Waiting for odin fix

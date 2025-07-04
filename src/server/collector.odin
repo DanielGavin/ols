@@ -158,15 +158,19 @@ collect_struct_fields :: proc(
 
 collect_bit_field_fields :: proc(
 	collection: ^SymbolCollection,
-	fields: []^ast.Bit_Field_Field,
+	bit_field_type: ^ast.Bit_Field_Type,
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
-	names := make([dynamic]string, 0, len(fields), collection.allocator)
-	types := make([dynamic]^ast.Expr, 0, len(fields), collection.allocator)
-	ranges := make([dynamic]common.Range, 0, len(fields), collection.allocator)
+	construct_bit_field_field_docs(file, bit_field_type)
+	names := make([dynamic]string, 0, len(bit_field_type.fields), collection.allocator)
+	types := make([dynamic]^ast.Expr, 0, len(bit_field_type.fields), collection.allocator)
+	ranges := make([dynamic]common.Range, 0, len(bit_field_type.fields), collection.allocator)
+	docs := make([dynamic]^ast.Comment_Group, 0, collection.allocator)
+	comments := make([dynamic]^ast.Comment_Group, 0, collection.allocator)
+	bit_sizes := make([dynamic]^ast.Expr, 0, collection.allocator)
 
-	for field, i in fields {
+	for field, i in bit_field_type.fields {
 		if ident, ok := field.name.derived.(^ast.Ident); ok {
 			append(&names, get_index_unique_string(collection, ident.name))
 
@@ -175,13 +179,20 @@ collect_bit_field_fields :: proc(
 			append(&types, cloned)
 
 			append(&ranges, common.get_token_range(ident, file.src))
+			append(&docs, clone_comment_group(field.docs, collection.allocator, &collection.unique_strings))
+			append(&comments, clone_comment_group(field.comments, collection.allocator, &collection.unique_strings))
+			append(&bit_sizes, clone_type(field.bit_size, collection.allocator, &collection.unique_strings))
 		}
 	}
 
 	value := SymbolBitFieldValue {
-		names  = names[:],
-		types  = types[:],
-		ranges = ranges[:],
+		backing_type = clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings),
+		names        = names[:],
+		types        = types[:],
+		ranges       = ranges[:],
+		docs         = docs[:],
+		comments     = comments[:],
+		bit_sizes    = bit_sizes[:],
 	}
 
 	return value
@@ -547,7 +558,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Bit_Field_Type:
 			token = v^
 			token_type = .Struct
-			symbol.value = collect_bit_field_fields(collection, v.fields, package_map, file)
+			symbol.value = collect_bit_field_fields(collection, v, package_map, file)
 			symbol.signature = "bit_field"
 		case ^ast.Map_Type:
 			token = v^

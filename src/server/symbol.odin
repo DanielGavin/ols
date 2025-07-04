@@ -39,9 +39,13 @@ SymbolStructValue :: struct {
 }
 
 SymbolBitFieldValue :: struct {
-	names:  []string,
-	ranges: []common.Range,
-	types:  []^ast.Expr,
+	backing_type: ^ast.Expr,
+	names:        []string,
+	ranges:       []common.Range,
+	types:        []^ast.Expr,
+	docs:         []^ast.Comment_Group,
+	comments:     []^ast.Comment_Group,
+	bit_sizes:    []^ast.Expr,
 }
 
 SymbolPackageValue :: struct {
