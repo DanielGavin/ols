@@ -25,11 +25,11 @@ ast_inlay_hints_default_parameters :: proc(t: ^testing.T) {
 	test.expect_inlay_hints(t, &source, {{
 		position = {5, 15},
 		kind     = .Parameter,
-		label    = "a := false",
+		label    = "a = false",
 	}, {
 		position = {5, 15},
 		kind     = .Parameter,
-		label    = ", b := 42",
+		label    = ", b = 42",
 	}})
 }
 
@@ -53,11 +53,11 @@ ast_inlay_hints_default_parameters_after_required :: proc(t: ^testing.T) {
 	test.expect_inlay_hints(t, &source, {{
 		position = {5, 16},
 		kind     = .Parameter,
-		label    = ", b := false",
+		label    = ", b = false",
 	}, {
 		position = {5, 16},
 		kind     = .Parameter,
-		label    = ", c := 42",
+		label    = ", c = 42",
 	}})
 }
 
@@ -114,7 +114,7 @@ ast_inlay_hints_mixed_parameters :: proc(t: ^testing.T) {
 	}, {
 		position = {5, 17},
 		kind     = .Parameter,
-		label    = ", optional := false",
+		label    = ", optional = false",
 	}})
 }
 

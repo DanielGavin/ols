@@ -139,7 +139,7 @@ get_inlay_hints :: proc(
 
 							hint := InlayHint {
 								kind     = .Parameter,
-								label    = fmt.tprintf("%s%v := %v", needs_leading_comma ? ", " : "", label, value),
+								label    = fmt.tprintf("%s%v = %v", needs_leading_comma ? ", " : "", label, value),
 								position = position,
 							}
 							append(&hints, hint)
