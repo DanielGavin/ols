@@ -151,7 +151,7 @@ collect_struct_fields :: proc(
 	}
 
 	value := to_symbol_struct_value(b)
-	value.poly   = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
+	value.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 
 	return value
 }
@@ -189,23 +189,26 @@ collect_bit_field_fields :: proc(
 
 collect_enum_fields :: proc(
 	collection: ^SymbolCollection,
-	fields: []^ast.Expr,
+	enum_type: ast.Enum_Type,
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolEnumValue {
 	names := make([dynamic]string, 0, collection.allocator)
 	ranges := make([dynamic]common.Range, 0, collection.allocator)
+	values := make([dynamic]^ast.Expr, 0, collection.allocator)
 
-	//ERROR no hover on n in the for, but elsewhere is fine
-	for n in fields {
-		name, range := get_enum_field_name_and_range(n, file.src)
+	for n in enum_type.fields {
+		name, range, value := get_enum_field_name_range_value(n, file.src)
 		append(&names, strings.clone(name, collection.allocator))
 		append(&ranges, range)
+		append(&values, clone_type(value, collection.allocator, &collection.unique_strings))
 	}
 
 	value := SymbolEnumValue {
-		names  = names[:],
-		ranges = ranges[:],
+		names     = names[:],
+		ranges    = ranges[:],
+		values    = values[:],
+		base_type = clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings),
 	}
 
 	return value
@@ -529,7 +532,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Enum_Type:
 			token = v^
 			token_type = .Enum
-			symbol.value = collect_enum_fields(collection, v.fields, package_map, file)
+			symbol.value = collect_enum_fields(collection, v^, package_map, file)
 			symbol.signature = "enum"
 		case ^ast.Union_Type:
 			token = v^

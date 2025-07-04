@@ -471,7 +471,6 @@ ast_goto_variable_field_definition_with_selector_expr :: proc(t: ^testing.T) {
 	test.expect_definition_locations(t, &source, {location})
 }
 
-
 @(test)
 ast_goto_struct_definition_with_empty_line_at_top_of_file :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -490,6 +489,30 @@ ast_goto_struct_definition_with_empty_line_at_top_of_file :: proc(t: ^testing.T)
 
 	location := common.Location {
 		range = {start = {line = 3, character = 2}, end = {line = 3, character = 5}},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
+
+@(test)
+ast_goto_enum_from_map_key :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			m: map[Foo]int
+			m[.A{*}] = 2
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}},
 	}
 
 	test.expect_definition_locations(t, &source, {location})

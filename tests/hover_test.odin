@@ -1899,6 +1899,99 @@ ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.f: test.Foo :: enum {\n\tA,\n\tB,\n}")
 }
+
+@(test)
+ast_hover_enum_field_assignment :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			a := Foo.A{*}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+
+@(test)
+ast_hover_enum_field_implicit_assignment :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			a: Foo
+			a = .A{*}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+@(test)
+ast_hover_enum_field_definition :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A{*},
+			B,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+@(test)
+ast_hover_enum_field_definition_with_type :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A{*} = 1,
+			B,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A = 1")
+}
+
+@(test)
+ast_hover_enum_map_key :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		Foo :: enum {
+			A = 1,
+			B,
+		}
+		main :: proc() {
+			m: map[Foo]int
+			m[.A{*}] = 2
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: .A = 1")
+}
+
+@(test)
+ast_hover_enum_defintion_with_base_type :: proc(t: ^testing.T) {
+	source :=test.Source {
+		main = `package test
+		F{*}oo :: enum u8 {
+			A   = 1,
+			Bar = 2,
+			C   = 3,
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Foo: enum u8 {\n\tA   = 1,\n\tBar = 2,\n\tC   = 3,\n}")
+}
 /*
 
 Waiting for odin fix
