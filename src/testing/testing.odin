@@ -416,3 +416,36 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 		)
 	}
 }
+
+expect_inlay_hints :: proc(t: ^testing.T, src: ^Source, expected_hints: []server.InlayHint) {
+	setup(src)
+	defer teardown(src)
+
+	resolve_flag: server.ResolveReferenceFlag
+	symbols_and_nodes := server.resolve_entire_file(src.document, resolve_flag, context.temp_allocator)
+
+	hints, ok := server.get_inlay_hints(src.document, symbols_and_nodes, &src.config)
+	if !ok {
+		log.error("Failed get_inlay_hints")
+		return
+	}
+
+	if len(expected_hints) == 0 && len(hints) > 0 {
+		log.errorf("Expected empty inlay hints, but received %v", hints)
+		return
+	}
+
+	testing.expectf(t,
+		len(expected_hints) == len(hints),
+		"\nExpected %d inlay hints, but received %d",
+		len(expected_hints),
+		len(hints),
+	)
+
+	for i in 0 ..< min(len(expected_hints), len(hints)) {
+		e, a := expected_hints[i], hints[i]
+		if e != a {
+			log.errorf("[%d]: Expected inlay hint %v, but received %v", i, e, a)
+		}
+	}
+}
