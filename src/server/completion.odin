@@ -2072,7 +2072,7 @@ format_to_label_details :: proc(list: ^CompletionList) {
 			proc_info_split := strings.split_n(proc_info, " proc", 2)
 			if len(proc_info_split) == 1 {
 				// No proc declaration (eg for a proc group)
-				proc_info = ""
+				proc_info = "(..)"
 			} else if len(proc_info_split) == 2 {
 				proc_info = proc_info_split[1]
 			}
