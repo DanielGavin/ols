@@ -3,6 +3,7 @@ package common
 import "core:fmt"
 import "core:log"
 import "core:odin/ast"
+import "core:odin/tokenizer"
 import "core:strings"
 import "core:unicode/utf8"
 
@@ -101,31 +102,31 @@ go_backwards_to_endline :: proc(offset: int, document_text: []u8) -> int {
 	return index + 1
 }
 
+token_pos_to_position :: proc(pos: tokenizer.Pos, document_text: string) -> (position: Position) {
+
+	pos_offset := min(len(document_text) - 1, pos.offset)
+	offset := go_backwards_to_endline(pos_offset, transmute([]u8)document_text)
+	
+	if offset < 0 {
+		offset = 0
+		log.errorf("Failed to find offset in token_pos_to_position: %v", pos)
+	}
+
+	return {
+		line      = pos.line-1,
+		character = get_character_offset_u8_to_u16(pos.column-1, transmute([]u8)document_text[offset:]),
+	}
+}
+
 /*
 	Get the range of a token in utf16 space
 */
-get_token_range :: proc(node: ast.Node, document_text: string) -> Range {
-	range: Range
-
-	pos_offset := min(len(document_text) - 1, node.pos.offset)
-	end_offset := min(len(document_text) - 1, node.end.offset)
-
-	offset := go_backwards_to_endline(pos_offset, transmute([]u8)document_text)
-
-	if offset < 0 {
-		offset := 0
-		log.errorf("Failed to find offset in get_token_range: %v", node)
-	}
-
-	range.start.line = node.pos.line - 1
-	range.start.character = get_character_offset_u8_to_u16(node.pos.column - 1, transmute([]u8)document_text[offset:])
-
-	offset = go_backwards_to_endline(end_offset - 1, transmute([]u8)document_text)
-
-	range.end.line = node.end.line - 1
-	range.end.character = get_character_offset_u8_to_u16(node.end.column - 1, transmute([]u8)document_text[offset:])
-
-	return range
+get_token_range :: proc(node: ast.Node, document_text: string) -> (range: Range) {
+	range.start = token_pos_to_position(node.pos, document_text)
+	end_pos := node.end
+	end_pos.offset -= 1
+	range.end = token_pos_to_position(end_pos, document_text)
+	return
 }
 
 get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange, bool) {

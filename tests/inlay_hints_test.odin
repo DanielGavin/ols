@@ -91,6 +91,30 @@ ast_inlay_hints_default_params_after_named :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_inlay_hints_default_params_named_ooo :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		my_function :: proc(a: int, b := false, c := 42) {}
+
+		main :: proc() {
+			my_function(1, c=42)
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_default_params = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source, {{
+		position = {5, 22},
+		kind     = .Parameter,
+		label    = ", b = false",
+	}})
+}
+
+@(test)
 ast_inlay_hints_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
@@ -148,7 +172,7 @@ ast_inlay_hints_mixed_params :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_inlay_hints_method_call :: proc(t: ^testing.T) {
+ast_inlay_hints_selector_call :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
