@@ -25,11 +25,39 @@ ast_inlay_hints_default_parameters :: proc(t: ^testing.T) {
 	test.expect_inlay_hints(t, &source, {{
 		position = {5, 15},
 		kind     = .Parameter,
-		label    = " a := false",
+		label    = "a := false",
 	}, {
 		position = {5, 15},
 		kind     = .Parameter,
 		label    = ", b := 42",
+	}})
+}
+
+@(test)
+ast_inlay_hints_default_parameters_after_required :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		my_function :: proc(a: int, b := false, c := 42) {}
+
+		main :: proc() {
+			my_function(1)
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_default_params = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source, {{
+		position = {5, 16},
+		kind     = .Parameter,
+		label    = ", b := false",
+	}, {
+		position = {5, 16},
+		kind     = .Parameter,
+		label    = ", c := 42",
 	}})
 }
 
