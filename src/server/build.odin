@@ -274,11 +274,19 @@ setup_index :: proc() {
 	indexer.index = make_memory_index(symbol_collection)
 
 	dir_exe := common.get_executable_path(context.temp_allocator)
-
 	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
 
+	if os.exists(builtin_path) {
+		try_build_package(builtin_path)
+		return
+	}
+
+	root_path := os.get_env("ODIN_ROOT", context.temp_allocator)
+	root_builtin_path := path.join({root_path, "/base/builtin"}, context.temp_allocator)
+
 	if !os.exists(builtin_path) {
-		log.errorf("Failed to find the builtin folder at %v", builtin_path)
+		log.errorf("Failed to find the builtin folder at `%v` or `%v`", builtin_path, root_builtin_path)
+		return
 	}
 
 	try_build_package(builtin_path)
