@@ -414,7 +414,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 				}
-
 			}
 		}
 		return {}, false, true

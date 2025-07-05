@@ -201,7 +201,12 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 	}
 }
 
-expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_details: []string) {
+expect_completion_details :: proc(
+	t: ^testing.T, src: ^Source,
+	trigger_character: string,
+	expect_details: []string,
+	expect_excluded: []string = nil,
+) {
 	setup(src)
 	defer teardown(src)
 
@@ -232,6 +237,14 @@ expect_completion_details :: proc(t: ^testing.T, src: ^Source, trigger_character
 	for flag, i in flags {
 		if flag != 1 {
 			log.errorf("Expected completion label %v, but received %v", expect_details[i], completion_list.items)
+		}
+	}
+
+	for expect_exclude in expect_excluded {
+		for completion in completion_list.items {
+			if expect_exclude == completion.detail {
+				log.errorf("Expected completion label %v to not be included", expect_exclude)
+			}
 		}
 	}
 }

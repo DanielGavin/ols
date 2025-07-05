@@ -311,6 +311,24 @@ get_comp_lit_completion :: proc(
 					append(&items, item)
 				}
 			}
+		case SymbolFixedArrayValue:
+			if symbol, ok := resolve_type_expression(ast_context, v.len); ok {
+				if v, ok := symbol.value.(SymbolEnumValue); ok {
+					for name, i in v.names {
+						if field_exists_in_comp_lit(position_context.comp_lit, name) {
+							continue
+						}
+
+						item := CompletionItem {
+							label         = name,
+							detail        = fmt.tprintf(".%s", name),
+							documentation = symbol.doc,
+						}
+
+						append(&items, item)
+					}
+				}
+			}
 		}
 	}
 
