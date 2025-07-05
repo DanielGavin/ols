@@ -2097,6 +2097,68 @@ ast_hover_struct_with_bit_field_using_across_packages :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+ast_hover_bit_field_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			foo_a: uint | 2,
+			f{*}oo_aa: uint | 6, // last 6 bits
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Foo.foo_aa: uint | 6 // last 6 bits",
+	)
+}
+
+@(test)
+ast_hover_bit_field_variable_with_docs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			// doc
+			foo_a: uint | 2, // foo a
+			foo_aa: uint | 4,
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.f{*}oo_a = 1
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Foo.foo_a: uint | 2 // foo a\n doc",
+	)
+}
+
+@(test)
+ast_hover_bit_field_on_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			// doc
+			foo_a: uint | 2, // foo a
+			foo_aa: uint | 4,
+		}
+
+		Bar :: struct {
+			fo{*}o: Foo,
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Bar.foo: test.Foo",
+	)
+}
+
 /*
 
 Waiting for odin fix

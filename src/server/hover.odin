@@ -156,8 +156,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if position_context.struct_type != nil {
-			for field in position_context.struct_type.fields.list {
-				for name in field.names {
+			for field, field_index in position_context.struct_type.fields.list {
+				for name, name_index in field.names {
 					if position_in_node(name, position_context.position) {
 						if identifier, ok := name.derived.(^ast.Ident); ok && field.type != nil {
 							if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
@@ -171,24 +171,42 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									symbol.type_pkg = symbol.pkg
 									symbol.pkg = struct_symbol.name
 									symbol.name = identifier.name
-
-									// Get the inline comment from the field definition if it exists
 									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
-										index := -1
-										for n, i in value.names {
-											if n == symbol.name {
-												index = i
-												break
-											}
-										}
-										if index != -1 &&
-										   value.comments[index] != nil &&
-										   len(value.comments[index].list) > 0 {
-											symbol.comment = value.comments[index].list[0].text
-										}
+										symbol.comment = get_comment(value.comments[field_index + name_index])
 									}
 
 									symbol.signature = get_short_signature(&ast_context, symbol)
+									hover.contents = write_hover_content(&ast_context, symbol)
+									return hover, true, true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if position_context.bit_field_type != nil {
+			for field, i in position_context.bit_field_type.fields {
+				if position_in_node(field.name, position_context.position) {
+					if identifier, ok := field.name.derived.(^ast.Ident); ok && field.type != nil {
+						if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
+							if bit_field_symbol, ok := resolve_type_expression(
+								&ast_context,
+								position_context.value_decl.names[0],
+							); ok {
+								if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
+									symbol.type = .Field
+									symbol.range = common.get_token_range(field.node, ast_context.file.src)
+									symbol.type_name = symbol.name
+									symbol.type_pkg = symbol.pkg
+									symbol.pkg = bit_field_symbol.name
+									symbol.name = identifier.name
+									symbol.signature = get_bit_field_field_signature(value, i)
+
+									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
+										symbol.comment = get_comment(value.comments[i])
+									}
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -220,6 +238,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
 					for name, i in v.names {
 						if name == field.name {
+							log.info("here?")
 							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 								symbol.name = name
 								symbol.pkg = comp_symbol.name
@@ -314,7 +333,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = node_to_string(v.types[i])
+						symbol.signature = get_bit_field_field_signature(v, i)
+						symbol.doc = get_doc(v.docs[i], ast_context.allocator)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}

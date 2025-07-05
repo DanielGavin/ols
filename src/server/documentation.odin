@@ -228,11 +228,20 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		}
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
+		sb := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
+			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			return "bit_field"
+			strings.write_string(&sb, "bit_field ")
+			build_string_node(v.backing_type, &sb, false)
 		}
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
+		
 	case SymbolMultiPointerValue:
 		return strings.concatenate(
 			a = {pointer_prefix, "[^]", node_to_string(v.expr)},
@@ -292,6 +301,15 @@ get_enum_field_signature :: proc(value: SymbolEnumValue, index: int, allocator :
 		strings.write_string(&sb, " = ")
 		build_string_node(value.values[index], &sb, false)
 	}
+	return strings.to_string(sb)
+}
+
+get_bit_field_field_signature :: proc(value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator)
+	build_string_node(value.types[index], &sb, false)
+	strings.write_string(&sb, " | ")
+	build_string_node(value.bit_sizes[index], &sb, false)
+	append_comments(&sb, value.comments, index)
 	return strings.to_string(sb)
 }
 
