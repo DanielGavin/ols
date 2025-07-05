@@ -1830,19 +1830,23 @@ visit_expr :: proc(
 			document = cons(document, nest(inner_document), newline(1), text_position(p, "}", v.end))
 		} else {
 			break_string := " " if v.type != nil else ""
-			document = cons(
-				document,
-				group(
-					cons(
-						if_break(break_string),
-						text("{"),
-						nest(cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma, .Group}))),
-						if_break(","),
-						break_with(""),
-						text("}"),
+			if len(v.elems) > 0 {
+				document = cons(
+					document,
+					group(
+						cons(
+							if_break(break_string),
+							text("{"),
+							nest(cons(break_with(""), visit_exprs(p, v.elems, {.Add_Comma, .Group}))),
+							if_break(","),
+							break_with(""),
+							text("}"),
+						),
 					),
-				),
-			)
+				)
+			} else {
+				document = cons(document, cons(text("{"), text("}")))
+			}
 			document = group(document)
 		}
 	case ^Unary_Expr:
