@@ -3533,3 +3533,24 @@ ast_completion_enum_map_key :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"A", "B", "C"})
 }
+
+@(test)
+ast_completion_bitset_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Foos :: bit_set[Foo]
+
+		main :: proc() {
+			foos: Foos
+			foos += {.A, .{*}}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"B"})
+}
