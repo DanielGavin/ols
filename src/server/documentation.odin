@@ -2,6 +2,7 @@ package server
 
 import "core:fmt"
 import "core:log"
+import "core:odin/ast"
 import path "core:path/slashpath"
 import "core:strings"
 
@@ -9,8 +10,7 @@ import "core:strings"
 get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	is_variable := symbol.type == .Variable
 
-	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
-
+	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
@@ -18,6 +18,13 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		if is_variable {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
 			strings.write_string(&sb, " :: ")
+		}
+		if len(v.names) == 0 {
+			strings.write_string(&sb, "enum {}")
+			if symbol.comment != "" {
+				fmt.sbprintf(&sb, " %s", symbol.comment)
+			}
+			return strings.to_string(sb)
 		}
 
 		longestNameLen := 0
@@ -71,6 +78,10 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
 			strings.write_string(&sb, " :: ")
 		}
+		if len(v.types) == 0 {
+			strings.write_string(&sb, "union {}")
+			return strings.to_string(sb)
+		}
 		strings.write_string(&sb, "union {\n")
 		for i in 0 ..< len(v.types) {
 			strings.write_string(&sb, "\t")
@@ -80,7 +91,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		strings.write_string(&sb, "}")
 		return strings.to_string(sb)
 	case SymbolAggregateValue:
-		sb := strings.builder_make(context.temp_allocator)
+		sb := strings.builder_make(ast_context.allocator)
 		strings.write_string(&sb, "proc {\n")
 		for symbol in v.symbols {
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
@@ -88,6 +99,53 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 				write_procedure_symbol_signature(&sb, value)
 				strings.write_string(&sb, ",\n")
 			}
+		}
+		strings.write_string(&sb, "}")
+		return strings.to_string(sb)
+	case SymbolBitFieldValue:
+		sb := strings.builder_make(ast_context.allocator)
+		if is_variable {
+			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+			strings.write_string(&sb, " :: ")
+		} else if symbol.type_name != "" {
+			if symbol.type_pkg == "" {
+				fmt.sbprintf(&sb, "%s%s :: ", pointer_prefix, symbol.type_name)
+			} else {
+				pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
+				fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
+			}
+		}
+		strings.write_string(&sb, "bit_field ")
+		build_string_node(v.backing_type, &sb, false)
+		if len(v.names) == 0 {
+			strings.write_string(&sb, " {}")
+			return strings.to_string(sb)
+		}
+		strings.write_string(&sb, " {\n")
+		longest_name_len := 0
+		for name in v.names {
+			if len(name) > longest_name_len {
+				longest_name_len = len(name)
+			}
+		}
+		longest_type_len := 0
+		type_names := make([dynamic]string, 0, len(v.types), ast_context.allocator)
+		for t in v.types {
+			type_name := node_to_string(t)
+			append(&type_names, type_name)
+			if len(type_name) > longest_type_len {
+				longest_type_len = len(type_name)
+			}
+		}
+
+		for name, i in v.names {
+		    append_docs(&sb, v.docs, i)
+			fmt.sbprintf(&sb, "\t%s:%*s", v.names[i], longest_name_len - len(name) + 1, "")
+			fmt.sbprintf(&sb, "%s%*s| ", type_names[i], longest_type_len - len(type_names[i]) + 1, "")
+			build_string_node(v.bit_sizes[i], &sb, false)
+			strings.write_string(&sb, ",")
+			append_comments(&sb, v.comments, i)
+			strings.write_string(&sb, "\n")
 		}
 		strings.write_string(&sb, "}")
 		return strings.to_string(sb)
@@ -99,7 +157,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	is_variable := symbol.type == .Variable
 
-	pointer_prefix := repeat("^", symbol.pointers, context.temp_allocator)
+	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -139,7 +197,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			allocator = ast_context.allocator,
 		)
 	case SymbolProcedureValue:
-		sb := strings.builder_make(context.temp_allocator)
+		sb := strings.builder_make(ast_context.allocator)
 		if symbol.type_pkg != "" && symbol.type_name != "" {
 			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 			fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
@@ -170,11 +228,20 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		}
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
+		sb := strings.builder_make(ast_context.allocator)
 		if is_variable {
-			return strings.concatenate({pointer_prefix, symbol.name}, ast_context.allocator)
+			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			return "bit_field"
+			strings.write_string(&sb, "bit_field ")
+			build_string_node(v.backing_type, &sb, false)
 		}
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
+		
 	case SymbolMultiPointerValue:
 		return strings.concatenate(
 			a = {pointer_prefix, "[^]", node_to_string(v.expr)},
@@ -227,13 +294,22 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 	return ""
 }
 
-get_enum_field_signature :: proc(value: SymbolEnumValue, index: int) -> string {
-	sb := strings.builder_make(context.temp_allocator)
+get_enum_field_signature :: proc(value: SymbolEnumValue, index: int, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator)
 	fmt.sbprintf(&sb, ".%s", value.names[index])
 	if index < len(value.values) && value.values[index] != nil {
 		strings.write_string(&sb, " = ")
 		build_string_node(value.values[index], &sb, false)
 	}
+	return strings.to_string(sb)
+}
+
+get_bit_field_field_signature :: proc(value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator)
+	build_string_node(value.types[index], &sb, false)
+	strings.write_string(&sb, " | ")
+	build_string_node(value.bit_sizes[index], &sb, false)
+	append_comments(&sb, value.comments, index)
 	return strings.to_string(sb)
 }
 
@@ -294,7 +370,17 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			l += len(using_prefix)
 		}
 		if l > longestNameLen {
-			longestNameLen = len(name)
+			longestNameLen = l
+		}
+	}
+
+	longest_type_len := 0
+	type_names := make([dynamic]string, 0, len(v.types), ast_context.allocator)
+	for t in v.types {
+		type_name := node_to_string(t)
+		append(&type_names, type_name)
+		if len(type_name) > longest_type_len {
+			longest_type_len = len(type_name)
 		}
 	}
 
@@ -338,16 +424,16 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			if index := v.from_usings[i]; index != using_index {
 				fmt.sbprintf(sb, "\n\t// from `using %s: ", v.names[index])
 				build_string_node(v.types[index], sb, false)
+				if backing_type, ok := v.backing_types[index]; ok {
+					strings.write_string(sb, " (bit_field ")
+					build_string_node(backing_type, sb, false)
+					strings.write_string(sb, ")")
+				}
 				strings.write_string(sb, "`\n")
 				using_index = index
 			}
 		}
-		if i < len(v.docs) && v.docs[i] != nil {
-			for c in v.docs[i].list {
-				fmt.sbprintf(sb, "\t%s\n", c.text)
-			}
-		}
-
+		append_docs(sb, v.docs, i)
 		strings.write_string(sb, "\t")
 
 		name_len := len(v.names[i])
@@ -355,18 +441,14 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 			strings.write_string(sb, using_prefix)
 			name_len += len(using_prefix)
 		}
-		strings.write_string(sb, v.names[i])
-		fmt.sbprintf(sb, ":%*s", longestNameLen - name_len + 1, "")
-		build_string_node(v.types[i], sb, false)
-		strings.write_string(sb, ",")
-
-		if i < len(v.comments) && v.comments[i] != nil {
-			for c in v.comments[i].list {
-				fmt.sbprintf(sb, " %s\n", c.text)
-			}
-		} else {
-			strings.write_string(sb, "\n")
+		fmt.sbprintf(sb, "%s:%*s%s", v.names[i], longestNameLen - name_len + 1, "", type_names[i])
+		if bit_size, ok := v.bit_sizes[i]; ok {
+			fmt.sbprintf(sb, "%*s| ", longest_type_len - len(type_names[i]) + 1, "")
+			build_string_node(bit_size, sb, false)
 		}
+		strings.write_string(sb, ",")
+		append_comments(sb, v.comments, i)
+		strings.write_string(sb, "\n")
 	}
 	strings.write_string(sb, "}")
 }
@@ -384,6 +466,22 @@ append_variable_full_name :: proc(
 	}
 	fmt.sbprintf(sb, "%s%s.%s", pointer_prefix, pkg_name, symbol.name)
 	return
+}
+
+append_docs :: proc(sb: ^strings.Builder, docs: []^ast.Comment_Group, index: int) {
+	if index < len(docs) && docs[index] != nil {
+		for c in docs[index].list {
+			fmt.sbprintf(sb, "\t%s\n", c.text)
+		}
+	}
+}
+
+append_comments :: proc(sb: ^strings.Builder, comments: []^ast.Comment_Group, index: int) {
+	if index < len(comments) && comments[index] != nil {
+		for c in comments[index].list {
+			fmt.sbprintf(sb, " %s", c.text)
+		}
+	}
 }
 
 concatenate_symbol_information :: proc {

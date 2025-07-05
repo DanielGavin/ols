@@ -1184,15 +1184,12 @@ ast_hover_distinguish_symbols_in_packages_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`,
-		},
+		`},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1218,15 +1215,12 @@ ast_hover_distinguish_symbols_in_packages_local_struct :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: struct {
 				foo: string,
 			}
-		`,
-		},
+		`},
 	)
 	source := test.Source {
 		main     = `package test
@@ -1471,7 +1465,7 @@ ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Foo: struct {\n\tusing outer:     my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner:     Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:  InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield: int,\n}",
+		"test.Foo: struct {\n\tusing outer: my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner: Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:    InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield:       int,\n}",
 	)
 }
 
@@ -1752,18 +1746,15 @@ ast_hover_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 		}
 		`,
 		},
-		test.Package {
-			pkg = "bar_package",
-			source = `package bar_package
+		test.Package{pkg = "bar_package", source = `package bar_package
 			Bar :: struct {
 				bar: int,
 			}
-		`,
-		},
+		`},
 	)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "foo_package"
 		import "bar_package"
@@ -1797,7 +1788,7 @@ ast_hover_poly_struct_proc_field :: proc(t: ^testing.T) {
 	)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "my_package"
 
@@ -1838,25 +1829,23 @@ ast_hover_poly_struct_poly_proc_fields :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct($S: typeid, $T: typeid) {\n\tmy_proc1: proc(s: S) -> ^S,\n\tmy_proc2: proc(t: ^T) -> T,\n\tmy_proc3: proc(s: ^S,t: T) -> T,\n\tmy_proc4: proc() -> T,\n\tmy_proc5: proc(t: T),\n\tfoo1:     T,\n\tfoo2:     ^S,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct($S: typeid, $T: typeid) {\n\tmy_proc1: proc(s: S) -> ^S,\n\tmy_proc2: proc(t: ^T) -> T,\n\tmy_proc3: proc(s: ^S,t: T) -> T,\n\tmy_proc4: proc() -> T,\n\tmy_proc5: proc(t: T),\n\tfoo1:     T,\n\tfoo2:     ^S,\n}",
+	)
 }
 
 @(test)
 ast_hover_poly_struct_poly_proc_fields_resolved :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 			Bazz :: struct{}
-		`,
-		},
-	)
+		`})
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		Foo :: struct($S: typeid, $T: typeid) {
@@ -1877,12 +1866,16 @@ ast_hover_poly_struct_poly_proc_fields_resolved :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.Foo: struct(Bar, my_package.Bazz) {\n\tmy_proc1: proc(s: Bar) -> ^Bar,\n\tmy_proc2: proc(t: my_package.Bazz) -> my_package.Bazz,\n\tmy_proc3: proc(s: ^my_package.Bazz,t: my_package.Bazz) -> my_package.Bazz,\n\tfoo1:     my_package.Bazz,\n\tfoo2:     ^Bar,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct(Bar, my_package.Bazz) {\n\tmy_proc1: proc(s: Bar) -> ^Bar,\n\tmy_proc2: proc(t: my_package.Bazz) -> my_package.Bazz,\n\tmy_proc3: proc(s: ^my_package.Bazz,t: my_package.Bazz) -> my_package.Bazz,\n\tfoo1:     my_package.Bazz,\n\tfoo2:     ^Bar,\n}",
+	)
 }
 
 @(test)
 ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A,
@@ -1895,14 +1888,14 @@ ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
 
 			}
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.f: test.Foo :: enum {\n\tA,\n\tB,\n}")
 }
 
 @(test)
 ast_hover_enum_field_assignment :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A,
@@ -1912,7 +1905,7 @@ ast_hover_enum_field_assignment :: proc(t: ^testing.T) {
 		main :: proc() {
 			a := Foo.A{*}
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
@@ -1920,7 +1913,7 @@ ast_hover_enum_field_assignment :: proc(t: ^testing.T) {
 
 @(test)
 ast_hover_enum_field_implicit_assignment :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A,
@@ -1931,40 +1924,40 @@ ast_hover_enum_field_implicit_assignment :: proc(t: ^testing.T) {
 			a: Foo
 			a = .A{*}
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
 @(test)
 ast_hover_enum_field_definition :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A{*},
 			B,
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
 @(test)
 ast_hover_enum_field_definition_with_type :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A{*} = 1,
 			B,
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: .A = 1")
 }
 
 @(test)
 ast_hover_enum_map_key :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		Foo :: enum {
 			A = 1,
@@ -1974,24 +1967,198 @@ ast_hover_enum_map_key :: proc(t: ^testing.T) {
 			m: map[Foo]int
 			m[.A{*}] = 2
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: .A = 1")
 }
 
 @(test)
 ast_hover_enum_defintion_with_base_type :: proc(t: ^testing.T) {
-	source :=test.Source {
+	source := test.Source {
 		main = `package test
 		F{*}oo :: enum u8 {
 			A   = 1,
 			Bar = 2,
 			C   = 3,
 		}
-		`
+		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: enum u8 {\n\tA   = 1,\n\tBar = 2,\n\tC   = 3,\n}")
 }
+
+@(test)
+ast_hover_bit_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}oo :: bit_field u8 {
+			foo_a: uint | 2,
+			foo_aa: uint | 4,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: bit_field u8 {\n\tfoo_a:  uint | 2,\n\tfoo_aa: uint | 4,\n}")
+}
+
+@(test)
+ast_hover_bit_field_array_backed :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}oo :: bit_field [4]u8 {
+			foo_a: uint | 1,
+			foo_aa: uint | 3,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: bit_field [4]u8 {\n\tfoo_a:  uint | 1,\n\tfoo_aa: uint | 3,\n}")
+}
+
+@(test)
+ast_hover_bit_field_with_docs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}oo :: bit_field u8 {
+		    // documentation
+			foo_a: uintptr | 2,
+			foo_bbbb: uint | 4, // comment for b
+			// doc
+			foo_c: uint | 2, //comment
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: bit_field u8 {\n\t// documentation\n\tfoo_a:    uintptr | 2,\n\tfoo_bbbb: uint    | 4, // comment for b\n\t// doc\n\tfoo_c:    uint    | 2, //comment\n}",
+	)
+}
+
+@(test)
+ast_hover_struct_with_bit_field_using :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			foo_a: uint | 2, // foo_a
+			// foo_aa
+			foo_aa: uint | 4,
+		}
+
+		Ba{*}r :: struct {
+			using foo: Foo,
+
+			bar: int,
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Bar: struct {\n\tusing foo: Foo,\n\tbar:       int,\n\n\t// from `using foo: Foo (bit_field u8)`\n\tfoo_a:     uint | 2, // foo_a\n\t// foo_aa\n\tfoo_aa:    uint | 4,\n}",
+	)
+}
+
+@(test)
+ast_hover_struct_with_bit_field_using_across_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: bit_field u8 {
+				foo_a: uint | 1, // foo_a
+				// foo_aa
+				foo_aa: uint | 7,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		Bazz :: struct {
+			bazz: string, // string for bazz
+		}
+
+		Ba{*}r :: struct {
+			using foo: my_package.Foo,
+			using bazz: Bazz,
+
+			bar: int,
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Bar: struct {\n\tusing foo:  my_package.Foo,\n\tusing bazz: Bazz,\n\tbar:        int,\n\n\t// from `using foo: my_package.Foo (bit_field u8)`\n\tfoo_a:      uint           | 1, // foo_a\n\t// foo_aa\n\tfoo_aa:     uint           | 7,\n\n\t// from `using bazz: Bazz`\n\tbazz:       string, // string for bazz\n}",
+	)
+}
+
+@(test)
+ast_hover_bit_field_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			foo_a: uint | 2,
+			f{*}oo_aa: uint | 6, // last 6 bits
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Foo.foo_aa: uint | 6 // last 6 bits",
+	)
+}
+
+@(test)
+ast_hover_bit_field_variable_with_docs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			// doc
+			foo_a: uint | 2, // foo a
+			foo_aa: uint | 4,
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.f{*}oo_a = 1
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Foo.foo_a: uint | 2 // foo a\n doc",
+	)
+}
+
+@(test)
+ast_hover_bit_field_on_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: bit_field u8 {
+			// doc
+			foo_a: uint | 2, // foo a
+			foo_aa: uint | 4,
+		}
+
+		Bar :: struct {
+			fo{*}o: Foo,
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"Bar.foo: test.Foo",
+	)
+}
+
 /*
 
 Waiting for odin fix

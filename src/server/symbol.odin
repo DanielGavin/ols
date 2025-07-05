@@ -36,12 +36,20 @@ SymbolStructValue :: struct {
 	args:              []^ast.Expr, //The arguments in the call expression for poly
 	docs:              []^ast.Comment_Group,
 	comments:          []^ast.Comment_Group,
+
+	// Extra fields for embedded bit fields via usings
+	backing_types:        map[int]^ast.Expr, // the base type for the bit field
+	bit_sizes:         map[int]^ast.Expr, // the bit size of the bit field field
 }
 
 SymbolBitFieldValue :: struct {
-	names:  []string,
-	ranges: []common.Range,
-	types:  []^ast.Expr,
+	backing_type: ^ast.Expr,
+	names:        []string,
+	ranges:       []common.Range,
+	types:        []^ast.Expr,
+	docs:         []^ast.Comment_Group,
+	comments:     []^ast.Comment_Group,
+	bit_sizes:    []^ast.Expr,
 }
 
 SymbolPackageValue :: struct {
@@ -212,6 +220,8 @@ SymbolStructValueBuilder :: struct {
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
 	poly_names:        [dynamic]string,
+	backing_types:        map[int]^ast.Expr,
+	bit_sizes:         map[int]^ast.Expr,
 }
 
 symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) -> SymbolStructValueBuilder {
@@ -226,6 +236,8 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
+		backing_types = make(map[int]^ast.Expr, allocator),
+		bit_sizes = make(map[int]^ast.Expr, allocator),
 	}
 }
 
@@ -245,6 +257,8 @@ symbol_struct_value_builder_make_symbol :: proc(
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
+		backing_types = make(map[int]^ast.Expr, allocator),
+		bit_sizes = make(map[int]^ast.Expr, allocator),
 	}
 }
 
@@ -265,6 +279,8 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		from_usings = slice.to_dynamic(v.from_usings, allocator),
 		unexpanded_usings = slice.to_dynamic(v.unexpanded_usings, allocator),
 		poly_names = slice.to_dynamic(v.poly_names, allocator),
+		backing_types = v.backing_types,
+		bit_sizes = v.bit_sizes,
 	}
 }
 
@@ -293,21 +309,22 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		unexpanded_usings = b.unexpanded_usings[:],
 		poly = b.poly,
 		poly_names = b.poly_names[:],
+		backing_types = b.backing_types,
+		bit_sizes = b.bit_sizes,
 	}
 }
 
 write_struct_type :: proc(
 	ast_context: ^AstContext,
 	b: ^SymbolStructValueBuilder,
-	v: ast.Struct_Type,
+	v: ^ast.Struct_Type,
 	ident: ast.Ident,
 	attributes: []^ast.Attribute,
 	base_using_index: int,
 	inlined := false,
 ) {
 	b.poly = v.poly_params
-	v := v
-	construct_struct_field_docs(ast_context.file, &v)
+	construct_struct_field_docs(ast_context.file, v)
 	for field, i in v.fields.list {
 		for n in field.names {
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
@@ -381,10 +398,47 @@ write_symbol_struct_value :: proc(
 	for u in v.unexpanded_usings {
 		append(&b.unexpanded_usings, u+base_index)
 	}
+	for k, value in v.backing_types {
+		b.backing_types[k+base_index] = value
+	}
+	for k, value in v.bit_sizes {
+		b.bit_sizes[k+base_index] = value
+	}
 	for k in v.usings {
 		b.usings[k+base_index] = struct{}{}
 	}
 	expand_usings(ast_context, b)
+}
+
+write_symbol_bitfield_value :: proc(
+	ast_context: ^AstContext,
+	b: ^SymbolStructValueBuilder,
+	v: SymbolBitFieldValue,
+	base_using_index: int,
+) {
+	base_index := len(b.names)
+	for name, i in v.names {
+		append(&b.names, name)
+		append(&b.from_usings, base_using_index)
+	}
+	for type in v.types {
+		append(&b.types, type)
+	}
+	for range in v.ranges {
+		append(&b.ranges, range)
+	}
+	for doc in v.docs {
+		append(&b.docs, doc)
+	}
+	for comment in v.comments {
+		append(&b.comments, comment)
+	}
+	b.backing_types[base_using_index] = v.backing_type
+	for bit_size, i in v.bit_sizes {
+		b.bit_sizes[i+base_index] = bit_size
+	}
+	expand_usings(ast_context, b)
+
 }
 
 expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
@@ -405,23 +459,27 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 		
 		if ident, ok := field_expr.derived.(^ast.Ident); ok {
 			if v, ok := struct_type_from_identifier(ast_context, ident^); ok {
-				write_struct_type(ast_context, b, v^, ident^, {}, u, true)
+				write_struct_type(ast_context, b, v, ident^, {}, u, true)
 			} else {
 				clear(&ast_context.recursion_map)
 				if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 					if v, ok := symbol.value.(SymbolStructValue); ok {
 						write_symbol_struct_value(ast_context, b, v, u)
+					} else if v, ok := symbol.value.(SymbolBitFieldValue); ok {
+						write_symbol_bitfield_value(ast_context, b, v, u)
 					}
 				}
 			}
 		} else if selector, ok := field_expr.derived.(^ast.Selector_Expr); ok {
-			if s, ok := resolve_selector_expression(ast_context, selector); ok {
-				if v, ok := s.value.(SymbolStructValue); ok {
+			if symbol, ok := resolve_selector_expression(ast_context, selector); ok {
+				if v, ok := symbol.value.(SymbolStructValue); ok {
 					write_symbol_struct_value(ast_context, b, v, u)
+				} else if v, ok := symbol.value.(SymbolBitFieldValue); ok {
+					write_symbol_bitfield_value(ast_context, b, v, u)
 				}
 			}
 		} else if v, ok := field_expr.derived.(^ast.Struct_Type); ok {
-			write_struct_type(ast_context, b, v^, ast_context.field_name, {}, u)
+			write_struct_type(ast_context, b, v, ast_context.field_name, {}, u)
 		}
 		delete_key(&ast_context.recursion_map, b.types[u])
 	}
