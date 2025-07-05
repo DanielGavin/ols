@@ -467,7 +467,7 @@ ast_hover_union_implicit_selector :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.Bar: .Foo1")
+	test.expect_hover(t, &source, "test.Foo: .Foo1")
 }
 
 @(test)
@@ -2156,6 +2156,31 @@ ast_hover_bit_field_on_struct_field :: proc(t: ^testing.T) {
 		t,
 		&source,
 		"Bar.foo: test.Foo",
+	)
+}
+
+@(test)
+ast_hover_bitset_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			Aaa,
+			Bbb,
+		}
+
+		Foos :: bit_set[Foo]
+
+		main :: proc() {
+			foos: Foos
+			foos += {.A{*}aa}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: .Aaa",
 	)
 }
 

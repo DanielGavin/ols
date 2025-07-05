@@ -391,15 +391,30 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					}
 				}
 			case SymbolUnionValue:
-				if enum_value, ok := unwrap_super_enum(&ast_context, v); ok {
-					for name, i in enum_value.names {
+				for type in v.types {
+					enum_symbol := resolve_type_expression(&ast_context, type) or_continue
+					v := enum_symbol.value.(SymbolEnumValue) or_continue
+					for name, i in v.names {
 						if strings.compare(name, implicit_selector.field.name) == 0 {
-							symbol.signature = fmt.tprintf(".%s", name)
-							hover.contents = write_hover_content(&ast_context, symbol)
+							enum_symbol.signature = get_enum_field_signature(v, i)
+							hover.contents = write_hover_content(&ast_context, enum_symbol)
 							return hover, true, true
 						}
 					}
 				}
+			case SymbolBitSetValue:
+				if enum_symbol, ok := resolve_type_expression(&ast_context, v.expr); ok {
+					if v, ok := enum_symbol.value.(SymbolEnumValue); ok {
+						for name, i in v.names {
+							if strings.compare(name, implicit_selector.field.name) == 0 {
+								enum_symbol.signature = get_enum_field_signature(v, i)
+								hover.contents = write_hover_content(&ast_context, enum_symbol)
+								return hover, true, true
+							}
+						}
+					}
+				}
+
 			}
 		}
 		return {}, false, true

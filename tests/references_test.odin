@@ -623,3 +623,30 @@ ast_reference_enum_field_list_with_constant :: proc (t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_enum_bitset :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: enum {
+			Aaa,
+			Bbb,
+		}
+
+		Foos :: bit_set[Foo]
+
+		main :: proc() {
+			foos: Foos
+			foos += {.A{*}aa}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+		{range = {start = {line = 11, character = 13}, end = {line = 11, character = 16}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

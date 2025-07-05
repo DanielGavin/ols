@@ -734,10 +734,11 @@ get_implicit_completion :: proc(
 		}
 
 		if position_context.comp_lit != nil {
-			if bitset_symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
-				set_ast_package_from_symbol_scoped(ast_context, bitset_symbol)
-				if _enum_value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
-					enum_value = _enum_value
+			if symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
+				if v, ok := symbol.value.(SymbolFixedArrayValue); ok {
+					if _enum_value, ok := unwrap_enum(ast_context, v.len); ok {
+						enum_value = _enum_value
+					}
 				}
 			}
 			for elem in position_context.comp_lit.elems {
@@ -752,6 +753,9 @@ get_implicit_completion :: proc(
 		if ev, ok := enum_value.?; ok {
 			for name in ev.names {
 				if !slice.contains(exclude_names[:], name) {
+					if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+						continue
+					}
 					item := CompletionItem {
 						label  = name,
 						kind   = .EnumMember,
@@ -813,6 +817,9 @@ get_implicit_completion :: proc(
 			set_ast_package_set_scoped(ast_context, symbol.pkg)
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
 				for name in value.names {
+					if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+						continue
+					}
 
 					item := CompletionItem {
 						label  = name,

@@ -2226,6 +2226,18 @@ resolve_location_implicit_selector :: proc(
 				}
 			}
 		}
+	case SymbolBitSetValue:
+			enum_symbol := resolve_type_expression(ast_context, v.expr) or_return
+			if value, ok := enum_symbol.value.(SymbolEnumValue); ok {
+				for name, i in value.names {
+					if strings.compare(name, implicit_selector.field.name) == 0 {
+						symbol.range = value.ranges[i]
+						symbol.uri = enum_symbol.uri
+						return symbol, ok
+					}
+				}
+			}
+		
 	case:
 		ok = false
 	}
@@ -3892,6 +3904,8 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 			return unwrap_enum(ast_context, value.expr)
 		case SymbolDynamicArrayValue:
 			return unwrap_enum(ast_context, value.expr)
+		case SymbolBitSetValue:
+			return unwrap_enum(ast_context, value.expr)
 		}
 	}
 
@@ -3924,8 +3938,6 @@ unwrap_super_enum :: proc(
 
 unwrap_union :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolUnionValue, bool) {
 	if union_symbol, ok := resolve_type_expression(ast_context, node); ok {
-		//TODO: This current package is sus, it probably shouldn't be there.
-		ast_context.current_package = union_symbol.pkg
 		if union_value, ok := union_symbol.value.(SymbolUnionValue); ok {
 			return union_value, true
 		}
@@ -4001,6 +4013,14 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 		if field, ok := elem.derived.(^ast.Field_Value); ok {
 			if field.field != nil {
 				if ident, ok := field.field.derived.(^ast.Ident); ok {
+					if ident.name == name {
+						return true
+					}
+				}
+			}
+		} else if selector, ok := elem.derived.(^ast.Implicit_Selector_Expr); ok {
+			if selector.field != nil {
+				if ident, ok := selector.field.derived.(^ast.Ident); ok {
 					if ident.name == name {
 						return true
 					}
