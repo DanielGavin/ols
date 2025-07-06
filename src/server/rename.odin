@@ -186,6 +186,13 @@ prepare_rename :: proc(
 			return
 		}
 
+	} else if position_context.implicit {
+		range := common.get_token_range(position_context.implicit_selector_expr, ast_context.file.src)
+		// Skip the `.`
+		range.start.character += 1
+		symbol = Symbol{
+			range = range,
+		}
 	} else if position_context.field_value != nil &&
 	   position_context.comp_lit != nil &&
 	   !is_expr_basic_lit(position_context.field_value.field) &&
@@ -208,16 +215,7 @@ prepare_rename :: proc(
 			if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
 				symbol.range = common.get_token_range(selector.field.expr_base, ast_context.file.src)
 			}
-
 		}
-	} else if position_context.implicit {
-		range := common.get_token_range(position_context.implicit_selector_expr, ast_context.file.src)
-		// Skip the `.`
-		range.start.character += 1
-		symbol = Symbol{
-			range = range,
-		}
-
 	} else if position_context.identifier != nil {
 		ident := position_context.identifier.derived.(^ast.Ident)
 

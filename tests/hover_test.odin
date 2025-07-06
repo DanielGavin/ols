@@ -2177,11 +2177,59 @@ ast_hover_bitset_enum :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(
-		t,
-		&source,
-		"test.Foo: .Aaa",
-	)
+	test.expect_hover( t, &source, "test.Foo: .Aaa")
+}
+
+@(test)
+ast_hover_enumerated_array_key :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			bar: int,
+		}
+
+
+		main :: proc() {
+			bar := [Foo]Bar {
+				.A{*} = Bar {},
+				.B = Bar {},
+			}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "test.Foo: .A")
+}
+
+@(test)
+ast_hover_enumerated_array_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			bar: int,
+		}
+
+
+		main :: proc() {
+			bar := [Foo]Bar {
+				.A = B{*}ar {},
+				.B = Bar {},
+			}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "test.Bar: struct {\n\tbar: int,\n}")
 }
 
 /*
