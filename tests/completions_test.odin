@@ -3619,7 +3619,7 @@ ast_completion_enumerated_array_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completion_nested_enumerated_array_struct :: proc(t: ^testing.T) {
+ast_completion_nested_enumerated_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		Foo :: enum {
@@ -3633,8 +3633,7 @@ ast_completion_nested_enumerated_array_struct :: proc(t: ^testing.T) {
 
 		db_data: [Foo][Foo]Bar = {
 			.Foo1 = {
-				.Foo2 = {
-				},
+				.Foo2 = {},
 				{*}
 			},
 		}
@@ -3642,6 +3641,29 @@ ast_completion_nested_enumerated_array_struct :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {".Foo1"}, {".Foo2"})
+}
+
+@(test)
+ast_completion_enumerated_array_implicit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		db_data: [Foo]Bar = {
+			.Foo2 = {},
+			.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"Foo1"}, {"Foo2"})
 }
 
 @(test)
