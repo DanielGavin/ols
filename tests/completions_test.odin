@@ -3415,11 +3415,6 @@ ast_complete_ptr_using :: proc(t: ^testing.T) {
 		}
 
 		main :: proc() {
-			a: A
-			a.foo = 2
-		}
-
-		main :: proc() {
 			foo: A
 			foo.{*}
 		}
