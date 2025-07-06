@@ -202,7 +202,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 			#partial switch v in n.expr.derived {
 			// TODO: Should there be more here?
-			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident, ^ast.Paren_Expr:
+			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident, ^ast.Paren_Expr, ^ast.Call_Expr:
 				resolve_node(n.expr, data)
 			}
 		} else {
@@ -491,19 +491,30 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			for field in n.fields {
 				data.symbols[cast(uintptr)field] = SymbolAndNode {
 					node = field,
-					symbol = Symbol{range = common.get_token_range(field, string(data.document.text))},
+					symbol = Symbol{
+						range = common.get_token_range(field, string(data.document.text)),
+						uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+					},
 				}
 				// In the case of a Field_Value, we explicitly add them so we can find the LHS correctly for things like renaming
 				if field, ok := field.derived.(^ast.Field_Value); ok {
 					if ident, ok := field.field.derived.(^ast.Ident); ok {
 						data.symbols[cast(uintptr)ident] = SymbolAndNode {
 							node = ident,
-							symbol = Symbol{name = ident.name, range = common.get_token_range(ident, string(data.document.text))},
+							symbol = Symbol{
+								name = ident.name,
+								range = common.get_token_range(ident, string(data.document.text)),
+								uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+							},
 						}
 					} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
 						data.symbols[cast(uintptr)binary] = SymbolAndNode {
 							node = binary,
-							symbol = Symbol{name = "binary",range = common.get_token_range(binary, string(data.document.text))},
+							symbol = Symbol{
+								name = "binary",
+								range = common.get_token_range(binary, string(data.document.text)),
+								uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+							},
 						}
 					}
 				}

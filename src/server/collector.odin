@@ -458,7 +458,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
-
 	exprs := collect_globals(file, true)
 
 	for expr in exprs {
@@ -619,6 +618,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
 		symbol.doc = get_doc(expr.docs, collection.allocator)
+		symbol.uri = get_index_unique_string(collection, uri)
 		comment := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
 		symbol.flags |= {.Distinct}
@@ -650,7 +650,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.PrivatePackage}
 		}
 
-		symbol.uri = get_index_unique_string(collection, uri)
 
 		pkg: ^SymbolPackage
 		ok: bool

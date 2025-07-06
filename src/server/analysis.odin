@@ -764,6 +764,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				type = candidates[0].type,
 				name = candidates[0].name,
 				pkg = candidates[0].pkg,
+				uri = candidates[0].uri,
 				value = SymbolAggregateValue{symbols = candidates[:]},
 			},
 			true
@@ -1356,6 +1357,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 					name = ident.name,
 					pkg = ast_context.current_package,
 					value = SymbolBasicValue{ident = ident},
+					uri = common.create_uri(ident.pos.file, ast_context.allocator).uri,
 				},
 				true
 		}
@@ -2255,50 +2257,60 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
-
 		symbol = resolve_type_expression(ast_context, selector.expr) or_return
-
-		field: string
-
-		if selector.field != nil {
-			#partial switch v in selector.field.derived {
-			case ^ast.Ident:
-				field = v.name
-			}
-		}
-
-		#partial switch v in symbol.value {
-		case SymbolEnumValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolStructValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolBitFieldValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolPackageValue:
-			if pkg, ok := lookup(field, symbol.pkg); ok {
-				symbol.range = pkg.range
-				symbol.uri = pkg.uri
-			} else {
-				return {}, false
-			}
-		}
-
-		return symbol, true
+		return resolve_symbol_selector(ast_context, selector, symbol)
 	}
 
 	return {}, false
+}
+
+resolve_symbol_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selector_Expr, symbol: Symbol) ->(Symbol, bool) {
+	field: string
+	symbol := symbol
+
+	if selector.field != nil {
+		#partial switch v in selector.field.derived {
+		case ^ast.Ident:
+			field = v.name
+		}
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolEnumValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolStructValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolBitFieldValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolPackageValue:
+		if pkg, ok := lookup(field, symbol.pkg); ok {
+			symbol.range = pkg.range
+			symbol.uri = pkg.uri
+		} else {
+			return {}, false
+		}
+	case SymbolProcedureValue:
+		if len(v.return_types) != 1 {
+			return {}, false
+		}
+		if s, ok := resolve_type_expression(ast_context, v.return_types[0].type); ok {
+			return resolve_symbol_selector(ast_context, selector, s)
+		}
+	}
+
+	return symbol, true
 }
 
 
@@ -2553,6 +2565,7 @@ make_symbol_procedure_from_ast :: proc(
 		type  = .Function if !type else .Type_Function,
 		pkg   = get_package_from_node(n^),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -2601,6 +2614,7 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if v.len != nil {
@@ -2631,6 +2645,7 @@ make_symbol_dynamic_array_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
@@ -2652,6 +2667,7 @@ make_symbol_matrix_from_ast :: proc(ast_context: ^AstContext, v: ast.Matrix_Type
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMatrixValue {
@@ -2674,6 +2690,7 @@ make_symbol_multi_pointer_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMultiPointerValue {
@@ -2689,6 +2706,7 @@ make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMapValue {
@@ -2724,6 +2742,7 @@ make_symbol_union_from_ast :: proc(
 		type  = .Union,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2763,6 +2782,7 @@ make_symbol_enum_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2817,6 +2837,7 @@ make_symbol_bitset_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2844,6 +2865,8 @@ make_symbol_struct_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+
 	}
 
 	if inlined {
@@ -2869,6 +2892,7 @@ make_symbol_bit_field_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
