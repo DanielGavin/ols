@@ -517,3 +517,29 @@ ast_goto_enum_from_map_key :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_struct_field_from_proc :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		foo :: proc() -> Bar {
+			return Bar{}
+		}
+
+		main :: proc() {
+			bar := foo().b{*}ar
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}

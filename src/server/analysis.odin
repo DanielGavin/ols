@@ -2253,50 +2253,60 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
-
 		symbol = resolve_type_expression(ast_context, selector.expr) or_return
-
-		field: string
-
-		if selector.field != nil {
-			#partial switch v in selector.field.derived {
-			case ^ast.Ident:
-				field = v.name
-			}
-		}
-
-		#partial switch v in symbol.value {
-		case SymbolEnumValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolStructValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolBitFieldValue:
-			for name, i in v.names {
-				if strings.compare(name, field) == 0 {
-					symbol.range = v.ranges[i]
-				}
-			}
-		case SymbolPackageValue:
-			if pkg, ok := lookup(field, symbol.pkg); ok {
-				symbol.range = pkg.range
-				symbol.uri = pkg.uri
-			} else {
-				return {}, false
-			}
-		}
-
-		return symbol, true
+		return resolve_symbol_selector(ast_context, selector, symbol)
 	}
 
 	return {}, false
+}
+
+resolve_symbol_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selector_Expr, symbol: Symbol) ->(Symbol, bool) {
+	field: string
+	symbol := symbol
+
+	if selector.field != nil {
+		#partial switch v in selector.field.derived {
+		case ^ast.Ident:
+			field = v.name
+		}
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolEnumValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolStructValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolBitFieldValue:
+		for name, i in v.names {
+			if strings.compare(name, field) == 0 {
+				symbol.range = v.ranges[i]
+			}
+		}
+	case SymbolPackageValue:
+		if pkg, ok := lookup(field, symbol.pkg); ok {
+			symbol.range = pkg.range
+			symbol.uri = pkg.uri
+		} else {
+			return {}, false
+		}
+	case SymbolProcedureValue:
+		if len(v.return_types) != 1 {
+			return {}, false
+		}
+		if s, ok := resolve_type_expression(ast_context, v.return_types[0].type); ok {
+			return resolve_symbol_selector(ast_context, selector, s)
+		}
+	}
+
+	return symbol, true
 }
 
 

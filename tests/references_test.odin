@@ -650,3 +650,59 @@ ast_reference_enum_bitset :: proc (t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_field_from_proc :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		foo :: proc() -> Bar {
+			return Bar{}
+		}
+
+		main :: proc() {
+			bar := foo().b{*}ar
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+		{range = {start = {line = 11, character = 16}, end = {line = 11, character = 19}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_proc_with_immediate_return_field_access :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		foo :: proc() -> Bar {
+			return Bar{}
+		}
+
+		main :: proc() {
+			bar := f{*}oo().bar
+			bar2 := foo().bar
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 6, character = 2}, end = {line = 6, character = 5}}},
+		{range = {start = {line = 11, character = 10}, end = {line = 11, character = 13}}},
+		{range = {start = {line = 12, character = 11}, end = {line = 12, character = 14}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
