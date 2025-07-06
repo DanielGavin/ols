@@ -238,7 +238,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
 					for name, i in v.names {
 						if name == field.name {
-							log.info("here?")
 							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 								symbol.name = name
 								symbol.pkg = comp_symbol.name
@@ -414,7 +413,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 				}
-
 			}
 		}
 		return {}, false, true

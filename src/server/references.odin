@@ -330,7 +330,6 @@ resolve_references :: proc(
 						if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
 							range.start.character += 1
 						}
-
 						location := common.Location {
 							range = range,
 							uri   = strings.clone(node_uri.uri, ast_context.allocator),

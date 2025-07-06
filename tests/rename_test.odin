@@ -203,3 +203,25 @@ ast_prepare_rename_symbol_behind_for_with_label :: proc (t: ^testing.T) {
 	range := common.Range{start = {line = 4, character = 15}, end = {line = 4, character = 18}}
 	test.expect_prepare_rename_range(t, &source, range)
 }
+
+@(test)
+ast_prepare_rename_enumerated_array :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foos := [Foo]Foo {
+				.A{*} = .B,
+			}
+		}
+		`,
+	}
+
+	range := common.Range{start = {line = 9, character = 5}, end = {line = 9, character = 6}}
+	test.expect_prepare_rename_range(t, &source, range)
+}

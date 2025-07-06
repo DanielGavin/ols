@@ -650,3 +650,37 @@ ast_reference_enum_bitset :: proc (t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_enumerated_array :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foos := [Foo][Foo][Foo][Foo]Foo {
+				.A = {
+					.B = {
+						.A = {
+							.A{*} = .B
+						}
+					}
+				}
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 9, character = 5}, end = {line = 9, character = 6}}},
+		{range = {start = {line = 11, character = 7}, end = {line = 11, character = 8}}},
+		{range = {start = {line = 12, character = 8}, end = {line = 12, character = 9}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

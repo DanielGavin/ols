@@ -311,6 +311,24 @@ get_comp_lit_completion :: proc(
 					append(&items, item)
 				}
 			}
+		case SymbolFixedArrayValue:
+			if symbol, ok := resolve_type_expression(ast_context, v.len); ok {
+				if v, ok := symbol.value.(SymbolEnumValue); ok {
+					for name, i in v.names {
+						if field_exists_in_comp_lit(position_context.comp_lit, name) {
+							continue
+						}
+
+						item := CompletionItem {
+							label         = name,
+							detail        = fmt.tprintf(".%s", name),
+							documentation = symbol.doc,
+						}
+
+						append(&items, item)
+					}
+				}
+			}
 		}
 	}
 
@@ -726,47 +744,47 @@ get_implicit_completion :: proc(
 
 	//value decl infer a : My_Enum = .*
 	if position_context.value_decl != nil && position_context.value_decl.type != nil {
-		enum_value: Maybe(SymbolEnumValue)
-		exclude_names := make([dynamic]string, context.temp_allocator)
-
-		if _enum_value, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
-			enum_value = _enum_value
-		}
-
-		if position_context.comp_lit != nil {
-			if symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
-				if v, ok := symbol.value.(SymbolFixedArrayValue); ok {
-					if _enum_value, ok := unwrap_enum(ast_context, v.len); ok {
-						enum_value = _enum_value
-					}
+		if enum_value, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
+			for name in enum_value.names {
+				if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+					continue
 				}
-			}
-			for elem in position_context.comp_lit.elems {
-				if expr, ok := elem.derived.(^ast.Implicit_Selector_Expr); ok {
-					if expr.field.name != "_" {
-						append(&exclude_names, expr.field.name)
-					}
+				item := CompletionItem {
+					label  = name,
+					kind   = .EnumMember,
+					detail = name,
 				}
-			}
-		}
-
-		if ev, ok := enum_value.?; ok {
-			for name in ev.names {
-				if !slice.contains(exclude_names[:], name) {
-					if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
-						continue
-					}
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					append(&items, item)
-				}
+				append(&items, item)
 			}
 
 			list.items = items[:]
 			return
+		}
+
+		if position_context.comp_lit != nil {
+			if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
+				if v, ok := symbol.value.(SymbolFixedArrayValue); ok {
+					if symbol, ok := resolve_type_expression(ast_context, v.len); ok {
+						if v, ok := symbol.value.(SymbolEnumValue); ok {
+							for name, i in v.names {
+								if field_exists_in_comp_lit(position_context.comp_lit, name) {
+									continue
+								}
+
+								item := CompletionItem {
+									label         = name,
+									detail        = name,
+									documentation = symbol.doc,
+								}
+
+								append(&items, item)
+							}
+							list.items = items[:]
+							return
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1594,7 +1612,11 @@ get_type_switch_completion :: proc(
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
+
 					name := symbol.name
+					if _, ok := used_unions[name]; ok {
+						continue
+					}
 
 					item := CompletionItem {
 						kind = .EnumMember,
@@ -1602,6 +1624,7 @@ get_type_switch_completion :: proc(
 
 					if symbol.pkg == ast_context.document_package {
 						item.label = fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), name)
+						item.detail = item.label
 					} else {
 						item.label = fmt.aprintf(
 							"%v%v.%v",
@@ -1609,6 +1632,7 @@ get_type_switch_completion :: proc(
 							get_symbol_pkg_name(ast_context, symbol),
 							name,
 						)
+						item.detail = item.label
 					}
 
 					append(&items, item)

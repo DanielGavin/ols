@@ -305,6 +305,10 @@ resolve_type_comp_literal :: proc(
 							}
 						}
 					}
+				} else if s, ok := current_symbol.value.(SymbolFixedArrayValue); ok {
+					if symbol, ok := resolve_type_expression(ast_context, s.expr); ok {
+						return resolve_type_comp_literal(ast_context, position_context, symbol, comp_lit)
+					}
 				}
 			}
 		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { 	//indexed
@@ -4015,6 +4019,14 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 				if ident, ok := field.field.derived.(^ast.Ident); ok {
 					if ident.name == name {
 						return true
+					}
+				} else if selector, ok := field.field.derived.(^ast.Implicit_Selector_Expr); ok {
+					if selector.field != nil {
+						if ident, ok := selector.field.derived.(^ast.Ident); ok {
+							if ident.name == name {
+								return true
+							}
+						}
 					}
 				}
 			}
