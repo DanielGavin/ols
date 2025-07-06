@@ -1612,7 +1612,11 @@ get_type_switch_completion :: proc(
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
+
 					name := symbol.name
+					if _, ok := used_unions[name]; ok {
+						continue
+					}
 
 					item := CompletionItem {
 						kind = .EnumMember,
@@ -1620,6 +1624,7 @@ get_type_switch_completion :: proc(
 
 					if symbol.pkg == ast_context.document_package {
 						item.label = fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), name)
+						item.detail = item.label
 					} else {
 						item.label = fmt.aprintf(
 							"%v%v.%v",
@@ -1627,6 +1632,7 @@ get_type_switch_completion :: proc(
 							get_symbol_pkg_name(ast_context, symbol),
 							name,
 						)
+						item.detail = item.label
 					}
 
 					append(&items, item)

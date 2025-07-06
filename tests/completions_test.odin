@@ -3692,3 +3692,30 @@ ast_completion_nested_enumerated_array_struct_fields :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"Bar.bar: int", "Bar.bar2: string"})
 }
+
+@(test)
+ast_completion_union_switch_remove_used_cases :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo1 :: struct{}
+		Foo2 :: struct{}
+		Foo3 :: struct{}
+		Foo :: union {
+			Foo1,
+			Foo2,
+			Foo3,
+		}
+
+		main :: proc() {
+			foo: Foo
+
+			switch v in Foo {
+			case Foo1:
+			case F{*}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"Foo2", "Foo3"}, {"Foo1"})
+}
