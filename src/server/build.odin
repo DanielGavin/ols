@@ -232,11 +232,17 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	ok = parser.parse_file(&p, &file)
+	{
+		allocator := context.allocator
+		context.allocator = context.temp_allocator
+		defer context.allocator = allocator
 
-	if !ok {
-		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-			log.errorf("error in parse file for indexing %v", fullpath)
+		ok = parser.parse_file(&p, &file)
+
+		if !ok {
+			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				log.errorf("error in parse file for indexing %v", fullpath)
+			}
 		}
 	}
 

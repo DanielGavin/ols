@@ -289,7 +289,6 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 		request := temp_requests[request_index]
 		call(request.value, request.id, writer, config)
 		clear_index_cache()
-		json.destroy_value(request.value)
 		free_all(context.temp_allocator)
 	}
 
