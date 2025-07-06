@@ -322,8 +322,7 @@ resolve_references :: proc(
 			if in_pkg || symbol.pkg == document.package_name {
 				symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
 				for k, v in symbols_and_nodes {
-					// NOTE: the uri is sometimes empty for symbols used in the same file as they are derived
-					if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
+					if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
 						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 						range := common.get_token_range(v.node^, string(document.text))
 						//We don't have to have the `.` with, otherwise it renames the dot.
@@ -346,8 +345,7 @@ resolve_references :: proc(
 	symbols_and_nodes := resolve_entire_file(document, resolve_flag, context.allocator)
 
 	for k, v in symbols_and_nodes {
-		// NOTE: the uri is sometimes empty for symbols used in the same file as they are derived
-		if (v.symbol.uri == symbol.uri || v.symbol.uri == "") && v.symbol.range == symbol.range {
+		if v.symbol.uri == symbol.uri && v.symbol.range == symbol.range {
 			node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 
 			range := common.get_token_range(v.node^, ast_context.file.src)
