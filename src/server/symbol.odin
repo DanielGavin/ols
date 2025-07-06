@@ -459,6 +459,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 
 		derived := field_expr.derived
 		if ptr, ok := field_expr.derived.(^ast.Pointer_Type); ok {
+			(ptr.elem != nil) or_continue
 			derived = ptr.elem.derived
 		}
 

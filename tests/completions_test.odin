@@ -3427,7 +3427,6 @@ ast_complete_ptr_using :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, "", {`A.b: ^test.B`, `A.a: ^test.struct`, `A.foo: int`, `A.f: int`})
-
 }
 
 @(test)
