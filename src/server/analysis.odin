@@ -760,6 +760,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				type = candidates[0].type,
 				name = candidates[0].name,
 				pkg = candidates[0].pkg,
+				uri = candidates[0].uri,
 				value = SymbolAggregateValue{symbols = candidates[:]},
 			},
 			true
@@ -1352,6 +1353,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 					name = ident.name,
 					pkg = ast_context.current_package,
 					value = SymbolBasicValue{ident = ident},
+					uri = common.create_uri(ident.pos.file, ast_context.allocator).uri,
 				},
 				true
 		}
@@ -2549,6 +2551,7 @@ make_symbol_procedure_from_ast :: proc(
 		type  = .Function if !type else .Type_Function,
 		pkg   = get_package_from_node(n^),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -2597,6 +2600,7 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if v.len != nil {
@@ -2627,6 +2631,7 @@ make_symbol_dynamic_array_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
@@ -2648,6 +2653,7 @@ make_symbol_matrix_from_ast :: proc(ast_context: ^AstContext, v: ast.Matrix_Type
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMatrixValue {
@@ -2670,6 +2676,7 @@ make_symbol_multi_pointer_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMultiPointerValue {
@@ -2685,6 +2692,7 @@ make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	symbol.value = SymbolMapValue {
@@ -2720,6 +2728,7 @@ make_symbol_union_from_ast :: proc(
 		type  = .Union,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2759,6 +2768,7 @@ make_symbol_enum_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2813,6 +2823,7 @@ make_symbol_bitset_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
@@ -2840,6 +2851,8 @@ make_symbol_struct_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+
 	}
 
 	if inlined {
@@ -2865,6 +2878,7 @@ make_symbol_bit_field_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
 	}
 
 	if inlined {
