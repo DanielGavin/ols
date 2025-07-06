@@ -325,7 +325,7 @@ write_struct_type :: proc(
 ) {
 	b.poly = v.poly_params
 	construct_struct_field_docs(ast_context.file, v)
-	for field, i in v.fields.list {
+	for field in v.fields.list {
 		for n in field.names {
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
 				if .Using in field.flags {
@@ -456,8 +456,14 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 		}
 
 		b.usings[u] = struct{}{}
-		
-		if ident, ok := field_expr.derived.(^ast.Ident); ok {
+
+		derived := field_expr.derived
+		if ptr, ok := field_expr.derived.(^ast.Pointer_Type); ok {
+			(ptr.elem != nil) or_continue
+			derived = ptr.elem.derived
+		}
+
+		if ident, ok := derived.(^ast.Ident); ok {
 			if v, ok := struct_type_from_identifier(ast_context, ident^); ok {
 				write_struct_type(ast_context, b, v, ident^, {}, u, true)
 			} else {
@@ -470,7 +476,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 					}
 				}
 			}
-		} else if selector, ok := field_expr.derived.(^ast.Selector_Expr); ok {
+		} else if selector, ok := derived.(^ast.Selector_Expr); ok {
 			if symbol, ok := resolve_selector_expression(ast_context, selector); ok {
 				if v, ok := symbol.value.(SymbolStructValue); ok {
 					write_symbol_struct_value(ast_context, b, v, u)
@@ -478,7 +484,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 					write_symbol_bitfield_value(ast_context, b, v, u)
 				}
 			}
-		} else if v, ok := field_expr.derived.(^ast.Struct_Type); ok {
+		} else if v, ok := derived.(^ast.Struct_Type); ok {
 			write_struct_type(ast_context, b, v, ast_context.field_name, {}, u)
 		}
 		delete_key(&ast_context.recursion_map, b.types[u])

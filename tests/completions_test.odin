@@ -3364,6 +3364,67 @@ ast_completion_inline_using :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_vtable_using :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		IUnknown :: struct {
+			using _iunknown_vtable: ^IUnknown_VTable,
+		}
+
+		IUnknownVtbl :: IUnknown_VTable
+		IUnknown_VTable :: struct {
+			QueryInterface: proc "system" (This: ^IUnknown, riid: REFIID, ppvObject: ^rawptr) -> HRESULT,
+			AddRef:         proc "system" (This: ^IUnknown) -> ULONG,
+			Release:        proc "system" (This: ^IUnknown) -> ULONG,
+		}
+
+		main :: proc() {
+			foo: ^IUnknown
+			foo->{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(
+		t,
+		&source,
+		"->",
+		{
+			`IUnknown.QueryInterface: proc(This: ^IUnknown, riid: REFIID, ppvObject: ^rawptr) -> HRESULT`,
+			`IUnknown.AddRef: proc(This: ^IUnknown) -> ULONG`,
+			`IUnknown.Release: proc(This: ^IUnknown) -> ULONG`,
+		},
+	)
+}
+
+@(test)
+ast_complete_ptr_using :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+
+		B :: struct {
+			foo: int,
+		}
+
+		A :: struct {
+			using b: ^B,
+			using a: ^struct {
+				f: int,
+			},
+		}
+
+		main :: proc() {
+			foo: A
+			foo.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {`A.b: ^test.B`, `A.a: ^test.struct`, `A.foo: int`, `A.f: int`})
+}
+
+@(test)
 ast_completion_poly_struct_another_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
