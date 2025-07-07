@@ -342,7 +342,12 @@ expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_loc
 	}
 }
 
-expect_reference_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+expect_reference_locations :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expect_locations: []common.Location,
+	expect_excluded: []common.Location = nil,
+) {
 	setup(src)
 	defer teardown(src)
 
@@ -365,6 +370,14 @@ expect_reference_locations :: proc(t: ^testing.T, src: ^Source, expect_locations
 		log.error("Received:")
 		for location in locations {
 			log.errorf("%v \n", location)
+		}
+	}
+
+	for expect_exclude in expect_excluded {
+		for location in locations {
+			if expect_exclude.range == location.range {
+				log.errorf("Expected location %v to not be included\n", expect_exclude)
+			}
 		}
 	}
 }

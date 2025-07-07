@@ -761,3 +761,34 @@ ast_reference_struct_field_ptr :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_and_enum_variant_same_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			Bar,
+			Bazz
+		}
+
+		Bar :: struct {}
+
+		main :: proc() {
+			f: Foo
+			f = .Bar
+			b := B{*}ar{}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 7, character = 2}, end = {line = 7, character = 5}}},
+		{range = {start = {line = 12, character = 8}, end = {line = 12, character = 11}}},
+	}
+	expect_excluded := []common.Location {
+		{range = {start = {line = 11, character = 8}, end = {line = 11, character = 11}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:], expect_excluded)
+}
