@@ -1885,7 +1885,6 @@ resolve_implicit_selector :: proc(
 	Symbol,
 	bool,
 ) {
-
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
@@ -1897,7 +1896,7 @@ resolve_implicit_selector :: proc(
 
 					return resolve_type_expression(ast_context, proc_value.arg_types[parameter_index].type)
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					return symbol, true
+					return symbol, ok
 				}
 			}
 		}
@@ -1906,13 +1905,11 @@ resolve_implicit_selector :: proc(
 	if position_context.assign != nil && len(position_context.assign.lhs) == len(position_context.assign.rhs) {
 		for _, i in position_context.assign.lhs {
 			if position_in_node(position_context.assign.rhs[i], position_context.position) {
-				return resolve_type_expression(ast_context, position_context.assign.lhs[i])
+				if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[i]); ok {
+					return symbol, ok
+				}
 			}
 		}
-	}
-
-	if position_context.switch_stmt != nil {
-		return resolve_type_expression(ast_context, position_context.switch_stmt.cond)
 	}
 
 	if position_context.binary != nil {
@@ -1946,19 +1943,21 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.comp_lit != nil && position_context.parent_comp_lit.type != nil {
-		if position_context.field_value == nil {
-			return {}, false
+	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil && position_context.parent_comp_lit.type != nil {
+		if position_context.field_value != nil {
+			if field_name, ok := get_field_value_name(position_context.field_value); ok {
+				if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+					return resolve_implicit_selector_comp_literal(
+						ast_context, position_context, symbol, field_name,
+					)
+				}
+			}
 		}
-		field_name, ok := get_field_value_name(position_context.field_value)
-		if !ok {
-			return {}, false
-		}
+	}
 
-		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-			return resolve_implicit_selector_comp_literal(
-				ast_context, position_context, symbol, field_name,
-			)
+	if position_context.switch_stmt != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+			return symbol, ok
 		}
 	}
 
