@@ -792,3 +792,34 @@ ast_reference_struct_and_enum_variant_same_name :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:], expect_excluded)
 }
+
+@(test)
+ast_reference_enum_variants_comp_lit_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		foo :: proc() -> Bar {
+			return Bar {
+				foo = .A{*},
+			}
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 13, character = 11}, end = {line = 13, character = 12}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
