@@ -225,3 +225,20 @@ ast_prepare_rename_enumerated_array :: proc (t: ^testing.T) {
 	range := common.Range{start = {line = 9, character = 5}, end = {line = 9, character = 6}}
 	test.expect_prepare_rename_range(t, &source, range)
 }
+
+@(test)
+ast_prepare_rename_struct_field_ptr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: ^Ba{*}r
+		}
+
+		Bar :: struct {}
+		`,
+	}
+
+	range := common.Range{start = {line = 3, character = 9}, end = {line = 3, character = 12}}
+	test.expect_prepare_rename_range(t, &source, range)
+}

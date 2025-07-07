@@ -65,25 +65,14 @@ prepare_references :: proc(
 				}
 			}
 			if position_in_node(field.type, position_context.position) {
-				if ident, ok := field.type.derived.(^ast.Ident); ok {
-					symbol, ok = resolve_location_identifier(ast_context, ident^)
-					if !ok {
-						return
-					}
-
-					found = true
-					resolve_flag = .Identifier
-					break done_struct
-				} else if selector, ok := field.type.derived.(^ast.Selector_Expr); ok {
-					symbol, ok = resolve_location_identifier(ast_context, ident^)
-					if !ok {
-						return
-					}
-
-					found = true
-					resolve_flag = .Identifier
-					break done_struct
+				symbol, ok = resolve_location_type_expression(ast_context, field.type)
+				if !ok {
+					return
 				}
+
+				found = true
+				resolve_flag = .Identifier
+				break done_struct
 			}
 		}
 		if !found {

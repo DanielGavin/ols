@@ -740,3 +740,24 @@ ast_reference_enumerated_array :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_field_ptr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: ^Ba{*}r
+		}
+
+		Bar :: struct {}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 9}, end = {line = 3, character = 12}}},
+		{range = {start = {line = 6, character = 2}, end = {line = 6, character = 5}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
