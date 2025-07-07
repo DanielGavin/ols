@@ -170,16 +170,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Implicit_Selector_Expr:
 		data.position_context.implicit = true
 		data.position_context.implicit_selector_expr = n
-		if data.flag != .None {
-			data.position_context.position = n.pos.offset
-			if symbol, ok := resolve_location_implicit_selector(data.ast_context, data.position_context, n); ok {
-				data.symbols[cast(uintptr)node] = SymbolAndNode {
-					node   = n,
-					symbol = symbol,
-				}
+		data.position_context.position = n.pos.offset
+		if symbol, ok := resolve_location_implicit_selector(data.ast_context, data.position_context, n); ok {
+			data.symbols[cast(uintptr)node] = SymbolAndNode {
+				node   = n,
+				symbol = symbol,
 			}
 		}
-		resolve_node(n.field, data)
 	case ^Selector_Expr:
 		data.position_context.selector = n.expr
 		data.position_context.field = n.field

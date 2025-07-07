@@ -1856,33 +1856,6 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.returns != nil && position_context.function != nil {
-		return_index: int
-
-		if position_context.returns.results == nil {
-			return {}, false
-		}
-
-		for result, i in position_context.returns.results {
-			if position_in_node(result, position_context.position) {
-				return_index = i
-				break
-			}
-		}
-
-		if position_context.function.type == nil {
-			return {}, false
-		}
-
-		if position_context.function.type.results == nil {
-			return {}, false
-		}
-
-		if len(position_context.function.type.results.list) > return_index {
-			return resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type)
-		}
-	}
-
 	if position_context.value_decl != nil && position_context.value_decl.type != nil {
 		return resolve_type_expression(ast_context, position_context.value_decl.type)
 	}
@@ -1982,6 +1955,32 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.returns != nil && position_context.function != nil {
+		return_index: int
+
+		if position_context.returns.results == nil {
+			return {}, false
+		}
+
+		for result, i in position_context.returns.results {
+			if position_in_node(result, position_context.position) {
+				return_index = i
+				break
+			}
+		}
+
+		if position_context.function.type == nil {
+			return {}, false
+		}
+
+		if position_context.function.type.results == nil {
+			return {}, false
+		}
+
+		if len(position_context.function.type.results.list) > return_index {
+			return resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type)
+		}
+	}
 
 	return {}, false
 }

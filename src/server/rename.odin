@@ -93,6 +93,26 @@ get_prepare_rename :: proc(document: ^Document, position: common.Position) -> (c
 	return symbol.range, ok2
 }
 
+get_struct_field_type_position :: proc(
+	ast_context: ^AstContext, position_context: ^DocumentPositionContext, node: ^ast.Expr
+) -> (Symbol, bool) {
+	#partial switch v in node.derived {
+	case ^ast.Ident:
+		symbol := Symbol {
+			range = common.get_token_range(node, ast_context.file.src),
+		}
+		return symbol, true
+	case ^ast.Selector_Expr:
+		symbol := Symbol {
+			range = common.get_token_range(v.field, ast_context.file.src),
+		}
+		return symbol, true
+	case ^ast.Pointer_Type:
+		return get_struct_field_type_position(ast_context, position_context, v.elem)
+	}
+	return {}, false
+}
+
 // For preparing the rename, we want to position of the token within the current file,
 // not the position of the declaration
 prepare_rename :: proc(
@@ -119,21 +139,13 @@ prepare_rename :: proc(
 				}
 			}
 			if position_in_node(field.type, position_context.position) {
-				if ident, ok := field.type.derived.(^ast.Ident); ok {
-					symbol = Symbol {
-						range = common.get_token_range(field.type, ast_context.file.src),
-					}
-
-					found = true
-					break done_struct
-				} else if selector, ok := field.type.derived.(^ast.Selector_Expr); ok {
-					symbol = Symbol {
-						range = common.get_token_range(selector.field, ast_context.file.src),
-					}
-
-					found = true
-					break done_struct
+				symbol, ok = get_struct_field_type_position(ast_context, position_context, field.type)
+				if !ok {
+					return
 				}
+
+				found = true
+				break done_struct
 			}
 		}
 		if !found {

@@ -38,7 +38,7 @@ SymbolStructValue :: struct {
 	comments:          []^ast.Comment_Group,
 
 	// Extra fields for embedded bit fields via usings
-	backing_types:        map[int]^ast.Expr, // the base type for the bit field
+	backing_types:     map[int]^ast.Expr, // the base type for the bit field
 	bit_sizes:         map[int]^ast.Expr, // the bit size of the bit field field
 }
 
@@ -220,7 +220,7 @@ SymbolStructValueBuilder :: struct {
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
 	poly_names:        [dynamic]string,
-	backing_types:        map[int]^ast.Expr,
+	backing_types:     map[int]^ast.Expr,
 	bit_sizes:         map[int]^ast.Expr,
 }
 

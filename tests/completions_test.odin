@@ -3780,3 +3780,30 @@ ast_completion_union_switch_remove_used_cases :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"Foo2", "Foo3"}, {"Foo1"})
 }
+
+@(test)
+ast_completion_union_switch_remove_used_cases_ptr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo1 :: struct{}
+		Foo2 :: struct{}
+		Foo3 :: struct{}
+		Foo :: union {
+			^Foo1,
+			^Foo2,
+			^Foo3,
+		}
+
+		main :: proc() {
+			foo: Foo
+
+			switch v in Foo {
+			case ^Foo1:
+			case F{*}
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"^Foo2", "^Foo3"}, {"^Foo1"})
+}

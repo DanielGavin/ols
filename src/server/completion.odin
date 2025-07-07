@@ -1581,6 +1581,18 @@ search_for_packages :: proc(fullpath: string) -> []string {
 	return packages[:]
 }
 
+get_used_switch_name :: proc(node: ^ast.Expr) -> (string, bool) {
+	#partial switch n in node.derived {
+	case ^ast.Ident:
+		return n.name, true
+	case ^ast.Selector_Expr:
+		return n.field.name, true
+	case ^ast.Pointer_Type:
+		return get_used_switch_name(n.elem)
+	}
+	return "", false
+}
+
 get_type_switch_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -1595,10 +1607,8 @@ get_type_switch_completion :: proc(
 		for stmt in block.stmts {
 			if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 				for name in case_clause.list {
-					if ident, ok := name.derived.(^ast.Ident); ok {
-						used_unions[ident.name] = true
-					} else if selector, ok := name.derived.(^ast.Selector_Expr); ok {
-						used_unions[selector.field.name] = true
+					if n, ok := get_used_switch_name(name); ok {
+						used_unions[n] = true
 					}
 				}
 			}
