@@ -346,7 +346,7 @@ collect_generic :: proc(
 	//In the c package code it uses a documentation package(builtin).
 	if selector, ok := expr.derived.(^ast.Selector_Expr); ok {
 		if ident, ok := selector.expr.derived.(^ast.Ident); ok {
-			if ident.name == "builtin" && strings.contains(uri, "Odin/core/c/c.odin") {
+			if ident.name == "builtin" && strings.contains(uri, "/core/c/c.odin") {
 				cloned := clone_type(selector.field, collection.allocator, &collection.unique_strings)
 				replace_package_alias(cloned, package_map, collection)
 				value := SymbolGenericValue {
