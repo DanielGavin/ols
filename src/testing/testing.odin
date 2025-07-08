@@ -458,6 +458,38 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 	}
 }
 
+
+expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range{start=src.position, end=src.position}
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+	}
+
+	if len(expect_action_names) == 0 && len(actions) > 0 {
+		log.errorf("Expected empty actions, but received %v", actions)
+	}
+
+	flags := make([]int, len(expect_action_names), context.temp_allocator)
+
+	for name, i in expect_action_names {
+		for action, j in actions {
+			if action.title == name {
+				flags[i] += 1
+			}
+		}
+	}
+
+	for flag, i in flags {
+		if flag != 1 {
+			log.errorf("Expected action %v, but received %v", expect_action_names[i], actions)
+		}
+	}
+}
+
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
 	setup(src)
 	defer teardown(src)
