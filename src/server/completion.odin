@@ -174,14 +174,14 @@ get_attribute_completion :: proc(
 }
 
 DIRECTIVE_NAME_LIST :: []string {
-	/* basic directives */
+	// basic directives
 	"file",
 	"directory",
 	"line",
 	"procedure",
 	"caller_location",
 	"reverse",
-	/* call directives */
+	// call directives
 	"location",
 	"caller_expression",
 	"exists",
@@ -781,6 +781,29 @@ get_implicit_completion :: proc(
 							}
 							list.items = items[:]
 							return
+						}
+					}
+				} else if v, ok := symbol.value.(SymbolStructValue); ok {
+					if position_context.field_value != nil {
+						if field_name, ok := get_field_value_name(position_context.field_value); ok {
+							if symbol, ok := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name); ok {
+								if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
+									for name in enum_value.names {
+										if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+											continue
+										}
+										item := CompletionItem {
+											label  = name,
+											kind   = .EnumMember,
+											detail = name,
+										}
+										append(&items, item)
+									}
+
+									list.items = items[:]
+									return
+								}
+							}
 						}
 					}
 				}

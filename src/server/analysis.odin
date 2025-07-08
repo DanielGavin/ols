@@ -1771,8 +1771,8 @@ resolve_comp_literal :: proc(
 				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
-	} else if ast_context.value_decl != nil && ast_context.value_decl.type != nil {
-		symbol = resolve_type_expression(ast_context, ast_context.value_decl.type) or_return
+	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		symbol = resolve_type_expression(ast_context, position_context.value_decl.type) or_return
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)
@@ -1947,6 +1947,21 @@ resolve_implicit_selector :: proc(
 		if position_context.field_value != nil {
 			if field_name, ok := get_field_value_name(position_context.field_value); ok {
 				if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+					return resolve_implicit_selector_comp_literal(
+						ast_context, position_context, symbol, field_name,
+					)
+				}
+			}
+		}
+	}
+
+	if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
+			if !ok {
+				return {}, false
+			}
+			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
+				if field_name, ok := get_field_value_name(position_context.field_value); ok {
 					return resolve_implicit_selector_comp_literal(
 						ast_context, position_context, symbol, field_name,
 					)

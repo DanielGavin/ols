@@ -2232,6 +2232,54 @@ ast_hover_enumerated_array_value :: proc(t: ^testing.T) {
 	test.expect_hover( t, &source, "test.Bar: struct {\n\tbar: int,\n}")
 }
 
+@(test)
+ast_hover_struct_fields_when_not_specifying_type_at_use :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			foo: int,
+		}
+
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+
+		main :: proc() {
+			bar: Bar = {
+				fo{*}o =
+			}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Bar.foo: Foo")
+}
+
+@(test)
+ast_hover_struct_field_value_when_not_specifying_type_at_use :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			bar: Bar = {
+				foo = .B{*}
+			}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "test.Foo: .B")
+}
 /*
 
 Waiting for odin fix
