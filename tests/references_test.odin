@@ -823,3 +823,129 @@ ast_reference_enum_variants_comp_lit_return :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_enum_variants_comp_lit_return_implicit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		foo :: proc() -> Bar {
+			return {
+				foo = .A{*},
+			}
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 13, character = 11}, end = {line = 13, character = 12}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_enum_indexed_array_return_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		foo :: proc() -> [Foo]int {
+			return {
+				.A{*} = 2,
+				.B = 1,
+			}
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 9, character = 5}, end = {line = 9, character = 6}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_enum_conflict_switch_statement :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A{*},
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		foo :: proc() {
+			s := "test"
+			switch s {
+			case "test2":
+			}
+
+			bar := Bar{
+				foo = .A
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 18, character = 11}, end = {line = 18, character = 12}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_enum_nested_with_switch :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A{*},
+			B,
+		}
+
+		foo :: proc() -> Foo {
+			f := Foo.A
+			switch f {
+			case .A:
+				return .B
+			case .B
+				return .A
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 8, character = 12}, end = {line = 8, character = 13}}},
+		{range = {start = {line = 10, character = 9}, end = {line = 10, character = 10}}},
+		{range = {start = {line = 13, character = 12}, end = {line = 13, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

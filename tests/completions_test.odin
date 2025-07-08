@@ -3807,3 +3807,27 @@ ast_completion_union_switch_remove_used_cases_ptr :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, "", {"^Foo2", "^Foo3"}, {"^Foo1"})
 }
+
+@(test)
+ast_completion_struct_field_value_when_not_specifying_type_at_use_implicit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			bar: Bar = {
+				foo = .{*}
+			}
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}

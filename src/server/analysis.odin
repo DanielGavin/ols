@@ -1771,8 +1771,8 @@ resolve_comp_literal :: proc(
 				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
-	} else if ast_context.value_decl != nil && ast_context.value_decl.type != nil {
-		symbol = resolve_type_expression(ast_context, ast_context.value_decl.type) or_return
+	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		symbol = resolve_type_expression(ast_context, position_context.value_decl.type) or_return
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)
@@ -1787,6 +1787,96 @@ resolve_comp_literal :: proc(
 	return symbol, true
 }
 
+// Used to get the name of the field for resolving the implicit selectors
+get_field_value_name :: proc(field_value: ^ast.Field_Value) ->(string, bool) {
+	if field, ok := field_value.field.derived.(^ast.Ident); ok {
+		return field.name, true
+	} else if field, ok := field_value.field.derived.(^ast.Implicit_Selector_Expr); ok {
+		return field.field.name, true
+	}
+	return "", false
+}
+
+resolve_implicit_selector_comp_literal :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+	field_name: string,
+) -> (Symbol, bool) {
+	if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
+		ast_context,
+		position_context,
+		symbol,
+		position_context.parent_comp_lit,
+	); ok {
+		if s, ok := comp_symbol.value.(SymbolStructValue); ok {
+			set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
+
+			//We can either have the final
+			elem_index := -1
+
+			for elem, i in comp_lit.elems {
+				if position_in_node(elem, position_context.position) {
+					elem_index = i
+				}
+			}
+
+			type: ^ast.Expr
+
+			for name, i in s.names {
+				if name != field_name {
+					continue
+				}
+
+				type = s.types[i]
+				break
+			}
+
+			if type == nil && len(s.types) > elem_index {
+				type = s.types[elem_index]
+			}
+
+			return resolve_type_expression(ast_context, type)
+		} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
+			set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
+
+			//We can either have the final
+			elem_index := -1
+
+			for elem, i in comp_lit.elems {
+				if position_in_node(elem, position_context.position) {
+					elem_index = i
+				}
+			}
+
+			type: ^ast.Expr
+
+			for name, i in s.names {
+				if name != field_name {
+					continue
+				}
+
+				type = s.types[i]
+				break
+			}
+
+			if type == nil && len(s.types) > elem_index {
+				type = s.types[elem_index]
+			}
+
+			return resolve_type_expression(ast_context, type)
+		} else if s, ok := comp_symbol.value.(SymbolFixedArrayValue); ok {
+			//This will be a comp_lit for an enumerated array
+			//EnumIndexedArray :: [TestEnum]u32 {
+			//	.valueOne = 1,
+			//	.valueTwo = 2,
+			//}
+			return resolve_type_expression(ast_context, s.len)
+		}
+	}
+	return {}, false
+}
+
 resolve_implicit_selector :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -1795,7 +1885,6 @@ resolve_implicit_selector :: proc(
 	Symbol,
 	bool,
 ) {
-
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
@@ -1807,7 +1896,7 @@ resolve_implicit_selector :: proc(
 
 					return resolve_type_expression(ast_context, proc_value.arg_types[parameter_index].type)
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					return symbol, true
+					return symbol, ok
 				}
 			}
 		}
@@ -1816,13 +1905,11 @@ resolve_implicit_selector :: proc(
 	if position_context.assign != nil && len(position_context.assign.lhs) == len(position_context.assign.rhs) {
 		for _, i in position_context.assign.lhs {
 			if position_in_node(position_context.assign.rhs[i], position_context.position) {
-				return resolve_type_expression(ast_context, position_context.assign.lhs[i])
+				if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[i]); ok {
+					return symbol, ok
+				}
 			}
 		}
-	}
-
-	if position_context.switch_stmt != nil {
-		return resolve_type_expression(ast_context, position_context.switch_stmt.cond)
 	}
 
 	if position_context.binary != nil {
@@ -1856,102 +1943,36 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.value_decl != nil && position_context.value_decl.type != nil {
-		return resolve_type_expression(ast_context, position_context.value_decl.type)
-	}
-
-	if position_context.comp_lit != nil {
-		if position_context.parent_comp_lit.type == nil {
-			return {}, false
-		}
-
-		field_name: string
-
+	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil && position_context.parent_comp_lit.type != nil {
 		if position_context.field_value != nil {
-			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-				field_name = field.name
-			} else if field, ok := position_context.field_value.field.derived.(^ast.Implicit_Selector_Expr); ok {
-				field_name = field.field.name
-			} else {
-				return {}, false
-			}
-		}
-
-
-		if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-			if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
-				ast_context,
-				position_context,
-				symbol,
-				position_context.parent_comp_lit,
-			); ok {
-				if s, ok := comp_symbol.value.(SymbolStructValue); ok {
-					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
-
-					//We can either have the final
-					elem_index := -1
-
-					for elem, i in comp_lit.elems {
-						if position_in_node(elem, position_context.position) {
-							elem_index = i
-						}
-					}
-
-					type: ^ast.Expr
-
-					for name, i in s.names {
-						if name != field_name {
-							continue
-						}
-
-						type = s.types[i]
-						break
-					}
-
-					if type == nil && len(s.types) > elem_index {
-						type = s.types[elem_index]
-					}
-
-					return resolve_type_expression(ast_context, type)
-				} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
-					set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
-
-					//We can either have the final
-					elem_index := -1
-
-					for elem, i in comp_lit.elems {
-						if position_in_node(elem, position_context.position) {
-							elem_index = i
-						}
-					}
-
-					type: ^ast.Expr
-
-					for name, i in s.names {
-						if name != field_name {
-							continue
-						}
-
-						type = s.types[i]
-						break
-					}
-
-					if type == nil && len(s.types) > elem_index {
-						type = s.types[elem_index]
-					}
-
-					return resolve_type_expression(ast_context, type)
-				} else if s, ok := comp_symbol.value.(SymbolFixedArrayValue); ok {
-					/*
-					This will be a comp_lit for an enumerated array
-					EnumIndexedArray :: [TestEnum]u32 {
-						.valueOne = 1,
-						.valueTwo = 2,
-					}
-					*/
-					return resolve_type_expression(ast_context, s.len)
+			if field_name, ok := get_field_value_name(position_context.field_value); ok {
+				if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+					return resolve_implicit_selector_comp_literal(
+						ast_context, position_context, symbol, field_name,
+					)
 				}
 			}
+		}
+	}
+
+	if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
+			if !ok {
+				return {}, false
+			}
+			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
+				if field_name, ok := get_field_value_name(position_context.field_value); ok {
+					return resolve_implicit_selector_comp_literal(
+						ast_context, position_context, symbol, field_name,
+					)
+				}
+			}
+		}
+	}
+
+	if position_context.switch_stmt != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+			return symbol, ok
 		}
 	}
 
@@ -1978,7 +1999,18 @@ resolve_implicit_selector :: proc(
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
-			return resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type)
+			current_symbol, ok := resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type)
+			if !ok {
+				return {}, false
+			}
+			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
+				if field_name, ok := get_field_value_name(position_context.field_value); ok {
+					return resolve_implicit_selector_comp_literal(
+						ast_context, position_context, current_symbol, field_name,
+					)
+				}
+			}
+			return current_symbol, ok
 		}
 	}
 
