@@ -187,6 +187,8 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		sb := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
 			strings.write_string(&sb, "enum")
 		}
