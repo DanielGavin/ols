@@ -399,6 +399,26 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 	return false, false
 }
 
+are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
+	if a.name != b.name {
+		return false
+	}
+	if _, ok := a.value.(SymbolBasicValue); !ok {
+		return false
+	}
+	if _, ok := b.value.(SymbolBasicValue); !ok {
+		return false
+	}
+	if _, ok := keyword_map[a.name]; !ok {
+		return false
+	}
+	if _, ok := keyword_map[b.name]; !ok {
+		return false
+	}
+
+	return true
+}
+
 is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
 	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
 	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
@@ -429,13 +449,17 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 	#partial switch b_value in b.value {
 	case SymbolBasicValue:
 		if .Any_Int in flags {
-			//Temporary - make a function that finds the base type of basic values 
+			//Temporary - make a function that finds the base type of basic values
 			//This code only works with non distinct ints
 			switch a.name {
 			case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
 				return true
 			}
 		}
+	}
+
+	if are_symbol_basic_same_keywords(a, b) {
+		return true
 	}
 
 	#partial switch a_value in a.value {
