@@ -2280,6 +2280,53 @@ ast_hover_struct_field_value_when_not_specifying_type_at_use :: proc(t: ^testing
 	}
 	test.expect_hover( t, &source, "test.Foo: .B")
 }
+
+@(test)
+ast_hover_overload_proc_strings_from_different_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			foo_int :: proc(a: string, b: int){}
+			foo_string :: proc(a: string, b: string){}
+
+			foo :: proc{
+				foo_int,
+				foo_string,
+			}
+
+		`,
+		},
+		test.Package {
+			pkg = "str",
+			source = `package str
+			get_str :: proc() -> string {
+				return "foo"
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		import "str"
+
+		main :: proc() {
+			foo_str := str.get_str()
+			my_package.f{*}oo(foo_str, 1)
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"my_package.foo: proc(a: string, b: int)",
+	)
+}
 /*
 
 Waiting for odin fix
