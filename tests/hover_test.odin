@@ -2348,7 +2348,7 @@ ast_hover_struct_field_should_show_docs_and_comments :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_struct_field_should_show_docs_and_comments_on_field :: proc(t: ^testing.T) {
+ast_hover_struct_field_should_show_docs_and_comments_field :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
@@ -2362,7 +2362,7 @@ ast_hover_struct_field_should_show_docs_and_comments_on_field :: proc(t: ^testin
 }
 
 @(test)
-ast_hover_struct_field_should_show_docs_and_comments_on_struct_types :: proc(t: ^testing.T) {
+ast_hover_struct_field_should_show_docs_and_comments_struct_types :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
@@ -2380,6 +2380,184 @@ ast_hover_struct_field_should_show_docs_and_comments_on_struct_types :: proc(t: 
 		`,
 	}
 	test.expect_hover( t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_procs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: proc(a: int) -> int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "// bar comment\nFoo.bar: proc(a: int) -> int\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_named_procs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		MyProc :: proc(a: int) -> string
+
+		Foo :: struct {
+			// bar docs
+			bar: MyProc, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "// bar comment\nFoo.bar: proc(a: int) -> string\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_maps :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: map[int]int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: map[int]int // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_bit_sets :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: bit_set[0..<10], // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: bit_set[0 ..< 10] // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_unions :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		
+		Bar :: union {
+			int,
+			string,
+		}
+
+		Foo :: struct {
+			// bar docs
+			bar: Bar, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_multipointers :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: [^]int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: [^]int // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_dynamic_arrays :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: [dynamic]int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: [dynamic]int // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_fixed_arrays :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: [5]int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: [5]int // bar comment\n bar docs")
+}
+
+@(test)
+ast_hover_struct_field_should_show_docs_and_comments_matrix :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			// bar docs
+			bar: matrix[4, 5]int, // bar comment
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			foo.bar{*}
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "Foo.bar: matrix[4,5]int // bar comment\n bar docs")
 }
 /*
 

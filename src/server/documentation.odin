@@ -179,10 +179,14 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		}
 		return strings.to_string(sb)
 	case SymbolBitSetValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "bit_set[", node_to_string(v.expr), "]"},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%sbit_set[", pointer_prefix)
+		build_string_node(v.expr, &sb, false)
+		strings.write_string(&sb, "]")
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolEnumValue:
 		sb := strings.builder_make(ast_context.allocator)
 		if is_variable {
@@ -190,14 +194,23 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		} else if symbol.type_name != "" {
 			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			strings.write_string(&sb, "enum")
+			strings.write_string(&sb, pointer_prefix)
+			strings.write_string(&sb, "enum {..}")
+		}
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
 		}
 		return strings.to_string(sb)
 	case SymbolMapValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "map[", node_to_string(v.key), "]", node_to_string(v.value)},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%smap[", pointer_prefix)
+		build_string_node(v.key, &sb, false)
+		strings.write_string(&sb, "]")
+		build_string_node(v.value, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolProcedureValue:
 		sb := strings.builder_make(ast_context.allocator)
 		if symbol.type_pkg != "" && symbol.type_name != "" {
@@ -215,7 +228,8 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		} else if symbol.type_name != "" {
 			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			strings.write_string(&sb, "struct")
+			strings.write_string(&sb, pointer_prefix)
+			strings.write_string(&sb, "struct {..}")
 		}
 		if symbol.comment != "" {
 			fmt.sbprintf(&sb, " %s", symbol.comment)
@@ -225,8 +239,14 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		sb := strings.builder_make(ast_context.allocator)
 		if is_variable {
 			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+		} else if symbol.type_name != "" {
+			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			strings.write_string(&sb, "union")
+			strings.write_string(&sb, pointer_prefix)
+			strings.write_string(&sb, "union {..}")
+		}
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
 		}
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
@@ -236,8 +256,9 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		} else if symbol.type_name != "" {
 			write_symbol_type_information(ast_context, &sb, symbol, pointer_prefix)
 		} else {
-			strings.write_string(&sb, "bit_field ")
+			fmt.sbprintf(&sb, "%sbit_field ", pointer_prefix)
 			build_string_node(v.backing_type, &sb, false)
+			strings.write_string(&sb, " {..}")
 		}
 		if symbol.comment != "" {
 			fmt.sbprintf(&sb, " %s", symbol.comment)
@@ -245,39 +266,51 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		return strings.to_string(sb)
 		
 	case SymbolMultiPointerValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "[^]", node_to_string(v.expr)},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%s[^]", pointer_prefix)
+		build_string_node(v.expr, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolDynamicArrayValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "[dynamic]", node_to_string(v.expr)},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%s[dynamic]", pointer_prefix)
+		build_string_node(v.expr, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolSliceValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "[]", node_to_string(v.expr)},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%s[]", pointer_prefix)
+		build_string_node(v.expr, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolFixedArrayValue:
-		return strings.concatenate(
-			a = {pointer_prefix, "[", node_to_string(v.len), "]", node_to_string(v.expr)},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%s[", pointer_prefix)
+		build_string_node(v.len, &sb, false)
+		strings.write_string(&sb, "]")
+		build_string_node(v.expr, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolMatrixValue:
-		return strings.concatenate(
-			a = {
-				pointer_prefix,
-				"matrix",
-				"[",
-				node_to_string(v.x),
-				",",
-				node_to_string(v.y),
-				"]",
-				node_to_string(v.expr),
-			},
-			allocator = ast_context.allocator,
-		)
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%smatrix[", pointer_prefix)
+		build_string_node(v.x, &sb, false)
+		strings.write_string(&sb, ",")
+		build_string_node(v.y, &sb, false)
+		strings.write_string(&sb, "]")
+		build_string_node(v.expr, &sb, false)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, " %s", symbol.comment)
+		}
+		return strings.to_string(sb)
 	case SymbolPackageValue:
 		return "package"
 	case SymbolUntypedValue:
@@ -518,7 +551,7 @@ concatenate_raw_string_information :: proc(
 	//	return name
 	} else {
 		sb := strings.builder_make()
-		if type == .Function && comment != "" {
+		if (type == .Function || type == .Type_Function) && comment != "" {
 			fmt.sbprintf(&sb, "%s\n", comment)
 		}
 		fmt.sbprintf(&sb, "%v.%v", pkg, name)
