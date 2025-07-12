@@ -174,7 +174,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			strings.write_string(&sb, pointer_prefix)
 			build_string_node(v.ident, &sb, false)
 		}
-		if symbol.type == .Field && symbol.comment != "" {
+		if symbol.comment != "" {
 			fmt.sbprintf(&sb, " %s", symbol.comment)
 		}
 		return strings.to_string(sb)

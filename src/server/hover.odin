@@ -165,19 +165,20 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									&ast_context,
 									position_context.value_decl.names[0],
 								); ok {
-									symbol.type = .Field
-									symbol.range = common.get_token_range(field.node, ast_context.file.src)
-									symbol.type_name = symbol.name
-									symbol.type_pkg = symbol.pkg
-									symbol.pkg = struct_symbol.name
-									symbol.name = identifier.name
 									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
+										symbol.type = .Field
+										symbol.range = common.get_token_range(field.node, ast_context.file.src)
+										symbol.type_name = symbol.name
+										symbol.type_pkg = symbol.pkg
+										symbol.pkg = struct_symbol.name
+										symbol.name = identifier.name
 										symbol.comment = get_comment(value.comments[field_index + name_index])
-									}
+										symbol.doc = get_doc(value.docs[field_index + name_index], context.temp_allocator)
 
-									symbol.signature = get_short_signature(&ast_context, symbol)
-									hover.contents = write_hover_content(&ast_context, symbol)
-									return hover, true, true
+										symbol.signature = get_short_signature(&ast_context, symbol)
+										hover.contents = write_hover_content(&ast_context, symbol)
+										return hover, true, true
+									}
 								}
 							}
 						}
@@ -202,11 +203,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									symbol.type_pkg = symbol.pkg
 									symbol.pkg = bit_field_symbol.name
 									symbol.name = identifier.name
-									symbol.signature = get_bit_field_field_signature(value, i)
-
 									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
 										symbol.comment = get_comment(value.comments[i])
+										symbol.doc = get_doc(value.docs[i], context.temp_allocator)
 									}
+									symbol.signature = get_bit_field_field_signature(value, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -320,7 +321,9 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						symbol.type_pkg = symbol.pkg
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = get_signature(&ast_context, symbol)
+						symbol.comment = get_comment(v.comments[i])
+						symbol.doc = get_doc(v.docs[i], context.temp_allocator)
+						symbol.signature = get_short_signature(&ast_context, symbol)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
