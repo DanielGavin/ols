@@ -324,7 +324,7 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct"})
+	test.expect_completion_details(t, &source, "", {"test.My_Struct: struct {..}"})
 }
 
 @(test)
@@ -408,7 +408,7 @@ index_package_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct"})
+	test.expect_completion_details(t, &source, ".", {"my_package.My_Struct: struct {..}"})
 }
 
 @(test)
@@ -1172,7 +1172,7 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"my_package.Im: struct"})
+	test.expect_completion_details(t, &source, ".", {"my_package.Im: struct {..}"})
 }
 
 @(test)
@@ -1496,7 +1496,7 @@ ast_union_identifier_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, ".", {"test.My_Union: union"})
+	test.expect_completion_details(t, &source, ".", {"test.My_Union: union {..}"})
 }
 
 @(test)
@@ -1641,7 +1641,7 @@ ast_new_completion_for_proc_defined :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"test.Http_Ctx: struct"})
+	test.expect_completion_details(t, &source, "", {"test.Http_Ctx: struct {..}"})
 }
 
 @(test)
@@ -1886,7 +1886,7 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"My_package.Foo: enum", "My_package.Bar: struct"})
+	test.expect_completion_details(t, &source, ".", {"My_package.Foo: enum {..}", "My_package.Bar: struct {..}"})
 }
 
 
@@ -3421,7 +3421,8 @@ ast_complete_ptr_using :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_details(t, &source, "", {`A.b: ^test.B`, `A.a: ^test.struct`, `A.foo: int`, `A.f: int`})
+	// TODO: add "{..}" to the struct in this example to match the others
+	test.expect_completion_details(t, &source, "", {`A.b: ^test.B`, `A.a: ^struct`, `A.foo: int`, `A.f: int`})
 }
 
 @(test)

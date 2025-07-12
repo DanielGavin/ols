@@ -19,11 +19,6 @@ SymbolAndNode :: struct {
 	node:   ^ast.Node,
 }
 
-UsingInfo :: struct {
-	from_index: int,
-	is_using:   bool,
-}
-
 SymbolStructValue :: struct {
 	names:             []string,
 	ranges:            []common.Range,
