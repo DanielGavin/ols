@@ -272,7 +272,7 @@ type_field_index_of :: proc($T: typeid, $name: string) -> uintptr ---
 
 // "Contiguous" means that the set of enum constants, when sorted, have a difference of either 0 or 1 between consecutive values.
 // This is the exact opposite of "sparse".
-type_enum_is_contiguous :: proc($T: typeid) -> bool where type_is_enum(T) ---
+type_enum_is_contiguous :: proc($T: typeid) -> bool ---
 
 type_equal_proc :: proc(
 	$T: typeid,
