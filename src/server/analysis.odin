@@ -1467,6 +1467,8 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol, ok = resolve_basic_lit(ast_context, v^)
 			return_symbol.name = node.name
 			return_symbol.type = local.variable ? .Variable : .Constant
+		case ^ast.Binary_Expr:
+			return_symbol, ok = resolve_binary_expression(ast_context, v)
 		case:
 			return_symbol, ok = internal_resolve_type_expression(ast_context, local.rhs)
 		}
@@ -2414,6 +2416,14 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 
 	symbol_a, symbol_b: Symbol
 	ok_a, ok_b: bool
+
+	#partial switch binary.op.kind {
+	case .Cmp_Eq, .Gt, .Gt_Eq, .Lt, .Lt_Eq:
+		symbol_a.value = SymbolUntypedValue {
+			type = .Bool,
+		}
+		return symbol_a, true
+	}
 
 	if expr, ok := binary.left.derived.(^ast.Binary_Expr); ok {
 		symbol_a, ok_a = resolve_binary_expression(ast_context, expr)

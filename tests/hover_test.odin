@@ -2559,6 +2559,29 @@ ast_hover_struct_field_should_show_docs_and_comments_matrix :: proc(t: ^testing.
 	}
 	test.expect_hover( t, &source, "Foo.bar: matrix[4,5]int // bar comment\n bar docs")
 }
+
+@(test)
+ast_hover_variable_from_comparison :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			bar: Bar
+			b{*}azz := bar.bar == .A
+		}
+		`,
+	}
+	test.expect_hover( t, &source, "test.bazz: bool")
+}
 /*
 
 Waiting for odin fix
