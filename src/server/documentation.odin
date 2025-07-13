@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package server
 
 import "core:fmt"
@@ -6,6 +7,102 @@ import "core:odin/ast"
 import path "core:path/slashpath"
 import "core:strings"
 
+keywords_docs: map[string]bool = {
+	"int"           = true,
+	"uint"          = true,
+	"string"        = true,
+	"cstring"       = true,
+	"u64"           = true,
+	"f32"           = true,
+	"f64"           = true,
+	"i64"           = true,
+	"i128"          = true,
+	"i32"           = true,
+	"i16"           = true,
+	"u16"           = true,
+	"bool"          = true,
+	"rawptr"        = true,
+	"any"           = true,
+	"u32"           = true,
+	"u128"          = true,
+	"b8"            = true,
+	"b16"           = true,
+	"b32"           = true,
+	"b64"           = true,
+	"true"          = true,
+	"false"         = true,
+	"nil"           = true,
+	"byte"          = true,
+	"u8"            = true,
+	"i8"            = true,
+	"rune"          = true,
+	"f16be"         = true,
+	"f16le"         = true,
+	"f32be"         = true,
+	"f32le"         = true,
+	"f64be"         = true,
+	"f64le"         = true,
+	"i16be"         = true,
+	"i16le"         = true,
+	"i32be"         = true,
+	"i32le"         = true,
+	"i64be"         = true,
+	"i64le"         = true,
+	"u16be"         = true,
+	"u16le"         = true,
+	"u32be"         = true,
+	"u32le"         = true,
+	"u64be"         = true,
+	"u64le"         = true,
+	"i128be"        = true,
+	"i128le"        = true,
+	"u128be"        = true,
+	"u128le"        = true,
+	"complex32"     = true,
+	"complex64"     = true,
+	"complex128"    = true,
+	"quaternion64"  = true,
+	"quaternion128" = true,
+	"quaternion256" = true,
+	"uintptr"       = true,
+	// taken from https://github.com/odin-lang/Odin/wiki/Keywords-and-Operators
+	"asm"           = true,
+	"auto_cast"     = true,
+	"bit_field"     = true,
+	"bit_set"       = true,
+	"break"         = true,
+	"case"          = true,
+	"cast"          = true,
+	"context"       = true,
+	"continue"      = true,
+	"defer"         = true,
+	"distinct"      = true,
+	"do"            = true,
+	"dynamic"       = true,
+	"else"          = true,
+	"enum"          = true,
+	"fallthrough"   = true,
+	"for"           = true,
+	"foreign"       = true,
+	"if"            = true,
+	"import"        = true,
+	"in"            = true,
+	"map"           = true,
+	"not_in"        = true,
+	"or_else"       = true,
+	"or_return"     = true,
+	"package"       = true,
+	"proc"          = true,
+	"return"        = true,
+	"struct"        = true,
+	"switch"        = true,
+	"transmute"     = true,
+	"typeid"        = true,
+	"union"         = true,
+	"using"         = true,
+	"when"          = true,
+	"where"         = true,
+}
 
 get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	is_variable := symbol.type == .Variable
@@ -352,7 +449,7 @@ write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Bui
 	append_type_pkg := false
 	pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 	if pkg_name != "" {
-		if _, ok := keyword_map[symbol.type_name]; !ok {
+		if _, ok := keywords_docs[symbol.type_name]; !ok {
 			append_type_pkg = true
 		}
 	}
