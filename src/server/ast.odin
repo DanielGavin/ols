@@ -10,7 +10,6 @@ import path "core:path/slashpath"
 import "core:strings"
 
 keyword_map: map[string]bool = {
-	"typeid"        = true,
 	"int"           = true,
 	"uint"          = true,
 	"string"        = true,
@@ -68,6 +67,43 @@ keyword_map: map[string]bool = {
 	"quaternion128" = true,
 	"quaternion256" = true,
 	"uintptr"       = true,
+	// taken from https://github.com/odin-lang/Odin/wiki/Keywords-and-Operators
+	"asm"           = true,
+	"auto_cast"     = true,
+	"bit_field"     = true,
+	"bit_set"       = true,
+	"break"         = true,
+	"case"          = true,
+	"cast"          = true,
+	"context"       = true,
+	"continue"      = true,
+	"defer"         = true,
+	"distinct"      = true,
+	"do"            = true,
+	"dynamic"       = true,
+	"else"          = true,
+	"enum"          = true,
+	"fallthrough"   = true,
+	"for"           = true,
+	"foreign"       = true,
+	"if"            = true,
+	"import"        = true,
+	"in"            = true,
+	"map"           = true,
+	"not_in"        = true,
+	"or_else"       = true,
+	"or_return"     = true,
+	"package"       = true,
+	"proc"          = true,
+	"return"        = true,
+	"struct"        = true,
+	"switch"        = true,
+	"transmute"     = true,
+	"typeid"        = true,
+	"union"         = true,
+	"using"         = true,
+	"when"          = true,
+	"where"         = true,
 }
 
 GlobalExpr :: struct {
@@ -1207,31 +1243,40 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
 		// see https://github.com/odin-lang/Odin/issues/5353
-		if field.comment == nil {
-			// We check if the comment is at the start of the next field
-			if i != len(v.fields.list) - 1 {
-				next_field := v.fields.list[i + 1]
-				if next_field.docs != nil && len(next_field.docs.list) > 0 {
-					list := next_field.docs.list
-					if list[0].pos.line == field.pos.line {
+		// Edit 2025-07-12 it looks like the comments are now added (for structs), however the comments are still
+		// incorrectly added to the following fields docs, and there's an issue where it will only
+		// append the comment if there is a ',' at the end of the line (meaning it can easily be
+		// skipped on the last line) eg
+		// Foo :: struct {
+		//     foo: int // my int <-- skipped as no ',' after 'int'
+	    // }
+
+		// remove any unwanted docs
+		if i != len(v.fields.list) - 1 {
+			next_field := v.fields.list[i + 1]
+			if next_field.docs != nil && len(next_field.docs.list) > 0 {
+				list := next_field.docs.list
+				if list[0].pos.line == field.pos.line {
+					// if the comment is missing from the appropriate field, we add it (for older versions of the parser)
+					if field.comment == nil {
 						field.comment = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
 						field.comment.list = list[:1]
-						if len(list) > 1 {
-							next_field.docs = ast.new(
-								ast.Comment_Group,
-								list[1].pos,
-								parser.end_pos(list[len(list) - 2]),
-							)
-							next_field.docs.list = list[1:]
-						} else {
-							next_field.docs = nil
-						}
+					}
+					if len(list) > 1 {
+						next_field.docs = ast.new(
+							ast.Comment_Group,
+							list[1].pos,
+							parser.end_pos(list[len(list) - 2]),
+						)
+						next_field.docs.list = list[1:]
+					} else {
+						next_field.docs = nil
 					}
 				}
-			} else {
-				// We need to check the file to see if it contains a line comment as there is no next field
-				field.comment = get_file_comment(file, field.pos.line)
 			}
+		} else if field.comment == nil {
+			// We need to check the file to see if it contains a line comment as it might be skipped
+			field.comment = get_file_comment(file, field.pos.line)
 		}
 	}
 }
@@ -1241,31 +1286,31 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
 		// see https://github.com/odin-lang/Odin/issues/5353
-		if field.comments == nil {
 			// We check if the comment is at the start of the next field
-			if i != len(v.fields) - 1 {
-				next_field := v.fields[i + 1]
-				if next_field.docs != nil && len(next_field.docs.list) > 0 {
-					list := next_field.docs.list
-					if list[0].pos.line == field.pos.line {
+		if i != len(v.fields) - 1 {
+			next_field := v.fields[i + 1]
+			if next_field.docs != nil && len(next_field.docs.list) > 0 {
+				list := next_field.docs.list
+				if list[0].pos.line == field.pos.line {
+					if field.comments == nil {
 						field.comments = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
 						field.comments.list = list[:1]
-						if len(list) > 1 {
-							next_field.docs = ast.new(
-								ast.Comment_Group,
-								list[1].pos,
-								parser.end_pos(list[len(list) - 2]),
-							)
-							next_field.docs.list = list[1:]
-						} else {
-							next_field.docs = nil
-						}
+					}
+					if len(list) > 1 {
+						next_field.docs = ast.new(
+							ast.Comment_Group,
+							list[1].pos,
+							parser.end_pos(list[len(list) - 2]),
+						)
+						next_field.docs.list = list[1:]
+					} else {
+						next_field.docs = nil
 					}
 				}
-			} else {
-				// We need to check the file to see if it contains a line comment as there is no next field
-				field.comments = get_file_comment(file, field.pos.line)
 			}
+		} else if field.comments == nil {
+			// We need to check the file to see if it contains a line comment as there is no next field
+			field.comments = get_file_comment(file, field.pos.line)
 		}
 	}
 }
