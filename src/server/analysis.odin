@@ -4585,6 +4585,43 @@ fallback_position_context_signature :: proc(
 	//log.error(string(position_context.file.src[begin_offset:end_offset]));
 }
 
+// Used to find which sub-expr is desired by the position.
+// Eg. for map[Key]Value, do we want 'map', 'Key' or 'Value'
+get_desired_expr :: proc(node: ^ast.Expr, position: common.AbsolutePosition) -> ^ast.Expr{
+	#partial switch n in node.derived {
+	case ^ast.Array_Type:
+		if position_in_node(n.tag, position) {
+			return n.tag
+		}
+		if position_in_node(n.elem, position) {
+			return n.elem
+		}
+		if position_in_node(n.len, position) {
+			return n.len
+		}
+	case ^ast.Map_Type:
+		if position_in_node(n.key, position) {
+			return n.key
+		}
+		if position_in_node(n.value, position) {
+			return n.key
+		}
+	case ^ast.Dynamic_Array_Type:
+		if position_in_node(n.tag, position) {
+			return n.tag
+		}
+		if position_in_node(n.elem, position) {
+			return n.elem
+		}
+	case ^ast.Bit_Set_Type:
+		if position_in_node(n.elem, position) {
+			return n.elem
+		}
+	}
+
+	return node
+}
+
 /*
 	All these fallback functions are not perfect and should be fixed. A lot of weird use of the odin tokenizer and parser.
 */

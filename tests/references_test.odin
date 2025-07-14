@@ -949,3 +949,55 @@ ast_reference_enum_nested_with_switch :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_struct_field_enumerated_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: [F{*}oo]Bazz
+		}
+
+		Bazz :: struct {}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 8, character = 10}, end = {line = 8, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_struct_field_map :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: map[F{*}oo]Bazz
+		}
+
+		Bazz :: struct {}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 8, character = 13}, end = {line = 8, character = 16}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

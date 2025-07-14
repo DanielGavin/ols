@@ -139,7 +139,8 @@ prepare_rename :: proc(
 				}
 			}
 			if position_in_node(field.type, position_context.position) {
-				symbol, ok = get_struct_field_type_position(ast_context, position_context, field.type)
+				node := get_desired_expr(field.type, position_context.position)
+				symbol, ok = get_struct_field_type_position(ast_context, position_context, node)
 				if !ok {
 					return
 				}
