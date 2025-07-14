@@ -65,7 +65,8 @@ prepare_references :: proc(
 				}
 			}
 			if position_in_node(field.type, position_context.position) {
-				symbol, ok = resolve_location_type_expression(ast_context, field.type)
+				node := get_desired_expr(field.type, position_context.position)
+				symbol, ok = resolve_location_type_expression(ast_context, node)
 				if !ok {
 					return
 				}

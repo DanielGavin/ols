@@ -242,3 +242,83 @@ ast_prepare_rename_struct_field_ptr :: proc(t: ^testing.T) {
 	range := common.Range{start = {line = 3, character = 9}, end = {line = 3, character = 12}}
 	test.expect_prepare_rename_range(t, &source, range)
 }
+
+@(test)
+ast_prepare_rename_struct_field_enumerated_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: [F{*}oo]int
+		}
+		`,
+	}
+
+	range := common.Range{start = {line = 8, character = 10}, end = {line = 8, character = 13}}
+	test.expect_prepare_rename_range(t, &source, range)
+}
+
+@(test)
+ast_prepare_rename_struct_field_map :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: map[F{*}oo]int
+		}
+		`,
+	}
+
+	range := common.Range{start = {line = 8, character = 13}, end = {line = 8, character = 16}}
+	test.expect_prepare_rename_range(t, &source, range)
+}
+
+@(test)
+ast_prepare_rename_struct_field_dynamic_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: [dynamic]Fo{*}o
+		}
+		`,
+	}
+
+	range := common.Range{start = {line = 8, character = 18}, end = {line = 8, character = 21}}
+	test.expect_prepare_rename_range(t, &source, range)
+}
+
+@(test)
+ast_prepare_rename_struct_field_bit_set :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: bit_set[Fo{*}o]
+		}
+		`,
+	}
+
+	range := common.Range{start = {line = 8, character = 17}, end = {line = 8, character = 20}}
+	test.expect_prepare_rename_range(t, &source, range)
+}
