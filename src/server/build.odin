@@ -290,12 +290,12 @@ setup_index :: proc() {
 	root_path := os.get_env("ODIN_ROOT", context.temp_allocator)
 	root_builtin_path := path.join({root_path, "/base/builtin"}, context.temp_allocator)
 
-	if !os.exists(builtin_path) {
+	if !os.exists(root_builtin_path) {
 		log.errorf("Failed to find the builtin folder at `%v` or `%v`", builtin_path, root_builtin_path)
 		return
 	}
 
-	try_build_package(builtin_path)
+	try_build_package(root_builtin_path)
 }
 
 free_index :: proc() {
