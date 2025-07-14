@@ -1863,7 +1863,7 @@ resolve_implicit_selector_comp_literal :: proc(
 				break
 			}
 
-			if type == nil && len(s.types) > elem_index {
+			if type == nil && elem_index != -1 && len(s.types) > elem_index {
 				type = s.types[elem_index]
 			}
 
