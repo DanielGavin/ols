@@ -262,46 +262,51 @@ resolve_type_comp_literal :: proc(
 			if comp_lit, ref_n, ok := unwrap_comp_literal(field_value.value); ok {
 				if s, ok := current_symbol.value.(SymbolStructValue); ok {
 					for name, i in s.names {
-						if name == field_value.field.derived.(^ast.Ident).name {
-							if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
-								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
-								if _, ok := symbol.value.(SymbolBitSetValue); ok {
-									return current_symbol, current_comp_lit, true
-								}
+						// TODO: may need to handle the other cases
+						if field_name, ok := field_value.field.derived.(^ast.Ident); ok {
+							if name == field_name.name {
+								if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+									//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+									if _, ok := symbol.value.(SymbolBitSetValue); ok {
+										return current_symbol, current_comp_lit, true
+									}
 
-								//If we get an union, we just need return the argument expression in the union.
-								if _, ok := symbol.value.(SymbolUnionValue); ok {
-									if call_expr, ok := s.types[i].derived.(^ast.Call_Expr);
-									   ok && len(call_expr.args) == 1 {
-										if symbol, ok := resolve_type_expression(ast_context, call_expr.args[0]); ok {
-											return resolve_type_comp_literal(
-												ast_context,
-												position_context,
-												symbol,
-												cast(^ast.Comp_Lit)field_value.value,
-											)
+									//If we get an union, we just need return the argument expression in the union.
+									if _, ok := symbol.value.(SymbolUnionValue); ok {
+										if call_expr, ok := s.types[i].derived.(^ast.Call_Expr);
+										   ok && len(call_expr.args) == 1 {
+											if symbol, ok := resolve_type_expression(ast_context, call_expr.args[0]); ok {
+												return resolve_type_comp_literal(
+													ast_context,
+													position_context,
+													symbol,
+													cast(^ast.Comp_Lit)field_value.value,
+												)
+											}
 										}
 									}
-								}
 
-								return resolve_type_comp_literal(ast_context, position_context, symbol, comp_lit)
+									return resolve_type_comp_literal(ast_context, position_context, symbol, comp_lit)
+								}
 							}
 						}
 					}
 				} else if s, ok := current_symbol.value.(SymbolBitFieldValue); ok {
 					for name, i in s.names {
-						if name == field_value.field.derived.(^ast.Ident).name {
-							if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
-								//Stop at bitset, because we don't want to enter a comp_lit of a bitset
-								if _, ok := symbol.value.(SymbolBitSetValue); ok {
-									return current_symbol, current_comp_lit, true
+						if field_name, ok := field_value.field.derived.(^ast.Ident); ok {
+							if name == field_name.name {
+								if symbol, ok := resolve_type_expression(ast_context, s.types[i]); ok {
+									//Stop at bitset, because we don't want to enter a comp_lit of a bitset
+									if _, ok := symbol.value.(SymbolBitSetValue); ok {
+										return current_symbol, current_comp_lit, true
+									}
+									return resolve_type_comp_literal(
+										ast_context,
+										position_context,
+										symbol,
+										cast(^ast.Comp_Lit)field_value.value,
+									)
 								}
-								return resolve_type_comp_literal(
-									ast_context,
-									position_context,
-									symbol,
-									cast(^ast.Comp_Lit)field_value.value,
-								)
 							}
 						}
 					}
@@ -1858,7 +1863,7 @@ resolve_implicit_selector_comp_literal :: proc(
 				break
 			}
 
-			if type == nil && len(s.types) > elem_index {
+			if type == nil && elem_index != -1 && len(s.types) > elem_index {
 				type = s.types[elem_index]
 			}
 
