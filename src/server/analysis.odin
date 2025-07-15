@@ -134,6 +134,16 @@ make_ast_context :: proc(
 	return ast_context
 }
 
+add_using :: proc(ast_context: ^AstContext, using_name: string) {
+	for u in ast_context.usings {
+		if u == using_name {
+			return
+		}
+	}
+
+	append(&ast_context.usings, using_name)
+}
+
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
 	if ast_context.deferred_count <= 0 {
 		return
@@ -3343,7 +3353,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 		#partial switch v in symbol.value {
 		case SymbolPackageValue:
 			if ident, ok := expr.derived.(^ast.Ident); ok {
-				append(&ast_context.usings, ident.name)
+				add_using(ast_context, ident.name)
 			}
 		case SymbolStructValue:
 			for name, i in v.names {
