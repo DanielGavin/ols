@@ -649,43 +649,6 @@ get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	return total
 }
 
-get_procedure_arg_count :: proc(v: SymbolProcedureValue) -> int {
-	total := 0
-	for proc_arg in v.arg_types {
-		for name in proc_arg.names {
-			total += 1
-		}
-	}
-	return total
-}
-
-// Gets the call argument type at the specified index
-get_proc_call_argument_type :: proc(value: SymbolProcedureValue, parameter_index: int) -> (^ast.Field, bool) {
-	index := 0
-	for arg in value.arg_types {
-		for name in arg.names {
-			if index == parameter_index {
-				return arg, true
-			}
-			index += 1
-		}
-	}
-	return nil, false
-}
-
-get_proc_arg_type_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^ast.Field, bool) {
-	for arg in v.arg_types {
-		for arg_name in arg.names {
-			if ident, ok := arg_name.derived.(^ast.Ident); ok {
-				if name == ident.name {
-					return arg, true
-				}
-			}
-		}
-	}
-	return nil, false
-}
-
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -724,7 +687,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				named := false
 
 				if !resolve_all_possibilities {
-					arg_count := get_procedure_arg_count(procedure)
+					arg_count := get_proc_arg_count(procedure)
 					if call_expr != nil && arg_count < call_unnamed_arg_count {
 						break next_fn
 					}

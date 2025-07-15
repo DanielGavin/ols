@@ -1171,7 +1171,7 @@ get_implicit_completion :: proc(
 				}
 
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					arg_type, arg_type_ok := get_proc_call_argument_type(proc_value, parameter_index)
+					arg_type, arg_type_ok := get_proc_arg_type_from_index(proc_value, parameter_index)
 					if !arg_type_ok {
 						return
 					}
