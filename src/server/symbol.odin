@@ -562,6 +562,19 @@ get_proc_arg_type_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^
 	return nil, false
 }
 
+get_proc_arg_name_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^ast.Ident, bool) {
+	for arg in v.arg_types {
+		for arg_name in arg.names {
+			if ident, ok := arg_name.derived.(^ast.Ident); ok {
+				if name == ident.name {
+					return ident, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
 new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> ^Symbol {
 	new_symbol := new(Symbol, allocator)
 	new_symbol^ = data

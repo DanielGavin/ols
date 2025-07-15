@@ -145,13 +145,18 @@ prepare_references :: proc(
 		}
 
 	} else if position_context.field_value != nil &&
-	   position_context.comp_lit != nil &&
 	   !is_expr_basic_lit(position_context.field_value.field) &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
-		symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
-
-		if !ok {
-			return
+		if position_context.comp_lit != nil {
+			symbol, ok = resolve_location_comp_lit_field(ast_context, position_context)
+			if !ok {
+				return
+			}
+		} else if position_context.call != nil {
+			symbol, ok = resolve_location_proc_param_name(ast_context, position_context)
+			if !ok {
+				return
+			}
 		}
 
 		resolve_flag = .Field

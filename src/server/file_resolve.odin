@@ -229,6 +229,14 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			}
 
 			resolve_node(n.value, data)
+		} else if data.flag != .None && data.position_context.call != nil {
+			if symbol, ok := resolve_location_proc_param_name(data.ast_context, data.position_context); ok {
+				data.symbols[cast(uintptr)node] = SymbolAndNode {
+					node   = n.field,
+					symbol = symbol,
+				}
+			}
+			resolve_node(n.value, data)
 		} else {
 			resolve_node(n.field, data)
 			resolve_node(n.value, data)

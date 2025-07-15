@@ -2213,6 +2213,25 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	return {}, false
 }
 
+resolve_location_proc_param_name :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
+    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	symbol = resolve_type_expression(ast_context, call) or_return
+
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		if arg_name, ok := get_proc_arg_name_from_name(value, ident.name); ok {
+			symbol.range = common.get_token_range(arg_name, ast_context.file.src)
+		}
+	}
+	return symbol, true
+}
+
 resolve_location_comp_lit_field :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,

@@ -1001,3 +1001,55 @@ ast_reference_struct_field_map :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_reference_named_parameter_same_as_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo :: proc(a: int) {}
+
+		main :: proc() {
+			b := "hellope"
+			foo(a{*} = 0)
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 14}, end = {line = 2, character = 15}}},
+		{range = {start = {line = 6, character = 7}, end = {line = 6, character = 8}}},
+	}
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_struct_comp_lit_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		foo :: proc() -> Bar {
+			return Bar {
+				fo{*}o = .A,
+			}
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 13, character = 11}, end = {line = 13, character = 12}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
