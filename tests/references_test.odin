@@ -1010,7 +1010,7 @@ ast_reference_named_parameter_same_as_variable :: proc(t: ^testing.T) {
 		foo :: proc(a: int) {}
 
 		main :: proc() {
-			b := "hellope"
+			a := "hellope"
 			foo(a{*} = 0)
 		}
 		`,
