@@ -2224,6 +2224,7 @@ resolve_location_proc_param_name :: proc(
     call := position_context.call.derived.(^ast.Call_Expr) or_return
 	symbol = resolve_type_expression(ast_context, call) or_return
 
+	reset_ast_context(ast_context)
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
 		if arg_name, ok := get_proc_arg_name_from_name(value, ident.name); ok {
 			symbol.range = common.get_token_range(arg_name, ast_context.file.src)
@@ -2243,15 +2244,14 @@ resolve_type_location_proc_param_name :: proc(
     call := position_context.call.derived.(^ast.Call_Expr) or_return
 	call_symbol = resolve_type_expression(ast_context, call) or_return
 
+	reset_ast_context(ast_context)
 	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-		if arg_type, ok := get_proc_arg_type_from_name(value, ident.name); ok {
-			if symbol, ok := resolve_type_expression(ast_context, arg_type.type); ok {
-				symbol.type_pkg = symbol.pkg
-				symbol.type_name = symbol.name
-				symbol.pkg = call_symbol.name
-				symbol.name = ident.name
-				return symbol, true
-			}
+		if symbol, ok := resolve_type_expression(ast_context, position_context.field_value.value); ok {
+			symbol.type_pkg = symbol.pkg
+			symbol.type_name = symbol.name
+			symbol.pkg = call_symbol.name
+			symbol.name = ident.name
+			return symbol, true
 		}
 	}
 	return call_symbol, false
@@ -2269,11 +2269,15 @@ resolve_location_proc_param_name_type :: proc(
     call := position_context.call.derived.(^ast.Call_Expr) or_return
 	call_symbol = resolve_type_expression(ast_context, call) or_return
 
+	reset_ast_context(ast_context)
 	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
 		if arg_type, ok := get_proc_arg_type_from_name(value, ident.name); ok {
 			if symbol, ok := resolve_location_type_expression(ast_context, arg_type.type); ok {
 				return symbol, true
 			}
+		}
+		if symbol, ok := resolve_location_type_expression(ast_context, position_context.field_value.value); ok {
+			return symbol, true
 		}
 	}
 	return call_symbol, false

@@ -149,16 +149,16 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		return strings.to_string(sb)
 	case SymbolStructValue:
 		sb := strings.builder_make(ast_context.allocator)
-		if is_variable {
-			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
-			strings.write_string(&sb, " :: ")
-		} else if symbol.type_name != "" {
+		if symbol.type_name != "" {
 			if symbol.type_pkg == "" {
 				fmt.sbprintf(&sb, "%s%s :: ", pointer_prefix, symbol.type_name)
 			} else {
 				pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 				fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
 			}
+		} else if is_variable {
+			append_variable_full_name(&sb, ast_context, symbol, pointer_prefix)
+			strings.write_string(&sb, " :: ")
 		}
 		if len(v.names) == 0 {
 			strings.write_string(&sb, "struct {}")

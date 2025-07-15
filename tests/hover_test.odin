@@ -2598,6 +2598,44 @@ ast_hover_named_parameter_same_as_variable :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "foo.a: int")
 }
+
+@(test)
+ast_hover_named_parameter_with_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo :: proc(b := "") {}
+
+		main :: proc() {
+			a := "hellope"
+			foo(b{*} = a)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foo.b: string")
+}
+
+@(test)
+ast_hover_named_parameter_with_default_value_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct{
+			bar: int,
+		}
+
+		bar := Bar{}
+
+		foo :: proc(a := bar) {}
+
+		main :: proc() {
+			b := Bar{}
+			foo(a{*} = b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "foo.a: test.Bar :: struct {\n\tbar: int,\n}")
+}
 /*
 
 Waiting for odin fix

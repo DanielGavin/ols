@@ -892,3 +892,30 @@ ast_type_definition_proc_named_param :: proc (t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_type_definition_proc_named_param_with_default_value :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Bar :: struct{
+			bar: int,
+		}
+
+		bar := Bar{}
+
+		foo :: proc(a := bar) {}
+
+		main :: proc() {
+			b := Bar{}
+			foo(a{*} = b)
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}
