@@ -213,44 +213,27 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		}
-
-		if position_context.call != nil {
-			// Check if we're resolving the name of a parameter being passed to a proc call
-			if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-				if proc_symbol, ok := resolve_type_expression(&ast_context, call); ok {
-					if value, ok := proc_symbol.value.(SymbolProcedureValue); ok {
-						for arg in call.args {
-							if field_value, ok := arg.derived.(^ast.Field_Value); ok {
-								if position_in_node(field_value.field, position_context.position) {
-									if identifier, ok := field_value.field.derived.(^ast.Ident); ok {
-										if arg_type, arg_type_ok := get_proc_arg_type_from_name(value, identifier.name); ok {
-											if symbol, ok := resolve_type_expression(&ast_context, arg_type.type); ok {
-												symbol.range = common.get_token_range(field_value.field, ast_context.file.src)
-												symbol.type_name = symbol.name
-												symbol.type_pkg = symbol.pkg
-												symbol.pkg = proc_symbol.name
-												symbol.name = identifier.name
-												symbol.signature = get_signature(&ast_context, symbol)
-												hover.contents = write_hover_content(&ast_context, symbol)
-												return hover, true, true
-											}
-										}
-									}
-								}
-								break
-							}
-						}
-					}
-				}
-			}
-		}
 	}
 
-	if position_context.field_value != nil && position_context.comp_lit != nil {
-		if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
-			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-				if position_in_node(field, position_context.position) {
-					if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+	if position_context.field_value != nil && position_in_node(position_context.field_value.field, position_context.position) {
+		if position_context.comp_lit != nil {
+			if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
+				if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+					if position_in_node(field, position_context.position) {
+						if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+							for name, i in v.names {
+								if name == field.name {
+									if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+										symbol.name = name
+										symbol.pkg = comp_symbol.name
+										symbol.signature = node_to_string(v.types[i])
+										hover.contents = write_hover_content(&ast_context, symbol)
+										return hover, true, true
+									}
+								}
+							}
+						}
+					} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
 						for name, i in v.names {
 							if name == field.name {
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
@@ -263,19 +246,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							}
 						}
 					}
-				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
-					for name, i in v.names {
-						if name == field.name {
-							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-								symbol.name = name
-								symbol.pkg = comp_symbol.name
-								symbol.signature = node_to_string(v.types[i])
-								hover.contents = write_hover_content(&ast_context, symbol)
-								return hover, true, true
-							}
-						}
-					}
 				}
+			}
+		}
+
+		if position_context.call != nil {
+			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
+				symbol.signature = get_signature(&ast_context, symbol)
+				hover.contents = write_hover_content(&ast_context, symbol)
+				return hover, true, true
 			}
 		}
 	}

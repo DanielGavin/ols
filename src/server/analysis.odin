@@ -2232,6 +2232,31 @@ resolve_location_proc_param_name :: proc(
 	return symbol, true
 }
 
+resolve_type_location_proc_param_name :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	call_symbol: Symbol,
+	ok: bool,
+) {
+	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
+    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call_symbol = resolve_type_expression(ast_context, call) or_return
+
+	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+		if arg_type, ok := get_proc_arg_type_from_name(value, ident.name); ok {
+			if symbol, ok := resolve_type_expression(ast_context, arg_type.type); ok {
+				symbol.type_pkg = symbol.pkg
+				symbol.type_name = symbol.name
+				symbol.pkg = call_symbol.name
+				symbol.name = ident.name
+				return symbol, true
+			}
+		}
+	}
+	return call_symbol, false
+}
+
 resolve_location_comp_lit_field :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,

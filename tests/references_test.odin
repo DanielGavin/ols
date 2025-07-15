@@ -1047,8 +1047,8 @@ ast_reference_struct_comp_lit_field :: proc(t: ^testing.T) {
 	}
 
 	locations := []common.Location {
-		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
-		{range = {start = {line = 13, character = 11}, end = {line = 13, character = 12}}},
+		{range = {start = {line = 8, character = 3}, end = {line = 8, character = 6}}},
+		{range = {start = {line = 13, character = 4}, end = {line = 13, character = 7}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
