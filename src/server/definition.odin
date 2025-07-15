@@ -106,14 +106,22 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 			return {}, false
 		}
 	} else if position_context.field_value != nil &&
-	   position_context.comp_lit != nil &&
 	   !is_expr_basic_lit(position_context.field_value.field) &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
-		if resolved, ok := resolve_location_comp_lit_field(&ast_context, &position_context); ok {
-			location.range = resolved.range
-			uri = resolved.uri
-		} else {
-			return {}, false
+		if position_context.comp_lit != nil {
+			if resolved, ok := resolve_location_comp_lit_field(&ast_context, &position_context); ok {
+				location.range = resolved.range
+				uri = resolved.uri
+			} else {
+				return {}, false
+			}
+		} else if position_context.call != nil {
+			if resolved, ok := resolve_location_proc_param_name(&ast_context, &position_context); ok {
+				location.range = resolved.range
+				uri = resolved.uri
+			} else {
+				return {}, false
+			}
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		if resolved, ok := resolve_location_implicit_selector(

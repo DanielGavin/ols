@@ -525,6 +525,56 @@ expand_objc :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 	}
 }
 
+get_proc_arg_count :: proc(v: SymbolProcedureValue) -> int {
+	total := 0
+	for proc_arg in v.arg_types {
+		for name in proc_arg.names {
+			total += 1
+		}
+	}
+	return total
+}
+
+// Gets the call argument type at the specified index
+get_proc_arg_type_from_index :: proc(value: SymbolProcedureValue, parameter_index: int) -> (^ast.Field, bool) {
+	index := 0
+	for arg in value.arg_types {
+		for name in arg.names {
+			if index == parameter_index {
+				return arg, true
+			}
+			index += 1
+		}
+	}
+	return nil, false
+}
+
+get_proc_arg_type_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^ast.Field, bool) {
+	for arg in v.arg_types {
+		for arg_name in arg.names {
+			if ident, ok := arg_name.derived.(^ast.Ident); ok {
+				if name == ident.name {
+					return arg, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+get_proc_arg_name_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^ast.Ident, bool) {
+	for arg in v.arg_types {
+		for arg_name in arg.names {
+			if ident, ok := arg_name.derived.(^ast.Ident); ok {
+				if name == ident.name {
+					return ident, true
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
 new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> ^Symbol {
 	new_symbol := new(Symbol, allocator)
 	new_symbol^ = data

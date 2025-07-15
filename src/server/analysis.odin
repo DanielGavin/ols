@@ -649,31 +649,6 @@ get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	return total
 }
 
-get_procedure_arg_count :: proc(v: SymbolProcedureValue) -> int {
-	total := 0
-	for proc_arg in v.arg_types {
-		for name in proc_arg.names {
-			total += 1
-		}
-	}
-	return total
-}
-
-// Gets the call argument type at the specified index
-get_proc_call_argument_type :: proc(value: SymbolProcedureValue, parameter_index: int) -> (^ast.Field, bool) {
-	index := 0
-	for arg in value.arg_types {
-		for name in arg.names {
-			if index == parameter_index {
-				return arg, true
-			}
-			index += 1
-		}
-	}
-
-	return nil, false
-}
-
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -712,7 +687,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				named := false
 
 				if !resolve_all_possibilities {
-					arg_count := get_procedure_arg_count(procedure)
+					arg_count := get_proc_arg_count(procedure)
 					if call_expr != nil && arg_count < call_unnamed_arg_count {
 						break next_fn
 					}
@@ -2236,6 +2211,76 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	}
 
 	return {}, false
+}
+
+resolve_location_proc_param_name :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
+    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	symbol = resolve_type_expression(ast_context, call) or_return
+
+	reset_ast_context(ast_context)
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		if arg_name, ok := get_proc_arg_name_from_name(value, ident.name); ok {
+			symbol.range = common.get_token_range(arg_name, ast_context.file.src)
+		}
+	}
+	return symbol, true
+}
+
+resolve_type_location_proc_param_name :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	call_symbol: Symbol,
+	ok: bool,
+) {
+	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
+    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call_symbol = resolve_type_expression(ast_context, call) or_return
+
+	reset_ast_context(ast_context)
+	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.field_value.value); ok {
+			symbol.type_pkg = symbol.pkg
+			symbol.type_name = symbol.name
+			symbol.pkg = call_symbol.name
+			symbol.name = ident.name
+			return symbol, true
+		}
+	}
+	return call_symbol, false
+}
+
+// resolves the underlying location of type of the named param
+resolve_location_proc_param_name_type :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	call_symbol: Symbol,
+	ok: bool,
+) {
+	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
+    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call_symbol = resolve_type_expression(ast_context, call) or_return
+
+	reset_ast_context(ast_context)
+	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+		if arg_type, ok := get_proc_arg_type_from_name(value, ident.name); ok {
+			if symbol, ok := resolve_location_type_expression(ast_context, arg_type.type); ok {
+				return symbol, true
+			}
+		}
+		if symbol, ok := resolve_location_type_expression(ast_context, position_context.field_value.value); ok {
+			return symbol, true
+		}
+	}
+	return call_symbol, false
 }
 
 resolve_location_comp_lit_field :: proc(

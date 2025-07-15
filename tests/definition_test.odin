@@ -543,3 +543,24 @@ ast_goto_struct_field_from_proc :: proc (t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_proc_named_param :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc(a: int) {}
+
+		main :: proc() {
+			a := "hellope"
+			foo(a{*} = 0)
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 14}, end = {line = 2, character = 15}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}

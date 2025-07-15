@@ -201,10 +201,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									symbol.type_pkg = symbol.pkg
 									symbol.pkg = bit_field_symbol.name
 									symbol.name = identifier.name
-									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
-										symbol.comment = get_comment(value.comments[i])
-										symbol.doc = get_doc(value.docs[i], context.temp_allocator)
-									}
+									symbol.comment = get_comment(value.comments[i])
+									symbol.doc = get_doc(value.docs[i], context.temp_allocator)
 									symbol.signature = get_bit_field_field_signature(value, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
@@ -217,11 +215,25 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	}
 
-	if position_context.field_value != nil && position_context.comp_lit != nil {
-		if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
-			if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-				if position_in_node(field, position_context.position) {
-					if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+	if position_context.field_value != nil && position_in_node(position_context.field_value.field, position_context.position) {
+		if position_context.comp_lit != nil {
+			if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
+				if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+					if position_in_node(field, position_context.position) {
+						if v, ok := comp_symbol.value.(SymbolStructValue); ok {
+							for name, i in v.names {
+								if name == field.name {
+									if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
+										symbol.name = name
+										symbol.pkg = comp_symbol.name
+										symbol.signature = node_to_string(v.types[i])
+										hover.contents = write_hover_content(&ast_context, symbol)
+										return hover, true, true
+									}
+								}
+							}
+						}
+					} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
 						for name, i in v.names {
 							if name == field.name {
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
@@ -234,19 +246,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							}
 						}
 					}
-				} else if v, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
-					for name, i in v.names {
-						if name == field.name {
-							if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-								symbol.name = name
-								symbol.pkg = comp_symbol.name
-								symbol.signature = node_to_string(v.types[i])
-								hover.contents = write_hover_content(&ast_context, symbol)
-								return hover, true, true
-							}
-						}
-					}
 				}
+			}
+		}
+
+		if position_context.call != nil {
+			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
+				symbol.signature = get_signature(&ast_context, symbol)
+				hover.contents = write_hover_content(&ast_context, symbol)
+				return hover, true, true
 			}
 		}
 	}

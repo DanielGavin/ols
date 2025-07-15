@@ -2177,7 +2177,7 @@ ast_hover_bitset_enum :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "test.Foo: .Aaa")
+	test.expect_hover(t, &source, "test.Foo: .Aaa")
 }
 
 @(test)
@@ -2203,7 +2203,7 @@ ast_hover_enumerated_array_key :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "test.Foo: .A")
+	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
 @(test)
@@ -2229,7 +2229,7 @@ ast_hover_enumerated_array_value :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "test.Bar: struct {\n\tbar: int,\n}")
+	test.expect_hover(t, &source, "test.Bar: struct {\n\tbar: int,\n}")
 }
 
 @(test)
@@ -2254,7 +2254,7 @@ ast_hover_struct_fields_when_not_specifying_type_at_use :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Bar.foo: Foo")
+	test.expect_hover(t, &source, "Bar.foo: Foo")
 }
 
 @(test)
@@ -2278,7 +2278,7 @@ ast_hover_struct_field_value_when_not_specifying_type_at_use :: proc(t: ^testing
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "test.Foo: .B")
+	test.expect_hover(t, &source, "test.Foo: .B")
 }
 
 @(test)
@@ -2344,7 +2344,7 @@ ast_hover_struct_field_should_show_docs_and_comments :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.a: int // a comment\n a docs")
+	test.expect_hover(t, &source, "Foo.a: int // a comment\n a docs")
 }
 
 @(test)
@@ -2358,7 +2358,7 @@ ast_hover_struct_field_should_show_docs_and_comments_field :: proc(t: ^testing.T
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.a: int // a comment\n a docs")
+	test.expect_hover(t, &source, "Foo.a: int // a comment\n a docs")
 }
 
 @(test)
@@ -2379,7 +2379,7 @@ ast_hover_struct_field_should_show_docs_and_comments_struct_types :: proc(t: ^te
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
 }
 
 @(test)
@@ -2398,7 +2398,7 @@ ast_hover_struct_field_should_show_docs_and_comments_procs :: proc(t: ^testing.T
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "// bar comment\nFoo.bar: proc(a: int) -> int\n bar docs")
+	test.expect_hover(t, &source, "// bar comment\nFoo.bar: proc(a: int) -> int\n bar docs")
 }
 
 @(test)
@@ -2419,7 +2419,7 @@ ast_hover_struct_field_should_show_docs_and_comments_named_procs :: proc(t: ^tes
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "// bar comment\nFoo.bar: proc(a: int) -> string\n bar docs")
+	test.expect_hover(t, &source, "// bar comment\nFoo.bar: proc(a: int) -> string\n bar docs")
 }
 
 @(test)
@@ -2438,7 +2438,7 @@ ast_hover_struct_field_should_show_docs_and_comments_maps :: proc(t: ^testing.T)
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: map[int]int // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: map[int]int // bar comment\n bar docs")
 }
 
 @(test)
@@ -2457,7 +2457,7 @@ ast_hover_struct_field_should_show_docs_and_comments_bit_sets :: proc(t: ^testin
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: bit_set[0 ..< 10] // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: bit_set[0 ..< 10] // bar comment\n bar docs")
 }
 
 @(test)
@@ -2481,7 +2481,7 @@ ast_hover_struct_field_should_show_docs_and_comments_unions :: proc(t: ^testing.
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: test.Bar // bar comment\n bar docs")
 }
 
 @(test)
@@ -2500,7 +2500,7 @@ ast_hover_struct_field_should_show_docs_and_comments_multipointers :: proc(t: ^t
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: [^]int // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: [^]int // bar comment\n bar docs")
 }
 
 @(test)
@@ -2519,7 +2519,7 @@ ast_hover_struct_field_should_show_docs_and_comments_dynamic_arrays :: proc(t: ^
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: [dynamic]int // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: [dynamic]int // bar comment\n bar docs")
 }
 
 @(test)
@@ -2538,7 +2538,7 @@ ast_hover_struct_field_should_show_docs_and_comments_fixed_arrays :: proc(t: ^te
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: [5]int // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: [5]int // bar comment\n bar docs")
 }
 
 @(test)
@@ -2557,7 +2557,7 @@ ast_hover_struct_field_should_show_docs_and_comments_matrix :: proc(t: ^testing.
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "Foo.bar: matrix[4,5]int // bar comment\n bar docs")
+	test.expect_hover(t, &source, "Foo.bar: matrix[4,5]int // bar comment\n bar docs")
 }
 
 @(test)
@@ -2580,7 +2580,61 @@ ast_hover_variable_from_comparison :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover( t, &source, "test.bazz: bool")
+	test.expect_hover(t, &source, "test.bazz: bool")
+}
+
+@(test)
+ast_hover_named_parameter_same_as_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo :: proc(a: int) {}
+
+		main :: proc() {
+			a := "hellope"
+			foo(a{*} = 0)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foo.a: int")
+}
+
+@(test)
+ast_hover_named_parameter_with_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo :: proc(b := "") {}
+
+		main :: proc() {
+			a := "hellope"
+			foo(b{*} = a)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foo.b: string")
+}
+
+@(test)
+ast_hover_named_parameter_with_default_value_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Bar :: struct{
+			bar: int,
+		}
+
+		bar := Bar{}
+
+		foo :: proc(a := bar) {}
+
+		main :: proc() {
+			b := Bar{}
+			foo(a{*} = b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "foo.a: test.Bar :: struct {\n\tbar: int,\n}")
 }
 /*
 
