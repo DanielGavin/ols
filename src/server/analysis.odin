@@ -670,7 +670,19 @@ get_proc_call_argument_type :: proc(value: SymbolProcedureValue, parameter_index
 			index += 1
 		}
 	}
+	return nil, false
+}
 
+get_proc_arg_type_from_name :: proc(v: SymbolProcedureValue, name: string) -> (^ast.Field, bool) {
+	for arg in v.arg_types {
+		for arg_name in arg.names {
+			if ident, ok := arg_name.derived.(^ast.Ident); ok {
+				if name == ident.name {
+					return arg, true
+				}
+			}
+		}
+	}
 	return nil, false
 }
 
