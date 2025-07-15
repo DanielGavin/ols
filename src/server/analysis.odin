@@ -659,6 +659,21 @@ get_procedure_arg_count :: proc(v: SymbolProcedureValue) -> int {
 	return total
 }
 
+// Gets the call argument type at the specified index
+get_proc_call_argument_type :: proc(value: SymbolProcedureValue, parameter_index: int) -> (^ast.Field, bool) {
+	index := 0
+	for arg in value.arg_types {
+		for name in arg.names {
+			if index == parameter_index {
+				return arg, true
+			}
+			index += 1
+		}
+	}
+
+	return nil, false
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */

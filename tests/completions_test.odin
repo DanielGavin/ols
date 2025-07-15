@@ -3855,3 +3855,23 @@ ast_completion_struct_field_enum :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_details(t, &source, "", {"Bar.foo: test.Foo"})
 }
+
+@(test)
+ast_completion_proc_enum_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B
+		}
+
+		bar :: proc(a, b: int, foo: Foo) {}
+
+		main :: proc() {
+			bar(1, 1, .{*})
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}

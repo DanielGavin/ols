@@ -1171,11 +1171,12 @@ get_implicit_completion :: proc(
 				}
 
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(proc_value.arg_types) <= parameter_index {
+					arg_type, arg_type_ok := get_proc_call_argument_type(proc_value, parameter_index)
+					if !arg_type_ok {
 						return
 					}
 
-					if enum_value, ok := unwrap_enum(ast_context, proc_value.arg_types[parameter_index].type); ok {
+					if enum_value, ok := unwrap_enum(ast_context, arg_type.type); ok {
 						for name in enum_value.names {
 							item := CompletionItem {
 								label  = name,
