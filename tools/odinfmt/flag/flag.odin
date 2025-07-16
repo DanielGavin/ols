@@ -25,6 +25,7 @@ Flag :: struct {
 	data:     rawptr,
 	tag_ptr:  rawptr,
 	parsed:   bool,
+	offset:   uintptr,
 }
 
 Flag_Context :: struct {
@@ -149,7 +150,8 @@ reflect_args_structure :: proc(ctx: ^Flag_Context, v: any) -> Flag_Error {
 		if named_type, ok := type.variant.(Type_Info_Named); ok {
 			if union_type, ok := named_type.base.variant.(Type_Info_Union); ok && len(union_type.variants) == 1 {
 				flag.optional = true;
-				flag.tag_ptr = rawptr(uintptr(union_type.tag_offset) + uintptr(v.data) + uintptr(offsets[i]));
+				flag.offset = union_type.tag_offset + offsets[i];
+				flag.tag_ptr = rawptr(flag.offset + uintptr(v.data));
 				type = union_type.variants[0];
 			} else {
 				return .Arg_Unsupported_Field_Type;
@@ -186,6 +188,8 @@ parse :: proc(v: any, args: []string) -> Flag_Error {
 
 	ctx: Flag_Context;
 
+	size := type_info_of(v.id).size;
+
 	if res := reflect_args_structure(&ctx, v); res != .None {
 		return res;
 	}
@@ -198,7 +202,7 @@ parse :: proc(v: any, args: []string) -> Flag_Error {
 	for k, v in ctx.seen_flags {
 		if v.optional && v.parsed {
 			tag_value: i32 = 1;
-			mem.copy(v.tag_ptr, &tag_value, 4); //4 constant is probably not portable, but it works for me currently
+			mem.copy(v.tag_ptr, &tag_value, size - int(v.offset));
 		} else if !v.parsed && !v.optional {
 			return .Arg_Non_Optional;
 		}
