@@ -2793,6 +2793,16 @@ ast_hover_overloading_struct_with_usings_with_pointers :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foobar: proc(b: ^Bar)")
 }
+
+@(test)
+ast_hover_proc_calling_convention :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo :: proc "contextless" (a: int) {}
+	`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc \"contextless\" (a: int)")
+}
 /*
 
 Waiting for odin fix

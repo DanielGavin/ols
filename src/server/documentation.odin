@@ -465,6 +465,9 @@ write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Bui
 
 write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProcedureValue) {
 	strings.write_string(sb, "proc")
+	if s, ok := value.calling_convention.(string); ok {
+		fmt.sbprintf(sb, " %s ", s)
+	}
 	strings.write_string(sb, "(")
 	for arg, i in value.orig_arg_types {
 		build_string_node(arg, sb, false)

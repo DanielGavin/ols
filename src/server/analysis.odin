@@ -2794,12 +2794,13 @@ make_symbol_procedure_from_ast :: proc(
 	}
 
 	symbol.value = SymbolProcedureValue {
-		return_types      = return_types[:],
-		orig_return_types = return_types[:],
-		arg_types         = arg_types[:],
-		orig_arg_types    = arg_types[:],
-		generic           = v.generic,
-		diverging         = v.diverging,
+		return_types       = return_types[:],
+		orig_return_types  = return_types[:],
+		arg_types          = arg_types[:],
+		orig_arg_types     = arg_types[:],
+		generic            = v.generic,
+		diverging          = v.diverging,
+		calling_convention = v.calling_convention,
 	}
 
 	if _, ok := get_attribute_objc_name(attributes); ok {

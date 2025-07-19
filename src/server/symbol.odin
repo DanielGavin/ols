@@ -51,12 +51,13 @@ SymbolPackageValue :: struct {
 }
 
 SymbolProcedureValue :: struct {
-	return_types:      []^ast.Field,
-	arg_types:         []^ast.Field,
-	orig_return_types: []^ast.Field, //When generics have overloaded the types, we store the original version here.
-	orig_arg_types:    []^ast.Field, //When generics have overloaded the types, we store the original version here.
-	generic:           bool,
-	diverging:         bool,
+	return_types:       []^ast.Field,
+	arg_types:          []^ast.Field,
+	orig_return_types:  []^ast.Field, //When generics have overloaded the types, we store the original version here.
+	orig_arg_types:     []^ast.Field, //When generics have overloaded the types, we store the original version here.
+	generic:            bool,
+	diverging:          bool,
+	calling_convention: ast.Proc_Calling_Convention,
 }
 
 SymbolProcedureGroupValue :: struct {

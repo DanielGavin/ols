@@ -105,12 +105,13 @@ collect_procedure_fields :: proc(
 	}
 
 	value := SymbolProcedureValue {
-		return_types      = returns[:],
-		orig_return_types = returns[:],
-		arg_types         = args[:],
-		orig_arg_types    = args[:],
-		generic           = is_procedure_generic(proc_type),
-		diverging         = proc_type.diverging,
+		return_types       = returns[:],
+		orig_return_types  = returns[:],
+		arg_types          = args[:],
+		orig_arg_types     = args[:],
+		generic            = is_procedure_generic(proc_type),
+		diverging          = proc_type.diverging,
+		calling_convention = clone_calling_convention(proc_type.calling_convention, collection.allocator, &collection.unique_strings),
 	}
 
 	return value

@@ -300,3 +300,19 @@ clone_comment_group :: proc(
 ) -> ^ast.Comment_Group {
 	return cast(^ast.Comment_Group)clone_node(node, allocator, unique_strings)
 }
+
+clone_calling_convention :: proc(
+	cc: ast.Proc_Calling_Convention, allocator: mem.Allocator, unique_strings: ^map[string]string,
+) -> ast.Proc_Calling_Convention {
+	if cc == nil {
+		return nil
+	}
+
+	switch v in cc {
+	case string:
+		return get_index_unique_string(unique_strings, allocator, v)
+	case ast.Proc_Calling_Convention_Extra:
+		return v
+	}
+	return nil
+}
