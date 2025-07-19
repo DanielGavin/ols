@@ -369,6 +369,7 @@ CompletionItem :: struct {
 	deprecated:          bool,
 	command:             Maybe(Command),
 	labelDetails:        Maybe(CompletionItemLabelDetails),
+	sortText:            Maybe(string),
 }
 
 CompletionItemLabelDetails :: struct {

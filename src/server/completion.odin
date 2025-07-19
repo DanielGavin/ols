@@ -157,11 +157,45 @@ get_completion_list :: proc(
 		get_package_completion(&ast_context, &position_context, &list)
 	}
 
+	for &item in list.items {
+		item.sortText = fmt.tprintf("%s_%s", kind_to_sort_score(item.kind), item.label)
+	}
+
 	if common.config.enable_label_details {
 		format_to_label_details(&list)
 	}
 
 	return list, true
+}
+
+kind_to_sort_score :: proc(kind: CompletionItemKind) -> string {
+	score: string
+	#partial switch kind {
+	case .Module:
+		score = "1"
+	case .Folder:
+		score = "2"
+	case .File:
+		score = "3"
+
+	case .Operator:
+		score = "1"
+	case .Field, .EnumMember:
+		score = "2"
+	case .Method:
+		score = "3"
+	case .Function:
+		score = "4"
+	case .Text, .Constant, .Variable, .Struct, .Enum, .TypeParameter:
+		score = "5"
+	case .Snippet:
+		score = "6"
+	case .Keyword:
+		score = "7"
+	case:
+		score = "8"
+	}
+	return score
 }
 
 get_attribute_completion :: proc(
