@@ -117,6 +117,7 @@ SemanticTokenBuilder :: struct {
 	tokens:        [dynamic]SemanticToken,
 	symbols:       map[uintptr]SymbolAndNode,
 	src:           string,
+	param_map:     map[string]bool,
 }
 
 semantic_tokens_to_response_params :: proc(tokens: []SemanticToken) -> SemanticTokensResponseParams {
@@ -375,8 +376,20 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^Proc_Type:
 		visit_proc_type(n, builder)
 	case ^Proc_Lit:
-		visit_proc_type(n.type, builder)
-		visit_node(n.body, builder)
+		if n.type != nil && n.body != nil {
+			param_map := make(map[string]bool, context.temp_allocator)
+
+			old := builder.param_map
+			builder.param_map = param_map
+
+			visit_proc_type(n.type, builder)
+			visit_node(n.body, builder)
+
+			builder.param_map = old
+		} else {
+			visit_proc_type(n.type, builder)
+			visit_node(n.body, builder)
+		}
 	case ^Proc_Group:
 		for arg in n.args {
 			ident := arg.derived.(^Ident) or_continue
@@ -419,6 +432,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 			for name in param.names {
 				if ident, ok := name.derived.(^Ident); ok {
 					write_semantic_node(builder, name, .Parameter)
+					builder.param_map[ident.name] = true
 				}
 			}
 
@@ -552,7 +566,13 @@ visit_ident :: proc(
 		case SymbolProcedureValue, SymbolProcedureGroupValue, SymbolAggregateValue:
 			write_semantic_node(builder, ident, .Function, modifiers)
 		case:
-			write_semantic_node(builder, ident, .Variable, modifiers)
+			if builder.param_map != nil {
+				if ident.name in builder.param_map {
+					write_semantic_node(builder, ident, .Parameter)
+				}
+			} else {
+				write_semantic_node(builder, ident, .Variable, modifiers)
+			}
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)
