@@ -112,6 +112,7 @@ collect_procedure_fields :: proc(
 		generic            = is_procedure_generic(proc_type),
 		diverging          = proc_type.diverging,
 		calling_convention = clone_calling_convention(proc_type.calling_convention, collection.allocator, &collection.unique_strings),
+		tags               = proc_type.tags,
 	}
 
 	return value

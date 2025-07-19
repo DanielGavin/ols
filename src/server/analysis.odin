@@ -2801,6 +2801,7 @@ make_symbol_procedure_from_ast :: proc(
 		generic            = v.generic,
 		diverging          = v.diverging,
 		calling_convention = v.calling_convention,
+		tags               = v.tags,
 	}
 
 	if _, ok := get_attribute_objc_name(attributes); ok {

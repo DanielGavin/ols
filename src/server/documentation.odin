@@ -497,6 +497,21 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 	} else if value.diverging {
 		strings.write_string(sb, " -> !")
 	}
+	for tag in value.tags {
+		s := ""
+		switch tag {
+		case .Optional_Ok:
+			s = "#optional_ok"
+		case .Optional_Allocator_Error:
+			s = "#optional_allocator_error"
+		case .Bounds_Check:
+			s = "#bounds_check"
+		case .No_Bounds_Check:
+			s = "#no_bounds_check"
+		}
+
+		fmt.sbprintf(sb, " %s", s)
+	}
 }
 
 write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: SymbolStructValue) {

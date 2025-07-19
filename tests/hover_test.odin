@@ -2803,6 +2803,16 @@ ast_hover_proc_calling_convention :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc \"contextless\" (a: int)")
 }
+
+@(test)
+ast_hover_proc_directives :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo :: proc(a: int) #no_bounds_check {}
+	`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc(a: int) #no_bounds_check")
+}
 /*
 
 Waiting for odin fix

@@ -58,6 +58,7 @@ SymbolProcedureValue :: struct {
 	generic:            bool,
 	diverging:          bool,
 	calling_convention: ast.Proc_Calling_Convention,
+	tags:               ast.Proc_Tags,
 }
 
 SymbolProcedureGroupValue :: struct {
