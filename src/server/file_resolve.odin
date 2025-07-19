@@ -248,6 +248,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		resolve_node(n.type, data)
 
+		for clause in n.where_clauses {
+			resolve_node(clause, data)
+		}
+
 		data.position_context.function = cast(^Proc_Lit)node
 
 		append(&data.position_context.functions, data.position_context.function)
