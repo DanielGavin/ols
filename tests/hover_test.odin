@@ -2636,6 +2636,19 @@ ast_hover_named_parameter_with_default_value_struct :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "foo.a: test.Bar :: struct {\n\tbar: int,\n}")
 }
+
+@(test)
+ast_hover_inside_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(x: [2]int)
+			where len(x) > 1,
+				  type_of(x{*}) == [2]int {
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.x: [2]int")
+}
 /*
 
 Waiting for odin fix

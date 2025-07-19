@@ -564,3 +564,20 @@ ast_goto_proc_named_param :: proc (t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_param_inside_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(x: [2]int)
+			where len(x) > 1,
+				  type_of(x{*}) == [2]int {
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 14}, end = {line = 1, character = 15}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}

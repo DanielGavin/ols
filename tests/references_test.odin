@@ -1053,3 +1053,24 @@ ast_reference_struct_comp_lit_field :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_inside_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(x: [2]int)
+			where len(x) > 1,
+				  type_of(x{*}) == [2]int {
+		}
+	`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 14}, end = {line = 1, character = 15}}},
+		{range = {start = {line = 2, character = 13}, end = {line = 2, character = 14}}},
+		{range = {start = {line = 3, character = 14}, end = {line = 3, character = 15}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
