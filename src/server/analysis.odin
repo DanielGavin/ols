@@ -4779,6 +4779,13 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		} else if position_in_node(n.type, position_context.position) {
 			position_context.function = cast(^Proc_Lit)node
 			get_document_position(n.type, position_context)
+		} else {
+			for clause in n.where_clauses {
+				if position_in_node(clause, position_context.position) {
+					position_context.function = cast(^Proc_Lit)node
+					get_document_position(clause, position_context)
+				}
+			}
 		}
 	case ^Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
