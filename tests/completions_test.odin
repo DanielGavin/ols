@@ -3875,3 +3875,34 @@ ast_completion_proc_enum_param :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_details(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_using_aliased_package :: proc(t: ^testing.T) {
+		packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			foo :: proc() {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+
+		import "my_package"
+		mp :: my_package
+
+		main :: proc() {
+			using mp
+			f{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"my_package.foo: proc()"})
+}

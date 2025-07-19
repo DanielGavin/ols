@@ -2667,9 +2667,7 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	//probably map instead
 	for u, i in ast_context.usings {
 		for imp in ast_context.imports {
-			if strings.compare(imp.base, u) == 0 {
-				usings[i] = imp.name
-			}
+			usings[i] = imp.name
 		}
 	}
 
