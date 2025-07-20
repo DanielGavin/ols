@@ -919,3 +919,25 @@ ast_type_definition_proc_named_param_with_default_value :: proc (t: ^testing.T) 
 
 	test.expect_type_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_type_definition_multi_pointer :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {
+			b{*}ars: [^]Bar,
+		}
+
+		Bar :: struct{
+			bar: int,
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 6, character = 2}, end = {line = 6, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}

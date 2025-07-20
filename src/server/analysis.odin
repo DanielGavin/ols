@@ -913,6 +913,8 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return resolve_location_type_expression(ast_context, n.elem)
 	case ^ast.Pointer_Type:
 		return resolve_location_type_expression(ast_context, n.elem)
+	case ^ast.Multi_Pointer_Type:
+		return resolve_location_type_expression(ast_context, n.elem)
 	case ^ast.Comp_Lit:
 		return resolve_location_type_expression(ast_context, n.type)
 	}
