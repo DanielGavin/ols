@@ -643,6 +643,41 @@ concatenate_symbol_information :: proc {
 }
 
 concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+	if v, ok := symbol.value.(SymbolProcedureValue); ok {
+		pkg := path.base(symbol.pkg, false, context.temp_allocator)
+		sb := strings.builder_make(context.temp_allocator)
+		if symbol.comment != "" {
+			fmt.sbprintf(&sb, "%s\n", symbol.comment)
+		}
+		for attribute in v.attributes {
+			if len(attribute.elems) == 0 {
+				strings.write_string(&sb, "@()\n")
+				continue
+			}
+			strings.write_string(&sb, "@(")
+			for elem, i in attribute.elems {
+				if directive, ok := elem.derived.(^ast.Field_Value); ok {
+					build_string_node(directive.field, &sb, false)
+					strings.write_string(&sb, "=")
+					build_string_node(directive.value, &sb, false)
+				} else {
+					build_string_node(elem, &sb, false)
+				}
+				if i != len(attribute.elems) - 1 {
+					strings.write_string(&sb, ", ")
+				}
+
+			}
+			strings.write_string(&sb, ")\n")
+		}
+
+		fmt.sbprintf(&sb, "%v.%v", pkg, symbol.name)
+		if symbol.signature != "" {
+			fmt.sbprintf(&sb, ": %v", symbol.signature)
+		}
+		return strings.to_string(sb)
+	}
+
 	return concatenate_raw_string_information(
 		ast_context,
 		symbol.pkg,

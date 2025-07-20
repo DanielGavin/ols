@@ -2813,6 +2813,30 @@ ast_hover_proc_directives :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc(a: int) #no_bounds_check")
 }
+
+@(test)
+ast_hover_proc_attributes :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		@(require_results) f{*}oo :: proc(a: int) -> int {
+			return 0
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "@(require_results)\ntest.foo: proc(a: int) -> int")
+}
+
+@(test)
+ast_hover_proc_attributes_key_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		@(disabled=false) f{*}oo :: proc(a: int) -> int {
+			return 0
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "@(disabled=false)\ntest.foo: proc(a: int) -> int")
+}
 /*
 
 Waiting for odin fix

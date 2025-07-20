@@ -87,6 +87,7 @@ collect_procedure_fields :: proc(
 ) -> SymbolProcedureValue {
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
 	args := make([dynamic]^ast.Field, 0, collection.allocator)
+	attrs := make([dynamic]^ast.Attribute, 0, collection.allocator)
 
 	if return_list != nil {
 		for ret in return_list.list {
@@ -104,6 +105,12 @@ collect_procedure_fields :: proc(
 		}
 	}
 
+	for attr in attributes {
+		cloned := cast(^ast.Attribute)clone_type(attr, collection.allocator, &collection.unique_strings)
+		append(&attrs, cloned)
+	}
+
+
 	value := SymbolProcedureValue {
 		return_types       = returns[:],
 		orig_return_types  = returns[:],
@@ -113,6 +120,7 @@ collect_procedure_fields :: proc(
 		diverging          = proc_type.diverging,
 		calling_convention = clone_calling_convention(proc_type.calling_convention, collection.allocator, &collection.unique_strings),
 		tags               = proc_type.tags,
+		attributes         = attrs[:],
 	}
 
 	return value

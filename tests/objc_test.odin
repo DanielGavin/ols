@@ -14,7 +14,7 @@ objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 		&packages,
 		test.Package {
 			pkg = "my_package",
-			source = `package my_package    
+			source = `package my_package
             @(objc_class="NSWindow")
             Window :: struct { dummy: int}
 
@@ -43,7 +43,7 @@ objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 		t,
 		&source,
 		"->",
-		{"Window.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
+		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
 	)
 }
 
@@ -55,7 +55,7 @@ objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 		&packages,
 		test.Package {
 			pkg = "my_package",
-			source = `package my_package    
+			source = `package my_package
             @(objc_class="NSWindow")
             Window :: struct { dummy: int}
 
@@ -91,7 +91,7 @@ objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 		t,
 		&source,
 		"->",
-		{"Window.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
+		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
 	)
 }
 
@@ -104,7 +104,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 		&packages,
 		test.Package {
 			pkg = "my_package",
-			source = `package my_package    
+			source = `package my_package
             @(objc_class="NSWindow")
             Window :: struct { dummy: int}
 
@@ -141,7 +141,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"Window.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window",
+		"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window",
 	)
 }
 
@@ -153,7 +153,7 @@ objc_implicit_enum_completion :: proc(t: ^testing.T) {
 		&packages,
 		test.Package {
 			pkg = "my_package",
-			source = `package my_package    
+			source = `package my_package
 			My_Enum :: enum {
 				Regular    = 0,
 				Accessory  = 1,
