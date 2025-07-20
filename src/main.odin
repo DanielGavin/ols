@@ -19,7 +19,7 @@ import "core:sys/windows"
 import "src:common"
 import "src:server"
 
-VERSION :: "dev-2024-11-9:g584f01b"
+VERSION := #config(VERSION, "dev")
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
 	ptr := cast(^os.Handle)handle

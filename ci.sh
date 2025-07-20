@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+VERSION="nightly-$(date -u '+%Y-%m-%d')-$(git rev-parse --short HEAD)"
 
 if [[ $1 == "CI" ]]
 then
@@ -36,4 +37,4 @@ then
 fi
 
 
-odin build src/ -show-timings -collection:src=src -out:ols -no-bounds-check -o:speed $@
+odin build src/ -show-timings -collection:src=src -out:ols -no-bounds-check -o:speed -define:VERSION=$VERSION $@
