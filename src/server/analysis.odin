@@ -659,6 +659,25 @@ get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	return total
 }
 
+Candidate :: struct {
+	symbol: Symbol,
+	score: int,
+}
+
+get_top_candiate :: proc(candidates: []Candidate) -> (Candidate, bool) {
+	if len(candidates) == 0 {
+		return {}, false
+	}
+
+	top := candidates[0]
+	for candidate in candidates {
+		if candidate.score < top.score {
+			top = candidate
+		}
+	}
+	return top, true
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -684,12 +703,16 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		call_unnamed_arg_count = get_unnamed_arg_count(call_expr.args)
 	}
 
-	candidates := make([dynamic]Symbol, context.temp_allocator)
+	candidates := make([dynamic]Candidate, context.temp_allocator)
 
 	for arg_expr in group.args {
 		next_fn: if f, ok := internal_resolve_type_expression(ast_context, arg_expr); ok {
+			candidate := Candidate{
+				symbol = f,
+				score = 1,
+			}
 			if call_expr == nil || (resolve_all_possibilities && len(call_expr.args) == 0) {
-				append(&candidates, f)
+				append(&candidates, candidate)
 				break next_fn
 			}
 			if procedure, ok := f.value.(SymbolProcedureValue); ok {
@@ -773,46 +796,74 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 							break next_fn
 						}
 						
-						if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
+						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
 							found := false
-							for variant in value.types {
-								if symbol, ok := resolve_type_expression(ast_context, variant); ok {
-									if is_symbol_same_typed(ast_context, call_symbol, symbol, proc_arg.flags) {
-										found = true
-										break
+							// Are we a union variant
+							if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
+								for variant in value.types {
+									if symbol, ok := resolve_type_expression(ast_context, variant); ok {
+										if is_symbol_same_typed(ast_context, call_symbol, symbol, proc_arg.flags) {
+											// matching union types are a low priority
+											candidate.score = 1000000
+											found = true
+											break
+										}
 									}
 								}
 							}
+
+							// Do we contain a using that matches
+							if value, ok := call_symbol.value.(SymbolStructValue); ok {
+								using_score := 1000000
+								for k in value.usings {
+									if symbol, ok := resolve_type_expression(ast_context, value.types[k]); ok {
+										symbol.pointers = call_symbol.pointers
+										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
+											if k < using_score {
+												using_score = k
+											}
+											found = true
+										}
+									}
+								}
+								candidate.score = using_score
+							}
+
 							if !found {
 								break next_fn
 							}
-						} else if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
-							break next_fn
 						}
 
 						i += 1
 					}
 				}
 
-				append(&candidates, f)
+				append(&candidates, candidate)
 			}
 		}
 	}
 
-	if len(candidates) > 0 && !resolve_all_possibilities {
-		return candidates[0], true
-	} else if len(candidates) > 1 {
-		return Symbol {
-				type = candidates[0].type,
-				name = candidates[0].name,
-				pkg = candidates[0].pkg,
-				uri = candidates[0].uri,
-				value = SymbolAggregateValue{symbols = candidates[:]},
+	if candidate, ok  := get_top_candiate(candidates[:]); ok {
+		if !resolve_all_possibilities {
+			return candidate.symbol, true
+		} else if len(candidates) > 1 {
+			symbols := make([dynamic]Symbol, context.temp_allocator)
+			for c in candidates {
+				append(&symbols, c.symbol)
+			}
+			return Symbol {
+				type = candidate.symbol.type,
+				name = candidate.symbol.name,
+				pkg = candidate.symbol.pkg,
+				uri = candidate.symbol.uri,
+				value = SymbolAggregateValue{symbols = symbols[:]},
 			},
 			true
-	} else if len(candidates) == 1 {
-		return candidates[0], true
+		} else if len(candidates) == 1 {
+			return candidate.symbol, true
+		}
 	}
+
 
 	return Symbol{}, false
 }
