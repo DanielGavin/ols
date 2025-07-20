@@ -380,7 +380,7 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 			switch untyped.type {
 			case .Integer:
 				switch basic.ident.name {
-				case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
+				case "int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128":
 					return true, true
 				case:
 					return false, true
