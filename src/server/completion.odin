@@ -1035,37 +1035,39 @@ get_implicit_completion :: proc(
 		}
 	}
 
-	if position_context.binary != nil &&
-	   (position_context.binary.op.text == "==" || position_context.binary.op.text == "!=") {
-		context_node: ^ast.Expr
-		enum_node: ^ast.Expr
+	if position_context.binary != nil {
+		#partial switch position_context.binary.op.kind {
+		case .Cmp_Eq, .Not_Eq, .In, .Not_In:
+			context_node: ^ast.Expr
+			enum_node: ^ast.Expr
 
-		if position_in_node(position_context.binary.right, position_context.position) {
-			context_node = position_context.binary.right
-			enum_node = position_context.binary.left
-		} else if position_in_node(position_context.binary.left, position_context.position) {
-			context_node = position_context.binary.left
-			enum_node = position_context.binary.right
-		}
+			if position_in_node(position_context.binary.right, position_context.position) {
+				context_node = position_context.binary.right
+				enum_node = position_context.binary.left
+			} else if position_in_node(position_context.binary.left, position_context.position) {
+				context_node = position_context.binary.left
+				enum_node = position_context.binary.right
+			}
 
-		if context_node != nil && enum_node != nil {
-			if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
+			if context_node != nil && enum_node != nil {
+				if enum_value, ok := unwrap_enum(ast_context, enum_node); ok {
+					for name in enum_value.names {
+						item := CompletionItem {
+							label  = name,
+							kind   = .EnumMember,
+							detail = name,
+						}
+
+						append(&items, item)
 					}
 
-					append(&items, item)
+					list.items = items[:]
+					return
 				}
-
-				list.items = items[:]
-				return
 			}
-		}
 
-		reset_ast_context(ast_context)
+			reset_ast_context(ast_context)
+		}
 	}
 
 	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {

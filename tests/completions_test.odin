@@ -3906,3 +3906,26 @@ ast_completion_using_aliased_package :: proc(t: ^testing.T) {
 
 	test.expect_completion_details(t, &source, ".", {"my_package.foo: proc()"})
 }
+
+@(test)
+ast_completion_bitset_if_statement_in :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			AAA,
+			AAB
+		}
+
+		Bar :: bit_set[Foo]
+
+		main :: proc() {
+			bar: Bar
+			if .A{*} in bar {
+
+			}
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"AAA", "AAB"})
+}
