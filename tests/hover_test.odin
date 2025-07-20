@@ -2649,6 +2649,40 @@ ast_hover_inside_where_clause :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.x: [2]int")
 }
+
+@(test)
+ast_hover_overloading_with_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		Bar :: struct {
+			bar: string,
+		}
+
+		FooBar :: union {
+			Foo,
+			Bar,
+		}
+
+		foo_bar :: proc(fb: FooBar) {}
+		bar :: proc(bar: Bar) {}
+
+		my_overload :: proc {
+			foo_bar,
+			bar,
+		}
+
+		main :: proc() {
+			foo: Foo
+			my_overloa{*}d(foo)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.my_overload: proc(fb: FooBar)")
+}
 /*
 
 Waiting for odin fix

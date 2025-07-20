@@ -772,8 +772,21 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						if !ok {
 							break next_fn
 						}
-
-						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
+						
+						if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
+							found := false
+							for variant in value.types {
+								if symbol, ok := resolve_type_expression(ast_context, variant); ok {
+									if is_symbol_same_typed(ast_context, call_symbol, symbol, proc_arg.flags) {
+										found = true
+										break
+									}
+								}
+							}
+							if !found {
+								break next_fn
+							}
+						} else if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
 							break next_fn
 						}
 
