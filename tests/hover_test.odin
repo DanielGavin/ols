@@ -2649,6 +2649,150 @@ ast_hover_inside_where_clause :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.x: [2]int")
 }
+
+@(test)
+ast_hover_overloading_with_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		Bar :: struct {
+			bar: string,
+		}
+
+		FooBar :: union {
+			Foo,
+			Bar,
+		}
+
+		foo_bar :: proc(fb: FooBar) {}
+		bar :: proc(bar: Bar) {}
+
+		my_overload :: proc {
+			foo_bar,
+			bar,
+		}
+
+		main :: proc() {
+			foo: Foo
+			my_overloa{*}d(foo)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.my_overload: proc(fb: FooBar)")
+}
+
+@(test)
+ast_hover_overloading_with_union_and_variant :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		Bar :: struct {
+			bar: string,
+		}
+
+		FooBar :: union {
+			Foo,
+			Bar,
+		}
+
+		foo_bar :: proc(fb: FooBar) {}
+		bar :: proc(bar: Bar) {}
+
+		my_overload :: proc {
+			foo_bar,
+			bar,
+		}
+
+		main :: proc() {
+			bar: Bar
+			my_overloa{*}d(bar)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.my_overload: proc(bar: Bar)")
+}
+
+@(test)
+ast_hover_overloading_struct_with_usings :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		Bar :: struct {
+			using f: Foo,
+
+			bar: string,
+		}
+
+		Bazz :: struct {
+			using b: Bar,
+
+			bazz: i32,
+		}
+
+
+		foo :: proc(f: Foo) {}
+		bar :: proc(b: Bar) {}
+
+		foobar :: proc {
+			foo,
+			bar,
+		}
+
+		main :: proc() {
+			bazz: Bazz
+			fooba{*}r(bazz)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.foobar: proc(b: Bar)")
+}
+
+@(test)
+ast_hover_overloading_struct_with_usings_with_pointers :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		Bar :: struct {
+			using f: Foo,
+
+			bar: string,
+		}
+
+		Bazz :: struct {
+			using b: Bar,
+
+			bazz: i32,
+		}
+
+
+		foo :: proc(f: ^Foo) {}
+		bar :: proc(b: ^Bar) {}
+
+		foobar :: proc {
+			foo,
+			bar,
+		}
+
+		main :: proc() {
+			bazz: Bazz
+			fooba{*}r(&bazz)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.foobar: proc(b: ^Bar)")
+}
 /*
 
 Waiting for odin fix
