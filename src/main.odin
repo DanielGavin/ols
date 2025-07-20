@@ -42,9 +42,6 @@ logger: ^log.Logger
 
 run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	common.config.collections = make(map[string]string)
-
-	log.info("Starting Odin Language Server")
-
 	common.config.running = true
 
 	logger = new(log.Logger)
@@ -65,6 +62,13 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	server.deletings = make([dynamic]server.Request, context.allocator)
 
 	request_thread = thread.create_and_start_with_data(cast(rawptr)&request_thread_data, server.thread_request_main)
+
+	logger^ = server.create_lsp_logger(writer, log.Level.Error)
+
+	{
+		context.logger = logger^
+		log.error("Starting Odin Language Server", VERSION)
+	}
 
 	for common.config.running {
 		if common.config.verbose {
