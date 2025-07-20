@@ -60,6 +60,7 @@ SymbolProcedureValue :: struct {
 	calling_convention: ast.Proc_Calling_Convention,
 	tags:               ast.Proc_Tags,
 	attributes:         []^ast.Attribute,
+	inlining:           ast.Proc_Inlining,
 }
 
 SymbolProcedureGroupValue :: struct {

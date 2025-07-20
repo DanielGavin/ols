@@ -84,6 +84,7 @@ collect_procedure_fields :: proc(
 	return_list: ^ast.Field_List,
 	package_map: map[string]string,
 	attributes: []^ast.Attribute,
+	inlining: ast.Proc_Inlining,
 ) -> SymbolProcedureValue {
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
 	args := make([dynamic]^ast.Field, 0, collection.allocator)
@@ -121,6 +122,7 @@ collect_procedure_fields :: proc(
 		calling_convention = clone_calling_convention(proc_type.calling_convention, collection.allocator, &collection.unique_strings),
 		tags               = proc_type.tags,
 		attributes         = attrs[:],
+		inlining           = inlining,
 	}
 
 	return value
@@ -511,6 +513,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 					v.type.results,
 					package_map,
 					expr.attributes,
+					v.inlining,
 				)
 			}
 
@@ -530,6 +533,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				v.results,
 				package_map,
 				expr.attributes,
+				.None,
 			)
 		case ^ast.Proc_Group:
 			token = v^

@@ -1038,7 +1038,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Map_Type:
 		return make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 	case ^Proc_Type:
-		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true), true
+		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true, .None), true
 	case ^Bit_Field_Type:
 		return make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name, true), true
 	case ^Basic_Directive:
@@ -1518,11 +1518,11 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 				if !ok && !ast_context.overloading {
 					return_symbol, ok =
-						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false), true
+						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
 				}
 			} else {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false), true
+					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
 			}
 		case ^Proc_Group:
 			return_symbol, ok = resolve_function_overload(ast_context, v^)
@@ -1655,12 +1655,13 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 							node,
 							global.attributes,
 							false,
+							v.inlining,
 						),
 						true
 				}
 			} else {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node, global.attributes, false),
+					make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node, global.attributes, false, v.inlining),
 					true
 			}
 		case ^Proc_Group:
@@ -2763,6 +2764,7 @@ make_symbol_procedure_from_ast :: proc(
 	name: ast.Ident,
 	attributes: []^ast.Attribute,
 	type: bool,
+	inlining: ast.Proc_Inlining,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(name, ast_context.file.src),
@@ -2803,6 +2805,7 @@ make_symbol_procedure_from_ast :: proc(
 		calling_convention = v.calling_convention,
 		tags               = v.tags,
 		attributes         = attributes,
+		inlining           = inlining,
 	}
 
 	if _, ok := get_attribute_objc_name(attributes); ok {

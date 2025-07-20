@@ -464,6 +464,11 @@ write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Bui
 }
 
 write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProcedureValue) {
+	if value.inlining == .Inline {
+		strings.write_string(sb, "#force_inline ")
+	} else if value.inlining == .No_Inline {
+		strings.write_string(sb, "#force_no_inline ")
+	}
 	strings.write_string(sb, "proc")
 	if s, ok := value.calling_convention.(string); ok {
 		fmt.sbprintf(sb, " %s ", s)
