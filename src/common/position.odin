@@ -44,8 +44,12 @@ get_absolute_position :: proc(position: Position, document_text: []u8) -> (Absol
 	}
 
 	line_count := 0
-	index := 0
+	index := 1
 	last := document_text[0]
+	if last == '\n' {
+		// if we start with a new line, we set the index back to 0 to ensure it gets accounted for
+		index = 0
+	}
 
 	if !get_index_at_line(&index, &line_count, &last, document_text, position.line) {
 		return absolute, false
