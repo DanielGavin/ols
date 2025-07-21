@@ -1,12 +1,11 @@
 name: nightly
 
-
 on:
   workflow_dispatch:
-  #schedule:
-  #- cron: 0 20 * * *
-jobs:
+  schedule:
+    - cron: 0 2 * * *
 
+jobs:
   dist-arm64-darwin:
     runs-on: macos-latest
     timeout-minutes: 15
@@ -147,7 +146,7 @@ jobs:
       run: ./ci.bat CI
     - name: Move to Dist
       shell: cmd
-      run: | 
+      run: |
         mkdir dist
         move ols.exe dist/
         move builtin dist/

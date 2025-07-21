@@ -1,16 +1,21 @@
 @echo off
 
 setlocal enabledelayedexpansion
+
+for /f "tokens=1-3 delims=-" %%a in ('echo %date%') do set today=%%a-%%b-%%c
+set commit_hash=%GITHUB_SHA:~0,8%
+set version=nightly-%today%-%commit_hash%
+
 if "%1" == "CI" (
     set "PATH=%cd%\Odin;!PATH!"
 
     rem odin test tests -collection:src=src -define:ODIN_TEST_THREADS=1
     rem if %errorlevel% neq 0 exit /b 1
-    
+
     odin build src\ -collection:src=src -out:ols.exe -o:speed -extra-linker-flags:"/STACK:4000000,2000000"
 
     call "tools/odinfmt/tests.bat"
     if %errorlevel% neq 0 exit /b 1
 ) else (
-     odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000"
+     odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000" -define:VERSION=%version%
 )
