@@ -2125,15 +2125,16 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
 		#partial switch item.kind {
 		case .Function:
-			comment := ""
+			type := ""
+			returnDesc := ""
 			proc_info := ""
-			detail_split := strings.split_n(item.detail, "\n", 2)
+			detail_split := strings.split_n(item.detail, "->", 2)
 			if len(detail_split) == 1 {
-				// We have no comment
+				// We have no type
 				proc_info = detail_split[0]
 			} else if len(detail_split) == 2 {
-				comment = detail_split[0]
-				proc_info = detail_split[1]
+				type = detail_split[1]
+				proc_info = detail_split[0]
 			}
 			// Split the leading name of the proc
 			proc_info_split := strings.split_n(proc_info, " proc", 2)
@@ -2146,7 +2147,7 @@ format_to_label_details :: proc(list: ^CompletionList) {
 
 			item.labelDetails = CompletionItemLabelDetails {
 				detail      = proc_info,
-				description = fmt.tprintf(" %s", comment),
+				description = fmt.tprintf(" %s", type),
 			}
 		case .Variable, .Constant, .Field:
 			type_index := strings.index(item.detail, ":")
