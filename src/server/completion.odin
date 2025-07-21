@@ -2150,9 +2150,16 @@ format_to_label_details :: proc(list: ^CompletionList) {
 			}
 		case .Variable, .Constant, .Field:
 			type_index := strings.index(item.detail, ":")
+			type_name := item.detail[type_index + 1:]
+
+			commentIndex := strings.index(type_name, "/")
+			if commentIndex > 0 {
+				type_name, _ = strings.substring(type_name, 0, commentIndex)
+			}
+
 			item.labelDetails = CompletionItemLabelDetails {
 				detail      = "",
-				description = item.detail[type_index + 1:],
+				description = type_name,
 			}
 		case .Struct, .Enum, .Class:
 			type_index := strings.index(item.detail, ":")
