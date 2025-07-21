@@ -233,11 +233,19 @@ get_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 		for symbol in v.symbols {
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
 				fmt.sbprintf(&sb, "\t%s :: ", symbol.name)
-				write_procedure_symbol_signature(&sb, value)
+				write_procedure_symbol_signature(&sb, value, detailed_signature=false)
 				strings.write_string(&sb, ",\n")
 			}
 		}
 		strings.write_string(&sb, "}")
+		return strings.to_string(sb)
+	case SymbolProcedureValue:
+		sb := strings.builder_make(ast_context.allocator)
+		if symbol.type_pkg != "" && symbol.type_name != "" {
+			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
+			fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
+		}
+		write_procedure_symbol_signature(&sb, v, detailed_signature=true)
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -342,7 +350,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string
 			pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 			fmt.sbprintf(&sb, "%s%s.%s :: ", pointer_prefix, pkg_name, symbol.type_name)
 		}
-		write_procedure_symbol_signature(&sb, v)
+		write_procedure_symbol_signature(&sb, v, detailed_signature=false)
 		return strings.to_string(sb)
 	case SymbolAggregateValue:
 		return "proc"
@@ -463,14 +471,16 @@ write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Bui
 	}
 }
 
-write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProcedureValue) {
-	if value.inlining == .Inline {
-		strings.write_string(sb, "#force_inline ")
-	} else if value.inlining == .No_Inline {
-		strings.write_string(sb, "#force_no_inline ")
+write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProcedureValue, detailed_signature: bool) {
+	if detailed_signature {
+		if value.inlining == .Inline {
+			strings.write_string(sb, "#force_inline ")
+		} else if value.inlining == .No_Inline {
+			strings.write_string(sb, "#force_no_inline ")
+		}
 	}
 	strings.write_string(sb, "proc")
-	if s, ok := value.calling_convention.(string); ok {
+	if s, ok := value.calling_convention.(string); ok && detailed_signature {
 		fmt.sbprintf(sb, " %s ", s)
 	}
 	strings.write_string(sb, "(")
@@ -502,20 +512,22 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 	} else if value.diverging {
 		strings.write_string(sb, " -> !")
 	}
-	for tag in value.tags {
-		s := ""
-		switch tag {
-		case .Optional_Ok:
-			s = "#optional_ok"
-		case .Optional_Allocator_Error:
-			s = "#optional_allocator_error"
-		case .Bounds_Check:
-			s = "#bounds_check"
-		case .No_Bounds_Check:
-			s = "#no_bounds_check"
-		}
+	if detailed_signature {
+		for tag in value.tags {
+			s := ""
+			switch tag {
+			case .Optional_Ok:
+				s = "#optional_ok"
+			case .Optional_Allocator_Error:
+				s = "#optional_allocator_error"
+			case .Bounds_Check:
+				s = "#bounds_check"
+			case .No_Bounds_Check:
+				s = "#no_bounds_check"
+			}
 
-		fmt.sbprintf(sb, " %s", s)
+			fmt.sbprintf(sb, " %s", s)
+		}
 	}
 }
 
