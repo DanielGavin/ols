@@ -157,6 +157,9 @@ get_completion_list :: proc(
 		get_package_completion(&ast_context, &position_context, &list)
 	}
 
+	// For now we simply convert all the docs to markdown here.
+	convert_docs_to_markdown(&list)
+
 	if common.config.enable_label_details {
 		format_to_label_details(&list)
 	}
@@ -493,7 +496,7 @@ get_selector_completion :: proc(
 
 		for type in v.types {
 			if symbol, ok := resolve_type_expression(ast_context, type); ok {
-				base := get_symbol_pkg_name(ast_context, symbol)
+				base := get_symbol_pkg_name(ast_context, &symbol)
 
 				item := CompletionItem {
 					kind          = .EnumMember,
@@ -517,7 +520,7 @@ get_selector_completion :: proc(
 					item.label = fmt.aprintf(
 						"(%v%v.%v)",
 						repeat("^", symbol.pointers, context.temp_allocator),
-						get_symbol_pkg_name(ast_context, symbol),
+						get_symbol_pkg_name(ast_context, &symbol),
 						node_to_string(type, true),
 					)
 				}
@@ -607,7 +610,7 @@ get_selector_completion :: proc(
 				symbol.type = .Field
 				symbol.doc = get_doc(v.docs[i], context.temp_allocator)
 				symbol.comment = get_comment(v.comments[i])
-				symbol.signature = get_short_signature(ast_context, symbol)
+				build_documentation(ast_context, &symbol)
 
 				item := CompletionItem {
 					label         = name,
@@ -681,7 +684,7 @@ get_selector_completion :: proc(
 				}
 
 				resolve_unresolved_symbol(ast_context, &symbol)
-				symbol.signature = get_short_signature(ast_context, symbol)
+				build_documentation(ast_context, &symbol)
 
 				item := CompletionItem {
 					label         = symbol.name,
@@ -1322,7 +1325,8 @@ get_identifier_completion :: proc(
 		for r in results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)
-			r.symbol.signature = get_short_signature(ast_context, r.symbol)
+
+			build_documentation(ast_context, &r.symbol)
 
 			uri, _ := common.parse_uri(r.symbol.uri, context.temp_allocator)
 			if uri.path != ast_context.fullpath {
@@ -1354,7 +1358,7 @@ get_identifier_completion :: proc(
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 			symbol.name = k
-			symbol.signature = get_short_signature(ast_context, symbol)
+			build_documentation(ast_context, &symbol)
 
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 				append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
@@ -1382,7 +1386,7 @@ get_identifier_completion :: proc(
 			ident.name = k
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-				symbol.signature = get_short_signature(ast_context, symbol)
+				build_documentation(ast_context, &symbol)
 
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 					symbol.name = clean_ident(ident.name)
@@ -1665,7 +1669,7 @@ get_type_switch_completion :: proc(
 						item.label = fmt.aprintf(
 							"%v%v.%v",
 							repeat("^", symbol.pointers, context.temp_allocator),
-							get_symbol_pkg_name(ast_context, symbol),
+							get_symbol_pkg_name(ast_context, &symbol),
 							name,
 						)
 						item.detail = item.label
@@ -2125,18 +2129,9 @@ format_to_label_details :: proc(list: ^CompletionList) {
 		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
 		#partial switch item.kind {
 		case .Function:
-			comment := ""
 			proc_info := ""
-			detail_split := strings.split_n(item.detail, "\n", 2)
-			if len(detail_split) == 1 {
-				// We have no comment
-				proc_info = detail_split[0]
-			} else if len(detail_split) == 2 {
-				comment = detail_split[0]
-				proc_info = detail_split[1]
-			}
 			// Split the leading name of the proc
-			proc_info_split := strings.split_n(proc_info, " proc", 2)
+			proc_info_split := strings.split_n(item.detail, " proc", 2)
 			if len(proc_info_split) == 1 {
 				// No proc declaration (eg for a proc group)
 				proc_info = "(..)"
@@ -2146,20 +2141,13 @@ format_to_label_details :: proc(list: ^CompletionList) {
 
 			item.labelDetails = CompletionItemLabelDetails {
 				detail      = proc_info,
-				description = fmt.tprintf(" %s", comment),
+				description = "",
 			}
 		case .Variable, .Constant, .Field:
 			type_index := strings.index(item.detail, ":")
-			type_name := item.detail[type_index + 1:]
-
-			commentIndex := strings.index(type_name, "/")
-			if commentIndex > 0 {
-				type_name, _ = strings.substring(type_name, 0, commentIndex)
-			}
-
 			item.labelDetails = CompletionItemLabelDetails {
 				detail      = "",
-				description = type_name,
+				description = item.detail[type_index + 1:],
 			}
 		case .Struct, .Enum, .Class:
 			type_index := strings.index(item.detail, ":")
@@ -2178,6 +2166,17 @@ format_to_label_details :: proc(list: ^CompletionList) {
 			if strings.contains(dt.detail, "..") && strings.contains(dt.detail, "#") {
 				s, _ := strings.replace_all(dt.detail, "..", "ꓸꓸ", allocator = context.temp_allocator)
 				dt.detail = s
+			}
+		}
+	}
+}
+
+convert_docs_to_markdown :: proc(list: ^CompletionList) {
+	for &item in list.items {
+		if s, ok := item.documentation.(string); ok {
+			item.documentation = MarkupContent {
+				kind = "markdown",
+				value = s,
 			}
 		}
 	}

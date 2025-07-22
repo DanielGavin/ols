@@ -29,7 +29,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{"My_Struct.one: int", "My_Struct.two: int // test comment", "My_Struct.three: int"},
+		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
 	)
 }
 
@@ -3338,7 +3338,7 @@ ast_completion_struct_documentation :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, "", {"Foo.bazz: my_package.My_Struct // bazz"})
+	test.expect_completion_details(t, &source, "", {"Foo.bazz: my_package.My_Struct"})
 }
 
 @(test)
@@ -3460,7 +3460,7 @@ ast_completion_poly_struct_another_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, "", {"Runner.state: test.State // state"})
+	test.expect_completion_details(t, &source, "", {"Runner.state: test.State"})
 }
 
 @(test)
