@@ -67,7 +67,7 @@ append_method_completion :: proc(
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
 				resolve_unresolved_symbol(ast_context, &symbol)
-				symbol.signature = get_short_signature(ast_context, symbol)
+				build_documentation(ast_context, &symbol)
 
 				range, ok := get_range_from_selection_start_to_dot(position_context)
 
@@ -113,7 +113,7 @@ append_method_completion :: proc(
 				if symbol.pkg != ast_context.document_package {
 					new_text = fmt.tprintf(
 						"%v.%v",
-						path.base(get_symbol_pkg_name(ast_context, symbol), false, ast_context.allocator),
+						path.base(get_symbol_pkg_name(ast_context, &symbol), false, ast_context.allocator),
 						symbol.name,
 					)
 				} else {
@@ -125,11 +125,12 @@ append_method_completion :: proc(
 				} else {
 					new_text = fmt.tprintf("%v(%v%v%v)$0", new_text, references, receiver, dereferences)
 				}
+				build_documentation(ast_context, &symbol)
 
 				item := CompletionItem {
 					label = symbol.name,
 					kind = symbol_type_to_completion_kind(symbol.type),
-					detail = get_short_signature(ast_context, symbol),
+					detail = symbol.signature,
 					additionalTextEdits = remove_edit,
 					textEdit = TextEdit{newText = new_text, range = {start = range.end, end = range.end}},
 					insertTextFormat = .Snippet,

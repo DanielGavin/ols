@@ -2740,7 +2740,7 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	return usings
 }
 
-get_symbol_pkg_name :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+get_symbol_pkg_name :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 	return get_pkg_name(ast_context, symbol.pkg)
 }
 

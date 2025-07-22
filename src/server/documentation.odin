@@ -104,7 +104,47 @@ keywords_docs: map[string]bool = {
 	"where"         = true,
 }
 
-get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+// Adds signature and docs information to the provided symbol
+build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_signature := true) {
+	if short_signature {
+		symbol.signature = get_short_signature(ast_context, symbol)
+	} else {
+		symbol.signature = get_signature(ast_context, symbol)
+	}
+
+	if symbol.doc == "" && symbol.comment == "" {
+		return
+	}
+
+	symbol.doc = construct_symbol_docs(symbol.doc, symbol.comment)
+}
+
+// Adds signature and docs information for a bit field field
+build_bit_field_field_documentation :: proc(
+	ast_context: ^AstContext, symbol: ^Symbol, value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator
+) {
+	symbol.signature = get_bit_field_field_signature(value, index, allocator)
+	symbol.doc = construct_symbol_docs(symbol.doc, symbol.comment)
+}
+
+construct_symbol_docs :: proc(docs, comment: string, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator = context.temp_allocator)
+	if docs != "" {
+		strings.write_string(&sb, docs)
+		if comment != "" {
+			strings.write_string(&sb, "\n")
+		}
+	}
+
+	if comment != "" {
+	    fmt.sbprintf(&sb, "\n```odin\n%s\n```", comment)
+	}
+
+	 return strings.to_string(sb)
+}
+
+// Returns the fully detailed signature for the symbol, including things like attributes and fields
+get_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 	is_variable := symbol.type == .Variable
 
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
@@ -251,7 +291,7 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	return get_short_signature(ast_context, symbol)
 }
 
-get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+get_short_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 	is_variable := symbol.type == .Variable
 
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
@@ -271,18 +311,12 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			strings.write_string(&sb, pointer_prefix)
 			build_string_node(v.ident, &sb, false)
 		}
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolBitSetValue:
 		sb := strings.builder_make(ast_context.allocator)
 		fmt.sbprintf(&sb, "%sbit_set[", pointer_prefix)
 		build_string_node(v.expr, &sb, false)
 		strings.write_string(&sb, "]")
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolEnumValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -294,9 +328,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			strings.write_string(&sb, pointer_prefix)
 			strings.write_string(&sb, "enum {..}")
 		}
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolMapValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -304,9 +335,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		build_string_node(v.key, &sb, false)
 		strings.write_string(&sb, "]")
 		build_string_node(v.value, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolProcedureValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -328,9 +356,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			strings.write_string(&sb, pointer_prefix)
 			strings.write_string(&sb, "struct {..}")
 		}
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolUnionValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -341,9 +366,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		} else {
 			strings.write_string(&sb, pointer_prefix)
 			strings.write_string(&sb, "union {..}")
-		}
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
 		}
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
@@ -357,34 +379,22 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			build_string_node(v.backing_type, &sb, false)
 			strings.write_string(&sb, " {..}")
 		}
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 		
 	case SymbolMultiPointerValue:
 		sb := strings.builder_make(ast_context.allocator)
 		fmt.sbprintf(&sb, "%s[^]", pointer_prefix)
 		build_string_node(v.expr, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolDynamicArrayValue:
 		sb := strings.builder_make(ast_context.allocator)
 		fmt.sbprintf(&sb, "%s[dynamic]", pointer_prefix)
 		build_string_node(v.expr, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolSliceValue:
 		sb := strings.builder_make(ast_context.allocator)
 		fmt.sbprintf(&sb, "%s[]", pointer_prefix)
 		build_string_node(v.expr, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolFixedArrayValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -392,9 +402,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		build_string_node(v.len, &sb, false)
 		strings.write_string(&sb, "]")
 		build_string_node(v.expr, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolMatrixValue:
 		sb := strings.builder_make(ast_context.allocator)
@@ -404,9 +411,6 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		build_string_node(v.y, &sb, false)
 		strings.write_string(&sb, "]")
 		build_string_node(v.expr, &sb, false)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, " %s", symbol.comment)
-		}
 		return strings.to_string(sb)
 	case SymbolPackageValue:
 		return "package"
@@ -441,11 +445,10 @@ get_bit_field_field_signature :: proc(value: SymbolBitFieldValue, index: int, al
 	build_string_node(value.types[index], &sb, false)
 	strings.write_string(&sb, " | ")
 	build_string_node(value.bit_sizes[index], &sb, false)
-	append_comments(&sb, value.comments, index)
 	return strings.to_string(sb)
 }
 
-write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Builder, symbol: Symbol, pointer_prefix: string) {
+write_symbol_type_information :: proc(ast_context: ^AstContext, sb: ^strings.Builder, symbol: ^Symbol, pointer_prefix: string) {
 	append_type_pkg := false
 	pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
 	if pkg_name != "" {
@@ -588,7 +591,7 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 append_variable_full_name :: proc(
 	sb: ^strings.Builder,
 	ast_context: ^AstContext,
-	symbol: Symbol,
+	symbol: ^Symbol,
 	pointer_prefix: string,
 ) {
 	pkg_name := get_symbol_pkg_name(ast_context, symbol)
@@ -644,17 +647,11 @@ concatenate_raw_string_information :: proc(
 
 	if type == .Package {
 		return fmt.tprintf("%v: package", name)
-	//} else if type == .Keyword {
-	//	return name
-	} else {
-		sb := strings.builder_make()
-		if (type == .Function || type == .Type_Function) && comment != "" {
-			fmt.sbprintf(&sb, "%s\n", comment)
-		}
-		fmt.sbprintf(&sb, "%v.%v", pkg, name)
-		if signature != "" {
-			fmt.sbprintf(&sb, ": %v", signature)
-		}
-		return strings.to_string(sb)
 	}
+	sb := strings.builder_make()
+	fmt.sbprintf(&sb, "%v.%v", pkg, name)
+	if signature != "" {
+		fmt.sbprintf(&sb, ": %v", signature)
+	}
+	return strings.to_string(sb)
 }

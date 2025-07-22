@@ -355,11 +355,16 @@ InsertTextMode :: enum {
 	adjustIndentation = 2,
 }
 
+CompletionDocumention :: union {
+	MarkupContent,
+	string,
+}
+
 CompletionItem :: struct {
 	label:               string,
 	kind:                CompletionItemKind,
 	detail:              string,
-	documentation:       string,
+	documentation:       CompletionDocumention,
 	insertTextFormat:    Maybe(InsertTextFormat),
 	insertText:          Maybe(string),
 	InsertTextMode:      Maybe(InsertTextMode),

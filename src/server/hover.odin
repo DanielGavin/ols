@@ -174,7 +174,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										symbol.comment = get_comment(value.comments[field_index + name_index])
 										symbol.doc = get_doc(value.docs[field_index + name_index], context.temp_allocator)
 
-										symbol.signature = get_short_signature(&ast_context, symbol)
+										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
 										return hover, true, true
 									}
@@ -203,7 +203,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									symbol.name = identifier.name
 									symbol.comment = get_comment(value.comments[i])
 									symbol.doc = get_doc(value.docs[i], context.temp_allocator)
-									symbol.signature = get_bit_field_field_signature(value, i)
+
+									build_bit_field_field_documentation(&ast_context, &symbol, value, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -252,7 +253,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		if position_context.call != nil {
 			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
-				symbol.signature = get_signature(&ast_context, symbol)
+				build_documentation(&ast_context, &symbol, false)
 				hover.contents = write_hover_content(&ast_context, symbol)
 				return hover, true, true
 			}
@@ -274,7 +275,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 			if position_in_node(base, position_context.position) {
 				if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-					resolved.signature = get_signature(&ast_context, resolved)
+					build_documentation(&ast_context, &resolved, false)
 					resolved.name = ident.name
 
 					if resolved.type == .Variable {
@@ -329,7 +330,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						symbol.pkg = selector.name
 						symbol.comment = get_comment(v.comments[i])
 						symbol.doc = get_doc(v.docs[i], context.temp_allocator)
-						symbol.signature = get_short_signature(&ast_context, symbol)
+						build_documentation(&ast_context, &symbol, true)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -341,8 +342,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						symbol.name = name
 						symbol.pkg = selector.name
-						symbol.signature = get_bit_field_field_signature(v, i)
 						symbol.doc = get_doc(v.docs[i], ast_context.allocator)
+						symbol.comment = get_comment(v.comments[i])
+
+						build_bit_field_field_documentation(&ast_context, &symbol, v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -360,7 +363,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 					if resolved, ok := resolve_type_identifier(&ast_context, ident^); ok {
-						resolved.signature = get_signature(&ast_context, resolved)
+						build_documentation(&ast_context, &resolved, false)
 						resolved.name = ident.name
 
 						if resolved.type == .Variable {
@@ -448,7 +451,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			resolved.signature = get_signature(&ast_context, resolved)
+			build_documentation(&ast_context, &resolved, false)
 			resolved.name = ident.name
 
 			if resolved.type == .Variable {
