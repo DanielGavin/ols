@@ -3929,3 +3929,47 @@ ast_completion_bitset_if_statement_in :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_details(t, &source, "", {"AAA", "AAB"})
 }
+
+@(test)
+ast_completion_bitset_named_proc_arg :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: bit_set[Foo]
+
+		foo :: proc(i: int = 0, bar: Bar = {})
+
+		main :: proc() {
+			foo(bar = {.{*}})
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
+
+@(test)
+ast_completion_bitset_named_proc_arg_should_remove_already_used :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: bit_set[Foo]
+
+		foo :: proc(i: int = 0, bar: Bar = {})
+
+		main :: proc() {
+			foo(bar = {.A, .{*}})
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"B"}, {"A"})
+}

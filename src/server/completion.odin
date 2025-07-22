@@ -1177,9 +1177,21 @@ get_implicit_completion :: proc(
 					if !arg_type_ok {
 						return
 					}
+					if position_context.field_value != nil {
+						// we are using a named param so we want to ensure we use that type and not the
+						// type at the index
+						if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+							if i, ok := get_field_list_name_index(name.name, proc_value.arg_types); ok {
+								arg_type = proc_value.arg_types[i]
+							}
+						}
+					}
 
 					if enum_value, ok := unwrap_enum(ast_context, arg_type.type); ok {
 						for name in enum_value.names {
+							if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+								continue
+							}
 							item := CompletionItem {
 								label  = name,
 								kind   = .EnumMember,
@@ -1188,35 +1200,9 @@ get_implicit_completion :: proc(
 
 							append(&items, item)
 						}
-
 						list.items = items[:]
 						return
 					}
-
-					// Bitset comp literal in parameter, eg: `hello({ . })`.
-					if position_context.comp_lit != nil {
-						if bitset_symbol, ok := resolve_type_expression(
-							ast_context,
-							proc_value.arg_types[parameter_index].type,
-						); ok {
-							set_ast_package_set_scoped(ast_context, bitset_symbol.pkg)
-							if enum_value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
-								for name in enum_value.names {
-									item := CompletionItem {
-										label  = name,
-										kind   = .EnumMember,
-										detail = name,
-									}
-
-									append(&items, item)
-								}
-
-								list.items = items[:]
-								return
-							}
-						}
-					}
-
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
 					for name in enum_value.names {
 						item := CompletionItem {
