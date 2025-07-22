@@ -663,9 +663,6 @@ concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Sym
 	if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		pkg := path.base(symbol.pkg, false, context.temp_allocator)
 		sb := strings.builder_make(context.temp_allocator)
-		if symbol.comment != "" {
-			fmt.sbprintf(&sb, "%s\n", symbol.comment)
-		}
 		for attribute in v.attributes {
 			if len(attribute.elems) == 0 {
 				strings.write_string(&sb, "@()\n")
