@@ -2,8 +2,8 @@
 
 setlocal enabledelayedexpansion
 
-for /f "tokens=1-3 delims=-" %%a in ('echo %date%') do set today=%%a-%%b-%%c
-set commit_hash=%GITHUB_SHA:~0,8%
+for /f %%a in ('git rev-parse --short HEAD 2^>NUL') do set commit_hash=%%a
+for /f %%d in ('powershell -command "[DateTime]::UtcNow.ToString('yyyy-MM-dd')"') do set today=%%d
 set version=nightly-%today%-%commit_hash%
 
 if "%1" == "CI" (

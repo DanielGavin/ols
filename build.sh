@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 
+VERSION="dev-$(date -u '+%Y-%m-%d')-$(git rev-parse --short HEAD)"
+
 if [[ $1 == "single_test" ]]
 then
     shift
@@ -42,8 +44,8 @@ if [[ $1 == "debug" ]]
 then
     shift
 
-    odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -use-separate-modules -debug $@
+    odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -use-separate-modules -define:VERSION=$VERSION-debug -debug $@
     exit 0
 fi
 
-odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -o:speed $@
+odin build src/ -show-timings -collection:src=src -out:ols -microarch:native -no-bounds-check -o:speed -define:VERSION=$VERSION $@
