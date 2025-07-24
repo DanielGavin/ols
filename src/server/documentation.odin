@@ -121,7 +121,7 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 
 // Adds signature and docs information for a bit field field
 build_bit_field_field_documentation :: proc(
-	ast_context: ^AstContext, symbol: ^Symbol, value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator
+	symbol: ^Symbol, value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator
 ) {
 	symbol.signature = get_bit_field_field_signature(value, index, allocator)
 	symbol.doc = construct_symbol_docs(symbol.doc, symbol.comment)

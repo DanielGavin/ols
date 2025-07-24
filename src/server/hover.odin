@@ -121,13 +121,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if position_in_node(ident, position_context.position) {
 								for name, i in v.names {
 									if name == ident.name {
-										symbol := Symbol {
-											pkg       = ast_context.current_package,
-											name      = enum_symbol.name,
-											range     = common.get_token_range(ident, ast_context.file.src),
-											signature = get_enum_field_signature(v, i),
-										}
-										hover.contents = write_hover_content(&ast_context, symbol)
+										construct_enum_field_symbol(&enum_symbol, v, i)
+										hover.contents = write_hover_content(&ast_context, enum_symbol)
 										return hover, true, true
 									}
 								}
@@ -137,13 +132,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								if ident, ok := value.field.derived.(^ast.Ident); ok {
 									for name, i in v.names {
 										if name == ident.name {
-											symbol := Symbol {
-												pkg       = ast_context.current_package,
-												range     = common.get_token_range(value.field, ast_context.file.src),
-												name      = enum_symbol.name,
-												signature = get_enum_field_signature(v, i),
-											}
-											hover.contents = write_hover_content(&ast_context, symbol)
+											construct_enum_field_symbol(&enum_symbol, v, i)
+											hover.contents = write_hover_content(&ast_context, enum_symbol)
 										}
 									}
 								}
@@ -166,14 +156,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									position_context.value_decl.names[0],
 								); ok {
 									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
-										symbol.range = common.get_token_range(field.node, ast_context.file.src)
-										symbol.type_name = symbol.name
-										symbol.type_pkg = symbol.pkg
-										symbol.pkg = struct_symbol.name
-										symbol.name = identifier.name
-										symbol.comment = get_comment(value.comments[field_index + name_index])
-										symbol.doc = get_doc(value.docs[field_index + name_index], context.temp_allocator)
-
+										construct_struct_field_symbol(&symbol, struct_symbol.name, value, field_index+name_index)
 										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
 										return hover, true, true
@@ -196,15 +179,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								position_context.value_decl.names[0],
 							); ok {
 								if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
-									symbol.range = common.get_token_range(field.node, ast_context.file.src)
-									symbol.type_name = symbol.name
-									symbol.type_pkg = symbol.pkg
-									symbol.pkg = bit_field_symbol.name
-									symbol.name = identifier.name
-									symbol.comment = get_comment(value.comments[i])
-									symbol.doc = get_doc(value.docs[i], context.temp_allocator)
-
-									build_bit_field_field_documentation(&ast_context, &symbol, value, i)
+									construct_bit_field_field_symbol(&symbol, bit_field_symbol.name, value, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -225,9 +200,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							for name, i in v.names {
 								if name == field.name {
 									if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-										symbol.name = name
-										symbol.pkg = comp_symbol.name
-										symbol.signature = node_to_string(v.types[i])
+										construct_struct_field_symbol(&symbol, comp_symbol.name, v, i)
+										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
 										return hover, true, true
 									}
@@ -238,9 +212,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						for name, i in v.names {
 							if name == field.name {
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-									symbol.name = name
-									symbol.pkg = comp_symbol.name
-									symbol.signature = node_to_string(v.types[i])
+									construct_bit_field_field_symbol(&symbol, comp_symbol.name, v, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
 									return hover, true, true
 								}
@@ -324,12 +296,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			for name, i in v.names {
 				if name == field {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-						symbol.type_name = symbol.name
-						symbol.type_pkg = symbol.pkg
-						symbol.name = name
-						symbol.pkg = selector.name
-						symbol.comment = get_comment(v.comments[i])
-						symbol.doc = get_doc(v.docs[i], context.temp_allocator)
+						construct_struct_field_symbol(&symbol, selector.name, v, i)
 						build_documentation(&ast_context, &symbol, true)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
@@ -340,12 +307,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			for name, i in v.names {
 				if name == field {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
-						symbol.name = name
-						symbol.pkg = selector.name
-						symbol.doc = get_doc(v.docs[i], ast_context.allocator)
-						symbol.comment = get_comment(v.comments[i])
-
-						build_bit_field_field_documentation(&ast_context, &symbol, v, i)
+						construct_bit_field_field_symbol(&symbol, selector.name, v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -396,7 +358,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			case SymbolEnumValue:
 				for name, i in v.names {
 					if strings.compare(name, implicit_selector.field.name) == 0 {
-						symbol.signature = get_enum_field_signature(v, i)
+						construct_enum_field_symbol(&symbol, v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
 						return hover, true, true
 					}
@@ -407,7 +369,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					v := enum_symbol.value.(SymbolEnumValue) or_continue
 					for name, i in v.names {
 						if strings.compare(name, implicit_selector.field.name) == 0 {
-							enum_symbol.signature = get_enum_field_signature(v, i)
+							construct_enum_field_symbol(&enum_symbol, v, i)
 							hover.contents = write_hover_content(&ast_context, enum_symbol)
 							return hover, true, true
 						}
@@ -418,7 +380,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if v, ok := enum_symbol.value.(SymbolEnumValue); ok {
 						for name, i in v.names {
 							if strings.compare(name, implicit_selector.field.name) == 0 {
-								enum_symbol.signature = get_enum_field_signature(v, i)
+								construct_enum_field_symbol(&enum_symbol, v, i)
 								hover.contents = write_hover_content(&ast_context, enum_symbol)
 								return hover, true, true
 							}

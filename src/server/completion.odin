@@ -23,6 +23,12 @@ import "src:common"
 
 */
 
+
+CompletionSymbol :: struct {
+	symbol: Symbol,
+	kind:   CompletionItemKind,
+}
+
 Completion_Type :: enum {
 	Implicit,
 	Selector,
@@ -603,13 +609,7 @@ get_selector_completion :: proc(
 					continue
 				}
 
-				symbol.type_pkg = symbol.pkg
-				symbol.type_name = symbol.name
-				symbol.name = name
-				symbol.pkg = selector.name
-				symbol.type = .Field
-				symbol.doc = get_doc(v.docs[i], context.temp_allocator)
-				symbol.comment = get_comment(v.comments[i])
+				construct_struct_field_symbol(&symbol, selector.name, v, i)
 				build_documentation(ast_context, &symbol)
 
 				item := CompletionItem {

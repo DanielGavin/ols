@@ -1295,7 +1295,7 @@ ast_hover_inside_multi_pointer_struct :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "S2.field: S3")
+	test.expect_hover(t, &source, "S2.field: test.S3")
 }
 
 @(test)
@@ -2254,7 +2254,7 @@ ast_hover_struct_fields_when_not_specifying_type_at_use :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Bar.foo: Foo")
+	test.expect_hover(t, &source, "Bar.foo: test.Foo")
 }
 
 @(test)
