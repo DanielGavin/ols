@@ -47,8 +47,7 @@ SymbolBitFieldValue :: struct {
 	bit_sizes:    []^ast.Expr,
 }
 
-SymbolPackageValue :: struct {
-}
+SymbolPackageValue :: struct {}
 
 SymbolProcedureValue :: struct {
 	return_types:       []^ast.Field,
@@ -170,6 +169,7 @@ SymbolFlag :: enum {
 	ObjC,
 	ObjCIsClassMethod, // should be set true only when ObjC is enabled
 	Soa,
+	Parameter, //If the symbol is a procedure argument
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

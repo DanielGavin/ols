@@ -539,11 +539,10 @@ visit_ident :: proc(
 	symbol := symbol_and_node.symbol
 
 	modifiers := modifiers
+
 	if symbol.type != .Variable {
 		modifiers += {.ReadOnly}
 	}
-
-	//log.errorf("%# \n", symbol)
 
 	/* variable idents */
 	#partial switch symbol.type {
@@ -552,7 +551,11 @@ visit_ident :: proc(
 		case SymbolProcedureValue, SymbolProcedureGroupValue, SymbolAggregateValue:
 			write_semantic_node(builder, ident, .Function, modifiers)
 		case:
-			write_semantic_node(builder, ident, .Variable, modifiers)
+			if .Parameter in symbol.flags {
+				write_semantic_node(builder, ident, .Parameter, modifiers)
+			} else {
+				write_semantic_node(builder, ident, .Variable, modifiers)
+			}
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)

@@ -285,7 +285,8 @@ resolve_type_comp_literal :: proc(
 									if _, ok := symbol.value.(SymbolUnionValue); ok {
 										if call_expr, ok := s.types[i].derived.(^ast.Call_Expr);
 										   ok && len(call_expr.args) == 1 {
-											if symbol, ok := resolve_type_expression(ast_context, call_expr.args[0]); ok {
+											if symbol, ok := resolve_type_expression(ast_context, call_expr.args[0]);
+											   ok {
 												return resolve_type_comp_literal(
 													ast_context,
 													position_context,
@@ -661,7 +662,7 @@ get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 
 Candidate :: struct {
 	symbol: Symbol,
-	score: int,
+	score:  int,
 }
 
 get_top_candiate :: proc(candidates: []Candidate) -> (Candidate, bool) {
@@ -707,9 +708,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 	for arg_expr in group.args {
 		next_fn: if f, ok := internal_resolve_type_expression(ast_context, arg_expr); ok {
-			candidate := Candidate{
+			candidate := Candidate {
 				symbol = f,
-				score = 1,
+				score  = 1,
 			}
 			if call_expr == nil || (resolve_all_possibilities && len(call_expr.args) == 0) {
 				append(&candidates, candidate)
@@ -795,7 +796,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						if !ok {
 							break next_fn
 						}
-						
+
 						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
 							found := false
 							// Are we a union variant
@@ -843,7 +844,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		}
 	}
 
-	if candidate, ok  := get_top_candiate(candidates[:]); ok {
+	if candidate, ok := get_top_candiate(candidates[:]); ok {
 		if !resolve_all_possibilities {
 			return candidate.symbol, true
 		} else if len(candidates) > 1 {
@@ -852,13 +853,13 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 				append(&symbols, c.symbol)
 			}
 			return Symbol {
-				type = candidate.symbol.type,
-				name = candidate.symbol.name,
-				pkg = candidate.symbol.pkg,
-				uri = candidate.symbol.uri,
-				value = SymbolAggregateValue{symbols = symbols[:]},
-			},
-			true
+					type = candidate.symbol.type,
+					name = candidate.symbol.name,
+					pkg = candidate.symbol.pkg,
+					uri = candidate.symbol.uri,
+					value = SymbolAggregateValue{symbols = symbols[:]},
+				},
+				true
 		} else if len(candidates) == 1 {
 			return candidate.symbol, true
 		}
@@ -1518,7 +1519,8 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 				if !ok && !ast_context.overloading {
 					return_symbol, ok =
-						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
+						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining),
+						true
 				}
 			} else {
 				return_symbol, ok =
@@ -1547,6 +1549,10 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		if is_distinct {
 			return_symbol.name = node.name
 			return_symbol.flags |= {.Distinct}
+		}
+
+		if local.parameter {
+			return_symbol.flags |= {.Parameter}
 		}
 
 		if local.variable {
@@ -1661,7 +1667,15 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 				}
 			} else {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, global.expr, v.type^, node, global.attributes, false, v.inlining),
+					make_symbol_procedure_from_ast(
+						ast_context,
+						global.expr,
+						v.type^,
+						node,
+						global.attributes,
+						false,
+						v.inlining,
+					),
 					true
 			}
 		case ^Proc_Group:
@@ -1886,7 +1900,7 @@ resolve_comp_literal :: proc(
 }
 
 // Used to get the name of the field for resolving the implicit selectors
-get_field_value_name :: proc(field_value: ^ast.Field_Value) ->(string, bool) {
+get_field_value_name :: proc(field_value: ^ast.Field_Value) -> (string, bool) {
 	if field, ok := field_value.field.derived.(^ast.Ident); ok {
 		return field.name, true
 	} else if field, ok := field_value.field.derived.(^ast.Implicit_Selector_Expr); ok {
@@ -1900,7 +1914,10 @@ resolve_implicit_selector_comp_literal :: proc(
 	position_context: ^DocumentPositionContext,
 	symbol: Symbol,
 	field_name: string,
-) -> (Symbol, bool) {
+) -> (
+	Symbol,
+	bool,
+) {
 	if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
 		ast_context,
 		position_context,
@@ -2041,13 +2058,13 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil && position_context.parent_comp_lit.type != nil {
+	if position_context.comp_lit != nil &&
+	   position_context.parent_comp_lit != nil &&
+	   position_context.parent_comp_lit.type != nil {
 		if position_context.field_value != nil {
 			if field_name, ok := get_field_value_name(position_context.field_value); ok {
 				if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-					return resolve_implicit_selector_comp_literal(
-						ast_context, position_context, symbol, field_name,
-					)
+					return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name)
 				}
 			}
 		}
@@ -2060,9 +2077,7 @@ resolve_implicit_selector :: proc(
 			}
 			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
 				if field_name, ok := get_field_value_name(position_context.field_value); ok {
-					return resolve_implicit_selector_comp_literal(
-						ast_context, position_context, symbol, field_name,
-					)
+					return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name)
 				}
 			}
 		}
@@ -2097,14 +2112,20 @@ resolve_implicit_selector :: proc(
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
-			current_symbol, ok := resolve_type_expression(ast_context, position_context.function.type.results.list[return_index].type)
+			current_symbol, ok := resolve_type_expression(
+				ast_context,
+				position_context.function.type.results.list[return_index].type,
+			)
 			if !ok {
 				return {}, false
 			}
 			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
 				if field_name, ok := get_field_value_name(position_context.field_value); ok {
 					return resolve_implicit_selector_comp_literal(
-						ast_context, position_context, current_symbol, field_name,
+						ast_context,
+						position_context,
+						current_symbol,
+						field_name,
 					)
 				}
 			}
@@ -2298,7 +2319,7 @@ resolve_location_proc_param_name :: proc(
 	ok: bool,
 ) {
 	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
-    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call := position_context.call.derived.(^ast.Call_Expr) or_return
 	symbol = resolve_type_expression(ast_context, call) or_return
 
 	reset_ast_context(ast_context)
@@ -2318,7 +2339,7 @@ resolve_type_location_proc_param_name :: proc(
 	ok: bool,
 ) {
 	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
-    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call := position_context.call.derived.(^ast.Call_Expr) or_return
 	call_symbol = resolve_type_expression(ast_context, call) or_return
 
 	reset_ast_context(ast_context)
@@ -2343,7 +2364,7 @@ resolve_location_proc_param_name_type :: proc(
 	ok: bool,
 ) {
 	ident := position_context.field_value.field.derived.(^ast.Ident) or_return
-    call := position_context.call.derived.(^ast.Call_Expr) or_return
+	call := position_context.call.derived.(^ast.Call_Expr) or_return
 	call_symbol = resolve_type_expression(ast_context, call) or_return
 
 	reset_ast_context(ast_context)
@@ -2432,17 +2453,17 @@ resolve_location_implicit_selector :: proc(
 			}
 		}
 	case SymbolBitSetValue:
-			enum_symbol := resolve_type_expression(ast_context, v.expr) or_return
-			if value, ok := enum_symbol.value.(SymbolEnumValue); ok {
-				for name, i in value.names {
-					if strings.compare(name, implicit_selector.field.name) == 0 {
-						symbol.range = value.ranges[i]
-						symbol.uri = enum_symbol.uri
-						return symbol, ok
-					}
+		enum_symbol := resolve_type_expression(ast_context, v.expr) or_return
+		if value, ok := enum_symbol.value.(SymbolEnumValue); ok {
+			for name, i in value.names {
+				if strings.compare(name, implicit_selector.field.name) == 0 {
+					symbol.range = value.ranges[i]
+					symbol.uri = enum_symbol.uri
+					return symbol, ok
 				}
 			}
-		
+		}
+
 	case:
 		ok = false
 	}
@@ -2463,7 +2484,14 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 	return {}, false
 }
 
-resolve_symbol_selector :: proc(ast_context: ^AstContext, selector: ^ast.Selector_Expr, symbol: Symbol) ->(Symbol, bool) {
+resolve_symbol_selector :: proc(
+	ast_context: ^AstContext,
+	selector: ^ast.Selector_Expr,
+	symbol: Symbol,
+) -> (
+	Symbol,
+	bool,
+) {
 	field: string
 	symbol := symbol
 
@@ -2771,7 +2799,7 @@ make_symbol_procedure_from_ast :: proc(
 		type  = .Function if !type else .Type_Function,
 		pkg   = get_package_from_node(n^),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -2824,7 +2852,7 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if v.len != nil {
@@ -2855,7 +2883,7 @@ make_symbol_dynamic_array_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	symbol.value = SymbolDynamicArrayValue {
@@ -2877,7 +2905,7 @@ make_symbol_matrix_from_ast :: proc(ast_context: ^AstContext, v: ast.Matrix_Type
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	symbol.value = SymbolMatrixValue {
@@ -2900,7 +2928,7 @@ make_symbol_multi_pointer_from_ast :: proc(
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	symbol.value = SymbolMultiPointerValue {
@@ -2916,7 +2944,7 @@ make_symbol_map_from_ast :: proc(ast_context: ^AstContext, v: ast.Map_Type, name
 		type  = .Type,
 		pkg   = get_package_from_node(v.node),
 		name  = name.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	symbol.value = SymbolMapValue {
@@ -2952,7 +2980,7 @@ make_symbol_union_from_ast :: proc(
 		type  = .Union,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if inlined {
@@ -2992,7 +3020,7 @@ make_symbol_enum_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if inlined {
@@ -3047,7 +3075,7 @@ make_symbol_bitset_from_ast :: proc(
 		type  = .Enum,
 		name  = ident.name,
 		pkg   = get_package_from_node(v.node),
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if inlined {
@@ -3075,8 +3103,7 @@ make_symbol_struct_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
-
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if inlined {
@@ -3102,7 +3129,7 @@ make_symbol_bit_field_from_ast :: proc(
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
 		name  = ident.name,
-		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
 	if inlined {
@@ -4727,7 +4754,7 @@ fallback_position_context_signature :: proc(
 
 // Used to find which sub-expr is desired by the position.
 // Eg. for map[Key]Value, do we want 'map', 'Key' or 'Value'
-get_desired_expr :: proc(node: ^ast.Expr, position: common.AbsolutePosition) -> ^ast.Expr{
+get_desired_expr :: proc(node: ^ast.Expr, position: common.AbsolutePosition) -> ^ast.Expr {
 	#partial switch n in node.derived {
 	case ^ast.Array_Type:
 		if position_in_node(n.tag, position) {
