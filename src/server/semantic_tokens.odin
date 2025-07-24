@@ -395,9 +395,35 @@ visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuil
 
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
 
-	for name in value_decl.names {
-		ident := name.derived.(^Ident) or_continue
-		visit_ident(ident, ident, modifiers, builder)
+	// Check if we are a comp lit or a type declaration
+
+	// a, b, c :: 1, 2, 3
+	// a := 1
+	if len(value_decl.values) == len(value_decl.names) {
+		for name, i in value_decl.names {
+			ident := name.derived.(^Ident) or_continue
+			if _, ok := value_decl.values[i].derived.(^ast.Comp_Lit); ok {
+				visit_ident(ident, ident, modifiers, builder, true)
+			} else {
+				visit_ident(ident, ident, modifiers, builder)
+			}
+		}
+	} else if len(value_decl.values) > 0 {
+		// a, b: int
+		_, ok := value_decl.values[0].derived.(^ast.Comp_Lit)
+		for name in value_decl.names {
+			ident := name.derived.(^Ident) or_continue
+			if ok {
+				visit_ident(ident, ident, modifiers, builder, true)
+			} else {
+				visit_ident(ident, ident, modifiers, builder)
+			}
+		}
+	} else {
+		for name in value_decl.names {
+			ident := name.derived.(^Ident) or_continue
+			visit_ident(ident, ident, modifiers, builder)
+		}
 	}
 
 	visit_node(value_decl.type, builder)
@@ -529,6 +555,7 @@ visit_ident :: proc(
 	symbol_ptr: rawptr,
 	modifiers: SemanticTokenModifiers,
 	builder: ^SemanticTokenBuilder,
+	is_comp_lit := false,
 ) {
 	using ast
 
@@ -544,6 +571,10 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
+	if is_comp_lit {
+		write_semantic_node(builder, ident, .Variable, modifiers)
+		return
+	}
 	/* variable idents */
 	#partial switch symbol.type {
 	case .Variable, .Constant, .Function:
