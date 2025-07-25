@@ -9,7 +9,7 @@ import test "src:testing"
 @(test)
 semantic_tokens :: proc(t: ^testing.T) {
 	src := test.Source {
-		main = 
+		main =
 `package test
 Proc_Type :: proc(a: string) -> int
 my_function :: proc() {
@@ -30,6 +30,23 @@ my_function :: proc() {
 		{1, 1, 1,  .Variable,  {}},          // [6]  b
 		{0, 5, 1,  .Variable,  {}},          // [7]  a
 		{1, 1, 1,  .Variable,  {}},          // [8]  c
-		{0, 9, 1,  .Variable,  {}},          // [9] b
+		{0, 9, 1,  .Variable,  {}},          // [9]  b
+	})
+}
+
+@(test)
+semantic_tokens_global_consts :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: [2]f32
+		Foo2 :: [2]f32{1,2}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3,  .Type,      {.ReadOnly}}, // [0]  Foo
+		{0, 10, 3,  .Type,      {.ReadOnly}}, // [1]  f32
+		{1, 2,  4,  .Variable,  {.ReadOnly}}, // [2]  Foo2
+		{0, 11, 3,  .Type,      {.ReadOnly}}, // [3]  f32
 	})
 }
