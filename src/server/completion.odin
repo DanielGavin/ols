@@ -938,7 +938,7 @@ get_implicit_completion :: proc(
 
 	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . } 
 	if position_context.comp_lit != nil {
-		if position_context.parent_comp_lit.type != nil {
+		if position_context.parent_comp_lit != nil {
 			field_name: string
 
 			if position_context.field_value != nil {
@@ -949,7 +949,7 @@ get_implicit_completion :: proc(
 				}
 			}
 
-			if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
+			if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 				if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
 					ast_context,
 					position_context,

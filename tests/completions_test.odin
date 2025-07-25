@@ -3973,3 +3973,57 @@ ast_completion_bitset_named_proc_arg_should_remove_already_used :: proc(t: ^test
 	}
 	test.expect_completion_details(t, &source, "", {"B"}, {"A"})
 }
+
+@(test)
+ast_completion_return_comp_lit_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		foo :: proc() -> Bar {
+			return {
+				foo = .{*}
+			}
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
+
+@(test)
+ast_completion_return_nested_comp_lit_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		Bazz :: struct {
+			bar: Bar,
+		}
+
+		foo :: proc() -> Bazz {
+			return {
+				bar = {
+					foo = .{*}
+				}
+			}
+		}
+		`,
+	}
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
