@@ -209,6 +209,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.type = clone_type(r.type, allocator, unique_strings)
 		r.default_value = clone_type(r.default_value, allocator, unique_strings)
 		r.docs = clone_type(r.docs, allocator, unique_strings)
+		r.comment = clone_type(r.comment, allocator, unique_strings)
 	case ^Field_List:
 		r.list = clone_type(r.list, allocator, unique_strings)
 	case ^Field_Value:
@@ -278,6 +279,8 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.name = clone_type(r.name, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
 		r.bit_size = clone_type(r.bit_size, allocator, unique_strings)
+		r.docs = clone_type(r.docs, allocator, unique_strings)
+		r.comments = clone_type(r.comments, allocator, unique_strings)
 	case ^Or_Else_Expr:
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
