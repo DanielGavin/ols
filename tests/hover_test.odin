@@ -2865,6 +2865,166 @@ ast_hover_proc_force_no_inline :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: #force_no_inline proc(a: int) -> int")
 }
+
+@(test)
+ast_hover_builtin_max_with_type_local :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			ma{*}x_u32 :: max(u32)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.max_u32: u32")
+}
+
+@(test)
+ast_hover_builtin_max_with_type_global :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		ma{*}x_u32 :: max(u32)
+	`,
+	}
+	test.expect_hover(t, &source, "test.max_u32: u32")
+}
+
+@(test)
+ast_hover_builtin_max_ints :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		ma{*}x_int :: max(1, 2, 3, 4)
+	`,
+	}
+	test.expect_hover(t, &source, "test.max_int: int")
+}
+
+@(test)
+ast_hover_builtin_max_mix :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		
+		main :: proc() {
+			m{*} := max(1, 2.0, 3, 4.6)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
+ast_hover_builtin_max_mix_const :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		
+		main :: proc() {
+			m{*} :: max(1, 2.0, 3, 4.6)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: float")
+}
+
+@(test)
+ast_hover_builtin_max_mix_global_const :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		m{*} :: max(1, 2.0, 3, 4.6)
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: float")
+}
+
+@(test)
+ast_hover_builtin_max_value_from_function :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(i: int) -> f64 {
+			return 1.0
+		}
+
+		main :: proc() {
+			m{*} := max(foo(12), 1, 2, 3, 4)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
+ast_hover_builtin_min :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := min(1, 0.5)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
+ast_hover_builtin_abs:: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := abs(-1)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: int")
+}
+
+@(test)
+ast_hover_builtin_clamp_less:: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := clamp(-1, 0.3, 7)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
+ast_hover_builtin_clamp_greater:: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := clamp(8, 0.3, 7)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: int")
+}
+
+@(test)
+ast_hover_builtin_clamp_between:: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := clamp(5, 0.3, 7)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: int")
+}
+
+@(test)
+ast_hover_builtin_clamp_from_proc:: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() -> f64 {
+			return 1.2
+		}
+
+		main :: proc() {
+			m{*} := clamp(5, foo(), 7)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
 /*
 
 Waiting for odin fix
