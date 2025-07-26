@@ -300,6 +300,10 @@ get_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 }
 
 get_short_signature :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
+	if symbol.signature != "" {
+		return symbol.signature
+	}
+
 	is_variable := symbol.type == .Variable
 
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)

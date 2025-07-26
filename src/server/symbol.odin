@@ -787,7 +787,7 @@ construct_bit_field_field_symbol :: proc(symbol: ^Symbol, parent_name: string, v
 	symbol.type = .Field
 	symbol.doc = get_doc(value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
-	build_bit_field_field_documentation(symbol, value, index)
+	symbol.signature = get_bit_field_field_signature(value, index)
 }
 
 construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, index: int) {

@@ -24,9 +24,12 @@ import "src:common"
 */
 
 
-CompletionSymbol :: struct {
-	symbol: Symbol,
-	kind:   CompletionItemKind,
+CompletionResult :: struct {
+	symbol:          Symbol,
+	snippet:         Snippet_Info,
+	completion_item: Maybe(CompletionItem), // if we provide the completion item it will just use that
+	detail:          string,
+	score:           f32,
 }
 
 Completion_Type :: enum {
@@ -146,11 +149,14 @@ get_completion_list :: proc(
 		}
 	}
 
+	results := make([dynamic]CompletionResult, 0, allocator = context.temp_allocator)
+	is_incomplete := false
+
 	switch completion_type {
 	case .Comp_Lit:
 		get_comp_lit_completion(&ast_context, &position_context, &list)
 	case .Identifier:
-		get_identifier_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results)
 	case .Implicit:
 		get_implicit_completion(&ast_context, &position_context, &list)
 	case .Selector:
@@ -163,13 +169,17 @@ get_completion_list :: proc(
 		get_package_completion(&ast_context, &position_context, &list)
 	}
 
+	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type)
+	list.items = items
+	list.isIncomplete = is_incomplete
+
 	// For now we simply convert all the docs to markdown here.
-	convert_docs_to_markdown(&list)
-
-	if common.config.enable_label_details {
-		format_to_label_details(&list)
-	}
-
+	//convert_docs_to_markdown(&list)
+	//
+	//if common.config.enable_label_details {
+	//	format_to_label_details(&list)
+	//}
+	//
 	return list, true
 }
 
@@ -1276,20 +1286,8 @@ get_implicit_completion :: proc(
 get_identifier_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-	CombinedResult :: struct {
-		score:   f32,
-		snippet: Snippet_Info,
-		symbol:  Symbol,
-	}
-
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-
-	list.isIncomplete = true
-
-	combined := make([dynamic]CombinedResult, context.temp_allocator)
-
+	list: ^[dynamic]CompletionResult,
+) -> bool {
 	lookup_name := ""
 
 	if position_context.identifier != nil {
@@ -1313,12 +1311,9 @@ get_identifier_completion :: proc(
 		for r in results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)
-
-			build_documentation(ast_context, &r.symbol)
-
 			uri, _ := common.parse_uri(r.symbol.uri, context.temp_allocator)
 			if uri.path != ast_context.fullpath {
-				append(&combined, CombinedResult{score = r.score, symbol = r.symbol})
+				append(list, CompletionResult{score = r.score, symbol = r.symbol})
 			}
 		}
 	}
@@ -1331,7 +1326,7 @@ get_identifier_completion :: proc(
 		}
 
 		//combined is sorted and should do binary search instead.
-		for result in combined {
+		for result in list {
 			if result.symbol.name == k {
 				continue global
 			}
@@ -1346,10 +1341,8 @@ get_identifier_completion :: proc(
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 			symbol.name = k
-			build_documentation(ast_context, &symbol)
-
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-				append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
+				append(list, CompletionResult{score = score * 1.1, symbol = symbol})
 			}
 		}
 	}
@@ -1374,11 +1367,9 @@ get_identifier_completion :: proc(
 			ident.name = k
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
-				build_documentation(ast_context, &symbol)
-
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 					symbol.name = clean_ident(ident.name)
-					append(&combined, CombinedResult{score = score * 1.7, symbol = symbol})
+					append(list, CompletionResult{score = score * 1.7, symbol = symbol})
 				}
 			}
 		}
@@ -1395,7 +1386,7 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
-			append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
+			append(list, CompletionResult{score = score * 1.1, symbol = symbol})
 		}
 	}
 
@@ -1406,7 +1397,7 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult{score = score, symbol = symbol})
+			append(list, CompletionResult{score = score, symbol = symbol})
 		}
 	}
 
@@ -1417,7 +1408,7 @@ get_identifier_completion :: proc(
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(&combined, CombinedResult{score = score * 1.1, symbol = symbol})
+			append(list, CompletionResult{score = score * 1.1, symbol = symbol})
 		}
 	}
 
@@ -1427,20 +1418,38 @@ get_identifier_completion :: proc(
 				symbol := Symbol {
 					name = k,
 				}
-				append(&combined, CombinedResult{score = score * 1.1, snippet = v, symbol = symbol})
+				append(list, CompletionResult{score = score * 1.1, snippet = v, symbol = symbol})
 			}
 		}
 	}
 
-	slice.sort_by(combined[:], proc(i, j: CombinedResult) -> bool {
+	return true
+}
+
+convert_completion_results :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	results: []CompletionResult,
+	completion_type: Completion_Type,
+) -> []CompletionItem {
+
+	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
 		return j.score < i.score
 	})
 
 	//hard code for now
-	top_results := combined[0:(min(100, len(combined)))]
+	top_results := results[0:(min(100, len(results)))]
+
+	items := make([dynamic]CompletionItem, 0, len(top_results), allocator = context.temp_allocator)
+
+	// TODO: add scores to items
 
 	for result in top_results {
 		result := result
+		if item, ok := result.completion_item.?; ok {
+			append(&items, item)
+			continue
+		}
 
 		//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) &&
@@ -1471,31 +1480,46 @@ get_identifier_completion :: proc(
 			item.additionalTextEdits = edits[:]
 
 			append(&items, item)
-		} else {
-			item := CompletionItem {
-				label         = result.symbol.name,
-				documentation = result.symbol.doc,
-			}
-
-			item.kind = symbol_type_to_completion_kind(result.symbol.type)
-
-			if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
-				item.insertText = fmt.tprintf("%v($0)", item.label)
-				item.insertTextFormat = .Snippet
-				item.deprecated = .Deprecated in result.symbol.flags
-				item.command = Command {
-					command = "editor.action.triggerParameterHints",
-				}
-			}
-
-			item.detail = concatenate_symbol_information(ast_context, result.symbol)
-			append(&items, item)
+			continue
 		}
+
+		build_documentation(ast_context, &result.symbol, false)
+		item := CompletionItem {
+			label         = result.symbol.name,
+			documentation = write_hover_content(ast_context, result.symbol)
+		}
+		if common.config.enable_label_details {
+			// TODO: compute
+			details := CompletionItemLabelDetails{}
+
+			if result.detail != "" {
+				details.detail = result.detail
+			} else {
+				// TODO: this should be a better function for showing what it wants?
+				details.detail = get_short_signature(ast_context, &result.symbol)
+			}
+			item.labelDetails = details
+		}
+
+		item.kind = symbol_type_to_completion_kind(result.symbol.type)
+
+		if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
+			item.insertText = fmt.tprintf("%v($0)", item.label)
+			item.insertTextFormat = .Snippet
+			item.deprecated = .Deprecated in result.symbol.flags
+			item.command = Command {
+				command = "editor.action.triggerParameterHints",
+			}
+		}
+
+		append(&items, item)
 	}
 
-	append_non_imported_packages(ast_context, position_context, &items)
+	if completion_type == .Identifier {
+	    append_non_imported_packages(ast_context, position_context, &items)
+	}
 
-	list.items = items[:]
+	return items[:]
 }
 
 get_package_completion :: proc(
