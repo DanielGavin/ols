@@ -3025,6 +3025,23 @@ ast_hover_builtin_clamp_from_proc:: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.m: f64")
 }
+
+@(test)
+ast_hover_enum_explicit_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foo: Foo = .A{*}
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
