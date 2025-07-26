@@ -154,7 +154,7 @@ get_completion_list :: proc(
 
 	switch completion_type {
 	case .Comp_Lit:
-		get_comp_lit_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_comp_lit_completion(&ast_context, &position_context, &results)
 	case .Identifier:
 		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results)
 	case .Implicit:
@@ -278,10 +278,8 @@ get_directive_completion :: proc(
 get_comp_lit_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-
+	list: ^[dynamic]CompletionResult,
+) -> bool {
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
 		case SymbolStructValue:
@@ -297,14 +295,8 @@ get_comp_lit_completion :: proc(
 						continue
 					}
 
-					item := CompletionItem {
-						label         = name,
-						kind          = .Field,
-						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, node_to_string(v.types[i])),
-						documentation = resolved.doc,
-					}
-
-					append(&items, item)
+					construct_struct_field_symbol(&symbol, symbol.name, v, i)
+					append(list, CompletionResult{symbol = symbol})
 				}
 			}
 		case SymbolBitFieldValue:
@@ -320,14 +312,8 @@ get_comp_lit_completion :: proc(
 						continue
 					}
 
-					item := CompletionItem {
-						label         = name,
-						kind          = .Field,
-						detail        = fmt.tprintf("%v.%v: %v", symbol.name, name, node_to_string(v.types[i])),
-						documentation = resolved.doc,
-					}
-
-					append(&items, item)
+					construct_bit_field_field_symbol(&symbol, symbol.name, v, i)
+					append(list, CompletionResult{symbol = symbol})
 				}
 			}
 		case SymbolFixedArrayValue:
@@ -338,20 +324,15 @@ get_comp_lit_completion :: proc(
 							continue
 						}
 
-						item := CompletionItem {
-							label         = name,
-							detail        = fmt.tprintf(".%s", name),
-							documentation = symbol.doc,
-						}
-
-						append(&items, item)
+						construct_enum_field_symbol(&symbol, v, i)
+						append(list, CompletionResult{symbol = symbol})
 					}
 				}
 			}
 		}
 	}
 
-	list.items = items[:]
+	return false
 }
 
 get_selector_completion :: proc(
