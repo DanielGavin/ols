@@ -2283,6 +2283,12 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.value_decl != nil {
+		if symbol, ok := resolve_type_expression(ast_context, position_context.value_decl.type); ok {
+			return symbol, ok
+		}
+	}
+
 	return {}, false
 }
 
