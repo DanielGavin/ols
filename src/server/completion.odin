@@ -158,7 +158,7 @@ get_completion_list :: proc(
 	case .Identifier:
 		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results)
 	case .Implicit:
-		get_implicit_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_implicit_completion(&ast_context, &position_context, &results)
 	case .Selector:
 		is_incomplete = get_selector_completion(&ast_context, &position_context, &results)
 	case .Switch_Type:
@@ -723,11 +723,9 @@ get_selector_completion :: proc(
 get_implicit_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-
-	list.isIncomplete = false
+	results: ^[dynamic]CompletionResult,
+) -> bool{
+	is_incomplete := false
 
 	selector: Symbol
 
@@ -747,11 +745,10 @@ get_implicit_completion :: proc(
 					kind   = .EnumMember,
 					detail = name,
 				}
-				append(&items, item)
+				append(results, CompletionResult{completion_item = item})
 			}
 
-			list.items = items[:]
-			return
+			return is_incomplete
 		}
 
 		if position_context.comp_lit != nil {
@@ -770,10 +767,9 @@ get_implicit_completion :: proc(
 									documentation = symbol.doc,
 								}
 
-								append(&items, item)
+								append(results, CompletionResult{completion_item = item})
 							}
-							list.items = items[:]
-							return
+							return is_incomplete
 						}
 					}
 				} else if v, ok := symbol.value.(SymbolStructValue); ok {
@@ -790,11 +786,10 @@ get_implicit_completion :: proc(
 											kind   = .EnumMember,
 											detail = name,
 										}
-										append(&items, item)
+										append(results, CompletionResult{completion_item = item})
 									}
 
-									list.items = items[:]
-									return
+									return is_incomplete
 								}
 							}
 						}
@@ -834,11 +829,10 @@ get_implicit_completion :: proc(
 					detail = name,
 				}
 
-				append(&items, item)
+				append(results, CompletionResult{completion_item = item})
 			}
 
-			list.items = items[:]
-			return
+			return is_incomplete
 		}
 	}
 
@@ -861,11 +855,10 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		}
 
@@ -886,11 +879,10 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		}
 
@@ -916,11 +908,9 @@ get_implicit_completion :: proc(
 							detail = enum_name,
 						}
 
-						append(&items, item)
+						append(results, CompletionResult{completion_item = item})
 					}
-
-					list.items = items[:]
-					return
+					return is_incomplete
 				}
 			}
 		}
@@ -935,7 +925,7 @@ get_implicit_completion :: proc(
 				if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
 					field_name = field.name
 				} else {
-					return
+					return is_incomplete
 				}
 			}
 
@@ -981,11 +971,10 @@ get_implicit_completion :: proc(
 									detail = enum_name,
 								}
 
-								append(&items, item)
+								append(results, CompletionResult{completion_item = item})
 							}
 
-							list.items = items[:]
-							return
+							return is_incomplete
 						} else if bitset_symbol, ok := resolve_type_expression(ast_context, type); ok {
 							set_ast_package_set_scoped(ast_context, bitset_symbol.pkg)
 
@@ -998,10 +987,9 @@ get_implicit_completion :: proc(
 										detail = name,
 									}
 
-									append(&items, item)
+									append(results, CompletionResult{completion_item = item})
 								}
-								list.items = items[:]
-								return
+								return is_incomplete
 							}
 						}
 					} else {
@@ -1014,11 +1002,10 @@ get_implicit_completion :: proc(
 									detail = enum_name,
 								}
 
-								append(&items, item)
+								append(results, CompletionResult{completion_item = item})
 							}
 
-							list.items = items[:]
-							return
+							return is_incomplete
 						}
 					}
 				}
@@ -1051,11 +1038,10 @@ get_implicit_completion :: proc(
 							detail = name,
 						}
 
-						append(&items, item)
+						append(results, CompletionResult{completion_item = item})
 					}
 
-					list.items = items[:]
-					return
+					return is_incomplete
 				}
 			}
 
@@ -1074,7 +1060,7 @@ get_implicit_completion :: proc(
 				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
 					if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
 						if procedure.return_types == nil {
-							return
+							return is_incomplete
 						}
 
 						rhs_index += len(procedure.return_types)
@@ -1094,11 +1080,10 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		}
 
@@ -1109,7 +1094,7 @@ get_implicit_completion :: proc(
 		return_index: int
 
 		if position_context.returns.results == nil {
-			return
+			return is_incomplete
 		}
 
 		for result, i in position_context.returns.results {
@@ -1120,11 +1105,11 @@ get_implicit_completion :: proc(
 		}
 
 		if position_context.function.type == nil {
-			return
+			return is_incomplete
 		}
 
 		if position_context.function.type.results == nil {
-			return
+			return is_incomplete
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
@@ -1139,11 +1124,10 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		}
 
@@ -1168,7 +1152,7 @@ get_implicit_completion :: proc(
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					arg_type, arg_type_ok := get_proc_arg_type_from_index(proc_value, parameter_index)
 					if !arg_type_ok {
-						return
+						return is_incomplete
 					}
 					if position_context.field_value != nil {
 						// we are using a named param so we want to ensure we use that type and not the
@@ -1191,10 +1175,9 @@ get_implicit_completion :: proc(
 								detail = name,
 							}
 
-							append(&items, item)
+							append(results, CompletionResult{completion_item = item})
 						}
-						list.items = items[:]
-						return
+						return is_incomplete
 					}
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
 					for name in enum_value.names {
@@ -1204,11 +1187,10 @@ get_implicit_completion :: proc(
 							detail = name,
 						}
 
-						append(&items, item)
+						append(results, CompletionResult{completion_item = item})
 					}
 
-					list.items = items[:]
-					return
+					return is_incomplete
 				}
 			}
 		}
@@ -1222,7 +1204,7 @@ get_implicit_completion :: proc(
 		if position_context.previous_index != nil {
 			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
 			if !ok {
-				return
+				return is_incomplete
 			}
 		} else {
 			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
@@ -1238,11 +1220,10 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		case SymbolMapValue:
 			if enum_value, ok := unwrap_enum(ast_context, v.key); ok {
@@ -1253,14 +1234,14 @@ get_implicit_completion :: proc(
 						detail = name,
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 
-				list.items = items[:]
-				return
+				return is_incomplete
 			}
 		}
 	}
+	return is_incomplete
 }
 
 get_identifier_completion :: proc(
@@ -1269,6 +1250,7 @@ get_identifier_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 ) -> bool {
 	lookup_name := ""
+	is_incomplete := true
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
@@ -1403,7 +1385,7 @@ get_identifier_completion :: proc(
 		}
 	}
 
-	return true
+	return is_incomplete
 }
 
 convert_completion_results :: proc(
