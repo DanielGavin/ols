@@ -231,7 +231,9 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		ranges = make([dynamic]common.Range, allocator),
 		docs = make([dynamic]^ast.Comment_Group, allocator),
 		comments = make([dynamic]^ast.Comment_Group, allocator),
-		usings = make(map[int]struct{}, allocator),
+		// Set it to an arbitary size due to issues with crashes
+		// See https://github.com/DanielGavin/ols/issues/787
+		usings = make(map[int]struct{}, 16, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
