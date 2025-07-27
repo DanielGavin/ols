@@ -46,7 +46,7 @@ append_method_completion :: proc(
 	ast_context: ^AstContext,
 	selector_symbol: Symbol,
 	position_context: ^DocumentPositionContext,
-	items: ^[dynamic]CompletionItem,
+	results: ^[dynamic]CompletionResult,
 	receiver: string,
 ) {
 	if selector_symbol.type != .Variable && selector_symbol.type != .Struct {
@@ -125,7 +125,6 @@ append_method_completion :: proc(
 				} else {
 					new_text = fmt.tprintf("%v(%v%v%v)$0", new_text, references, receiver, dereferences)
 				}
-				build_documentation(ast_context, &symbol)
 
 				item := CompletionItem {
 					label = symbol.name,
@@ -138,7 +137,7 @@ append_method_completion :: proc(
 					documentation = symbol.doc,
 				}
 
-				append(items, item)
+				append(results, CompletionResult{completion_item = item})
 			}
 		}
 	}
