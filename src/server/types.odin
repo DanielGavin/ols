@@ -360,7 +360,6 @@ CompletionDocumention :: union {
 	string,
 }
 
-// test
 CompletionItem :: struct {
 	label:               string,
 	kind:                CompletionItemKind,
