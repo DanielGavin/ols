@@ -3042,6 +3042,65 @@ ast_hover_enum_explicit_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_documentation_reexported :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			// Documentation for Foo
+			Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		F{*}oo :: my_package.Foo
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"my_package.Foo: struct {}\n Documentation for Foo",
+	)
+}
+
+@(test)
+ast_hover_override_documentation_reexported :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			// Documentation for Foo
+			Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		// New docs for Foo
+		F{*}oo :: my_package.Foo
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"my_package.Foo: struct {}\n New docs for Foo",
+	)
+}
 /*
 
 Waiting for odin fix
