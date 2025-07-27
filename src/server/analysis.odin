@@ -330,29 +330,9 @@ resolve_type_comp_literal :: proc(
 		} else if comp_value, ok := elem.derived.(^ast.Comp_Lit); ok { 	//indexed
 			#partial switch s in current_symbol.value {
 			case SymbolStructValue:
-				if len(s.types) <= element_index {
-					return {}, {}, false
-				}
-
-				if symbol, ok := resolve_type_expression(ast_context, s.types[element_index]); ok {
-					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
-					if _, ok := symbol.value.(SymbolBitSetValue); ok {
-						return current_symbol, current_comp_lit, true
-					}
-					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
-				}
+				return resolve_type_comp_literal(ast_context, position_context, current_symbol, comp_value)
 			case SymbolBitFieldValue:
-				if len(s.types) <= element_index {
-					return {}, {}, false
-				}
-
-				if symbol, ok := resolve_type_expression(ast_context, s.types[element_index]); ok {
-					//Stop at bitset, because we don't want to enter a comp_lit of a bitset
-					if _, ok := symbol.value.(SymbolBitSetValue); ok {
-						return current_symbol, current_comp_lit, true
-					}
-					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
-				}
+				return resolve_type_comp_literal(ast_context, position_context, current_symbol, comp_value)
 			case SymbolSliceValue:
 				if symbol, ok := resolve_type_expression(ast_context, s.expr); ok {
 					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
@@ -2074,7 +2054,10 @@ resolve_implicit_selector_comp_literal :: proc(
 		symbol,
 		position_context.parent_comp_lit,
 	); ok {
-		if s, ok := comp_symbol.value.(SymbolStructValue); ok {
+		#partial switch v in comp_symbol.value {
+		case SymbolEnumValue:
+			return comp_symbol, ok
+		case SymbolStructValue:
 			set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
 			//We can either have the final
@@ -2088,21 +2071,21 @@ resolve_implicit_selector_comp_literal :: proc(
 
 			type: ^ast.Expr
 
-			for name, i in s.names {
+			for name, i in v.names {
 				if name != field_name {
 					continue
 				}
 
-				type = s.types[i]
+				type = v.types[i]
 				break
 			}
 
-			if type == nil && elem_index != -1 && len(s.types) > elem_index {
-				type = s.types[elem_index]
+			if type == nil && elem_index != -1 && len(v.types) > elem_index {
+				type = v.types[elem_index]
 			}
 
 			return resolve_type_expression(ast_context, type)
-		} else if s, ok := comp_symbol.value.(SymbolBitFieldValue); ok {
+		case SymbolBitFieldValue:
 			set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
 			//We can either have the final
@@ -2116,27 +2099,27 @@ resolve_implicit_selector_comp_literal :: proc(
 
 			type: ^ast.Expr
 
-			for name, i in s.names {
+			for name, i in v.names {
 				if name != field_name {
 					continue
 				}
 
-				type = s.types[i]
+				type = v.types[i]
 				break
 			}
 
-			if type == nil && len(s.types) > elem_index {
-				type = s.types[elem_index]
+			if type == nil && len(v.types) > elem_index {
+				type = v.types[elem_index]
 			}
 
 			return resolve_type_expression(ast_context, type)
-		} else if s, ok := comp_symbol.value.(SymbolFixedArrayValue); ok {
+		case SymbolFixedArrayValue:
 			//This will be a comp_lit for an enumerated array
 			//EnumIndexedArray :: [TestEnum]u32 {
 			//	.valueOne = 1,
 			//	.valueTwo = 2,
 			//}
-			return resolve_type_expression(ast_context, s.len)
+			return resolve_type_expression(ast_context, v.len)
 		}
 	}
 	return {}, false
