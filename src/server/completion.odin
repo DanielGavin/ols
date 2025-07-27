@@ -1222,6 +1222,8 @@ get_implicit_completion :: proc(
 				}
 			}
 		}
+
+		reset_ast_context(ast_context)
 	}
 
 	if position_context.index != nil {
