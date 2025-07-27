@@ -173,14 +173,6 @@ get_completion_list :: proc(
 	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type)
 	list.items = items
 	list.isIncomplete = is_incomplete
-
-	// For now we simply convert all the docs to markdown here.
-	//convert_docs_to_markdown(&list)
-	//
-	//if common.config.enable_label_details {
-	//	format_to_label_details(&list)
-	//}
-	//
 	return list, true
 }
 
@@ -207,7 +199,7 @@ convert_completion_results :: proc(
 		if item, ok := result.completion_item.?; ok {
 			if common.config.enable_label_details {
 				item.labelDetails = CompletionItemLabelDetails {
-					detail = item.detail,
+					description = item.detail,
 				}
 			}
 			// temporary as we move things to use the symbols directly
@@ -258,14 +250,23 @@ convert_completion_results :: proc(
 			documentation = write_hover_content(ast_context, result.symbol)
 		}
 		if common.config.enable_label_details {
-			// TODO: compute
+			// detail      = left
+			// description = right
 			details := CompletionItemLabelDetails{}
-
 			if result.detail != "" {
-				details.detail = result.detail
+				details.description = result.detail
 			} else {
-				// TODO: this should be a better function for showing what it wants?
-				details.detail = get_short_signature(ast_context, &result.symbol)
+				details.detail = get_completion_details(ast_context, result.symbol)
+				details.description = get_completion_description(ast_context, result.symbol)
+			}
+			// hack for sublime text's issue
+			// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
+			// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
+			if common.config.client_name == "Sublime Text LSP" {
+				if strings.contains(details.detail, "..") && strings.contains(details.detail, "#") {
+					s, _ := strings.replace_all(details.detail, "..", "ꓸꓸ", allocator = context.temp_allocator)
+					details.detail = s
+				}
 			}
 			item.labelDetails = details
 		}
@@ -289,6 +290,28 @@ convert_completion_results :: proc(
 	}
 
 	return items[:]
+}
+
+get_completion_details :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+	#partial switch v in symbol.value {
+	case SymbolProcedureValue:
+		sb := strings.builder_make(ast_context.allocator)
+		write_proc_param_list_and_return(&sb, v)
+		return strings.to_string(sb)
+	case SymbolAggregateValue:
+		return "(..)"
+	}
+	return ""
+}
+
+get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+	#partial switch v in symbol.value {
+	case SymbolProcedureValue:
+		return ""
+	case SymbolAggregateValue:
+		return ""
+	}
+	return get_short_signature(ast_context, symbol)
 }
 
 get_attribute_completion :: proc(
@@ -2099,68 +2122,6 @@ append_magic_union_completion :: proc(
 		append(items, CompletionResult{completion_item = item})
 	}
 
-}
-
-//Temporary hack to support labeldetails
-format_to_label_details :: proc(list: ^CompletionList) {
-	// detail      = left
-	// description = right
-
-	for &item in list.items {
-		// log.errorf("item:%v: %v:%v", item.kind, item.label, item.detail)
-		#partial switch item.kind {
-		case .Function:
-			proc_info := ""
-			// Split the leading name of the proc
-			proc_info_split := strings.split_n(item.detail, " proc", 2)
-			if len(proc_info_split) == 1 {
-				// No proc declaration (eg for a proc group)
-				proc_info = "(..)"
-			} else if len(proc_info_split) == 2 {
-				proc_info = proc_info_split[1]
-			}
-
-			item.labelDetails = CompletionItemLabelDetails {
-				detail      = proc_info,
-				description = "",
-			}
-		case .Variable, .Constant, .Field:
-			type_index := strings.index(item.detail, ":")
-			item.labelDetails = CompletionItemLabelDetails {
-				detail      = "",
-				description = item.detail[type_index + 1:],
-			}
-		case .Struct, .Enum, .Class:
-			type_index := strings.index(item.detail, ":")
-			item.labelDetails = CompletionItemLabelDetails {
-				detail      = "",
-				description = item.detail[type_index + 1:],
-			}
-		}
-
-		// hack for sublime text's issue
-		// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
-		// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
-		if common.config.client_name == "Sublime Text LSP" {
-			dt := &item.labelDetails.? or_else nil
-			if dt == nil do continue
-			if strings.contains(dt.detail, "..") && strings.contains(dt.detail, "#") {
-				s, _ := strings.replace_all(dt.detail, "..", "ꓸꓸ", allocator = context.temp_allocator)
-				dt.detail = s
-			}
-		}
-	}
-}
-
-convert_docs_to_markdown :: proc(list: ^CompletionList) {
-	for &item in list.items {
-		if s, ok := item.documentation.(string); ok {
-			item.documentation = MarkupContent {
-				kind = "markdown",
-				value = s,
-			}
-		}
-	}
 }
 
 bitset_operators: map[string]bool = {

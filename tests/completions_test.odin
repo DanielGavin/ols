@@ -258,7 +258,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.group_function: proc"})
+	test.expect_completion_docs(t, &source, "", {"test.group_function: proc (..)"})
 }
 
 @(test)

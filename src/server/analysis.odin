@@ -891,7 +891,7 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 	out commented because of an infinite loop in parse_f64
 	else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
 		value.type = .Float
-	} 
+	}
 	*/
 
 	symbol.pkg = ast_context.current_package
@@ -922,7 +922,10 @@ resolve_basic_directive :: proc(
 // Gets the return type of the proc.
 // Requires the underlying call expression to handle some builtin procs
 get_proc_return_types :: proc(
-	ast_context: ^AstContext, symbol: Symbol, call: ^ast.Call_Expr, is_mutable: bool,
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	call: ^ast.Call_Expr,
+	is_mutable: bool,
 ) -> []^ast.Expr {
 	return_types := make([dynamic]^ast.Expr, context.temp_allocator)
 	if ret, ok := check_builtin_proc_return_type(symbol, call, is_mutable); ok {
@@ -1028,7 +1031,7 @@ check_builtin_proc_return_type :: proc(symbol: Symbol, call: ^ast.Call_Expr, is_
 			}
 			if curr_candidate != nil {
 				return convert_candidate(curr_candidate, is_mutable), true
-	 		}
+			}
 		case "abs":
 			for arg in call.args {
 				if lit, _, ok := get_basic_lit_value(arg); ok {
@@ -1757,12 +1760,9 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			}
 
 			if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
-				return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable);
+				return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
 				if len(return_types) > 0 {
-					return_symbol, ok = internal_resolve_type_expression(
-						ast_context,
-						return_types[0],
-					)
+					return_symbol, ok = internal_resolve_type_expression(ast_context, return_types[0])
 				}
 				// Otherwise should be a parapoly style
 			}
@@ -3601,11 +3601,11 @@ get_locals_block_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	/* 
+	/*
 	   We need to handle blocks for non mutable and mutable: non mutable has no order for their value declarations, except for nested blocks where they are hidden by scope
-	   For non_mutable_only we set the document_position.position to be the end of the function to get all the non-mutable locals, but that shouldn't apply to the nested block itself, 
+	   For non_mutable_only we set the document_position.position to be the end of the function to get all the non-mutable locals, but that shouldn't apply to the nested block itself,
 	   but will for it's content.
-	   
+
 	   Therefore we use nested_position that is the exact token we are interested in.
 
 	   Example:
