@@ -152,6 +152,7 @@ get_completion_list :: proc(
 	results := make([dynamic]CompletionResult, 0, allocator = context.temp_allocator)
 	is_incomplete := false
 
+	// TODO: as these are mutally exclusive, should probably just make them return a slice?
 	switch completion_type {
 	case .Comp_Lit:
 		is_incomplete = get_comp_lit_completion(&ast_context, &position_context, &results)
@@ -162,11 +163,11 @@ get_completion_list :: proc(
 	case .Selector:
 		is_incomplete = get_selector_completion(&ast_context, &position_context, &results)
 	case .Switch_Type:
-		get_type_switch_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_type_switch_completion(&ast_context, &position_context, &results)
 	case .Directive:
-		get_directive_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_directive_completion(&ast_context, &position_context, &results)
 	case .Package:
-		get_package_completion(&ast_context, &position_context, &list)
+		is_incomplete = get_package_completion(&ast_context, &position_context, &results)
 	}
 
 	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type)
@@ -181,6 +182,102 @@ get_completion_list :: proc(
 	//}
 	//
 	return list, true
+}
+
+convert_completion_results :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	results: []CompletionResult,
+	completion_type: Completion_Type,
+) -> []CompletionItem {
+
+	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
+		return j.score < i.score
+	})
+
+	//hard code for now
+	top_results := results[0:(min(100, len(results)))]
+
+	items := make([dynamic]CompletionItem, 0, len(top_results), allocator = context.temp_allocator)
+
+	// TODO: add scores to items
+
+	for result in top_results {
+		result := result
+		if item, ok := result.completion_item.?; ok {
+			append(&items, item)
+			continue
+		}
+
+		//Skip procedures when the position is in proc decl
+		if position_in_proc_decl(position_context) &&
+		   result.symbol.type == .Function &&
+		   common.config.enable_procedure_context {
+			continue
+		}
+
+		if result.snippet.insert != "" {
+			item := CompletionItem {
+				label            = result.symbol.name,
+				insertText       = result.snippet.insert,
+				kind             = .Snippet,
+				detail           = result.snippet.detail,
+				documentation    = result.symbol.doc,
+				insertTextFormat = .Snippet,
+			}
+
+			edits := make([dynamic]TextEdit, context.temp_allocator)
+
+			for pkg in result.snippet.packages {
+				edit, ok := get_core_insert_package_if_non_existent(ast_context, pkg)
+				if ok {
+					append(&edits, edit)
+				}
+			}
+
+			item.additionalTextEdits = edits[:]
+
+			append(&items, item)
+			continue
+		}
+
+		build_documentation(ast_context, &result.symbol, false)
+		item := CompletionItem {
+			label         = result.symbol.name,
+			documentation = write_hover_content(ast_context, result.symbol)
+		}
+		if common.config.enable_label_details {
+			// TODO: compute
+			details := CompletionItemLabelDetails{}
+
+			if result.detail != "" {
+				details.detail = result.detail
+			} else {
+				// TODO: this should be a better function for showing what it wants?
+				details.detail = get_short_signature(ast_context, &result.symbol)
+			}
+			item.labelDetails = details
+		}
+
+		item.kind = symbol_type_to_completion_kind(result.symbol.type)
+
+		if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
+			item.insertText = fmt.tprintf("%v($0)", item.label)
+			item.insertTextFormat = .Snippet
+			item.deprecated = .Deprecated in result.symbol.flags
+			item.command = Command {
+				command = "editor.action.triggerParameterHints",
+			}
+		}
+
+		append(&items, item)
+	}
+
+	if completion_type == .Identifier {
+	    append_non_imported_packages(ast_context, position_context, &items)
+	}
+
+	return items[:]
 }
 
 get_attribute_completion :: proc(
@@ -251,28 +348,29 @@ DIRECTIVE_NAME_LIST :: []string {
 	"optional_allocator_error",
 }
 
-completion_items_directives: []CompletionItem
+completion_items_directives: []CompletionResult
 
 @(init)
 _init_completion_items_directives :: proc() {
-	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionItem {
-		return {detail = strings.concatenate({"#", name}) or_else name, label = name, kind = .Constant}
+	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionResult {
+		return CompletionResult{
+			completion_item = CompletionItem{
+				detail = strings.concatenate({"#", name}) or_else name, label = name, kind = .Constant,
+			}
+		}
 	})
 }
 
 get_directive_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
+	results: ^[dynamic]CompletionResult,
+) -> bool {
+	is_incomplete := false
 
-	list.isIncomplete = false
-
-	/*
-		Right now just return all the possible completions, but later on I should give the context specific ones
-	*/
-
-	list.items = completion_items_directives[:]
+	// Right now just return all the possible completions, but later on I should give the context specific ones
+	append(results, ..completion_items_directives[:])
+	return is_incomplete
 }
 
 get_comp_lit_completion :: proc(
@@ -1388,110 +1486,12 @@ get_identifier_completion :: proc(
 	return is_incomplete
 }
 
-convert_completion_results :: proc(
-	ast_context: ^AstContext,
-	position_context: ^DocumentPositionContext,
-	results: []CompletionResult,
-	completion_type: Completion_Type,
-) -> []CompletionItem {
-
-	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
-		return j.score < i.score
-	})
-
-	//hard code for now
-	top_results := results[0:(min(100, len(results)))]
-
-	items := make([dynamic]CompletionItem, 0, len(top_results), allocator = context.temp_allocator)
-
-	// TODO: add scores to items
-
-	for result in top_results {
-		result := result
-		if item, ok := result.completion_item.?; ok {
-			append(&items, item)
-			continue
-		}
-
-		//Skip procedures when the position is in proc decl
-		if position_in_proc_decl(position_context) &&
-		   result.symbol.type == .Function &&
-		   common.config.enable_procedure_context {
-			continue
-		}
-
-		if result.snippet.insert != "" {
-			item := CompletionItem {
-				label            = result.symbol.name,
-				insertText       = result.snippet.insert,
-				kind             = .Snippet,
-				detail           = result.snippet.detail,
-				documentation    = result.symbol.doc,
-				insertTextFormat = .Snippet,
-			}
-
-			edits := make([dynamic]TextEdit, context.temp_allocator)
-
-			for pkg in result.snippet.packages {
-				edit, ok := get_core_insert_package_if_non_existent(ast_context, pkg)
-				if ok {
-					append(&edits, edit)
-				}
-			}
-
-			item.additionalTextEdits = edits[:]
-
-			append(&items, item)
-			continue
-		}
-
-		build_documentation(ast_context, &result.symbol, false)
-		item := CompletionItem {
-			label         = result.symbol.name,
-			documentation = write_hover_content(ast_context, result.symbol)
-		}
-		if common.config.enable_label_details {
-			// TODO: compute
-			details := CompletionItemLabelDetails{}
-
-			if result.detail != "" {
-				details.detail = result.detail
-			} else {
-				// TODO: this should be a better function for showing what it wants?
-				details.detail = get_short_signature(ast_context, &result.symbol)
-			}
-			item.labelDetails = details
-		}
-
-		item.kind = symbol_type_to_completion_kind(result.symbol.type)
-
-		if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
-			item.insertText = fmt.tprintf("%v($0)", item.label)
-			item.insertTextFormat = .Snippet
-			item.deprecated = .Deprecated in result.symbol.flags
-			item.command = Command {
-				command = "editor.action.triggerParameterHints",
-			}
-		}
-
-		append(&items, item)
-	}
-
-	if completion_type == .Identifier {
-	    append_non_imported_packages(ast_context, position_context, &items)
-	}
-
-	return items[:]
-}
-
 get_package_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-
-	list.isIncomplete = false
+	results: ^[dynamic]CompletionResult,
+) -> bool {
+	is_incomplete := false
 
 	without_quotes := position_context.import_stmt.fullpath
 
@@ -1537,7 +1537,7 @@ get_package_completion :: proc(
 				kind   = .Module,
 			}
 
-			append(&items, item)
+			append(results, CompletionResult{completion_item = item})
 		}
 	}
 
@@ -1552,10 +1552,10 @@ get_package_completion :: proc(
 			continue
 		}
 
-		append(&items, item)
+		append(results, CompletionResult{completion_item = item})
 	}
 
-	list.items = items[:]
+	return is_incomplete
 }
 
 clean_ident :: proc(ident: string) -> string {
@@ -1600,10 +1600,9 @@ get_used_switch_name :: proc(node: ^ast.Expr) -> (string, bool) {
 get_type_switch_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-	items := make([dynamic]CompletionItem, context.temp_allocator)
-	list.isIncomplete = false
+	results: ^[dynamic]CompletionResult,
+) -> bool {
+	is_incomplete := false
 
 	used_unions := make(map[string]bool, 5, context.temp_allocator)
 
@@ -1649,13 +1648,13 @@ get_type_switch_completion :: proc(
 						item.detail = item.label
 					}
 
-					append(&items, item)
+					append(results, CompletionResult{completion_item = item})
 				}
 			}
 		}
 	}
 
-	list.items = items[:]
+	return is_incomplete
 }
 
 get_core_insert_package_if_non_existent :: proc(ast_context: ^AstContext, pkg: string) -> (TextEdit, bool) {
