@@ -1835,8 +1835,13 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return_symbol.type = .Variable
 		}
 
-		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
-		return_symbol.comment = get_comment(global.comment)
+		if global.docs != nil {
+			return_symbol.doc = get_doc(global.docs, ast_context.allocator)
+		}
+
+		if global.comment != nil {
+			return_symbol.comment = get_comment(global.comment)
+		}
 
 		return return_symbol, ok
 	} else {
