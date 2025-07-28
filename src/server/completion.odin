@@ -204,9 +204,17 @@ convert_completion_results :: proc(
 			}
 			// temporary as we move things to use the symbols directly
 			if item.documentation == nil {
-				item.documentation = item.detail
+				item.documentation = MarkupContent {
+					kind = "markdown",
+					value = fmt.tprintf("```odin\n%v\n```", item.detail)
+				}
+				item.detail = ""
 			} else if s, ok := item.documentation.(string); ok && s == "" {
-				item.documentation = item.detail
+				item.documentation = MarkupContent {
+					kind = "markdown",
+					value = fmt.tprintf("```odin\n%v\n```", item.detail)
+				}
+				item.detail = ""
 			}
 			append(&items, item)
 			continue
@@ -247,7 +255,7 @@ convert_completion_results :: proc(
 		build_documentation(ast_context, &result.symbol, true)
 		item := CompletionItem {
 			label         = result.symbol.name,
-			documentation = write_hover_content(ast_context, result.symbol)
+			documentation = write_hover_content(ast_context, result.symbol),
 		}
 		if common.config.enable_label_details {
 			// detail      = left
@@ -797,27 +805,7 @@ get_selector_completion :: proc(
 				}
 
 				resolve_unresolved_symbol(ast_context, &symbol)
-				build_documentation(ast_context, &symbol)
-
-				item := CompletionItem {
-					label         = symbol.name,
-					kind          = symbol_type_to_completion_kind(symbol.type),
-					detail        = concatenate_symbol_information(ast_context, symbol),
-					documentation = symbol.doc,
-				}
-
-				if symbol.type == .Function &&
-				   common.config.enable_snippets &&
-				   common.config.enable_procedure_snippet {
-					item.insertText = fmt.tprintf("%v($0)", item.label)
-					item.insertTextFormat = .Snippet
-					item.command = Command {
-						command = "editor.action.triggerParameterHints",
-					}
-					item.deprecated = .Deprecated in symbol.flags
-				}
-
-				append(results, CompletionResult{completion_item = item})
+				append(results, CompletionResult{symbol = symbol})
 			}
 		} else {
 			log.errorf("Failed to fuzzy search, field: %v, package: %v", field, selector.pkg)
