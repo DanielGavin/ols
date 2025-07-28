@@ -339,7 +339,7 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			append_type_information(&sb, ast_context, symbol, pointer_prefix)
 			strings.write_string(&sb, " :: ")
 		}
-		write_procedure_symbol_signature(&sb, v, detailed_signature=false)
+		write_procedure_symbol_signature(&sb, v, detailed_signature=true)
 		return strings.to_string(sb)
 	case SymbolAggregateValue:
 		return "proc (..)"
@@ -686,7 +686,6 @@ concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Sym
 		symbol.name,
 		symbol.signature,
 		symbol.type,
-		symbol.comment,
 	)
 }
 
@@ -696,7 +695,6 @@ concatenate_raw_string_information :: proc(
 	name: string,
 	signature: string,
 	type: SymbolType,
-	comment: string,
 ) -> string {
 	pkg := path.base(pkg, false, context.temp_allocator)
 

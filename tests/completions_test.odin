@@ -3391,9 +3391,9 @@ ast_completion_vtable_using :: proc(t: ^testing.T) {
 		&source,
 		"->",
 		{
-			`IUnknown.QueryInterface: proc(This: ^IUnknown, riid: REFIID, ppvObject: ^rawptr) -> HRESULT`,
-			`IUnknown.AddRef: proc(This: ^IUnknown) -> ULONG`,
-			`IUnknown.Release: proc(This: ^IUnknown) -> ULONG`,
+			`IUnknown.QueryInterface: proc "system" (This: ^IUnknown, riid: REFIID, ppvObject: ^rawptr) -> HRESULT`,
+			`IUnknown.AddRef: proc "system" (This: ^IUnknown) -> ULONG`,
+			`IUnknown.Release: proc "system" (This: ^IUnknown) -> ULONG`,
 		},
 	)
 }
