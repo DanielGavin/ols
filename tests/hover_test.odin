@@ -3101,6 +3101,33 @@ ast_hover_override_documentation_reexported :: proc(t: ^testing.T) {
 		"my_package.Foo: struct {}\n New docs for Foo",
 	)
 }
+
+@(test)
+ast_hover_struct_size_and_alignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			// this is a doc
+			a: u32,
+			b: u64,
+			c: u16,
+		}
+
+		foo := F{*}oo{}
+		`,
+		packages = {},
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\t// this is a doc\n\ta: u32,\n\tb: u64,\n\tc: u16,\n}\nSize: 24 bytes, Alignment: 8 bytes",
+	)
+}
+
 /*
 
 Waiting for odin fix
