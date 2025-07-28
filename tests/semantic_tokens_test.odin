@@ -50,3 +50,22 @@ semantic_tokens_global_consts :: proc(t: ^testing.T) {
 		{0, 11, 3,  .Type,      {.ReadOnly}}, // [3]  f32
 	})
 }
+
+@(test)
+semantic_tokens_literals_with_explicit_types :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: 1
+		Foo2 : int : 1
+		Foo3 :: cast(string) "hello"
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Variable, {.ReadOnly}}, // [0]  Foo
+		{1, 2,  4, .Variable, {.ReadOnly}}, // [1]  Foo2
+		{0, 7,  3, .Type,     {.ReadOnly}}, // [2]  int
+		{1, 2,  4, .Variable, {.ReadOnly}}, // [3]  Foo3
+		{0, 13, 6, .Type,     {.ReadOnly}}, // [4]  string
+	})
+}
