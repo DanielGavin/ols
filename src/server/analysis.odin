@@ -83,11 +83,16 @@ DeferredDepth :: 35
 
 LocalGroup :: map[string][dynamic]DocumentLocal
 
+UsingStatement :: struct {
+	alias:    string,
+	pkg_name: string,
+}
+
 AstContext :: struct {
 	locals:           [dynamic]LocalGroup, //locals all the way to the document position
 	globals:          map[string]GlobalExpr,
 	recursion_map:    map[rawptr]bool,
-	usings:           [dynamic]string,
+	usings:           [dynamic]UsingStatement,
 	file:             ast.File,
 	allocator:        mem.Allocator,
 	imports:          []Package, //imports for the current document
@@ -117,7 +122,7 @@ make_ast_context :: proc(
 	ast_context := AstContext {
 		locals           = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals          = make(map[string]GlobalExpr, 0, allocator),
-		usings           = make([dynamic]string, allocator),
+		usings           = make([dynamic]UsingStatement, allocator),
 		recursion_map    = make(map[rawptr]bool, 0, allocator),
 		file             = file,
 		imports          = imports,
@@ -134,14 +139,14 @@ make_ast_context :: proc(
 	return ast_context
 }
 
-add_using :: proc(ast_context: ^AstContext, using_name: string) {
+add_using :: proc(ast_context: ^AstContext, using_name: string, pkg_name: string) {
 	for u in ast_context.usings {
-		if u == using_name {
+		if u.alias == using_name {
 			return
 		}
 	}
 
-	append(&ast_context.usings, using_name)
+	append(&ast_context.usings, UsingStatement{alias = using_name, pkg_name = pkg_name})
 }
 
 set_ast_package_deferred :: proc(ast_context: ^AstContext, pkg: string) {
@@ -1896,7 +1901,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 		for u in ast_context.usings {
 			for imp in ast_context.imports {
-				if strings.compare(imp.base, u) == 0 {
+				if strings.compare(imp.base, u.pkg_name) == 0 {
 					if symbol, ok := lookup(node.name, imp.name); ok {
 						return resolve_symbol_return(ast_context, symbol)
 					}
@@ -2906,7 +2911,9 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	//probably map instead
 	for u, i in ast_context.usings {
 		for imp in ast_context.imports {
-			usings[i] = imp.name
+			if u.pkg_name == imp.name {
+				usings[i] = imp.name
+			}
 		}
 	}
 
@@ -3636,7 +3643,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 		#partial switch v in symbol.value {
 		case SymbolPackageValue:
 			if ident, ok := expr.derived.(^ast.Ident); ok {
-				add_using(ast_context, ident.name)
+				add_using(ast_context, ident.name, symbol.pkg)
 			}
 		case SymbolStructValue:
 			for name, i in v.names {
