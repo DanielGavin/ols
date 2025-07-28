@@ -4092,7 +4092,7 @@ ast_completion_enum_global_array :: proc(t: ^testing.T) {
 	`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
 
 @(test)
@@ -4113,5 +4113,5 @@ ast_completion_enum_array_in_proc_param :: proc(t: ^testing.T) {
 	`,
 	}
 
-	test.expect_completion_details(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
