@@ -4027,3 +4027,49 @@ ast_completion_return_nested_comp_lit_enum :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_details(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_enum_global_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			id: int,
+			foo: Foo,
+		}
+
+		bars: []Bar = {
+			{
+				foo = .{*}
+			},
+		}
+	`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
+
+@(test)
+ast_completion_enum_array_in_proc_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		bar :: proc(v: i32) {}
+
+		main :: proc() {
+			foos: [Foo]i32
+			bar(foos[.{*}])
+		}
+	`,
+	}
+
+	test.expect_completion_details(t, &source, "", {"A", "B"})
+}
