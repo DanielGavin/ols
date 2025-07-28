@@ -390,6 +390,15 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	}
 }
 
+is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
+	#partial switch v in expr.derived {
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast:
+		return true
+	case:
+		return false
+	}
+}
+
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	using ast
 
@@ -402,22 +411,15 @@ visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuil
 	if len(value_decl.values) == len(value_decl.names) {
 		for name, i in value_decl.names {
 			ident := name.derived.(^Ident) or_continue
-			if _, ok := value_decl.values[i].derived.(^ast.Comp_Lit); ok {
-				visit_ident(ident, ident, modifiers, builder, true)
-			} else {
-				visit_ident(ident, ident, modifiers, builder)
-			}
+			is_var_decl := is_variable_declaration(value_decl.values[i])
+			visit_ident(ident, ident, modifiers, builder, is_var_decl)
 		}
 	} else if len(value_decl.values) > 0 {
 		// a, b: int
-		_, ok := value_decl.values[0].derived.(^ast.Comp_Lit)
+		is_var_decl := is_variable_declaration(value_decl.values[0])
 		for name in value_decl.names {
 			ident := name.derived.(^Ident) or_continue
-			if ok {
-				visit_ident(ident, ident, modifiers, builder, true)
-			} else {
-				visit_ident(ident, ident, modifiers, builder)
-			}
+			visit_ident(ident, ident, modifiers, builder, is_var_decl)
 		}
 	} else {
 		for name in value_decl.names {
@@ -555,7 +557,7 @@ visit_ident :: proc(
 	symbol_ptr: rawptr,
 	modifiers: SemanticTokenModifiers,
 	builder: ^SemanticTokenBuilder,
-	is_comp_lit := false,
+	is_variable_decl := false,
 ) {
 	using ast
 
@@ -571,7 +573,7 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
-	if is_comp_lit {
+	if is_variable_decl {
 		write_semantic_node(builder, ident, .Variable, modifiers)
 		return
 	}
