@@ -3878,7 +3878,7 @@ ast_completion_proc_enum_param :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_using_aliased_package :: proc(t: ^testing.T) {
-		packages := make([dynamic]test.Package, context.temp_allocator)
+	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
 		&packages,
@@ -3905,6 +3905,48 @@ ast_completion_using_aliased_package :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_details(t, &source, ".", {"my_package.foo: proc()"})
+}
+
+@(test)
+ast_completion_using_aliased_package_multiple :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "foo_pkg",
+			source = `package foo_pkg
+			foo :: proc() {}
+		`,
+		},
+	)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "bar_pkg",
+			source = `package bar_pkg
+			bar :: proc() {}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+
+		import "foo_pkg"
+		import "bar_pkg"
+		fp :: foo_pkg
+
+		main :: proc() {
+			using fp
+			f{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_details(t, &source, ".", {"foo_pkg.foo: proc()"})
 }
 
 @(test)
