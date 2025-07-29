@@ -390,9 +390,11 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	}
 }
 
+// TODO: it seems the global symbols don't distinguish between a type decl and
+// a const variable declaration, so we do a quick check here to distinguish the cases.
 is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
 	#partial switch v in expr.derived {
-	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast:
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr:
 		return true
 	case:
 		return false
