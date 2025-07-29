@@ -3946,7 +3946,7 @@ ast_completion_using_aliased_package_multiple :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(t, &source, ".", {"foo_pkg.foo: proc()"})
+	test.expect_completion_docs(t, &source, ".", {"foo_pkg.foo: proc()"})
 }
 
 @(test)
