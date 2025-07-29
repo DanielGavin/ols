@@ -58,6 +58,7 @@ semantic_tokens_literals_with_explicit_types :: proc(t: ^testing.T) {
 		Foo :: 1
 		Foo2 : int : 1
 		Foo3 :: cast(string) "hello"
+		Foo4 :: cstring("hello")
 		`
 	}
 
@@ -67,5 +68,7 @@ semantic_tokens_literals_with_explicit_types :: proc(t: ^testing.T) {
 		{0, 7,  3, .Type,     {.ReadOnly}}, // [2]  int
 		{1, 2,  4, .Variable, {.ReadOnly}}, // [3]  Foo3
 		{0, 13, 6, .Type,     {.ReadOnly}}, // [4]  string
+		{1, 2,  4, .Variable, {.ReadOnly}}, // [5]  Foo4
+		{0, 8,  7, .Type,     {.ReadOnly}}, // [6]  cstring
 	})
 }
