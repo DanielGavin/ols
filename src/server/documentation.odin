@@ -209,11 +209,13 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 			append_type_information(&sb, ast_context, symbol, pointer_prefix)
 			strings.write_string(&sb, " :: ")
 		}
+		strings.write_string(&sb, "union")
+		write_poly_list(&sb, v.poly, v.poly_names)
 		if len(v.types) == 0 {
-			strings.write_string(&sb, "union {}")
+			strings.write_string(&sb, " {}")
 			return strings.to_string(sb)
 		}
-		strings.write_string(&sb, "union {\n")
+		strings.write_string(&sb, " {\n")
 		for i in 0 ..< len(v.types) {
 			strings.write_string(&sb, "\t")
 			build_string_node(v.types[i], &sb, false)
@@ -348,18 +350,24 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 		sb := strings.builder_make(ast_context.allocator)
 		if show_type_info {
 			append_type_information(&sb, ast_context, symbol, pointer_prefix)
+			write_poly_list(&sb, v.poly, v.poly_names)
 		} else {
 			strings.write_string(&sb, pointer_prefix)
-			strings.write_string(&sb, "struct {..}")
+			strings.write_string(&sb, "struct")
+			write_poly_list(&sb, v.poly, v.poly_names)
+			strings.write_string(&sb, " {..}")
 		}
 		return strings.to_string(sb)
 	case SymbolUnionValue:
 		sb := strings.builder_make(ast_context.allocator)
 		if show_type_info {
 			append_type_information(&sb, ast_context, symbol, pointer_prefix)
+			write_poly_list(&sb, v.poly, v.poly_names)
 		} else {
 			strings.write_string(&sb, pointer_prefix)
-			strings.write_string(&sb, "union {..}")
+			strings.write_string(&sb, "union")
+			write_poly_list(&sb, v.poly, v.poly_names)
+			strings.write_string(&sb, " {..}")
 		}
 		return strings.to_string(sb)
 	case SymbolBitFieldValue:
@@ -546,36 +554,7 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 	using_index := -1
 
 	strings.write_string(sb, "struct")
-	poly_name_index := 0
-	if v.poly != nil {
-		strings.write_string(sb, "(")
-		for field, i in v.poly.list {
-			write_type := true
-			for name, j in field.names {
-				if poly_name_index < len(v.poly_names) {
-					poly_name := v.poly_names[poly_name_index]
-					if !strings.starts_with(poly_name, "$") {
-						write_type = false
-					}
-					strings.write_string(sb, poly_name)
-				} else {
-					build_string_node(name, sb, false)
-				}
-				if j != len(field.names) - 1 {
-					strings.write_string(sb, ", ")
-				}
-				poly_name_index += 1
-			}
-			if write_type {
-				strings.write_string(sb, ": ")
-				build_string_node(field.type, sb, false)
-			}
-			if i != len(v.poly.list) - 1 {
-				strings.write_string(sb, ", ")
-			}
-		}
-		strings.write_string(sb, ")")
-	}
+	write_poly_list(sb, v.poly, v.poly_names)
 	strings.write_string(sb, " {\n")
 
 	for i in 0 ..< len(v.names) {
@@ -612,6 +591,39 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 	strings.write_string(sb, "}")
 }
 
+write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names: []string) {
+	if poly != nil {
+		poly_name_index := 0
+		strings.write_string(sb, "(")
+		for field, i in poly.list {
+			write_type := true
+			for name, j in field.names {
+				if poly_name_index < len(poly_names) {
+					poly_name := poly_names[poly_name_index]
+					if !strings.starts_with(poly_name, "$") {
+						write_type = false
+					}
+					strings.write_string(sb, poly_name)
+				} else {
+					build_string_node(name, sb, false)
+				}
+				if j != len(field.names) - 1 {
+					strings.write_string(sb, ", ")
+				}
+				poly_name_index += 1
+			}
+			if write_type {
+				strings.write_string(sb, ": ")
+				build_string_node(field.type, sb, false)
+			}
+			if i != len(poly.list) - 1 {
+				strings.write_string(sb, ", ")
+			}
+		}
+		strings.write_string(sb, ")")
+	}
+}
+
 append_type_information :: proc(
 	sb: ^strings.Builder,
 	ast_context: ^AstContext,
@@ -619,7 +631,7 @@ append_type_information :: proc(
 	pointer_prefix: string,
 ) {
 	pkg_name := get_pkg_name(ast_context, symbol.type_pkg)
-	if pkg_name == "" {
+	if pkg_name == "" || pkg_name == "$builtin"{
 		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
 		return
 	}
@@ -674,11 +686,14 @@ concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Sym
 			strings.write_string(&sb, ")\n")
 		}
 
-		fmt.sbprintf(&sb, "%v.%v", pkg, symbol.name)
+		if pkg != "" && pkg != "$builtin" {
+			fmt.sbprintf(&sb, "%v.", pkg)
+		}
+		fmt.sbprintf(&sb, "%v", symbol.name)
 		if symbol.signature != "" {
 			fmt.sbprintf(&sb, ": %v", symbol.signature)
 		}
-		return strings.to_string(sb)
+			return strings.to_string(sb)
 	}
 
 	return concatenate_raw_string_information(
@@ -703,7 +718,10 @@ concatenate_raw_string_information :: proc(
 		return fmt.tprintf("%v: package", name)
 	}
 	sb := strings.builder_make()
-	fmt.sbprintf(&sb, "%v.%v", pkg, name)
+	if pkg != "" && pkg != "$builtin" {
+		fmt.sbprintf(&sb, "%v.", pkg)
+	}
+	fmt.sbprintf(&sb, "%v", name)
 	if signature != "" {
 		fmt.sbprintf(&sb, ": %v", signature)
 	}

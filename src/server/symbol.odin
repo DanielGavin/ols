@@ -80,8 +80,9 @@ SymbolEnumValue :: struct {
 }
 
 SymbolUnionValue :: struct {
-	types: []^ast.Expr,
-	poly:  ^ast.Field_List,
+	types:      []^ast.Expr,
+	poly:       ^ast.Field_List,
+	poly_names: []string,
 }
 
 SymbolDynamicArrayValue :: struct {

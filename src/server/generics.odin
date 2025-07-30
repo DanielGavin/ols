@@ -787,9 +787,11 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
+	poly_names := make([dynamic]string, 0, context.temp_allocator)
 
 	for param in poly_params.list {
 		for name in param.names {
+			append(&poly_names, node_to_string(name))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -801,9 +803,11 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i]
+					poly_names[i] = node_to_string(ast_context.call.args[i])
 				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
 					if poly.type != nil {
 						poly_map[poly.type.name] = ast_context.call.args[i]
+						poly_names[i] = node_to_string(ast_context.call.args[i])
 					}
 				}
 			}
@@ -831,4 +835,6 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 			}
 		}
 	}
+
+	symbol_value.poly_names = poly_names[:]
 }

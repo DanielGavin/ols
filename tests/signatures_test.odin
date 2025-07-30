@@ -401,7 +401,7 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"$builtin.len: proc(array: Array_Type) -> int"},
+		{"len: proc(array: Array_Type) -> int"},
 	)
 }
 

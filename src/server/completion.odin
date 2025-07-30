@@ -1445,6 +1445,9 @@ get_identifier_completion :: proc(
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
 					symbol.type_name = symbol.name
 					symbol.type_pkg = symbol.pkg
+					if symbol.type == .Variable {
+						symbol.pkg = ast_context.document_package
+					}
 					symbol.name = clean_ident(ident.name)
 					append(results, CompletionResult{score = score * 1.7, symbol = symbol})
 				}
