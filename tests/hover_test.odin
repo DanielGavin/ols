@@ -3124,6 +3124,45 @@ ast_hover_switch_initialiser :: proc(t: ^testing.T) {
 		"test.c: test.A :: enum {\n\tB,\n\tC,\n}",
 	)
 }
+
+@(test)
+ast_hover_type_switch_with_using :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: struct{}
+			Bar :: struct{}
+			Foo_Bar :: union {
+				^Foo,
+				^Bar,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		foo :: proc(fb: ^my_package.Foo_Bar) {
+			using my_package
+			#partial switch v in fb {
+			case ^Foo:
+				v{*}
+			}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.v: ^my_package.Foo :: struct {}",
+	)
+}
 /*
 
 Waiting for odin fix

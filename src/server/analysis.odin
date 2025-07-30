@@ -1901,7 +1901,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 		for u in ast_context.usings {
 			for imp in ast_context.imports {
-				if strings.compare(imp.base, u.pkg_name) == 0 {
+				if strings.compare(imp.name, u.pkg_name) == 0 {
 					if symbol, ok := lookup(node.name, imp.name); ok {
 						return resolve_symbol_return(ast_context, symbol)
 					}
