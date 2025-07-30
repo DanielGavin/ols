@@ -128,12 +128,12 @@ append_method_completion :: proc(
 				item := CompletionItem {
 					label = symbol.name,
 					kind = symbol_type_to_completion_kind(symbol.type),
-					detail = get_short_signature(ast_context, &symbol),
+					detail = get_short_signature(ast_context, symbol),
 					additionalTextEdits = remove_edit,
 					textEdit = TextEdit{newText = new_text, range = {start = range.end, end = range.end}},
 					insertTextFormat = .Snippet,
 					InsertTextMode = .adjustIndentation,
-					documentation = construct_symbol_docs(&symbol),
+					documentation = construct_symbol_docs(symbol),
 				}
 
 				append(results, CompletionResult{completion_item = item})
