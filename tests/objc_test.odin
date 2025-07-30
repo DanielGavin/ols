@@ -39,7 +39,7 @@ objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(
+	test.expect_completion_docs(
 		t,
 		&source,
 		"->",
@@ -87,7 +87,7 @@ objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_details(
+	test.expect_completion_docs(
 		t,
 		&source,
 		"->",

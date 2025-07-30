@@ -134,11 +134,14 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 			parameters[i].label = node_to_string(arg)
 		}
 
-		build_documentation(&ast_context, &call)
-
+		call.doc = construct_symbol_docs(call)
+		sb := strings.builder_make(context.temp_allocator)
+		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
+		call.signature = strings.to_string(sb)
+		
 		info := SignatureInformation {
-			label         = concatenate_symbol_information(&ast_context, call),
-			documentation = call.doc,
+			label         =	concatenate_raw_string_information(&ast_context, call.pkg, call.name, call.signature, call.type),
+			documentation = construct_symbol_docs(call),
 			parameters    = parameters,
 		}
 		append(&signature_information, info)
@@ -160,11 +163,15 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 					parameters[i].label = node_to_string(arg)
 				}
 
-				build_documentation(&ast_context, &symbol)
-
+				symbol.doc = construct_symbol_docs(symbol)
+				sb := strings.builder_make(context.temp_allocator)
+				write_procedure_symbol_signature(&sb, value, detailed_signature = false)
+				symbol.signature = strings.to_string(sb)
+				
 				info := SignatureInformation {
-					label         = concatenate_symbol_information(&ast_context, symbol),
-					documentation = symbol.doc,
+					label         =	concatenate_raw_string_information(&ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.type),
+					documentation = construct_symbol_docs(symbol),
+					parameters    = parameters,
 				}
 
 				append(&signature_information, info)

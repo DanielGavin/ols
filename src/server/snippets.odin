@@ -2,9 +2,9 @@
 package server
 
 Snippet_Info :: struct {
-	insert:   string,
-	detail:   string,
-	packages: []string,
+	insert:     string,
+	detail:     string,
+	packages:   []string,
 }
 
 snippets: map[string]Snippet_Info = {

@@ -201,7 +201,7 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 	}
 }
 
-expect_completion_details :: proc(
+expect_completion_docs :: proc(
 	t: ^testing.T, src: ^Source,
 	trigger_character: string,
 	expect_details: []string,
@@ -209,6 +209,18 @@ expect_completion_details :: proc(
 ) {
 	setup(src)
 	defer teardown(src)
+
+	get_doc :: proc(doc: server.CompletionDocumention) -> string {
+		switch v in doc {
+		case string:
+			return v
+		case server.MarkupContent:
+			first_strip, _ := strings.remove(v.value, "```odin\n", 2, context.temp_allocator)
+			content_without_markdown, _ := strings.remove(first_strip, "\n```", 2, context.temp_allocator)
+			return content_without_markdown
+		}
+		return ""
+	}
 
 	completion_context := server.CompletionContext {
 		triggerCharacter = trigger_character,
@@ -228,9 +240,9 @@ expect_completion_details :: proc(
 
 	for expect_detail, i in expect_details {
 		for completion, j in completion_list.items {
-			if expect_detail == completion.detail {
+			if expect_detail == get_doc(completion.documentation) {
 				flags[i] += 1
-			}	
+			}
 		}
 	}
 

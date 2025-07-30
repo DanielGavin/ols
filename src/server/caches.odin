@@ -22,6 +22,7 @@ FileResolveCache :: struct {
 	files: map[string]FileResolve,
 }
 
+@(thread_local)
 file_resolve_cache: FileResolveCache
 
 resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAndNode {
@@ -43,6 +44,7 @@ PackageCacheInfo :: struct {
 	timestamp: time.Time,
 }
 
+@(thread_local)
 build_cache: BuildCache
 
 
