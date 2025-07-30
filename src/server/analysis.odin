@@ -373,7 +373,7 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 				}
 			case .Bool:
 				switch basic.ident.name {
-				case "bool", "b32", "b64":
+				case "bool", "b8", "b16", "b32", "b64":
 					return true, true
 				case:
 					return false, true
@@ -387,7 +387,7 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 				}
 			case .Float:
 				switch basic.ident.name {
-				case "f32", "f64":
+				case "f16", "f32", "f64":
 					return true, true
 				case:
 					return false, true
@@ -928,7 +928,8 @@ get_proc_return_types :: proc(
 	is_mutable: bool,
 ) -> []^ast.Expr {
 	return_types := make([dynamic]^ast.Expr, context.temp_allocator)
-	if ret, ok := check_builtin_proc_return_type(symbol, call, is_mutable); ok {
+	if ret, ok := check_builtin_proc_return_type(ast_context, symbol, call, is_mutable); ok {
+		appended := false
 		if call, ok := ret.derived.(^ast.Call_Expr); ok {
 			if symbol, ok := internal_resolve_type_expression(ast_context, call.expr); ok {
 				return get_proc_return_types(ast_context, symbol, call, true)
@@ -946,131 +947,6 @@ get_proc_return_types :: proc(
 	}
 
 	return return_types[:]
-}
-
-// Attempts to resolve the type of the builtin proc by following the rules of the odin type checker
-// defined in `check_builtin.cpp`.
-// We don't need to worry about whether the inputs to the procs are valid which eliminates most edge cases.
-// The basic rules are as follows:
-//    - For values not known at compile time (eg values return from procs), just return that type.
-//        The correct value will either be that type or a compiler error.
-//    - If all values are known at compile time, then we essentially compute the relevant value
-//        and return that type.
-// There is a difference in the returned types between constants and variables. Constants will use an untyped
-// value whereas variables will be typed (as either `int` or `f64`).
-check_builtin_proc_return_type :: proc(symbol: Symbol, call: ^ast.Call_Expr, is_mutable: bool) -> (^ast.Expr, bool) {
-	convert_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
-		if is_mutable {
-			ident := ast.new(ast.Ident, candidate.pos, candidate.end)
-			if candidate.tok.kind == .Integer {
-				ident.name = "int"
-			} else {
-				ident.name = "f64"
-			}
-			return ident
-		}
-
-		return candidate
-	}
-
-	compare_basic_lit_value :: proc(a, b: f64, name: string) -> bool {
-		if name == "max" {
-			return a > b
-		} else if name == "min" {
-			return a < b
-		}
-		return a > b
-	}
-
-	get_basic_lit_value :: proc(n: ^ast.Expr) -> (^ast.Basic_Lit, f64, bool) {
-		n := n
-
-		op := ""
-		if u, ok := n.derived.(^ast.Unary_Expr); ok {
-			op = u.op.text
-			n = u.expr
-		}
-
-		if lit, ok := n.derived.(^ast.Basic_Lit); ok {
-			text := lit.tok.text
-			if op != "" {
-				text = fmt.tprintf("%s%s", op, text)
-			}
-			value, ok := strconv.parse_f64(text)
-			if !ok {
-				return nil, 0, false
-			}
-
-			return lit, value, true
-		}
-
-		return nil, 0, false
-	}
-
-	if symbol.pkg == "$builtin" {
-		switch symbol.name {
-		case "max", "min":
-			curr_candidate: ^ast.Basic_Lit
-			curr_value := 0.0
-			for arg, i in call.args {
-				if lit, value, ok := get_basic_lit_value(arg); ok {
-					if i != 0 {
-						if compare_basic_lit_value(value, curr_value, symbol.name) {
-							curr_candidate = lit
-							curr_value = value
-						}
-					} else {
-						curr_candidate = lit
-						curr_value = value
-					}
-				}
-				if lit, ok := arg.derived.(^ast.Basic_Lit); ok {
-				} else {
-					return arg, true
-				}
-			}
-			if curr_candidate != nil {
-				return convert_candidate(curr_candidate, is_mutable), true
-			}
-		case "abs":
-			for arg in call.args {
-				if lit, _, ok := get_basic_lit_value(arg); ok {
-					return convert_candidate(lit, is_mutable), true
-				}
-				return arg, true
-			}
-		case "clamp":
-			if len(call.args) == 3 {
-
-				value_lit, value_value, value_ok := get_basic_lit_value(call.args[0])
-				if !value_ok {
-					return call.args[0], true
-				}
-
-				minimum_lit, minimum_value, minimum_ok := get_basic_lit_value(call.args[1])
-				if !minimum_ok {
-					return call.args[1], true
-				}
-
-				maximum_lit, maximum_value, maximum_ok := get_basic_lit_value(call.args[2])
-				if !maximum_ok {
-					return call.args[2], true
-				}
-
-				if value_value < minimum_value {
-					return convert_candidate(minimum_lit, is_mutable), true
-				}
-				if value_value > maximum_value {
-					return convert_candidate(maximum_lit, is_mutable), true
-				}
-
-				return convert_candidate(value_lit, is_mutable), true
-			}
-		}
-
-	}
-
-	return nil, false
 }
 
 check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool {
