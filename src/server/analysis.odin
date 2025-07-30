@@ -3151,6 +3151,7 @@ make_symbol_union_from_ast :: proc(
 
 	symbol.value = SymbolUnionValue {
 		types = types[:],
+		poly  = v.poly_params,
 	}
 
 	if v.poly_params != nil {

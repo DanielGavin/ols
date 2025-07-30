@@ -3163,6 +3163,60 @@ ast_hover_type_switch_with_using :: proc(t: ^testing.T) {
 		"test.v: ^my_package.Foo :: struct {}",
 	)
 }
+
+@(test)
+ast_hover_union_with_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: union($T: typeid) {
+			T,
+		}
+
+		main :: proc() {
+			fo{*}o: Foo(int)
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: test.Foo :: union(int) {\n\tint,\n}",
+	)
+}
+
+@(test)
+ast_hover_union_with_poly_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: union($T: typeid) {
+				T,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			fo{*}o: my_package.Foo(int)
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: my_package.Foo :: union(int) {\n\tint,\n}",
+	)
+}
 /*
 
 Waiting for odin fix

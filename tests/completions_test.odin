@@ -968,7 +968,7 @@ ast_overload_with_any_int_index_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.my_value: bool"})
+	test.expect_completion_docs(t, &source, ".", {"test.my_value: bool"})
 }
 
 
@@ -1735,7 +1735,7 @@ ast_index_proc_parameter_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.param: my_package.My_Struct"})
+	test.expect_completion_docs(t, &source, ".", {"test.param: my_package.My_Struct"})
 }
 
 @(test)
@@ -4115,3 +4115,62 @@ ast_completion_enum_array_in_proc_param :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_union_with_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: union($T: typeid) {
+			T,
+		}
+
+		main :: proc() {
+			foo: Foo(int)
+			f{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"test.foo: test.Foo(int)"},
+	)
+}
+
+@(test)
+ast_completion_union_with_poly_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			Foo :: union($T: typeid) {
+				T,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			foo: my_package.Foo(int)
+			f{*}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"test.foo: my_package.Foo(int)"},
+	)
+}
+
