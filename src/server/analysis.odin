@@ -4056,6 +4056,7 @@ get_locals_switch_stmt :: proc(
 		return
 	}
 
+	get_locals_stmt(file, stmt.init, ast_context, document_position)
 	get_locals_stmt(file, stmt.body, ast_context, document_position)
 }
 
