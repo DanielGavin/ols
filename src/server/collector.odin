@@ -631,10 +631,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
-		symbol.doc = get_doc(expr.docs, collection.allocator)
+		doc := get_doc(expr.docs, collection.allocator)
+		symbol.doc = get_index_unique_string(collection, doc)
 		symbol.uri = get_index_unique_string(collection, uri)
 		comment := get_file_comment(file, symbol.range.start.line + 1)
-		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
+		symbol.comment = get_index_unique_string(collection, get_comment(comment))
 		symbol.flags |= {.Distinct}
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {

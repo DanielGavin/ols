@@ -105,6 +105,7 @@ keywords_docs: map[string]bool = {
 }
 
 // Adds signature and docs information to the provided symbol
+// This should only be used for a symbol created with the temp allocator
 build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_signature := true) {
 	if short_signature {
 		symbol.signature = get_short_signature(ast_context, symbol)
@@ -116,7 +117,7 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 		return
 	}
 
-	symbol.doc = construct_symbol_docs(symbol.doc, symbol.comment)
+	symbol.doc = construct_symbol_docs(symbol, allocator = ast_context.allocator)
 }
 
 // Adds signature and docs information for a bit field field
@@ -124,20 +125,20 @@ build_bit_field_field_documentation :: proc(
 	ast_context: ^AstContext, symbol: ^Symbol, value: SymbolBitFieldValue, index: int, allocator := context.temp_allocator
 ) {
 	symbol.signature = get_bit_field_field_signature(value, index, allocator)
-	symbol.doc = construct_symbol_docs(symbol.doc, symbol.comment)
+	symbol.doc = construct_symbol_docs(symbol)
 }
 
-construct_symbol_docs :: proc(docs, comment: string, allocator := context.temp_allocator) -> string {
-	sb := strings.builder_make(allocator = context.temp_allocator)
-	if docs != "" {
-		strings.write_string(&sb, docs)
-		if comment != "" {
+construct_symbol_docs :: proc(symbol: ^Symbol, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator = allocator)
+	if symbol.doc != "" {
+		strings.write_string(&sb, symbol.doc)
+		if symbol.comment != "" {
 			strings.write_string(&sb, "\n")
 		}
 	}
 
-	if comment != "" {
-	    fmt.sbprintf(&sb, "\n```odin\n%s\n```", comment)
+	if symbol.comment != "" {
+	    fmt.sbprintf(&sb, "\n```odin\n%s\n```", symbol.comment)
 	}
 
 	 return strings.to_string(sb)
