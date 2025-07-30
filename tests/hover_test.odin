@@ -3101,6 +3101,29 @@ ast_hover_override_documentation_reexported :: proc(t: ^testing.T) {
 		"my_package.Foo: struct {}\n New docs for Foo",
 	)
 }
+
+@(test)
+ast_hover_switch_initialiser :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		A :: enum { B, C }
+
+		main :: proc() {
+			a : A
+			b : []A
+
+			switch c := b[0]; c{*} {
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.c: test.A :: enum {\n\tB,\n\tC,\n}",
+	)
+}
 /*
 
 Waiting for odin fix
