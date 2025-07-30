@@ -427,7 +427,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
-
+	config.enable_hover_struct_size_info =
+		ols_config.enable_hover_struct_size_info.(bool) or_else config.enable_hover_struct_size_info
 
 	for it in ols_config.collections {
 		if it.name in config.collections {
@@ -1255,7 +1256,7 @@ request_hover :: proc(params: json.Value, id: RequestId, config: ^common.Config,
 
 	hover: Hover
 	valid: bool
-	hover, valid, ok = get_hover_information(document, hover_params.position)
+	hover, valid, ok = get_hover_information(document, hover_params.position, config)
 
 	if !ok {
 		return .InternalError

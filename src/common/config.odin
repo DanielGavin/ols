@@ -19,6 +19,7 @@ Config :: struct {
 	verbose:                           bool,
 	enable_format:                     bool,
 	enable_hover:                      bool,
+	enable_hover_struct_size_info:     bool,
 	enable_document_symbols:           bool,
 	enable_semantic_tokens:            bool,
 	enable_inlay_hints:                bool,

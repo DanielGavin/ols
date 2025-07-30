@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "core:c"
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -205,14 +206,14 @@ convert_completion_results :: proc(
 			// temporary as we move things to use the symbols directly
 			if item.documentation == nil {
 				item.documentation = MarkupContent {
-					kind = "markdown",
-					value = fmt.tprintf("```odin\n%v\n```", item.detail)
+					kind  = "markdown",
+					value = fmt.tprintf("```odin\n%v\n```", item.detail),
 				}
 				item.detail = ""
 			} else if s, ok := item.documentation.(string); ok && s == "" {
 				item.documentation = MarkupContent {
-					kind = "markdown",
-					value = fmt.tprintf("```odin\n%v\n```", item.detail)
+					kind  = "markdown",
+					value = fmt.tprintf("```odin\n%v\n```", item.detail),
 				}
 				item.detail = ""
 			}
@@ -255,7 +256,7 @@ convert_completion_results :: proc(
 		build_documentation(ast_context, &result.symbol, true)
 		item := CompletionItem {
 			label         = result.symbol.name,
-			documentation = write_hover_content(ast_context, result.symbol),
+			documentation = write_hover_content(ast_context, result.symbol, &common.config),
 		}
 		if common.config.enable_label_details {
 			// detail      = left
@@ -294,7 +295,7 @@ convert_completion_results :: proc(
 	}
 
 	if completion_type == .Identifier {
-	    append_non_imported_packages(ast_context, position_context, &items)
+		append_non_imported_packages(ast_context, position_context, &items)
 	}
 
 	return items[:]
@@ -395,10 +396,12 @@ completion_items_directives: []CompletionResult
 @(init)
 _init_completion_items_directives :: proc() {
 	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionResult {
-		return CompletionResult{
-			completion_item = CompletionItem{
-				detail = strings.concatenate({"#", name}) or_else name, label = name, kind = .Constant,
-			}
+		return CompletionResult {
+			completion_item = CompletionItem {
+				detail = strings.concatenate({"#", name}) or_else name,
+				label = name,
+				kind = .Constant,
+			},
 		}
 	})
 }
@@ -701,14 +704,14 @@ get_selector_completion :: proc(
 		for name in enumv.names {
 			append(
 				results,
-				CompletionResult{
-					completion_item = CompletionItem{
+				CompletionResult {
+					completion_item = CompletionItem {
 						label = fmt.tprintf(".%s", name),
 						kind = .EnumMember,
 						detail = fmt.tprintf("%s.%s", selector.name, name),
 						additionalTextEdits = additionalTextEdits,
 					},
-				}
+				},
 			)
 		}
 
@@ -835,7 +838,7 @@ get_implicit_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
-) -> bool{
+) -> bool {
 	is_incomplete := false
 
 	selector: Symbol
@@ -886,10 +889,16 @@ get_implicit_completion :: proc(
 				} else if v, ok := symbol.value.(SymbolStructValue); ok {
 					if position_context.field_value != nil {
 						if field_name, ok := get_field_value_name(position_context.field_value); ok {
-							if symbol, ok := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name); ok {
+							if symbol, ok := resolve_implicit_selector_comp_literal(
+								ast_context,
+								position_context,
+								symbol,
+								field_name,
+							); ok {
 								if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
 									for name in enum_value.names {
-										if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+										if position_context.comp_lit != nil &&
+										   field_exists_in_comp_lit(position_context.comp_lit, name) {
 											continue
 										}
 										item := CompletionItem {
@@ -1277,7 +1286,8 @@ get_implicit_completion :: proc(
 
 					if enum_value, ok := unwrap_enum(ast_context, arg_type.type); ok {
 						for name in enum_value.names {
-							if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+							if position_context.comp_lit != nil &&
+							   field_exists_in_comp_lit(position_context.comp_lit, name) {
 								continue
 							}
 							item := CompletionItem {
@@ -1414,9 +1424,9 @@ get_identifier_completion :: proc(
 
 		if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 			if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-					symbol.type_name = symbol.name
-					symbol.type_pkg = symbol.pkg
-					symbol.name = clean_ident(ident.name)
+				symbol.type_name = symbol.name
+				symbol.type_pkg = symbol.pkg
+				symbol.name = clean_ident(ident.name)
 				append(results, CompletionResult{score = score * 1.1, symbol = symbol})
 			}
 		}

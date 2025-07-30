@@ -36,6 +36,11 @@
 			"type": "boolean",
 			"description": "Enables hover feature"
 		},
+		"enable_hover_struct_size_info": {
+			"type": "boolean",
+			"description": "Enables struct size and alignment information in hover.",
+			"default": false
+		},
 		"enable_procedure_context": { "type": "boolean" },
 		"enable_snippets": {
 			"type": "boolean",

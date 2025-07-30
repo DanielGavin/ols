@@ -407,6 +407,7 @@ OlsConfig :: struct {
 	enable_document_symbols:           Maybe(bool),
 	enable_format:                     Maybe(bool),
 	enable_hover:                      Maybe(bool),
+	enable_hover_struct_size_info:     Maybe(bool),
 	enable_procedure_context:          Maybe(bool),
 	enable_snippets:                   Maybe(bool),
 	enable_inlay_hints:                Maybe(bool),
