@@ -634,7 +634,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.doc = get_doc(expr.docs, collection.allocator)
 		symbol.uri = get_index_unique_string(collection, uri)
 		comment := get_file_comment(file, symbol.range.start.line + 1)
-		symbol.comment = get_comment(comment)
+		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
 		symbol.flags |= {.Distinct}
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
