@@ -187,8 +187,12 @@ convert_completion_results :: proc(
 		return j.score < i.score
 	})
 
-	//hard code for now
-	top_results := results[0:(min(100, len(results)))]
+	top_results := results
+	// Just to keep consistency to what it was before these changes
+	if completion_type == .Identifier {
+		//hard code for now
+		top_results = results[0:(min(100, len(results)))]
+	}
 
 	items := make([dynamic]CompletionItem, 0, len(top_results), allocator = context.temp_allocator)
 
