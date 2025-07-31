@@ -3217,6 +3217,36 @@ ast_hover_union_with_poly_from_package :: proc(t: ^testing.T) {
 		"test.foo: my_package.Foo :: union(int) {\n\tint,\n}",
 	)
 }
+
+@(test)
+ast_hover_overloaded_proc_with_u8_byte_alias :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo_str :: proc(s: string) -> string {
+			return s
+		}
+
+		foo_bytes :: proc(b: []u8) -> []u8 {
+			return b
+		}
+
+		foo :: proc {
+			foo_str,
+			foo_bytes,
+		}
+
+		main :: proc() {
+			b: []byte
+			res{*}ult := foo(b)
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.result: []u8",
+	)
+}
 /*
 
 Waiting for odin fix

@@ -70,6 +70,17 @@ keyword_map: map[string]bool = {
 	"uintptr"       = true,
 }
 
+are_keyword_aliases :: proc(a, b: string) -> bool {
+	// right now only the only alias is `byte` for `u8`, so this simple check will do
+	if a == "u8" && b == "byte" {
+		return true
+	}
+	if a == "byte" && b == "u8" {
+		return true
+	}
+	return false
+}
+
 GlobalExpr :: struct {
 	name:       string,
 	name_expr:  ^ast.Expr,
