@@ -1,6 +1,8 @@
 package ols_builtin
 
 // Procedures
+
+
 @builtin len :: proc(array: Array_Type) -> int ---
 @builtin cap :: proc(array: Array_Type) -> int ---
 
@@ -45,6 +47,7 @@ package ols_builtin
 /*
 	This is interally from the compiler
 */
+
 
 @builtin
 Odin_Arch_Type :: enum int {
