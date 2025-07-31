@@ -22,7 +22,7 @@ package ols_builtin
 @builtin swizzle :: proc(x: [N]T, indices: ..int) -> [len(indices)]T ---
 
 @builtin complex    :: proc(real, imag: Float) -> Complex_Type ---
-@builtin quaternion :: proc(real, imag, jmag, kmag: Float) -> Quaternion_Type ---
+@builtin quaternion :: proc(real, imag, jmag, kmag: Float) -> Quaternion_Type --- // fields must be named
 @builtin real       :: proc(value: Complex_Or_Quaternion) -> Float ---
 @builtin imag       :: proc(value: Complex_Or_Quaternion) -> Float ---
 @builtin jmag       :: proc(value: Quaternion) -> Float ---

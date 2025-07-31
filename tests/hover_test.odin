@@ -2951,6 +2951,37 @@ ast_hover_builtin_max_value_from_function :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_builtin_max_f32 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			a := f32(0)
+			b := f32(1)
+			m{*} := max(a, b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f32")
+}
+
+@(test)
+ast_hover_builtin_max_global_consts :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		a :: 0.0
+		b :: 1.0
+
+		main :: proc() {
+			m{*} := max(a, b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
 ast_hover_builtin_min :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -3024,6 +3055,92 @@ ast_hover_builtin_clamp_from_proc:: proc(t: ^testing.T) {
 	`,
 	}
 	test.expect_hover(t, &source, "test.m: f64")
+}
+
+@(test)
+ast_hover_builtin_complex :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := complex(1, 2)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: complex128")
+}
+
+@(test)
+ast_hover_builtin_complex_with_global_const :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		a :: 0
+		b :: 1
+
+		main :: proc() {
+			m{*} := complex(a, b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: complex128")
+}
+
+@(test)
+ast_hover_builtin_complex_variables :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			a := f32(1)
+			b := f32(2)
+			m{*} := complex(a, b)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: complex64")
+}
+
+@(test)
+ast_hover_builtin_quaternion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*} := quaternion(w = 1, x = 2, y = 3, z = 4)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: quaternion256")
+}
+
+@(test)
+ast_hover_builtin_quaternion_with_global_const :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		w :: 0
+		x :: 1
+		y :: 1
+		z :: 1
+
+		main :: proc() {
+			m{*} := quaternion(w = w, x = x, y = y, z = z)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: quaternion256")
+}
+
+@(test)
+ast_hover_builtin_quaternion_variables :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			a := f16(1)
+			b := f16(2)
+			c := f16(2)
+			d := f16(2)
+			m{*} := quaternion(w = a, x = b, y = c, z = d)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: quaternion64")
 }
 
 @(test)

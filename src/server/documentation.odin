@@ -8,23 +8,27 @@ import path "core:path/slashpath"
 import "core:strings"
 
 keywords_docs: map[string]bool = {
-	"int"           = true,
-	"uint"          = true,
+	"typeid"        = true,
 	"string"        = true,
 	"cstring"       = true,
+	"int"           = true,
+	"uint"          = true,
+	"u8"            = true,
+	"i8"            = true,
+	"u16"           = true,
+	"i16"           = true,
+	"u32"           = true,
+	"i32"           = true,
 	"u64"           = true,
+	"i64"           = true,
+	"u128"          = true,
+	"i128"          = true,
+	"f16"           = true,
 	"f32"           = true,
 	"f64"           = true,
-	"i64"           = true,
-	"i128"          = true,
-	"i32"           = true,
-	"i16"           = true,
-	"u16"           = true,
 	"bool"          = true,
 	"rawptr"        = true,
 	"any"           = true,
-	"u32"           = true,
-	"u128"          = true,
 	"b8"            = true,
 	"b16"           = true,
 	"b32"           = true,
@@ -33,8 +37,6 @@ keywords_docs: map[string]bool = {
 	"false"         = true,
 	"nil"           = true,
 	"byte"          = true,
-	"u8"            = true,
-	"i8"            = true,
 	"rune"          = true,
 	"f16be"         = true,
 	"f16le"         = true,
@@ -683,7 +685,7 @@ concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Sym
 		if symbol.signature != "" {
 			fmt.sbprintf(&sb, ": %v", symbol.signature)
 		}
-			return strings.to_string(sb)
+		return strings.to_string(sb)
 	}
 
 	return concatenate_raw_string_information(
