@@ -409,6 +409,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Type_Switch_Stmt:
 		data.position_context.switch_type_stmt = n
 		resolve_node(n.label, data)
+		local_scope(data, n)
 		resolve_node(n.tag, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
