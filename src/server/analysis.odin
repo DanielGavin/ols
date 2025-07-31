@@ -4080,6 +4080,8 @@ get_locals_type_switch_stmt :: proc(
 		return
 	}
 
+	get_locals_stmt(file, stmt.tag, ast_context, document_position, true)
+
 	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
 		for block_stmt in block.stmts {
 			if cause, ok := block_stmt.derived.(^Case_Clause);

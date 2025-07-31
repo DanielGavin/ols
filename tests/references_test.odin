@@ -1074,3 +1074,33 @@ ast_references_inside_where_clause :: proc(t: ^testing.T) {
 	test.expect_reference_locations(t, &source, locations[:])
 }
 
+@(test)
+ast_references_union_switch_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			int,
+			string
+		}
+
+		main :: proc() {
+			foo: Foo
+			#partial switch v{*} in foo {
+			case int:
+				bar := v + 1
+			case string:
+				bar := "test" + v
+			}
+		}
+	`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 8, character = 19}, end = {line = 8, character = 20}}},
+		{range = {start = {line = 10, character = 11}, end = {line = 10, character = 12}}},
+		{range = {start = {line = 12, character = 20}, end = {line = 12, character = 21}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
