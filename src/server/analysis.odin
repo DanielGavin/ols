@@ -1193,6 +1193,18 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 				ast_context.call = nil
 				return internal_resolve_type_expression(ast_context, v.args[0])
 			}
+		} else if call, ok := v.expr.derived.(^ast.Call_Expr); ok {
+			// handle the case where we immediately call a proc returned by another proc
+			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+				if value, ok := symbol.value.(SymbolProcedureValue); ok {
+					if len(value.return_types) == 1 {
+						return internal_resolve_type_expression(ast_context, value.return_types[0].type)
+					}
+				}
+				return symbol, ok
+			} else {
+				return {}, false
+			}
 		}
 
 		return internal_resolve_type_expression(ast_context, v.expr)

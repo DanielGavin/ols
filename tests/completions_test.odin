@@ -2434,7 +2434,7 @@ ast_generic_struct_with_array :: proc(t: ^testing.T) {
 		main :: proc() {
 			test := Test(Test_Inner) {}
 			a := test.values[0]
-			a.{*} 
+			a.{*}
 		}
 		
 		`,
@@ -4174,3 +4174,26 @@ ast_completion_union_with_poly_from_package :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+ast_completion_proc_call_param_returned_from_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			data: int,
+		}
+
+		main :: proc() {
+			foo()({{*}})
+		}
+
+		foo :: proc() -> proc(data: Foo) -> bool {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> bool {
+			return false
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"Foo.data: int"})
+}
