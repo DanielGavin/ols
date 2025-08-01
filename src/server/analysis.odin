@@ -3274,18 +3274,18 @@ get_generic_assignment :: proc(
 				if value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(value.return_types) == 1 {
 						if proc_type, ok := value.return_types[0].type.derived.(^Proc_Type); ok {
-							if len(proc_type.results.list) == 1 {
+							for return_item in proc_type.results.list {
 								get_generic_assignment(
 									file,
-									proc_type.results.list[0].type,
+									return_item.type,
 									ast_context,
 									results,
 									calls,
 									flags,
 									is_mutable,
 								)
-								return
 							}
+							return
 						}
 					}
 				}

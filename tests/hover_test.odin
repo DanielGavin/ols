@@ -3392,6 +3392,34 @@ ast_hover_returned_proc_call_parameter :: proc(t: ^testing.T) {
 		"test.a: bool",
 	)
 }
+
+@(test)
+ast_hover_returned_proc_call_parameter_multiple_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a, b{*} := foo()({})
+		}
+
+		foo :: proc() -> proc(data: Foo) -> (int, bool) {
+			return 1, bar
+		}
+
+		bar :: proc(data: Foo) -> bool {
+			return false
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.b: bool",
+	)
+}
 /*
 
 Waiting for odin fix
