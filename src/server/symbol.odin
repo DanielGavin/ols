@@ -361,8 +361,8 @@ write_struct_type :: proc(
 		resolve_poly_struct(ast_context, b, v.poly_params)
 	}
 
-	expand_usings(ast_context, b)
 	expand_objc(ast_context, b)
+	expand_usings(ast_context, b)
 }
 
 write_symbol_struct_value :: proc(
