@@ -551,7 +551,7 @@ write_struct_hover :: proc(ast_context: ^AstContext, sb: ^strings.Builder, v: Sy
 
 	for i in 0 ..< len(v.names) {
 		if i < len(v.from_usings) {
-			if index := v.from_usings[i]; index != using_index {
+			if index := v.from_usings[i]; index != using_index && index != -1 {
 				fmt.sbprintf(sb, "\n\t// from `using %s: ", v.names[index])
 				build_string_node(v.types[index], sb, false)
 				if backing_type, ok := v.backing_types[index]; ok {

@@ -2220,8 +2220,8 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		}
 
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)
-		expand_usings(ast_context, &b)
 		expand_objc(ast_context, &b)
+		expand_usings(ast_context, &b)
 		return to_symbol(b), ok
 	case SymbolGenericValue:
 		ret, ok := resolve_type_expression(ast_context, v.expr)
