@@ -3364,6 +3364,34 @@ ast_hover_overloaded_proc_with_u8_byte_alias :: proc(t: ^testing.T) {
 		"test.result: []u8",
 	)
 }
+
+@(test)
+ast_hover_returned_proc_call_parameter :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a{*} := foo()({})
+		}
+
+		foo :: proc() -> proc(data: Foo) -> bool {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> bool {
+			return false
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.a: bool",
+	)
+}
 /*
 
 Waiting for odin fix

@@ -3267,6 +3267,31 @@ get_generic_assignment :: proc(
 			}
 		}
 
+		// If we have a call expr followed immediately by another call expr, we want to return value
+		// of the second call. Eg a := foo()()
+		if _, ok := v.expr.derived.(^Call_Expr); ok {
+			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+				if value, ok := symbol.value.(SymbolProcedureValue); ok {
+					if len(value.return_types) == 1 {
+						if proc_type, ok := value.return_types[0].type.derived.(^Proc_Type); ok {
+							if len(proc_type.results.list) == 1 {
+								get_generic_assignment(
+									file,
+									proc_type.results.list[0].type,
+									ast_context,
+									results,
+									calls,
+									flags,
+									is_mutable,
+								)
+								return
+							}
+						}
+					}
+				}
+			}
+		}
+
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			#partial switch symbol_value in symbol.value {
