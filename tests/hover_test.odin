@@ -3448,7 +3448,7 @@ ast_hover_chained_call_expr_with_named_proc_return  :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_multipple_chained_call_expr  :: proc(t: ^testing.T) {
+ast_hover_multiple_chained_call_expr  :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct {

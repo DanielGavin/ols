@@ -1505,109 +1505,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	}
 
 	if local, ok := get_local(ast_context^, node); ok && (ast_context.use_locals || local.local_global) {
-		is_distinct := false
-
-		if local.parameter {
-			for imp in ast_context.imports {
-				if strings.compare(imp.base, node.name) == 0 {
-					symbol := Symbol {
-						type  = .Package,
-						pkg   = imp.name,
-						value = SymbolPackageValue{},
-					}
-
-					return symbol, true
-				}
-			}
-		}
-
-		if local.pkg != "" {
-			ast_context.current_package = local.pkg
-		}
-
-		//Sometimes the locals are semi resolved and can no longer use the locals
-		if local.resolved_global {
-			ast_context.use_locals = false
-		}
-
-		if dist, ok := local.rhs.derived.(^ast.Distinct_Type); ok {
-			if dist.type != nil {
-				local.rhs = dist.type
-				is_distinct = true
-			}
-		}
-
-		return_symbol: Symbol
-		ok: bool
-
-		#partial switch v in local.rhs.derived {
-		case ^Ident:
-			return_symbol, ok = internal_resolve_type_identifier(ast_context, v^)
-		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, {}), true
-			return_symbol.name = node.name
-		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Bit_Field_Type:
-			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
-			return_symbol.name = node.name
-		case ^Proc_Lit:
-			if is_procedure_generic(v.type) {
-				return_symbol, ok = resolve_generic_function(ast_context, v^)
-
-				if !ok && !ast_context.overloading {
-					return_symbol, ok =
-						make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining),
-						true
-				}
-			} else {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
-			}
-		case ^Proc_Group:
-			return_symbol, ok = resolve_function_overload(ast_context, v^)
-		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
-		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
-		case ^Matrix_Type:
-			return_symbol, ok = make_symbol_matrix_from_ast(ast_context, v^, node), true
-		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
-		case ^Basic_Lit:
-			return_symbol, ok = resolve_basic_lit(ast_context, v^)
-			return_symbol.name = node.name
-			return_symbol.type = local.variable ? .Variable : .Constant
-		case ^ast.Binary_Expr:
-			return_symbol, ok = resolve_binary_expression(ast_context, v)
-		case:
-			return_symbol, ok = internal_resolve_type_expression(ast_context, local.rhs)
-		}
-
-		if is_distinct {
-			return_symbol.name = node.name
-			return_symbol.flags |= {.Distinct}
-		}
-
-		if local.parameter {
-			return_symbol.flags |= {.Parameter}
-		}
-
-		if local.variable {
-			return_symbol.type = .Variable
-		}
-
-		return_symbol.flags |= {.Local}
-
-		return return_symbol, ok
-
+		return resolve_local_identifier(ast_context, node, &local)
 	}
 
 	for imp in ast_context.imports {
@@ -1641,120 +1539,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
-		is_distinct := false
-		ast_context.use_locals = false
-
-		if dist, ok := global.expr.derived.(^ast.Distinct_Type); ok {
-			if dist.type != nil {
-				global.expr = dist.type
-				is_distinct = true
-			}
-		}
-
-		return_symbol: Symbol
-		ok: bool
-
-		#partial switch v in global.expr.derived {
-		case ^Ident:
-			return_symbol, ok = internal_resolve_type_identifier(ast_context, v^)
-		case ^ast.Call_Expr:
-			old_call := ast_context.call
-			ast_context.call = cast(^Call_Expr)global.expr
-
-			defer {
-				ast_context.call = old_call
-			}
-
-			if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
-				return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
-				if len(return_types) > 0 {
-					return_symbol, ok = internal_resolve_type_expression(ast_context, return_types[0])
-				}
-				// Otherwise should be a parapoly style
-			}
-
-		case ^Struct_Type:
-			return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, global.attributes), true
-			return_symbol.name = node.name
-		case ^Bit_Set_Type:
-			return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Union_Type:
-			return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Enum_Type:
-			return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
-			return_symbol.name = node.name
-		case ^Bit_Field_Type:
-			return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
-			return_symbol.name = node.name
-		case ^Proc_Lit:
-			if is_procedure_generic(v.type) {
-				return_symbol, ok = resolve_generic_function(ast_context, v^)
-
-				//If we are not overloading just show the unresolved generic function
-				if !ok && !ast_context.overloading {
-					return_symbol, ok =
-						make_symbol_procedure_from_ast(
-							ast_context,
-							global.expr,
-							v.type^,
-							node,
-							global.attributes,
-							false,
-							v.inlining,
-						),
-						true
-				}
-			} else {
-				return_symbol, ok =
-					make_symbol_procedure_from_ast(
-						ast_context,
-						global.expr,
-						v.type^,
-						node,
-						global.attributes,
-						false,
-						v.inlining,
-					),
-					true
-			}
-		case ^Proc_Group:
-			return_symbol, ok = resolve_function_overload(ast_context, v^)
-		case ^Array_Type:
-			return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
-		case ^Dynamic_Array_Type:
-			return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
-		case ^Matrix_Type:
-			return_symbol, ok = make_symbol_matrix_from_ast(ast_context, v^, node), true
-		case ^Map_Type:
-			return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
-		case ^Basic_Lit:
-			return_symbol, ok = resolve_basic_lit(ast_context, v^)
-			return_symbol.name = node.name
-			return_symbol.type = global.mutable ? .Variable : .Constant
-		case:
-			return_symbol, ok = internal_resolve_type_expression(ast_context, global.expr)
-		}
-
-		if is_distinct {
-			return_symbol.name = node.name
-			return_symbol.flags |= {.Distinct}
-		}
-
-		if global.mutable {
-			return_symbol.type = .Variable
-		}
-
-		if global.docs != nil {
-			return_symbol.doc = get_doc(global.docs, ast_context.allocator)
-		}
-
-		if global.comment != nil {
-			return_symbol.comment = get_comment(global.comment)
-		}
-
-		return return_symbol, ok
+		return resolve_global_identifier(ast_context, node, &global)
 	} else {
 		switch node.name {
 		case "context":
@@ -1817,6 +1602,228 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	}
 
 	return Symbol{}, false
+}
+
+resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (Symbol, bool) {
+	is_distinct := false
+
+	if local.parameter {
+		for imp in ast_context.imports {
+			if strings.compare(imp.base, node.name) == 0 {
+				symbol := Symbol {
+					type  = .Package,
+					pkg   = imp.name,
+					value = SymbolPackageValue{},
+				}
+
+				return symbol, true
+			}
+		}
+	}
+
+	if local.pkg != "" {
+		ast_context.current_package = local.pkg
+	}
+
+	//Sometimes the locals are semi resolved and can no longer use the locals
+	if local.resolved_global {
+		ast_context.use_locals = false
+	}
+
+	if dist, ok := local.rhs.derived.(^ast.Distinct_Type); ok {
+		if dist.type != nil {
+			local.rhs = dist.type
+			is_distinct = true
+		}
+	}
+
+	return_symbol: Symbol
+	ok: bool
+
+	#partial switch v in local.rhs.derived {
+	case ^ast.Ident:
+		return_symbol, ok = internal_resolve_type_identifier(ast_context, v^)
+	case ^ast.Union_Type:
+		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Enum_Type:
+		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Struct_Type:
+		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, {}), true
+		return_symbol.name = node.name
+	case ^ast.Bit_Set_Type:
+		return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Bit_Field_Type:
+		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
+		return_symbol.name = node.name
+	case ^ast.Proc_Lit:
+		if is_procedure_generic(v.type) {
+			return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+			if !ok && !ast_context.overloading {
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining),
+					true
+			}
+		} else {
+			return_symbol, ok =
+				make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
+		}
+	case ^ast.Proc_Group:
+		return_symbol, ok = resolve_function_overload(ast_context, v^)
+	case ^ast.Array_Type:
+		return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
+	case ^ast.Dynamic_Array_Type:
+		return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+	case ^ast.Matrix_Type:
+		return_symbol, ok = make_symbol_matrix_from_ast(ast_context, v^, node), true
+	case ^ast.Map_Type:
+		return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
+	case ^ast.Basic_Lit:
+		return_symbol, ok = resolve_basic_lit(ast_context, v^)
+		return_symbol.name = node.name
+		return_symbol.type = local.variable ? .Variable : .Constant
+	case ^ast.Binary_Expr:
+		return_symbol, ok = resolve_binary_expression(ast_context, v)
+	case:
+		return_symbol, ok = internal_resolve_type_expression(ast_context, local.rhs)
+	}
+
+	if is_distinct {
+		return_symbol.name = node.name
+		return_symbol.flags |= {.Distinct}
+	}
+
+	if local.parameter {
+		return_symbol.flags |= {.Parameter}
+	}
+
+	if local.variable {
+		return_symbol.type = .Variable
+	}
+
+	return_symbol.flags |= {.Local}
+
+	return return_symbol, ok
+}
+
+resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, global: ^GlobalExpr) -> (Symbol, bool) {
+	is_distinct := false
+	ast_context.use_locals = false
+
+	if dist, ok := global.expr.derived.(^ast.Distinct_Type); ok {
+		if dist.type != nil {
+			global.expr = dist.type
+			is_distinct = true
+		}
+	}
+
+	return_symbol: Symbol
+	ok: bool
+
+	#partial switch v in global.expr.derived {
+	case ^ast.Ident:
+		return_symbol, ok = internal_resolve_type_identifier(ast_context, v^)
+	case ^ast.Call_Expr:
+		old_call := ast_context.call
+		ast_context.call = cast(^ast.Call_Expr)global.expr
+
+		defer {
+			ast_context.call = old_call
+		}
+
+		if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
+			return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
+			if len(return_types) > 0 {
+				return_symbol, ok = internal_resolve_type_expression(ast_context, return_types[0])
+			}
+			// Otherwise should be a parapoly style
+		}
+
+	case ^ast.Struct_Type:
+		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, global.attributes), true
+		return_symbol.name = node.name
+	case ^ast.Bit_Set_Type:
+		return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Union_Type:
+		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Enum_Type:
+		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+		return_symbol.name = node.name
+	case ^ast.Bit_Field_Type:
+		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
+		return_symbol.name = node.name
+	case ^ast.Proc_Lit:
+		if is_procedure_generic(v.type) {
+			return_symbol, ok = resolve_generic_function(ast_context, v^)
+
+			//If we are not overloading just show the unresolved generic function
+			if !ok && !ast_context.overloading {
+				return_symbol, ok =
+					make_symbol_procedure_from_ast(
+						ast_context,
+						global.expr,
+						v.type^,
+						node,
+						global.attributes,
+						false,
+						v.inlining,
+					),
+					true
+			}
+		} else {
+			return_symbol, ok =
+				make_symbol_procedure_from_ast(
+					ast_context,
+					global.expr,
+					v.type^,
+					node,
+					global.attributes,
+					false,
+					v.inlining,
+				),
+				true
+		}
+	case ^ast.Proc_Group:
+		return_symbol, ok = resolve_function_overload(ast_context, v^)
+	case ^ast.Array_Type:
+		return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
+	case ^ast.Dynamic_Array_Type:
+		return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+	case ^ast.Matrix_Type:
+		return_symbol, ok = make_symbol_matrix_from_ast(ast_context, v^, node), true
+	case ^ast.Map_Type:
+		return_symbol, ok = make_symbol_map_from_ast(ast_context, v^, node), true
+	case ^ast.Basic_Lit:
+		return_symbol, ok = resolve_basic_lit(ast_context, v^)
+		return_symbol.name = node.name
+		return_symbol.type = global.mutable ? .Variable : .Constant
+	case:
+		return_symbol, ok = internal_resolve_type_expression(ast_context, global.expr)
+	}
+
+	if is_distinct {
+		return_symbol.name = node.name
+		return_symbol.flags |= {.Distinct}
+	}
+
+	if global.mutable {
+		return_symbol.type = .Variable
+	}
+
+	if global.docs != nil {
+		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
+	}
+
+	if global.comment != nil {
+		return_symbol.comment = get_comment(global.comment)
+	}
+
+	return return_symbol, ok
 }
 
 struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (^ast.Struct_Type, bool) {
