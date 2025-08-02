@@ -695,7 +695,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 	candidates := make([dynamic]Candidate, context.temp_allocator)
 
 	for arg_expr in group.args {
-		next_fn: if f, ok := internal_resolve_type_expression(ast_context, arg_expr); ok {
+		f := Symbol{}
+		next_fn: if ok := internal_resolve_type_expression(ast_context, arg_expr, &f); ok {
 			candidate := Candidate {
 				symbol = f,
 				score  = 1,
@@ -934,7 +935,8 @@ get_proc_return_types :: proc(
 	if ret, ok := check_builtin_proc_return_type(ast_context, symbol, call, is_mutable); ok {
 		appended := false
 		if call, ok := ret.derived.(^ast.Call_Expr); ok {
-			if symbol, ok := internal_resolve_type_expression(ast_context, call.expr); ok {
+			symbol := Symbol{}
+			if ok := internal_resolve_type_expression(ast_context, call.expr, &symbol); ok {
 				return get_proc_return_types(ast_context, symbol, call, true)
 			}
 		}
@@ -1006,121 +1008,147 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
 	clear(&ast_context.recursion_map)
-	return internal_resolve_type_expression(ast_context, node)
+	symbol := Symbol{}
+	ok := internal_resolve_type_expression(ast_context, node, &symbol)
+	return symbol, ok
 }
 
-internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+// We use an out param for the symbol in this proc due to issues with the stack size
+//
+// See https://github.com/odin-lang/Odin/issues/5528
+internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr, out: ^Symbol) -> bool {
 	if node == nil {
-		return {}, false
+		return false
 	}
 
 	//Try to prevent stack overflows and prevent indexing out of bounds.
 	if ast_context.deferred_count >= DeferredDepth {
-		return {}, false
+		return false
 	}
 
 	set_ast_package_from_node_scoped(ast_context, node)
 
 	if check_node_recursion(ast_context, node) {
-		return {}, false
+		return false
 	}
 
 	using ast
+	ok := false
 
 	#partial switch v in node.derived {
 	case ^ast.Typeid_Type:
 		ident := new_type(ast.Ident, v.pos, v.end, context.temp_allocator)
 		ident.name = "typeid"
-		return make_symbol_basic_type_from_ast(ast_context, ident), true
+		out^, ok = make_symbol_basic_type_from_ast(ast_context, ident), true
+		return ok
 	case ^ast.Value_Decl:
 		if v.type != nil {
-			return internal_resolve_type_expression(ast_context, v.type)
+			return internal_resolve_type_expression(ast_context, v.type, out)
 		} else if len(v.values) > 0 {
-			return internal_resolve_type_expression(ast_context, v.values[0])
+			return internal_resolve_type_expression(ast_context, v.values[0], out)
 		}
 	case ^Union_Type:
-		return make_symbol_union_from_ast(ast_context, v^, ast_context.field_name, true), true
+		out^, ok = make_symbol_union_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return ok
 	case ^Enum_Type:
-		return make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name, true), true
+		out^, ok = make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return ok
 	case ^Struct_Type:
-		return make_symbol_struct_from_ast(ast_context, v, ast_context.field_name, {}, true), true
+		out^, ok = make_symbol_struct_from_ast(ast_context, v, ast_context.field_name, {}, true), true
+		return ok
 	case ^Bit_Set_Type:
-		return make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
+		out^, ok = make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
+		return ok
 	case ^Array_Type:
-		return make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
+		out^, ok = make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
 	case ^Matrix_Type:
-		return make_symbol_matrix_from_ast(ast_context, v^, ast_context.field_name), true
+		out^, ok = make_symbol_matrix_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
 	case ^Dynamic_Array_Type:
-		return make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
+		out^, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
 	case ^Multi_Pointer_Type:
-		return make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
+		out^, ok = make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
 	case ^Map_Type:
-		return make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
+		out^, ok = make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
 	case ^Proc_Type:
-		return make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true, .None), true
+		out^, ok = make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true, .None), true
+		return ok
 	case ^Bit_Field_Type:
-		return make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name, true), true
+		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name, true), true
+		return ok
 	case ^Basic_Directive:
-		return resolve_basic_directive(ast_context, v^)
+		out^, ok = resolve_basic_directive(ast_context, v^)
+		return ok
 	case ^Binary_Expr:
-		return resolve_binary_expression(ast_context, v)
+		out^, ok = resolve_binary_expression(ast_context, v)
+		return ok
 	case ^Ident:
 		delete_key(&ast_context.recursion_map, v)
-		return internal_resolve_type_identifier(ast_context, v^)
+		out^, ok = internal_resolve_type_identifier(ast_context, v^)
+		return ok
 	case ^Basic_Lit:
-		return resolve_basic_lit(ast_context, v^)
+		out^, ok = resolve_basic_lit(ast_context, v^)
+		return ok
 	case ^Type_Cast:
-		return internal_resolve_type_expression(ast_context, v.type)
+		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Auto_Cast:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return internal_resolve_type_expression(ast_context, v.expr, out)
 	case ^Comp_Lit:
-		return internal_resolve_type_expression(ast_context, v.type)
+		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Unary_Expr:
 		if v.op.kind == .And {
-			symbol, ok := internal_resolve_type_expression(ast_context, v.expr)
-			symbol.pointers += 1
-			return symbol, ok
+			ok := internal_resolve_type_expression(ast_context, v.expr, out)
+			out.pointers += 1
+			return ok
 		} else {
-			return internal_resolve_type_expression(ast_context, v.expr)
+			return internal_resolve_type_expression(ast_context, v.expr, out)
 		}
 	case ^Deref_Expr:
-		symbol, ok := internal_resolve_type_expression(ast_context, v.expr)
-		symbol.pointers -= 1
-		return symbol, ok
+		ok := internal_resolve_type_expression(ast_context, v.expr, out)
+		out.pointers -= 1
+		return ok
 	case ^Paren_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return internal_resolve_type_expression(ast_context, v.expr, out)
 	case ^Slice_Expr:
-		return resolve_slice_expression(ast_context, v)
+		out^, ok = resolve_slice_expression(ast_context, v)
+		return ok
 	case ^Tag_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return internal_resolve_type_expression(ast_context, v.expr, out)
 	case ^Helper_Type:
-		return internal_resolve_type_expression(ast_context, v.type)
+		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Ellipsis:
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return internal_resolve_type_expression(ast_context, v.expr, out)
 	case ^Implicit:
 		ident := new_type(Ident, v.node.pos, v.node.end, ast_context.allocator)
 		ident.name = v.tok.text
-		return internal_resolve_type_identifier(ast_context, ident^)
+		out^, ok = internal_resolve_type_identifier(ast_context, ident^)
+		return ok
 	case ^Type_Assertion:
-		return resolve_type_assertion_expr(ast_context, v)
+		out^, ok = resolve_type_assertion_expr(ast_context, v)
+		return ok
 	case ^Proc_Lit:
 		if v.type.results != nil {
 			if len(v.type.results.list) > 0 {
-				return internal_resolve_type_expression(ast_context, v.type.results.list[0].type)
+				return internal_resolve_type_expression(ast_context, v.type.results.list[0].type, out)
 			}
 		}
 	case ^Pointer_Type:
-		symbol, ok := internal_resolve_type_expression(ast_context, v.elem)
-		symbol.pointers += 1
-		return symbol, ok
+		ok := internal_resolve_type_expression(ast_context, v.elem, out)
+		out.pointers += 1
+		return ok
 	case ^Matrix_Index_Expr:
-		if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
-			if mat, ok := symbol.value.(SymbolMatrixValue); ok {
-				return internal_resolve_type_expression(ast_context, mat.expr)
+		if ok := internal_resolve_type_expression(ast_context, v.expr, out); ok {
+			if mat, ok := out.value.(SymbolMatrixValue); ok {
+				return internal_resolve_type_expression(ast_context, mat.expr, out)
 			}
 		}
 	case ^Index_Expr:
-		return resolve_index_expr(ast_context, v)
+		out^, ok = resolve_index_expr(ast_context, v)
+		return ok
 	case ^Call_Expr:
 		old_call := ast_context.call
 		ast_context.call = cast(^Call_Expr)node
@@ -1128,36 +1156,42 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		defer {
 			ast_context.call = old_call
 		}
-		return resolve_call_expr(ast_context, v)
+		out^, ok = resolve_call_expr(ast_context, v)
+		return ok
 	case ^Selector_Call_Expr:
-		return resolve_selector_call_expr(ast_context, v)
+		out^, ok = resolve_selector_call_expr(ast_context, v)
+		return ok
 	case ^Selector_Expr:
-		return resolve_selector_expression(ast_context, v)
+		out^, ok = resolve_selector_expression(ast_context, v)
+		return ok
 	case ^ast.Poly_Type:
 		if v.specialization != nil {
-			return internal_resolve_type_expression(ast_context, v.specialization)
+			return internal_resolve_type_expression(ast_context, v.specialization, out)
 		}
 
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
 	}
 
-	return Symbol{}, false
+	return false
 }
 
 resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbol, bool) {
+	symbol := Symbol{}
 	if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
 		switch ident.name {
 		case "type_of":
 			ast_context.call = nil
-			return internal_resolve_type_expression(ast_context, v.args[0])
+			ok = internal_resolve_type_expression(ast_context, v.args[0], &symbol)
+			return symbol, ok
 		}
 	} else if call, ok := v.expr.derived.(^ast.Call_Expr); ok {
 		// handle the case where we immediately call a proc returned by another proc
-		if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+		if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
 				if len(value.return_types) == 1 {
-					return internal_resolve_type_expression(ast_context, value.return_types[0].type)
+					ok = internal_resolve_type_expression(ast_context, value.return_types[0].type, &symbol)
+					return symbol, ok
 				}
 			}
 			return symbol, ok
@@ -1166,11 +1200,13 @@ resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbo
 		}
 	}
 
-	return internal_resolve_type_expression(ast_context, v.expr)
+	ok := internal_resolve_type_expression(ast_context, v.expr, &symbol)
+	return symbol, ok
 }
 
 resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Symbol, bool) {
-	indexed, ok := internal_resolve_type_expression(ast_context, v.expr)
+	indexed := Symbol{}
+	ok := internal_resolve_type_expression(ast_context, v.expr, &indexed)
 
 	if !ok {
 		return {}, false
@@ -1182,15 +1218,15 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 
 	#partial switch v2 in indexed.value {
 	case SymbolDynamicArrayValue:
-		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
 	case SymbolSliceValue:
-		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
 	case SymbolFixedArrayValue:
-		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
 	case SymbolMapValue:
-		symbol, ok = internal_resolve_type_expression(ast_context, v2.value)
+		ok = internal_resolve_type_expression(ast_context, v2.value, &symbol)
 	case SymbolMultiPointerValue:
-		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
 	}
 
 
@@ -1200,7 +1236,8 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 }
 
 resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Call_Expr) -> (Symbol, bool) {
-	if selector, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+	selector := Symbol{}
+	if ok := internal_resolve_type_expression(ast_context, v.expr, &selector); ok {
 		ast_context.use_locals = false
 
 		set_ast_package_from_symbol_scoped(ast_context, selector)
@@ -1208,7 +1245,9 @@ resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Ca
 		#partial switch s in selector.value {
 		case SymbolProcedureValue:
 			if len(s.return_types) == 1 {
-				return internal_resolve_type_expression(ast_context, s.return_types[0].type)
+				symbol := Symbol{}
+				ok := internal_resolve_type_expression(ast_context, s.return_types[0].type, &symbol)
+				return symbol, ok
 			}
 		}
 
@@ -1218,30 +1257,34 @@ resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Ca
 }
 
 resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Assertion) -> (Symbol, bool) {
+	symbol := Symbol{}
 	if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
 		if unary.op.kind == .Question {
-			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+			if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
 				//To handle type assertions for unions, i.e. my_maybe_variable.?
 				if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 					if len(union_value.types) != 1 {
 						return {}, false
 					}
-					return internal_resolve_type_expression(ast_context, union_value.types[0])
+					ok = internal_resolve_type_expression(ast_context, union_value.types[0], &symbol)
+					return symbol, ok
 				} else if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					//To handle type assertions for unions returned from procedures, i.e: my_function().?
 					if len(proc_value.return_types) != 1 || proc_value.return_types[0].type == nil {
 						return {}, false
 					}
 
-					if symbol, ok := internal_resolve_type_expression(
+					if ok := internal_resolve_type_expression(
 						ast_context,
 						proc_value.return_types[0].type,
+						&symbol,
 					); ok {
 						if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 							if len(union_value.types) != 1 {
 								return {}, false
 							}
-							return internal_resolve_type_expression(ast_context, union_value.types[0])
+							ok = internal_resolve_type_expression(ast_context, union_value.types[0], &symbol)
+							return symbol, ok
 						}
 					}
 				}
@@ -1249,15 +1292,18 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 			}
 		}
 	}
-	return internal_resolve_type_expression(ast_context, v.type)
+	ok := internal_resolve_type_expression(ast_context, v.type, &symbol)
+	return symbol, ok
 }
 
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
-	if selector, ok := internal_resolve_type_expression(ast_context, node.expr); ok {
+	selector := Symbol{}
+	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
 		ast_context.use_locals = false
 
 		set_ast_package_from_symbol_scoped(ast_context, selector)
 
+		symbol := Symbol{}
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
 			components_count := 0
@@ -1276,7 +1322,7 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			if components_count == 1 {
 				set_ast_package_from_symbol_scoped(ast_context, selector)
 
-				symbol, ok := internal_resolve_type_expression(ast_context, s.expr)
+				ok := internal_resolve_type_expression(ast_context, s.expr, &symbol)
 				symbol.type = .Variable
 				return symbol, ok
 			} else {
@@ -1298,14 +1344,15 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				)
 				selector_expr.expr = s.return_types[0].type
 				selector_expr.field = node.field
-				return internal_resolve_type_expression(ast_context, selector_expr)
+				ok := internal_resolve_type_expression(ast_context, selector_expr, &symbol)
+				return symbol, ok
 			}
 		case SymbolStructValue:
 			for name, i in s.names {
 				if node.field != nil && name == node.field.name {
 					set_ast_package_from_node_scoped(ast_context, s.types[i])
 					ast_context.field_name = node.field^
-					symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
+					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
 					symbol.type = .Variable
 					return symbol, ok
 				}
@@ -1314,7 +1361,7 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			for name, i in s.names {
 				if node.field != nil && name == node.field.name {
 					ast_context.field_name = node.field^
-					symbol, ok := internal_resolve_type_expression(ast_context, s.types[i])
+					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
 					symbol.type = .Variable
 					return symbol, ok
 				}
@@ -1688,7 +1735,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	case ^ast.Binary_Expr:
 		return_symbol, ok = resolve_binary_expression(ast_context, v)
 	case:
-		return_symbol, ok = internal_resolve_type_expression(ast_context, local.rhs)
+		ok = internal_resolve_type_expression(ast_context, local.rhs, &return_symbol)
 	}
 
 	if is_distinct {
@@ -1734,10 +1781,10 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 			ast_context.call = old_call
 		}
 
-		if return_symbol, ok = internal_resolve_type_expression(ast_context, v.expr); ok {
+		if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
 			return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
 			if len(return_types) > 0 {
-				return_symbol, ok = internal_resolve_type_expression(ast_context, return_types[0])
+				ok = internal_resolve_type_expression(ast_context, return_types[0], &return_symbol)
 			}
 			// Otherwise should be a parapoly style
 		}
@@ -1803,7 +1850,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		return_symbol.name = node.name
 		return_symbol.type = global.mutable ? .Variable : .Constant
 	case:
-		return_symbol, ok = internal_resolve_type_expression(ast_context, global.expr)
+		ok = internal_resolve_type_expression(ast_context, global.expr, &return_symbol)
 	}
 
 	if is_distinct {
@@ -3292,7 +3339,8 @@ get_generic_assignment :: proc(
 		// If we have a call expr followed immediately by another call expr, we want to return value
 		// of the second call. Eg a := foo()()
 		if _, ok := v.expr.derived.(^Call_Expr); ok {
-			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+			symbol := Symbol{}
+			if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
 				if value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(value.return_types) == 1 {
 						if proc_type, ok := value.return_types[0].type.derived.(^Proc_Type); ok {
@@ -3309,7 +3357,7 @@ get_generic_assignment :: proc(
 							}
 							return
 						} else if ident, ok := value.return_types[0].type.derived.(^ast.Ident); ok {
-							if symbol, ok := internal_resolve_type_expression(ast_context, ident); ok {
+							if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
 								if value, ok := symbol.value.(SymbolProcedureValue); ok {
 									for return_item in value.return_types {
 										get_generic_assignment(
