@@ -3364,6 +3364,114 @@ ast_hover_overloaded_proc_with_u8_byte_alias :: proc(t: ^testing.T) {
 		"test.result: []u8",
 	)
 }
+
+@(test)
+ast_hover_chained_proc_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a{*} := foo()({})
+		}
+
+		foo :: proc() -> proc(data: Foo) -> bool {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> bool {
+			return false
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.a: bool",
+	)
+}
+
+@(test)
+ast_hover_chained_proc_call_multiple_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a, b{*} := foo()({})
+		}
+
+		foo :: proc() -> proc(data: Foo) -> (int, bool) {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> (int, bool) {
+			return 1, false
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.b: bool",
+	)
+}
+
+@(test)
+ast_hover_chained_call_expr_with_named_proc_return  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a, b{*} := foo()({})
+		}
+
+		Bar :: proc(data: Foo) -> (bool, Foo)
+
+		foo :: proc() -> Bar {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> (bool, Foo) {
+			return false, data
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: test.Foo :: struct {\n\tsomeData: int,\n}")
+}
+
+@(test)
+ast_hover_multiple_chained_call_expr  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		Bazz :: struct {
+			bazz: string,
+		}
+
+		main :: proc() {
+			a{*} := foo()({})({})
+		}
+
+		Bar :: proc(data: Foo) -> Bar2
+
+		Bar2 :: proc(bazz: Bazz) -> int
+
+		foo :: proc() -> Bar {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.a: int")
+}
 /*
 
 Waiting for odin fix
