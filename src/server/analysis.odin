@@ -1102,39 +1102,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ident.name = v.tok.text
 		return internal_resolve_type_identifier(ast_context, ident^)
 	case ^Type_Assertion:
-		if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
-			if unary.op.kind == .Question {
-				if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
-					//To handle type assertions for unions, i.e. my_maybe_variable.?
-					if union_value, ok := symbol.value.(SymbolUnionValue); ok {
-						if len(union_value.types) != 1 {
-							return {}, false
-						}
-						return internal_resolve_type_expression(ast_context, union_value.types[0])
-					} else if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-						//To handle type assertions for unions returned from procedures, i.e: my_function().?
-						if len(proc_value.return_types) != 1 || proc_value.return_types[0].type == nil {
-							return {}, false
-						}
-
-						if symbol, ok := internal_resolve_type_expression(
-							ast_context,
-							proc_value.return_types[0].type,
-						); ok {
-							if union_value, ok := symbol.value.(SymbolUnionValue); ok {
-								if len(union_value.types) != 1 {
-									return {}, false
-								}
-								return internal_resolve_type_expression(ast_context, union_value.types[0])
-							}
-						}
-					}
-
-				}
-			}
-		} else {
-			return internal_resolve_type_expression(ast_context, v.type)
-		}
+		return resolve_type_assertion_expr(ast_context, v)
 	case ^Proc_Lit:
 		if v.type.results != nil {
 			if len(v.type.results.list) > 0 {
@@ -1152,33 +1120,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			}
 		}
 	case ^Index_Expr:
-		indexed, ok := internal_resolve_type_expression(ast_context, v.expr)
-
-		if !ok {
-			return {}, false
-		}
-
-		set_ast_package_set_scoped(ast_context, indexed.pkg)
-
-		symbol: Symbol
-
-		#partial switch v2 in indexed.value {
-		case SymbolDynamicArrayValue:
-			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
-		case SymbolSliceValue:
-			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
-		case SymbolFixedArrayValue:
-			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
-		case SymbolMapValue:
-			symbol, ok = internal_resolve_type_expression(ast_context, v2.value)
-		case SymbolMultiPointerValue:
-			symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
-		}
-
-
-		symbol.type = indexed.type
-
-		return symbol, ok
+		return resolve_index_expr(ast_context, v)
 	case ^Call_Expr:
 		old_call := ast_context.call
 		ast_context.call = cast(^Call_Expr)node
@@ -1186,43 +1128,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		defer {
 			ast_context.call = old_call
 		}
-
-		if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
-			switch ident.name {
-			case "type_of":
-				ast_context.call = nil
-				return internal_resolve_type_expression(ast_context, v.args[0])
-			}
-		} else if call, ok := v.expr.derived.(^ast.Call_Expr); ok {
-			// handle the case where we immediately call a proc returned by another proc
-			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
-				if value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(value.return_types) == 1 {
-						return internal_resolve_type_expression(ast_context, value.return_types[0].type)
-					}
-				}
-				return symbol, ok
-			} else {
-				return {}, false
-			}
-		}
-
-		return internal_resolve_type_expression(ast_context, v.expr)
+		return resolve_call_expr(ast_context, v)
 	case ^Selector_Call_Expr:
-		if selector, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
-			ast_context.use_locals = false
-
-			set_ast_package_from_symbol_scoped(ast_context, selector)
-
-			#partial switch s in selector.value {
-			case SymbolProcedureValue:
-				if len(s.return_types) == 1 {
-					return internal_resolve_type_expression(ast_context, s.return_types[0].type)
-				}
-			}
-
-			return selector, true
-		}
+		return resolve_selector_call_expr(ast_context, v)
 	case ^Selector_Expr:
 		return resolve_selector_expression(ast_context, v)
 	case ^ast.Poly_Type:
@@ -1235,6 +1143,113 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	}
 
 	return Symbol{}, false
+}
+
+resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbol, bool) {
+	if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
+		switch ident.name {
+		case "type_of":
+			ast_context.call = nil
+			return internal_resolve_type_expression(ast_context, v.args[0])
+		}
+	} else if call, ok := v.expr.derived.(^ast.Call_Expr); ok {
+		// handle the case where we immediately call a proc returned by another proc
+		if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+			if value, ok := symbol.value.(SymbolProcedureValue); ok {
+				if len(value.return_types) == 1 {
+					return internal_resolve_type_expression(ast_context, value.return_types[0].type)
+				}
+			}
+			return symbol, ok
+		} else {
+			return {}, false
+		}
+	}
+
+	return internal_resolve_type_expression(ast_context, v.expr)
+}
+
+resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Symbol, bool) {
+	indexed, ok := internal_resolve_type_expression(ast_context, v.expr)
+
+	if !ok {
+		return {}, false
+	}
+
+	set_ast_package_set_scoped(ast_context, indexed.pkg)
+
+	symbol: Symbol
+
+	#partial switch v2 in indexed.value {
+	case SymbolDynamicArrayValue:
+		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+	case SymbolSliceValue:
+		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+	case SymbolFixedArrayValue:
+		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+	case SymbolMapValue:
+		symbol, ok = internal_resolve_type_expression(ast_context, v2.value)
+	case SymbolMultiPointerValue:
+		symbol, ok = internal_resolve_type_expression(ast_context, v2.expr)
+	}
+
+
+	symbol.type = indexed.type
+
+	return symbol, ok
+}
+
+resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Call_Expr) -> (Symbol, bool) {
+	if selector, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+		ast_context.use_locals = false
+
+		set_ast_package_from_symbol_scoped(ast_context, selector)
+
+		#partial switch s in selector.value {
+		case SymbolProcedureValue:
+			if len(s.return_types) == 1 {
+				return internal_resolve_type_expression(ast_context, s.return_types[0].type)
+			}
+		}
+
+		return selector, true
+	}
+	return {}, false
+}
+
+resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Assertion) -> (Symbol, bool) {
+	if unary, ok := v.type.derived.(^ast.Unary_Expr); ok {
+		if unary.op.kind == .Question {
+			if symbol, ok := internal_resolve_type_expression(ast_context, v.expr); ok {
+				//To handle type assertions for unions, i.e. my_maybe_variable.?
+				if union_value, ok := symbol.value.(SymbolUnionValue); ok {
+					if len(union_value.types) != 1 {
+						return {}, false
+					}
+					return internal_resolve_type_expression(ast_context, union_value.types[0])
+				} else if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
+					//To handle type assertions for unions returned from procedures, i.e: my_function().?
+					if len(proc_value.return_types) != 1 || proc_value.return_types[0].type == nil {
+						return {}, false
+					}
+
+					if symbol, ok := internal_resolve_type_expression(
+						ast_context,
+						proc_value.return_types[0].type,
+					); ok {
+						if union_value, ok := symbol.value.(SymbolUnionValue); ok {
+							if len(union_value.types) != 1 {
+								return {}, false
+							}
+							return internal_resolve_type_expression(ast_context, union_value.types[0])
+						}
+					}
+				}
+
+			}
+		}
+	}
+	return internal_resolve_type_expression(ast_context, v.type)
 }
 
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
@@ -1442,7 +1457,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 	return internal_resolve_type_identifier(ast_context, node)
 }
 
-internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (_symbol: Symbol, _ok: bool) {
+internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	using ast
 
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
