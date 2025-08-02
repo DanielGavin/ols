@@ -3366,7 +3366,7 @@ ast_hover_overloaded_proc_with_u8_byte_alias :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_returned_proc_call_parameter :: proc(t: ^testing.T) {
+ast_hover_chained_proc_call :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct {
@@ -3394,7 +3394,7 @@ ast_hover_returned_proc_call_parameter :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_returned_proc_call_parameter_multiple_return :: proc(t: ^testing.T) {
+ast_hover_chained_proc_call_multiple_return :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct {
@@ -3406,11 +3406,11 @@ ast_hover_returned_proc_call_parameter_multiple_return :: proc(t: ^testing.T) {
 		}
 
 		foo :: proc() -> proc(data: Foo) -> (int, bool) {
-			return 1, bar
+			return bar
 		}
 
-		bar :: proc(data: Foo) -> bool {
-			return false
+		bar :: proc(data: Foo) -> (int, bool) {
+			return 1, false
 		}
 		`,
 	}
@@ -3419,6 +3419,58 @@ ast_hover_returned_proc_call_parameter_multiple_return :: proc(t: ^testing.T) {
 		&source,
 		"test.b: bool",
 	)
+}
+
+@(test)
+ast_hover_chained_call_expr_with_named_proc_return  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		main :: proc() {
+			a, b{*} := foo()({})
+		}
+
+		Bar :: proc(data: Foo) -> (bool, Foo)
+
+		foo :: proc() -> Bar {
+			return bar
+		}
+
+		bar :: proc(data: Foo) -> (bool, Foo) {
+			return false, data
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: test.Foo :: struct {\n\tsomeData: int,\n}")
+}
+
+@(test)
+ast_hover_multipple_chained_call_expr  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		Bazz :: struct {
+			bazz: string,
+		}
+
+		main :: proc() {
+			a{*} := foo()({})({})
+		}
+
+		Bar :: proc(data: Foo) -> Bar2
+
+		Bar2 :: proc(bazz: Bazz) -> int
+
+		foo :: proc() -> Bar {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.a: int")
 }
 /*
 

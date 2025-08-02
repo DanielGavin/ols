@@ -4175,7 +4175,7 @@ ast_completion_union_with_poly_from_package :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completion_proc_call_param_returned_from_proc :: proc(t: ^testing.T) {
+ast_completion_chained_proc_call_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct {
@@ -4196,4 +4196,30 @@ ast_completion_proc_call_param_returned_from_proc :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_completion_docs( t, &source, "", {"Foo.data: int"})
+}
+
+@(test)
+ast_completion_multiple_chained_call_expr  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			someData: int,
+		}
+
+		Bazz :: struct {
+			bazz: string,
+		}
+
+		main :: proc() {
+			a := foo()({})({{*}})
+		}
+
+		Bar :: proc(data: Foo) -> Bar2
+
+		Bar2 :: proc(bazz: Bazz) -> int
+
+		foo :: proc() -> Bar {}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"Bazz.bazz: string"})
 }

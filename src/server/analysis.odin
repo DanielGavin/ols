@@ -3301,6 +3301,22 @@ get_generic_assignment :: proc(
 								)
 							}
 							return
+						} else if ident, ok := value.return_types[0].type.derived.(^ast.Ident); ok {
+							if symbol, ok := internal_resolve_type_expression(ast_context, ident); ok {
+								if value, ok := symbol.value.(SymbolProcedureValue); ok {
+									for return_item in value.return_types {
+										get_generic_assignment(
+											file,
+											return_item.type,
+											ast_context,
+											results,
+											calls,
+											flags,
+											is_mutable,
+										)
+									}
+								}
+							}
 						}
 					}
 				}
