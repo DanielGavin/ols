@@ -1054,29 +1054,7 @@ get_implicit_completion :: proc(
 					if s, ok := comp_symbol.value.(SymbolStructValue); ok {
 						set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
-						//We can either have the final 
-						elem_index := -1
-
-						for elem, i in comp_lit.elems {
-							if position_in_node(elem, position_context.position) {
-								elem_index = i
-							}
-						}
-
-						type: ^ast.Expr
-
-						for name, i in s.names {
-							if name != field_name {
-								continue
-							}
-
-							type = s.types[i]
-							break
-						}
-
-						if type == nil && len(s.types) > elem_index && elem_index != -1 {
-							type = s.types[elem_index]
-						}
+						type := get_struct_comp_lit_type(position_context, comp_lit, s, field_name)
 
 						if enum_value, ok := unwrap_enum(ast_context, type); ok {
 							for enum_name in enum_value.names {
@@ -1357,6 +1335,55 @@ get_implicit_completion :: proc(
 		}
 	}
 	return is_incomplete
+}
+
+get_struct_comp_lit_type :: proc(
+	position_context: ^DocumentPositionContext,
+	comp_lit: ^ast.Comp_Lit,
+	s: SymbolStructValue,
+	field_name: string,
+) -> ^ast.Expr {
+	elem_index := -1
+
+	for elem, i in comp_lit.elems {
+		if position_in_node(elem, position_context.position) {
+			elem_index = i
+			if field_value, ok := elem.derived.(^ast.Field_Value); ok {
+				// If our field is another comp_lit, check to see if we're actually in that one
+				if cl, ok := field_value.value.derived.(^ast.Comp_Lit); ok {
+					if type :=  get_struct_comp_lit_type(
+						position_context,
+						cl,
+						s,
+						field_name,
+					); type != nil {
+						return type
+					}
+				}
+			}
+		}
+	}
+
+	if elem_index == -1 {
+		return nil
+	}
+
+	type: ^ast.Expr
+
+	for name, i in s.names {
+		if name != field_name {
+			continue
+		}
+
+		type = s.types[i]
+		break
+	}
+
+	if type == nil && len(s.types) > elem_index && elem_index != -1 {
+		type = s.types[elem_index]
+	}
+
+	return type
 }
 
 get_identifier_completion :: proc(

@@ -4223,3 +4223,39 @@ ast_completion_multiple_chained_call_expr  :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"Bazz.bazz: string"})
 }
+
+@(test)
+ast_completion_nested_struct_with_enum_fields_unnamed  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo1 :: enum {
+			A, B,
+		}
+
+		Foo2 :: enum {
+			C, D,
+		}
+
+		Foo3 :: struct {
+			foo3: string,
+		}
+
+		Bar :: struct {
+			foo1: Foo1,
+			foo2: Foo2,
+			foo3: Foo3,
+		}
+
+		Bazz :: struct {
+			bar: Bar,
+		}
+
+		main :: proc() {
+			bazz := Bazz {
+				bar = {.A, .{*}, {}}
+			}
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"C", "D"}, {"A", "B"})
+}
