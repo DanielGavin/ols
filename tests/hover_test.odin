@@ -3472,6 +3472,106 @@ ast_hover_multiple_chained_call_expr  :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.a: int")
 }
+
+@(test)
+ast_hover_enum_field_documentation :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: enum {
+			A = 1, // this is a comment for A
+			// This is a doc for B
+			// across many lines
+			B,
+			C,
+			// D Doc
+			D,
+			E, // E comment
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: enum {\n\tA = 1, // this is a comment for A\n\t// This is a doc for B\n\t// across many lines\n\tB,\n\tC,\n\t// D Doc\n\tD,\n\tE, // E comment\n}"
+	)
+}
+
+@(test)
+ast_hover_enum_field_documentation_same_line :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: enum {
+			// Doc for A and B
+			// Mulitple lines!
+			A, B, // comment for A and B
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: enum {\n\t// Doc for A and B\n\t// Mulitple lines!\n\tA, // comment for A and B\n\t// Doc for A and B\n\t// Mulitple lines!\n\tB, // comment for A and B\n}"
+	)
+}
+
+@(test)
+ast_hover_enum_field_directly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			// Doc for A and B
+			// Mulitple lines!
+			A{*}, B, // comment for A and B
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: .A\n Doc for A and B\n Mulitple lines!\n\n// comment for A and B"
+	)
+}
+
+@(test)
+ast_hover_union_field_documentation :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: union {
+			int, // this is a comment for int
+			// This is a doc for string
+			// across many lines
+			string,
+			i16,
+			// i32 Doc
+			i32,
+			i64, // i64 comment
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: union {\n\tint, // this is a comment for int\n\t// This is a doc for string\n\t// across many lines\n\tstring,\n\ti16,\n\t// i32 Doc\n\ti32,\n\ti64, // i64 comment\n}"
+	)
+}
+
+@(test)
+ast_hover_union_field_documentation_same_line :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: union {
+			// Doc for int and string
+			// Mulitple lines!
+			int, string, // comment for int and string
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: union {\n\t// Doc for int and string\n\t// Mulitple lines!\n\tint, // comment for int and string\n\t// Doc for int and string\n\t// Mulitple lines!\n\tstring, // comment for int and string\n}"
+	)
+}
 /*
 
 Waiting for odin fix

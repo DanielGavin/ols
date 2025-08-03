@@ -77,12 +77,16 @@ SymbolEnumValue :: struct {
 	values:    []^ast.Expr,
 	base_type: ^ast.Expr,
 	ranges:    []common.Range,
+	docs:      []^ast.Comment_Group,
+	comments:  []^ast.Comment_Group,
 }
 
 SymbolUnionValue :: struct {
 	types:      []^ast.Expr,
 	poly:       ^ast.Field_List,
 	poly_names: []string,
+	docs:       []^ast.Comment_Group,
+	comments:   []^ast.Comment_Group,
 }
 
 SymbolDynamicArrayValue :: struct {
@@ -793,7 +797,7 @@ construct_bit_field_field_symbol :: proc(symbol: ^Symbol, parent_name: string, v
 
 construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, index: int) {
 	symbol.type = .Field
-	//symbol.doc = get_doc(value.docs[index], context.temp_allocator)
-	//symbol.comment = get_comment(value.comments[index])
+	symbol.doc = get_doc(value.docs[index], context.temp_allocator)
+	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_enum_field_signature(value, index)
 }

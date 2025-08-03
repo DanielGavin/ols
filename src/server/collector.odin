@@ -135,7 +135,7 @@ collect_struct_fields :: proc(
 	file: ast.File,
 ) -> SymbolStructValue {
 	b := symbol_struct_value_builder_make(collection.allocator)
-	construct_struct_field_docs(file, struct_type)
+	construct_struct_field_docs(file, struct_type, collection.allocator)
 
 	for field in struct_type.fields.list {
 		for n in field.names {
@@ -174,7 +174,7 @@ collect_bit_field_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
-	construct_bit_field_field_docs(file, bit_field_type)
+	construct_bit_field_field_docs(file, bit_field_type, collection.allocator)
 	names := make([dynamic]string, 0, len(bit_field_type.fields), collection.allocator)
 	types := make([dynamic]^ast.Expr, 0, len(bit_field_type.fields), collection.allocator)
 	ranges := make([dynamic]common.Range, 0, len(bit_field_type.fields), collection.allocator)
@@ -227,11 +227,17 @@ collect_enum_fields :: proc(
 		append(&values, clone_type(value, collection.allocator, &collection.unique_strings))
 	}
 
+	temp_docs, temp_comments := get_field_docs_and_comments(file, enum_type.fields, context.temp_allocator)
+	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
+	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
+
 	value := SymbolEnumValue {
 		names     = names[:],
 		ranges    = ranges[:],
 		values    = values[:],
 		base_type = clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings),
+		comments  = comments[:],
+		docs      = docs[:],
 	}
 
 	return value
@@ -241,6 +247,7 @@ collect_union_fields :: proc(
 	collection: ^SymbolCollection,
 	union_type: ast.Union_Type,
 	package_map: map[string]string,
+	file: ast.File,
 ) -> SymbolUnionValue {
 	types := make([dynamic]^ast.Expr, 0, collection.allocator)
 
@@ -250,9 +257,15 @@ collect_union_fields :: proc(
 		append(&types, cloned)
 	}
 
+	temp_docs, temp_comments := get_field_docs_and_comments(file, union_type.variants, context.temp_allocator)
+	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
+	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
+
 	value := SymbolUnionValue {
-		types = types[:],
-		poly  = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
+		types    = types[:],
+		poly     = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
+		comments = comments[:],
+		docs     = docs[:],
 	}
 
 	return value
@@ -561,7 +574,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Union_Type:
 			token = v^
 			token_type = .Union
-			symbol.value = collect_union_fields(collection, v^, package_map)
+			symbol.value = collect_union_fields(collection, v^, package_map, file)
 			symbol.signature = "union"
 		case ^ast.Bit_Set_Type:
 			token = v^
@@ -633,7 +646,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.type = token_type
 		symbol.doc = get_doc(expr.docs, collection.allocator)
 		symbol.uri = get_index_unique_string(collection, uri)
-		comment := get_file_comment(file, symbol.range.start.line + 1)
+		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
 		symbol.flags |= {.Distinct}
 

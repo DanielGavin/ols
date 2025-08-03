@@ -1274,11 +1274,8 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 						return {}, false
 					}
 
-					if ok := internal_resolve_type_expression(
-						ast_context,
-						proc_value.return_types[0].type,
-						&symbol,
-					); ok {
+					if ok := internal_resolve_type_expression(ast_context, proc_value.return_types[0].type, &symbol);
+					   ok {
 						if union_value, ok := symbol.value.(SymbolUnionValue); ok {
 							if len(union_value.types) != 1 {
 								return {}, false
@@ -1711,8 +1708,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 
 			if !ok && !ast_context.overloading {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining),
-					true
+					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node, {}, false, v.inlining), true
 			}
 		} else {
 			return_symbol, ok =
@@ -3129,9 +3125,13 @@ make_symbol_union_from_ast :: proc(
 		}
 	}
 
+	docs, comments := get_field_docs_and_comments(ast_context.file, v.variants, ast_context.allocator)
+
 	symbol.value = SymbolUnionValue {
-		types = types[:],
-		poly  = v.poly_params,
+		types    = types[:],
+		poly     = v.poly_params,
+		docs     = docs[:],
+		comments = comments[:],
 	}
 
 	if v.poly_params != nil {
@@ -3172,11 +3172,15 @@ make_symbol_enum_from_ast :: proc(
 		append(&values, value)
 	}
 
+	docs, comments := get_field_docs_and_comments(ast_context.file, v.fields, ast_context.allocator)
+
 	symbol.value = SymbolEnumValue {
 		names     = names[:],
 		ranges    = ranges[:],
 		base_type = v.base_type,
 		values    = values[:],
+		docs      = docs[:],
+		comments  = comments[:],
 	}
 
 	return symbol
