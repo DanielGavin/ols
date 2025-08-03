@@ -1104,3 +1104,28 @@ ast_references_union_switch_type :: proc(t: ^testing.T) {
 	test.expect_reference_locations(t, &source, locations[:])
 }
 
+@(test)
+ast_references_enum_struct_field_without_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			bar: Bar = {.A{*}}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
+		{range = {start = {line = 11, character = 16}, end = {line = 11, character = 17}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
