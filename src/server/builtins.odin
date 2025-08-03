@@ -139,7 +139,8 @@ get_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr, is_mutable: b
 		return get_return_expr(ast_context, v.value, is_mutable)
 	}
 	if ident, ok := expr.derived.(^ast.Ident); ok {
-		if symbol, ok := internal_resolve_type_expression(ast_context, ident); ok {
+		symbol := Symbol{}
+		if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
 			if v, ok := symbol.value.(SymbolBasicValue); ok {
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
@@ -173,7 +174,8 @@ get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^a
 		return get_complex_return_expr(ast_context, v.value)
 	}
 	if ident, ok := expr.derived.(^ast.Ident); ok {
-		if symbol, ok := internal_resolve_type_expression(ast_context, ident); ok {
+		symbol := Symbol{}
+		if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
 			if v, ok := symbol.value.(SymbolBasicValue); ok {
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
@@ -204,7 +206,8 @@ get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) ->
 		return get_quaternion_return_expr(ast_context, v.value)
 	}
 	if ident, ok := expr.derived.(^ast.Ident); ok {
-		if symbol, ok := internal_resolve_type_expression(ast_context, ident); ok {
+		symbol := Symbol{}
+		if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
 			if v, ok := symbol.value.(SymbolBasicValue); ok {
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
