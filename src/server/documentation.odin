@@ -174,13 +174,16 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		}
 		strings.write_string(&sb, "{\n")
 		for i in 0 ..< len(v.names) {
+			append_docs(&sb, v.docs, i)
 			strings.write_string(&sb, "\t")
 			strings.write_string(&sb, v.names[i])
 			if i < len(v.values) && v.values[i] != nil {
 				fmt.sbprintf(&sb, "%*s= ", longestNameLen - len(v.names[i]) + 1, "")
 				build_string_node(v.values[i], &sb, false)
 			}
-			strings.write_string(&sb, ",\n")
+			strings.write_string(&sb, ",")
+			append_comments(&sb, v.comments, i)
+			strings.write_string(&sb, "\n")
 		}
 		strings.write_string(&sb, "}")
 		return strings.to_string(sb)

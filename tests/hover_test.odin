@@ -3472,6 +3472,65 @@ ast_hover_multiple_chained_call_expr  :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.a: int")
 }
+
+@(test)
+ast_hover_enum_field_documentation :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: enum {
+			A = 1, // this is a comment for A
+			// This is a doc for B
+			// across many lines
+			B,
+			C,
+			// D Doc
+			D,
+			E, // E comment
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: enum {\n\tA = 1, // this is a comment for A\n\t// This is a doc for B\n\t// across many lines\n\tB,\n\tC,\n\t// D Doc\n\tD,\n\tE, // E comment\n}"
+	)
+}
+
+@(test)
+ast_hover_enum_field_documentation_same_line :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: enum {
+			// Doc for A and B
+			// Mulitple lines!
+			A, B, // comment for A and B
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: enum {\n\t// Doc for A and B\n\t// Mulitple lines!\n\tA, // comment for A and B\n\t// Doc for A and B\n\t// Mulitple lines!\n\tB, // comment for A and B\n}"
+	)
+}
+
+@(test)
+ast_hover_enum_field_directly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			// Doc for A and B
+			// Mulitple lines!
+			A{*}, B, // comment for A and B
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: .A\n Doc for A and B\n Mulitple lines!\n\n// comment for A and B"
+	)
+}
 /*
 
 Waiting for odin fix

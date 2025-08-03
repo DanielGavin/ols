@@ -305,11 +305,12 @@ collect_value_decl :: proc(
 	if !is_value_decl {
 		return
 	}
+	comment, _ := get_file_comment(file, value_decl.pos.line)
 
 	global_expr := GlobalExpr {
 		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
-		comment    = get_file_comment(file, value_decl.pos.line),
+		comment    = comment,
 		attributes = value_decl.attributes[:],
 		private    = file_tags.private,
 	}
@@ -1214,7 +1215,7 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 	return strings.repeat(value, count, allocator)
 }
 
-construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
+construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1225,7 +1226,7 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 		// skipped on the last line) eg
 		// Foo :: struct {
 		//     foo: int // my int <-- skipped as no ',' after 'int'
-	    // }
+		// }
 
 		// remove any unwanted docs
 		if i != len(v.fields.list) - 1 {
@@ -1239,11 +1240,7 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 						field.comment.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = ast.new(
-							ast.Comment_Group,
-							list[1].pos,
-							parser.end_pos(list[len(list) - 2]),
-						)
+						next_field.docs = ast.new(ast.Comment_Group, list[1].pos, parser.end_pos(list[len(list) - 2]))
 						next_field.docs.list = list[1:]
 					} else {
 						next_field.docs = nil
@@ -1252,31 +1249,32 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 			}
 		} else if field.comment == nil {
 			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment = get_file_comment(file, field.pos.line)
+			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }
 
-construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
+construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
 		// see https://github.com/odin-lang/Odin/issues/5353
-			// We check if the comment is at the start of the next field
+		// We check if the comment is at the start of the next field
 		if i != len(v.fields) - 1 {
 			next_field := v.fields[i + 1]
 			if next_field.docs != nil && len(next_field.docs.list) > 0 {
 				list := next_field.docs.list
 				if list[0].pos.line == field.pos.line {
 					if field.comments == nil {
-						field.comments = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comments = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
 						field.comments.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = ast.new(
+						next_field.docs = new_type(
 							ast.Comment_Group,
 							list[1].pos,
 							parser.end_pos(list[len(list) - 2]),
+							allocator,
 						)
 						next_field.docs.list = list[1:]
 					} else {
@@ -1286,26 +1284,120 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
 			}
 		} else if field.comments == nil {
 			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments = get_file_comment(file, field.pos.line)
+			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }
 
 // Retrives the comment group from the specified line of the file
-get_file_comment :: proc(file: ast.File, line: int) -> ^ast.Comment_Group {
+// Returns the index where the comment was found
+get_file_comment :: proc(
+	file: ast.File,
+	line: int,
+	start_index := 0,
+	allocator := context.temp_allocator,
+) -> (
+	^ast.Comment_Group,
+	int,
+) {
 	// TODO: linear scan might be a bit slow for files with lots of comments?
-	for c in file.comments {
+	for i := start_index; i < len(file.comments); i += 1 {
+		c := file.comments[i]
 		if c.pos.line == line {
 			for item, j in c.list {
-				comment := ast.new(ast.Comment_Group, item.pos, parser.end_pos(item))
+				comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
 				if j == len(c.list) - 1 {
 					comment.list = c.list[j:]
 				} else {
 					comment.list = c.list[j:j + 1]
 				}
-				return comment
+				return comment, i
 			}
 		}
 	}
-	return nil
+	return nil, -1
+}
+
+// Retrieves the comment group that ends on the specified line of the file
+// If start_line is specified, it will only add the docs that on that line and beyond
+get_file_doc :: proc(
+	file: ast.File,
+	end_line: int,
+	start_line := -1,
+	start_index := 0,
+	allocator := context.temp_allocator,
+) -> (
+	^ast.Comment_Group,
+	int,
+) {
+	for i := start_index; i < len(file.comments); i += 1 {
+		c := file.comments[i]
+		if c.end.line == end_line {
+			docs := new_type(ast.Comment_Group, c.pos, c.end, allocator)
+			if start_line != -1 {
+				for item, j in c.list {
+					if item.pos.line >= start_line {
+						docs.list = c.list[j:]
+						return docs, i
+					}
+				}
+			}
+			docs.list = c.list
+			return docs, i
+		}
+	}
+	return nil, -1
+}
+
+// Returns the docs and comments for a list of field types
+//
+// We use this as the odin parser does not include comments and docs on enum and union fields
+get_field_docs_and_comments :: proc(
+	file: ast.File,
+	fields: []^ast.Expr,
+	allocator := context.temp_allocator,
+) -> (
+	[dynamic]^ast.Comment_Group,
+	[dynamic]^ast.Comment_Group,
+) {
+	docs := make([dynamic]^ast.Comment_Group, allocator)
+	comments := make([dynamic]^ast.Comment_Group, allocator)
+	prev_line := -1
+	last_comment := -1
+	last_doc := -1
+	for n, i in fields {
+		doc: ^ast.Comment_Group
+		comment: ^ast.Comment_Group
+
+		if n.pos.line == prev_line {
+			// if we're on the same line, just add the previous docs and comments
+			doc = docs[i - 1]
+			comment = comments[i - 1]
+		} else {
+			// Check to see if there's space below the previous field for a comment
+			if n.pos.line - 1 > prev_line {
+				doc, last_doc = get_file_doc(
+					file,
+					n.pos.line - 1,
+					start_line = prev_line + 1,
+					start_index = last_doc + 1,
+					allocator = allocator,
+				)
+			}
+
+			comment, last_comment = get_file_comment(
+				file,
+				n.pos.line,
+				start_index = last_comment + 1,
+				allocator = allocator,
+			)
+		}
+
+		append(&docs, doc)
+		append(&comments, comment)
+		prev_line = n.pos.line
+	}
+
+
+	return docs, comments
 }
