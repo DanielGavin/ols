@@ -12,7 +12,7 @@ ast_goto_bit_set_comp_literal :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		TestEnum :: enum {
-			valueOne, 
+			valueOne,
 			valueTwo,
 		}
 		
@@ -35,7 +35,7 @@ ast_goto_bit_set_index_enumerated_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		TestEnum :: enum {
-			valueOne, 
+			valueOne,
 			valueTwo,
 		}
 
@@ -66,12 +66,12 @@ ast_goto_comp_lit_field :: proc(t: ^testing.T) {
         Point :: struct {
             x, y, z : f32,
         }
-        
+
         main :: proc() {
             point := Point {
                 x{*} = 2, y = 5, z = 0,
             }
-        } 
+        }
 		`,
 	}
 
@@ -89,12 +89,12 @@ ast_goto_struct_definition :: proc(t: ^testing.T) {
         Point :: struct {
             x, y, z : f32,
         }
-        
+
         main :: proc() {
             point := Po{*}int {
                 x = 2, y = 5, z = 0,
             }
-        } 
+        }
 		`,
 	}
 
@@ -112,13 +112,13 @@ ast_goto_comp_lit_field_indexed :: proc(t: ^testing.T) {
         Point :: struct {
             x, y, z : f32,
         }
-        
+
         main :: proc() {
             point := [2]Point {
                 {x{*} = 2, y = 5, z = 0},
                 {y = 10, y = 20, z = 10},
             }
-        } 
+        }
 		`,
 	}
 
@@ -577,6 +577,31 @@ ast_goto_param_inside_where_clause :: proc(t: ^testing.T) {
 	}
 	locations := []common.Location {
 		{range = {start = {line = 1, character = 14}, end = {line = 1, character = 15}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_goto_enum_struct_field_without_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			bar: Bar = {.A{*}}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
 	}
 
 	test.expect_definition_locations(t, &source, locations[:])

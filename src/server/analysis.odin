@@ -2009,15 +2009,68 @@ get_field_value_name :: proc(field_value: ^ast.Field_Value) -> (string, bool) {
 	return "", false
 }
 
+get_struct_comp_lit_type :: proc(
+	position_context: ^DocumentPositionContext,
+	comp_lit: ^ast.Comp_Lit,
+	s: SymbolStructValue,
+	field_name: string,
+) -> ^ast.Expr {
+	elem_index := -1
+
+	for elem, i in comp_lit.elems {
+		if position_in_node(elem, position_context.position) {
+			elem_index = i
+			if field_value, ok := elem.derived.(^ast.Field_Value); ok {
+				// If our field is another comp_lit, check to see if we're actually in that one
+				if cl, ok := field_value.value.derived.(^ast.Comp_Lit); ok {
+					if type :=  get_struct_comp_lit_type(
+						position_context,
+						cl,
+						s,
+						field_name,
+					); type != nil {
+						return type
+					}
+				}
+			}
+		}
+	}
+
+	if elem_index == -1 {
+		return nil
+	}
+
+	type: ^ast.Expr
+
+	for name, i in s.names {
+		if name != field_name {
+			continue
+		}
+
+		type = s.types[i]
+		break
+	}
+
+	if type == nil && len(s.types) > elem_index && elem_index != -1 {
+		type = s.types[elem_index]
+	}
+
+	return type
+}
+
+
 resolve_implicit_selector_comp_literal :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	symbol: Symbol,
-	field_name: string,
 ) -> (
 	Symbol,
 	bool,
 ) {
+	field_name := ""
+	if position_context.field_value != nil {
+		field_name, _ = get_field_value_name(position_context.field_value)
+	}
 	if comp_symbol, comp_lit, ok := resolve_type_comp_literal(
 		ast_context,
 		position_context,
@@ -2025,34 +2078,12 @@ resolve_implicit_selector_comp_literal :: proc(
 		position_context.parent_comp_lit,
 	); ok {
 		#partial switch v in comp_symbol.value {
-		case SymbolEnumValue:
+		case SymbolEnumValue, SymbolBitSetValue:
 			return comp_symbol, ok
 		case SymbolStructValue:
 			set_ast_package_set_scoped(ast_context, comp_symbol.pkg)
 
-			//We can either have the final
-			elem_index := -1
-
-			for elem, i in comp_lit.elems {
-				if position_in_node(elem, position_context.position) {
-					elem_index = i
-				}
-			}
-
-			type: ^ast.Expr
-
-			for name, i in v.names {
-				if name != field_name {
-					continue
-				}
-
-				type = v.types[i]
-				break
-			}
-
-			if type == nil && elem_index != -1 && len(v.types) > elem_index {
-				type = v.types[elem_index]
-			}
+			type := get_struct_comp_lit_type(position_context, comp_lit, v, field_name)
 
 			return resolve_type_expression(ast_context, type)
 		case SymbolBitFieldValue:
@@ -2161,15 +2192,9 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.comp_lit != nil &&
-	   position_context.parent_comp_lit != nil &&
-	   position_context.parent_comp_lit.type != nil {
-		if position_context.field_value != nil {
-			if field_name, ok := get_field_value_name(position_context.field_value); ok {
-				if symbol, ok := resolve_type_expression(ast_context, position_context.parent_comp_lit.type); ok {
-					return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name)
-				}
-			}
+	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil {
+		if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
+			return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol)
 		}
 	}
 
@@ -2179,9 +2204,7 @@ resolve_implicit_selector :: proc(
 				return {}, false
 			}
 			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
-				if field_name, ok := get_field_value_name(position_context.field_value); ok {
-					return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol, field_name)
-				}
+				return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol)
 			}
 		}
 	}
@@ -2223,14 +2246,11 @@ resolve_implicit_selector :: proc(
 				return {}, false
 			}
 			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
-				if field_name, ok := get_field_value_name(position_context.field_value); ok {
-					return resolve_implicit_selector_comp_literal(
-						ast_context,
-						position_context,
-						current_symbol,
-						field_name,
-					)
-				}
+				return resolve_implicit_selector_comp_literal(
+					ast_context,
+					position_context,
+					current_symbol,
+				)
 			}
 			return current_symbol, ok
 		}
