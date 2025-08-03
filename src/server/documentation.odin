@@ -216,9 +216,12 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		}
 		strings.write_string(&sb, " {\n")
 		for i in 0 ..< len(v.types) {
+			append_docs(&sb, v.docs, i)
 			strings.write_string(&sb, "\t")
 			build_string_node(v.types[i], &sb, false)
-			strings.write_string(&sb, ",\n")
+			strings.write_string(&sb, ",")
+			append_comments(&sb, v.comments, i)
+			strings.write_string(&sb, "\n")
 		}
 		strings.write_string(&sb, "}")
 		return strings.to_string(sb)

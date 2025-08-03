@@ -3105,9 +3105,13 @@ make_symbol_union_from_ast :: proc(
 		}
 	}
 
+	docs, comments := get_field_docs_and_comments(ast_context.file, v.variants, ast_context.allocator)
+
 	symbol.value = SymbolUnionValue {
-		types = types[:],
-		poly  = v.poly_params,
+		types    = types[:],
+		poly     = v.poly_params,
+		docs     = docs[:],
+		comments = comments[:],
 	}
 
 	if v.poly_params != nil {
