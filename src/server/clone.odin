@@ -190,6 +190,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Proc_Type:
 		r.params = auto_cast clone_type(r.params, allocator, unique_strings)
 		r.results = auto_cast clone_type(r.results, allocator, unique_strings)
+		r.calling_convention = clone_calling_convention(r.calling_convention, allocator, unique_strings)
 	case ^Pointer_Type:
 		r.elem = clone_type(r.elem, allocator, unique_strings)
 	case ^Array_Type:
