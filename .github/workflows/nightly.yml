@@ -3,7 +3,7 @@ name: nightly
 on:
   workflow_dispatch:
   schedule:
-    - cron: 0 2 * * *
+    - cron: 0 2 * * 0
 
 jobs:
   dist-arm64-darwin:
