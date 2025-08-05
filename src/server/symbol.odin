@@ -135,6 +135,10 @@ SymbolMatrixValue :: struct {
 	expr: ^ast.Expr,
 }
 
+SymbolPolyTypeValue :: struct {
+	ident: ^ast.Ident,
+}
+
 /*
 	Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
 */
@@ -161,6 +165,7 @@ SymbolValue :: union {
 	SymbolUntypedValue,
 	SymbolMatrixValue,
 	SymbolBitFieldValue,
+	SymbolPolyTypeValue,
 }
 
 SymbolFlag :: enum {
@@ -640,6 +645,8 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 	case SymbolSliceValue:
 		free_ast(v.expr, allocator)
 	case SymbolBasicValue:
+		free_ast(v.ident, allocator)
+	case SymbolPolyTypeValue:
 		free_ast(v.ident, allocator)
 	case SymbolAggregateValue:
 		for symbol in v.symbols {

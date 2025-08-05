@@ -4259,3 +4259,17 @@ ast_completion_nested_struct_with_enum_fields_unnamed  :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"C", "D"}, {"A", "B"})
 }
+
+@(test)
+ast_completion_poly_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(array: $A/[]$T) {
+			for elem, i in array {
+				el{*}
+			}
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"test.elem: $T"})
+}

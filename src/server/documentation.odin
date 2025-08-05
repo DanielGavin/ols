@@ -312,6 +312,11 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 			build_string_node(v.ident, &sb, false)
 		}
 		return strings.to_string(sb)
+	case SymbolPolyTypeValue:
+		sb := strings.builder_make(ast_context.allocator)
+		fmt.sbprintf(&sb, "%s$", pointer_prefix)
+		build_string_node(v.ident, &sb, false)
+		return strings.to_string(sb)
 	case SymbolBitSetValue:
 		sb := strings.builder_make(ast_context.allocator)
 		fmt.sbprintf(&sb, "%sbit_set[", pointer_prefix)

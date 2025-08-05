@@ -611,7 +611,8 @@ visit_ident :: proc(
 		     SymbolSliceValue,
 		     SymbolMapValue,
 		     SymbolMultiPointerValue,
-		     SymbolBasicValue:
+		     SymbolBasicValue,
+			 SymbolPolyTypeValue:
 			write_semantic_node(builder, ident, .Type, modifiers)
 		case SymbolUntypedValue:
 		// handled by static syntax highlighting
