@@ -3150,6 +3150,8 @@ make_symbol_union_from_ast :: proc(
 		poly     = v.poly_params,
 		docs     = docs[:],
 		comments = comments[:],
+		kind     = v.kind,
+		align    = v.align,
 	}
 
 	if v.poly_params != nil {
