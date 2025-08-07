@@ -1129,3 +1129,22 @@ ast_references_enum_struct_field_without_name :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_poly_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(array: $A/[dynamic]^$T) {
+			for e{*}lem, i in array {
+				elem
+			}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 7}, end = {line = 2, character = 11}}},
+		{range = {start = {line = 3, character = 4}, end = {line = 3, character = 8}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

@@ -3572,6 +3572,24 @@ ast_hover_union_field_documentation_same_line :: proc(t: ^testing.T) {
 		"test.Foo: union {\n\t// Doc for int and string\n\t// Mulitple lines!\n\tint, // comment for int and string\n\t// Doc for int and string\n\t// Mulitple lines!\n\tstring, // comment for int and string\n}"
 	)
 }
+
+@(test)
+ast_hover_parapoly_proc_dynamic_array_elems :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(array: $A/[dynamic]^$T) {
+			for e{*}lem, i in array {
+
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.elem: ^$T"
+	)
+}
 /*
 
 Waiting for odin fix

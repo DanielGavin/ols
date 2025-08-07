@@ -1168,6 +1168,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		if v.specialization != nil {
 			return internal_resolve_type_expression(ast_context, v.specialization, out)
 		}
+		out^ = make_symbol_poly_type_from_ast(ast_context, v.type)
+		return true
 
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
@@ -3090,6 +3092,20 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident)
 	}
 
 	symbol.value = SymbolBasicValue {
+		ident = n,
+	}
+
+	return symbol
+}
+
+make_symbol_poly_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident) -> Symbol {
+	symbol := Symbol {
+		range = common.get_token_range(n^, ast_context.file.src),
+		type  = .Variable,
+		pkg   = get_package_from_node(n^),
+	}
+
+	symbol.value = SymbolPolyTypeValue {
 		ident = n,
 	}
 
