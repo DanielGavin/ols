@@ -1861,7 +1861,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	}
 
 	if global.docs != nil {
-		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
+		return_symbol.doc = get_doc(global.name_expr, global.docs, ast_context.allocator)
 	}
 
 	if global.comment != nil {
