@@ -34,7 +34,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 		}
 	}
 
-	cat := concatenate_symbol_information(ast_context, symbol)
+	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
 
 	if cat != "" {
@@ -410,9 +410,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			resolved.type_name = resolved.name
-			resolved.type_pkg = resolved.pkg
-			resolved.name = ident.name
+			if resolved.name != ident.name {
+				resolved.type_name = resolved.name
+				resolved.type_pkg = resolved.pkg
+				resolved.name = ident.name
+			}
 			if resolved.type == .Variable {
 				resolved.pkg = ast_context.document_package
 			}
