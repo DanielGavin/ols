@@ -3709,11 +3709,7 @@ ast_hover_binary_expr_not_eq :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(
-		t,
-		&source,
-		"test.foo: bool"
-	)
+	test.expect_hover(t, &source, "test.foo: bool")
 }
 
 @(test)
@@ -3728,10 +3724,67 @@ ast_hover_bit_set_in :: proc(t: ^testing.T) {
 		}
 		`,
 	}
+	test.expect_hover(t, &source, "test.foo: bool")
+}
+
+@(test)
+ast_hover_nested_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: struct {
+				i: int,
+				s: string,
+			}
+		}
+		`,
+	}
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: bool"
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: struct {\n\t\ti: int,\n\t\ts: string,\n\t},\n}",
+	)
+}
+
+@(test)
+ast_hover_nested_struct_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: union #no_nil {
+				int, // int comment
+				string,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: union #no_nil {\n\t\tint, // int comment\n\t\tstring,\n\t},\n}"
+	)
+}
+
+@(test)
+ast_hover_nested_struct_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: enum {
+				// A doc
+				A,
+				B,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: enum {\n\t// A doc\n\t\tA,\n\t\tB,\n\t},\n}"
 	)
 }
 /*

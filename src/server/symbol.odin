@@ -35,6 +35,14 @@ SymbolStructValue :: struct {
 	// Extra fields for embedded bit fields via usings
 	backing_types:     map[int]^ast.Expr, // the base type for the bit field
 	bit_sizes:         map[int]^ast.Expr, // the bit size of the bit field field
+
+	// Tag information
+	align: ^ast.Expr,
+	min_field_align: ^ast.Expr,
+	max_field_align: ^ast.Expr,
+	is_packed:       bool,
+	is_raw_union:    bool,
+	is_no_copy:      bool,
 }
 
 SymbolBitFieldValue :: struct {
@@ -331,7 +339,6 @@ write_struct_type :: proc(
 	ast_context: ^AstContext,
 	b: ^SymbolStructValueBuilder,
 	v: ^ast.Struct_Type,
-	ident: ast.Ident,
 	attributes: []^ast.Attribute,
 	base_using_index: int,
 	inlined := false,
@@ -478,7 +485,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 
 		if ident, ok := derived.(^ast.Ident); ok {
 			if v, ok := struct_type_from_identifier(ast_context, ident^); ok {
-				write_struct_type(ast_context, b, v, ident^, {}, u, true)
+				write_struct_type(ast_context, b, v, {}, u, true)
 			} else {
 				clear(&ast_context.recursion_map)
 				if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
@@ -498,7 +505,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 				}
 			}
 		} else if v, ok := derived.(^ast.Struct_Type); ok {
-			write_struct_type(ast_context, b, v, ast_context.field_name, {}, u)
+			write_struct_type(ast_context, b, v, {}, u)
 		}
 		delete_key(&ast_context.recursion_map, b.types[u])
 	}
