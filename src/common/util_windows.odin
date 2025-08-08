@@ -25,9 +25,9 @@ get_case_sensitive_path :: proc(
 	allocator := context.temp_allocator,
 	location := #caller_location,
 ) -> string {
-	wide := win32.utf8_to_utf16(path)
+	wide := win32.utf8_to_wstring(path, context.temp_allocator)
 	file := win32.CreateFileW(
-		&wide[0],
+		wide,
 		0,
 		win32.FILE_SHARE_READ,
 		nil,
@@ -36,21 +36,28 @@ get_case_sensitive_path :: proc(
 		nil,
 	)
 
-	if (file == win32.INVALID_HANDLE) {
+	if file == win32.INVALID_HANDLE {
 		when !ODIN_TEST {
-			log.errorf("Failed on get_case_sensitive_path(%v) at %v", path, location)
+			log.errorf("Failed on get_case_sensitive_path/CreateFileW(%v) at %v", path, location)
+			log_last_error()
+		}
+		return path
+	}
+	defer win32.CloseHandle(file)
+
+	required_length := win32.GetFinalPathNameByHandleW(file, nil, 0, 0)
+	buffer := make([]u16, int(required_length), context.temp_allocator)
+	ret := win32.GetFinalPathNameByHandleW(file, cast(win32.LPCWSTR)raw_data(buffer), required_length, 0)
+
+	if ret == 0 {
+		when !ODIN_TEST {
+			log.errorf("Failed on get_case_sensitive_path/GetFinalPathNameByHandleW(%v) at %v", path, location)
 			log_last_error()
 		}
 		return path
 	}
 
-	buffer := make([]u16, 512, context.temp_allocator)
-
-	ret := win32.GetFinalPathNameByHandleW(file, &buffer[0], cast(u32)len(buffer), 0)
-
 	res, _ := win32.utf16_to_utf8(buffer[4:], allocator)
-
-	win32.CloseHandle(file)
 
 	return res
 }
@@ -105,7 +112,7 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 
 	if !win32.CreateProcessW(
 		nil,
-		&win32.utf8_to_utf16(command)[0],
+		win32.utf8_to_wstring(command),
 		nil,
 		nil,
 		true,
@@ -140,7 +147,7 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 
 		elapsed_time := time.now()
 		duration := time.diff(current_time, elapsed_time)
- 
+
 		if time.duration_seconds(duration) > 20 {
 			log.error("odin check timed out")
 			win32.TerminateProcess(process_info.hProcess, 1)
