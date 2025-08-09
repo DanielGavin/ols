@@ -473,20 +473,28 @@ get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset])
 }
 
-get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
-	if comment != nil {
-		tmp: string
+get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
+	if comment == nil {
+		return ""
+	}
 
-		for doc in comment.list {
-			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
-		}
+	// The odin parser currently incorrectly adds comments that are more than a line above
+	// the symbol as a doc comment. We do a quick check here to handle that specific case.
+	if node != nil && comment.list[len(comment.list)-1].pos.line < node.pos.line-1 {
+		return ""
+	}
 
-		if tmp != "" {
-			no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
-			no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
-			no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
-			return strings.clone(no_end_comments, allocator)
-		}
+	tmp: string
+
+	for doc in comment.list {
+		tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+	}
+
+	if tmp != "" {
+		no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
+		no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
+		no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
+		return strings.clone(no_end_comments, allocator)
 	}
 
 	return ""
