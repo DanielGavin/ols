@@ -210,6 +210,13 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 		}
 		strings.write_string(&sb, "union")
 		write_poly_list(&sb, v.poly, v.poly_names)
+		if v.kind != .Normal {
+			write_union_kind(&sb, v.kind)
+		}
+		if v.align != nil {
+			strings.write_string(&sb, " #align")
+			build_string_node(v.align, &sb, false)
+		}
 		if len(v.types) == 0 {
 			strings.write_string(&sb, " {}")
 			return strings.to_string(sb)
@@ -628,6 +635,17 @@ write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names:
 			}
 		}
 		strings.write_string(sb, ")")
+	}
+}
+
+write_union_kind :: proc(sb: ^strings.Builder, kind: ast.Union_Type_Kind) {
+	#partial switch kind {
+	case .maybe:
+		strings.write_string(sb, " #maybe")
+	case .no_nil:
+		strings.write_string(sb, " #no_nil")
+	case .shared_nil:
+		strings.write_string(sb, " #shared_nil")
 	}
 }
 

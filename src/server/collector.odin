@@ -266,6 +266,8 @@ collect_union_fields :: proc(
 		poly     = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
 		comments = comments[:],
 		docs     = docs[:],
+		kind     = union_type.kind,
+		align    = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
 	}
 
 	return value

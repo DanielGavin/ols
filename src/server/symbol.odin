@@ -87,6 +87,8 @@ SymbolUnionValue :: struct {
 	poly_names: []string,
 	docs:       []^ast.Comment_Group,
 	comments:   []^ast.Comment_Group,
+	kind:       ast.Union_Type_Kind,
+	align:      ^ast.Expr,
 }
 
 SymbolDynamicArrayValue :: struct {
