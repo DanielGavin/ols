@@ -1586,62 +1586,62 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
 		return resolve_global_identifier(ast_context, node, &global)
-	} else {
-		switch node.name {
-		case "context":
-			for built in indexer.builtin_packages {
-				if symbol, ok := lookup("Context", built); ok {
-					symbol.type = .Variable
-					return symbol, ok
-				}
+	}
+
+	switch node.name {
+	case "context":
+		for built in indexer.builtin_packages {
+			if symbol, ok := lookup("Context", built); ok {
+				symbol.type = .Variable
+				return symbol, ok
 			}
 		}
+	}
 
 
-		//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
-		if strings.contains(node.name, "/") {
-			symbol := Symbol {
-				type  = .Package,
-				pkg   = node.name,
-				value = SymbolPackageValue{},
-			}
-
-			try_build_package(symbol.pkg)
-
-			return symbol, true
+	//right now we replace the package ident with the absolute directory name, so it should have '/' which is not a valid ident character
+	if strings.contains(node.name, "/") {
+		symbol := Symbol {
+			type  = .Package,
+			pkg   = node.name,
+			value = SymbolPackageValue{},
 		}
 
-		is_runtime := strings.contains(ast_context.current_package, "base/runtime")
+		try_build_package(symbol.pkg)
 
-		if is_runtime {
-			if symbol, ok := lookup(node.name, "$builtin"); ok {
-				return resolve_symbol_return(ast_context, symbol)
-			}
-		}
+		return symbol, true
+	}
 
-		//last option is to check the index
-		if symbol, ok := lookup(node.name, ast_context.current_package); ok {
+	is_runtime := strings.contains(ast_context.current_package, "base/runtime")
+
+	if is_runtime {
+		if symbol, ok := lookup(node.name, "$builtin"); ok {
 			return resolve_symbol_return(ast_context, symbol)
 		}
+	}
 
-		if !is_runtime {
-			if symbol, ok := lookup(node.name, "$builtin"); ok {
-				return resolve_symbol_return(ast_context, symbol)
-			}
+	//last option is to check the index
+	if symbol, ok := lookup(node.name, ast_context.current_package); ok {
+		return resolve_symbol_return(ast_context, symbol)
+	}
+
+	if !is_runtime {
+		if symbol, ok := lookup(node.name, "$builtin"); ok {
+			return resolve_symbol_return(ast_context, symbol)
 		}
+	}
 
-		for built in indexer.builtin_packages {
-			if symbol, ok := lookup(node.name, built); ok {
-				return resolve_symbol_return(ast_context, symbol)
-			}
+	for built in indexer.builtin_packages {
+		if symbol, ok := lookup(node.name, built); ok {
+			return resolve_symbol_return(ast_context, symbol)
 		}
+	}
 
-		for u in ast_context.usings {
-			for imp in ast_context.imports {
-				if strings.compare(imp.name, u.pkg_name) == 0 {
-					if symbol, ok := lookup(node.name, imp.name); ok {
-						return resolve_symbol_return(ast_context, symbol)
-					}
+	for u in ast_context.usings {
+		for imp in ast_context.imports {
+			if strings.compare(imp.name, u.pkg_name) == 0 {
+				if symbol, ok := lookup(node.name, imp.name); ok {
+					return resolve_symbol_return(ast_context, symbol)
 				}
 			}
 		}
@@ -1720,6 +1720,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 		return_symbol, ok = resolve_function_overload(ast_context, v^)
 	case ^ast.Array_Type:
 		return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
+	case ^ast.Multi_Pointer_Type:
+		return_symbol, ok = make_symbol_multi_pointer_from_ast(ast_context, v^, node), true
 	case ^ast.Dynamic_Array_Type:
 		return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
 	case ^ast.Matrix_Type:
@@ -3549,8 +3551,6 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		result_i := min(len(results) - 1, i)
 		str := get_ast_node_string(name, file.src)
 
-		call := false
-
 		store_local(
 			ast_context,
 			name,
@@ -3558,7 +3558,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			value_decl.end.offset,
 			str,
 			ast_context.non_mutable_only,
-			calls[result_i] or_else false,
+			false, // calls[result_i] or_else false, // TODO: find a good way to handle this
 			value_decl.is_mutable,
 			get_package_from_node(results[result_i]^),
 			false,
