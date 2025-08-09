@@ -27,7 +27,6 @@ Config :: struct {
 	enable_procedure_context:          bool,
 	enable_snippets:                   bool,
 	enable_references:                 bool,
-	enable_rename:                     bool,
 	enable_label_details:              bool,
 	enable_std_references:             bool,
 	enable_import_fixer:               bool,

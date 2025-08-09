@@ -368,8 +368,6 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
-	config.enable_rename = ols_config.enable_rename.(bool) or_else config.enable_rename
-
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
 
@@ -599,8 +597,7 @@ request_initialize :: proc(
 	config.enable_semantic_tokens = false
 	config.enable_procedure_context = false
 	config.enable_snippets = false
-	config.enable_references = false
-	config.enable_rename = false
+	config.enable_references = true
 	config.verbose = false
 	config.file_log = false
 	config.odin_command = ""

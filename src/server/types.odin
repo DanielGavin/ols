@@ -413,7 +413,6 @@ OlsConfig :: struct {
 	enable_inlay_hints_params:         Maybe(bool),
 	enable_inlay_hints_default_params: Maybe(bool),
 	enable_references:                 Maybe(bool),
-	enable_rename:                     Maybe(bool),
 	enable_fake_methods:               Maybe(bool),
 	enable_procedure_snippet:          Maybe(bool),
 	enable_checker_only_saved:         Maybe(bool),

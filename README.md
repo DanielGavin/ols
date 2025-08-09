@@ -72,7 +72,7 @@ Options:
 
 `enable_format`: Turns on formatting with `odinfmt`. _(Enabled by default)_
 
-`enable_hover`: Enables hover feature
+`enable_hover`: Enables hover feature. _(Enabled by default)_
 
 `enable_snippets`: Turns on builtin snippets
 
@@ -86,11 +86,9 @@ Options:
 
 `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
 
-`enable_checker_only_saved`: Turns on only calling the checker on the package being saved. 
+`enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
 
-`enable_references`: Turns on finding references for a symbol.  (Experimental)
-
-`enable_rename`: Turns on renaming a symbol. (Experimental)
+`enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
 `odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
