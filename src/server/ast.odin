@@ -168,6 +168,8 @@ unwrap_comp_literal :: proc(expr: ^ast.Expr) -> (^ast.Comp_Lit, int, bool) {
 			if unary.op.kind == .And {
 				expr = unary.expr
 				n += 1
+			} else {
+				break
 			}
 		} else {
 			break
