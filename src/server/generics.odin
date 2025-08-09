@@ -494,6 +494,7 @@ resolve_generic_function_symbol :: proc(
 
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
 				file := strings.trim_prefix(symbol.uri, "file://")
+
 				if file == "" {
 					file = call_expr.args[i].pos.file
 				}
@@ -521,6 +522,10 @@ resolve_generic_function_symbol :: proc(
 						}
 					}
 				}
+
+				// We set the offset so we can find it as a local if it's based on the type of a local var
+				symbol_expr.pos.offset = call_expr.pos.offset
+				symbol_expr.end.offset = call_expr.end.offset
 
 				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
 				param_type := clone_expr(param.type, ast_context.allocator, nil)

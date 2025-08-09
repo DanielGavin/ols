@@ -3598,6 +3598,41 @@ ast_hover_shouldnt_add_docs_with_newline :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: struct {}")
 }
+
+@(test)
+ast_hover_parapoly_proc_slice_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(x: $T) -> T {
+			return x
+		}
+
+		main :: proc() {
+			x : []u8
+			b{*}ar := foo(x)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: []u8")
+}
+
+@(test)
+ast_hover_parapoly_proc_multi_pointer_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(x: ^$T) -> ^T {
+			return x
+		}
+
+
+		main :: proc() {
+			x : [^]u8
+			b{*}ar := foo(x)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: ^[^]u8")
+}
 /*
 
 Waiting for odin fix

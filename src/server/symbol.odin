@@ -773,6 +773,10 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 	case SymbolBitFieldValue:
 		type := new_type(ast.Bit_Field_Type, pos, end, allocator)
 		return type
+	case SymbolMultiPointerValue:
+		type := new_type(ast.Multi_Pointer_Type, pos, end, allocator)
+		type.elem = v.expr
+		return type
 	case:
 		return nil
 	}
