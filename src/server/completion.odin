@@ -830,6 +830,10 @@ get_selector_completion :: proc(
 		if selector.signature == "string" {
 			append_magic_array_like_completion(position_context, selector, results)
 		}
+	case SymbolUntypedValue:
+		if v.type == .String {
+			append_magic_array_like_completion(position_context, selector, results)
+		}
 	}
 
 	return is_incomplete
