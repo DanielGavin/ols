@@ -809,8 +809,6 @@ construct_struct_field_symbol :: proc(symbol: ^Symbol, parent_name: string, valu
 }
 
 construct_bit_field_field_symbol :: proc(symbol: ^Symbol, parent_name: string, value: SymbolBitFieldValue, index: int) {
-	symbol.type_pkg = symbol.pkg
-	symbol.type_name = symbol.name
 	symbol.name = value.names[index]
 	symbol.pkg = parent_name
 	symbol.type = .Field

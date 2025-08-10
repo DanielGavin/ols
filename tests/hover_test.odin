@@ -3298,7 +3298,7 @@ ast_hover_union_with_poly :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: test.Foo",
+		"test.foo: test.Foo(int)",
 	)
 }
 
@@ -3331,7 +3331,7 @@ ast_hover_union_with_poly_from_package :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: my_package.Foo",
+		"test.foo: my_package.Foo(int)",
 	)
 }
 

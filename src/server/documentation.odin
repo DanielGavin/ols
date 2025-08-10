@@ -649,15 +649,11 @@ write_comments :: proc(sb: ^strings.Builder, comments: []^ast.Comment_Group, ind
 // We concat the symbol information as follows
 // attribute | variable | type | signature
 // attributes and type information is optional
-
-concatenate_symbol_information :: proc {
-	concatenate_raw_symbol_information,
-	concatenate_raw_string_information,
-}
-
-construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol, write_attributes := true) -> string {
 	sb := strings.builder_make(ast_context.allocator)
-	write_symbol_attributes(&sb, symbol)
+	if write_attributes {
+		write_symbol_attributes(&sb, symbol)
+	}
 	write_symbol_name(&sb, symbol)
 
 	if symbol.type == .Package {
@@ -722,11 +718,15 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 		return false
 	}
 
-	if _, ok := symbol.value.(SymbolBasicValue); ok {
-		return false
-	}
-
-	if _, ok := symbol.value.(SymbolUntypedValue); ok {
+	#partial switch v in symbol.value {
+	case SymbolUntypedValue,
+		SymbolBitSetValue,
+		SymbolMapValue,
+		SymbolSliceValue,
+		SymbolDynamicArrayValue,
+		SymbolFixedArrayValue,
+		SymbolMatrixValue,
+		SymbolMultiPointerValue:
 		return false
 	}
 
@@ -744,49 +744,9 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 	} else {
 		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
 	}
+
+	if v, ok := symbol.value.(SymbolUnionValue); ok {
+		write_poly_list(sb, v.poly, v.poly_names)
+	}
 	return true
-}
-
-concatenate_raw_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
-
-	//	if pkg != "" && pkg != "$builtin" {
-	//		fmt.sbprintf(&sb, "%v.", pkg)
-	//	}
-	//	fmt.sbprintf(&sb, "%v", symbol.name)
-	//	if symbol.signature != "" {
-	//		fmt.sbprintf(&sb, ": %v", symbol.signature)
-	//	}
-	//	return strings.to_string(sb)
-	//}
-
-	return concatenate_raw_string_information(
-		ast_context,
-		symbol.pkg,
-		symbol.name,
-		symbol.signature,
-		symbol.type,
-	)
-}
-
-concatenate_raw_string_information :: proc(
-	ast_context: ^AstContext,
-	pkg: string,
-	name: string,
-	signature: string,
-	type: SymbolType,
-) -> string {
-	pkg := path.base(pkg, false, context.temp_allocator)
-
-	if type == .Package {
-		return fmt.tprintf("%v: package", name)
-	}
-	sb := strings.builder_make()
-	if pkg != "" && pkg != "$builtin" {
-		fmt.sbprintf(&sb, "%v.", pkg)
-	}
-	fmt.sbprintf(&sb, "%v", name)
-	if signature != "" {
-		fmt.sbprintf(&sb, ": %v", signature)
-	}
-	return strings.to_string(sb)
 }

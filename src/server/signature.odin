@@ -139,7 +139,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		call.signature = strings.to_string(sb)
 		
 		info := SignatureInformation {
-			label         =	concatenate_raw_string_information(&ast_context, call.pkg, call.name, call.signature, call.type),
+			label         =	construct_symbol_information(&ast_context, call, false),
 			documentation = construct_symbol_docs(call, markdown = false),
 			parameters    = parameters,
 		}
@@ -167,7 +167,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				symbol.signature = strings.to_string(sb)
 				
 				info := SignatureInformation {
-					label         =	concatenate_raw_string_information(&ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.type),
+					label         =	construct_symbol_information(&ast_context, symbol, false),
 					documentation = construct_symbol_docs(symbol, markdown = false),
 					parameters    = parameters,
 				}
