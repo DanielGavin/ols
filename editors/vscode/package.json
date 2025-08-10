@@ -137,11 +137,21 @@
 			{
 				"name": "odin",
 				"owner": "odin",
-				"fileLocation": [
-					"absolute"
-				],
+				"fileLocation": "absolute",
 				"pattern": {
-					"regexp": "^(.+)\\(([0-9]+)\\:([0-9]+)\\) ([^:]+)(.+)$",
+					"regexp": "^(.+)\\((\\d+):(\\d+)\\) ([^:]+): (.+)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			}, {
+				"name": "odin-unix",
+				"owner": "odin",
+				"fileLocation": "absolute",
+				"pattern": {
+					"regexp": "^(.+):(\\d+):(\\d+): ([^:]+): (.+)$",
 					"file": 1,
 					"line": 2,
 					"column": 3,
