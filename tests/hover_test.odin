@@ -3787,6 +3787,27 @@ ast_hover_nested_struct_enum :: proc(t: ^testing.T) {
 		"test.Foo: struct {\n\tfoo: int,\n\tbar: enum {\n\t// A doc\n\t\tA,\n\t\tB,\n\t},\n}"
 	)
 }
+
+@(test)
+ast_hover_nested_struct_bit_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: bit_field u8 {
+				// A doc
+				a: uint | 3,
+				b: uint | 5,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: bit_field u8 {\n\t// A doc\n\t\ta: uint | 3,\n\t\tb: uint | 5,\n\t},\n}"
+	)
+}
 /*
 
 Waiting for odin fix

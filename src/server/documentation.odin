@@ -624,6 +624,11 @@ write_node :: proc(ast_context: ^AstContext, sb: ^strings.Builder, node: ^ast.No
 		inner_sig := get_signature(ast_context, symbol, depth)
 		strings.write_string(sb, inner_sig)
 		return
+	case ^ast.Bit_Field_Type:
+		symbol := make_symbol_bit_field_from_ast(ast_context, n, name, true)
+		inner_sig := get_signature(ast_context, symbol, depth)
+		strings.write_string(sb, inner_sig)
+		return
 	}
 
 	build_string_node(node, sb, false)
@@ -646,14 +651,9 @@ write_comments :: proc(sb: ^strings.Builder, comments: []^ast.Comment_Group, ind
 	}
 }
 
-// We concat the symbol information as follows
-// attribute | variable | type | signature
-// attributes and type information is optional
-construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol, write_attributes := true) -> string {
+construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
 	sb := strings.builder_make(ast_context.allocator)
-	if write_attributes {
-		write_symbol_attributes(&sb, symbol)
-	}
+	write_symbol_attributes(&sb, symbol)
 	write_symbol_name(&sb, symbol)
 
 	if symbol.type == .Package {
