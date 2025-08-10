@@ -9,6 +9,7 @@ import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
+import "base:runtime"
 import path "core:path/slashpath"
 import "core:slice"
 import "core:sort"
@@ -326,15 +327,6 @@ get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> 
 	return get_short_signature(ast_context, symbol)
 }
 
-get_attribute_completion :: proc(
-	ast_context: ^AstContext,
-	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
-
-
-}
-
 DIRECTIVE_NAME_LIST :: []string {
 	// basic directives
 	"file",
@@ -397,7 +389,8 @@ DIRECTIVE_NAME_LIST :: []string {
 completion_items_directives: []CompletionResult
 
 @(init)
-_init_completion_items_directives :: proc() {
+_init_completion_items_directives :: proc "contextless" () {
+	context = runtime.default_context()
 	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionResult {
 		return CompletionResult{
 			completion_item = CompletionItem{

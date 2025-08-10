@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -47,12 +48,19 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 	return content
 }
 
-builtin_identifier_hover: map[string]string = {
-	"context" = fmt.aprintf(
-		"```odin\n%v\n```\n%v",
-		"runtime.context: Context",
-		"This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
-	),
+builtin_identifier_hover: map[string]string
+
+@(init)
+_builtin_identifier_hover :: proc "contextless" () {
+	context = runtime.default_context()
+	builtin_identifier_hover = {
+		"context" = fmt.aprintf(
+			"```odin\n%v\n```\n%v",
+			"runtime.context: Context",
+			"This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
+		),
+	}
+
 }
 
 
