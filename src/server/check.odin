@@ -20,7 +20,7 @@ import "core:thread"
 import "src:common"
 
 //Store uris we have reported on since last save. We use this to clear them on next save.
-uris_reported := make([dynamic]string)
+uris_reported: [dynamic]string
 
 Json_Error :: struct {
 	type: string,

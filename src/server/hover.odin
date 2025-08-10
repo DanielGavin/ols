@@ -48,11 +48,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 }
 
 builtin_identifier_hover: map[string]string = {
-	"context" = fmt.aprintf(
-		"```odin\n%v\n```\n%v",
-		"runtime.context: Context",
-		"This context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
-	),
+	"context" = "```odin\nruntime.context: Context\n```\nThis context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
 }
 
 

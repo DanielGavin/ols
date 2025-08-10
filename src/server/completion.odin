@@ -14,6 +14,7 @@ import "core:slice"
 import "core:sort"
 import "core:strconv"
 import "core:strings"
+import "base:runtime"
 
 
 import "src:common"
@@ -397,7 +398,8 @@ DIRECTIVE_NAME_LIST :: []string {
 completion_items_directives: []CompletionResult
 
 @(init)
-_init_completion_items_directives :: proc() {
+_init_completion_items_directives :: proc "contextless" ()  {
+	context = runtime.default_context()
 	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionResult {
 		return CompletionResult{
 			completion_item = CompletionItem{
