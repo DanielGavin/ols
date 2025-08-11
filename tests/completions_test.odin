@@ -4273,3 +4273,17 @@ ast_completion_poly_type :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"test.elem: $T"})
 }
+
+@(test)
+ast_completion_proc_field_names :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(i: int, bar := "") {}
+
+		main :: proc() {
+			foo(b{*})
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"test.bar: string"})
+}
