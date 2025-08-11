@@ -4287,3 +4287,23 @@ ast_completion_proc_field_names :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"test.bar: string"})
 }
+
+@(test)
+ast_completion_enum_variadiac_args :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		foo :: proc(foos: ..Foo) {}
+
+		main :: proc() {
+			foo(.A, .{*})
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"A", "B", "C"})
+}
