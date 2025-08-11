@@ -4307,3 +4307,19 @@ ast_completion_enum_variadiac_args :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"A", "B", "C"})
 }
+
+@(test)
+ast_completion_proc_variadiac_arg :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		foo :: proc(foos: ..{*}) {}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"})
+}

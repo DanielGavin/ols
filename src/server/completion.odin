@@ -107,7 +107,11 @@ get_completion_list :: proc(
 					completion_type = .Selector
 				}
 			}
-		} else {
+		} else if _, ok := position_context.selector.derived.(^ast.Implicit_Selector_Expr); !ok {
+			// variadic args seem to work by setting it as an implicit selector expr, in that case
+			// we want an identifier (eg. foo :: proc(args: ..{*}))
+
+			// Otherwise it's a selector
 			completion_type = .Selector
 		}
 	}
