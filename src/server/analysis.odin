@@ -1935,13 +1935,34 @@ resolve_comp_literal :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
+	return internal_resolve_comp_literal(ast_context, position_context, resolve_type_expression)
+}
+
+resolve_location_comp_literal :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	return internal_resolve_comp_literal(ast_context, position_context, resolve_location_type_expression)
+}
+
+internal_resolve_comp_literal :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	resolve_proc: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool),
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
 	if position_context.parent_comp_lit != nil && position_context.parent_comp_lit.type != nil {
-		symbol = resolve_type_expression(ast_context, position_context.parent_comp_lit.type) or_return
+		symbol = resolve_proc(ast_context, position_context.parent_comp_lit.type) or_return
 	} else if position_context.call != nil {
 		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			arg_index := find_position_in_call_param(position_context, call_expr^) or_return
 
-			symbol = resolve_type_expression(ast_context, position_context.call) or_return
+			symbol = resolve_proc(ast_context, position_context.call) or_return
 
 			value := symbol.value.(SymbolProcedureValue) or_return
 
@@ -1953,7 +1974,7 @@ resolve_comp_literal :: proc(
 				return {}, false
 			}
 
-			symbol = resolve_type_expression(ast_context, value.arg_types[arg_index].type) or_return
+			symbol = resolve_proc(ast_context, value.arg_types[arg_index].type) or_return
 		}
 	} else if position_context.returns != nil {
 		return_index: int
@@ -1978,13 +1999,13 @@ resolve_comp_literal :: proc(
 		}
 
 		if len(position_context.function.type.results.list) > return_index {
-			symbol = resolve_type_expression(
+			symbol = resolve_proc(
 				ast_context,
 				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
 	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
-		symbol = resolve_type_expression(ast_context, position_context.value_decl.type) or_return
+		symbol = resolve_proc(ast_context, position_context.value_decl.type) or_return
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)
