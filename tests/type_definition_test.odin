@@ -941,3 +941,45 @@ ast_type_definition_multi_pointer :: proc (t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_type_definition_comp_lit_proc_arg :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct{}
+
+		bar :: proc(foo: Foo) {}
+
+		main :: proc() {
+			bar({{*}})
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_type_definition_comp_lit_variable :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct{}
+
+		main :: proc() {
+			foo: Foo = {{*}}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}
