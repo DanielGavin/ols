@@ -2738,7 +2738,7 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 	ok_a, ok_b: bool
 
 	#partial switch binary.op.kind {
-	case .Cmp_Eq, .Gt, .Gt_Eq, .Lt, .Lt_Eq:
+	case .Cmp_Eq, .Gt, .Gt_Eq, .Lt, .Lt_Eq, .Not_Eq, .In, .Not_In:
 		symbol_a.value = SymbolUntypedValue {
 			type = .Bool,
 		}
