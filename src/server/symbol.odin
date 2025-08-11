@@ -557,6 +557,10 @@ get_proc_arg_count :: proc(v: SymbolProcedureValue) -> int {
 get_proc_arg_type_from_index :: proc(value: SymbolProcedureValue, parameter_index: int) -> (^ast.Field, bool) {
 	index := 0
 	for arg in value.arg_types {
+		// We're in a variadic arg, so return true
+		if _, ok := arg.type.derived.(^ast.Ellipsis); ok {
+			return arg, true
+		}
 		for name in arg.names {
 			if index == parameter_index {
 				return arg, true
