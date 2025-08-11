@@ -1335,6 +1335,31 @@ get_identifier_completion :: proc(
 
 	matcher := common.make_fuzzy_matcher(lookup_name)
 
+	if position_context.call != nil {
+		if call_symbol, ok := resolve_type_expression(ast_context, position_context.call); ok {
+			if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+				for arg in value.orig_arg_types {
+					// For now we just add params with default values, could add everything we more logic in the future
+					if arg.default_value != nil {
+						for name in arg.names {
+							if ident, ok := name.derived.(^ast.Ident); ok {
+								if symbol, ok := resolve_type_expression(ast_context, arg.default_value); ok {
+									if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+										symbol.type_name = symbol.name
+										symbol.type_pkg = symbol.pkg
+										symbol.name = clean_ident(ident.name)
+										symbol.type = .Field
+										append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	global: for k, v in ast_context.globals {
 		if position_context.global_lhs_stmt {
 			break
