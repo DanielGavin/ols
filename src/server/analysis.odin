@@ -2760,6 +2760,13 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 	}
 
 	if !ok_a || !ok_b {
+		// we return the type that was correctly resolved, if one of them was
+		if ok_a {
+			return symbol_a, true
+		}
+		if ok_b {
+			return symbol_b, true
+		}
 		return {}, false
 	}
 
@@ -2778,6 +2785,13 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 	}
 
 	if !ok_a || !ok_b {
+		// we return the type that was correctly resolved, if one of them was
+		if ok_a {
+			return symbol_a, true
+		}
+		if ok_b {
+			return symbol_b, true
+		}
 		return {}, false
 	}
 
@@ -2818,7 +2832,6 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 	} else if is_matrix_b && !is_matrix_a && !is_vector_a && binary.op.kind == .Mul {
 		return symbol_b, true
 	}
-
 
 	//Otherwise just choose the first type, we do not handle error cases - that is done with the checker
 	return symbol_a, ok_a

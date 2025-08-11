@@ -3662,6 +3662,42 @@ ast_hover_union_with_align :: proc(t: ^testing.T) {
 		"test.Foo: union #no_nil #align(4) {\n\tint,\n\tstring,\n}"
 	)
 }
+
+@(test)
+ast_hover_bit_set_intersection :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Flag  :: enum u8 {Foo, Bar}
+		Flags :: distinct bit_set[Flag; u8]
+
+		foo_bar  := Flags{.Foo, .Bar} // foo_bar: bit_set[Flag]
+		foo_{*}b := foo_bar & {.Foo}  // hover for foo_b
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo_b: bit_set[Flag]\n// hover for foo_b"
+	)
+}
+
+@(test)
+ast_hover_bit_set_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Flag  :: enum u8 {Foo, Bar}
+		Flags :: distinct bit_set[Flag; u8]
+
+		foo_bar  := Flags{.Bar} // foo_bar: bit_set[Flag]
+		foo_{*}b := {.Foo} | foo_bar  // hover for foo_b
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo_b: bit_set[Flag]\n// hover for foo_b"
+	)
+}
 /*
 
 Waiting for odin fix
