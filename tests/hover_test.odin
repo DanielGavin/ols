@@ -3698,6 +3698,42 @@ ast_hover_bit_set_union :: proc(t: ^testing.T) {
 		"test.foo_b: bit_set[Flag]\n// hover for foo_b"
 	)
 }
+
+@(test)
+ast_hover_binary_expr_not_eq :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			fo{*}o := 1 != 2
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: bool"
+	)
+}
+
+@(test)
+ast_hover_bit_set_in :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {A, B}
+
+		main :: proc() {
+			foos: bit_set[Foo]
+			f{*}oo := .A in foos
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo: bool"
+	)
+}
 /*
 
 Waiting for odin fix
