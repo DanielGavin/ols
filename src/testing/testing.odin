@@ -254,7 +254,7 @@ expect_completion_docs :: proc(
 
 	for expect_exclude in expect_excluded {
 		for completion in completion_list.items {
-			if expect_exclude == completion.detail {
+			if expect_exclude == get_doc(completion.documentation) {
 				log.errorf("Expected completion label %v to not be included", expect_exclude)
 			}
 		}
