@@ -54,16 +54,56 @@ append_method_completion :: proc(
 	}
 
 	remove_edit, ok := create_remove_edit(position_context)
-
 	if !ok {
 		return
 	}
 
-	for k, v in indexer.index.collection.packages {
+	if value, ok := selector_symbol.value.(SymbolUntypedValue); ok {
+		cases := untyped_map[value.type]
+		for c in cases {
+			method := Method {
+				name = c,
+				pkg  = selector_symbol.pkg,
+			}
+			collect_methods(
+				ast_context,
+				position_context,
+				method,
+				selector_symbol.pointers,
+				receiver,
+				remove_edit,
+				results,
+			)
+		}
+	} else {
 		method := Method {
 			name = selector_symbol.name,
 			pkg  = selector_symbol.pkg,
 		}
+		collect_methods(
+			ast_context,
+			position_context,
+			method,
+			selector_symbol.pointers,
+			receiver,
+			remove_edit,
+			results,
+		)
+	}
+
+}
+
+@(private = "file")
+collect_methods :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	method: Method,
+	pointers: int,
+	receiver: string,
+	remove_edit: []TextEdit,
+	results: ^[dynamic]CompletionResult,
+) {
+	for k, v in indexer.index.collection.packages {
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
 				resolve_unresolved_symbol(ast_context, &symbol)
@@ -92,7 +132,7 @@ append_method_completion :: proc(
 					continue
 				}
 
-				pointers_to_add := first_arg.pointers - selector_symbol.pointers
+				pointers_to_add := first_arg.pointers - pointers
 
 				references := ""
 				dereferences := ""
