@@ -471,6 +471,18 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 	strings.write_string(sb, "proc")
 	if s, ok := value.calling_convention.(string); ok && detailed_signature {
 		fmt.sbprintf(sb, " %s ", s)
+	} else if len(value.attributes) > 0 {
+		for attr in value.attributes {
+			for elem in attr.elems {
+				if ident, value, ok := unwrap_attr_elem(elem); ok {
+					if ident.name == "default_calling_convention" {
+						strings.write_string(sb, " ")
+						build_string_node(value, sb, false)
+						strings.write_string(sb, " ")
+					}
+				}
+			}
+		}
 	}
 	write_proc_param_list_and_return(sb, value)
 	if detailed_signature {
@@ -677,12 +689,27 @@ write_symbol_attributes :: proc(sb: ^strings.Builder, symbol: Symbol) {
 				strings.write_string(sb, "@()\n")
 				continue
 			}
+			if len(attribute.elems) == 1 {
+				if ident, _, ok := unwrap_attr_elem(attribute.elems[0]); ok {
+					if ident.name == "default_calling_convention" {
+						continue
+					}
+				}
+			}
 			strings.write_string(sb, "@(")
 			for elem, i in attribute.elems {
+				if ident, value, ok := unwrap_attr_elem(elem); ok {
+					if ident.name == "default_calling_convention" {
+						continue
+					}
+
+					if value != nil {
+						build_string_node(ident, sb, false)
+						strings.write_string(sb, "=")
+						build_string_node(value, sb, false)
+					}
+				}
 				if directive, ok := elem.derived.(^ast.Field_Value); ok {
-					build_string_node(directive.field, sb, false)
-					strings.write_string(sb, "=")
-					build_string_node(directive.value, sb, false)
 				} else {
 					build_string_node(elem, sb, false)
 				}
