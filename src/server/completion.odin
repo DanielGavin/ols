@@ -236,6 +236,13 @@ convert_completion_results :: proc(
 			continue
 		}
 
+		if position_in_struct_decl(position_context) {
+			to_skip: bit_set[SymbolType] = {.Function, .Variable, .Constant, .Field}
+			if result.symbol.type in to_skip {
+				continue
+			}
+		}
+
 		if result.snippet.insert != "" {
 			item := CompletionItem {
 				label            = result.symbol.name,

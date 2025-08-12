@@ -4477,6 +4477,21 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 	return false
 }
 
+position_in_struct_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+	if position_context.value_decl == nil {
+		return false
+	}
+
+	if len(position_context.value_decl.values) != 1 {
+		return false
+	}
+
+	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); ok {
+		return true
+	}
+
+	return false
+}
 
 is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 	if position_context.position <= position_context.comp_lit.open.offset {

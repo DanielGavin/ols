@@ -4323,3 +4323,23 @@ ast_completion_proc_variadiac_arg :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"})
 }
+
+@(test)
+ast_completion_within_struct_decl :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		foo :: proc(f: Foo) {}
+
+		Bar :: struct {
+			bar: f{*}
+		}
+		`,
+	}
+	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"}, {"test.foo: proc(f: Foo)"})
+}
