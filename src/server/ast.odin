@@ -295,12 +295,58 @@ is_expr_basic_lit :: proc(expr: ^ast.Expr) -> bool {
 	return ok
 }
 
+unwrap_attr_elem :: proc(elem: ^ast.Expr) -> (^ast.Ident, ^ast.Expr, bool) {
+	#partial switch v in elem.derived {
+	case ^ast.Field_Value:
+		if ident, ok := v.field.derived.(^ast.Ident); ok {
+			return ident, v.value, true
+		}
+	case ^ast.Ident:
+		return v, nil, true
+	}
+
+	return nil, nil, false
+}
+
+merge_attributes :: proc(attrs: ^[dynamic]^ast.Attribute, foreign_attrs: []^ast.Attribute) {
+	if len(foreign_attrs) == 0 {
+		return
+	}
+	attr_names := make(map[string]bool)
+	for attr in attrs {
+		for elem in attr.elems {
+			if ident, _, ok := unwrap_attr_elem(elem); ok {
+				attr_names[ident.name] = true
+			}
+		}
+	}
+
+	for attr in foreign_attrs {
+		for elem in attr.elems {
+			if ident, _, ok := unwrap_attr_elem(elem); ok {
+				name_to_check := ident.name
+				if ident.name == "link_prefix" || ident.name == "link_suffix" {
+					name_to_check = "link_name"
+				}
+				if _, ok := attr_names[name_to_check]; !ok {
+					new_attr := new_type(ast.Attribute, attr.pos, attr.end, context.temp_allocator)
+					elems := make([dynamic]^ast.Expr)
+					append(&elems, elem)
+					new_attr.elems = elems[:]
+					append(attrs, new_attr)
+				}
+			}
+		}
+	}
+}
+
 collect_value_decl :: proc(
 	exprs: ^[dynamic]GlobalExpr,
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	stmt: ^ast.Node,
 	skip_private: bool,
+	foreign_attrs: []^ast.Attribute,
 ) {
 	value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl)
 
@@ -308,6 +354,8 @@ collect_value_decl :: proc(
 		return
 	}
 	comment, _ := get_file_comment(file, value_decl.pos.line)
+
+	merge_attributes(&value_decl.attributes, foreign_attrs)
 
 	global_expr := GlobalExpr {
 		mutable    = value_decl.is_mutable,
@@ -319,16 +367,8 @@ collect_value_decl :: proc(
 
 	for attribute in value_decl.attributes {
 		for elem in attribute.elems {
-			ident: ^ast.Ident
-			value: ast.Any_Node
-
-			#partial switch v in elem.derived {
-			case ^ast.Field_Value:
-				ident = v.field.derived.(^ast.Ident) or_continue
-				value = v.value.derived
-			case ^ast.Ident:
-				ident = v
-			case:
+			ident, value, ok := unwrap_attr_elem(elem)
+			if !ok {
 				continue
 			}
 
@@ -338,7 +378,9 @@ collect_value_decl :: proc(
 			case "builtin":
 				global_expr.builtin = true
 			case "private":
-				if val, ok := value.(^ast.Basic_Lit); ok {
+				if value == nil {
+					global_expr.private = .Package
+				} else if val, ok := value.derived.(^ast.Basic_Lit); ok {
 					switch val.tok.text {
 					case "\"file\"":
 						global_expr.private = .File
@@ -401,11 +443,18 @@ collect_when_stmt :: proc(
 
 					if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 						for foreign_stmt in foreign_block.stmts {
-							collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
+							collect_value_decl(
+								exprs,
+								file,
+								file_tags,
+								foreign_stmt,
+								skip_private,
+								foreign_decl.attributes[:],
+							)
 						}
 					}
 				} else {
-					collect_value_decl(exprs, file, file_tags, stmt, skip_private)
+					collect_value_decl(exprs, file, file_tags, stmt, skip_private, {})
 				}
 			}
 		}
@@ -423,12 +472,19 @@ collect_when_stmt :: proc(
 								if foreign_decl.body != nil {
 									if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 										for foreign_stmt in foreign_block.stmts {
-											collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
+											collect_value_decl(
+												exprs,
+												file,
+												file_tags,
+												foreign_stmt,
+												skip_private,
+												foreign_decl.attributes[:],
+											)
 										}
 									}
 								}
 							} else {
-								collect_value_decl(exprs, file, file_tags, stmt, skip_private)
+								collect_value_decl(exprs, file, file_tags, stmt, skip_private, {})
 							}
 						}
 					}
@@ -452,7 +508,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
-			collect_value_decl(&exprs, file, file_tags, decl, skip_private)
+			collect_value_decl(&exprs, file, file_tags, decl, skip_private, {})
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
 			collect_when_stmt(&exprs, file, file_tags, when_decl, skip_private)
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
@@ -462,7 +518,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
-					collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
+					collect_value_decl(&exprs, file, file_tags, stmt, skip_private, foreign_decl.attributes[:])
 				}
 			}
 		}
@@ -482,7 +538,7 @@ get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.All
 
 	// The odin parser currently incorrectly adds comments that are more than a line above
 	// the symbol as a doc comment. We do a quick check here to handle that specific case.
-	if node != nil && comment.list[len(comment.list)-1].pos.line < node.pos.line-1 {
+	if node != nil && comment.list[len(comment.list) - 1].pos.line < node.pos.line - 1 {
 		return ""
 	}
 
