@@ -2338,6 +2338,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			for type in v.types {
 				append(&b.types, clone_expr(type, context.temp_allocator, nil))
 			}
+			b.poly = cast(^ast.Field_List)clone_type(v.poly, context.temp_allocator, nil)
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 

@@ -162,8 +162,8 @@ collect_struct_fields :: proc(
 		}
 	}
 
+	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 	value := to_symbol_struct_value(b)
-	value.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 
 	return value
 }

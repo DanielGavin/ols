@@ -772,7 +772,10 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 		fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.type_name)
 	}
 
-	if v, ok := symbol.value.(SymbolUnionValue); ok {
+	#partial switch v in symbol.value {
+	case SymbolUnionValue:
+		write_poly_list(sb, v.poly, v.poly_names)
+	case SymbolStructValue:
 		write_poly_list(sb, v.poly, v.poly_names)
 	}
 	return true
