@@ -1048,13 +1048,13 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			return internal_resolve_type_expression(ast_context, v.values[0], out)
 		}
 	case ^Union_Type:
-		out^, ok = make_symbol_union_from_ast(ast_context, v^, ast_context.field_name, true), true
+		out^, ok = make_symbol_union_from_ast(ast_context, v^, ast_context.field_name.name, true), true
 		return ok
 	case ^Enum_Type:
-		out^, ok = make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name, true), true
+		out^, ok = make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name.name, true), true
 		return ok
 	case ^Struct_Type:
-		out^, ok = make_symbol_struct_from_ast(ast_context, v, ast_context.field_name, {}, true), true
+		out^, ok = make_symbol_struct_from_ast(ast_context, v, ast_context.field_name.name, {}, true), true
 		return ok
 	case ^Bit_Set_Type:
 		out^, ok = make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
@@ -1078,7 +1078,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^, ok = make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name, {}, true, .None), true
 		return ok
 	case ^Bit_Field_Type:
-		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name, true), true
+		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name.name, true), true
 		return ok
 	case ^Basic_Directive:
 		out^, ok = resolve_basic_directive(ast_context, v^)
@@ -1690,19 +1690,19 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	case ^ast.Ident:
 		return_symbol, ok = internal_resolve_type_identifier(ast_context, v^)
 	case ^ast.Union_Type:
-		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Enum_Type:
-		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Struct_Type:
-		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, {}), true
+		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node.name, {}), true
 		return_symbol.name = node.name
 	case ^ast.Bit_Set_Type:
 		return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
 		return_symbol.name = node.name
 	case ^ast.Bit_Field_Type:
-		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
+		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Proc_Lit:
 		if is_procedure_generic(v.type) {
@@ -1790,19 +1790,19 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		}
 
 	case ^ast.Struct_Type:
-		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node, global.attributes), true
+		return_symbol, ok = make_symbol_struct_from_ast(ast_context, v, node.name, global.attributes), true
 		return_symbol.name = node.name
 	case ^ast.Bit_Set_Type:
 		return_symbol, ok = make_symbol_bitset_from_ast(ast_context, v^, node), true
 		return_symbol.name = node.name
 	case ^ast.Union_Type:
-		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node), true
+		return_symbol, ok = make_symbol_union_from_ast(ast_context, v^, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Enum_Type:
-		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node), true
+		return_symbol, ok = make_symbol_enum_from_ast(ast_context, v^, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Bit_Field_Type:
-		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node), true
+		return_symbol, ok = make_symbol_bit_field_from_ast(ast_context, v, node.name), true
 		return_symbol.name = node.name
 	case ^ast.Proc_Lit:
 		if is_procedure_generic(v.type) {
@@ -3151,14 +3151,14 @@ make_symbol_poly_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident) 
 make_symbol_union_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ast.Union_Type,
-	ident: ast.Ident,
+	name: string,
 	inlined := false,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Union,
 		pkg   = get_package_from_node(v.node),
-		name  = ident.name,
+		name  = name,
 		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
@@ -3198,13 +3198,13 @@ make_symbol_union_from_ast :: proc(
 make_symbol_enum_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ast.Enum_Type,
-	ident: ast.Ident,
+	name: string,
 	inlined := false,
 ) -> Symbol {
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Enum,
-		name  = ident.name,
+		name  = name,
 		pkg   = get_package_from_node(v.node),
 		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
@@ -3283,7 +3283,7 @@ make_symbol_bitset_from_ast :: proc(
 make_symbol_struct_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ^ast.Struct_Type,
-	ident: ast.Ident,
+	name: string,
 	attributes: []^ast.Attribute,
 	inlined := false,
 ) -> Symbol {
@@ -3292,7 +3292,7 @@ make_symbol_struct_from_ast :: proc(
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
-		name  = ident.name,
+		name  = name,
 		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 
@@ -3302,7 +3302,7 @@ make_symbol_struct_from_ast :: proc(
 	}
 
 	b := symbol_struct_value_builder_make(symbol, ast_context.allocator)
-	write_struct_type(ast_context, &b, v, ident, attributes, -1, inlined)
+	write_struct_type(ast_context, &b, v, attributes, -1, inlined)
 	symbol = to_symbol(b)
 	return symbol
 }
@@ -3310,7 +3310,7 @@ make_symbol_struct_from_ast :: proc(
 make_symbol_bit_field_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ^ast.Bit_Field_Type,
-	ident: ast.Ident,
+	name: string,
 	inlined := false,
 ) -> Symbol {
 	construct_bit_field_field_docs(ast_context.file, v)
@@ -3318,7 +3318,7 @@ make_symbol_bit_field_from_ast :: proc(
 		range = common.get_token_range(v, ast_context.file.src),
 		type  = .Struct,
 		pkg   = get_package_from_node(v.node),
-		name  = ident.name,
+		name  = name,
 		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
 	}
 

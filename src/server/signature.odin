@@ -69,6 +69,7 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 	}
 }
 
+
 get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
 	signature_help: SignatureHelp
 
@@ -139,7 +140,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		call.signature = strings.to_string(sb)
 		
 		info := SignatureInformation {
-			label         =	concatenate_raw_string_information(&ast_context, call.pkg, call.name, call.signature, call.type),
+			label         =	get_signature(call),
 			documentation = construct_symbol_docs(call, markdown = false),
 			parameters    = parameters,
 		}
@@ -167,7 +168,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				symbol.signature = strings.to_string(sb)
 				
 				info := SignatureInformation {
-					label         =	concatenate_raw_string_information(&ast_context, symbol.pkg, symbol.name, symbol.signature, symbol.type),
+					label         =	get_signature(symbol),
 					documentation = construct_symbol_docs(symbol, markdown = false),
 					parameters    = parameters,
 				}
@@ -180,4 +181,12 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	signature_help.signatures = signature_information[:]
 
 	return signature_help, true
+}
+
+@(private="file")
+get_signature :: proc(symbol: Symbol) -> string {
+	sb := strings.builder_make()
+	write_symbol_name(&sb, symbol)
+	strings.write_string(&sb, symbol.signature)
+	return strings.to_string(sb)
 }

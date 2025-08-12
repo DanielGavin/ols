@@ -43,7 +43,7 @@ objc_return_type_with_selector_expression :: proc(t: ^testing.T) {
 		t,
 		&source,
 		"->",
-		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
+		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect"},
 	)
 }
 
@@ -91,7 +91,7 @@ objc_return_type_with_selector_expression_2 :: proc(t: ^testing.T) {
 		t,
 		&source,
 		"->",
-		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window"},
+		{"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect"},
 	)
 }
 
@@ -141,7 +141,7 @@ objc_hover_chained_selector :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect :: proc(self: ^Window, contentRect: Rect, styleMask: WindowStyleMask, backing: BackingStoreType, doDefer: BOOL) -> ^Window",
+		"@(objc_type=Window, objc_name=\"initWithContentRect\")\nWindow.initWithContentRect: my_package.Window_initWithContentRect",
 	)
 }
 

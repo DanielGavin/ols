@@ -106,7 +106,7 @@ ast_hover_external_package_parameter :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.cool: my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}",
+		"test.cool: my_package.My_Struct",
 	)
 }
 
@@ -140,7 +140,7 @@ ast_hover_external_package_parameter_pointer :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.cool: ^my_package.My_Struct :: struct {\n\tone:   int,\n\ttwo:   int,\n\tthree: int,\n}",
+		"test.cool: ^my_package.My_Struct",
 	)
 }
 
@@ -577,7 +577,7 @@ ast_hover_struct_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tbar: int,\n\tf:   proc(a: int) -> int,\n}")
+	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
 
 @(test)
@@ -609,7 +609,7 @@ ast_hover_enum_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: test.Foo :: enum {\n\tFoo1,\n\tFoo2,\n}")
+	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
 
 @(test)
@@ -641,7 +641,7 @@ ast_hover_union_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: test.Foo :: union {\n\tstring,\n\tint,\n}")
+	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
 
 @(test)
@@ -1327,7 +1327,7 @@ ast_hover_proc_overloading_parametric_type :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.foo: ^my_package.Foo :: struct {}")
+	test.expect_hover(t, &source, "test.foo: ^my_package.Foo")
 }
 
 @(test)
@@ -1365,7 +1365,7 @@ ast_hover_proc_overloading_parametric_type_external_package :: proc(t: ^testing.
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.foo: ^my_package.Foo :: struct {}")
+	test.expect_hover(t, &source, "test.foo: ^my_package.Foo")
 }
 
 @(test)
@@ -1622,7 +1622,7 @@ ast_hover_poly_type :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
 
 @(test)
@@ -1668,7 +1668,7 @@ ast_hover_poly_type_external_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.foo: test.Foo :: struct {\n\tfoo: int,\n}")
+	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
 
 @(test)
@@ -1716,7 +1716,7 @@ ast_hover_poly_type_external_package_with_external_type :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.foo: small_array.Foo :: struct {}")
+	test.expect_hover(t, &source, "test.foo: small_array.Foo")
 }
 
 @(test)
@@ -1768,7 +1768,7 @@ ast_hover_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "test.f: bar_package.Bar :: struct {\n\tbar: int,\n}")
+	test.expect_hover(t, &source, "test.f: bar_package.Bar")
 }
 
 @(test)
@@ -1890,7 +1890,7 @@ ast_hover_bitset_enum_for_loop :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.f: test.Foo :: enum {\n\tA,\n\tB,\n}")
+	test.expect_hover(t, &source, "test.f: test.Foo")
 }
 
 @(test)
@@ -2634,7 +2634,7 @@ ast_hover_named_parameter_with_default_value_struct :: proc(t: ^testing.T) {
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "foo.a: test.Bar :: struct {\n\tbar: int,\n}")
+	test.expect_hover(t, &source, "foo.a: test.Bar")
 }
 
 @(test)
@@ -3238,7 +3238,7 @@ ast_hover_switch_initialiser :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.c: test.A :: enum {\n\tB,\n\tC,\n}",
+		"test.c: test.A",
 	)
 }
 
@@ -3277,7 +3277,7 @@ ast_hover_type_switch_with_using :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.v: ^my_package.Foo :: struct {}",
+		"test.v: ^my_package.Foo",
 	)
 }
 
@@ -3298,7 +3298,7 @@ ast_hover_union_with_poly :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: test.Foo :: union(int) {\n\tint,\n}",
+		"test.foo: test.Foo(int)",
 	)
 }
 
@@ -3331,7 +3331,7 @@ ast_hover_union_with_poly_from_package :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: my_package.Foo :: union(int) {\n\tint,\n}",
+		"test.foo: my_package.Foo(int)",
 	)
 }
 
@@ -3444,7 +3444,7 @@ ast_hover_chained_call_expr_with_named_proc_return  :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.b: test.Foo :: struct {\n\tsomeData: int,\n}")
+	test.expect_hover(t, &source, "test.b: test.Foo")
 }
 
 @(test)
@@ -3709,11 +3709,7 @@ ast_hover_binary_expr_not_eq :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(
-		t,
-		&source,
-		"test.foo: bool"
-	)
+	test.expect_hover(t, &source, "test.foo: bool")
 }
 
 @(test)
@@ -3728,10 +3724,88 @@ ast_hover_bit_set_in :: proc(t: ^testing.T) {
 		}
 		`,
 	}
+	test.expect_hover(t, &source, "test.foo: bool")
+}
+
+@(test)
+ast_hover_nested_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: struct {
+				i: int,
+				s: string,
+			}
+		}
+		`,
+	}
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo: bool"
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: struct {\n\t\ti: int,\n\t\ts: string,\n\t},\n}",
+	)
+}
+
+@(test)
+ast_hover_nested_struct_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: union #no_nil {
+				int, // int comment
+				string,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: union #no_nil {\n\t\tint, // int comment\n\t\tstring,\n\t},\n}"
+	)
+}
+
+@(test)
+ast_hover_nested_struct_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: enum {
+				// A doc
+				A,
+				B,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: enum {\n\t// A doc\n\t\tA,\n\t\tB,\n\t},\n}"
+	)
+}
+
+@(test)
+ast_hover_nested_struct_bit_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct {
+			foo: int,
+			bar: bit_field u8 {
+				// A doc
+				a: uint | 3,
+				b: uint | 5,
+			}
+		}
+		`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo: struct {\n\tfoo: int,\n\tbar: bit_field u8 {\n\t// A doc\n\t\ta: uint | 3,\n\t\tb: uint | 5,\n\t},\n}"
 	)
 }
 /*
