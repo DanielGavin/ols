@@ -91,7 +91,7 @@ UsingStatement :: struct {
 AstContext :: struct {
 	locals:           [dynamic]LocalGroup, //locals all the way to the document position
 	globals:          map[string]GlobalExpr,
-	recursion_map:    map[rawptr]bool,
+	recursion_map:    map[rawptr]struct{},
 	usings:           [dynamic]UsingStatement,
 	file:             ast.File,
 	allocator:        mem.Allocator,
@@ -123,7 +123,7 @@ make_ast_context :: proc(
 		locals           = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals          = make(map[string]GlobalExpr, 0, allocator),
 		usings           = make([dynamic]UsingStatement, allocator),
-		recursion_map    = make(map[rawptr]bool, 0, allocator),
+		recursion_map    = make(map[rawptr]struct{}, 0, allocator),
 		file             = file,
 		imports          = imports,
 		use_locals       = true,
@@ -961,7 +961,7 @@ check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool 
 		return true
 	}
 
-	ast_context.recursion_map[raw] = true
+	ast_context.recursion_map[raw] = {}
 
 	return false
 }
@@ -3377,7 +3377,7 @@ get_generic_assignment :: proc(
 	value: ^ast.Expr,
 	ast_context: ^AstContext,
 	results: ^[dynamic]^ast.Expr,
-	calls: ^map[int]bool,
+	calls: ^map[int]struct{},
 	flags: GetGenericAssignmentFlags,
 	is_mutable: bool,
 ) {
@@ -3462,7 +3462,7 @@ get_generic_assignment :: proc(
 			case SymbolProcedureValue:
 				return_types := get_proc_return_types(ast_context, symbol, v, is_mutable)
 				for ret in return_types {
-					calls[len(results)] = true
+					calls[len(results)] = {}
 					append(results, ret)
 				}
 			case SymbolAggregateValue:
@@ -3567,7 +3567,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	results := make([dynamic]^Expr, context.temp_allocator)
-	calls := make(map[int]bool, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
+	calls := make(map[int]struct{}, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
 
 	flags: GetGenericAssignmentFlags
 
@@ -3758,7 +3758,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 	}
 
 	results := make([dynamic]^Expr, context.temp_allocator)
-	calls := make(map[int]bool, 0, context.temp_allocator)
+	calls := make(map[int]struct{}, 0, context.temp_allocator)
 
 	for rhs in stmt.rhs {
 		get_generic_assignment(file, rhs, ast_context, &results, &calls, {}, true)

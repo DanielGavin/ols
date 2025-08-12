@@ -247,14 +247,14 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"workspace/didChangeWatchedFiles"   = notification_did_change_watched_files,
 }
 
-notification_map: map[string]bool = {
-	"textDocument/didOpen"            = true,
-	"textDocument/didChange"          = true,
-	"textDocument/didClose"           = true,
-	"textDocument/didSave"            = true,
-	"initialized"                     = true,
-	"window/progress"                 = true,
-	"workspace/didChangeWatchedFiles" = true,
+notification_map: map[string]struct{} = {
+	"textDocument/didOpen"            = {},
+	"textDocument/didChange"          = {},
+	"textDocument/didClose"           = {},
+	"textDocument/didSave"            = {},
+	"initialized"                     = {},
+	"window/progress"                 = {},
+	"workspace/didChangeWatchedFiles" = {},
 }
 
 consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {

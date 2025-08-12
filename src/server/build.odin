@@ -17,20 +17,20 @@ import "core:time"
 
 import "src:common"
 
-platform_os: map[string]bool = {
-	"windows" = true,
-	"linux"   = true,
-	"essence" = true,
-	"js"      = true,
-	"freebsd" = true,
-	"darwin"  = true,
-	"wasm32"  = true,
-	"openbsd" = true,
-	"wasi"    = true,
-	"wasm"    = true,
-	"haiku"   = true,
-	"netbsd"  = true,
-	"freebsd" = true,
+platform_os: map[string]struct{} = {
+	"windows" = {},
+	"linux"   = {},
+	"essence" = {},
+	"js"      = {},
+	"freebsd" = {},
+	"darwin"  = {},
+	"wasm32"  = {},
+	"openbsd" = {},
+	"wasi"    = {},
+	"wasm"    = {},
+	"haiku"   = {},
+	"netbsd"  = {},
+	"freebsd" = {},
 }
 
 
