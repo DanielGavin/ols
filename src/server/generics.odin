@@ -676,7 +676,10 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				continue
 			}
 
-			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
+			if ident, ok := param.type.derived.(^ast.Ident); ok {
+				poly_map[ident.name] = ast_context.call.args[i]
+				b.poly_names[i] = node_to_string(ast_context.call.args[i])
+			} else if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					poly_map[ident.name] = ast_context.call.args[i]
 					b.poly_names[i] = node_to_string(ast_context.call.args[i])

@@ -1733,6 +1733,41 @@ ast_hover_struct_poly_type :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_poly_type_external_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "small_array",
+			source = `package small_array
+
+			Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+				data: [N]T,
+				len:  int,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "small_array"
+
+		Foo :: struct {
+			foo: int,
+		}
+
+		MAX :: 4
+
+		fo{*}os: small_array.Small_Array(MAX, Foo)
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.foos: small_array.Small_Array(MAX, Foo)")
+}
+
+@(test)
 ast_hover_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
