@@ -308,12 +308,15 @@ unwrap_attr_elem :: proc(elem: ^ast.Expr) -> (^ast.Ident, ^ast.Expr, bool) {
 	return nil, nil, false
 }
 
-merge_attributes :: proc(attrs: ^[dynamic]^ast.Attribute, foreign_attrs: []^ast.Attribute) {
+merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribute) -> []^ast.Attribute {
 	if len(foreign_attrs) == 0 {
-		return
+		return attrs
 	}
-	attr_names := make(map[string]bool)
+
+	new_attrs := make([dynamic]^ast.Attribute, context.temp_allocator)
+	attr_names := make(map[string]bool, context.temp_allocator)
 	for attr in attrs {
+		append(&new_attrs, attr)
 		for elem in attr.elems {
 			if ident, _, ok := unwrap_attr_elem(elem); ok {
 				attr_names[ident.name] = true
@@ -333,11 +336,12 @@ merge_attributes :: proc(attrs: ^[dynamic]^ast.Attribute, foreign_attrs: []^ast.
 					elems := make([dynamic]^ast.Expr)
 					append(&elems, elem)
 					new_attr.elems = elems[:]
-					append(attrs, new_attr)
+					append(&new_attrs, new_attr)
 				}
 			}
 		}
 	}
+	return new_attrs[:]
 }
 
 collect_value_decl :: proc(
@@ -355,17 +359,17 @@ collect_value_decl :: proc(
 	}
 	comment, _ := get_file_comment(file, value_decl.pos.line)
 
-	merge_attributes(&value_decl.attributes, foreign_attrs)
+	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
 	global_expr := GlobalExpr {
 		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
 		comment    = comment,
-		attributes = value_decl.attributes[:],
+		attributes = attributes,
 		private    = file_tags.private,
 	}
 
-	for attribute in value_decl.attributes {
+	for attribute in attributes {
 		for elem in attribute.elems {
 			ident, value, ok := unwrap_attr_elem(elem)
 			if !ok {
