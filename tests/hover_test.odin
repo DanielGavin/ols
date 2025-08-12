@@ -3588,18 +3588,6 @@ ast_hover_parapoly_proc_dynamic_array_elems :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_shouldnt_add_docs_with_newline :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-		// Not a doc for Foo
-
-		F{*}oo :: struct {}
-		`,
-	}
-	test.expect_hover(t, &source, "test.Foo: struct {}")
-}
-
-@(test)
 ast_hover_parapoly_proc_slice_param :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test

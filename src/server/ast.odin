@@ -540,12 +540,6 @@ get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.All
 		return ""
 	}
 
-	// The odin parser currently incorrectly adds comments that are more than a line above
-	// the symbol as a doc comment. We do a quick check here to handle that specific case.
-	if node != nil && comment.list[len(comment.list) - 1].pos.line < node.pos.line - 1 {
-		return ""
-	}
-
 	tmp: string
 
 	for doc in comment.list {
