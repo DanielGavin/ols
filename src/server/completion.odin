@@ -933,14 +933,14 @@ get_implicit_completion :: proc(
 	if position_context.switch_stmt != nil &&
 	   position_context.case_clause != nil &&
 	   position_context.switch_stmt.cond != nil {
-		used_enums := make(map[string]bool, 5, context.temp_allocator)
+		used_enums := make(map[string]struct{}, 5, context.temp_allocator)
 
 		if block, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt); ok {
 			for stmt in block.stmts {
 				if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 					for name in case_clause.list {
 						if implicit, ok := name.derived.(^ast.Implicit_Selector_Expr); ok {
-							used_enums[implicit.field.name] = true
+							used_enums[implicit.field.name] = {}
 						}
 					}
 				}
@@ -1602,14 +1602,14 @@ get_type_switch_completion :: proc(
 ) -> bool {
 	is_incomplete := false
 
-	used_unions := make(map[string]bool, 5, context.temp_allocator)
+	used_unions := make(map[string]struct{}, 5, context.temp_allocator)
 
 	if block, ok := position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt); ok {
 		for stmt in block.stmts {
 			if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 				for name in case_clause.list {
 					if n, ok := get_used_switch_name(name); ok {
-						used_unions[n] = true
+						used_unions[n] = {}
 					}
 				}
 			}
@@ -2093,23 +2093,23 @@ append_magic_union_completion :: proc(
 
 }
 
-bitset_operators: map[string]bool = {
-	"|"  = true,
-	"&"  = true,
-	"~"  = true,
-	"<"  = true,
-	">"  = true,
-	"==" = true,
+bitset_operators: map[string]struct{} = {
+	"|"  = {},
+	"&"  = {},
+	"~"  = {},
+	"<"  = {},
+	">"  = {},
+	"==" = {},
 }
 
-bitset_assignment_operators: map[string]bool = {
-	"|=" = true,
-	"&=" = true,
-	"~=" = true,
-	"<=" = true,
-	">=" = true,
-	"="  = true,
-	"+=" = true,
+bitset_assignment_operators: map[string]struct{} = {
+	"|=" = {},
+	"&=" = {},
+	"~=" = {},
+	"<=" = {},
+	">=" = {},
+	"="  = {},
+	"+=" = {},
 }
 
 is_bitset_binary_operator :: proc(op: string) -> bool {
@@ -2166,20 +2166,20 @@ language_keywords: []string = {
 	"or_break",
 }
 
-swizzle_color_map: map[u8]bool = {
-	'r' = true,
-	'g' = true,
-	'b' = true,
-	'a' = true,
+swizzle_color_map: map[u8]struct{} = {
+	'r' = {},
+	'g' = {},
+	'b' = {},
+	'a' = {},
 }
 
 swizzle_color_components: []string = {"r", "g", "b", "a"}
 
-swizzle_coord_map: map[u8]bool = {
-	'x' = true,
-	'y' = true,
-	'z' = true,
-	'w' = true,
+swizzle_coord_map: map[u8]struct{} = {
+	'x' = {},
+	'y' = {},
+	'z' = {},
+	'w' = {},
 }
 
 swizzle_coord_components: []string = {"x", "y", "z", "w"}
