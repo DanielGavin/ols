@@ -410,11 +410,9 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			if resolved.name != ident.name {
-				resolved.type_name = resolved.name
-				resolved.type_pkg = resolved.pkg
-				resolved.name = ident.name
-			}
+			resolved.type_name = resolved.name
+			resolved.type_pkg = resolved.pkg
+			resolved.name = ident.name
 			if resolved.type == .Variable {
 				resolved.pkg = ast_context.document_package
 			}

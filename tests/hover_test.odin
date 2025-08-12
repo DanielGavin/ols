@@ -3957,6 +3957,40 @@ ast_hover_foreign_private_block_overridden :: proc(t: ^testing.T) {
 		"@(private=\"file\")\ntest.foo: proc() -> int"
 	)
 }
+
+@(test)
+ast_hover_proc_return_types :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc() -> (a, b: int, c: bool) {
+			return
+		}
+
+		main :: proc() {
+			a, b{*}, c := foo()
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: int")
+}
+
+@(test)
+ast_hover_proc_return_types_in_loop :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc() -> (a, b: int, c: bool) {
+			return 1, 2, true
+		}
+
+		main :: proc() {
+			for a, b{*} in foo() {
+
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: int")
+}
 /*
 
 Waiting for odin fix
