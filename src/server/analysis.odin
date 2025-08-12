@@ -943,10 +943,14 @@ get_proc_return_types :: proc(
 		append(&return_types, ret)
 	} else if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		for ret in v.return_types {
-			if ret.type != nil {
-				append(&return_types, ret.type)
-			} else if ret.default_value != nil {
-				append(&return_types, ret.default_value)
+			// Need min 1 loop for when return types aren't named, and to loop correctly when we have returns
+			// like -> (a, b, c: int)
+			for _ in 0 ..< max(1, len(ret.names)) {
+				if ret.type != nil {
+					append(&return_types, ret.type)
+				} else if ret.default_value != nil {
+					append(&return_types, ret.default_value)
+				}
 			}
 		}
 	}
@@ -2044,12 +2048,7 @@ get_struct_comp_lit_type :: proc(
 			if field_value, ok := elem.derived.(^ast.Field_Value); ok {
 				// If our field is another comp_lit, check to see if we're actually in that one
 				if cl, ok := field_value.value.derived.(^ast.Comp_Lit); ok {
-					if type :=  get_struct_comp_lit_type(
-						position_context,
-						cl,
-						s,
-						field_name,
-					); type != nil {
+					if type := get_struct_comp_lit_type(position_context, cl, s, field_name); type != nil {
 						return type
 					}
 				}
@@ -2267,11 +2266,7 @@ resolve_implicit_selector :: proc(
 				return {}, false
 			}
 			if position_context.parent_comp_lit != nil && position_context.field_value != nil {
-				return resolve_implicit_selector_comp_literal(
-					ast_context,
-					position_context,
-					current_symbol,
-				)
+				return resolve_implicit_selector_comp_literal(ast_context, position_context, current_symbol)
 			}
 			return current_symbol, ok
 		}
