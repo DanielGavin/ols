@@ -3973,6 +3973,24 @@ ast_hover_proc_return_types :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.b: int")
 }
+
+@(test)
+ast_hover_proc_return_types_in_loop :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc() -> (a, b: int, c: bool) {
+			return 1, 2, true
+		}
+
+		main :: proc() {
+			for a, b{*} in foo() {
+
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: int")
+}
 /*
 
 Waiting for odin fix
