@@ -362,9 +362,9 @@ resolve_type_comp_literal :: proc(
 
 untyped_map: map[SymbolUntypedValueType][]string = {
 	.Integer = {"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte"},
-	.Bool = {"bool", "b8", "b16", "b32", "b64"},
-	.Float = {"f16", "f32", "f64"},
-	.String = {"string", "cstring"}
+	.Bool    = {"bool", "b8", "b16", "b32", "b64"},
+	.Float   = {"f16", "f32", "f64"},
+	.String  = {"string", "cstring"},
 }
 
 // NOTE: This function is not commutative
@@ -485,6 +485,9 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		return is_symbol_same_typed(ast_context, a_symbol, b_symbol) && a_is_soa == b_is_soa
 	case SymbolFixedArrayValue:
 		b_value := b.value.(SymbolFixedArrayValue)
+		if !are_fixed_arrays_same_len(ast_context, a_value, b_value) {
+			return false
+		}
 
 		a_symbol: Symbol
 		b_symbol: Symbol
@@ -606,6 +609,19 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		)
 	}
 
+	return false
+}
+
+are_fixed_arrays_same_len :: proc(ast_context: ^AstContext, a, b: SymbolFixedArrayValue) -> bool {
+	if a_symbol, ok := resolve_type_expression(ast_context, a.len); ok {
+		if b_symbol, ok := resolve_type_expression(ast_context, b.len); ok {
+			if a_len, ok := a_symbol.value.(SymbolUntypedValue); ok && a_len.type == .Integer {
+				if b_len, ok := b_symbol.value.(SymbolUntypedValue); ok && b_len.type == .Integer {
+					return a_len.tok.text == b_len.tok.text
+				}
+			}
+		}
+	}
 	return false
 }
 
