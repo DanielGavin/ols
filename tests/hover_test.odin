@@ -3991,6 +3991,24 @@ ast_hover_proc_return_types_in_loop :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.b: int")
 }
+
+@(test)
+ast_hover_proc_overloads_arrays :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		normalize2 :: proc (v: [2]f32) -> [2]f32 {return {}}
+		normalize3 :: proc (v: [3]f32) -> [3]f32 {return {}}
+		normalize  :: proc {normalize2, normalize3}
+
+		main :: proc() {
+			v3: [3]f32
+			n{*}3 := normalize(v3)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.n3: [3]f32")
+}
 /*
 
 Waiting for odin fix
