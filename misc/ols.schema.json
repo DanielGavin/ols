@@ -78,7 +78,7 @@
 		"file_log": { "type": "boolean" },
 		"odin_command": {
 			"type": "string",
-			"description": "Allows you to specify your Odin location, instead of just relying on the environment path."
+			"description": "Specify the location to your Odin executable, rather than relying on the environment path."
 		},
 		"checker_args": {
 			"type": "string",

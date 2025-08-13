@@ -90,7 +90,7 @@ Options:
 
 `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
-`odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
+`odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
 `checker_args`: Pass custom arguments to `odin check`.
 
