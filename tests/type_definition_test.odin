@@ -983,3 +983,30 @@ ast_type_definition_comp_lit_variable :: proc (t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_type_definition_variable_in_comp_lit :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct{}
+
+		Bar :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			foo := Foo{}
+			bar := Bar {
+				foo = fo{*}o,
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}

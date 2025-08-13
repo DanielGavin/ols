@@ -103,13 +103,6 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 		}
 	}
 
-	if position_context.comp_lit != nil {
-		if symbol, ok := resolve_location_comp_literal(&ast_context, &position_context); ok {
-			append_symbol_to_locations(&locations, document, symbol)
-			return locations[:], true
-		}
-	}
-
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			if !position_in_exprs(call.args, position_context.position) {
@@ -253,6 +246,13 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 				append_symbol_to_locations(&locations, document, symbol)
 				return locations[:], true
 			}
+			append_symbol_to_locations(&locations, document, symbol)
+			return locations[:], true
+		}
+	}
+
+	if position_context.comp_lit != nil {
+		if symbol, ok := resolve_location_comp_literal(&ast_context, &position_context); ok {
 			append_symbol_to_locations(&locations, document, symbol)
 			return locations[:], true
 		}
