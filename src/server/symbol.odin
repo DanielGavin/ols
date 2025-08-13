@@ -124,13 +124,15 @@ SymbolBitSetValue :: struct {
 	expr: ^ast.Expr,
 }
 
+SymbolUntypedValueType :: enum {
+	Integer,
+	Float,
+	String,
+	Bool,
+}
+
 SymbolUntypedValue :: struct {
-	type: enum {
-		Integer,
-		Float,
-		String,
-		Bool,
-	},
+	type: SymbolUntypedValueType,
 	tok:  tokenizer.Token,
 }
 

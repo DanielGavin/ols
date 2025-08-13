@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package server
 
 import "core:fmt"
@@ -359,40 +360,24 @@ resolve_type_comp_literal :: proc(
 	return current_symbol, current_comp_lit, true
 }
 
+untyped_map: map[SymbolUntypedValueType][]string = {
+	.Integer = {"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte"},
+	.Bool = {"bool", "b8", "b16", "b32", "b64"},
+	.Float = {"f16", "f32", "f64"},
+	.String = {"string", "cstring"}
+}
+
 // NOTE: This function is not commutative
 are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 	if untyped, ok := a.value.(SymbolUntypedValue); ok {
 		if basic, ok := b.value.(SymbolBasicValue); ok {
-			switch untyped.type {
-			case .Integer:
-				switch basic.ident.name {
-				case "int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte":
+			names := untyped_map[untyped.type]
+			for name in names {
+				if basic.ident.name == name {
 					return true, true
-				case:
-					return false, true
-				}
-			case .Bool:
-				switch basic.ident.name {
-				case "bool", "b8", "b16", "b32", "b64":
-					return true, true
-				case:
-					return false, true
-				}
-			case .String:
-				switch basic.ident.name {
-				case "string", "cstring":
-					return true, true
-				case:
-					return false, true
-				}
-			case .Float:
-				switch basic.ident.name {
-				case "f16", "f32", "f64":
-					return true, true
-				case:
-					return false, true
 				}
 			}
+			return false, true
 		} else if untyped_b, ok := b.value.(SymbolUntypedValue); ok {
 			return untyped.type == untyped_b.type, true
 		}
