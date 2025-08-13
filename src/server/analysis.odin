@@ -2031,6 +2031,15 @@ resolve_implicit_selector_comp_literal :: proc(
 			//	.valueTwo = 2,
 			//}
 			return resolve_type_expression(ast_context, v.len)
+		case SymbolMapValue:
+			for elem in comp_lit.elems {
+				if position_in_node(elem, position_context.position) {
+					if _, ok := elem.derived.(^ast.Field_Value); ok {
+						return resolve_type_expression(ast_context, v.value)
+					}
+					return resolve_type_expression(ast_context, v.key)
+				}
+			}
 		}
 	}
 	return {}, false
