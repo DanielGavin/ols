@@ -92,6 +92,8 @@ Options:
 
 `odin_command`: Allows you to specify your Odin location, instead of just relying on the environment path.
 
+`odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.
+
 `checker_args`: Pass custom arguments to `odin check`.
 
 `verbose`: Logs warnings instead of just errors.

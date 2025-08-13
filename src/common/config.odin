@@ -38,6 +38,7 @@ Config :: struct {
 	thread_count:                      int,
 	file_log:                          bool,
 	odin_command:                      string,
+	odin_root_override:                string,
 	checker_args:                      string,
 	checker_targets:                   []string,
 	client_name:                       string,
