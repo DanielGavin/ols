@@ -4343,3 +4343,49 @@ ast_completion_within_struct_decl :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"}, {"test.foo: proc(f: Foo)"})
 }
+
+@(test)
+ast_completion_enum_map_key_global :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		E :: enum { A, B, C }
+
+		m: map[E]int = {
+			.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+}
+
+@(test)
+ast_completion_enum_map_key_global_with_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		E :: enum { A, B, C }
+
+		m: map[E]int = {
+			.{*} = 0,
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+}
+
+@(test)
+ast_completion_enum_map_value_global :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		E :: enum { A, B, C }
+
+		m: map[int]E = {
+			0 = .A,
+			1 = .{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+}
