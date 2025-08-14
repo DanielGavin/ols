@@ -1617,8 +1617,11 @@ visit_expr :: proc(
 
 
 		if v.fields != nil && len(v.fields.list) == 0 {
-
-			document = cons_with_nopl(document, text("{"))
+			if called_from == .Generic {
+				document = cons(document, text("{"))
+			} else {
+				document = cons_with_nopl(document, text("{"))
+			}
 
 			if contains_comments_in_range(p, v.pos, v.end) {
 				comments, _ := visit_comments(p, v.end)
