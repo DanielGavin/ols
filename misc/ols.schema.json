@@ -80,6 +80,10 @@
 			"type": "string",
 			"description": "Allows you to specify your Odin location, instead of just relying on the environment path."
 		},
+		"odin_root_override": {
+			"type": "string",
+			"description": "Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes."
+		},
 		"checker_args": {
 			"type": "string",
 			"description": "Pass custom arguments to `odin check`."
