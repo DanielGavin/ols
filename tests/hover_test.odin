@@ -4009,6 +4009,16 @@ ast_hover_proc_overloads_arrays :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.n3: [3]f32")
 }
+
+@(test)
+ast_hover_map_empty_struct_literal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		m{*}: map[int]struct{}
+		`,
+	}
+	test.expect_hover(t, &source, "test.m: map[int]struct {}")
+}
 /*
 
 Waiting for odin fix
