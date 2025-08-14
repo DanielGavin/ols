@@ -335,6 +335,10 @@ get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> 
 	case SymbolAggregateValue:
 		return ""
 	}
+	sb := strings.builder_make()
+	if write_symbol_type_information(&sb, ast_context, symbol) {
+		return strings.to_string(sb)
+	}
 	return get_short_signature(ast_context, symbol)
 }
 
