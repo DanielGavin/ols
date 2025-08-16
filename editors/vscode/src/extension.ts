@@ -61,9 +61,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		throw new Error(message);
 	});
 
-	checkForUpdates(config, state, false)
-
-
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
 	if (workspaceFolder === undefined) {
@@ -188,6 +185,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	client.start();
+
+	checkForUpdates(config, state, false)
 
 	watchOlsConfigFile(ctx, projectConfigPath);
 }
@@ -419,6 +418,7 @@ async function checkForUpdates(config: Config, state: PersistentState, required:
 		await fs.mkdir(latestDestFolder)
 	}
 
+	await vscode.commands.executeCommand("ols.stop")
 	zip.extractAllTo(latestDestFolder, true);
 
 	const ext = getExt()
