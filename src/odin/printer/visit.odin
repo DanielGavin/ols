@@ -1247,7 +1247,9 @@ visit_stmt :: proc(
 	case ^When_Stmt:
 		document = cons(document, cons_with_nopl(text("when"), visit_expr(p, v.cond)))
 
+		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
+		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
 			if p.config.brace_style == .Allman {
