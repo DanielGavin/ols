@@ -416,18 +416,21 @@ async function checkForUpdates(config: Config, state: PersistentState, required:
 	const latestExecutable = getExecutable(config, release.id);
 
 	if (!await fs.stat(latestDestFolder).then(() => true, () => false)) {
-		await fs.mkdir(latestDestFolder)
+		await fs.mkdir(latestDestFolder);
 	}
 
 	zip.extractAllTo(latestDestFolder, true);
 
-	const ext = getExt()
+	const ext = getExt();
 	if (ext !== ".exe") {
 		fs.chmod(latestExecutable, 0o755);
 	}
 
-	const prevFolder = getDestFolder(config, state.releaseId)
-	await fs.copyFile(`${prevFolder}/ols.json`, `${latestDestFolder}/ols.json`)
+	const prevFolder = getDestFolder(config, state.releaseId);
+	const prevOlsConfig = `${prevFolder}/ols.json`;
+	if (await fs.stat(prevOlsConfig).then(() => true, () => false)) {
+		await fs.copyFile(prevOlsConfig, `${latestDestFolder}/ols.json`)
+	}
 
 	await state.updateServerVersion(config.package.version);
 	await state.updateReleaseId(release.id);
