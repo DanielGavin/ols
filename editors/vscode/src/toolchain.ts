@@ -1,19 +1,15 @@
-import * as vscode from "vscode";
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs";
 
-import { execute, log, memoize } from './util';
+import { memoize } from './util';
 import { Config } from "./config";
 
 export function isOdinInstalled(config: Config): boolean {
-	return vscode.workspace.workspaceFolders?.some(folder => {
-		if (config.odinCommand) {
-			let command = path.isAbsolute(config.odinCommand) ? config.odinCommand :
-				path.join(folder.uri.fsPath, config.odinCommand);
-			return isFile(command) && fs.existsSync(command);
-		}
-	}) || getPathForExecutable("odin") !== "";
+	if (config.odinCommand) {
+		return true
+	}
+	return getPathForExecutable("odin") !== "";
 }
 
 export const getPathForExecutable = memoize(
@@ -57,14 +53,4 @@ function lookupInPath(exec: string): string | undefined {
 	}
 
 	return undefined;
-}
-
-function isFile(suspectPath: string): boolean {
-	// It is not mentionned in docs, but `statSync()` throws an error when
-	// the path doesn't exist
-	try {
-		return fs.statSync(suspectPath).isFile();
-	} catch {
-		return false;
-	}
 }
