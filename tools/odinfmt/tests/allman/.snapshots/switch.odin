@@ -1,16 +1,16 @@
 package allman
 
-main :: proc() 
+main :: proc()
 {
 	num := 1
 
-	switch num 
+	switch num
 	{
 	case 0:
 	case 1:
 	}
 
-	switch num 
+	switch num
 	{
 	case 0:
 	case 1:

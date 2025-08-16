@@ -446,6 +446,10 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		case Document_Newline:
 			if v.amount > 0 {
 				flush_line_suffix(builder, &suffix_builder)
+				// ensure we strip any misplaced trailing whitespace
+				for builder.buf[len(builder.buf)-1] == ' ' {
+					pop(&builder.buf)
+				}
 				for i := 0; i < v.amount; i += 1 {
 					strings.write_string(builder, p.newline)
 				}

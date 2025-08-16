@@ -1,10 +1,10 @@
 package allman
 
-main :: proc() 
+main :: proc()
 {
 	TEST_BOOL := false
 
-	when TEST_BOOL 
+	when TEST_BOOL
 	{
 	}
 }
