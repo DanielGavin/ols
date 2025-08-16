@@ -426,6 +426,9 @@ async function checkForUpdates(config: Config, state: PersistentState, required:
 		fs.chmod(latestExecutable, 0o755);
 	}
 
+	const prevFolder = getDestFolder(config, state.releaseId)
+	await fs.copyFile(`${prevFolder}/ols.json`, `${latestDestFolder}/ols.json`)
+
 	await state.updateServerVersion(config.package.version);
 	await state.updateReleaseId(release.id);
 	await state.updateLastCheck(Date.now());
