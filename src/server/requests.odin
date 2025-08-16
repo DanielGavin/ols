@@ -386,6 +386,16 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		}
 	}
 
+	if ols_config.odin_root_override != "" {
+		config.odin_root_override = strings.clone(ols_config.odin_root_override, context.temp_allocator)
+
+		allocated: bool
+		config.odin_root_override, allocated = common.resolve_home_dir(config.odin_root_override)
+		if !allocated {
+			config.odin_root_override = strings.clone(config.odin_root_override, context.allocator)
+		}
+	}
+
 	if ols_config.checker_args != "" {
 		config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 	}
@@ -479,39 +489,43 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	// their config and it would break.
 
 	odin_core_env: string
-	odin_bin := "odin" if config.odin_command == "" else config.odin_command
-
-	// If we don't have an absolute path
-	if !filepath.is_abs(odin_bin) {
-		// Join with the project path
-		tmp_path := path.join(elems = {uri.path, odin_bin})
-		if os.exists(tmp_path) {
-			odin_bin = tmp_path
-		}
-	}
-
-	root_buf: [1024]byte
-	root_slice := root_buf[:]
-	root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
-	code, ok, out := common.run_executable(root_command, &root_slice)
-	if ok && !strings.contains(string(out), "Usage") {
-		odin_core_env = string(out)
+	if config.odin_root_override != "" {
+		odin_core_env = config.odin_root_override
 	} else {
-		log.warnf("failed executing %q with code %v", root_command, code)
+		odin_bin := "odin" if config.odin_command == "" else config.odin_command
 
-		// User is probably on an older Odin version, let's try our best.
-
-		odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
-		if odin_core_env == "" {
-			if os.exists(odin_bin) {
-				odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
-			} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
-				odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+		// If we don't have an absolute path
+		if !filepath.is_abs(odin_bin) {
+			// Join with the project path
+			tmp_path := path.join(elems = {uri.path, odin_bin})
+			if os.exists(tmp_path) {
+				odin_bin = tmp_path
 			}
 		}
 
-		if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
-			odin_core_env = abs_core_env
+		root_buf: [1024]byte
+		root_slice := root_buf[:]
+		root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
+		code, ok, out := common.run_executable(root_command, &root_slice)
+		if ok && !strings.contains(string(out), "Usage") {
+			odin_core_env = string(out)
+		} else {
+			log.warnf("failed executing %q with code %v", root_command, code)
+
+			// User is probably on an older Odin version, let's try our best.
+
+			odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
+			if odin_core_env == "" {
+				if os.exists(odin_bin) {
+					odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
+				} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
+					odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+				}
+			}
+
+			if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
+				odin_core_env = abs_core_env
+			}
 		}
 	}
 

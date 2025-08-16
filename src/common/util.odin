@@ -58,17 +58,24 @@ resolve_home_dir :: proc(
 	when ODIN_OS == .Windows {
 		return path, false
 	} else {
-		if !strings.has_prefix(path, "~") {
-			return path, false
-		}
+		if strings.has_prefix(path, "~") {
+			home := os.get_env("HOME", context.temp_allocator)
+			if home == "" {
+				log.error("could not find $HOME in the environment to be able to resolve ~ in collection paths")
+				return path, false
+			}
 
-		home := os.get_env("HOME", context.temp_allocator)
-		if home == "" {
-			log.error("could not find $HOME in the environment to be able to resolve ~ in collection paths")
-			return path, false
-		}
+			return filepath.join({home, path[1:]}, allocator), true
+		} else if strings.has_prefix(path, "$HOME") {
+			home := os.get_env("HOME", context.temp_allocator)
+			if home == "" {
+				log.error("could not find $HOME in the environment to be able to resolve $HOME in collection paths")
+				return path, false
+			}
 
-		return filepath.join({home, path[1:]}, allocator), true
+			return filepath.join({home, path[5:]}, allocator), true
+		}
+		return path, false
 	}
 }
 

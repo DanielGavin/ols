@@ -421,6 +421,7 @@ OlsConfig :: struct {
 	verbose:                           Maybe(bool),
 	file_log:                          Maybe(bool),
 	odin_command:                      string,
+	odin_root_override:                string,
 	checker_args:                      string,
 	checker_targets:                   []string,
 	profiles:                          [dynamic]common.ConfigProfile,
