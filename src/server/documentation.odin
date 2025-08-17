@@ -290,19 +290,13 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 
 write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) {
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
+	if .Distinct in symbol.flags {
+		strings.write_string(sb, "distinct ")
+	}
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
-		if .Distinct in symbol.flags {
-			if symbol.type == .Keyword {
-				strings.write_string(sb, "distinct ")
-				build_string_node(v.ident, sb, false)
-			} else {
-				fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.name)
-			}
-		} else {
-			strings.write_string(sb, pointer_prefix)
-			build_string_node(v.ident, sb, false)
-		}
+		strings.write_string(sb, pointer_prefix)
+		build_string_node(v.ident, sb, false)
 		return
 	case SymbolPolyTypeValue:
 		fmt.sbprintf(sb, "%s$", pointer_prefix)
