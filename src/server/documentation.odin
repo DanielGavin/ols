@@ -195,13 +195,6 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		if .Distinct in symbol.flags {
 			strings.write_string(sb, "distinct ")
 		}
-		if len(v.names) == 0 {
-			strings.write_string(sb, "struct {}")
-			if symbol.comment != "" {
-				fmt.sbprintf(sb, " %s", symbol.comment)
-			}
-			return
-		}
 		write_struct_hover(sb, ast_context, v, depth)
 		return
 	case SymbolUnionValue:
@@ -530,6 +523,39 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 }
 
 write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: SymbolStructValue, depth: int) {
+	strings.write_string(sb, "struct")
+	write_poly_list(sb, v.poly, v.poly_names)
+
+	if v.max_field_align != nil {
+		strings.write_string(sb, " #max_field_align")
+		build_string_node(v.max_field_align, sb, false)
+	}
+
+	if v.min_field_align != nil {
+		strings.write_string(sb, " #min_field_align")
+		build_string_node(v.min_field_align, sb, false)
+	}
+
+	if v.align != nil {
+		strings.write_string(sb, " #align")
+		build_string_node(v.align, sb, false)
+	}
+
+	for tag in v.tags {
+		switch tag {
+		case .Is_Raw_Union:
+			strings.write_string(sb, " #raw_union")
+		case .Is_Packed:
+			strings.write_string(sb, " #packed")
+		case .Is_No_Copy:
+			strings.write_string(sb, " #no_copy")
+		}
+	}
+	if len(v.names) == 0 {
+		strings.write_string(sb, " {}")
+		return
+	}
+
 	using_prefix := "using "
 	longestNameLen := 0
 	for name, i in v.names {
@@ -553,9 +579,6 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 	}
 
 	using_index := -1
-
-	strings.write_string(sb, "struct")
-	write_poly_list(sb, v.poly, v.poly_names)
 	strings.write_string(sb, " {\n")
 
 	for i in 0 ..< len(v.names) {
