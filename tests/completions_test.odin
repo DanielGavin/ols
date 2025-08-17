@@ -3421,7 +3421,6 @@ ast_complete_ptr_using :: proc(t: ^testing.T) {
 		`,
 	}
 
-	// TODO: add "{..}" to the struct in this example to match the others
 	test.expect_completion_docs(t, &source, "", {`A.b: ^test.B`, `A.a: ^struct {..}`, `A.foo: int`, `A.f: int`})
 }
 
@@ -4388,4 +4387,31 @@ ast_completion_enum_map_value_global :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+}
+
+@(test)
+ast_completion_basic_type_other_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			foo: int
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		foo :: proc() {
+			my_package.f{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_docs(t, &source, "", {"my_package.foo: int"})
 }
