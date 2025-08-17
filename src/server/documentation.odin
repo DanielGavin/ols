@@ -692,6 +692,9 @@ write_comments :: proc(sb: ^strings.Builder, comments: []^ast.Comment_Group, ind
 }
 
 construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+	if symbol.name in keywords_docs {
+		return symbol.name
+	}
 	sb := strings.builder_make(ast_context.allocator)
 	write_symbol_attributes(&sb, symbol)
 	write_symbol_name(&sb, symbol)
