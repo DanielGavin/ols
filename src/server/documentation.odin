@@ -662,6 +662,9 @@ write_node :: proc(
 	case ^ast.Bit_Field_Type:
 		symbol = make_symbol_bit_field_from_ast(ast_context, n, name, true)
 		ok = true
+	case ^ast.Proc_Type:
+		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None)
+		ok = true
 	}
 	if ok {
 		if short_signature {
