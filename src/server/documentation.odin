@@ -331,7 +331,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		fmt.sbprintf(sb, "%smap[", pointer_prefix)
 		build_string_node(v.key, sb, false)
 		strings.write_string(sb, "]")
-		write_node(ast_context, sb, v.value, "", short_signature = true)
+		write_node(sb, ast_context, v.value, "", short_signature = true)
 		return
 	case SymbolProcedureValue:
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
@@ -370,21 +370,21 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		return
 	case SymbolMultiPointerValue:
 		fmt.sbprintf(sb, "%s[^]", pointer_prefix)
-		write_node(ast_context, sb, v.expr, "", short_signature = true)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolDynamicArrayValue:
 		fmt.sbprintf(sb, "%s[dynamic]", pointer_prefix)
-		write_node(ast_context, sb, v.expr, "", short_signature = true)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolSliceValue:
 		fmt.sbprintf(sb, "%s[]", pointer_prefix)
-		write_node(ast_context, sb, v.expr, "", short_signature = true)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolFixedArrayValue:
 		fmt.sbprintf(sb, "%s[", pointer_prefix)
 		build_string_node(v.len, sb, false)
 		strings.write_string(sb, "]")
-		write_node(ast_context, sb, v.expr, "", short_signature = true)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolMatrixValue:
 		fmt.sbprintf(sb, "%smatrix[", pointer_prefix)
@@ -408,6 +408,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		case .Integer:
 			strings.write_string(sb, "int")
 		}
+		return
+	case SymbolGenericValue:
+		build_string_node(v.expr, sb, false)
 		return
 	}
 
@@ -574,7 +577,7 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 			name_len += len(using_prefix)
 		}
 		fmt.sbprintf(sb, "%s:%*s", v.names[i], longestNameLen - name_len + 1, "")
-		write_node(ast_context, sb, v.types[i], v.names[i], depth + 1)
+		write_node(sb, ast_context, v.types[i], v.names[i], depth + 1)
 		if bit_size, ok := v.bit_sizes[i]; ok {
 			fmt.sbprintf(sb, "%*s| ", longest_type_len - len(type_names[i]) + 1, "")
 			build_string_node(bit_size, sb, false)
@@ -632,8 +635,8 @@ write_union_kind :: proc(sb: ^strings.Builder, kind: ast.Union_Type_Kind) {
 }
 
 write_node :: proc(
-	ast_context: ^AstContext,
 	sb: ^strings.Builder,
+	ast_context: ^AstContext,
 	node: ^ast.Node,
 	name: string,
 	depth := 0,
@@ -692,6 +695,9 @@ write_comments :: proc(sb: ^strings.Builder, comments: []^ast.Comment_Group, ind
 }
 
 construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
+	if symbol.name in keywords_docs {
+		return symbol.name
+	}
 	sb := strings.builder_make(ast_context.allocator)
 	write_symbol_attributes(&sb, symbol)
 	write_symbol_name(&sb, symbol)

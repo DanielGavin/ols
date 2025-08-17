@@ -279,9 +279,15 @@ convert_completion_results :: proc(
 			details := CompletionItemLabelDetails{}
 			if result.detail != "" {
 				details.description = result.detail
+				item.detail = result.detail
 			} else {
 				details.detail = get_completion_details(ast_context, result.symbol)
 				details.description = get_completion_description(ast_context, result.symbol)
+				if details.detail != "" {
+					item.detail = details.detail
+				} else if details.description != "" {
+					item.detail = details.description
+				}
 			}
 			// hack for sublime text's issue
 			// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
