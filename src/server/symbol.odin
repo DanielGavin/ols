@@ -19,6 +19,14 @@ SymbolAndNode :: struct {
 	node:   ^ast.Node,
 }
 
+SymbolStructTag :: enum {
+	Is_Packed,
+	Is_Raw_Union,
+	Is_No_Copy,
+}
+
+SymbolStructTags :: bit_set[SymbolStructTag]
+
 SymbolStructValue :: struct {
 	names:             []string,
 	ranges:            []common.Range,
@@ -37,12 +45,10 @@ SymbolStructValue :: struct {
 	bit_sizes:         map[int]^ast.Expr, // the bit size of the bit field field
 
 	// Tag information
-	align: ^ast.Expr,
-	min_field_align: ^ast.Expr,
-	max_field_align: ^ast.Expr,
-	is_packed:       bool,
-	is_raw_union:    bool,
-	is_no_copy:      bool,
+	align:             ^ast.Expr,
+	min_field_align:   ^ast.Expr,
+	max_field_align:   ^ast.Expr,
+	tags:              SymbolStructTags,
 }
 
 SymbolBitFieldValue :: struct {
@@ -241,26 +247,34 @@ SymbolStructValueBuilder :: struct {
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
 	poly_names:        [dynamic]string,
+
+	// Extra fields for embedded bit fields via usings
 	backing_types:     map[int]^ast.Expr,
 	bit_sizes:         map[int]^ast.Expr,
+
+	// Tag information
+	align:             ^ast.Expr,
+	min_field_align:   ^ast.Expr,
+	max_field_align:   ^ast.Expr,
+	tags:              SymbolStructTags,
 }
 
 symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) -> SymbolStructValueBuilder {
 	return SymbolStructValueBuilder {
-		names = make([dynamic]string, allocator),
-		types = make([dynamic]^ast.Expr, allocator),
-		args = make([dynamic]^ast.Expr, allocator),
-		ranges = make([dynamic]common.Range, allocator),
-		docs = make([dynamic]^ast.Comment_Group, allocator),
-		comments = make([dynamic]^ast.Comment_Group, allocator),
+		names             = make([dynamic]string, allocator),
+		types             = make([dynamic]^ast.Expr, allocator),
+		args              = make([dynamic]^ast.Expr, allocator),
+		ranges            = make([dynamic]common.Range, allocator),
+		docs              = make([dynamic]^ast.Comment_Group, allocator),
+		comments          = make([dynamic]^ast.Comment_Group, allocator),
 		// Set it to an arbitary size due to issues with crashes
 		// See https://github.com/DanielGavin/ols/issues/787
-		usings = make(map[int]struct{}, 16, allocator),
-		from_usings = make([dynamic]int, allocator),
+		usings            = make(map[int]struct{}, 16, allocator),
+		from_usings       = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
-		poly_names = make([dynamic]string, allocator),
-		backing_types = make(map[int]^ast.Expr, allocator),
-		bit_sizes = make(map[int]^ast.Expr, allocator),
+		poly_names        = make([dynamic]string, allocator),
+		backing_types     = make(map[int]^ast.Expr, allocator),
+		bit_sizes         = make(map[int]^ast.Expr, allocator),
 	}
 }
 
@@ -304,6 +318,10 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		poly_names = slice.to_dynamic(v.poly_names, allocator),
 		backing_types = v.backing_types,
 		bit_sizes = v.bit_sizes,
+		tags = v.tags,
+		align = v.align,
+		max_field_align = v.max_field_align,
+		min_field_align = v.min_field_align,
 	}
 }
 
@@ -334,6 +352,10 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		poly_names = b.poly_names[:],
 		backing_types = b.backing_types,
 		bit_sizes = b.bit_sizes,
+		align = b.align,
+		max_field_align = b.max_field_align,
+		min_field_align = b.min_field_align,
+		tags = b.tags,
 	}
 }
 
@@ -381,6 +403,22 @@ write_struct_type :: proc(
 		resolve_poly_struct(ast_context, b, v.poly_params)
 	}
 
+	if base_using_index == -1 {
+		// only map tags for the base struct
+		b.align = v.align
+		b.max_field_align = v.max_field_align
+		b.min_field_align = v.min_field_align
+		if v.is_no_copy {
+			b.tags |= {.Is_No_Copy}
+		}
+		if v.is_packed {
+			b.tags |= {.Is_Packed}
+		}
+		if v.is_raw_union {
+			b.tags |= {.Is_Raw_Union}
+		}
+	}
+
 	expand_objc(ast_context, b)
 	expand_usings(ast_context, b)
 }
@@ -418,16 +456,16 @@ write_symbol_struct_value :: proc(
 		}
 	}
 	for u in v.unexpanded_usings {
-		append(&b.unexpanded_usings, u+base_index)
+		append(&b.unexpanded_usings, u + base_index)
 	}
 	for k, value in v.backing_types {
-		b.backing_types[k+base_index] = value
+		b.backing_types[k + base_index] = value
 	}
 	for k, value in v.bit_sizes {
-		b.bit_sizes[k+base_index] = value
+		b.bit_sizes[k + base_index] = value
 	}
 	for k in v.usings {
-		b.usings[k+base_index] = struct{}{}
+		b.usings[k + base_index] = struct{}{}
 	}
 	expand_usings(ast_context, b)
 }
@@ -457,10 +495,9 @@ write_symbol_bitfield_value :: proc(
 	}
 	b.backing_types[base_using_index] = v.backing_type
 	for bit_size, i in v.bit_sizes {
-		b.bit_sizes[i+base_index] = bit_size
+		b.bit_sizes[i + base_index] = bit_size
 	}
 	expand_usings(ast_context, b)
-
 }
 
 expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
@@ -812,7 +849,12 @@ construct_struct_field_symbol :: proc(symbol: ^Symbol, parent_name: string, valu
 	symbol.comment = get_comment(value.comments[index])
 }
 
-construct_bit_field_field_symbol :: proc(symbol: ^Symbol, parent_name: string, value: SymbolBitFieldValue, index: int) {
+construct_bit_field_field_symbol :: proc(
+	symbol: ^Symbol,
+	parent_name: string,
+	value: SymbolBitFieldValue,
+	index: int,
+) {
 	symbol.name = value.names[index]
 	symbol.pkg = parent_name
 	symbol.type = .Field

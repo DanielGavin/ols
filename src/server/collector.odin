@@ -119,7 +119,11 @@ collect_procedure_fields :: proc(
 		orig_arg_types     = args[:],
 		generic            = is_procedure_generic(proc_type),
 		diverging          = proc_type.diverging,
-		calling_convention = clone_calling_convention(proc_type.calling_convention, collection.allocator, &collection.unique_strings),
+		calling_convention = clone_calling_convention(
+			proc_type.calling_convention,
+			collection.allocator,
+			&collection.unique_strings,
+		),
 		tags               = proc_type.tags,
 		attributes         = attrs[:],
 		inlining           = inlining,
@@ -160,6 +164,19 @@ collect_struct_fields :: proc(
 				append(&b.from_usings, -1)
 			}
 		}
+	}
+
+	b.align = clone_expr(struct_type.align, collection.allocator, &collection.unique_strings)
+	b.max_field_align = clone_expr(struct_type.max_field_align, collection.allocator, &collection.unique_strings)
+	b.min_field_align = clone_expr(struct_type.min_field_align, collection.allocator, &collection.unique_strings)
+	if struct_type.is_no_copy {
+		b.tags |= {.Is_No_Copy}
+	}
+	if struct_type.is_packed {
+		b.tags |= {.Is_Packed}
+	}
+	if struct_type.is_raw_union {
+		b.tags |= {.Is_Raw_Union}
 	}
 
 	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)

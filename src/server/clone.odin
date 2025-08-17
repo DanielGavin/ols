@@ -205,6 +205,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.align = clone_type(r.align, allocator, unique_strings)
 		r.fields = auto_cast clone_type(r.fields, allocator, unique_strings)
 		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
+		r.align = clone_type(r.align, allocator, unique_strings)
+		r.max_field_align = clone_type(r.max_field_align, allocator, unique_strings)
+		r.min_field_align = clone_type(r.min_field_align, allocator, unique_strings)
 	case ^Field:
 		r.names = clone_type(r.names, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)

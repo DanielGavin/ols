@@ -4058,6 +4058,79 @@ ast_hover_distinct_array :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Foo: distinct [4]u8")
 }
 
+@(test)
+ast_hover_struct_tags :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct #no_copy #raw_union {
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct #raw_union #no_copy {}")
+}
+
+@(test)
+ast_hover_struct_tags_packed :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct($T: typeid) #packed {
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct($T: typeid) #packed {}")
+}
+
+@(test)
+ast_hover_struct_tags_align :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct($T: typeid) #align(4) {
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct($T: typeid) #align(4) {}")
+}
+
+@(test)
+ast_hover_struct_tags_align_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: struct($T: typeid) #align(4) {
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			foo := my_package.F{*}oo(int){}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.Foo: struct(int) #align(4) {}")
+}
+
+@(test)
+ast_hover_struct_tags_field_align :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Fo{*}o :: struct #max_field_align(4) #min_field_align(2) {
+			
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct #max_field_align(4) #min_field_align(2) {}")
+}
+
 /*
 
 Waiting for odin fix
