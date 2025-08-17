@@ -78,3 +78,10 @@ Instruction :: struct {
 	prefixes: LegacyPrefixes,
 	operands: []Operand,
 }
+
+// odinfmt: disable
+Bar :: struct{}
+// odinfmt: enable
+
+// Foo doc
+Foo :: struct   {}

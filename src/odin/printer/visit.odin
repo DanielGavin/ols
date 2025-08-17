@@ -185,15 +185,26 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 
 	move := cons(move_line(p, pos_one_line_before), escape_nest(move_line(p, node_pos)))
 
-	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
-		next_comment_group(p)
-	}
-
 	p.disabled_until_line = disabled_info.end_line
 	p.source_position = node.end
 	p.source_position.line = disabled_info.end_line
 
-	return cons(move, text(disabled_info.text))
+	document := cons(move, text(disabled_info.text))
+
+	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
+		// we need to handle the rest of the comment group
+		comment_group := p.comments[p.latest_comment_index]
+		for comment in comment_group.list {
+			if comment.pos.line <= disabled_info.end_line {
+				continue
+			}
+			newlined, tmp_document := visit_comment(p, comment)
+			document = cons(document, tmp_document)
+		}
+		next_comment_group(p)
+	}
+
+	return document
 }
 
 @(private)
