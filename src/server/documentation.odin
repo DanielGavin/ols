@@ -372,15 +372,27 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolDynamicArrayValue:
-		fmt.sbprintf(sb, "%s[dynamic]", pointer_prefix)
+		strings.write_string(sb, pointer_prefix)
+		if .Soa in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
+		strings.write_string(sb, "[dynamic]")
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolSliceValue:
-		fmt.sbprintf(sb, "%s[]", pointer_prefix)
+		strings.write_string(sb, pointer_prefix)
+		if .Soa in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
+		strings.write_string(sb, "[]")
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolFixedArrayValue:
-		fmt.sbprintf(sb, "%s[", pointer_prefix)
+		strings.write_string(sb, pointer_prefix)
+		if .Soa in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
+		strings.write_string(sb, "[")
 		build_string_node(v.len, sb, false)
 		strings.write_string(sb, "]")
 		write_node(sb, ast_context, v.expr, "", short_signature = true)

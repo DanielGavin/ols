@@ -4131,6 +4131,38 @@ ast_hover_struct_tags_field_align :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Foo: struct #max_field_align(4) #min_field_align(2) {}")
 }
 
+@(test)
+ast_hover_soa_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			f{*}oos: #soa[]Foo
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: #soa[4]u8")
+}
+
+@(test)
+ast_hover_soa_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		B{*}ar :: struct {
+			foos: #soa[5]Foo,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Bar: struct {\n\tfoos: #soa[5]Foo,\n}")
+}
+
 /*
 
 Waiting for odin fix

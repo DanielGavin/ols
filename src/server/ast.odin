@@ -1221,11 +1221,13 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		}
 		build_string(n.elem, builder, remove_pointers)
 	case ^Array_Type:
+		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.len, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^Dynamic_Array_Type:
+		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[dynamic]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^Struct_Type:
