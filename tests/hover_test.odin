@@ -4019,6 +4019,23 @@ ast_hover_map_empty_struct_literal :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.m: map[int]struct {}")
 }
+
+@(test)
+ast_hover_struct_container_fields :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: struct {
+			foo_slice: []int,
+			foo_dynamic: [dynamic]int,
+			foo_array: [5]int,
+			foo_map: map[int]int,
+			foo_matrix: matrix[3,4]int,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct {\n\tfoo_slice:   []int,\n\tfoo_dynamic: [dynamic]int,\n\tfoo_array:   [5]int,\n\tfoo_map:     map[int]int,\n\tfoo_matrix:  matrix[3,4]int,\n}")
+}
+
 /*
 
 Waiting for odin fix

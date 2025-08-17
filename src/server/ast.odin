@@ -1251,6 +1251,14 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		build_string(n.key, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.value, builder, remove_pointers)
+	case ^Matrix_Type:
+		strings.write_string(builder, "matrix")
+		strings.write_string(builder, "[")
+		build_string(n.row_count, builder, remove_pointers)
+		strings.write_string(builder, ",")
+		build_string(n.column_count, builder, remove_pointers)
+		strings.write_string(builder, "]")
+		build_string(n.elem, builder, remove_pointers)
 	case ^ast.Multi_Pointer_Type:
 		strings.write_string(builder, "[^]")
 		build_string(n.elem, builder, remove_pointers)
