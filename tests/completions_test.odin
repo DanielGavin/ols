@@ -4415,3 +4415,21 @@ ast_completion_basic_type_other_pkg :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"my_package.foo: int"})
 }
+
+@(test)
+ast_completion_soa_slice_fields :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[]Foo
+			foos.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"Foo.x: int", "Foo.y: int"})
+}
