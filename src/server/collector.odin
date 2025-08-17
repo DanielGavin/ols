@@ -650,7 +650,6 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.uri = get_index_unique_string(collection, uri)
 		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
-		symbol.flags |= {.Distinct}
 
 		if expr.builtin || strings.contains(uri, "builtin.odin") {
 			symbol.pkg = "$builtin"
@@ -665,6 +664,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.pkg = get_index_unique_string(collection, path)
 		} else {
 			symbol.pkg = get_index_unique_string(collection, directory)
+		}
+
+		if is_distinct {
+			symbol.flags |= {.Distinct}
 		}
 
 		if expr.deprecated {

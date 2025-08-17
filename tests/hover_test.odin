@@ -3700,7 +3700,7 @@ ast_hover_bit_set_intersection :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo_b: bit_set[Flag]\n// hover for foo_b"
+		"test.foo_b: distinct bit_set[Flag]\n// hover for foo_b"
 	)
 }
 
@@ -3718,7 +3718,7 @@ ast_hover_bit_set_union :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.foo_b: bit_set[Flag]\n// hover for foo_b"
+		"test.foo_b: distinct bit_set[Flag]\n// hover for foo_b"
 	)
 }
 
@@ -4046,6 +4046,16 @@ ast_hover_struct_field_proc_calling_convention :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.Foo: struct {\n\tfoo_proc: proc \"c\" (a: int, b: int) -> int,\n}")
+}
+
+@(test)
+ast_hover_distinct_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}oo :: distinct [4]u8
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: distinct [4]u8")
 }
 
 /*

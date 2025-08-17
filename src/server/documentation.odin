@@ -152,6 +152,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
+		if .Distinct in symbol.flags {
+			strings.write_string(sb, "distinct ")
+		}
 		if len(v.names) == 0 {
 			write_indent(sb, depth)
 			strings.write_string(sb, "enum {}")
@@ -189,6 +192,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		strings.write_string(sb, "}")
 		return
 	case SymbolStructValue:
+		if .Distinct in symbol.flags {
+			strings.write_string(sb, "distinct ")
+		}
 		if len(v.names) == 0 {
 			strings.write_string(sb, "struct {}")
 			if symbol.comment != "" {
@@ -199,6 +205,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		write_struct_hover(sb, ast_context, v, depth)
 		return
 	case SymbolUnionValue:
+		if .Distinct in symbol.flags {
+			strings.write_string(sb, "distinct ")
+		}
 		strings.write_string(sb, "union")
 		write_poly_list(sb, v.poly, v.poly_names)
 		if v.kind != .Normal {
@@ -241,6 +250,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
 	case SymbolBitFieldValue:
+		if .Distinct in symbol.flags {
+			strings.write_string(sb, "distinct ")
+		}
 		strings.write_string(sb, "bit_field ")
 		build_string_node(v.backing_type, sb, false)
 		if len(v.names) == 0 {
@@ -290,19 +302,13 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 
 write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) {
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
+	if .Distinct in symbol.flags {
+		strings.write_string(sb, "distinct ")
+	}
 	#partial switch v in symbol.value {
 	case SymbolBasicValue:
-		if .Distinct in symbol.flags {
-			if symbol.type == .Keyword {
-				strings.write_string(sb, "distinct ")
-				build_string_node(v.ident, sb, false)
-			} else {
-				fmt.sbprintf(sb, "%s%s", pointer_prefix, symbol.name)
-			}
-		} else {
-			strings.write_string(sb, pointer_prefix)
-			build_string_node(v.ident, sb, false)
-		}
+		strings.write_string(sb, pointer_prefix)
+		build_string_node(v.ident, sb, false)
 		return
 	case SymbolPolyTypeValue:
 		fmt.sbprintf(sb, "%s$", pointer_prefix)
