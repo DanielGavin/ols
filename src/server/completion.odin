@@ -1965,6 +1965,12 @@ append_magic_array_like_completion :: proc(
 	symbol: Symbol,
 	results: ^[dynamic]CompletionResult,
 ) {
+	// Can't iterate over an soa pointer
+	// eg foos: #soa^#soa[]struct{}
+	if .SoaPointer in symbol.flags {
+		return
+	}
+
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
