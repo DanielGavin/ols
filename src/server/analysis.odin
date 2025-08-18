@@ -1080,7 +1080,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^, ok = make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
 	case ^Proc_Type:
-		out^, ok = make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None), true
+		out^, ok =
+			make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None), true
 		return ok
 	case ^Bit_Field_Type:
 		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name.name, true), true
@@ -1144,6 +1145,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Pointer_Type:
 		ok := internal_resolve_type_expression(ast_context, v.elem, out)
 		out.pointers += 1
+		if pointer_is_soa(v^) {
+			out.flags += {.SoaPointer}
+		}
 		return ok
 	case ^Matrix_Index_Expr:
 		if ok := internal_resolve_type_expression(ast_context, v.expr, out); ok {
@@ -1300,6 +1304,54 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 	return symbol, ok
 }
 
+resolve_soa_selector_field :: proc(
+	ast_context: ^AstContext,
+	selector: Symbol,
+	expr: ^ast.Expr,
+	size: ^ast.Expr,
+	name: string,
+) -> (
+	Symbol,
+	bool,
+) {
+	if .Soa not_in selector.flags && .SoaPointer not_in selector.flags {
+		return {}, false
+	}
+
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if v, ok := symbol.value.(SymbolStructValue); ok {
+			for n, i in v.names {
+				if n == name {
+					if .SoaPointer in selector.flags {
+						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+							symbol.value = resolved.value
+							symbol.pkg = symbol.name
+						} else {
+							return {}, false
+						}
+					} else if size != nil {
+						symbol.value = SymbolFixedArrayValue {
+							expr = v.types[i],
+							len  = size,
+						}
+					} else {
+						symbol.value = SymbolMultiPointerValue {
+							expr = v.types[i],
+						}
+					}
+
+					symbol.name = name
+					symbol.type = .Field
+					symbol.range = v.ranges[i]
+					return symbol, true
+				}
+			}
+		}
+	}
+
+	return {}, false
+}
+
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
 	selector := Symbol{}
 	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
@@ -1310,6 +1362,9 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		symbol := Symbol{}
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
+			if symbol, ok := resolve_soa_selector_field(ast_context, selector, s.expr, s.len, node.field.name); ok {
+				return symbol, ok
+			}
 			components_count := 0
 			for c in node.field.name {
 				if c == 'x' || c == 'y' || c == 'z' || c == 'w' || c == 'r' || c == 'g' || c == 'b' || c == 'a' {
@@ -1382,6 +1437,10 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			// enum members probably require own symbol value
 			selector.type = .EnumMember
 			return selector, true
+		case SymbolSliceValue:
+			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
+		case SymbolDynamicArrayValue:
+			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
 		}
 	}
 
@@ -1620,7 +1679,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 
 			if !ok && !ast_context.overloading {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining), true
+					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining),
+					true
 			}
 		} else {
 			return_symbol, ok =
@@ -2596,6 +2656,12 @@ resolve_symbol_selector :: proc(
 		if s, ok := resolve_type_expression(ast_context, v.return_types[0].type); ok {
 			return resolve_symbol_selector(ast_context, selector, s)
 		}
+	case SymbolSliceValue:
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
+	case SymbolDynamicArrayValue:
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
+	case SymbolFixedArrayValue:
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, v.len, field)
 	}
 
 	return symbol, true

@@ -4131,6 +4131,121 @@ ast_hover_struct_tags_field_align :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Foo: struct #max_field_align(4) #min_field_align(2) {}")
 }
 
+@(test)
+ast_hover_soa_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			f{*}oos: #soa[]Foo
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foos: #soa[]Foo")
+}
+
+@(test)
+ast_hover_struct_with_soa_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		B{*}ar :: struct {
+			foos: #soa[5]Foo,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Bar: struct {\n\tfoos: #soa[5]Foo,\n}")
+}
+
+@(test)
+ast_hover_soa_slice_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[]Foo
+			foos.x{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foos.x: [^]int")
+}
+
+@(test)
+ast_hover_identifier_soa_slice_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[]Foo
+			x{*} := foos.x
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.x: [^]int")
+}
+
+@(test)
+ast_hover_soa_fixed_array_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[6]Foo
+			foos.x{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foos.x: [6]int")
+}
+
+@(test)
+ast_hover_soa_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			f{*}oo: #soa^#soa[6]Foo
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: #soa^#soa[6]Foo")
+}
+
+@(test)
+ast_hover_soa_pointer_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foo: #soa^#soa[6]Foo
+			foo.x{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.x: int")
+}
 /*
 
 Waiting for odin fix
