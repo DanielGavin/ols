@@ -4196,6 +4196,23 @@ ast_hover_identifier_soa_slice_field :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.x: [^]int")
 }
+
+@(test)
+ast_hover_soa_fixed_array_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[6]Foo
+			foos.x{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foos.x: [6]int")
+}
 /*
 
 Waiting for odin fix

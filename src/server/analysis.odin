@@ -1301,17 +1301,24 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 	return symbol, ok
 }
 
-resolve_soa_selector_field :: proc(ast_context: ^AstContext, expr: ^ast.Expr, name: string) -> (Symbol, bool) {
+resolve_soa_selector_field :: proc(ast_context: ^AstContext, expr: ^ast.Expr, size: ^ast.Expr, name: string) -> (Symbol, bool) {
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if v, ok := symbol.value.(SymbolStructValue); ok {
 			for n, i in v.names {
 				if n == name {
-					value := SymbolMultiPointerValue {
-						expr = v.types[i],
+					if size != nil {
+						symbol.value = SymbolFixedArrayValue{
+							expr = v.types[i],
+							len = size,
+						}
+					} else {
+						symbol.value = SymbolMultiPointerValue {
+							expr = v.types[i],
+						}
 					}
+
 					symbol.name = name
 					symbol.type = .Field
-					symbol.value = value
 					symbol.range = v.ranges[i]
 					return symbol, true
 				}
@@ -1333,7 +1340,7 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
 			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+				return resolve_soa_selector_field(ast_context, s.expr, s.len, node.field.name)
 			}
 			components_count := 0
 			for c in node.field.name {
@@ -1409,11 +1416,11 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			return selector, true
 		case SymbolSliceValue:
 			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+				return resolve_soa_selector_field(ast_context, s.expr, nil, node.field.name)
 			}
 		case SymbolDynamicArrayValue:
 			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+				return resolve_soa_selector_field(ast_context, s.expr, nil, node.field.name)
 			}
 		}
 	}
@@ -2632,15 +2639,15 @@ resolve_symbol_selector :: proc(
 		}
 	case SymbolSliceValue:
 		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, field)
+			return resolve_soa_selector_field(ast_context, v.expr, nil, field)
 		}
 	case SymbolDynamicArrayValue:
 		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, field)
+			return resolve_soa_selector_field(ast_context, v.expr, nil, field)
 		}
 	case SymbolFixedArrayValue:
 		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, field)
+			return resolve_soa_selector_field(ast_context, v.expr, v.len, field)
 		}
 	}
 

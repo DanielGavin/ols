@@ -349,7 +349,25 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			}
 		case SymbolSliceValue:
 			if .Soa in selector.flags {
-				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, field); ok {
+				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, nil, field); ok {
+					symbol.pkg = selector.name
+					build_documentation(&ast_context, &symbol, false)
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
+		case SymbolDynamicArrayValue:
+			if .Soa in selector.flags {
+				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, nil, field); ok {
+					symbol.pkg = selector.name
+					build_documentation(&ast_context, &symbol, false)
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
+		case SymbolFixedArrayValue:
+			if .Soa in selector.flags {
+				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, v.len, field); ok {
 					symbol.pkg = selector.name
 					build_documentation(&ast_context, &symbol, false)
 					hover.contents = write_hover_content(&ast_context, symbol)

@@ -504,7 +504,13 @@ get_comp_lit_completion :: proc(
 	return false
 }
 
-add_soa_field_completion :: proc(ast_context: ^AstContext, expr: ^ast.Expr, results: ^[dynamic]CompletionResult, parent_name: string) {
+add_soa_field_completion :: proc(
+	ast_context: ^AstContext,
+	expr: ^ast.Expr,
+	size: ^ast.Expr,
+	results: ^[dynamic]CompletionResult,
+	parent_name: string,
+) {
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if v, ok := symbol.value.(SymbolStructValue); ok {
 			for name, i in v.names {
@@ -513,11 +519,20 @@ add_soa_field_completion :: proc(ast_context: ^AstContext, expr: ^ast.Expr, resu
 				}
 
 				resolved := Symbol {
-					name = name,
-					type = .Field,
+					name  = name,
+					type  = .Field,
 					range = v.ranges[i],
-					pkg = parent_name,
-					value = SymbolMultiPointerValue{expr = v.types[i]},
+					pkg   = parent_name,
+				}
+				if size != nil {
+					resolved.value = SymbolFixedArrayValue{
+						expr = v.types[i],
+						len = size,
+					}
+				} else {
+					resolved.value = SymbolMultiPointerValue {
+						expr = v.types[i],
+					}
 				}
 				build_documentation(ast_context, &resolved)
 				append(results, CompletionResult{symbol = resolved})
@@ -677,7 +692,7 @@ get_selector_completion :: proc(
 			}
 		}
 		if .Soa in selector.flags {
-			add_soa_field_completion(ast_context, v.expr, results, selector.name)
+			add_soa_field_completion(ast_context, v.expr, v.len, results, selector.name)
 		}
 	case SymbolUnionValue:
 		is_incomplete = false
@@ -867,13 +882,13 @@ get_selector_completion :: proc(
 		is_incomplete = false
 		append_magic_array_like_completion(position_context, selector, results)
 		if .Soa in selector.flags {
-			add_soa_field_completion(ast_context, v.expr, results, selector.name)
+			add_soa_field_completion(ast_context, v.expr, nil, results, selector.name)
 		}
 	case SymbolSliceValue:
 		is_incomplete = false
 		append_magic_array_like_completion(position_context, selector, results)
 		if .Soa in selector.flags {
-			add_soa_field_completion(ast_context, v.expr, results, selector.name)
+			add_soa_field_completion(ast_context, v.expr, nil, results, selector.name)
 		}
 	case SymbolMapValue:
 		is_incomplete = false
