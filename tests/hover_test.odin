@@ -4246,6 +4246,21 @@ ast_hover_soa_pointer_field :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "Foo.x: int")
 }
+
+@(test)
+ast_hover_proc_within_for_loop :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			for true {
+				f{*}oo :: proc() {}
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc()")
+}
 /*
 
 Waiting for odin fix
