@@ -1145,6 +1145,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Pointer_Type:
 		ok := internal_resolve_type_expression(ast_context, v.elem, out)
 		out.pointers += 1
+		if pointer_is_soa(v^) {
+			out.flags += {.SoaPointer}
+		}
 		return ok
 	case ^Matrix_Index_Expr:
 		if ok := internal_resolve_type_expression(ast_context, v.expr, out); ok {
@@ -1301,15 +1304,35 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 	return symbol, ok
 }
 
-resolve_soa_selector_field :: proc(ast_context: ^AstContext, expr: ^ast.Expr, size: ^ast.Expr, name: string) -> (Symbol, bool) {
+resolve_soa_selector_field :: proc(
+	ast_context: ^AstContext,
+	selector: Symbol,
+	expr: ^ast.Expr,
+	size: ^ast.Expr,
+	name: string,
+) -> (
+	Symbol,
+	bool,
+) {
+	if .Soa not_in selector.flags && .SoaPointer not_in selector.flags {
+		return {}, false
+	}
+
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if v, ok := symbol.value.(SymbolStructValue); ok {
 			for n, i in v.names {
 				if n == name {
-					if size != nil {
-						symbol.value = SymbolFixedArrayValue{
+					if .SoaPointer in selector.flags {
+						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+							symbol.value = resolved.value
+							symbol.pkg = symbol.name
+						} else {
+							return {}, false
+						}
+					} else if size != nil {
+						symbol.value = SymbolFixedArrayValue {
 							expr = v.types[i],
-							len = size,
+							len  = size,
 						}
 					} else {
 						symbol.value = SymbolMultiPointerValue {
@@ -1339,8 +1362,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		symbol := Symbol{}
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
-			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, s.len, node.field.name)
+			if symbol, ok := resolve_soa_selector_field(ast_context, selector, s.expr, s.len, node.field.name); ok {
+				return symbol, ok
 			}
 			components_count := 0
 			for c in node.field.name {
@@ -1415,13 +1438,9 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			selector.type = .EnumMember
 			return selector, true
 		case SymbolSliceValue:
-			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, nil, node.field.name)
-			}
+			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
 		case SymbolDynamicArrayValue:
-			if .Soa in selector.flags {
-				return resolve_soa_selector_field(ast_context, s.expr, nil, node.field.name)
-			}
+			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
 		}
 	}
 
@@ -2638,17 +2657,11 @@ resolve_symbol_selector :: proc(
 			return resolve_symbol_selector(ast_context, selector, s)
 		}
 	case SymbolSliceValue:
-		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, nil, field)
-		}
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
 	case SymbolDynamicArrayValue:
-		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, nil, field)
-		}
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
 	case SymbolFixedArrayValue:
-		if .Soa in symbol.flags {
-			return resolve_soa_selector_field(ast_context, v.expr, v.len, field)
-		}
+		return resolve_soa_selector_field(ast_context, symbol, v.expr, v.len, field)
 	}
 
 	return symbol, true

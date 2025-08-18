@@ -153,7 +153,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									position_context.value_decl.names[0],
 								); ok {
 									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
-										construct_struct_field_symbol(&symbol, struct_symbol.name, value, field_index+name_index)
+										construct_struct_field_symbol(
+											&symbol,
+											struct_symbol.name,
+											value,
+											field_index + name_index,
+										)
 										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
 										return hover, true, true
@@ -188,7 +193,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	}
 
-	if position_context.field_value != nil && position_in_node(position_context.field_value.field, position_context.position) {
+	if position_context.field_value != nil &&
+	   position_in_node(position_context.field_value.field, position_context.position) {
 		if position_context.comp_lit != nil {
 			if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 				if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
@@ -348,32 +354,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		case SymbolSliceValue:
-			if .Soa in selector.flags {
-				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, nil, field); ok {
-					symbol.pkg = selector.name
-					build_documentation(&ast_context, &symbol, false)
-					hover.contents = write_hover_content(&ast_context, symbol)
-					return hover, true, true
-				}
-			}
+			return get_soa_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolDynamicArrayValue:
-			if .Soa in selector.flags {
-				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, nil, field); ok {
-					symbol.pkg = selector.name
-					build_documentation(&ast_context, &symbol, false)
-					hover.contents = write_hover_content(&ast_context, symbol)
-					return hover, true, true
-				}
-			}
+			return get_soa_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolFixedArrayValue:
-			if .Soa in selector.flags {
-				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, v.len, field); ok {
-					symbol.pkg = selector.name
-					build_documentation(&ast_context, &symbol, false)
-					hover.contents = write_hover_content(&ast_context, symbol)
-					return hover, true, true
-				}
-			}
+			return get_soa_hover(&ast_context, selector, v.expr, v.len, field)
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
@@ -451,4 +436,31 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	}
 
 	return hover, false, true
+}
+
+@(private = "file")
+get_soa_hover :: proc(
+	ast_context: ^AstContext,
+	selector: Symbol,
+	expr: ^ast.Expr,
+	size: ^ast.Expr,
+	field: string,
+) -> (
+	Hover,
+	bool,
+	bool,
+) {
+	if .SoaPointer not_in selector.flags && .Soa not_in selector.flags {
+		return {}, false, true
+	}
+	if symbol, ok := resolve_soa_selector_field(ast_context, selector, expr, size, field); ok {
+		if selector.name != "" {
+			symbol.pkg = selector.name
+		}
+		build_documentation(ast_context, &symbol, false)
+		hover: Hover
+		hover.contents = write_hover_content(ast_context, symbol)
+		return hover, true, true
+	}
+	return {}, false, true
 }

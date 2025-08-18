@@ -243,6 +243,15 @@ unwrap_pointer_expr :: proc(expr: ^ast.Expr) -> (^ast.Expr, int, bool) {
 	return expr, n, true
 }
 
+pointer_is_soa :: proc(pointer: ast.Pointer_Type) -> bool {
+	if pointer.tag != nil {
+		if basic, ok := pointer.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
 array_is_soa :: proc(array: ast.Array_Type) -> bool {
 	if array.tag != nil {
 		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
@@ -1216,6 +1225,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			build_string(n.results, builder, remove_pointers)
 		}
 	case ^Pointer_Type:
+		build_string(n.tag, builder, remove_pointers)
 		if !remove_pointers {
 			strings.write_string(builder, "^")
 		}

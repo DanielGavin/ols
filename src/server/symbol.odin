@@ -197,6 +197,7 @@ SymbolFlag :: enum {
 	ObjC,
 	ObjCIsClassMethod, // should be set true only when ObjC is enabled
 	Soa,
+	SoaPointer,
 	Parameter, //If the symbol is a procedure argument
 }
 

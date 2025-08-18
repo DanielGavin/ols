@@ -372,6 +372,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolDynamicArrayValue:
+		if .SoaPointer in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
 		strings.write_string(sb, pointer_prefix)
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")
@@ -380,6 +383,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolSliceValue:
+		if .SoaPointer in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
 		strings.write_string(sb, pointer_prefix)
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")
@@ -388,6 +394,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolFixedArrayValue:
+		if .SoaPointer in symbol.flags {
+			strings.write_string(sb, "#soa")
+		}
 		strings.write_string(sb, pointer_prefix)
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")

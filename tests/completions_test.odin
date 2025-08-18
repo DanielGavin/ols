@@ -4453,3 +4453,22 @@ ast_completion_soa_fixed_array_fields :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"foos.x: [3]int", "foos.y: [3]string"})
 }
+
+@(test)
+ast_completion_soa_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			x: int,
+			y: string,
+		}
+
+		main :: proc() {
+			foos: #soa^#soa[3]Foo
+			foos.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"Foo.x: int", "Foo.y: string"})
+}
