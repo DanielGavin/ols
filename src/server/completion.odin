@@ -154,6 +154,45 @@ get_completion_list :: proc(
 		}
 	}
 
+	arg_symbol: Maybe(Symbol)
+
+	if position_context.call != nil {
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if call_symbol, ok := resolve_type_expression(&ast_context, call.expr); ok {
+				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+					if param_index, ok := find_position_in_call_param(&position_context, call^); ok {
+						if arg_type, arg_type_ok := get_proc_arg_type_from_index(value, param_index); ok {
+							if position_context.field_value != nil {
+								// we are using a named param so we want to ensure we use that type and not the
+								// type at the index
+								if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+									if i, ok := get_field_list_name_index(name.name, value.arg_types); ok {
+										arg_type = value.arg_types[i]
+									}
+								}
+							}
+							if arg_type != nil {
+								if arg_type.type != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(&ast_context, arg_type.type);
+									   ok {
+										arg_symbol = resolved_arg_symbol
+									}
+								} else if arg_type.default_value != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(
+										&ast_context,
+										arg_type.default_value,
+									); ok {
+										arg_symbol = resolved_arg_symbol
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	results := make([dynamic]CompletionResult, 0, allocator = context.temp_allocator)
 	is_incomplete := false
 
@@ -175,7 +214,7 @@ get_completion_list :: proc(
 		is_incomplete = get_package_completion(&ast_context, &position_context, &results)
 	}
 
-	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type)
+	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type, arg_symbol)
 	list.items = items
 	list.isIncomplete = is_incomplete
 	return list, true
@@ -186,6 +225,7 @@ convert_completion_results :: proc(
 	position_context: ^DocumentPositionContext,
 	results: []CompletionResult,
 	completion_type: Completion_Type,
+	symbol: Maybe(Symbol),
 ) -> []CompletionItem {
 
 	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
@@ -273,6 +313,21 @@ convert_completion_results :: proc(
 			label         = result.symbol.name,
 			documentation = write_hover_content(ast_context, result.symbol),
 		}
+
+		// TODO: support selector expressions as well
+		if s, ok := symbol.(Symbol); ok && completion_type == .Identifier {
+			diff := result.symbol.pointers - s.pointers
+			suffix := ""
+			prefix := ""
+			if diff > 0 {
+				suffix = repeat("^", diff, context.temp_allocator)
+			}
+			if diff < 0 {
+				prefix = "&"
+			}
+			item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
+		}
+
 		if common.config.enable_label_details {
 			// detail      = left
 			// description = right
@@ -1422,21 +1477,24 @@ get_identifier_completion :: proc(
 
 	matcher := common.make_fuzzy_matcher(lookup_name)
 
+
 	if position_context.call != nil {
-		if call_symbol, ok := resolve_type_expression(ast_context, position_context.call); ok {
-			if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-				for arg in value.orig_arg_types {
-					// For now we just add params with default values, could add everything we more logic in the future
-					if arg.default_value != nil {
-						for name in arg.names {
-							if ident, ok := name.derived.(^ast.Ident); ok {
-								if symbol, ok := resolve_type_expression(ast_context, arg.default_value); ok {
-									if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-										symbol.type_name = symbol.name
-										symbol.type_pkg = symbol.pkg
-										symbol.name = clean_ident(ident.name)
-										symbol.type = .Field
-										append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
+				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+					for arg in value.orig_arg_types {
+						// For now we just add params with default values, could add everything we more logic in the future
+						if arg.default_value != nil {
+							for name in arg.names {
+								if ident, ok := name.derived.(^ast.Ident); ok {
+									if symbol, ok := resolve_type_expression(ast_context, arg.default_value); ok {
+										if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+											symbol.type_name = symbol.name
+											symbol.type_pkg = symbol.pkg
+											symbol.name = clean_ident(ident.name)
+											symbol.type = .Field
+											append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+										}
 									}
 								}
 							}
