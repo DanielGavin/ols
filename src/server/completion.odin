@@ -314,8 +314,7 @@ convert_completion_results :: proc(
 			documentation = write_hover_content(ast_context, result.symbol),
 		}
 
-		// TODO: support selector expressions as well
-		if s, ok := symbol.(Symbol); ok && completion_type == .Identifier {
+		if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
 			diff := result.symbol.pointers - s.pointers
 			suffix := ""
 			prefix := ""
@@ -325,7 +324,24 @@ convert_completion_results :: proc(
 			if diff < 0 {
 				prefix = "&"
 			}
-			item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
+
+			if completion_type == .Identifier {
+				item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
+			} else if completion_type == .Selector {
+				item.insertText = fmt.tprint(item.label, suffix, sep = "")
+				if prefix != "" {
+					if range, ok := get_range_from_selection_start_to_dot(position_context); ok {
+						prefix_edit := TextEdit {
+							range = {start = range.start, end = range.start},
+							newText = "&",
+						}
+
+						additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+						additionalTextEdits[0] = prefix_edit
+						item.additionalTextEdits = additionalTextEdits
+					}
+				}
+			}
 		}
 
 		if common.config.enable_label_details {
