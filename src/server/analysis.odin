@@ -1312,6 +1312,7 @@ resolve_soa_selector_field :: proc(ast_context: ^AstContext, expr: ^ast.Expr, na
 					symbol.name = name
 					symbol.type = .Field
 					symbol.value = value
+					symbol.range = v.ranges[i]
 					return symbol, true
 				}
 			}

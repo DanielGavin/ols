@@ -4421,7 +4421,8 @@ ast_completion_soa_slice_fields :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		Foo :: struct {
-			x, y: int,
+			x: int,
+			y: string,
 		}
 
 		main :: proc() {
@@ -4431,5 +4432,5 @@ ast_completion_soa_slice_fields :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"Foo.x: int", "Foo.y: int"})
+	test.expect_completion_docs(t, &source, "", {"foos.x: [^]int", "foos.y: [^]string"})
 }

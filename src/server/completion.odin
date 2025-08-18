@@ -504,50 +504,24 @@ get_comp_lit_completion :: proc(
 	return false
 }
 
-add_struct_field_completion :: proc(
-	ast_context: ^AstContext,
-	position_context: ^DocumentPositionContext,
-	results: ^[dynamic]CompletionResult,
-	selector: Symbol,
-	v: SymbolStructValue,
-) {
-	for name, i in v.names {
-		if name == "_" {
-			continue
-		}
-
-		if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-			if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
-				if expr.op.text == "->" && symbol.type != .Function {
+add_soa_field_completion :: proc(ast_context: ^AstContext, expr: ^ast.Expr, results: ^[dynamic]CompletionResult, parent_name: string) {
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if v, ok := symbol.value.(SymbolStructValue); ok {
+			for name, i in v.names {
+				if name == "_" {
 					continue
 				}
-			}
 
-			if position_context.arrow {
-				if symbol.type != .Function && symbol.type != .Type_Function {
-					continue
+				resolved := Symbol {
+					name = name,
+					type = .Field,
+					range = v.ranges[i],
+					pkg = parent_name,
+					value = SymbolMultiPointerValue{expr = v.types[i]},
 				}
-				if .ObjCIsClassMethod in symbol.flags {
-					assert(.ObjC in symbol.flags)
-					continue
-				}
+				build_documentation(ast_context, &resolved)
+				append(results, CompletionResult{symbol = resolved})
 			}
-			if !position_context.arrow && .ObjC in selector.flags {
-				continue
-			}
-
-			construct_struct_field_symbol(&symbol, selector.name, v, i)
-			append(results, CompletionResult{symbol = symbol})
-		} else {
-			//just give some generic symbol with name.
-			item := CompletionItem {
-				label         = symbol.name,
-				kind          = .Field,
-				detail        = fmt.tprintf("%v: %v", name, node_to_string(v.types[i])),
-				documentation = symbol.doc,
-			}
-
-			append(results, CompletionResult{completion_item = item})
 		}
 	}
 }
@@ -703,11 +677,7 @@ get_selector_completion :: proc(
 			}
 		}
 		if .Soa in selector.flags {
-			if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-				if v, ok := symbol.value.(SymbolStructValue); ok {
-					add_struct_field_completion(ast_context, position_context, results, symbol, v)
-				}
-			}
+			add_soa_field_completion(ast_context, v.expr, results, selector.name)
 		}
 	case SymbolUnionValue:
 		is_incomplete = false
@@ -798,7 +768,45 @@ get_selector_completion :: proc(
 
 	case SymbolStructValue:
 		is_incomplete = false
-		add_struct_field_completion(ast_context, position_context, results, selector, v)
+		for name, i in v.names {
+			if name == "_" {
+				continue
+			}
+
+			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
+					if expr.op.text == "->" && symbol.type != .Function {
+						continue
+					}
+				}
+
+				if position_context.arrow {
+					if symbol.type != .Function && symbol.type != .Type_Function {
+						continue
+					}
+					if .ObjCIsClassMethod in symbol.flags {
+						assert(.ObjC in symbol.flags)
+						continue
+					}
+				}
+				if !position_context.arrow && .ObjC in selector.flags {
+					continue
+				}
+
+				construct_struct_field_symbol(&symbol, selector.name, v, i)
+				append(results, CompletionResult{symbol = symbol})
+			} else {
+				//just give some generic symbol with name.
+				item := CompletionItem {
+					label         = symbol.name,
+					kind          = .Field,
+					detail        = fmt.tprintf("%v: %v", name, node_to_string(v.types[i])),
+					documentation = symbol.doc,
+				}
+
+				append(results, CompletionResult{completion_item = item})
+			}
+		}
 	case SymbolBitFieldValue:
 		is_incomplete = false
 
@@ -859,21 +867,13 @@ get_selector_completion :: proc(
 		is_incomplete = false
 		append_magic_array_like_completion(position_context, selector, results)
 		if .Soa in selector.flags {
-			if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-				if v, ok := symbol.value.(SymbolStructValue); ok {
-					add_struct_field_completion(ast_context, position_context, results, symbol, v)
-				}
-			}
+			add_soa_field_completion(ast_context, v.expr, results, selector.name)
 		}
 	case SymbolSliceValue:
 		is_incomplete = false
 		append_magic_array_like_completion(position_context, selector, results)
 		if .Soa in selector.flags {
-			if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
-				if v, ok := symbol.value.(SymbolStructValue); ok {
-					add_struct_field_completion(ast_context, position_context, results, symbol, v)
-				}
-			}
+			add_soa_field_completion(ast_context, v.expr, results, selector.name)
 		}
 	case SymbolMapValue:
 		is_incomplete = false
