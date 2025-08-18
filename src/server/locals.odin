@@ -265,8 +265,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		return
 	}
 
-	//We have two stages of getting locals: local non mutable and mutables, since they are treated differently in scopes my Odin.
-	if value_decl.is_mutable == ast_context.non_mutable_only {
+	//We have two stages of getting locals: local non mutable and mutables, since they are treated differently in scopes by Odin.
+	if ast_context.non_mutable_only && value_decl.is_mutable {
 		return
 	}
 
