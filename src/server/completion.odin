@@ -154,44 +154,7 @@ get_completion_list :: proc(
 		}
 	}
 
-	arg_symbol: Maybe(Symbol)
-
-	if position_context.call != nil {
-		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-			if call_symbol, ok := resolve_type_expression(&ast_context, call.expr); ok {
-				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-					if param_index, ok := find_position_in_call_param(&position_context, call^); ok {
-						if arg_type, arg_type_ok := get_proc_arg_type_from_index(value, param_index); ok {
-							if position_context.field_value != nil {
-								// we are using a named param so we want to ensure we use that type and not the
-								// type at the index
-								if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-									if i, ok := get_field_list_name_index(name.name, value.arg_types); ok {
-										arg_type = value.arg_types[i]
-									}
-								}
-							}
-							if arg_type != nil {
-								if arg_type.type != nil {
-									if resolved_arg_symbol, ok := resolve_type_expression(&ast_context, arg_type.type);
-									   ok {
-										arg_symbol = resolved_arg_symbol
-									}
-								} else if arg_type.default_value != nil {
-									if resolved_arg_symbol, ok := resolve_type_expression(
-										&ast_context,
-										arg_type.default_value,
-									); ok {
-										arg_symbol = resolved_arg_symbol
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	arg_symbol := get_target_symbol(&ast_context, &position_context)
 
 	results := make([dynamic]CompletionResult, 0, allocator = context.temp_allocator)
 	is_incomplete := false
@@ -218,6 +181,46 @@ get_completion_list :: proc(
 	list.items = items
 	list.isIncomplete = is_incomplete
 	return list, true
+}
+
+get_target_symbol :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> Maybe(Symbol) {
+	if position_context.call != nil {
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
+				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+					if param_index, ok := find_position_in_call_param(position_context, call^); ok {
+						if arg_type, arg_type_ok := get_proc_arg_type_from_index(value, param_index); ok {
+							if position_context.field_value != nil {
+								// we are using a named param so we want to ensure we use that type and not the
+								// type at the index
+								if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+									if i, ok := get_field_list_name_index(name.name, value.arg_types); ok {
+										arg_type = value.arg_types[i]
+									}
+								}
+							}
+							if arg_type != nil {
+								if arg_type.type != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(ast_context, arg_type.type);
+									   ok {
+										return resolved_arg_symbol
+									}
+								} else if arg_type.default_value != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(
+										ast_context,
+										arg_type.default_value,
+									); ok {
+										return resolved_arg_symbol
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 convert_completion_results :: proc(
@@ -315,33 +318,7 @@ convert_completion_results :: proc(
 		}
 
 		if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
-			diff := result.symbol.pointers - s.pointers
-			suffix := ""
-			prefix := ""
-			if diff > 0 {
-				suffix = repeat("^", diff, context.temp_allocator)
-			}
-			if diff < 0 {
-				prefix = "&"
-			}
-
-			if completion_type == .Identifier {
-				item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
-			} else if completion_type == .Selector {
-				item.insertText = fmt.tprint(item.label, suffix, sep = "")
-				if prefix != "" {
-					if range, ok := get_range_from_selection_start_to_dot(position_context); ok {
-						prefix_edit := TextEdit {
-							range = {start = range.start, end = range.start},
-							newText = "&",
-						}
-
-						additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
-						additionalTextEdits[0] = prefix_edit
-						item.additionalTextEdits = additionalTextEdits
-					}
-				}
-			}
+			handle_pointers(position_context, result.symbol, s, &item, completion_type)
 		}
 
 		if common.config.enable_label_details {
@@ -391,6 +368,49 @@ convert_completion_results :: proc(
 	}
 
 	return items[:]
+}
+
+@(private = "file")
+handle_pointers :: proc(
+	position_context: ^DocumentPositionContext,
+	result_symbol: Symbol,
+	arg_symbol: Symbol,
+	item: ^CompletionItem,
+	completion_type: Completion_Type,
+) {
+	if v, ok := arg_symbol.value.(SymbolBasicValue); ok {
+		if v.ident.name == "any" {
+			return
+		}
+	}
+
+	diff := result_symbol.pointers - arg_symbol.pointers
+	suffix := ""
+	prefix := ""
+	if diff > 0 {
+		suffix = repeat("^", diff, context.temp_allocator)
+	}
+	if diff < 0 {
+		prefix = "&"
+	}
+
+	if completion_type == .Identifier {
+		item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
+	} else if completion_type == .Selector {
+		item.insertText = fmt.tprint(item.label, suffix, sep = "")
+		if prefix != "" {
+			if range, ok := get_range_from_selection_start_to_dot(position_context); ok {
+				prefix_edit := TextEdit {
+					range = {start = range.start, end = range.start},
+					newText = "&",
+				}
+
+				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+				additionalTextEdits[0] = prefix_edit
+				item.additionalTextEdits = additionalTextEdits
+			}
+		}
+	}
 }
 
 get_completion_details :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
