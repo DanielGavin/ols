@@ -4144,7 +4144,7 @@ ast_hover_soa_slice :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.Foo: #soa[4]u8")
+	test.expect_hover(t, &source, "test.foos: #soa[]Foo")
 }
 
 @(test)

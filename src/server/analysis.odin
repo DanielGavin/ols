@@ -2630,6 +2630,18 @@ resolve_symbol_selector :: proc(
 		if s, ok := resolve_type_expression(ast_context, v.return_types[0].type); ok {
 			return resolve_symbol_selector(ast_context, selector, s)
 		}
+	case SymbolSliceValue:
+		if .Soa in symbol.flags {
+			return resolve_soa_selector_field(ast_context, v.expr, field)
+		}
+	case SymbolDynamicArrayValue:
+		if .Soa in symbol.flags {
+			return resolve_soa_selector_field(ast_context, v.expr, field)
+		}
+	case SymbolFixedArrayValue:
+		if .Soa in symbol.flags {
+			return resolve_soa_selector_field(ast_context, v.expr, field)
+		}
 	}
 
 	return symbol, true
