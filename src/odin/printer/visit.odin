@@ -1054,9 +1054,6 @@ visit_stmt :: proc(
 
 		if v.init != nil {
 			document = cons_with_opl(document, visit_stmt(p, v.init))
-		}
-
-		if v.init != nil && v.cond != nil {
 			document = cons(document, text(";"))
 		}
 
