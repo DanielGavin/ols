@@ -347,6 +347,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					return hover, true, true
 				}
 			}
+		case SymbolSliceValue:
+			if .Soa in selector.flags {
+				if symbol, ok := resolve_soa_selector_field(&ast_context, v.expr, field); ok {
+					symbol.pkg = selector.name
+					build_documentation(&ast_context, &symbol, false)
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr

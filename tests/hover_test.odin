@@ -4148,7 +4148,7 @@ ast_hover_soa_slice :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_soa_struct_field :: proc(t: ^testing.T) {
+ast_hover_struct_with_soa_field :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct {
@@ -4163,6 +4163,39 @@ ast_hover_soa_struct_field :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Bar: struct {\n\tfoos: #soa[5]Foo,\n}")
 }
 
+@(test)
+ast_hover_soa_slice_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[]Foo
+			foos.x{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foos.x: [^]int")
+}
+
+@(test)
+ast_hover_identifier_soa_slice_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			x, y: int,
+		}
+
+		main :: proc() {
+			foos: #soa[]Foo
+			x{*} := foos.x
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.x: [^]int")
+}
 /*
 
 Waiting for odin fix

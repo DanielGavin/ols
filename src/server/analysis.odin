@@ -1080,7 +1080,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^, ok = make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
 	case ^Proc_Type:
-		out^, ok = make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None), true
+		out^, ok =
+			make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None), true
 		return ok
 	case ^Bit_Field_Type:
 		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name.name, true), true
@@ -1300,6 +1301,26 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 	return symbol, ok
 }
 
+resolve_soa_selector_field :: proc(ast_context: ^AstContext, expr: ^ast.Expr, name: string) -> (Symbol, bool) {
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if v, ok := symbol.value.(SymbolStructValue); ok {
+			for n, i in v.names {
+				if n == name {
+					value := SymbolMultiPointerValue {
+						expr = v.types[i],
+					}
+					symbol.name = name
+					symbol.type = .Field
+					symbol.value = value
+					return symbol, true
+				}
+			}
+		}
+	}
+
+	return {}, false
+}
+
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
 	selector := Symbol{}
 	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
@@ -1310,6 +1331,9 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		symbol := Symbol{}
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
+			if .Soa in selector.flags {
+				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+			}
 			components_count := 0
 			for c in node.field.name {
 				if c == 'x' || c == 'y' || c == 'z' || c == 'w' || c == 'r' || c == 'g' || c == 'b' || c == 'a' {
@@ -1382,6 +1406,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			// enum members probably require own symbol value
 			selector.type = .EnumMember
 			return selector, true
+		case SymbolSliceValue:
+			if .Soa in selector.flags {
+				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+			}
+		case SymbolDynamicArrayValue:
+			if .Soa in selector.flags {
+				return resolve_soa_selector_field(ast_context, s.expr, node.field.name)
+			}
 		}
 	}
 
@@ -1620,7 +1652,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 
 			if !ok && !ast_context.overloading {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining), true
+					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining),
+					true
 			}
 		} else {
 			return_symbol, ok =
