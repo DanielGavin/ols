@@ -4261,6 +4261,45 @@ ast_hover_proc_within_for_loop :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc()")
 }
+
+@(test)
+ast_hover_string_slice_range :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo: string
+			ba{*}r := foo[1:2]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: string")
+}
+
+@(test)
+ast_hover_string_index :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo: string
+			ba{*}r := foo[1]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: u8")
+}
+
+@(test)
+ast_hover_untyped_string_index :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo := "hellope"
+			ba{*}r := foo[1]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: u8")
+}
 /*
 
 Waiting for odin fix
