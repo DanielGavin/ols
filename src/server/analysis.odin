@@ -1238,6 +1238,24 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 		ok = internal_resolve_type_expression(ast_context, v2.value, &symbol)
 	case SymbolMultiPointerValue:
 		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
+	case SymbolBasicValue:
+		if v2.ident.name == "string" {
+			v2.ident.name = "u8"
+			indexed.name = "u8"
+			return indexed, true
+		}
+		return {}, false
+	case SymbolUntypedValue:
+		if v2.type == .String {
+			value := SymbolBasicValue{
+				ident = ast.new(ast.Ident, v2.tok.pos, v2.tok.pos),
+			}
+			value.ident.name = "u8"
+			indexed.name = "u8"
+			indexed.value = value
+			return indexed, true
+		}
+		return {}, false
 	}
 
 
@@ -1884,6 +1902,11 @@ resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slic
 		expr = v.expr
 	case SymbolUntypedValue:
 		if v.type == .String {
+			return symbol, true
+		}
+		return {}, false
+	case SymbolBasicValue:
+		if v.ident.name == "string" {
 			return symbol, true
 		}
 		return {}, false

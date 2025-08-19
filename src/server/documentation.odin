@@ -822,10 +822,15 @@ write_symbol_name :: proc(sb: ^strings.Builder, symbol: Symbol) {
 }
 
 write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) -> bool {
-	show_type_info :=
-		(symbol.type == .Variable || symbol.type == .Field) && !(.Anonymous in symbol.flags) && symbol.type_name != ""
+	if symbol.type_name == "" {
+		return false
+	}
 
-	if !show_type_info {
+	if symbol.type != .Variable && symbol.type != .Field {
+		return false
+	}
+
+	if .Anonymous in symbol.flags {
 		return false
 	}
 
