@@ -397,7 +397,8 @@ ast_hover_proc_group :: proc(t: ^testing.T) {
 
 		add_vec :: proc(a, b: [2]f32) -> [2]f32 {return a + b}
 
-		add :: proc {
+		// docs
+		add :: proc { // comment
 			add_num,
 			add_vec,
 		}
@@ -409,7 +410,7 @@ ast_hover_proc_group :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_hover(t, &source, "test.add: proc(a, b: int) -> int")
+	test.expect_hover(t, &source, "test.add: proc(a, b: int) -> int\n docs\n\n// comment")
 }
 
 @(test)
@@ -1069,7 +1070,8 @@ ast_hover_proc_overloading_named_arg_with_selector_expr_with_another_package :: 
 		foo_string :: proc(s: string, x := 1) -> (int, bool) {
 			return 2, true
 		}
-		foo :: proc {
+		// Docs
+		foo :: proc { // comment
 			foo_none,
 			foo_string,
 		}
@@ -1091,7 +1093,7 @@ ast_hover_proc_overloading_named_arg_with_selector_expr_with_another_package :: 
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)")
+	test.expect_hover(t, &source, "my_package.foo: proc(x := 1) -> (_: int, _: bool)\n Docs\n\n// comment")
 }
 
 @(test)

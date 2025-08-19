@@ -2295,6 +2295,12 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	#partial switch &v in symbol.value {
 	case SymbolProcedureGroupValue:
 		if s, ok := resolve_function_overload(ast_context, v.group.derived.(^ast.Proc_Group)^); ok {
+			if s.doc == "" {
+				s.doc = symbol.doc
+			}
+			if s.comment == "" {
+				s.comment = symbol.comment
+			}
 			s.range = symbol.range
 			s.uri = symbol.uri
 			return s, true
