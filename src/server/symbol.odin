@@ -369,7 +369,9 @@ write_struct_type :: proc(
 	inlined := false,
 ) {
 	b.poly = v.poly_params
-	construct_struct_field_docs(ast_context.file, v)
+	// We clone this so we don't override docs and comments with temp allocated docs and comments
+	v := cast(^ast.Struct_Type)clone_node(v, ast_context.allocator, nil)
+	construct_struct_field_docs(ast_context.file, v, ast_context.allocator)
 	for field in v.fields.list {
 		for n in field.names {
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {

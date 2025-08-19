@@ -318,7 +318,10 @@ clone_calling_convention :: proc(
 
 	switch v in cc {
 	case string:
-		return get_index_unique_string(unique_strings, allocator, v)
+		if unique_strings != nil {
+			return get_index_unique_string(unique_strings, allocator, v)
+		}
+		return strings.clone(v, allocator)
 	case ast.Proc_Calling_Convention_Extra:
 		return v
 	}
