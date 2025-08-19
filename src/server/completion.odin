@@ -788,6 +788,32 @@ get_selector_completion :: proc(
 					},
 				},
 			)
+			in_text := fmt.tprintf(".%s in %s", name, selector.name)
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = fmt.tprintf(".%s in", name),
+						kind = .EnumMember,
+						detail = in_text,
+						insertText = in_text,
+						additionalTextEdits = additionalTextEdits,
+					},
+				},
+			)
+			not_in_text := fmt.tprintf(".%s not_in %s", name, selector.name)
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = fmt.tprintf(".%s not_in", name),
+						kind = .EnumMember,
+						detail = not_in_text,
+						insertText = not_in_text,
+						additionalTextEdits = additionalTextEdits,
+					},
+				},
+			)
 		}
 
 	case SymbolStructValue:
