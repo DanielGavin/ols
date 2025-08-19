@@ -4302,6 +4302,19 @@ ast_hover_untyped_string_index :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: u8")
 }
+
+@(test)
+ast_hover_multi_pointer_slice_range :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo: [^]int
+			b{*}ar := foo[:1]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: []int")
+}
 /*
 
 Waiting for odin fix

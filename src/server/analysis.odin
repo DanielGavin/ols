@@ -1247,7 +1247,7 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 		return {}, false
 	case SymbolUntypedValue:
 		if v2.type == .String {
-			value := SymbolBasicValue{
+			value := SymbolBasicValue {
 				ident = ast.new(ast.Ident, v2.tok.pos, v2.tok.pos),
 			}
 			value.ident.name = "u8"
@@ -1899,6 +1899,8 @@ resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slic
 	case SymbolFixedArrayValue:
 		expr = v.expr
 	case SymbolDynamicArrayValue:
+		expr = v.expr
+	case SymbolMultiPointerValue:
 		expr = v.expr
 	case SymbolUntypedValue:
 		if v.type == .String {
