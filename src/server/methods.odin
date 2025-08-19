@@ -19,7 +19,7 @@ import "src:common"
 
 
 @(private)
-create_remove_edit :: proc(position_context: ^DocumentPositionContext) -> ([]TextEdit, bool) {
+create_remove_edit :: proc(position_context: ^DocumentPositionContext, strip_leading_period := false) -> ([]TextEdit, bool) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
@@ -29,6 +29,10 @@ create_remove_edit :: proc(position_context: ^DocumentPositionContext) -> ([]Tex
 	remove_range := common.Range {
 		start = range.start,
 		end   = range.end,
+	}
+
+	if strip_leading_period {
+		remove_range.end.character -= 1
 	}
 
 	remove_edit := TextEdit {

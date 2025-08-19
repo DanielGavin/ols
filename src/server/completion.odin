@@ -760,21 +760,8 @@ get_selector_completion :: proc(
 		enumv, ok := unwrap_bitset(ast_context, selector)
 		if !ok {break}
 
-		range, rok := get_range_from_selection_start_to_dot(position_context)
+		remove_edit, rok := create_remove_edit(position_context, true)
 		if !rok {break}
-
-		range.end.character -= 1
-
-		variable, vok := position_context.selector.derived_expr.(^ast.Ident)
-		if !vok {break}
-
-		remove_edit := TextEdit {
-			range = {start = range.start, end = range.end},
-			newText = "",
-		}
-
-		additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
-		additionalTextEdits[0] = remove_edit
 
 		for name in enumv.names {
 			append(
@@ -783,12 +770,12 @@ get_selector_completion :: proc(
 					completion_item = CompletionItem {
 						label = fmt.tprintf(".%s", name),
 						kind = .EnumMember,
-						detail = fmt.tprintf("%s.%s", selector.name, name),
-						additionalTextEdits = additionalTextEdits,
+						detail = fmt.tprintf("%s.%s", receiver, name),
+						additionalTextEdits = remove_edit,
 					},
 				},
 			)
-			in_text := fmt.tprintf(".%s in %s", name, selector.name)
+			in_text := fmt.tprintf(".%s in %s", name, receiver)
 			append(
 				results,
 				CompletionResult {
@@ -796,12 +783,12 @@ get_selector_completion :: proc(
 						label = fmt.tprintf(".%s in", name),
 						kind = .EnumMember,
 						detail = in_text,
-						insertText = in_text,
-						additionalTextEdits = additionalTextEdits,
+						insertText = in_text[1:],
+						additionalTextEdits = remove_edit,
 					},
 				},
 			)
-			not_in_text := fmt.tprintf(".%s not_in %s", name, selector.name)
+			not_in_text := fmt.tprintf(".%s not_in %s", name, receiver)
 			append(
 				results,
 				CompletionResult {
@@ -809,8 +796,8 @@ get_selector_completion :: proc(
 						label = fmt.tprintf(".%s not_in", name),
 						kind = .EnumMember,
 						detail = not_in_text,
-						insertText = not_in_text,
-						additionalTextEdits = additionalTextEdits,
+						insertText = not_in_text[1:],
+						additionalTextEdits = remove_edit,
 					},
 				},
 			)

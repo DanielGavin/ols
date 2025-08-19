@@ -4472,3 +4472,70 @@ ast_completion_soa_pointer :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"Foo.x: int", "Foo.y: string"})
 }
+
+@(test)
+ast_completion_bit_set_in_not_in :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foos: bit_set[Foo]
+			foos.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {".A in foos", ".A not_in foos", ".B in foos", ".B not_in foos"})
+}
+
+@(test)
+ast_completion_bit_set_type_in_not_in :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+		Foos :: bit_set[Foo]
+
+		main :: proc() {
+			foos: Foos
+			foos.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {".A in foos", ".A not_in foos", ".B in foos", ".B not_in foos"})
+}
+
+@(test)
+ast_completion_bit_set_on_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct {
+			foos: bit_set[Foo],
+		}
+
+		main :: proc() {
+			bar: Bar
+			bar.foos.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{".A in bar.foos", ".A not_in bar.foos", ".B in bar.foos", ".B not_in bar.foos"},
+	)
+}
