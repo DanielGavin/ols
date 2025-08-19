@@ -3294,6 +3294,8 @@ make_symbol_bit_field_from_ast :: proc(
 	name: string,
 	inlined := false,
 ) -> Symbol {
+	// We clone this so we don't override docs and comments with temp allocated docs and comments
+	v := cast(^ast.Bit_Field_Type)clone_node(v, ast_context.allocator, nil)
 	construct_bit_field_field_docs(ast_context.file, v)
 	symbol := Symbol {
 		range = common.get_token_range(v, ast_context.file.src),

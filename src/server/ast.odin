@@ -1299,6 +1299,8 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 	return strings.repeat(value, count, allocator)
 }
 
+// Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
+// using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
@@ -1320,11 +1322,11 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 				if list[0].pos.line == field.pos.line {
 					// if the comment is missing from the appropriate field, we add it (for older versions of the parser)
 					if field.comment == nil {
-						field.comment = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comment = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
 						field.comment.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = ast.new(ast.Comment_Group, list[1].pos, parser.end_pos(list[len(list) - 2]))
+						next_field.docs = new_type(ast.Comment_Group, list[1].pos, parser.end_pos(list[len(list) - 2]), allocator)
 						next_field.docs.list = list[1:]
 					} else {
 						next_field.docs = nil
@@ -1338,6 +1340,8 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 	}
 }
 
+// Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
+// using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
