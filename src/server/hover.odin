@@ -354,11 +354,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				}
 			}
 		case SymbolSliceValue:
-			return get_soa_hover(&ast_context, selector, v.expr, nil, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolDynamicArrayValue:
-			return get_soa_hover(&ast_context, selector, v.expr, nil, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolFixedArrayValue:
-			return get_soa_hover(&ast_context, selector, v.expr, v.len, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, v.len, field)
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
@@ -439,7 +439,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 }
 
 @(private = "file")
-get_soa_hover :: proc(
+get_soa_field_hover :: proc(
 	ast_context: ^AstContext,
 	selector: Symbol,
 	expr: ^ast.Expr,
@@ -457,6 +457,7 @@ get_soa_hover :: proc(
 		if selector.name != "" {
 			symbol.pkg = selector.name
 		}
+		symbol.name = field
 		build_documentation(ast_context, &symbol, false)
 		hover: Hover
 		hover.contents = write_hover_content(ast_context, symbol)
