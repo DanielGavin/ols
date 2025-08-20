@@ -4315,6 +4315,16 @@ ast_hover_multi_pointer_slice_range :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: []int")
 }
+
+@(test)
+ast_hover_binary_expr_with_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}OO :: 1 + u8(2)
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO: u8")
+}
 /*
 
 Waiting for odin fix
