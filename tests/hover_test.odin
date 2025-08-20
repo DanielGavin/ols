@@ -4325,6 +4325,22 @@ ast_hover_binary_expr_with_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.FOO: u8")
 }
+
+@(test)
+ast_hover_soa_pointer_field_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			Shape :: struct{a, b:int}
+			ptr: #soa^#soa[]Shape
+
+			a{*} := ptr.a
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.a: int")
+}
 /*
 
 Waiting for odin fix

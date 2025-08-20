@@ -1336,14 +1336,16 @@ resolve_soa_selector_field :: proc(
 		return {}, false
 	}
 
+	ast_context.use_locals = true
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if v, ok := symbol.value.(SymbolStructValue); ok {
 			for n, i in v.names {
 				if n == name {
 					if .SoaPointer in selector.flags {
 						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-							symbol.value = resolved.value
-							symbol.pkg = symbol.name
+							resolved.pkg = symbol.name
+							resolved.range = v.ranges[i]
+							return resolved, ok
 						} else {
 							return {}, false
 						}
