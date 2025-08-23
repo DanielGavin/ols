@@ -20,7 +20,10 @@ check_builtin_proc_return_type :: proc(
 	symbol: Symbol,
 	call: ^ast.Call_Expr,
 	is_mutable: bool,
-) -> (^ast.Expr, bool) {
+) -> (
+	^ast.Expr,
+	bool,
+) {
 	if symbol.pkg == "$builtin" {
 		switch symbol.name {
 		case "max", "min":
@@ -133,9 +136,9 @@ check_builtin_proc_return_type :: proc(
 	return nil, false
 }
 
-@(private="file")
+@(private = "file")
 get_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr, is_mutable: bool) -> ^ast.Expr {
-	if v, ok := expr.derived.(^ast.Field_Value); ok {
+if v, ok := expr.derived.(^ast.Field_Value); ok {
 		return get_return_expr(ast_context, v.value, is_mutable)
 	}
 	if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -153,7 +156,7 @@ get_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr, is_mutable: b
 	return expr
 }
 
-@(private="file")
+@(private = "file")
 convert_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
 		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
@@ -168,7 +171,7 @@ convert_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.E
 	return candidate
 }
 
-@(private="file")
+@(private = "file")
 get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^ast.Expr {
 	if v, ok := expr.derived.(^ast.Field_Value); ok {
 		return get_complex_return_expr(ast_context, v.value)
@@ -189,7 +192,7 @@ get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^a
 	return expr
 }
 
-@(private="file")
+@(private = "file")
 convert_complex_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
 		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
@@ -200,7 +203,7 @@ convert_complex_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -
 	return candidate
 }
 
-@(private="file")
+@(private = "file")
 get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^ast.Expr {
 	if v, ok := expr.derived.(^ast.Field_Value); ok {
 		return get_quaternion_return_expr(ast_context, v.value)
@@ -221,7 +224,7 @@ get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) ->
 	return expr
 }
 
-@(private="file")
+@(private = "file")
 convert_quaternion_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
 		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
@@ -232,7 +235,7 @@ convert_quaternion_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool
 	return candidate
 }
 
-@(private="file")
+@(private = "file")
 get_basic_lit_value :: proc(n: ^ast.Expr) -> (^ast.Basic_Lit, f64, bool) {
 	n := n
 	if v, ok := n.derived.(^ast.Field_Value); ok {
@@ -261,7 +264,7 @@ get_basic_lit_value :: proc(n: ^ast.Expr) -> (^ast.Basic_Lit, f64, bool) {
 	return nil, 0, false
 }
 
-@(private="file")
+@(private = "file")
 compare_basic_lit_value :: proc(a, b: f64, name: string) -> bool {
 	if name == "max" {
 		return a > b

@@ -4539,3 +4539,45 @@ ast_completion_bit_set_on_struct :: proc(t: ^testing.T) {
 		{".A in bar.foos", ".A not_in bar.foos", ".B in bar.foos", ".B not_in bar.foos"},
 	)
 }
+
+@(test)
+ast_completions_should_not_have_private_overloads :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			@(private)
+			foo_str :: proc(s: string) {}
+			@(private = "file")
+			foo_int :: proc(i: int) {}
+			foo :: proc {
+				foo_str,
+				foo_int,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			foo := my_package.f{*}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"my_package.foo: proc (..)"}, {
+			"@(private)\nmy_package.foo_str: proc(s: string)",
+			"@(private=\"file\")\nmy_package.foo_int: proc(i: int)",
+		},
+	)
+}

@@ -40,7 +40,15 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 	return {}, false
 }
 
-memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []string) -> ([]FuzzyResult, bool) {
+memory_index_fuzzy_search :: proc(
+	index: ^MemoryIndex,
+	name: string,
+	pkgs: []string,
+	current_file: string,
+) -> (
+	[]FuzzyResult,
+	bool,
+) {
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 
 	fuzzy_matcher := common.make_fuzzy_matcher(name)
@@ -50,6 +58,9 @@ memory_index_fuzzy_search :: proc(index: ^MemoryIndex, name: string, pkgs: []str
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg.symbols {
+				if should_skip_private_symbol(symbol, current_file) {
+					continue
+				}
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
 					result := FuzzyResult {
 						symbol = symbol,

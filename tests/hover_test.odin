@@ -4341,6 +4341,41 @@ ast_hover_soa_pointer_field_variable :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.a: int")
 }
+
+@(test)
+ast_hover_overload_private_procs :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+
+			@(private = "file")
+			foo_str :: proc(s: string) {}
+			@(private = "file")
+			foo_int :: proc(i: int) {}
+			foo :: proc {
+				foo_str,
+				foo_int,
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			s: string
+			foo := my_package.fo{*}o(s)
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "@(private=\"file\")\nmy_package.foo: proc(s: string)")
+}
 /*
 
 Waiting for odin fix

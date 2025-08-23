@@ -19,7 +19,13 @@ import "src:common"
 
 
 @(private)
-create_remove_edit :: proc(position_context: ^DocumentPositionContext, strip_leading_period := false) -> ([]TextEdit, bool) {
+create_remove_edit :: proc(
+	position_context: ^DocumentPositionContext,
+	strip_leading_period := false,
+) -> (
+	[]TextEdit,
+	bool,
+) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
 
 	if !ok {
@@ -110,6 +116,9 @@ collect_methods :: proc(
 	for k, v in indexer.index.collection.packages {
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
+				if should_skip_private_symbol(symbol, ast_context.fullpath) {
+					continue
+				}
 				resolve_unresolved_symbol(ast_context, &symbol)
 
 				range, ok := get_range_from_selection_start_to_dot(position_context)
