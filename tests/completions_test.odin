@@ -4471,6 +4471,9 @@ ast_completions_handle_pointers_basic_types :: proc(t: ^testing.T) {
 			bar(f{*})
 		}
 		`,
+		config = {
+			enable_completion_matching = true,
+		}
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
@@ -4489,6 +4492,9 @@ ast_completions_handle_pointers_struct :: proc(t: ^testing.T) {
 			bar(f{*})
 		}
 		`,
+		config = {
+			enable_completion_matching = true,
+		}
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
@@ -4503,6 +4509,9 @@ ast_completions_handle_pointers_append :: proc(t: ^testing.T) {
 			append(fo{*})
 		}
 		`,
+		config = {
+			enable_completion_matching = true,
+		}
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foos"})
 }

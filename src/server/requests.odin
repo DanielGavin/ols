@@ -365,6 +365,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
 	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
+	config.enable_completion_matching =
+		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
@@ -612,6 +614,7 @@ request_initialize :: proc(
 	config.enable_procedure_context = false
 	config.enable_snippets = false
 	config.enable_references = true
+	config.enable_completion_matching = true
 	config.verbose = false
 	config.file_log = false
 	config.odin_command = ""
@@ -901,7 +904,7 @@ request_completion :: proc(
 	}
 
 	list: CompletionList
-	list, ok = get_completion_list(document, completition_params.position, completition_params.context_)
+	list, ok = get_completion_list(document, completition_params.position, completition_params.context_, config)
 
 	if !ok {
 		return .InternalError

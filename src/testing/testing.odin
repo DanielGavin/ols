@@ -174,7 +174,7 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -202,7 +202,8 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 }
 
 expect_completion_docs :: proc(
-	t: ^testing.T, src: ^Source,
+	t: ^testing.T,
+	src: ^Source,
 	trigger_character: string,
 	expect_details: []string,
 	expect_excluded: []string = nil,
@@ -226,7 +227,7 @@ expect_completion_docs :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -261,7 +262,12 @@ expect_completion_docs :: proc(
 	}
 }
 
-expect_completion_insert_text :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_inserts: []string) {
+expect_completion_insert_text :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	expect_inserts: []string,
+) {
 	setup(src)
 	defer teardown(src)
 
@@ -269,7 +275,7 @@ expect_completion_insert_text :: proc(t: ^testing.T, src: ^Source, trigger_chara
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -512,7 +518,8 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source, expected_hints: []server
 		return
 	}
 
-	testing.expectf(t,
+	testing.expectf(
+		t,
 		len(expected_hints) == len(hints),
 		"\nExpected %d inlay hints, but received %d",
 		len(expected_hints),
