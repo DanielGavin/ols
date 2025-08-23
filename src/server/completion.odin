@@ -385,7 +385,7 @@ handle_pointers :: proc(
 		}
 	}
 
-	if !is_symbol_same_typed(ast_context, arg_symbol, result_symbol, ignore_pointers = true) {
+	if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
 		return
 	}
 

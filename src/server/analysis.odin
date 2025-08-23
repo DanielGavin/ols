@@ -408,12 +408,7 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 	return true
 }
 
-is_symbol_same_typed :: proc(
-	ast_context: ^AstContext,
-	a, b: Symbol,
-	flags: ast.Field_Flags = {},
-	ignore_pointers := false,
-) -> bool {
+is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
 	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
 	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
 		return same
@@ -428,7 +423,7 @@ is_symbol_same_typed :: proc(
 		return false
 	}
 
-	if !ignore_pointers && a.pointers != b.pointers {
+	if a.pointers != b.pointers {
 		return false
 	}
 
