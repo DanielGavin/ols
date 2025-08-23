@@ -318,7 +318,7 @@ convert_completion_results :: proc(
 		}
 
 		if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
-			handle_pointers(position_context, result.symbol, s, &item, completion_type)
+			handle_pointers(ast_context, position_context, result.symbol, s, &item, completion_type)
 		}
 
 		if common.config.enable_label_details {
@@ -372,6 +372,7 @@ convert_completion_results :: proc(
 
 @(private = "file")
 handle_pointers :: proc(
+	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	result_symbol: Symbol,
 	arg_symbol: Symbol,
@@ -382,6 +383,10 @@ handle_pointers :: proc(
 		if v.ident.name == "any" {
 			return
 		}
+	}
+
+	if !is_symbol_same_typed(ast_context, arg_symbol, result_symbol, ignore_pointers = true) {
+		return
 	}
 
 	diff := result_symbol.pointers - arg_symbol.pointers
@@ -861,7 +866,7 @@ get_selector_completion :: proc(
 					completion_item = CompletionItem {
 						label = fmt.tprintf(".%s", name),
 						kind = .EnumMember,
-						detail = fmt.tprintf("%s.%s", receiver, name),
+						detail = fmt.tprintf("%s.%s", selector.name, name),
 						additionalTextEdits = remove_edit,
 					},
 				},

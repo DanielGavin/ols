@@ -408,7 +408,12 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 	return true
 }
 
-is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
+is_symbol_same_typed :: proc(
+	ast_context: ^AstContext,
+	a, b: Symbol,
+	flags: ast.Field_Flags = {},
+	ignore_pointers := false,
+) -> bool {
 	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
 	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
 		return same
@@ -423,7 +428,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		return false
 	}
 
-	if a.pointers != b.pointers {
+	if !ignore_pointers && a.pointers != b.pointers {
 		return false
 	}
 
@@ -438,11 +443,11 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 	#partial switch b_value in b.value {
 	case SymbolBasicValue:
 		if .Any_Int in flags {
-			//Temporary - make a function that finds the base type of basic values
-			//This code only works with non distinct ints
-			switch a.name {
-			case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
-				return true
+			names := untyped_map[.Integer]
+			for name in names {
+				if a.name == name {
+					return true
+				}
 			}
 		}
 	}
@@ -453,7 +458,8 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 
 	#partial switch a_value in a.value {
 	case SymbolBasicValue:
-		return a.name == b.name && a.pkg == b.pkg
+		b_value := b.value.(SymbolBasicValue)
+		return a_value.ident.name == b_value.ident.name && a.pkg == b.pkg
 	case SymbolStructValue, SymbolEnumValue, SymbolUnionValue, SymbolBitSetValue:
 		return a.name == b.name && a.pkg == b.pkg
 	case SymbolSliceValue:
