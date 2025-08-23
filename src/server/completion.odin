@@ -385,7 +385,13 @@ handle_pointers :: proc(
 		}
 	}
 
-	if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
+	if _, ok := result_symbol.value.(SymbolUntypedValue); ok && arg_symbol.type == .Keyword {
+		if _, ok := are_symbol_untyped_basic_same_typed(arg_symbol, result_symbol); !ok {
+			if _, ok := are_symbol_untyped_basic_same_typed(result_symbol, arg_symbol); !ok {
+				return
+			}
+		}
+	} else if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
 		return
 	}
 
