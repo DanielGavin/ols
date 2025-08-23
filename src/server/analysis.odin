@@ -2625,6 +2625,26 @@ resolve_location_implicit_selector :: proc(
 	return symbol, ok
 }
 
+resolve_container_allocator :: proc(ast_context: ^AstContext, container_name: string) -> (Symbol, bool) {
+	for built in indexer.builtin_packages {
+		if symbol, ok := lookup(container_name, built, ast_context.fullpath); ok {
+			if v, ok := symbol.value.(SymbolStructValue); ok {
+				for name, i in v.names {
+					if name == "allocator" {
+						if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+							construct_struct_field_symbol(&symbol, container_name, v, i)
+							build_documentation(ast_context, &symbol, true)
+							return symbol, true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return {}, false
+}
+
 resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.Node) -> (symbol: Symbol, ok: bool) {
 	reset_ast_context(ast_context)
 
