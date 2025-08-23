@@ -502,7 +502,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
-	exprs := collect_globals(file, true)
+	exprs := collect_globals(file)
 
 	for expr in exprs {
 		symbol: Symbol

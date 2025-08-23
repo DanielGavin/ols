@@ -358,7 +358,6 @@ collect_value_decl :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	stmt: ^ast.Node,
-	skip_private: bool,
 	foreign_attrs: []^ast.Attribute,
 ) {
 	value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl)
@@ -411,10 +410,6 @@ collect_value_decl :: proc(
 		global_expr.private = .File
 	}
 
-	if skip_private && global_expr.private == .File {
-		return
-	}
-
 	for name, i in value_decl.names {
 		global_expr.name = get_ast_node_string(name, file.src)
 		global_expr.name_expr = name
@@ -434,7 +429,6 @@ collect_when_stmt :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	when_decl: ^ast.When_Stmt,
-	skip_private: bool,
 ) {
 	if when_decl.cond == nil {
 		return
@@ -448,7 +442,6 @@ collect_when_stmt :: proc(
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
 			for stmt in block.stmts {
 				if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-					collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
 				} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
 					if foreign_decl.body == nil {
 						continue
@@ -461,13 +454,12 @@ collect_when_stmt :: proc(
 								file,
 								file_tags,
 								foreign_stmt,
-								skip_private,
 								foreign_decl.attributes[:],
 							)
 						}
 					}
 				} else {
-					collect_value_decl(exprs, file, file_tags, stmt, skip_private, {})
+					collect_value_decl(exprs, file, file_tags, stmt, {})
 				}
 			}
 		}
@@ -480,7 +472,7 @@ collect_when_stmt :: proc(
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
 						for stmt in block.stmts {
 							if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-								collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
+								collect_when_stmt(exprs, file, file_tags, when_stmt)
 							} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
 								if foreign_decl.body != nil {
 									if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
@@ -490,14 +482,13 @@ collect_when_stmt :: proc(
 												file,
 												file_tags,
 												foreign_stmt,
-												skip_private,
 												foreign_decl.attributes[:],
 											)
 										}
 									}
 								}
 							} else {
-								collect_value_decl(exprs, file, file_tags, stmt, skip_private, {})
+								collect_value_decl(exprs, file, file_tags, stmt, {})
 							}
 						}
 					}
@@ -513,7 +504,7 @@ collect_when_stmt :: proc(
 
 }
 
-collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
+collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
 
@@ -521,9 +512,9 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
-			collect_value_decl(&exprs, file, file_tags, decl, skip_private, {})
+			collect_value_decl(&exprs, file, file_tags, decl, {})
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(&exprs, file, file_tags, when_decl, skip_private)
+			collect_when_stmt(&exprs, file, file_tags, when_decl)
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body == nil {
 				continue
@@ -531,7 +522,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
-					collect_value_decl(&exprs, file, file_tags, stmt, skip_private, foreign_decl.attributes[:])
+					collect_value_decl(&exprs, file, file_tags, stmt, foreign_decl.attributes[:])
 				}
 			}
 		}

@@ -335,7 +335,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 	case SymbolProcedureValue:
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
-	case SymbolAggregateValue:
+	case SymbolAggregateValue, SymbolProcedureGroupValue:
 		strings.write_string(sb, "proc (..)")
 		return
 	case SymbolStructValue:
