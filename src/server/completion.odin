@@ -11,6 +11,7 @@ import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
+import "core:reflect"
 import "core:slice"
 import "core:sort"
 import "core:strconv"
@@ -186,9 +187,16 @@ get_completion_list :: proc(
 get_target_symbol :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> Maybe(Symbol) {
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-			if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
-				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-					if param_index, ok := find_position_in_call_param(position_context, call^); ok {
+			if param_index, ok := find_position_in_call_param(position_context, call^); ok {
+				// Manually check this so we handle the pointer case of the first argument
+				if ident, ok := call.expr.derived.(^ast.Ident); ok && param_index == 0 {
+					switch ident.name {
+					case "append", "non_zero_append":
+						return Symbol{value = SymbolDynamicArrayValue{}, pointers = 1}
+					}
+				}
+				if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
+					if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
 						if arg_type, arg_type_ok := get_proc_arg_type_from_index(value, param_index); ok {
 							if position_context.field_value != nil {
 								// we are using a named param so we want to ensure we use that type and not the
@@ -350,7 +358,6 @@ convert_completion_results :: proc(
 		}
 
 		item.kind = symbol_type_to_completion_kind(result.symbol.type)
-
 		if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
 			item.insertText = fmt.tprintf("%v($0)", item.label)
 			item.insertTextFormat = .Snippet
@@ -379,19 +386,43 @@ handle_pointers :: proc(
 	item: ^CompletionItem,
 	completion_type: Completion_Type,
 ) {
-	if v, ok := arg_symbol.value.(SymbolBasicValue); ok {
-		if v.ident.name == "any" {
-			return
-		}
-	}
-
-	if _, ok := result_symbol.value.(SymbolUntypedValue); ok && arg_symbol.type == .Keyword {
-		if _, ok := are_symbol_untyped_basic_same_typed(arg_symbol, result_symbol); !ok {
-			if _, ok := are_symbol_untyped_basic_same_typed(result_symbol, arg_symbol); !ok {
-				return
+	should_skip :: proc(arg_symbol, result_symbol: Symbol) -> bool {
+		if v, ok := arg_symbol.value.(SymbolBasicValue); ok {
+			if v.ident.name == "any" {
+				return true
 			}
 		}
-	} else if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
+
+		if _, ok := result_symbol.value.(SymbolUntypedValue); ok && arg_symbol.type == .Keyword {
+			if _, ok := are_symbol_untyped_basic_same_typed(arg_symbol, result_symbol); !ok {
+				if _, ok := are_symbol_untyped_basic_same_typed(result_symbol, arg_symbol); !ok {
+					return true
+				}
+				return false
+			}
+			return false
+		}
+
+		a_id := reflect.union_variant_typeid(arg_symbol.value)
+		b_id := reflect.union_variant_typeid(result_symbol.value)
+
+		if a_id != b_id {
+			return true
+		}
+
+		#partial switch v in arg_symbol.value {
+		case SymbolMapValue, SymbolDynamicArrayValue, SymbolSliceValue, SymbolMultiPointerValue, SymbolFixedArrayValue:
+			return false
+		}
+
+		if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
+			return true
+		}
+
+		return false
+	}
+
+	if should_skip(arg_symbol, result_symbol) {
 		return
 	}
 

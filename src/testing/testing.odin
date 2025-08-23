@@ -261,6 +261,44 @@ expect_completion_docs :: proc(
 	}
 }
 
+expect_completion_insert_text :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_inserts: []string) {
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	if len(expect_inserts) == 0 && len(completion_list.items) > 0 {
+		log.errorf("Expected empty completion inserts, but received %v", completion_list.items)
+	}
+
+	flags := make([]int, len(expect_inserts), context.temp_allocator)
+
+	for expect_insert, i in expect_inserts {
+		for completion, j in completion_list.items {
+			if insert_text, ok := completion.insertText.(string); ok {
+				if expect_insert == insert_text {
+					flags[i] += 1
+					continue
+				}
+			}
+		}
+	}
+
+	for flag, i in flags {
+		if flag != 1 {
+			log.errorf("Expected completion insert %v, but received %v", expect_inserts[i], completion_list.items)
+		}
+	}
+}
+
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src)
 	defer teardown(src)
