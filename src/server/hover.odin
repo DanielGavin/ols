@@ -356,9 +356,22 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		case SymbolSliceValue:
 			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolDynamicArrayValue:
+			if field == "allocator" {
+				if symbol, ok := resolve_container_allocator(&ast_context, "Raw_Dynamic_Array"); ok {
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
 			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
 		case SymbolFixedArrayValue:
 			return get_soa_field_hover(&ast_context, selector, v.expr, v.len, field)
+		case SymbolMapValue:
+			if field == "allocator" {
+				if symbol, ok := resolve_container_allocator(&ast_context, "Raw_Map"); ok {
+					hover.contents = write_hover_content(&ast_context, symbol)
+					return hover, true, true
+				}
+			}
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
