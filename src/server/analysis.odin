@@ -1460,7 +1460,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		case SymbolSliceValue:
 			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
 		case SymbolDynamicArrayValue:
+			if node.field.name == "allocator" {
+				return resolve_container_allocator(ast_context, "Raw_Dynamic_Array")
+			}
 			return resolve_soa_selector_field(ast_context, selector, s.expr, nil, node.field.name)
+		case SymbolMapValue:
+			if node.field.name == "allocator" {
+				return resolve_container_allocator(ast_context, "Raw_Map")
+			}
 		}
 	}
 
@@ -2645,6 +2652,23 @@ resolve_container_allocator :: proc(ast_context: ^AstContext, container_name: st
 	return {}, false
 }
 
+resolve_container_allocator_location :: proc(ast_context: ^AstContext, container_name: string) -> (Symbol, bool) {
+	for built in indexer.builtin_packages {
+		if symbol, ok := lookup(container_name, built, ast_context.fullpath); ok {
+			if v, ok := symbol.value.(SymbolStructValue); ok {
+				for name, i in v.names {
+					if name == "allocator" {
+						symbol.range = v.ranges[i]
+						return symbol, true
+					}
+				}
+			}
+		}
+	}
+
+	return {}, false
+}
+
 resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.Node) -> (symbol: Symbol, ok: bool) {
 	reset_ast_context(ast_context)
 
@@ -2712,9 +2736,16 @@ resolve_symbol_selector :: proc(
 	case SymbolSliceValue:
 		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
 	case SymbolDynamicArrayValue:
+		if field == "allocator" {
+			return resolve_container_allocator_location(ast_context, "Raw_Dynamic_Array")
+		}
 		return resolve_soa_selector_field(ast_context, symbol, v.expr, nil, field)
 	case SymbolFixedArrayValue:
 		return resolve_soa_selector_field(ast_context, symbol, v.expr, v.len, field)
+	case SymbolMapValue:
+		if field == "allocator" {
+			return resolve_container_allocator_location(ast_context, "Raw_Map")
+		}
 	}
 
 	return symbol, true
