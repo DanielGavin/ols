@@ -56,11 +56,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			if _, ok := keyword_map[ident.name]; ok {
-				return {}, false
-			}
-
-			if str, ok := builtin_identifier_hover[ident.name]; ok {
+			if _, ok := keywords_docs[ident.name]; ok {
 				return {}, false
 			}
 		}

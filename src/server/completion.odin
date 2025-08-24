@@ -1524,25 +1524,15 @@ get_identifier_completion :: proc(
 		}
 	}
 
-	for keyword, _ in keyword_map {
-		symbol := Symbol {
-			name = keyword,
-			type = .Keyword,
+	for keyword, docs in keywords_docs {
+		item := CompletionItem {
+			label = keyword,
+			kind = .Keyword,
+			documentation = docs,
 		}
 
 		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(results, CompletionResult{score = score, symbol = symbol})
-		}
-	}
-
-	for keyword, _ in language_keywords {
-		symbol := Symbol {
-			name = keyword,
-			type = .Keyword,
-		}
-
-		if score, ok := common.fuzzy_match(matcher, keyword); ok == 1 {
-			append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+			append(results, CompletionResult{score = score * 1.1, completion_item = item})
 		}
 	}
 
@@ -2200,52 +2190,6 @@ is_bitset_binary_operator :: proc(op: string) -> bool {
 
 is_bitset_assignment_operator :: proc(op: string) -> bool {
 	return op in bitset_assignment_operators
-}
-
-language_keywords: []string = {
-	"align_of",
-	"case",
-	"defer",
-	"enum",
-	"import",
-	"proc",
-	"transmute",
-	"when",
-	"auto_cast",
-	"cast",
-	"distinct",
-	"fallthrough",
-	"in",
-	"not_in",
-	"return",
-	"type_of",
-	"bit_field",
-	"const",
-	"do",
-	"for",
-	"inline",
-	"offset_of",
-	"size_of",
-	"typeid",
-	"bit_set",
-	"context",
-	"dynamic",
-	"foreign",
-	"opaque",
-	"struct",
-	"union",
-	"break",
-	"continue",
-	"else",
-	"if",
-	"map",
-	"package",
-	"switch",
-	"using",
-	"or_return",
-	"or_else",
-	"or_continue",
-	"or_break",
 }
 
 swizzle_color_map: map[u8]struct{} = {
