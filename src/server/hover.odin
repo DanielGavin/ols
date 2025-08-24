@@ -47,11 +47,6 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 	return content
 }
 
-builtin_identifier_hover: map[string]string = {
-	"context" = "```odin\nruntime.context: Context\n```\nThis context variable is local to each scope and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
-}
-
-
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
 	hover := Hover {
 		contents = {kind = "plaintext"},
@@ -83,15 +78,18 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		return {}, false, true
 	}
 
+	if position_context.type_cast != nil {
+		if str, ok := keywords_docs[position_context.type_cast.tok.text]; ok {
+			hover.contents.kind = "markdown"
+			hover.contents.value = str
+			hover.range = common.get_token_range(position_context.type_cast, ast_context.file.src)
+			return hover, true, true
+		}
+	}
+
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			if _, ok := keyword_map[ident.name]; ok {
-				hover.contents.kind = "plaintext"
-				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
-				return hover, true, true
-			}
-
-			if str, ok := builtin_identifier_hover[ident.name]; ok {
+			if str, ok := keywords_docs[ident.name]; ok {
 				hover.contents.kind = "markdown"
 				hover.contents.value = str
 				hover.range = common.get_token_range(position_context.identifier^, ast_context.file.src)
@@ -101,7 +99,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	}
 
 	if position_context.implicit_context != nil {
-		if str, ok := builtin_identifier_hover[position_context.implicit_context.tok.text]; ok {
+		if str, ok := keywords_docs[position_context.implicit_context.tok.text]; ok {
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
 			hover.range = common.get_token_range(position_context.implicit_context^, ast_context.file.src)
