@@ -65,10 +65,20 @@
 			"description": "Automatically import packages that aren't in your import on completion",
 			"default": true
 		},
-		"enable_references": { "type": "boolean" },
+		"enable_references": {
+			"type": "boolean",
+			"description": "Turns on finding references for a symbol.",
+			"default": true
+		},
+		"enable_completion_matching": {
+			"type": "boolean",
+			"description": "Attempt to match types and pointers when passing arguments to procedures.",
+			"default": true
+		},
 		"enable_fake_methods": {
 			"type": "boolean",
 			"description": "Turn on fake methods completion."
+			"default": false
 		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
