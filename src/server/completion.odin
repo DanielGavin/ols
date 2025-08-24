@@ -17,14 +17,7 @@ import "core:sort"
 import "core:strconv"
 import "core:strings"
 
-
 import "src:common"
-
-/*
-	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
-
-*/
-
 
 CompletionResult :: struct {
 	symbol:          Symbol,
@@ -336,7 +329,7 @@ convert_completion_results :: proc(
 
 		if config.enable_completion_matching {
 			if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
-				handle_pointers(ast_context, position_context, result.symbol, s, &item, completion_type)
+				handle_matching(ast_context, position_context, result.symbol, s, &item, completion_type)
 			}
 		}
 
@@ -389,7 +382,7 @@ convert_completion_results :: proc(
 }
 
 @(private = "file")
-handle_pointers :: proc(
+handle_matching :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	result_symbol: Symbol,
@@ -412,6 +405,12 @@ handle_pointers :: proc(
 				return false
 			}
 			return false
+		}
+
+		if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
+			if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
+				return false
+			}
 		}
 
 		a_id := reflect.union_variant_typeid(arg_symbol.value)
@@ -437,9 +436,16 @@ handle_pointers :: proc(
 		return
 	}
 
-	diff := result_symbol.pointers - arg_symbol.pointers
 	suffix := ""
 	prefix := ""
+
+	if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
+		if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
+			suffix = "[:]"
+		}
+	}
+
+	diff := result_symbol.pointers - arg_symbol.pointers
 	if diff > 0 {
 		suffix = repeat("^", diff, context.temp_allocator)
 	}
