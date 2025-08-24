@@ -4,6 +4,19 @@ import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 
+DocumentLocal :: struct {
+	lhs:             ^ast.Expr,
+	rhs:             ^ast.Expr,
+	offset:          int,
+	resolved_global: bool, //Some locals have already been resolved and are now in global space
+	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
+	pkg:             string,
+	variable:        bool,
+	parameter:       bool,
+}
+
+LocalGroup :: map[string][dynamic]DocumentLocal
+
 store_local :: proc(
 	ast_context: ^AstContext,
 	lhs: ^ast.Expr,
