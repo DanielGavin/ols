@@ -90,6 +90,8 @@ Options:
 
 `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
 
+`enable_document_links`: Follow links when opening documentation. This is usually done via `<ctrl+click>` and will open the documentation in a browser (or similar). _(Enabled by default)_
+
 `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
 `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.

@@ -351,7 +351,7 @@ ODIN_VERSION: string
 	Empty if `.git` could not be detected at the time the compiler was built.
 */
 @builtin
-ODIN_VERSION_HASH:string
+ODIN_VERSION_HASH: string
 
 @builtin
 Odin_Windows_Subsystem_Type :: enum int {

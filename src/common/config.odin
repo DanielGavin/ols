@@ -35,6 +35,7 @@ Config :: struct {
 	enable_checker_only_saved:         bool,
 	enable_auto_import:                bool,
 	enable_completion_matching:        bool,
+	enable_document_links:             bool,
 	disable_parser_errors:             bool,
 	thread_count:                      int,
 	file_log:                          bool,

@@ -80,6 +80,11 @@
 			"description": "Turn on fake methods completion.",
 			"default": false
 		},
+		"enable_document_links": {
+			"type": "boolean",
+			"description": "Follow links when opening documentation.",
+			"default": true
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",

@@ -367,6 +367,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
 	config.enable_completion_matching =
 		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
+	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
@@ -615,6 +616,7 @@ request_initialize :: proc(
 	config.enable_snippets = false
 	config.enable_references = true
 	config.enable_completion_matching = true
+	config.enable_document_links = true
 	config.verbose = false
 	config.file_log = false
 	config.odin_command = ""
@@ -1335,6 +1337,14 @@ request_document_links :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	if !config.enable_document_links {
+		links: []DocumentLink
+		response := make_response_message(params = links, id = id)
+
+		send_response(response, writer)
+		return .None
+	}
+
 	params_object, ok := params.(json.Object)
 
 	if !ok {
