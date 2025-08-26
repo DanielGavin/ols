@@ -353,7 +353,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 		if len(v.values) > 0 {
 			if is_values_nestable_assign(v.values) {
-				return cons(document, group(nest(cons_with_opl(lhs, group(rhs)))))
+				return cons(document, nest(cons_with_opl(lhs, group(rhs))))
 			} else if is_values_nestable_if_break_assign(v.values) {
 				assignments := cons(lhs, group(nest(break_with_space()), Document_Group_Options{id = "assignments"}))
 				assignments = cons(assignments, nest_if_break(group(rhs), "assignments"))
