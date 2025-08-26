@@ -4376,6 +4376,20 @@ ast_hover_overload_private_procs :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "@(private=\"file\")\nmy_package.foo: proc(s: string)")
 }
+
+@(test)
+ast_hover_keyword_transmute :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			foo: f64
+			bar := trans{*}mute(i64)foo
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "transmute(T)v\nBitwise cast between 2 types of the same size.")
+}
 /*
 
 Waiting for odin fix
