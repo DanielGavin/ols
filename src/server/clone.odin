@@ -243,6 +243,10 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.cond = clone_type(r.cond, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Ternary_If_Expr:
+		r.x = clone_type(r.x, allocator, unique_strings)
+		r.cond = clone_type(r.cond, allocator, unique_strings)
+		r.y = clone_type(r.y, allocator, unique_strings)
 	case ^Poly_Type:
 		r.type = auto_cast clone_type(r.type, allocator, unique_strings)
 		r.specialization = clone_type(r.specialization, allocator, unique_strings)
