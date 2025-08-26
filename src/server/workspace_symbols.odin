@@ -38,8 +38,6 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 
 	filepath.walk(uri.path, walk_dir, &pkgs)
 
-	log.error(pkgs)
-
 	_pkg: for pkg in pkgs {
 		matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg), context.temp_allocator)
 
