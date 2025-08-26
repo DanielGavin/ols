@@ -31,6 +31,10 @@ should_skip_private_symbol :: proc(symbol: Symbol, current_file: string) -> bool
 		return false
 	}
 
+	if current_file == "" {
+		return false
+	}
+
 	symbol_file := strings.trim_prefix(symbol.uri, "file://")
 	current_file := strings.trim_prefix(current_file, "file://")
 	if .PrivateFile in symbol.flags && symbol_file != current_file {
