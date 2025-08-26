@@ -12,3 +12,11 @@ tracking_allocator_check_leaks :: proc(
 
 
 }
+
+ init: proc(
+		window_width: int,
+		window_height: int,
+		window_title: string,
+		allocator := context.allocator,
+		loc := #caller_location,
+	) -> ^State : _init
