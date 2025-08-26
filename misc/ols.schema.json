@@ -77,7 +77,7 @@
 		},
 		"enable_fake_methods": {
 			"type": "boolean",
-			"description": "Turn on fake methods completion."
+			"description": "Turn on fake methods completion.",
 			"default": false
 		},
 		"disable_parser_errors": { "type": "boolean" },
