@@ -4581,3 +4581,30 @@ ast_completions_should_not_have_private_overloads :: proc(t: ^testing.T) {
 		},
 	)
 }
+
+@(test)
+ast_completion_proc_bit_set_comp_lit_default_param_with_no_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Foos :: distinct bit_set[Foo]
+
+		bar :: proc(foos := Foos{}) {}
+
+		main :: proc() {
+			bar({.{*}})
+		}
+		`,
+	}
+
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"A", "B"},
+	)
+}

@@ -1302,8 +1302,14 @@ get_implicit_completion :: proc(
 							}
 						}
 					}
+					type := arg_type.type
+					if type == nil {
+						if comp_lit, ok := arg_type.default_value.derived.(^ast.Comp_Lit); ok {
+							type = comp_lit.type
+						}
+					}
 
-					if enum_value, ok := unwrap_enum(ast_context, arg_type.type); ok {
+					if enum_value, ok := unwrap_enum(ast_context, type); ok {
 						for name in enum_value.names {
 							if position_context.comp_lit != nil &&
 							   field_exists_in_comp_lit(position_context.comp_lit, name) {
