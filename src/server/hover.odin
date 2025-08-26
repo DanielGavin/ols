@@ -466,7 +466,7 @@ get_soa_field_hover :: proc(
 	}
 	if symbol, ok := resolve_soa_selector_field(ast_context, selector, expr, size, field); ok {
 		if selector.name != "" {
-			symbol.pkg = selector.name
+			symbol.parent_name = selector.name
 		}
 		symbol.name = field
 		build_documentation(ast_context, &symbol, false)

@@ -52,12 +52,7 @@ ast_index_array_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -79,12 +74,7 @@ ast_index_dynamic_array_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -106,12 +96,7 @@ ast_struct_pointer_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -134,12 +119,7 @@ ast_struct_take_address_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -162,12 +142,7 @@ ast_struct_deref_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -193,12 +168,7 @@ ast_range_map :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -224,12 +194,7 @@ ast_range_array :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		".",
-		{"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"},
-	)
+	test.expect_completion_docs(t, &source, ".", {"My_Struct.one: int", "My_Struct.two: int", "My_Struct.three: int"})
 }
 
 @(test)
@@ -3212,7 +3177,7 @@ ast_completion_on_struct_using_field_selector_directly :: proc(t: ^testing.T) {
 		},
 	)
 	source := test.Source {
-		main = `package main
+		main     = `package main
 		import "my_package"
 
 
@@ -3311,18 +3276,12 @@ ast_completion_multi_pointer_nested :: proc(t: ^testing.T) {
 ast_completion_struct_documentation :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 			My_Struct :: struct {
 			}
-		`,
-		},
-	)
+		`})
 	source := test.Source {
-		main = `package main
+		main     = `package main
 
 		import "my_package"
 
@@ -3440,7 +3399,7 @@ ast_completion_poly_struct_another_package :: proc(t: ^testing.T) {
 		},
 	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "my_package"
 
@@ -3478,7 +3437,7 @@ ast_completion_poly_struct_another_package_field :: proc(t: ^testing.T) {
 		},
 	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "my_package"
 
@@ -3514,18 +3473,15 @@ ast_completion_poly_proc_mixed_packages :: proc(t: ^testing.T) {
 		}
 		`,
 		},
-		test.Package {
-			pkg = "bar_package",
-			source = `package bar_package
+		test.Package{pkg = "bar_package", source = `package bar_package
 			Bar :: struct {
 				bar: int,
 			}
-		`,
-		},
+		`},
 	)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		import "foo_package"
 		import "bar_package"
@@ -3879,15 +3835,9 @@ ast_completion_proc_enum_param :: proc(t: ^testing.T) {
 ast_completion_using_aliased_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 			foo :: proc() {}
-		`,
-		},
-	)
+		`})
 
 	source := test.Source {
 		main     = `package test
@@ -3910,25 +3860,13 @@ ast_completion_using_aliased_package :: proc(t: ^testing.T) {
 ast_completion_using_aliased_package_multiple :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "foo_pkg",
-			source = `package foo_pkg
+	append(&packages, test.Package{pkg = "foo_pkg", source = `package foo_pkg
 			foo :: proc() {}
-		`,
-		},
-	)
+		`})
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "bar_pkg",
-			source = `package bar_pkg
+	append(&packages, test.Package{pkg = "bar_pkg", source = `package bar_pkg
 			bar :: proc() {}
-		`,
-		},
-	)
+		`})
 
 	source := test.Source {
 		main     = `package test
@@ -4118,7 +4056,7 @@ ast_completion_enum_array_in_proc_param :: proc(t: ^testing.T) {
 @(test)
 ast_completion_union_with_poly :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 
 		Foo :: union($T: typeid) {
 			T,
@@ -4130,12 +4068,7 @@ ast_completion_union_with_poly :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(
-		t,
-		&source,
-		"",
-		{"test.foo: test.Foo(int)"},
-	)
+	test.expect_completion_docs(t, &source, "", {"test.foo: test.Foo(int)"})
 }
 
 @(test)
@@ -4144,15 +4077,12 @@ ast_completion_union_with_poly_from_package :: proc(t: ^testing.T) {
 
 	append(
 		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+		test.Package{pkg = "my_package", source = `package my_package
 
 			Foo :: union($T: typeid) {
 				T,
 			}
-		`,
-		},
+		`},
 	)
 	source := test.Source {
 		main     = `package test
@@ -4165,18 +4095,13 @@ ast_completion_union_with_poly_from_package :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_completion_docs(
-		t,
-		&source,
-		"",
-		{"test.foo: my_package.Foo(int)"},
-	)
+	test.expect_completion_docs(t, &source, "", {"test.foo: my_package.Foo(int)"})
 }
 
 @(test)
 ast_completion_chained_proc_call_params :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: struct {
 			data: int,
 		}
@@ -4194,13 +4119,13 @@ ast_completion_chained_proc_call_params :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"Foo.data: int"})
+	test.expect_completion_docs(t, &source, "", {"Foo.data: int"})
 }
 
 @(test)
-ast_completion_multiple_chained_call_expr  :: proc(t: ^testing.T) {
+ast_completion_multiple_chained_call_expr :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: struct {
 			someData: int,
 		}
@@ -4220,13 +4145,13 @@ ast_completion_multiple_chained_call_expr  :: proc(t: ^testing.T) {
 		foo :: proc() -> Bar {}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"Bazz.bazz: string"})
+	test.expect_completion_docs(t, &source, "", {"Bazz.bazz: string"})
 }
 
 @(test)
-ast_completion_nested_struct_with_enum_fields_unnamed  :: proc(t: ^testing.T) {
+ast_completion_nested_struct_with_enum_fields_unnamed :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo1 :: enum {
 			A, B,
 		}
@@ -4256,13 +4181,13 @@ ast_completion_nested_struct_with_enum_fields_unnamed  :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"C", "D"}, {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {"C", "D"}, {"A", "B"})
 }
 
 @(test)
 ast_completion_poly_type :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		foo :: proc(array: $A/[]$T) {
 			for elem, i in array {
 				el{*}
@@ -4270,13 +4195,13 @@ ast_completion_poly_type :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"test.elem: $T"})
+	test.expect_completion_docs(t, &source, "", {"test.elem: $T"})
 }
 
 @(test)
 ast_completion_proc_field_names :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		foo :: proc(i: int, bar := "") {}
 
 		main :: proc() {
@@ -4284,13 +4209,13 @@ ast_completion_proc_field_names :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"test.bar: string"})
+	test.expect_completion_docs(t, &source, "", {"test.bar: string"})
 }
 
 @(test)
 ast_completion_enum_variadiac_args :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: enum {
 			A,
 			B,
@@ -4304,13 +4229,13 @@ ast_completion_enum_variadiac_args :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
 }
 
 @(test)
 ast_completion_proc_variadiac_arg :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: enum {
 			A,
 			B,
@@ -4320,13 +4245,13 @@ ast_completion_proc_variadiac_arg :: proc(t: ^testing.T) {
 		foo :: proc(foos: ..{*}) {}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo: enum {..}"})
 }
 
 @(test)
 ast_completion_within_struct_decl :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		Foo :: enum {
 			A,
 			B,
@@ -4340,7 +4265,7 @@ ast_completion_within_struct_decl :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs( t, &source, "", {"test.Foo: enum {..}"}, {"test.foo: proc(f: Foo)"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo: enum {..}"}, {"test.foo: proc(f: Foo)"})
 }
 
 @(test)
@@ -4393,17 +4318,11 @@ ast_completion_enum_map_value_global :: proc(t: ^testing.T) {
 ast_completion_basic_type_other_pkg :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 			foo: int
-		`,
-		},
-	)
+		`})
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		foo :: proc() {
@@ -4541,45 +4460,79 @@ ast_completion_bit_set_on_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completions_should_not_have_private_overloads :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package, context.temp_allocator)
-
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
-
-			@(private)
-			foo_str :: proc(s: string) {}
-			@(private = "file")
-			foo_int :: proc(i: int) {}
-			foo :: proc {
-				foo_str,
-				foo_int,
-			}
-		`,
-		},
-	)
+ast_completions_handle_matching_basic_types :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
-		import "my_package"
+		main = `package test
+
+		bar :: proc(i: ^int) {}
 
 		main :: proc() {
-			foo := my_package.f{*}
+			foo: int
+			bar(f{*})
 		}
 		`,
-		packages = packages[:],
+		config = {
+			enable_completion_matching = true,
+		}
 	}
-	test.expect_completion_docs(
-		t,
-		&source,
-		"",
-		{"my_package.foo: proc (..)"}, {
-			"@(private)\nmy_package.foo_str: proc(s: string)",
-			"@(private=\"file\")\nmy_package.foo_int: proc(i: int)",
-		},
-	)
+	test.expect_completion_insert_text(t, &source, "", {"&foo"})
+}
+
+@(test)
+ast_completions_handle_matching_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct{}
+
+		bar :: proc(foo: ^Foo) {}
+
+		main :: proc() {
+			foo: Foo
+			bar(f{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		}
+	}
+	test.expect_completion_insert_text(t, &source, "", {"&foo"})
+}
+
+@(test)
+ast_completions_handle_matching_append :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			foos: [dynamic]int
+			append(fo{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		}
+	}
+	test.expect_completion_insert_text(t, &source, "", {"&foos"})
+}
+
+@(test)
+ast_completions_handle_matching_dynamic_array_to_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		bar :: proc(b: []int)
+
+		main :: proc() {
+			foos: [dynamic]int
+			bar(fo{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		}
+	}
+	test.expect_completion_insert_text(t, &source, "", {"foos[:]"})
 }
 
 @(test)

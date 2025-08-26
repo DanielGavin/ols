@@ -11,19 +11,13 @@ import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
+import "core:reflect"
 import "core:slice"
 import "core:sort"
 import "core:strconv"
 import "core:strings"
 
-
 import "src:common"
-
-/*
-	TODOS: Making the signature details is really annoying and not that nice - try to see if this can be refractored.
-
-*/
-
 
 CompletionResult :: struct {
 	symbol:          Symbol,
@@ -47,6 +41,7 @@ get_completion_list :: proc(
 	document: ^Document,
 	position: common.Position,
 	completion_context: CompletionContext,
+	config: ^common.Config,
 ) -> (
 	CompletionList,
 	bool,
@@ -154,6 +149,8 @@ get_completion_list :: proc(
 		}
 	}
 
+	arg_symbol := get_target_symbol(&ast_context, &position_context)
+
 	results := make([dynamic]CompletionResult, 0, allocator = context.temp_allocator)
 	is_incomplete := false
 
@@ -162,23 +159,77 @@ get_completion_list :: proc(
 	case .Comp_Lit:
 		is_incomplete = get_comp_lit_completion(&ast_context, &position_context, &results)
 	case .Identifier:
-		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results)
+		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results, config)
 	case .Implicit:
 		is_incomplete = get_implicit_completion(&ast_context, &position_context, &results)
 	case .Selector:
-		is_incomplete = get_selector_completion(&ast_context, &position_context, &results)
+		is_incomplete = get_selector_completion(&ast_context, &position_context, &results, config)
 	case .Switch_Type:
 		is_incomplete = get_type_switch_completion(&ast_context, &position_context, &results)
 	case .Directive:
 		is_incomplete = get_directive_completion(&ast_context, &position_context, &results)
 	case .Package:
-		is_incomplete = get_package_completion(&ast_context, &position_context, &results)
+		is_incomplete = get_package_completion(&ast_context, &position_context, &results, config)
 	}
 
-	items := convert_completion_results(&ast_context, &position_context, results[:], completion_type)
+	items := convert_completion_results(
+		&ast_context,
+		&position_context,
+		results[:],
+		completion_type,
+		arg_symbol,
+		config,
+	)
 	list.items = items
 	list.isIncomplete = is_incomplete
 	return list, true
+}
+
+get_target_symbol :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> Maybe(Symbol) {
+	if position_context.call != nil {
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if param_index, ok := find_position_in_call_param(position_context, call^); ok {
+				// Manually check this so we handle the pointer case of the first argument
+				if ident, ok := call.expr.derived.(^ast.Ident); ok && param_index == 0 {
+					switch ident.name {
+					case "append", "non_zero_append":
+						return Symbol{value = SymbolDynamicArrayValue{}, pointers = 1}
+					}
+				}
+				if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
+					if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+						if arg_type, arg_type_ok := get_proc_arg_type_from_index(value, param_index); ok {
+							if position_context.field_value != nil {
+								// we are using a named param so we want to ensure we use that type and not the
+								// type at the index
+								if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
+									if i, ok := get_field_list_name_index(name.name, value.arg_types); ok {
+										arg_type = value.arg_types[i]
+									}
+								}
+							}
+							if arg_type != nil {
+								if arg_type.type != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(ast_context, arg_type.type);
+									   ok {
+										return resolved_arg_symbol
+									}
+								} else if arg_type.default_value != nil {
+									if resolved_arg_symbol, ok := resolve_type_expression(
+										ast_context,
+										arg_type.default_value,
+									); ok {
+										return resolved_arg_symbol
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 convert_completion_results :: proc(
@@ -186,6 +237,8 @@ convert_completion_results :: proc(
 	position_context: ^DocumentPositionContext,
 	results: []CompletionResult,
 	completion_type: Completion_Type,
+	symbol: Maybe(Symbol),
+	config: ^common.Config,
 ) -> []CompletionItem {
 
 	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
@@ -206,7 +259,7 @@ convert_completion_results :: proc(
 	for result in top_results {
 		result := result
 		if item, ok := result.completion_item.?; ok {
-			if common.config.enable_label_details {
+			if config.enable_label_details {
 				item.labelDetails = CompletionItemLabelDetails {
 					description = item.detail,
 				}
@@ -232,7 +285,7 @@ convert_completion_results :: proc(
 		//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) &&
 		   result.symbol.type == .Function &&
-		   common.config.enable_procedure_context {
+		   config.enable_procedure_context {
 			continue
 		}
 
@@ -273,7 +326,14 @@ convert_completion_results :: proc(
 			label         = result.symbol.name,
 			documentation = write_hover_content(ast_context, result.symbol),
 		}
-		if common.config.enable_label_details {
+
+		if config.enable_completion_matching {
+			if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
+				handle_matching(ast_context, position_context, result.symbol, s, &item, completion_type)
+			}
+		}
+
+		if config.enable_label_details {
 			// detail      = left
 			// description = right
 			details := CompletionItemLabelDetails{}
@@ -292,7 +352,7 @@ convert_completion_results :: proc(
 			// hack for sublime text's issue
 			// remove when this issue is fixed: https://github.com/sublimehq/sublime_text/issues/6033
 			// or if this PR gets merged: https://github.com/sublimelsp/LSP/pull/2293
-			if common.config.client_name == "Sublime Text LSP" {
+			if config.client_name == "Sublime Text LSP" {
 				if strings.contains(details.detail, "..") && strings.contains(details.detail, "#") {
 					s, _ := strings.replace_all(details.detail, "..", "ꓸꓸ", allocator = context.temp_allocator)
 					details.detail = s
@@ -302,8 +362,7 @@ convert_completion_results :: proc(
 		}
 
 		item.kind = symbol_type_to_completion_kind(result.symbol.type)
-
-		if result.symbol.type == .Function && common.config.enable_snippets && common.config.enable_procedure_snippet {
+		if result.symbol.type == .Function && config.enable_snippets && config.enable_procedure_snippet {
 			item.insertText = fmt.tprintf("%v($0)", item.label)
 			item.insertTextFormat = .Snippet
 			item.deprecated = .Deprecated in result.symbol.flags
@@ -316,10 +375,101 @@ convert_completion_results :: proc(
 	}
 
 	if completion_type == .Identifier {
-		append_non_imported_packages(ast_context, position_context, &items)
+		append_non_imported_packages(ast_context, position_context, &items, config)
 	}
 
 	return items[:]
+}
+
+@(private = "file")
+handle_matching :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	result_symbol: Symbol,
+	arg_symbol: Symbol,
+	item: ^CompletionItem,
+	completion_type: Completion_Type,
+) {
+	should_skip :: proc(arg_symbol, result_symbol: Symbol) -> bool {
+		if v, ok := arg_symbol.value.(SymbolBasicValue); ok {
+			if v.ident.name == "any" {
+				return true
+			}
+		}
+
+		if _, ok := result_symbol.value.(SymbolUntypedValue); ok && arg_symbol.type == .Keyword {
+			if _, ok := are_symbol_untyped_basic_same_typed(arg_symbol, result_symbol); !ok {
+				if _, ok := are_symbol_untyped_basic_same_typed(result_symbol, arg_symbol); !ok {
+					return true
+				}
+				return false
+			}
+			return false
+		}
+
+		if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
+			if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
+				return false
+			}
+		}
+
+		a_id := reflect.union_variant_typeid(arg_symbol.value)
+		b_id := reflect.union_variant_typeid(result_symbol.value)
+
+		if a_id != b_id {
+			return true
+		}
+
+		#partial switch v in arg_symbol.value {
+		case SymbolMapValue, SymbolDynamicArrayValue, SymbolSliceValue, SymbolMultiPointerValue, SymbolFixedArrayValue:
+			return false
+		}
+
+		if result_symbol.uri != arg_symbol.uri || result_symbol.range != arg_symbol.range {
+			return true
+		}
+
+		return false
+	}
+
+	if should_skip(arg_symbol, result_symbol) {
+		return
+	}
+
+	suffix := ""
+	prefix := ""
+
+	if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
+		if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
+			suffix = "[:]"
+		}
+	}
+
+	diff := result_symbol.pointers - arg_symbol.pointers
+	if diff > 0 {
+		suffix = repeat("^", diff, context.temp_allocator)
+	}
+	if diff < 0 {
+		prefix = "&"
+	}
+
+	if completion_type == .Identifier {
+		item.insertText = fmt.tprint(prefix, item.label, suffix, sep = "")
+	} else if completion_type == .Selector {
+		item.insertText = fmt.tprint(item.label, suffix, sep = "")
+		if prefix != "" {
+			if range, ok := get_range_from_selection_start_to_dot(position_context); ok {
+				prefix_edit := TextEdit {
+					range = {start = range.start, end = range.start},
+					newText = "&",
+				}
+
+				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
+				additionalTextEdits[0] = prefix_edit
+				item.additionalTextEdits = additionalTextEdits
+			}
+		}
+	}
 }
 
 get_completion_details :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
@@ -556,6 +706,7 @@ get_selector_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
+	config: ^common.Config,
 ) -> bool {
 	ast_context.current_package = ast_context.document_package
 
@@ -601,7 +752,7 @@ get_selector_completion :: proc(
 		}
 	}
 
-	if common.config.enable_fake_method {
+	if config.enable_fake_method {
 		append_method_completion(ast_context, selector, position_context, results, receiver)
 	}
 
@@ -770,7 +921,7 @@ get_selector_completion :: proc(
 					completion_item = CompletionItem {
 						label = fmt.tprintf(".%s", name),
 						kind = .EnumMember,
-						detail = fmt.tprintf("%s.%s", receiver, name),
+						detail = fmt.tprintf("%s.%s", selector.name, name),
 						additionalTextEdits = remove_edit,
 					},
 				},
@@ -1394,6 +1545,7 @@ get_identifier_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
+	config: ^common.Config,
 ) -> bool {
 	lookup_name := ""
 	is_incomplete := true
@@ -1428,21 +1580,24 @@ get_identifier_completion :: proc(
 
 	matcher := common.make_fuzzy_matcher(lookup_name)
 
+
 	if position_context.call != nil {
-		if call_symbol, ok := resolve_type_expression(ast_context, position_context.call); ok {
-			if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-				for arg in value.orig_arg_types {
-					// For now we just add params with default values, could add everything we more logic in the future
-					if arg.default_value != nil {
-						for name in arg.names {
-							if ident, ok := name.derived.(^ast.Ident); ok {
-								if symbol, ok := resolve_type_expression(ast_context, arg.default_value); ok {
-									if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-										symbol.type_name = symbol.name
-										symbol.type_pkg = symbol.pkg
-										symbol.name = clean_ident(ident.name)
-										symbol.type = .Field
-										append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+			if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
+				if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
+					for arg in value.orig_arg_types {
+						// For now we just add params with default values, could add everything we more logic in the future
+						if arg.default_value != nil {
+							for name in arg.names {
+								if ident, ok := name.derived.(^ast.Ident); ok {
+									if symbol, ok := resolve_type_expression(ast_context, arg.default_value); ok {
+										if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
+											symbol.type_name = symbol.name
+											symbol.type_pkg = symbol.pkg
+											symbol.name = clean_ident(ident.name)
+											symbol.type = .Field
+											append(results, CompletionResult{score = score * 1.1, symbol = symbol})
+										}
 									}
 								}
 							}
@@ -1542,7 +1697,7 @@ get_identifier_completion :: proc(
 		}
 	}
 
-	if common.config.enable_snippets {
+	if config.enable_snippets {
 		for k, v in snippets {
 			if score, ok := common.fuzzy_match(matcher, k); ok == 1 {
 				symbol := Symbol {
@@ -1560,6 +1715,7 @@ get_package_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
+	config: ^common.Config,
 ) -> bool {
 	is_incomplete := false
 
@@ -1584,13 +1740,13 @@ get_package_completion :: proc(
 		if colon_index + 1 < len(without_quotes) {
 			absolute_path = filepath.join(
 				elems = {
-					common.config.collections[c],
+					config.collections[c],
 					filepath.dir(without_quotes[colon_index + 1:], context.temp_allocator),
 				},
 				allocator = context.temp_allocator,
 			)
 		} else {
-			absolute_path = common.config.collections[c]
+			absolute_path = config.collections[c]
 		}
 	} else {
 		import_file_dir := filepath.dir(position_context.import_stmt.pos.file, context.temp_allocator)
@@ -1600,7 +1756,7 @@ get_package_completion :: proc(
 
 	if !strings.contains(position_context.import_stmt.fullpath, "/") &&
 	   !strings.contains(position_context.import_stmt.fullpath, ":") {
-		for key, _ in common.config.collections {
+		for key, _ in config.collections {
 			item := CompletionItem {
 				detail = "collection",
 				label  = key,
@@ -1762,9 +1918,10 @@ append_non_imported_packages :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	items: ^[dynamic]CompletionItem,
+	config: ^common.Config,
 ) {
 	// Keep these as is for now with the completion items as they are a special case
-	if !common.config.enable_auto_import {
+	if !config.enable_auto_import {
 		return
 	}
 
@@ -1774,7 +1931,7 @@ append_non_imported_packages :: proc(
 			continue
 		}
 		for pkg in pkgs {
-			fullpath := path.join({common.config.collections[collection], pkg})
+			fullpath := path.join({config.collections[collection], pkg})
 			found := false
 
 			for doc_pkg in ast_context.imports {

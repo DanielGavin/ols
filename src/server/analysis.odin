@@ -373,11 +373,11 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 	#partial switch b_value in b.value {
 	case SymbolBasicValue:
 		if .Any_Int in flags {
-			//Temporary - make a function that finds the base type of basic values
-			//This code only works with non distinct ints
-			switch a.name {
-			case "int", "uint", "u32", "i32", "u8", "i8", "u64", "u16", "i16":
-				return true
+			names := untyped_map[.Integer]
+			for name in names {
+				if a.name == name {
+					return true
+				}
 			}
 		}
 	}
@@ -388,7 +388,8 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 
 	#partial switch a_value in a.value {
 	case SymbolBasicValue:
-		return a.name == b.name && a.pkg == b.pkg
+		b_value := b.value.(SymbolBasicValue)
+		return a_value.ident.name == b_value.ident.name && a.pkg == b.pkg
 	case SymbolStructValue, SymbolEnumValue, SymbolUnionValue, SymbolBitSetValue:
 		return a.name == b.name && a.pkg == b.pkg
 	case SymbolSliceValue:

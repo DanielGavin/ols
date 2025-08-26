@@ -174,7 +174,7 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -202,7 +202,8 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 }
 
 expect_completion_docs :: proc(
-	t: ^testing.T, src: ^Source,
+	t: ^testing.T,
+	src: ^Source,
 	trigger_character: string,
 	expect_details: []string,
 	expect_excluded: []string = nil,
@@ -226,7 +227,7 @@ expect_completion_docs :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context)
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -257,6 +258,49 @@ expect_completion_docs :: proc(
 			if expect_exclude == get_doc(completion.documentation) {
 				log.errorf("Expected completion label %v to not be included", expect_exclude)
 			}
+		}
+	}
+}
+
+expect_completion_insert_text :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	expect_inserts: []string,
+) {
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	if len(expect_inserts) == 0 && len(completion_list.items) > 0 {
+		log.errorf("Expected empty completion inserts, but received %v", completion_list.items)
+	}
+
+	flags := make([]int, len(expect_inserts), context.temp_allocator)
+
+	for expect_insert, i in expect_inserts {
+		for completion, j in completion_list.items {
+			if insert_text, ok := completion.insertText.(string); ok {
+				if expect_insert == insert_text {
+					flags[i] += 1
+					continue
+				}
+			}
+		}
+	}
+
+	for flag, i in flags {
+		if flag != 1 {
+			log.errorf("Expected completion insert %v, but received %v", expect_inserts[i], completion_list.items)
 		}
 	}
 }
@@ -474,7 +518,8 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source, expected_hints: []server
 		return
 	}
 
-	testing.expectf(t,
+	testing.expectf(
+		t,
 		len(expected_hints) == len(hints),
 		"\nExpected %d inlay hints, but received %d",
 		len(expected_hints),

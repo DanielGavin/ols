@@ -820,7 +820,9 @@ write_symbol_name :: proc(sb: ^strings.Builder, symbol: Symbol) {
 		fmt.sbprintf(sb, "%v: package", symbol.name)
 		return
 	}
-	if pkg != "" && pkg != "$builtin" {
+	if symbol.parent_name != "" {
+		fmt.sbprintf(sb, "%v.", symbol.parent_name)
+	} else if pkg != "" && pkg != "$builtin" {
 		fmt.sbprintf(sb, "%v.", pkg)
 	}
 	strings.write_string(sb, symbol.name)
