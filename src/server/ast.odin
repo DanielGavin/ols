@@ -743,8 +743,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.default_value, allocator)
-	//free_ast(n.docs);
-	//free_ast(n.comment);
+		free_ast_comment(n.docs, allocator);
+		free_ast_comment(n.comment, allocator);
 	case ^Field_List:
 		free_ast(n.list, allocator)
 	case ^Typeid_Type:
