@@ -4390,6 +4390,16 @@ ast_hover_keyword_transmute :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "transmute(T)v\nBitwise cast between 2 types of the same size.")
 }
+
+@(test)
+ast_hover_ternary :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		fo{*}o :: true ? 1 : 2
+		`
+	}
+	test.expect_hover(t, &source, "test.foo: int")
+}
 /*
 
 Waiting for odin fix
