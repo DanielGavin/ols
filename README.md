@@ -68,41 +68,47 @@ Example of `ols.json`:
 
 Options:
 
-`enable_format`: Turns on formatting with `odinfmt`. _(Enabled by default)_
+- `enable_format`: Turns on formatting with `odinfmt`. _(Enabled by default)_
 
-`enable_hover`: Enables hover feature. _(Enabled by default)_
+- `enable_hover`: Enables hover feature. _(Enabled by default)_
 
-`enable_snippets`: Turns on builtin snippets
+- `enable_document_symbols`: Turns on outline of all your global declarations in your document. _(Enabled by default)_
 
-`enable_semantic_tokens`: Turns on syntax highlighting.
+- `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
 
-`enable_document_symbols`: Turns on outline of all your global declarations in your document.
+- `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
-`enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
+- `enable_document_links`: Follow links when opening documentation. This is usually done via `<ctrl+click>` and will open the documentation in a browser (or similar). _(Enabled by default)_
 
-`enable_inlay_hints`: Turn on inlay hints for editors that support it.
+- `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
 
-`enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
+- `enable_inlay_hints`: Turn on inlay hints for editors that support it. When using inlay hints there are 2 configuration options
 
-`enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
+	- `enable_inlay_hints_params`: Turn on inlay hints for (non-default) parameters. _(Enabled by default)_
 
-`enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
+	- `enable_inlay_hints_default_params`: Turn on inlay hints for default parameters. _(Enabled by default)_
 
-`enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
+- `enable_semantic_tokens`: Turns on syntax highlighting.
 
-`enable_document_links`: Follow links when opening documentation. This is usually done via `<ctrl+click>` and will open the documentation in a browser (or similar). _(Enabled by default)_
+- `enable_snippets`: Turns on builtin snippets
 
-`odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
+- `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
 
-`odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.
+- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
 
-`checker_args`: Pass custom arguments to `odin check`.
+- `enable_auto_import`:
 
-`verbose`: Logs warnings instead of just errors.
+- `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
-`profile`: What profile to currently use.
+- `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.
 
-`profiles`: List of different profiles that describe the environment ols is running under.
+- `checker_args`: Pass custom arguments to `odin check`.
+
+- `verbose`: Logs warnings instead of just errors.
+
+- `profile`: What profile to currently use.
+
+- `profiles`: List of different profiles that describe the environment ols is running under.
 
 ### Odinfmt configurations
 
@@ -121,17 +127,31 @@ Example:
 
 Options:
 
-`character_width`: How many characters it takes before it line breaks it.
+- `character_width`: How many characters it takes before it line breaks it.
 
-`spaces`: How many spaces is in one indentation.
+- `spaces`: How many spaces is in one indentation.
 
-`newline_limit`: The limit of newlines between statements and declarations.
+- `newline_limit`: The limit of newlines between statements and declarations.
 
-`tabs`: Tabs or spaces.
+- `tabs`: Tabs or spaces.
 
-`tabs_width`: How many characters one tab represents
+- `tabs_width`: How many characters one tab represents.
 
-`sort_imports`: A boolean that defaults to true, which can be set to false to disable sorting imports.
+- `convert_do`: Convert all do statements to brace blocks.
+
+- `brace_style`: Style of braces. One of `_1TBS`, `Allman`, `Stroustrup`, `K_And_R`.
+
+- `indent_cases`: Indent case statements within a switch.
+
+- `newline_style`: Line endings to use. One of `CRLF`, `LF`.
+
+- `sort_imports`: A boolean that defaults to true, which can be set to false to disable sorting imports.
+
+- `inline_single_stmt_case`: When statement in the clause contains one simple statement, it will inline the case and statement in one line.
+
+- `spaces_around_colons`: Put a space on both sides of a single colon during variable/field declaration, such as `foo : bar`
+
+- `space_single_line_blocks`: Put spaces around braces of single-line blocks: `{return 0}` => `{ return 0 }`
 
 ## Features
 
