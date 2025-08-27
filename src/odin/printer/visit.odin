@@ -340,13 +340,12 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		} else if len(v.values) > 0 && v.type != nil {
-			rhs = cons_with_nopl(
-				rhs,
-				cons_with_nopl(
-					text(" :" if p.config.spaces_around_colons else ":"),
-					visit_exprs(p, v.values, {.Add_Comma}),
-				),
-			)
+			if v.type != nil {
+				lhs = cons_with_nopl(lhs, text(":"))
+			} else {
+				lhs = cons(lhs, text(":"))
+			}
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}))
 		} else {
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		}
