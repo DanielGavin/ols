@@ -56,17 +56,20 @@
 			"default": false,
 			"description": "When statement in the clause contains one simple statement, it will inline the case and statement in one line"
 		},
-
 		"spaces_around_colons": {
 			"type": "boolean",
 			"default": false,
 			"description": "Put a space on both sides of a single colon during variable/field declaration, such as `foo : bar`"
-    },
-
+		},
 		"sort_imports": {
 			"type": "boolean",
 			"default": true,
 			"description": "Sorts imports alphabetically"
+		},
+		"space_single_line_blocks": {
+			"type": "boolean",
+			"default": false,
+			"description": "Put spaces around braces of single-line blocks: `{return 0}` => `{ return 0 }`"
 		}
 	},
 	"required": []
