@@ -96,7 +96,7 @@ Options:
 
 - `enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
 
-- `enable_auto_import`:
+- `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
