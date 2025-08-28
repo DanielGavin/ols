@@ -4400,6 +4400,23 @@ ast_hover_ternary :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: int")
 }
+
+@(test)
+ast_hover_defer_statement :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo :: proc() {
+			defer {
+				s{*}: struct {
+					bar: int,
+				}
+			}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.s: struct {\n\tbar: int,\n}")
+}
 /*
 
 Waiting for odin fix

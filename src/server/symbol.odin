@@ -873,3 +873,20 @@ construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, ind
 	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_enum_field_signature(value, index)
 }
+
+// Adds name and type information to the symbol when it's for an identifier
+construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: ^ast.Ident, document_pkg: string) {
+	symbol.type_name = symbol.name
+	symbol.type_pkg = symbol.pkg
+	symbol.name = clean_ident(ident.name)
+	if symbol.type == .Variable {
+		symbol.pkg = document_pkg
+	}
+
+	// If the pkg + name is the same as the type pkg + name, we use the underlying type instead
+	// This is used for things like anonymous structs
+	if symbol.name == symbol.type_name && symbol.pkg == symbol.type_pkg {
+		symbol.type_name = ""
+		symbol.type_pkg = ""
+	}
+}
