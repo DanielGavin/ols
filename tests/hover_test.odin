@@ -4417,6 +4417,32 @@ ast_hover_defer_statement :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.s: struct {\n\tbar: int,\n}")
 }
+
+@(test)
+ast_hover_implicit_selector_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: enum {
+			A,
+			B,
+		}
+
+		main :: proc(foo: Foo) -> Bar {
+			switch foo {
+			case .A:
+				return .A{*}
+			}
+		}
+		`
+	}
+	test.expect_hover(t, &source, "test.Bar: .A")
+}
 /*
 
 Waiting for odin fix

@@ -2180,8 +2180,23 @@ resolve_implicit_selector :: proc(
 	}
 
 	if position_context.switch_stmt != nil {
-		if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
-			return symbol, ok
+		if position_in_node(position_context.switch_stmt.cond, position_context.position) {
+			if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+				return symbol, ok
+			}
+		}
+		if body, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt); ok {
+			for stmt in body.stmts {
+				if cc, ok := stmt.derived.(^ast.Case_Clause); ok {
+					for item in cc.list {
+						if position_in_node(item, position_context.position) {
+							if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+								return symbol, ok
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
