@@ -277,6 +277,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
 	case ^Switch_Stmt:
+		old_switch := data.position_context.switch_stmt
+		defer {
+			data.position_context.switch_stmt = old_switch
+		}
 		local_scope(data, n)
 		data.position_context.switch_stmt = n
 		resolve_node(n.label, data)
@@ -407,6 +411,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_nodes(n.list, data)
 		resolve_nodes(n.body, data)
 	case ^Type_Switch_Stmt:
+		old_switch := data.position_context.switch_type_stmt
+		defer {
+			data.position_context.switch_type_stmt = old_switch
+		}
 		data.position_context.switch_type_stmt = n
 		resolve_node(n.label, data)
 		local_scope(data, n)

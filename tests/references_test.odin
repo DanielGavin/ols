@@ -1192,3 +1192,73 @@ ast_references_soa_pointer_field :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_nested_switch_cases :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B{*},
+		}
+
+		Bar :: enum {
+			C,
+			D,
+		}
+
+		main :: proc() {
+			foo: Foo
+			bar: Bar
+
+			switch foo {
+			case .A:
+				#partial switch bar {
+				case .D:
+				}
+			case .B:
+			}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 20, character = 9}, end = {line = 20, character = 10}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_references_switch_cases_binary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B{*},
+		}
+
+		Bar :: enum {
+			C,
+			D,
+		}
+
+		main :: proc() {
+			foo: Foo
+			bar: Bar
+
+			switch foo {
+			case .A:
+				if bar == .C {}
+			case .B:
+			}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
+		{range = {start = {line = 18, character = 9}, end = {line = 18, character = 10}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

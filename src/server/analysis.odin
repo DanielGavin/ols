@@ -1454,7 +1454,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	set_ast_package_scoped(ast_context)
 
-
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
@@ -2133,9 +2132,9 @@ resolve_implicit_selector :: proc(
 
 	if position_context.binary != nil {
 		if position_in_node(position_context.binary.left, position_context.position) {
-			return resolve_type_expression(ast_context, position_context.binary.right)
-		} else {
 			return resolve_type_expression(ast_context, position_context.binary.left)
+		} else if position_in_node(position_context.binary.left, position_context.position) {
+			return resolve_type_expression(ast_context, position_context.binary.right)
 		}
 	}
 
@@ -2180,8 +2179,24 @@ resolve_implicit_selector :: proc(
 	}
 
 	if position_context.switch_stmt != nil {
-		if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
-			return symbol, ok
+		ast_context.use_locals = true
+		if position_in_node(position_context.switch_stmt.cond, position_context.position) {
+			if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+				return symbol, ok
+			}
+		}
+		if body, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt); ok {
+			for stmt in body.stmts {
+				if cc, ok := stmt.derived.(^ast.Case_Clause); ok {
+					for item in cc.list {
+						if position_in_node(item, position_context.position) {
+							if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
+								return symbol, ok
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
