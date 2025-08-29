@@ -1454,7 +1454,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	set_ast_package_scoped(ast_context)
 
-
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords
 		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
@@ -2180,6 +2179,7 @@ resolve_implicit_selector :: proc(
 	}
 
 	if position_context.switch_stmt != nil {
+		ast_context.use_locals = true
 		if position_in_node(position_context.switch_stmt.cond, position_context.position) {
 			if symbol, ok := resolve_type_expression(ast_context, position_context.switch_stmt.cond); ok {
 				return symbol, ok
