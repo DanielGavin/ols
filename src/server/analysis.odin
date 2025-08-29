@@ -2132,9 +2132,9 @@ resolve_implicit_selector :: proc(
 
 	if position_context.binary != nil {
 		if position_in_node(position_context.binary.left, position_context.position) {
-			return resolve_type_expression(ast_context, position_context.binary.right)
-		} else {
 			return resolve_type_expression(ast_context, position_context.binary.left)
+		} else if position_in_node(position_context.binary.left, position_context.position) {
+			return resolve_type_expression(ast_context, position_context.binary.right)
 		}
 	}
 
