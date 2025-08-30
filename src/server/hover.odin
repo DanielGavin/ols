@@ -433,7 +433,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
-			construct_ident_symbol_info(&resolved, &ident, ast_context.document_package)
+			construct_ident_symbol_info(&resolved, ident.name, ast_context.document_package)
 
 			build_documentation(&ast_context, &resolved, false)
 			hover.contents = write_hover_content(&ast_context, resolved)
