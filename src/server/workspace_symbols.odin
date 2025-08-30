@@ -65,7 +65,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 
 		try_build_package(pkg)
 
-		if results, ok := fuzzy_search(query, {pkg}, ""); ok {
+		if results, ok := fuzzy_search(query, {pkg}, "", resolve_fields = true); ok {
 			for result in results {
 				symbol := WorkspaceSymbol {
 					name = result.symbol.name,

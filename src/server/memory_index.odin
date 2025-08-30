@@ -45,6 +45,7 @@ memory_index_fuzzy_search :: proc(
 	name: string,
 	pkgs: []string,
 	current_file: string,
+	resolve_fields := false,
 ) -> (
 	[]FuzzyResult,
 	bool,
@@ -60,6 +61,41 @@ memory_index_fuzzy_search :: proc(
 			for _, symbol in pkg.symbols {
 				if should_skip_private_symbol(symbol, current_file) {
 					continue
+				}
+				if resolve_fields {
+					// TODO: this only does the top level fields, we may want to travers all the way down in the future
+					#partial switch v in symbol.value {
+					case SymbolStructValue:
+						for name, i in v.names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+								s := symbol
+								construct_struct_field_symbol(&s, symbol.name, v, i)
+								s.name = full_name
+								result := FuzzyResult {
+									symbol = s,
+									score  = score,
+								}
+
+								append(&symbols, result)
+							}
+						}
+					case SymbolBitFieldValue:
+						for name, i in v.names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+								s := symbol
+								construct_bit_field_field_symbol(&s, symbol.name, v, i)
+								s.name = full_name
+								result := FuzzyResult {
+									symbol = s,
+									score  = score,
+								}
+
+								append(&symbols, result)
+							}
+						}
+					}
 				}
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
 					result := FuzzyResult {

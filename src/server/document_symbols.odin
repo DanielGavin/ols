@@ -44,6 +44,33 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 		#partial switch v in global.expr.derived {
 		case ^ast.Struct_Type, ^ast.Bit_Field_Type:
+			// TODO: this only does the top level fields, we may want to travers all the way down in the future
+			if s, ok := resolve_type_expression(&ast_context, global.expr); ok {
+				#partial switch v in s.value {
+				case SymbolStructValue:
+					children := make([dynamic]DocumentSymbol, context.temp_allocator)
+					for name, i in v.names {
+						child: DocumentSymbol
+						child.range = v.ranges[i]
+						child.selectionRange = v.ranges[i]
+						child.name = name
+						child.kind = .Field
+						append(&children, child)
+					}
+					symbol.children = children[:]
+				case SymbolBitFieldValue:
+					children := make([dynamic]DocumentSymbol, context.temp_allocator)
+					for name, i in v.names {
+						child: DocumentSymbol
+						child.range = v.ranges[i]
+						child.selectionRange = v.ranges[i]
+						child.name = name
+						child.kind = .Field
+						append(&children, child)
+					}
+					symbol.children = children[:]
+				}
+			}
 			symbol.kind = .Struct
 		case ^ast.Proc_Lit, ^ast.Proc_Group:
 			symbol.kind = .Function
