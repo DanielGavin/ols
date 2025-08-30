@@ -4561,3 +4561,41 @@ ast_completion_proc_bit_set_comp_lit_default_param_with_no_type :: proc(t: ^test
 		{"A", "B"},
 	)
 }
+
+@(test)
+ast_completion_handle_matching_from_overloaded_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			a: int,
+		}
+
+		get_foo :: proc {
+			get_foo_none,
+			get_foo_a,
+		}
+
+		get_foo_none :: proc() -> Foo {
+			return Foo{}
+		}
+
+		get_foo_a :: proc(a: int) -> Foo {
+			return Foo{
+				a = a,
+			}
+		}
+
+		do_foo :: proc(foo: ^Foo) {}
+
+		main :: proc() {
+			foo := get_foo()
+			do_foo(f{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		},
+	}
+	test.expect_completion_insert_text(t, &source, "", {"&foo"})
+}

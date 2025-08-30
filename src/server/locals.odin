@@ -1026,6 +1026,9 @@ get_locals :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	ast_context.resolving_locals = true
+	defer ast_context.resolving_locals = false
+
 	proc_lit, ok := function.derived.(^ast.Proc_Lit)
 
 	if !ok || proc_lit.body == nil {

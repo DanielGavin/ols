@@ -45,6 +45,7 @@ AstContext :: struct {
 	non_mutable_only: bool, //Only store local value declarations that are non mutable.
 	overloading:      bool,
 	position_hint:    DocumentPositionContextHint,
+	resolving_locals: bool,
 }
 
 make_ast_context :: proc(
@@ -621,8 +622,14 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		ast_context.overloading = false
 	}
 
-	resolve_all_possibilities :=
-		ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
+	resolve_all_possibilities: bool
+	if ast_context.resolving_locals {
+		resolve_all_possibilities = false
+	} else {
+		resolve_all_possibilities =
+			ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
+	}
+
 
 	call_unnamed_arg_count := 0
 	if call_expr != nil {
