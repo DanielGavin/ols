@@ -4460,7 +4460,7 @@ ast_completion_bit_set_on_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completions_handle_matching_basic_types :: proc(t: ^testing.T) {
+ast_completion_handle_matching_basic_types :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
@@ -4479,7 +4479,7 @@ ast_completions_handle_matching_basic_types :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completions_handle_matching_struct :: proc(t: ^testing.T) {
+ast_completion_handle_matching_struct :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
@@ -4500,7 +4500,7 @@ ast_completions_handle_matching_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completions_handle_matching_append :: proc(t: ^testing.T) {
+ast_completion_handle_matching_append :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
@@ -4517,7 +4517,7 @@ ast_completions_handle_matching_append :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_completions_handle_matching_dynamic_array_to_slice :: proc(t: ^testing.T) {
+ast_completion_handle_matching_dynamic_array_to_slice :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 

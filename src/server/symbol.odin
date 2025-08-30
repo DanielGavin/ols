@@ -875,10 +875,10 @@ construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, ind
 }
 
 // Adds name and type information to the symbol when it's for an identifier
-construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: ^ast.Ident, document_pkg: string) {
+construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: string, document_pkg: string) {
 	symbol.type_name = symbol.name
 	symbol.type_pkg = symbol.pkg
-	symbol.name = clean_ident(ident.name)
+	symbol.name = ident
 	if symbol.type == .Variable {
 		symbol.pkg = document_pkg
 	}

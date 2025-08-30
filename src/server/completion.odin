@@ -1658,7 +1658,7 @@ get_identifier_completion :: proc(
 
 			if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
 				if score, ok := common.fuzzy_match(matcher, ident.name); ok == 1 {
-					construct_ident_symbol_info(&symbol, ident, ast_context.document_package)
+					construct_ident_symbol_info(&symbol, clean_ident(ident.name), ast_context.document_package)
 					append(results, CompletionResult{score = score * 1.7, symbol = symbol})
 				}
 			}
