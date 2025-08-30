@@ -221,7 +221,8 @@ get_generic_assignment :: proc(
 			case SymbolUnionValue:
 				// Parametrized union
 				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
-
+			case SymbolBasicValue:
+				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
 			case:
 				if ident, ok := v.expr.derived.(^ast.Ident); ok {
 					//TODO: Simple assumption that you are casting it the type.
