@@ -63,8 +63,8 @@ lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_l
 	return {}, false
 }
 
-fuzzy_search :: proc(name: string, pkgs: []string, current_file: string) -> ([]FuzzyResult, bool) {
-	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file)
+fuzzy_search :: proc(name: string, pkgs: []string, current_file: string, resolve_fields := false) -> ([]FuzzyResult, bool) {
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields)
 	result := make([dynamic]FuzzyResult, context.temp_allocator)
 
 	if !ok {

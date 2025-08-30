@@ -772,6 +772,8 @@ symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 		return .Enum
 	case .Keyword:
 		return .Key
+	case .Field:
+		return .Field
 	case:
 		return .Null
 	}
@@ -851,6 +853,7 @@ construct_struct_field_symbol :: proc(symbol: ^Symbol, parent_name: string, valu
 	symbol.parent_name = parent_name
 	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
+	symbol.range = value.ranges[index]
 }
 
 construct_bit_field_field_symbol :: proc(
@@ -865,6 +868,7 @@ construct_bit_field_field_symbol :: proc(
 	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_bit_field_field_signature(value, index)
+	symbol.range = value.ranges[index]
 }
 
 construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, index: int) {
