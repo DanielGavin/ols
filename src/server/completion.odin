@@ -1035,8 +1035,9 @@ get_selector_completion :: proc(
 		is_incomplete = true
 
 		pkg := selector.pkg
+		current_pkg := ast_context.current_package
 
-		if searched, ok := fuzzy_search(field, {pkg}, ast_context.fullpath); ok {
+		if searched, ok := fuzzy_search(field, {pkg}, current_pkg, ast_context.fullpath); ok {
 			for search in searched {
 				symbol := search.symbol
 
@@ -1567,7 +1568,7 @@ get_identifier_completion :: proc(
 	append(&pkgs, ast_context.document_package)
 	append(&pkgs, "$builtin")
 
-	if fuzzy_results, ok := fuzzy_search(lookup_name, pkgs[:], ast_context.fullpath); ok {
+	if fuzzy_results, ok := fuzzy_search(lookup_name, pkgs[:], ast_context.current_package,  ast_context.fullpath); ok {
 		for r in fuzzy_results {
 			r := r
 			resolve_unresolved_symbol(ast_context, &r.symbol)

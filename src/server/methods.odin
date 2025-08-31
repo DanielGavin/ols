@@ -116,7 +116,7 @@ collect_methods :: proc(
 	for k, v in indexer.index.collection.packages {
 		if symbols, ok := &v.methods[method]; ok {
 			for &symbol in symbols {
-				if should_skip_private_symbol(symbol, ast_context.fullpath) {
+				if should_skip_private_symbol(symbol, ast_context.current_package, ast_context.fullpath) {
 					continue
 				}
 				resolve_unresolved_symbol(ast_context, &symbol)

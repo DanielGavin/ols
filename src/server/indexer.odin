@@ -26,7 +26,7 @@ clear_index_cache :: proc() {
 	memory_index_clear_cache(&indexer.index)
 }
 
-should_skip_private_symbol :: proc(symbol: Symbol, current_file: string) -> bool {
+should_skip_private_symbol :: proc(symbol: Symbol, current_pkg, current_file: string) -> bool {
 	if .PrivateFile not_in symbol.flags && .PrivatePackage not_in symbol.flags {
 		return false
 	}
@@ -41,20 +41,27 @@ should_skip_private_symbol :: proc(symbol: Symbol, current_file: string) -> bool
 		return true
 	}
 
-	current_pkg := filepath.dir(current_file, context.temp_allocator)
 	if .PrivatePackage in symbol.flags && current_pkg != symbol.pkg {
 		return true
 	}
 	return false
 }
 
-lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_location) -> (Symbol, bool) {
+lookup :: proc(
+	name: string,
+	pkg: string,
+	current_pkg, current_file: string,
+	loc := #caller_location,
+) -> (
+	Symbol,
+	bool,
+) {
 	if name == "" {
 		return {}, false
 	}
 
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
-		if should_skip_private_symbol(symbol, current_file) {
+		if should_skip_private_symbol(symbol, current_pkg, current_file) {
 			return {}, false
 		}
 		return symbol, true
@@ -63,8 +70,16 @@ lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_l
 	return {}, false
 }
 
-fuzzy_search :: proc(name: string, pkgs: []string, current_file: string, resolve_fields := false) -> ([]FuzzyResult, bool) {
-	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields)
+fuzzy_search :: proc(
+	name: string,
+	pkgs: []string,
+	current_pkg, current_file: string,
+	resolve_fields := false,
+) -> (
+	[]FuzzyResult,
+	bool,
+) {
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_pkg, current_file, resolve_fields)
 	result := make([dynamic]FuzzyResult, context.temp_allocator)
 
 	if !ok {
