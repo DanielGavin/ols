@@ -431,19 +431,21 @@ resolve_generic_function :: proc {
 }
 
 resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
-	if proc_lit.type.params == nil {
-		return Symbol{}, false
-	}
-
-	if proc_lit.type.results == nil {
-		return Symbol{}, false
-	}
-
 	if ast_context.call == nil {
 		return Symbol{}, false
 	}
 
-	return resolve_generic_function_symbol(ast_context, proc_lit.type.params.list, proc_lit.type.results.list)
+	params: []^ast.Field
+	if proc_lit.type.params != nil {
+		params = proc_lit.type.params.list
+	}
+
+	results: []^ast.Field
+	if proc_lit.type.results != nil {
+		results = proc_lit.type.results.list
+	}
+
+	return resolve_generic_function_symbol(ast_context, params, results)
 }
 
 
@@ -455,14 +457,6 @@ resolve_generic_function_symbol :: proc(
 	Symbol,
 	bool,
 ) {
-	if params == nil {
-		return {}, false
-	}
-
-	if results == nil {
-		return {}, false
-	}
-
 	if ast_context.call == nil {
 		return {}, false
 	}
@@ -701,7 +695,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		poly_map:             map[string]^ast.Expr,
 		symbol_value_builder: ^SymbolStructValueBuilder,
 		parent:               ^ast.Node,
-		parent_proc:	      ^ast.Proc_Type,
+		parent_proc:          ^ast.Proc_Type,
 		i:                    int,
 		poly_index:           int,
 	}
@@ -755,7 +749,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type: 
+		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type:
 			data.parent = node
 		case ^ast.Proc_Type:
 			data.parent_proc = v

@@ -4408,6 +4408,28 @@ ast_hover_parapoly_elem_overloaded_proc_multiple_options :: proc(t: ^testing.T) 
 	}
 	test.expect_hover(t, &source, "test.foo: proc {\n\tfoo_int :: proc(i: int),\n\tfoo_string :: proc(s: string),\n}")
 }
+
+@(test)
+ast_hover_overloaded_proc_slice_dynamic_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc {
+			foo_slice,
+			foo_dynamic,
+		}
+
+		foo_dynamic :: proc(array: $A/[dynamic]$T) {}
+		foo_slice :: proc(array: $A/[]$T) {}
+
+		main :: proc() {
+			foos: [dynamic]int
+			f{*}oo(foos)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc(array: $A/[dynamic]$T)")
+}
 /*
 
 Waiting for odin fix
