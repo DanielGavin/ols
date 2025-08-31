@@ -47,20 +47,13 @@ should_skip_private_symbol :: proc(symbol: Symbol, current_pkg, current_file: st
 	return false
 }
 
-lookup :: proc(
-	name: string,
-	pkg: string,
-	current_pkg, current_file: string,
-	loc := #caller_location,
-) -> (
-	Symbol,
-	bool,
-) {
+lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_location) -> (Symbol, bool) {
 	if name == "" {
 		return {}, false
 	}
 
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
+		current_pkg := get_package_from_filepath(current_file)
 		if should_skip_private_symbol(symbol, current_pkg, current_file) {
 			return {}, false
 		}
@@ -73,13 +66,13 @@ lookup :: proc(
 fuzzy_search :: proc(
 	name: string,
 	pkgs: []string,
-	current_pkg, current_file: string,
+	current_file: string,
 	resolve_fields := false,
 ) -> (
 	[]FuzzyResult,
 	bool,
 ) {
-	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_pkg, current_file, resolve_fields)
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields)
 	result := make([dynamic]FuzzyResult, context.temp_allocator)
 
 	if !ok {
