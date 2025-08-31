@@ -411,6 +411,28 @@ collect_generic :: proc(
 	return value
 }
 
+add_comp_lit_fields :: proc(
+	collection: ^SymbolCollection,
+	generic: ^SymbolGenericValue,
+	comp_lit_type: ^ast.Comp_Lit,
+	package_map: map[string]string,
+	file: ast.File,
+) {
+	names := make([dynamic]string, 0, len(comp_lit_type.elems), collection.allocator)
+	ranges := make([dynamic]common.Range, 0, len(comp_lit_type.elems), collection.allocator)
+	for elem in comp_lit_type.elems {
+		if field_value, ok := elem.derived.(^ast.Field_Value); ok {
+			if ident, ok := field_value.field.derived.(^ast.Ident); ok {
+				name := get_index_unique_string(collection, ident.name)
+				append(&names, name)
+				append(&ranges, common.get_token_range(field_value, file.src))
+			}
+		}
+	}
+	generic.field_names = names[:]
+	generic.ranges = ranges[:]
+}
+
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 	pkg := &collection.packages[symbol.pkg]
 
@@ -646,6 +668,19 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			} else {
 				token_type = .Unresolved
 			}
+		case ^ast.Comp_Lit:
+			generic := collect_generic(collection, col_expr, package_map, uri)
+
+			if expr.mutable {
+				token_type = .Variable
+			} else {
+				token_type = .Unresolved
+			}
+
+			token = expr.expr
+
+			add_comp_lit_fields(collection, &generic, v, package_map, file)
+			symbol.value = generic
 		case:
 			// default
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)

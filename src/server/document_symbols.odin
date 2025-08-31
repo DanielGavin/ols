@@ -76,6 +76,45 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 			symbol.kind = .Function
 		case ^ast.Enum_Type, ^ast.Union_Type:
 			symbol.kind = .Enum
+		case ^ast.Comp_Lit:
+			if s, ok := resolve_type_expression(&ast_context, v); ok {
+				name_map := make(map[string]common.Range)
+				for elem in v.elems {
+					if field_value, ok := elem.derived.(^ast.Field_Value); ok {
+						if name, ok := field_value.field.derived.(^ast.Ident); ok {
+							name_map[name.name] = common.get_token_range(field_value, ast_context.file.src)
+						}
+					}
+				}
+				#partial switch v in s.value {
+				case SymbolStructValue:
+					children := make([dynamic]DocumentSymbol, context.temp_allocator)
+					for name, i in v.names {
+						child: DocumentSymbol
+						if range, ok := name_map[name]; ok {
+							child.range = range
+							child.selectionRange = range
+							child.name = name
+							child.kind = .Field
+							append(&children, child)
+						}
+					}
+					symbol.children = children[:]
+				case SymbolBitFieldValue:
+					children := make([dynamic]DocumentSymbol, context.temp_allocator)
+					for name, i in v.names {
+						child: DocumentSymbol
+						if range, ok := name_map[name]; ok {
+							child.range = range
+							child.selectionRange = range
+							child.name = name
+							child.kind = .Field
+							append(&children, child)
+						}
+					}
+					symbol.children = children[:]
+				}
+			}
 		case:
 			symbol.kind = .Variable
 		}
