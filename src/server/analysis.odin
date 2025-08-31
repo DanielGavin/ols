@@ -714,6 +714,13 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 							}
 						}
 
+						// If an arg is a parapoly type, we assume it can match any symbol and return all possible
+						// matches
+						if _, ok := call_symbol.value.(SymbolPolyTypeValue); ok {
+							resolve_all_possibilities = true
+							continue
+						}
+
 						proc_arg := proc_arg
 
 						if named {
