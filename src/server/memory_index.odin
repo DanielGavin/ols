@@ -44,6 +44,7 @@ memory_index_fuzzy_search :: proc(
 	index: ^MemoryIndex,
 	name: string,
 	pkgs: []string,
+	current_pkg: string,
 	current_file: string,
 	resolve_fields := false,
 ) -> (
@@ -59,7 +60,7 @@ memory_index_fuzzy_search :: proc(
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg.symbols {
-				if should_skip_private_symbol(symbol, current_file) {
+				if should_skip_private_symbol(symbol, current_pkg, current_file) {
 					continue
 				}
 				if resolve_fields {
