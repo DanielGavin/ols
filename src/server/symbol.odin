@@ -162,6 +162,8 @@ SymbolPolyTypeValue :: struct {
 */
 SymbolGenericValue :: struct {
 	expr: ^ast.Expr,
+	field_names: []string,
+	ranges: []common.Range,
 }
 
 SymbolValue :: union {

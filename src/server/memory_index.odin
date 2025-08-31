@@ -95,6 +95,22 @@ memory_index_fuzzy_search :: proc(
 								append(&symbols, result)
 							}
 						}
+					case SymbolGenericValue:
+						for name, i in v.field_names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+								s := symbol
+								s.name = full_name
+								s.type = .Field
+								s.range = v.ranges[i]
+								result := FuzzyResult {
+									symbol = s,
+									score  = score,
+								}
+
+								append(&symbols, result)
+							}
+						}
 					}
 				}
 				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
