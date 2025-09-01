@@ -977,26 +977,47 @@ ast_reference_struct_field_enumerated_array :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_reference_struct_field_map :: proc(t: ^testing.T) {
+ast_reference_struct_field_map_key :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 
-		Foo :: enum {
-			A,
-			B,
-		}
+		Foo :: int
 
-		Bar :: struct {
-			foos: map[F{*}oo]Bazz
-		}
+		Bar :: struct {}
 
-		Bazz :: struct {}
+		Bazz :: struct {
+			bars: map[Fo{*}o]Bar
+		}
 		`,
 	}
 
 	locations := []common.Location {
 		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
-		{range = {start = {line = 8, character = 13}, end = {line = 8, character = 16}}},
+		{range = {start = {line = 7, character = 13}, end = {line = 7, character = 16}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_struct_field_map_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: int
+
+		Bar :: struct {}
+
+		Bazz :: struct {
+			bars: map[Foo]B{*}ar
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 4, character = 2}, end = {line = 4, character = 5}}},
+		{range = {start = {line = 7, character = 17}, end = {line = 7, character = 20}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
@@ -1258,6 +1279,55 @@ ast_references_switch_cases_binary_expr :: proc(t: ^testing.T) {
 	locations := []common.Location {
 		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 4}}},
 		{range = {start = {line = 18, character = 9}, end = {line = 18, character = 10}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_struct_field_matrix_row :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: int
+
+		Bar :: struct {}
+
+		Bazz :: struct {
+			bars: matrix[Fo{*}o, 2]Bar
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 7, character = 16}, end = {line = 7, character = 19}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_reference_struct_field_bitfield_backing_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: int
+
+		Bar :: struct {}
+
+		Bazz :: struct {
+			bars: bit_field Fo{*}o {
+			}
+		}
+
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 2}, end = {line = 2, character = 5}}},
+		{range = {start = {line = 7, character = 19}, end = {line = 7, character = 22}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations[:])
