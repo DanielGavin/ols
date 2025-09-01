@@ -183,6 +183,12 @@ prepare_rename :: proc(
 			return
 		}
 	} else if position_context.bitset_type != nil {
+		if position_in_node(position_context.bitset_type.elem, position_context.position) {
+			symbol = Symbol {
+				range = common.get_token_range(position_context.bitset_type.elem, ast_context.file.src)
+			}
+			return symbol, true
+		}
 		return
 	} else if position_context.union_type != nil {
 		found := false

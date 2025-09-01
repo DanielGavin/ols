@@ -119,6 +119,13 @@ prepare_references :: proc(
 			return
 		}
 	} else if position_context.bitset_type != nil {
+		if position_in_node(position_context.bitset_type.elem, position_context.position) {
+			symbol, ok = resolve_location_type_expression(ast_context, position_context.bitset_type.elem)
+			if !ok {
+				return
+			}
+			resolve_flag = .Identifier
+		}
 		return
 	} else if position_context.union_type != nil {
 		found := false
