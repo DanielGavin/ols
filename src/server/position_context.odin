@@ -474,7 +474,7 @@ get_desired_expr :: proc(node: ^ast.Expr, position: common.AbsolutePosition) -> 
 			return n.key
 		}
 		if position_in_node(n.value, position) {
-			return n.key
+			return n.value
 		}
 	case ^ast.Dynamic_Array_Type:
 		if position_in_node(n.tag, position) {
@@ -486,6 +486,20 @@ get_desired_expr :: proc(node: ^ast.Expr, position: common.AbsolutePosition) -> 
 	case ^ast.Bit_Set_Type:
 		if position_in_node(n.elem, position) {
 			return n.elem
+		}
+	case ^ast.Matrix_Type:
+		if position_in_node(n.elem, position) {
+			return n.elem
+		}
+		if position_in_node(n.row_count, position) {
+			return n.row_count
+		}
+		if position_in_node(n.column_count, position) {
+			return n.column_count
+		}
+	case ^ast.Bit_Field_Type:
+		if position_in_node(n.backing_type, position) {
+			return n.backing_type
 		}
 	}
 
