@@ -241,6 +241,7 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/rename"               = request_rename,
 	"textDocument/prepareRename"        = request_prepare_rename,
 	"textDocument/references"           = request_references,
+	"textDocument/codeAction"           = request_code_action,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
 	"workspace/didChangeConfiguration"  = notification_workspace_did_change_configuration,
@@ -586,7 +587,8 @@ request_initialize :: proc(
 
 	initialize_params: RequestInitializeParams
 
-	if unmarshal(params, initialize_params, context.temp_allocator) != nil {
+	if err := unmarshal(params, initialize_params, context.temp_allocator); err != nil {
+		log.error("Here?", err, params)
 		return .ParseError
 	}
 
@@ -726,6 +728,7 @@ request_initialize :: proc(
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
 				documentLinkProvider = {resolveProvider = false},
+				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite"}},
 			},
 		},
 		id = id,
@@ -1477,6 +1480,37 @@ request_references :: proc(
 	}
 
 	response := make_response_message(params = locations, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_code_action :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	code_action_params: CodeActionParams
+
+	if unmarshal(params, code_action_params, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(code_action_params.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	code_actions: []CodeAction
+	code_actions, ok = get_code_actions(document, code_action_params.range, config)
+	if !ok {
+		return .InternalError
+	}
+	response := make_response_message(params = code_actions, id = id)
 
 	send_response(response, writer)
 

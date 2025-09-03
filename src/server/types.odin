@@ -31,6 +31,7 @@ ResponseParams :: union {
 	[]WorkspaceSymbol,
 	WorkspaceEdit,
 	common.Range,
+	[]CodeAction,
 }
 
 RequestMessage :: struct {
@@ -144,6 +145,7 @@ ServerCapabilities :: struct {
 	referencesProvider:         bool,
 	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
+	codeActionProvider:         CodeActionOptions,
 }
 
 DidChangeWatchedFilesRegistrationOptions :: struct {
@@ -187,6 +189,7 @@ TextDocumentClientCapabilities :: struct {
 	hover:          HoverClientCapabilities,
 	signatureHelp:  SignatureHelpClientCapabilities,
 	documentSymbol: DocumentSymbolClientCapabilities,
+	codeAction:     CodeActionClientCapabilities,
 }
 
 StaleRequestSupport :: struct {
@@ -224,7 +227,6 @@ WorkspaceCapabilities :: struct {
 DidChangeWatchedFilesClientCapabilities :: struct {
 	dynamicRegistration: bool,
 }
-
 
 RangeOptional :: union {
 	common.Range,
@@ -576,3 +578,5 @@ WorkspaceSymbol :: struct {
 DidChangeConfigurationParams :: struct {
 	settings: OlsConfig,
 }
+
+
