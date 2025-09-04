@@ -38,7 +38,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 	for k, global in ast_context.globals {
 		symbol: DocumentSymbol
-		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
+		symbol.range = common.get_token_range(global.name_expr, ast_context.file.src)
 		symbol.selectionRange = symbol.range
 		symbol.name = k
 
