@@ -82,7 +82,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 				for elem in v.elems {
 					if field_value, ok := elem.derived.(^ast.Field_Value); ok {
 						if name, ok := field_value.field.derived.(^ast.Ident); ok {
-							name_map[name.name] = common.get_token_range(field_value, ast_context.file.src)
+							name_map[name.name] = common.get_token_range(name, ast_context.file.src)
 						}
 					}
 				}
