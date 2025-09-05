@@ -38,8 +38,10 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 	for k, global in ast_context.globals {
 		symbol: DocumentSymbol
-		symbol.range = common.get_token_range(global.name_expr, ast_context.file.src)
-		symbol.selectionRange = symbol.range
+		symbol.selectionRange = common.get_token_range(global.name_expr, ast_context.file.src)
+		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
+		// selection range must be contained with range, so we set the range start to be the selection range start
+		symbol.range.start = symbol.selectionRange.start
 		symbol.name = k
 
 		#partial switch v in global.expr.derived {
@@ -78,11 +80,21 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 			symbol.kind = .Enum
 		case ^ast.Comp_Lit:
 			if s, ok := resolve_type_expression(&ast_context, v); ok {
-				name_map := make(map[string]common.Range)
+				ranges :: struct {
+					range: common.Range,
+					selectionRange: common.Range,
+				}
+				name_map := make(map[string]ranges)
 				for elem in v.elems {
 					if field_value, ok := elem.derived.(^ast.Field_Value); ok {
 						if name, ok := field_value.field.derived.(^ast.Ident); ok {
-							name_map[name.name] = common.get_token_range(name, ast_context.file.src)
+							selectionRange := common.get_token_range(name, ast_context.file.src)
+							range := common.get_token_range(field_value, ast_context.file.src)
+							range.start = selectionRange.start
+							name_map[name.name] = {
+								range = range,
+								selectionRange = selectionRange,
+							}
 						}
 					}
 				}
@@ -92,8 +104,8 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 					for name, i in v.names {
 						child: DocumentSymbol
 						if range, ok := name_map[name]; ok {
-							child.range = range
-							child.selectionRange = range
+							child.range = range.range
+							child.selectionRange = range.selectionRange
 							child.name = name
 							child.kind = .Field
 							append(&children, child)
@@ -105,8 +117,8 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 					for name, i in v.names {
 						child: DocumentSymbol
 						if range, ok := name_map[name]; ok {
-							child.range = range
-							child.selectionRange = range
+							child.range = range.range
+							child.selectionRange = range.selectionRange
 							child.name = name
 							child.kind = .Field
 							append(&children, child)
