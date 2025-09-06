@@ -1553,6 +1553,12 @@ get_identifier_completion :: proc(
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			lookup_name = ident.name
+		} else if poly, ok := position_context.identifier.derived.(^ast.Poly_Type); ok {
+			if poly.specialization != nil {
+				if ident, ok := poly.specialization.derived.(^ast.Ident); ok {
+					lookup_name = ident.name
+				}
+			}
 		}
 	}
 

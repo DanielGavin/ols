@@ -4599,3 +4599,16 @@ ast_completion_handle_matching_from_overloaded_proc :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
+
+@(test)
+ast_completion_poly_proc_narrow_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {x, y: i32}
+
+		foo :: proc (a: $T/F{*}) {}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {..}"})
+}
