@@ -4430,6 +4430,34 @@ ast_hover_overloaded_proc_slice_dynamic_array :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc(array: $A/[dynamic]$T)")
 }
+
+
+@(test)
+ast_hover_proc_call_implicit_selector_with_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: enum {
+			X, Y,
+		}
+
+		Option :: enum {
+			A,
+			B,
+		}
+
+		Options :: distinct bit_set[Option]
+
+		foo :: proc(options := Options{}) {
+		}
+
+		main :: proc() {
+			foo({.A, .B{*}})
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Option: .B")
+}
 /*
 
 Waiting for odin fix
