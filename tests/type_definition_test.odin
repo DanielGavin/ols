@@ -1010,3 +1010,24 @@ ast_type_definition_variable_in_comp_lit :: proc (t: ^testing.T) {
 
 	test.expect_type_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_type_definition_polymorphic_type_with_specialization :: proc (t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Vec :: [2]f32
+		foo :: proc (a: $T/[$N]$E) -> T {return a}
+
+		main :: proc () {
+			a: Vec
+			f{*} := foo(a)
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+	}
+
+	test.expect_type_definition_locations(t, &source, locations[:])
+}

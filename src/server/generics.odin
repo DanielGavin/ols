@@ -61,7 +61,20 @@ resolve_poly :: proc(
 		return true
 	} else if type != nil {
 		if ident, ok := unwrap_ident(type); ok {
-			save_poly_map(ident, specialization, poly_map)
+			call_node_id := reflect.union_variant_typeid(call_node.derived)
+			specialization_id := reflect.union_variant_typeid(specialization.derived)
+			if call_node_id == specialization_id {
+				// if the specialization type matches the type of the parameter passed to the proc
+				// we store that rather than the specialization so we can follow it correctly
+				// for things like `textDocument/typeDefinition`
+				save_poly_map(
+					ident,
+					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
+					poly_map,
+				)
+			} else {
+				save_poly_map(ident, specialization, poly_map)
+			}
 		}
 	}
 
