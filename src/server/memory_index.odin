@@ -40,6 +40,19 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 	return {}, false
 }
 
+score_name :: proc(matchers: []^common.FuzzyMatcher, name: string) -> (f32, bool) {
+	score := f32(1)
+	for matcher in matchers {
+		s, ok := common.fuzzy_match(matcher, name)
+		if ok != 1 {
+			return 0, false
+		}
+		score *= s
+	}
+
+	return score, true
+}
+
 memory_index_fuzzy_search :: proc(
 	index: ^MemoryIndex,
 	name: string,
@@ -52,7 +65,11 @@ memory_index_fuzzy_search :: proc(
 ) {
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
 
-	fuzzy_matcher := common.make_fuzzy_matcher(name)
+	fields := strings.fields(name, context.temp_allocator)
+	matchers := make([dynamic]^common.FuzzyMatcher, 0, len(fields), context.temp_allocator)
+	for field in fields {
+		append(&matchers, common.make_fuzzy_matcher(field))
+	}
 
 	top := 100
 	current_pkg := get_package_from_filepath(current_file)
@@ -69,7 +86,7 @@ memory_index_fuzzy_search :: proc(
 					case SymbolStructValue:
 						for name, i in v.names {
 							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								construct_struct_field_symbol(&s, symbol.name, v, i)
 								s.name = full_name
@@ -84,7 +101,7 @@ memory_index_fuzzy_search :: proc(
 					case SymbolBitFieldValue:
 						for name, i in v.names {
 							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								construct_bit_field_field_symbol(&s, symbol.name, v, i)
 								s.name = full_name
@@ -99,7 +116,7 @@ memory_index_fuzzy_search :: proc(
 					case SymbolGenericValue:
 						for name, i in v.field_names {
 							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := common.fuzzy_match(fuzzy_matcher, full_name); ok == 1 {
+							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								s.name = full_name
 								s.type = .Field
@@ -114,7 +131,7 @@ memory_index_fuzzy_search :: proc(
 						}
 					}
 				}
-				if score, ok := common.fuzzy_match(fuzzy_matcher, symbol.name); ok == 1 {
+				if score, ok := score_name(matchers[:], symbol.name); ok {
 					result := FuzzyResult {
 						symbol = symbol,
 						score  = score,
