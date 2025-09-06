@@ -2126,7 +2126,13 @@ resolve_implicit_selector :: proc(
 						return {}, false
 					}
 
-					return resolve_type_expression(ast_context, proc_value.arg_types[parameter_index].type)
+					arg := proc_value.arg_types[parameter_index]
+					type := arg.type
+					if type == nil {
+						type = arg.default_value
+					}
+
+					return resolve_type_expression(ast_context, type)
 				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
 					return symbol, ok
 				}
