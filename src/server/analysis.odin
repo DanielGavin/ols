@@ -2430,7 +2430,8 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		return symbol, true
 	}
 
-	if symbol, ok := lookup(node.name, ast_context.document_package, node.pos.file); ok {
+	pkg := get_package_from_node(node)
+	if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
 		return symbol, ok
 	}
 
