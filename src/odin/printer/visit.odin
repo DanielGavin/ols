@@ -1085,7 +1085,11 @@ visit_stmt :: proc(
 
 		if count := len(v.body); count > 0 {
 			set_source_position(p, v.body[0].pos)
-			if count == 1 && p.config.inline_single_stmt_case {
+			if count == 1 &&
+			   p.config.inline_single_stmt_case &&
+			   fits_in_width(p.config.character_width, v.end.column, v.body[0].end.column) {
+				// This seems like a hack but I'm unsure how else to have it only single line it
+				// if it fits within the character width.
 				document = cons_with_opl(document, nest(visit_stmt(p, v.body[0])))
 			} else {
 				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
@@ -1288,6 +1292,16 @@ visit_stmt :: proc(
 	set_source_position(p, stmt.end)
 
 	return cons(comments, document)
+}
+
+@(private)
+fits_in_width :: proc(width: int, elems: ..int) -> bool {
+	sum := 0
+	for elem in elems {
+		sum += elem
+	}
+
+	return sum < width
 }
 
 @(private)
