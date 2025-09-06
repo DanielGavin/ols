@@ -1086,7 +1086,7 @@ visit_stmt :: proc(
 		if count := len(v.body); count > 0 {
 			set_source_position(p, v.body[0].pos)
 			if count == 1 && p.config.inline_single_stmt_case {
-				document = cons_with_opl(document, nest(visit_stmt(p, v.body[0])))
+				document = group(nest(cons_with_opl(document, nest(visit_stmt(p, v.body[0])))))
 			} else {
 				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
 			}
