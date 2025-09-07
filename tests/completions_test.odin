@@ -4668,3 +4668,33 @@ ast_completion_union_with_enums_from_package :: proc(t: ^testing.T) {
 		{"my_package.Foo.A", "my_package.Foo.B", "my_package.Bar.A", "my_package.Bar.C"},
 	)
 }
+
+@(test)
+ast_completion_struct_field_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct{}
+
+		Bar :: struct {
+			f{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {}, {"test.Foo: struct {}"})
+}
+
+@(test)
+ast_completion_struct_field_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct{}
+
+		Bar :: struct {
+			foo: F{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {}"})
+}
