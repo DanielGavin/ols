@@ -78,7 +78,9 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		return {}, false, true
 	}
 
-	if position_context.type_cast != nil {
+	if position_context.type_cast != nil && // check that we're actually on the 'cast' word
+	   !position_in_node(position_context.type_cast.type, position_context.position) &&
+	   !position_in_node(position_context.type_cast.expr, position_context.position) {
 		if str, ok := keywords_docs[position_context.type_cast.tok.text]; ok {
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
