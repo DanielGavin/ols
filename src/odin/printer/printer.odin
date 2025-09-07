@@ -232,8 +232,12 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	// Keep track of the first import in a row, to sort them later.
 	import_group_start: Maybe(int)
 
+	prev_decl: ^ast.Stmt
 	for decl, i in file.decls {
 		decl := cast(^ast.Decl)decl
+		defer {
+			prev_decl = decl
+		}
 
 		if imp, is_import := decl.derived.(^ast.Import_Decl); p.config.sort_imports && is_import {
 			// First import in this group.
@@ -257,6 +261,9 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 				import_group_start = nil
 			}
 
+			if prev_decl != nil && prev_decl.end.line == decl.pos.line && decl.pos.line not_in p.disabled_lines {
+				p.document = cons(p.document, break_with("; "))
+			}
 			p.document = cons(p.document, visit_decl(p, decl))
 		}
 	}
