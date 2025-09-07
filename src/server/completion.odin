@@ -240,9 +240,15 @@ convert_completion_results :: proc(
 	symbol: Maybe(Symbol),
 	config: ^common.Config,
 ) -> []CompletionItem {
+	for &result in results {
+		score_completion_item(&result)
+	}
 
-	slice.sort_by(results[:], proc(i, j: CompletionResult) -> bool {
-		return j.score < i.score
+	slice.sort_by(results, proc(i, j: CompletionResult) -> bool {
+		if j.score != i.score {
+			return j.score < i.score
+		}
+		return j.symbol.name < i.symbol.name
 	})
 
 	top_results := results
@@ -254,9 +260,7 @@ convert_completion_results :: proc(
 
 	items := make([dynamic]CompletionItem, 0, len(top_results), allocator = context.temp_allocator)
 
-	// TODO: add scores to items
-
-	for result in top_results {
+	for result, i in top_results {
 		result := result
 		if item, ok := result.completion_item.?; ok {
 			if config.enable_label_details {
@@ -304,6 +308,7 @@ convert_completion_results :: proc(
 				detail           = result.snippet.detail,
 				documentation    = result.symbol.doc,
 				insertTextFormat = .Snippet,
+				sortText         = fmt.tprintf("%05d", i),
 			}
 
 			edits := make([dynamic]TextEdit, context.temp_allocator)
@@ -325,6 +330,7 @@ convert_completion_results :: proc(
 		item := CompletionItem {
 			label         = result.symbol.name,
 			documentation = write_hover_content(ast_context, result.symbol),
+			sortText      = fmt.tprintf("%05d", i),
 		}
 
 		if config.enable_completion_matching {
@@ -379,6 +385,24 @@ convert_completion_results :: proc(
 	}
 
 	return items[:]
+}
+
+score_completion_item :: proc(item: ^CompletionResult) {
+	if _, ok := item.completion_item.?; ok {
+		return
+	}
+
+	if .Local in item.symbol.flags {
+		item.score += 1
+	}
+
+	if item.symbol.type == .Variable {
+		item.score += 1
+	}
+
+	if item.symbol.type == .Field {
+		item.score += 2
+	}
 }
 
 @(private = "file")
@@ -1250,7 +1274,7 @@ get_implicit_completion :: proc(
 			asset_paths := [Asset]cstring {
 				.Layer0 = "assets/layer0.png",
 			}
-		
+
 		Right now `core:odin/parser` is not tolerant enough, so I just look at the type and if it's a enumerated array. I can't get the field value is on the left side.
 	*/
 	if position_context.comp_lit != nil {
