@@ -2016,7 +2016,7 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt) -> ^Document {
 	for stmt, i in stmts {
 		last_index := max(0, i - 1)
 		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
-			document = cons(document, break_with(";"))
+			document = group(cons(document, break_with("; ")))
 		}
 
 		if p.force_statement_fit {
