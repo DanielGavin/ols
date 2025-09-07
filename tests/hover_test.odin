@@ -4470,6 +4470,19 @@ ast_hover_casted_variable :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: int")
 }
+
+@(test)
+ast_hover_float_binary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo := 2.1
+			b{*}ar := foo - 2
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: float")
+}
 /*
 
 Waiting for odin fix

@@ -18,22 +18,6 @@ import "src:common"
 
 write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
 	content: MarkupContent
-
-	symbol := symbol
-
-	if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
-		switch untyped.type {
-		case .String:
-			symbol.signature = "string"
-		case .Bool:
-			symbol.signature = "bool"
-		case .Float:
-			symbol.signature = "float"
-		case .Integer:
-			symbol.signature = "int"
-		}
-	}
-
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
 

@@ -2872,8 +2872,15 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 		return symbol_b, true
 	}
 
-	if _, ok := symbol_a.value.(SymbolUntypedValue); ok {
-		return symbol_b, ok_b
+	if value_a, ok := symbol_a.value.(SymbolUntypedValue); ok {
+		if value_b, ok := symbol_b.value.(SymbolUntypedValue); ok {
+			if value_a.type == .Float {
+				return symbol_a, true
+			}
+			return symbol_b, true
+		} else {
+			return symbol_b, ok_b
+		}
 	}
 	//Otherwise just choose the first type, we do not handle error cases - that is done with the checker
 	return symbol_a, ok_a
