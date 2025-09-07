@@ -440,28 +440,7 @@ collect_when_stmt :: proc(
 
 	if resolve_when_condition(when_decl.cond) {
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-			for stmt in block.stmts {
-				if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-				} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
-					if foreign_decl.body == nil {
-						continue
-					}
-
-					if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
-						for foreign_stmt in foreign_block.stmts {
-							collect_value_decl(
-								exprs,
-								file,
-								file_tags,
-								foreign_stmt,
-								foreign_decl.attributes[:],
-							)
-						}
-					}
-				} else {
-					collect_value_decl(exprs, file, file_tags, stmt, {})
-				}
-			}
+			collect_when_body(exprs, file, file_tags, block)
 		}
 	} else {
 		else_stmt := when_decl.else_stmt
@@ -470,38 +449,48 @@ collect_when_stmt :: proc(
 			if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
 				if resolve_when_condition(else_when.cond) {
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
-						for stmt in block.stmts {
-							if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-								collect_when_stmt(exprs, file, file_tags, when_stmt)
-							} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
-								if foreign_decl.body != nil {
-									if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
-										for foreign_stmt in foreign_block.stmts {
-											collect_value_decl(
-												exprs,
-												file,
-												file_tags,
-												foreign_stmt,
-												foreign_decl.attributes[:],
-											)
-										}
-									}
-								}
-							} else {
-								collect_value_decl(exprs, file, file_tags, stmt, {})
-							}
-						}
+						collect_when_body(exprs, file, file_tags, block)
 					}
 					return
 				}
 				else_stmt = else_when.else_stmt
 			} else {
+				if block, ok := else_stmt.derived.(^ast.Block_Stmt); ok {
+					collect_when_body(exprs, file, file_tags, block)
+				}
 				return
 			}
 		}
 	}
+}
 
-
+collect_when_body :: proc(
+	exprs: ^[dynamic]GlobalExpr,
+	file: ast.File,
+	file_tags: parser.File_Tags,
+	block: ^ast.Block_Stmt,
+) {
+	for stmt in block.stmts {
+		if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
+			collect_when_stmt(exprs, file, file_tags, when_stmt)
+		} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
+			if foreign_decl.body != nil {
+				if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
+					for foreign_stmt in foreign_block.stmts {
+						collect_value_decl(
+							exprs,
+							file,
+							file_tags,
+							foreign_stmt,
+							foreign_decl.attributes[:],
+						)
+					}
+				}
+			}
+		} else {
+			collect_value_decl(exprs, file, file_tags, stmt, {})
+		}
+	}
 }
 
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
