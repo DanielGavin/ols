@@ -86,6 +86,8 @@ resolve_when_expr :: proc(
 		return expr, true
 	case ^ast.Expr:
 		#partial switch odin_expr in expr.derived {
+		case ^ast.Paren_Expr:
+			return resolve_when_expr(when_expr_map, odin_expr.expr)
 		case ^ast.Ident:
 			return resolve_when_ident(when_expr_map, odin_expr.name)
 		case ^ast.Basic_Lit:
