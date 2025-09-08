@@ -1387,7 +1387,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 					set_ast_package_from_node_scoped(ast_context, s.types[i])
 					ast_context.field_name = node.field^
 					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
-					symbol.type = .Variable
+					symbol.type = .Field
+					symbol.flags |= {.Mutable}
 					return symbol, ok
 				}
 			}
@@ -1396,7 +1397,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				if node.field != nil && name == node.field.name {
 					ast_context.field_name = node.field^
 					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
-					symbol.type = .Variable
+					symbol.type = .Field
+					symbol.flags |= {.Mutable}
 					return symbol, ok
 				}
 			}
