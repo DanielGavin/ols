@@ -102,3 +102,22 @@ semantic_tokens_struct_fields :: proc(t: ^testing.T) {
 		{0, 4,  3,  .Property,  {}},          // [7]  bar
 	})
 }
+
+@(test)
+semantic_tokens_proc_return :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		foo :: proc() -> (ret: int) {
+			ret += 1
+			return
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Function, {.ReadOnly}}, // [0]  foo
+		{0, 18, 3, .Variable, {}},          // [1]  ret
+		{0, 5,  3, .Type,     {.ReadOnly}}, // [2]  proc
+		{1, 3,  3, .Variable, {}},          // [3]  ret
+	})
+}

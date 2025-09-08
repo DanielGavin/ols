@@ -998,7 +998,7 @@ get_locals_proc_param_and_results :: proc(
 						false,
 						true,
 						"",
-						true,
+						false,
 					)
 				} else {
 					str := get_ast_node_string(name, file.src)
@@ -1012,7 +1012,7 @@ get_locals_proc_param_and_results :: proc(
 						false,
 						true,
 						"",
-						true,
+						false,
 					)
 				}
 			}
