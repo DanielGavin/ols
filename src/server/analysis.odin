@@ -2644,6 +2644,7 @@ resolve_container_allocator_location :: proc(ast_context: ^AstContext, container
 				for name, i in v.names {
 					if name == "allocator" {
 						symbol.range = v.ranges[i]
+						symbol.type = .Field
 						return symbol, true
 					}
 				}
@@ -2690,18 +2691,21 @@ resolve_symbol_selector :: proc(
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .EnumMember
 			}
 		}
 	case SymbolStructValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .Field
 			}
 		}
 	case SymbolBitFieldValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .Field
 			}
 		}
 	case SymbolPackageValue:

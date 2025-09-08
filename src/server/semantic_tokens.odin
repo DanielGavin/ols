@@ -564,6 +564,8 @@ visit_ident :: proc(
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)
+	case .Field:
+		write_semantic_node(builder, ident, .Property, modifiers)
 	case:
 		/* type idents */
 		switch v in symbol.value {
