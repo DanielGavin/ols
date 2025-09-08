@@ -2731,7 +2731,7 @@ ast_simple_union_of_enums_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_labels(t, &source, ".", {"ONE", "TWO"})
+	test.expect_completion_labels(t, &source, ".", {"Sub_Enum_1.ONE", "Sub_Enum_2.TWO"})
 }
 
 
@@ -4471,9 +4471,7 @@ ast_completion_handle_matching_basic_types :: proc(t: ^testing.T) {
 			bar(f{*})
 		}
 		`,
-		config = {
-			enable_completion_matching = true,
-		}
+		config = {enable_completion_matching = true},
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
@@ -4492,9 +4490,7 @@ ast_completion_handle_matching_struct :: proc(t: ^testing.T) {
 			bar(f{*})
 		}
 		`,
-		config = {
-			enable_completion_matching = true,
-		}
+		config = {enable_completion_matching = true},
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
@@ -4509,9 +4505,7 @@ ast_completion_handle_matching_append :: proc(t: ^testing.T) {
 			append(fo{*})
 		}
 		`,
-		config = {
-			enable_completion_matching = true,
-		}
+		config = {enable_completion_matching = true},
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foos"})
 }
@@ -4528,9 +4522,7 @@ ast_completion_handle_matching_dynamic_array_to_slice :: proc(t: ^testing.T) {
 			bar(fo{*})
 		}
 		`,
-		config = {
-			enable_completion_matching = true,
-		}
+		config = {enable_completion_matching = true},
 	}
 	test.expect_completion_insert_text(t, &source, "", {"foos[:]"})
 }
@@ -4554,12 +4546,7 @@ ast_completion_proc_bit_set_comp_lit_default_param_with_no_type :: proc(t: ^test
 		`,
 	}
 
-	test.expect_completion_docs(
-		t,
-		&source,
-		"",
-		{"A", "B"},
-	)
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
 
 @(test)
@@ -4593,9 +4580,7 @@ ast_completion_handle_matching_from_overloaded_proc :: proc(t: ^testing.T) {
 			do_foo(f{*})
 		}
 		`,
-		config = {
-			enable_completion_matching = true,
-		},
+		config = {enable_completion_matching = true},
 	}
 	test.expect_completion_insert_text(t, &source, "", {"&foo"})
 }
@@ -4611,4 +4596,75 @@ ast_completion_poly_proc_narrow_type :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {..}"})
+}
+
+@(test)
+ast_completion_union_with_enums :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+			A, B,
+		}
+
+		Bar :: enum {
+			A, C,
+		}
+
+		Bazz :: union #shared_nil {
+			Foo,
+			Bar,
+		}
+
+		main :: proc() {
+			bazz: Bazz
+			if bazz == .F{*} {}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.A", "Foo.B", "Bar.A", "Bar.C"})
+}
+
+@(test)
+ast_completion_union_with_enums_from_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Foo :: enum {
+			A, B,
+		}
+
+		Bar :: enum {
+			A, C,
+		}
+
+		Bazz :: union #shared_nil {
+			Foo,
+			Bar,
+		}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			bazz: my_package.Bazz
+			if bazz == .{*} {}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"my_package.Foo.A", "my_package.Foo.B", "my_package.Bar.A", "my_package.Bar.C"},
+	)
 }

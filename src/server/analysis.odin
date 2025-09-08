@@ -3484,17 +3484,19 @@ unwrap_ident :: proc(node: ^ast.Expr) -> (^ast.Ident, bool) {
 	return {}, false
 }
 
-unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumValue, bool) {
+// Returns the unwrapped enum, whether it unwrapped a super enum, whether it was successful
+unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumValue, bool, bool) {
 	if node == nil {
-		return {}, false
+		return {}, false, false
 	}
 
 	if enum_symbol, ok := resolve_type_expression(ast_context, node); ok {
 		#partial switch value in enum_symbol.value {
 		case SymbolEnumValue:
-			return value, true
+			return value, false, true
 		case SymbolUnionValue:
-			return unwrap_super_enum(ast_context, value)
+			result, ok := unwrap_super_enum(ast_context, value)
+			return result, true, ok
 		case SymbolSliceValue:
 			return unwrap_enum(ast_context, value.expr)
 		case SymbolFixedArrayValue:
@@ -3506,7 +3508,7 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 		}
 	}
 
-	return {}, false
+	return {}, false, false
 }
 
 unwrap_super_enum :: proc(
@@ -3522,7 +3524,17 @@ unwrap_super_enum :: proc(
 	for type in symbol_union.types {
 		symbol := resolve_type_expression(ast_context, type) or_return
 		if value, ok := symbol.value.(SymbolEnumValue); ok {
-			append(&names, ..value.names)
+			for name in value.names {
+				if ast_context.current_package != symbol.pkg {
+					pkg_name := get_pkg_name(ast_context, symbol.pkg)
+					append(
+						&names,
+						fmt.aprintf("%s.%s.%s", pkg_name, symbol.name, name, allocator = ast_context.allocator),
+					)
+				} else {
+					append(&names, fmt.aprintf("%s.%s", symbol.name, name, allocator = ast_context.allocator))
+				}
+			}
 			append(&ranges, ..value.ranges)
 		}
 	}
