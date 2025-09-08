@@ -1387,7 +1387,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 					set_ast_package_from_node_scoped(ast_context, s.types[i])
 					ast_context.field_name = node.field^
 					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
-					symbol.type = .Variable
+					symbol.type = .Field
+					symbol.flags |= {.Mutable}
 					return symbol, ok
 				}
 			}
@@ -1396,7 +1397,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				if node.field != nil && name == node.field.name {
 					ast_context.field_name = node.field^
 					ok := internal_resolve_type_expression(ast_context, s.types[i], &symbol)
-					symbol.type = .Variable
+					symbol.type = .Field
+					symbol.flags |= {.Mutable}
 					return symbol, ok
 				}
 			}
@@ -1682,7 +1684,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	case ^ast.Basic_Lit:
 		return_symbol, ok = resolve_basic_lit(ast_context, v^)
 		return_symbol.name = node.name
-		return_symbol.type = local.variable ? .Variable : .Constant
+		return_symbol.type = .Mutable in local.flags ? .Variable : .Constant
 	case ^ast.Binary_Expr:
 		return_symbol, ok = resolve_binary_expression(ast_context, v)
 	case:
@@ -1698,8 +1700,12 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 		return_symbol.flags |= {.Parameter}
 	}
 
-	if local.variable {
+	if .Mutable in local.flags {
 		return_symbol.type = .Variable
+		return_symbol.flags |= {.Mutable}
+	}
+	if .Variable in local.flags {
+		return_symbol.flags |= {.Variable}
 	}
 
 	return_symbol.flags |= {.Local}
@@ -1733,7 +1739,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		}
 
 		if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
-			return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
+			return_types := get_proc_return_types(ast_context, return_symbol, v, .Mutable in global.flags)
 			if len(return_types) > 0 {
 				ok = internal_resolve_type_expression(ast_context, return_types[0], &return_symbol)
 			}
@@ -1799,7 +1805,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	case ^ast.Basic_Lit:
 		return_symbol, ok = resolve_basic_lit(ast_context, v^)
 		return_symbol.name = node.name
-		return_symbol.type = global.mutable ? .Variable : .Constant
+		return_symbol.type = .Mutable in global.flags ? .Variable : .Constant
 	case:
 		ok = internal_resolve_type_expression(ast_context, global.expr, &return_symbol)
 	}
@@ -1809,8 +1815,13 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		return_symbol.flags |= {.Distinct}
 	}
 
-	if global.mutable {
+	if .Mutable in global.flags {
 		return_symbol.type = .Variable
+		return_symbol.flags |= {.Mutable}
+	}
+
+	if .Variable in global.flags {
+		return_symbol.flags |= {.Variable}
 	}
 
 	if global.docs != nil {
@@ -2637,6 +2648,7 @@ resolve_container_allocator_location :: proc(ast_context: ^AstContext, container
 				for name, i in v.names {
 					if name == "allocator" {
 						symbol.range = v.ranges[i]
+						symbol.type = .Field
 						return symbol, true
 					}
 				}
@@ -2683,18 +2695,21 @@ resolve_symbol_selector :: proc(
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .EnumMember
 			}
 		}
 	case SymbolStructValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .Field
 			}
 		}
 	case SymbolBitFieldValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.type = .Field
 			}
 		}
 	case SymbolPackageValue:

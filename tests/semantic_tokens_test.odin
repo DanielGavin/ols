@@ -40,6 +40,7 @@ semantic_tokens_global_consts :: proc(t: ^testing.T) {
 		main = `package test
 		Foo :: [2]f32
 		Foo2 :: [2]f32{1,2}
+		Foo3 :: Foo
 		`
 	}
 
@@ -48,6 +49,8 @@ semantic_tokens_global_consts :: proc(t: ^testing.T) {
 		{0, 10, 3,  .Type,      {.ReadOnly}}, // [1]  f32
 		{1, 2,  4,  .Variable,  {.ReadOnly}}, // [2]  Foo2
 		{0, 11, 3,  .Type,      {.ReadOnly}}, // [3]  f32
+		{1, 2,  4,  .Type,      {.ReadOnly}}, // [4]  Foo3
+		{0, 8,  3,  .Type,      {.ReadOnly}}, // [5]  Foo
 	})
 }
 
@@ -70,5 +73,51 @@ semantic_tokens_literals_with_explicit_types :: proc(t: ^testing.T) {
 		{0, 13, 6, .Type,     {.ReadOnly}}, // [4]  string
 		{1, 2,  4, .Variable, {.ReadOnly}}, // [5]  Foo4
 		{0, 8,  7, .Type,     {.ReadOnly}}, // [6]  cstring
+	})
+}
+
+@(test)
+semantic_tokens_struct_fields :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo.bar = 2
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3,  .Struct,    {.ReadOnly}}, // [0]  Foo
+		{1, 3,  3,  .Property,  {}},          // [1]  bar
+		{0, 5,  3,  .Type,      {.ReadOnly}}, // [2]  int
+		{3, 2,  4,  .Function,  {.ReadOnly}}, // [3]  main
+		{1, 3,  3,  .Variable,  {}},          // [4]  foo
+		{0, 5,  3,  .Struct,    {.ReadOnly}}, // [5]  Foo
+		{1, 3,  3,  .Variable,  {}},          // [6]  foo
+		{0, 4,  3,  .Property,  {}},          // [7]  bar
+	})
+}
+
+@(test)
+semantic_tokens_proc_return :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		foo :: proc() -> (ret: int) {
+			ret += 1
+			return
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Function, {.ReadOnly}}, // [0]  foo
+		{0, 18, 3, .Variable, {}},          // [1]  ret
+		{0, 5,  3, .Type,     {.ReadOnly}}, // [2]  proc
+		{1, 3,  3, .Variable, {}},          // [3]  ret
 	})
 }

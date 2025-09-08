@@ -747,6 +747,7 @@ get_selector_completion :: proc(
 	}
 
 	if selector.type != .Variable &&
+	   selector.type != .Field &&
 	   selector.type != .Package &&
 	   selector.type != .Enum &&
 	   selector.type != .Function {

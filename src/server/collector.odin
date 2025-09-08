@@ -663,7 +663,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = v^
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)
 
-			if expr.mutable {
+			if .Mutable in expr.flags {
 				token_type = .Variable
 			} else {
 				token_type = .Unresolved
@@ -671,7 +671,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Comp_Lit:
 			generic := collect_generic(collection, col_expr, package_map, uri)
 
-			if expr.mutable {
+			if .Mutable in expr.flags {
 				token_type = .Variable
 			} else {
 				token_type = .Unresolved
@@ -685,7 +685,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			// default
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)
 
-			if expr.mutable {
+			if .Mutable in expr.flags {
 				token_type = .Variable
 			} else {
 				token_type = .Unresolved
@@ -732,6 +732,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 
 		if expr.private == .Package {
 			symbol.flags |= {.PrivatePackage}
+		}
+
+		if .Variable in expr.flags {
+			symbol.flags |= {.Variable}
 		}
 
 

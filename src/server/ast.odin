@@ -82,11 +82,16 @@ are_keyword_aliases :: proc(a, b: string) -> bool {
 	return false
 }
 
+GlobalFlags :: enum {
+	Mutable, // or constant
+	Variable, // or type
+}
+
 GlobalExpr :: struct {
 	name:       string,
 	name_expr:  ^ast.Expr,
 	expr:       ^ast.Expr,
-	mutable:    bool,
+	flags:      bit_set[GlobalFlags],
 	docs:       ^ast.Comment_Group,
 	comment:    ^ast.Comment_Group,
 	attributes: []^ast.Attribute,
@@ -353,6 +358,17 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 	return new_attrs[:]
 }
 
+// TODO: it seems the global symbols don't distinguish between a type decl and
+// a const variable declaration, so we do a quick check here to distinguish the cases.
+is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
+	#partial switch v in expr.derived {
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr:
+		return true
+	case:
+		return false
+	}
+}
+
 collect_value_decl :: proc(
 	exprs: ^[dynamic]GlobalExpr,
 	file: ast.File,
@@ -370,11 +386,14 @@ collect_value_decl :: proc(
 	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
 	global_expr := GlobalExpr {
-		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
 		comment    = comment,
 		attributes = attributes,
 		private    = file_tags.private,
+	}
+
+	if value_decl.is_mutable {
+		global_expr.flags += {.Mutable}
 	}
 
 	for attribute in attributes {
@@ -414,6 +433,11 @@ collect_value_decl :: proc(
 		global_expr.name = get_ast_node_string(name, file.src)
 		global_expr.name_expr = name
 
+		if len(value_decl.values) > i {
+			if is_variable_declaration(value_decl.values[i]) {
+				global_expr.flags += {.Variable}
+			}
+		}
 		if value_decl.type != nil {
 			global_expr.expr = value_decl.type
 			append(exprs, global_expr)
@@ -477,13 +501,7 @@ collect_when_body :: proc(
 			if foreign_decl.body != nil {
 				if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 					for foreign_stmt in foreign_block.stmts {
-						collect_value_decl(
-							exprs,
-							file,
-							file_tags,
-							foreign_stmt,
-							foreign_decl.attributes[:],
-						)
+						collect_value_decl(exprs, file, file_tags, foreign_stmt, foreign_decl.attributes[:])
 					}
 				}
 			}
@@ -732,8 +750,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.default_value, allocator)
-		free_ast_comment(n.docs, allocator);
-		free_ast_comment(n.comment, allocator);
+		free_ast_comment(n.docs, allocator)
+		free_ast_comment(n.comment, allocator)
 	case ^Field_List:
 		free_ast(n.list, allocator)
 	case ^Typeid_Type:
@@ -1306,7 +1324,12 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 						field.comment.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = new_type(ast.Comment_Group, list[1].pos, parser.end_pos(list[len(list) - 2]), allocator)
+						next_field.docs = new_type(
+							ast.Comment_Group,
+							list[1].pos,
+							parser.end_pos(list[len(list) - 2]),
+							allocator,
+						)
 						next_field.docs.list = list[1:]
 					} else {
 						next_field.docs = nil
