@@ -1682,7 +1682,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	case ^ast.Basic_Lit:
 		return_symbol, ok = resolve_basic_lit(ast_context, v^)
 		return_symbol.name = node.name
-		return_symbol.type = local.variable ? .Variable : .Constant
+		return_symbol.type = .Mutable in local.flags ? .Variable : .Constant
 	case ^ast.Binary_Expr:
 		return_symbol, ok = resolve_binary_expression(ast_context, v)
 	case:
@@ -1698,8 +1698,12 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 		return_symbol.flags |= {.Parameter}
 	}
 
-	if local.variable {
+	if .Mutable in local.flags {
 		return_symbol.type = .Variable
+		return_symbol.flags |= {.Mutable}
+	}
+	if .Variable in local.flags {
+		return_symbol.flags |= {.Variable}
 	}
 
 	return_symbol.flags |= {.Local}
@@ -1811,13 +1815,11 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 
 	if .Mutable in global.flags {
 		return_symbol.type = .Variable
+		return_symbol.flags |= {.Mutable}
 	}
 
 	if .Variable in global.flags {
 		return_symbol.flags |= {.Variable}
-	}
-	if .Mutable in global.flags {
-		return_symbol.flags |= {.Mutable}
 	}
 
 	if global.docs != nil {

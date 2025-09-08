@@ -4,6 +4,11 @@ import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 
+LocalFlag :: enum {
+	Mutable, // or constant
+	Variable, // or type
+}
+
 DocumentLocal :: struct {
 	lhs:             ^ast.Expr,
 	rhs:             ^ast.Expr,
@@ -11,7 +16,7 @@ DocumentLocal :: struct {
 	resolved_global: bool, //Some locals have already been resolved and are now in global space
 	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
 	pkg:             string,
-	variable:        bool,
+	flags:           bit_set[LocalFlag],
 	parameter:       bool,
 }
 
@@ -25,7 +30,7 @@ store_local :: proc(
 	name: string,
 	local_global: bool,
 	resolved_global: bool,
-	variable: bool,
+	flags: bit_set[LocalFlag],
 	pkg: string,
 	parameter: bool,
 ) {
@@ -46,7 +51,7 @@ store_local :: proc(
 			resolved_global = resolved_global,
 			local_global = local_global,
 			pkg = pkg,
-			variable = variable,
+			flags = flags,
 			parameter = parameter,
 		},
 	)
@@ -297,6 +302,11 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	if value_decl.type != nil {
 		for name, i in value_decl.names {
 			str := get_ast_node_string(value_decl.names[i], file.src)
+			flags: bit_set[LocalFlag]
+			if value_decl.is_mutable {
+				flags |= {.Mutable}
+
+			}
 			store_local(
 				ast_context,
 				name,
@@ -305,7 +315,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 				str,
 				ast_context.non_mutable_only,
 				false,
-				value_decl.is_mutable,
+				flags,
 				"",
 				false,
 			)
@@ -333,16 +343,25 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	for name, i in value_decl.names {
 		result_i := min(len(results) - 1, i)
 		str := get_ast_node_string(name, file.src)
+		flags: bit_set[LocalFlag]
+
+		expr := results[result_i]
+		if is_variable_declaration(expr) {
+			flags |= {.Variable}
+		}
+		if value_decl.is_mutable {
+			flags |= {.Mutable}
+		}
 
 		store_local(
 			ast_context,
 			name,
-			results[result_i],
+			expr,
 			value_decl.end.offset,
 			str,
 			ast_context.non_mutable_only,
 			false, // calls[result_i] or_else false, // TODO: find a good way to handle this
-			value_decl.is_mutable,
+			flags,
 			get_package_from_node(results[result_i]^),
 			false,
 		)
@@ -479,7 +498,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, true, "", false)
+				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, {.Mutable}, "", false)
 			}
 		case SymbolBitFieldValue:
 			for name, i in v.names {
@@ -487,7 +506,7 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, true, "", false)
+				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, {.Mutable}, "", false)
 			}
 		}
 	}
@@ -527,7 +546,7 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 				ident.name,
 				ast_context.non_mutable_only,
 				false,
-				true,
+				{.Mutable},
 				"",
 				false,
 			)
@@ -580,7 +599,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						false,
 					)
@@ -618,7 +637,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -636,7 +655,7 @@ get_locals_for_range_stmt :: proc(
 							ident.name,
 							ast_context.non_mutable_only,
 							false,
-							true,
+							{.Mutable},
 							symbol.pkg,
 							false,
 						)
@@ -655,7 +674,7 @@ get_locals_for_range_stmt :: proc(
 							ident.name,
 							ast_context.non_mutable_only,
 							false,
-							true,
+							{.Mutable},
 							symbol.pkg,
 							false,
 						)
@@ -673,7 +692,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -689,7 +708,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -706,7 +725,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -722,7 +741,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -739,7 +758,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -759,7 +778,7 @@ get_locals_for_range_stmt :: proc(
 								ident.name,
 								ast_context.non_mutable_only,
 								false,
-								true,
+								{.Mutable},
 								len_symbol.pkg,
 								false,
 							)
@@ -773,7 +792,7 @@ get_locals_for_range_stmt :: proc(
 							ident.name,
 							ast_context.non_mutable_only,
 							false,
-							true,
+							{.Mutable},
 							symbol.pkg,
 							false,
 						)
@@ -791,7 +810,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -807,7 +826,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -824,7 +843,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -840,7 +859,7 @@ get_locals_for_range_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						symbol.pkg,
 						false,
 					)
@@ -914,7 +933,7 @@ get_locals_type_switch_stmt :: proc(
 						ident.name,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						false,
 					)
@@ -953,7 +972,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						true,
 					)
@@ -974,7 +993,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						true,
 					)
@@ -996,7 +1015,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						false,
 					)
@@ -1010,7 +1029,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						true,
+						{.Mutable},
 						"",
 						false,
 					)
