@@ -194,7 +194,8 @@ SymbolFlag :: enum {
 	PrivateFile,
 	PrivatePackage,
 	Anonymous, //Usually applied to structs that are defined inline inside another struct
-	Variable, //Symbols that are variable, this means their value decl was mutable
+	Variable, // or type
+	Mutable, // or constant
 	Local,
 	ObjC,
 	ObjCIsClassMethod, // should be set true only when ObjC is enabled

@@ -1733,7 +1733,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		}
 
 		if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
-			return_types := get_proc_return_types(ast_context, return_symbol, v, global.mutable)
+			return_types := get_proc_return_types(ast_context, return_symbol, v, .Mutable in global.flags)
 			if len(return_types) > 0 {
 				ok = internal_resolve_type_expression(ast_context, return_types[0], &return_symbol)
 			}
@@ -1799,7 +1799,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	case ^ast.Basic_Lit:
 		return_symbol, ok = resolve_basic_lit(ast_context, v^)
 		return_symbol.name = node.name
-		return_symbol.type = global.mutable ? .Variable : .Constant
+		return_symbol.type = .Mutable in global.flags ? .Variable : .Constant
 	case:
 		ok = internal_resolve_type_expression(ast_context, global.expr, &return_symbol)
 	}
@@ -1809,8 +1809,15 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		return_symbol.flags |= {.Distinct}
 	}
 
-	if global.mutable {
+	if .Mutable in global.flags {
 		return_symbol.type = .Variable
+	}
+
+	if .Variable in global.flags {
+		return_symbol.flags |= {.Variable}
+	}
+	if .Mutable in global.flags {
+		return_symbol.flags |= {.Mutable}
 	}
 
 	if global.docs != nil {
