@@ -39,7 +39,7 @@ walk_dir :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (er
 }
 
 get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceSymbol, ok: bool) {
-	if time.since(cache.time) > 1 * time.Minute {
+	if time.since(cache.time) > 15 * time.Second {
 		for pkg in cache.pkgs {
 			delete(pkg)
 		}
