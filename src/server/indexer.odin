@@ -68,24 +68,14 @@ fuzzy_search :: proc(
 	pkgs: []string,
 	current_file: string,
 	resolve_fields := false,
+	limit := 0,
 ) -> (
 	[]FuzzyResult,
 	bool,
 ) {
-	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields)
-	result := make([dynamic]FuzzyResult, context.temp_allocator)
-
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields, limit = limit)
 	if !ok {
 		return {}, false
 	}
-
-	for r in results {
-		append(&result, r)
-	}
-
-	slice.sort_by(result[:], proc(i, j: FuzzyResult) -> bool {
-		return j.score < i.score
-	})
-
-	return result[:], true
+	return results[:], true
 }
