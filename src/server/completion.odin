@@ -1661,6 +1661,28 @@ get_identifier_completion :: proc(
 	lookup_name := ""
 	is_incomplete := true
 
+	if position_context.value_decl != nil {
+		for value in position_context.value_decl.values {
+			if struct_type, ok := value.derived.(^ast.Struct_Type); ok {
+				if struct_type.fields != nil {
+					for field in struct_type.fields.list {
+						for name in field.names {
+							if position_in_node(name, position_context.position) {
+								return false
+							}
+						}
+					}
+				}
+			} else if bit_field_type, ok := value.derived.(^ast.Bit_Field_Type); ok {
+				for field in bit_field_type.fields {
+					if position_in_node(field.name, position_context.position) {
+						return false
+					}
+				}
+			}
+		}
+	}
+
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			lookup_name = ident.name
