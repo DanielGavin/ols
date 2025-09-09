@@ -68,11 +68,12 @@ fuzzy_search :: proc(
 	pkgs: []string,
 	current_file: string,
 	resolve_fields := false,
+	limit := 0,
 ) -> (
 	[]FuzzyResult,
 	bool,
 ) {
-	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields)
+	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields, limit = limit)
 	if !ok {
 		return {}, false
 	}

@@ -82,7 +82,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 	}
 
 	symbols := make([dynamic]WorkspaceSymbol, 0, 100, context.temp_allocator)
-	if results, ok := fuzzy_search(query, cache.pkgs[:], "", resolve_fields = false); ok {
+	if results, ok := fuzzy_search(query, cache.pkgs[:], "", resolve_fields = false, limit = 100); ok {
 		for result in results {
 			symbol := WorkspaceSymbol {
 				name = result.symbol.name,

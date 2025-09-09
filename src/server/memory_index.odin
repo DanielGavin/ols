@@ -59,6 +59,7 @@ memory_index_fuzzy_search :: proc(
 	pkgs: []string,
 	current_file: string,
 	resolve_fields := false,
+	limit := 0,
 ) -> (
 	[]FuzzyResult,
 	bool,
@@ -147,7 +148,9 @@ memory_index_fuzzy_search :: proc(
 		return j.score < i.score
 	})
 
-	if name == "" {
+	if limit > 0 {
+		return symbols[:min(limit, len(symbols))], true
+	} else if name == "" {
 		return symbols[:], true
 	} else {
 		return symbols[:min(top, len(symbols))], true
