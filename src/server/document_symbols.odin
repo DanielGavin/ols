@@ -40,8 +40,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 		symbol: DocumentSymbol
 		symbol.selectionRange = common.get_token_range(global.name_expr, ast_context.file.src)
 		symbol.range = common.get_token_range(global.expr, ast_context.file.src)
-		// selection range must be contained with range, so we set the range start to be the selection range start
-		symbol.range.start = symbol.selectionRange.start
+		ensure_selection_range_contained(&symbol.range, symbol.selectionRange)
 		symbol.name = k
 
 		#partial switch v in global.expr.derived {
@@ -82,18 +81,18 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 			if s, ok := resolve_type_expression(&ast_context, v); ok {
 				ranges :: struct {
 					range: common.Range,
-					selectionRange: common.Range,
+					selection_range: common.Range,
 				}
 				name_map := make(map[string]ranges)
 				for elem in v.elems {
 					if field_value, ok := elem.derived.(^ast.Field_Value); ok {
 						if name, ok := field_value.field.derived.(^ast.Ident); ok {
-							selectionRange := common.get_token_range(name, ast_context.file.src)
+							selection_range := common.get_token_range(name, ast_context.file.src)
 							range := common.get_token_range(field_value, ast_context.file.src)
-							range.start = selectionRange.start
+							ensure_selection_range_contained(&range, selection_range)
 							name_map[name.name] = {
 								range = range,
-								selectionRange = selectionRange,
+								selection_range = selection_range,
 							}
 						}
 					}
@@ -105,7 +104,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 						child: DocumentSymbol
 						if range, ok := name_map[name]; ok {
 							child.range = range.range
-							child.selectionRange = range.selectionRange
+							child.selectionRange = range.selection_range
 							child.name = name
 							child.kind = .Field
 							append(&children, child)
@@ -118,7 +117,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 						child: DocumentSymbol
 						if range, ok := name_map[name]; ok {
 							child.range = range.range
-							child.selectionRange = range.selectionRange
+							child.selectionRange = range.selection_range
 							child.name = name
 							child.kind = .Field
 							append(&children, child)
@@ -136,4 +135,17 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 
 	return symbols[:]
+}
+
+@(private="file")
+ensure_selection_range_contained :: proc(range: ^common.Range, selection_range: common.Range) {
+	// selection range must be contained with range, so we set the range start to be the selection range start
+	range.start = selection_range.start
+
+	// if the range end is somehow before the selection_range end, we set it to the end of the selection range
+	if range.end.line < selection_range.end.line {
+		range.end = selection_range.end
+	} else if range.end.line == selection_range.end.line && range.end.character < selection_range.end.character {
+		range.end = selection_range.end
+	}
 }
