@@ -4483,6 +4483,56 @@ ast_hover_float_binary_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: float")
 }
+
+@(test)
+ast_hover_parapoly_struct_with_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		type_is_integer :: proc($T: typeid) -> bool {
+			return true
+		}
+
+		F{*}oo :: struct($T: typeid, $N: int) #packed
+			where type_is_integer(T),
+				  N > 2 {
+			x: [N]T,
+			y: [N-2]T,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: struct($T: typeid, $N: int) #packed where type_is_integer(T), N > 2 {\n\tx: [N]T,\n\ty: [N - 2]T,\n}")
+}
+
+@(test)
+ast_hover_parapoly_proc_with_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		fo{*}o :: proc(x: [$N]int) -> bool
+			where N > 2 #optional_ok {
+			fmt.println(#procedure, "was called with the parameter", x)
+			return true
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc(x: [$N]int) -> bool where N > 2 #optional_ok")
+}
+
+@(test)
+ast_hover_parapoly_union_with_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		type_is_integer :: proc($T: typeid) -> bool {
+			return true
+		}
+
+		Fo{*}o :: union($T: typeid) #no_nil where type_is_integer(T){
+			T,
+			string,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: union($T: typeid) #no_nil where type_is_integer(T) {\n\tT,\n\tstring,\n}")
+}
 /*
 
 Waiting for odin fix
