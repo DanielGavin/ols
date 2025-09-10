@@ -532,12 +532,57 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 	}
 }
 
-expect_inlay_hints :: proc(t: ^testing.T, src: ^Source, expected_hints: []server.InlayHint) {
+expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
+
+	src_builder := strings.builder_make(context.temp_allocator)
+	expected_hints := make([dynamic]server.InlayHint, context.temp_allocator)
+
+	{
+		last, line, col: int
+		saw_brackets: bool
+		for i:= 0; i < len(src.main); i += 1 {
+			if saw_brackets {
+				if i+1 < len(src.main) && src.main[i:i+2] == "]]" {
+					saw_brackets = false
+					hint_str := src.main[last:i]
+					last = i+2
+					i += 1
+					append(&expected_hints, server.InlayHint{
+						position = {line, col},
+						label    = hint_str,
+						kind     = .Parameter,
+					})
+				}
+			} else {
+				if i+1 < len(src.main) && src.main[i:i+2] == "[[" {
+					strings.write_string(&src_builder, src.main[last:i])
+					saw_brackets = true
+					last = i+2
+					i += 1
+				} else if src.main[i] == '\n' {
+					line += 1
+					col = 0
+				} else {
+					col += 1
+				}
+			}
+		}
+
+		if saw_brackets {
+			log.error("Unclosed inlay hint marker")
+			return
+		}
+
+		strings.write_string(&src_builder, src.main[last:len(src.main)])
+	}
+
+	src.main = strings.to_string(src_builder)
+
 	setup(src)
 	defer teardown(src)
 
 	resolve_flag: server.ResolveReferenceFlag
-	symbols_and_nodes := server.resolve_entire_file(src.document, resolve_flag, context.temp_allocator)
+	symbols_and_nodes := server.resolve_entire_file(src.document, resolve_flag, )
 
 	hints, ok := server.get_inlay_hints(src.document, symbols_and_nodes, &src.config)
 	if !ok {
