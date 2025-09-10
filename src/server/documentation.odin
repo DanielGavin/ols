@@ -486,7 +486,14 @@ write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProc
 	if len(value.orig_return_types) != 0 {
 		strings.write_string(sb, " -> ")
 
+		add_parens := false
 		if len(value.orig_return_types) > 1 {
+			add_parens = true
+		} else if field, ok := value.orig_return_types[0].derived.(^ast.Field); ok && len(field.names) > 0{
+			add_parens = true
+		}
+
+		if add_parens {
 			strings.write_string(sb, "(")
 		}
 
@@ -497,7 +504,7 @@ write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProc
 			}
 		}
 
-		if len(value.orig_return_types) > 1 {
+		if add_parens {
 			strings.write_string(sb, ")")
 		}
 	} else if value.diverging {

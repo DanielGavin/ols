@@ -4533,6 +4533,18 @@ ast_hover_parapoly_union_with_where_clause :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: union($T: typeid) #no_nil where type_is_integer(T) {\n\tT,\n\tstring,\n}")
 }
+
+@(test)
+ast_hover_proc_named_return_parens :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		f{*}oo :: proc() -> (a: int) {
+			return
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc() -> (a: int)")
+}
 /*
 
 Waiting for odin fix
