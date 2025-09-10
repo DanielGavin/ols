@@ -1031,7 +1031,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return ok
 	case ^Proc_Type:
 		out^, ok =
-			make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None), true
+			make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None, nil),
+			true
 		return ok
 	case ^Bit_Field_Type:
 		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name.name, true), true
@@ -1662,12 +1663,31 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 
 			if !ok && !ast_context.overloading {
 				return_symbol, ok =
-					make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining),
+					make_symbol_procedure_from_ast(
+						ast_context,
+						local.rhs,
+						v.type^,
+						node.name,
+						{},
+						false,
+						v.inlining,
+						v.where_clauses,
+					),
 					true
 			}
 		} else {
 			return_symbol, ok =
-				make_symbol_procedure_from_ast(ast_context, local.rhs, v.type^, node.name, {}, false, v.inlining), true
+				make_symbol_procedure_from_ast(
+					ast_context,
+					local.rhs,
+					v.type^,
+					node.name,
+					{},
+					false,
+					v.inlining,
+					v.where_clauses,
+				),
+				true
 		}
 	case ^ast.Proc_Group:
 		return_symbol, ok = resolve_function_overload(ast_context, v^)
@@ -1776,6 +1796,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 						global.attributes,
 						false,
 						v.inlining,
+						v.where_clauses,
 					),
 					true
 			}
@@ -1789,6 +1810,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 					global.attributes,
 					false,
 					v.inlining,
+					v.where_clauses,
 				),
 				true
 		}
@@ -3026,6 +3048,7 @@ make_symbol_procedure_from_ast :: proc(
 	attributes: []^ast.Attribute,
 	type: bool,
 	inlining: ast.Proc_Inlining,
+	where_clauses: []^ast.Expr,
 ) -> Symbol {
 	pkg := ""
 	if n != nil {
@@ -3071,6 +3094,7 @@ make_symbol_procedure_from_ast :: proc(
 		tags               = v.tags,
 		attributes         = attributes,
 		inlining           = inlining,
+		where_clauses      = where_clauses,
 	}
 
 	if _, ok := get_attribute_objc_name(attributes); ok {
@@ -3252,12 +3276,13 @@ make_symbol_union_from_ast :: proc(
 	docs, comments := get_field_docs_and_comments(ast_context.file, v.variants, ast_context.allocator)
 
 	symbol.value = SymbolUnionValue {
-		types    = types[:],
-		poly     = v.poly_params,
-		docs     = docs[:],
-		comments = comments[:],
-		kind     = v.kind,
-		align    = v.align,
+		types         = types[:],
+		poly          = v.poly_params,
+		docs          = docs[:],
+		comments      = comments[:],
+		kind          = v.kind,
+		align         = v.align,
+		where_clauses = v.where_clauses,
 	}
 
 	if v.poly_params != nil {

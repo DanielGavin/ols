@@ -39,6 +39,7 @@ SymbolStructValue :: struct {
 	args:              []^ast.Expr, //The arguments in the call expression for poly
 	docs:              []^ast.Comment_Group,
 	comments:          []^ast.Comment_Group,
+	where_clauses:     []^ast.Expr,
 
 	// Extra fields for embedded bit fields via usings
 	backing_types:     map[int]^ast.Expr, // the base type for the bit field
@@ -74,6 +75,7 @@ SymbolProcedureValue :: struct {
 	tags:               ast.Proc_Tags,
 	attributes:         []^ast.Attribute,
 	inlining:           ast.Proc_Inlining,
+	where_clauses:      []^ast.Expr,
 }
 
 SymbolProcedureGroupValue :: struct {
@@ -96,13 +98,14 @@ SymbolEnumValue :: struct {
 }
 
 SymbolUnionValue :: struct {
-	types:      []^ast.Expr,
-	poly:       ^ast.Field_List,
-	poly_names: []string,
-	docs:       []^ast.Comment_Group,
-	comments:   []^ast.Comment_Group,
-	kind:       ast.Union_Type_Kind,
-	align:      ^ast.Expr,
+	types:         []^ast.Expr,
+	poly:          ^ast.Field_List,
+	poly_names:    []string,
+	docs:          []^ast.Comment_Group,
+	comments:      []^ast.Comment_Group,
+	kind:          ast.Union_Type_Kind,
+	align:         ^ast.Expr,
+	where_clauses: []^ast.Expr,
 }
 
 SymbolDynamicArrayValue :: struct {
@@ -161,9 +164,9 @@ SymbolPolyTypeValue :: struct {
 	Generic symbol that is used by the indexer for any variable type(constants, defined global variables, etc),
 */
 SymbolGenericValue :: struct {
-	expr: ^ast.Expr,
+	expr:        ^ast.Expr,
 	field_names: []string,
-	ranges: []common.Range,
+	ranges:      []common.Range,
 }
 
 SymbolValue :: union {
@@ -252,6 +255,7 @@ SymbolStructValueBuilder :: struct {
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
 	poly_names:        [dynamic]string,
+	where_clauses:     [dynamic]^ast.Expr,
 
 	// Extra fields for embedded bit fields via usings
 	backing_types:     map[int]^ast.Expr,
@@ -280,6 +284,7 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		poly_names        = make([dynamic]string, allocator),
 		backing_types     = make(map[int]^ast.Expr, allocator),
 		bit_sizes         = make(map[int]^ast.Expr, allocator),
+		where_clauses     = make([dynamic]^ast.Expr, allocator),
 	}
 }
 
@@ -301,6 +306,7 @@ symbol_struct_value_builder_make_symbol :: proc(
 		poly_names = make([dynamic]string, allocator),
 		backing_types = make(map[int]^ast.Expr, allocator),
 		bit_sizes = make(map[int]^ast.Expr, allocator),
+		where_clauses = make([dynamic]^ast.Expr, allocator),
 	}
 }
 
@@ -327,6 +333,7 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		align = v.align,
 		max_field_align = v.max_field_align,
 		min_field_align = v.min_field_align,
+		where_clauses = slice.to_dynamic(v.where_clauses, allocator),
 	}
 }
 
@@ -361,6 +368,7 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		max_field_align = b.max_field_align,
 		min_field_align = b.min_field_align,
 		tags = b.tags,
+		where_clauses = b.where_clauses[:],
 	}
 }
 
@@ -423,6 +431,9 @@ write_struct_type :: proc(
 		}
 		if v.is_raw_union {
 			b.tags |= {.Is_Raw_Union}
+		}
+		for clause in v.where_clauses {
+			append(&b.where_clauses, clause)
 		}
 	}
 

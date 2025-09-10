@@ -216,6 +216,7 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 			strings.write_string(sb, " #align")
 			build_string_node(v.align, sb, false)
 		}
+		write_where_clauses(sb, v.where_clauses)
 		if len(v.types) == 0 {
 			strings.write_string(sb, " {}")
 			return
@@ -485,7 +486,14 @@ write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProc
 	if len(value.orig_return_types) != 0 {
 		strings.write_string(sb, " -> ")
 
+		add_parens := false
 		if len(value.orig_return_types) > 1 {
+			add_parens = true
+		} else if field, ok := value.orig_return_types[0].derived.(^ast.Field); ok && len(field.names) > 0{
+			add_parens = true
+		}
+
+		if add_parens {
 			strings.write_string(sb, "(")
 		}
 
@@ -496,7 +504,7 @@ write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProc
 			}
 		}
 
-		if len(value.orig_return_types) > 1 {
+		if add_parens {
 			strings.write_string(sb, ")")
 		}
 	} else if value.diverging {
@@ -530,6 +538,7 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 		}
 	}
 	write_proc_param_list_and_return(sb, value)
+	write_where_clauses(sb, value.where_clauses)
 	if detailed_signature {
 		for tag in value.tags {
 			s := ""
@@ -545,6 +554,18 @@ write_procedure_symbol_signature :: proc(sb: ^strings.Builder, value: SymbolProc
 			}
 
 			fmt.sbprintf(sb, " %s", s)
+		}
+	}
+}
+
+write_where_clauses :: proc(sb: ^strings.Builder, where_clauses: []^ast.Expr) {
+	if len(where_clauses) > 0 {
+		strings.write_string(sb, " where ")
+		for clause, i in where_clauses {
+			build_string_node(clause, sb, false)
+			if i != len(where_clauses) - 1 {
+				strings.write_string(sb, ", ")
+			}
 		}
 	}
 }
@@ -578,6 +599,9 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 			strings.write_string(sb, " #no_copy")
 		}
 	}
+
+	write_where_clauses(sb, v.where_clauses)
+
 	if len(v.names) == 0 {
 		strings.write_string(sb, " {}")
 		return
@@ -718,7 +742,7 @@ write_node :: proc(
 		symbol = make_symbol_bit_field_from_ast(ast_context, n, name, true)
 		ok = true
 	case ^ast.Proc_Type:
-		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None)
+		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
 	}
 	if ok {

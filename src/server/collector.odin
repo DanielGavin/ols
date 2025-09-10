@@ -85,6 +85,7 @@ collect_procedure_fields :: proc(
 	package_map: map[string]string,
 	attributes: []^ast.Attribute,
 	inlining: ast.Proc_Inlining,
+	where_clauses: []^ast.Expr,
 ) -> SymbolProcedureValue {
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
 	args := make([dynamic]^ast.Field, 0, collection.allocator)
@@ -111,7 +112,6 @@ collect_procedure_fields :: proc(
 		append(&attrs, cloned)
 	}
 
-
 	value := SymbolProcedureValue {
 		return_types       = returns[:],
 		orig_return_types  = returns[:],
@@ -127,6 +127,7 @@ collect_procedure_fields :: proc(
 		tags               = proc_type.tags,
 		attributes         = attrs[:],
 		inlining           = inlining,
+		where_clauses      = clone_array(where_clauses, collection.allocator, &collection.unique_strings),
 	}
 
 	return value
@@ -180,6 +181,9 @@ collect_struct_fields :: proc(
 	}
 
 	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
+	for clause in struct_type.where_clauses {
+		append(&b.where_clauses, clone_expr(clause, collection.allocator, &collection.unique_strings))
+	}
 	value := to_symbol_struct_value(b)
 
 	return value
@@ -279,12 +283,13 @@ collect_union_fields :: proc(
 	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
 
 	value := SymbolUnionValue {
-		types    = types[:],
-		poly     = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
-		comments = comments[:],
-		docs     = docs[:],
-		kind     = union_type.kind,
-		align    = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
+		types         = types[:],
+		poly          = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
+		comments      = comments[:],
+		docs          = docs[:],
+		kind          = union_type.kind,
+		align         = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
+		where_clauses = clone_array(union_type.where_clauses, collection.allocator, &collection.unique_strings),
 	}
 
 	return value
@@ -568,6 +573,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 					package_map,
 					expr.attributes,
 					v.inlining,
+					v.where_clauses,
 				)
 			}
 
@@ -588,6 +594,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				package_map,
 				expr.attributes,
 				.None,
+				nil,
 			)
 		case ^ast.Proc_Group:
 			token = v^
