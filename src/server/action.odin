@@ -80,6 +80,10 @@ add_missing_imports :: proc(
 	actions: ^[dynamic]CodeAction,
 ) {
 	if name, ok := selector.expr.derived.(^ast.Ident); ok {
+		// If we already know what the name is referring to, don't prompt anything
+		if _, ok := resolve_type_identifier(ast_context, name^); ok {
+			return
+		}
 		for collection, pkgs in build_cache.pkg_aliases {
 			for pkg in pkgs {
 				fullpath := path.join({config.collections[collection], pkg})
@@ -97,7 +101,6 @@ add_missing_imports :: proc(
 
 				if pkg == name.name {
 					pkg_decl := ast_context.file.pkg_decl
-					log.error(pkg_decl.end.line)
 					import_edit := TextEdit {
 						range = {
 							start = {line = pkg_decl.end.line + 1, character = 0},
