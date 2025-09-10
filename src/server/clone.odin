@@ -258,7 +258,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Proc_Lit:
 		r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings)
 		r.body = nil
-		r.where_clauses = nil
+		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
 	case ^Helper_Type:
 		r.type = clone_type(r.type, allocator, unique_strings)
 	case ^Type_Cast:
