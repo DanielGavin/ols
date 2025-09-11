@@ -1,7 +1,6 @@
 package server
 
 import "core:strings"
-import "core:slice"
 import "core:fmt"
 import "core:log"
 import "core:odin/ast"
@@ -37,8 +36,12 @@ get_inlay_hints :: proc(
 				return nil
 			}
 
-			if call, ok := node.derived.(^ast.Call_Expr); ok {
-				visit_call(call, (^Visitor_Data)(visitor.data))
+			if call, is_call := node.derived.(^ast.Call_Expr); is_call {
+				data := (^Visitor_Data)(visitor.data)
+				if !visit_call(call, data) {
+					log.errorf("Failed to get inlay hints for call expression: `%s`",
+						get_ast_node_string(call, string(data.document.text)))
+				}
 			}
 
 			return visitor
@@ -75,6 +78,8 @@ get_inlay_hints :: proc(
 		label_idx := 0
 		arg_idx   := 0
 
+		if param_idx >= len(proc_symbol.arg_types) do return true
+
 		// Positional arguments
 		positional: for ; arg_idx < len(call.args); arg_idx += 1 {
 			arg := call.args[arg_idx]
@@ -91,8 +96,8 @@ get_inlay_hints :: proc(
 
 				// Collect parameter names for this multi-return call
 				for i in 0..<len(arg_proc_symbol.return_types) {
-					param := slice.get(proc_symbol.arg_types, param_idx) or_break
-					label := slice.get(param.names, label_idx) or_break
+					param := proc_symbol.arg_types[param_idx]
+					label := param.names[label_idx]
 
 					label_name, label_has_name := expr_name(label)
 					if data.config.enable_inlay_hints_params && label_has_name {
@@ -106,7 +111,7 @@ get_inlay_hints :: proc(
 						param_idx += 1
 						label_idx = 0
 						if param_idx >= len(proc_symbol.arg_types) {
-							return // end of parameters
+							return true // end of parameters
 						}
 					}
 				}
@@ -125,7 +130,7 @@ get_inlay_hints :: proc(
 			// provided as named
 			if _, is_field := arg.derived.(^ast.Field_Value); is_field do break
 
-			param := slice.get(proc_symbol.arg_types, param_idx) or_return
+			param := proc_symbol.arg_types[param_idx]
 
 			// param is variadic
 			if param.type != nil {
@@ -133,8 +138,7 @@ get_inlay_hints :: proc(
 			}
 
 			// Single-value argument
-			label := slice.get(param.names, label_idx) or_return
-
+			label := param.names[label_idx]
 			label_name := expr_name(label) or_return
 			arg_name, arg_has_name := expr_name(arg)
 
@@ -151,20 +155,20 @@ get_inlay_hints :: proc(
 				param_idx += 1
 				label_idx = 0
 				if param_idx >= len(proc_symbol.arg_types) {
-					return // end of parameters
+					return true // end of parameters
 				}
 			}
 		}
 
 		// Variadic arguments
 		variadic: {
-			param := slice.get(proc_symbol.arg_types, param_idx) or_return
+			param := proc_symbol.arg_types[param_idx]
 
 			// param is variadic
 			if param.type == nil do break variadic
 			_ = param.type.derived.(^ast.Ellipsis) or_break variadic
 
-			label := slice.get(param.names, 0) or_return
+			label := param.names[0]
 			label_name := expr_name(label) or_return
 
 			init_arg_idx := arg_idx
@@ -188,7 +192,7 @@ get_inlay_hints :: proc(
 			param_idx += 1
 			label_idx = 0
 			if param_idx >= len(proc_symbol.arg_types) {
-				return // end of parameters
+				return true // end of parameters
 			}
 		}
 
@@ -198,11 +202,11 @@ get_inlay_hints :: proc(
 			init_arg_idx := arg_idx
 			added_default_hint := false
 
-			for ; param_idx < len(proc_symbol.arg_types); param_idx, label_idx = param_idx + 1, 0 {
-				param := slice.get(proc_symbol.arg_types, param_idx) or_return
+			for ; param_idx < len(proc_symbol.arg_types); param_idx, label_idx = param_idx+1, 0 {
+				param := proc_symbol.arg_types[param_idx]
 
 				label_loop: for ; label_idx < len(param.names); label_idx += 1 {
-					label := slice.get(param.names, label_idx) or_return
+					label := param.names[label_idx]
 					label_name := expr_name(label) or_return
 
 					if param.default_value == nil do continue
