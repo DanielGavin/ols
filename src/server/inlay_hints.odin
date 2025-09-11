@@ -1,5 +1,6 @@
 package server
 
+import "core:strings"
 import "core:slice"
 import "core:fmt"
 import "core:log"
@@ -75,8 +76,51 @@ get_inlay_hints :: proc(
 		arg_idx   := 0
 
 		// Positional arguments
-		for ; arg_idx < len(call.args); arg_idx += 1 {
+		positional: for ; arg_idx < len(call.args); arg_idx += 1 {
 			arg := call.args[arg_idx]
+
+			// for multi-return function call arguments
+			multi_return: {
+				arg_call := arg.derived.(^ast.Call_Expr) or_break multi_return
+				arg_symbol_and_node := data.symbols[uintptr(arg_call.expr)] or_break multi_return
+				arg_proc_symbol := arg_symbol_and_node.symbol.value.(SymbolProcedureValue) or_break multi_return
+
+				if len(arg_proc_symbol.return_types) <= 1 do break multi_return
+
+				hint_text_sb := strings.builder_make(context.temp_allocator)
+
+				// Collect parameter names for this multi-return call
+				for i in 0..<len(arg_proc_symbol.return_types) {
+					param := slice.get(proc_symbol.arg_types, param_idx) or_break
+					label := slice.get(param.names, label_idx) or_break
+
+					label_name, label_has_name := expr_name(label)
+					if data.config.enable_inlay_hints_params && label_has_name {
+						if i > 0 do strings.write_string(&hint_text_sb, ", ")
+						strings.write_string(&hint_text_sb, label_name)
+					}
+
+					// advance to next param
+					label_idx += 1
+					if label_idx >= len(param.names) {
+						param_idx += 1
+						label_idx = 0
+						if param_idx >= len(proc_symbol.arg_types) {
+							return // end of parameters
+						}
+					}
+				}
+
+				// Add combined param name hint
+				if data.config.enable_inlay_hints_params && strings.builder_len(hint_text_sb) > 0 {
+					range := common.get_token_range(arg, string(data.document.text))
+					strings.write_string(&hint_text_sb, " = ")
+					hint_text := strings.to_string(hint_text_sb)
+					append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
+				}
+
+				continue positional
+			}
 
 			// provided as named
 			if _, is_field := arg.derived.(^ast.Field_Value); is_field do break
@@ -88,6 +132,7 @@ get_inlay_hints :: proc(
 				if _, is_variadic := param.type.derived.(^ast.Ellipsis); is_variadic do break
 			}
 
+			// Single-value argument
 			label := slice.get(param.names, label_idx) or_return
 
 			label_name := expr_name(label) or_return
@@ -96,10 +141,11 @@ get_inlay_hints :: proc(
 			// Add param name hint (skip idents with same name as param)
 			if data.config.enable_inlay_hints_params && (!arg_has_name || arg_name != label_name) {
 				range := common.get_token_range(arg, string(data.document.text))
-				hint_label := fmt.tprintf("%v = ", label_name)
-				append(&data.hints, InlayHint{range.start, .Parameter, hint_label})
+				hint_text := fmt.tprintf("%v = ", label_name)
+				append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
 			}
 
+			// advance to next param
 			label_idx += 1
 			if label_idx >= len(param.names) {
 				param_idx += 1
@@ -134,10 +180,11 @@ get_inlay_hints :: proc(
 			if arg_idx > init_arg_idx && data.config.enable_inlay_hints_params {
 				// get range from first variadic arg
 				range := common.get_token_range(call.args[init_arg_idx], string(data.document.text))
-				hint_label := fmt.tprintf("%v = ", label_name)
-				append(&data.hints, InlayHint{range.start, .Parameter, hint_label})
+				hint_text := fmt.tprintf("%v = ", label_name)
+				append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
 			}
 
+			// advance to next param
 			param_idx += 1
 			label_idx = 0
 			if param_idx >= len(proc_symbol.arg_types) {
@@ -185,8 +232,8 @@ get_inlay_hints :: proc(
 
 					// Add default param hint
 					value := node_to_string(param.default_value)
-					hint_label := fmt.tprintf("%s%v = %v", needs_leading_comma ? ", " : "", label_name, value)
-					append(&data.hints, InlayHint{end_pos, .Parameter, hint_label})
+					hint_text := fmt.tprintf("%s%v = %v", needs_leading_comma ? ", " : "", label_name, value)
+					append(&data.hints, InlayHint{end_pos, .Parameter, hint_text})
 
 					added_default_hint = true
 				}
