@@ -10,30 +10,12 @@ ast_inlay_hints_default_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		my_function :: proc(a := false, b := 42) {}
+		foo :: proc(a := false, b := 42) {}
+		bar :: proc(a: int, b := false, c := 42) {}
 
 		main :: proc() {
-			my_function([[a = false]][[, b = 42]])
-		}
-		`,
-		packages = {},
-		config = {
-			enable_inlay_hints_default_params = true,
-		},
-	}
-
-	test.expect_inlay_hints(t, &source)
-}
-
-@(test)
-ast_inlay_hints_default_params_after_required :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-
-		my_function :: proc(a: int, b := false, c := 42) {}
-
-		main :: proc() {
-			my_function(1[[, b = false]][[, c = 42]])
+			foo([[a = false]][[, b = 42]])
+			bar(1[[, b = false]][[, c = 42]])
 		}
 		`,
 		packages = {},
@@ -50,35 +32,18 @@ ast_inlay_hints_default_params_after_named :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		my_function :: proc(a: int, b := false, c := 42) {}
+		my_function :: proc(a: int = 1, b := false, c := 42) {}
 
 		main :: proc() {
 			my_function(a=1[[, b = false]][[, c = 42]])
+			my_function([[a = ]]1, c=42[[, b = false]])
+			my_function(c=42, a=1[[, b = false]])
+			my_function(b=true, a=1[[, c = 42]])
 		}
 		`,
 		packages = {},
 		config = {
 			enable_inlay_hints_params = true,
-			enable_inlay_hints_default_params = true,
-		},
-	}
-
-	test.expect_inlay_hints(t, &source)
-}
-
-@(test)
-ast_inlay_hints_default_params_named_ooo :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-
-		my_function :: proc(a: int, b := false, c := 42) {}
-
-		main :: proc() {
-			my_function(1, c=42[[, b = false]])
-		}
-		`,
-		packages = {},
-		config = {
 			enable_inlay_hints_default_params = true,
 		},
 	}
@@ -178,15 +143,40 @@ ast_inlay_hints_variadic_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		variadic_func :: proc(args: ..int) {}
+		variadic_func :: proc(args: ..int, default := 2) {}
 
 		main :: proc() {
-			variadic_func([[args = ]]1, 2, 3)
+			variadic_func([[args = ]]1, 2, 3[[, default = 2]])
+			variadic_func([[args = ]]1, 2, default=3)
 		}
 		`,
 		packages = {},
 		config = {
 			enable_inlay_hints_params = true,
+			enable_inlay_hints_default_params = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
+ast_inlay_hints_multi_return_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		func :: proc (a: int, b: int = 2, c := 3) {}
+
+		two :: proc () -> (int, int) {return 1, 2}
+
+		main :: proc() {
+			func([[a, b = ]]two()[[, c = 3]])
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_params = true,
+			enable_inlay_hints_default_params = true,
 		},
 	}
 
