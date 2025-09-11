@@ -1332,3 +1332,55 @@ ast_reference_struct_field_bitfield_backing_type :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_comp_lit_map_key :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a{*}: int,
+		}
+
+		Bar :: struct {
+			b: int,
+		}
+
+		main :: proc() {
+			m: map[Foo]Bar
+			m[{a = 1}] = {b = 2}
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
+		{range = {start = {line = 11, character = 6}, end = {line = 11, character = 7}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_references_comp_lit_map_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+		}
+
+		Bar :: struct {
+			b{*}: int,
+		}
+
+		main :: proc() {
+			m: map[Foo]Bar
+			m[{a = 1}] = {b = 2}
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 6, character = 3}, end = {line = 6, character = 4}}},
+		{range = {start = {line = 11, character = 17}, end = {line = 11, character = 18}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

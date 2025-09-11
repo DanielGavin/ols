@@ -1995,8 +1995,6 @@ internal_resolve_comp_literal :: proc(
 				position_context.function.type.results.list[return_index].type,
 			) or_return
 		}
-	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
-		symbol = resolve_proc(ast_context, position_context.value_decl.type) or_return
 	} else if position_context.assign != nil {
 		if len(position_context.assign.lhs) > 0 {
 			if position_in_exprs(position_context.assign.lhs, position_context.position) {
@@ -2030,6 +2028,8 @@ internal_resolve_comp_literal :: proc(
 				symbol = resolve_proc(ast_context, position_context.assign.lhs[index]) or_return
 			}
 		}
+	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
+		symbol = resolve_proc(ast_context, position_context.value_decl.type) or_return
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)
