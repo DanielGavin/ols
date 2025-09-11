@@ -165,12 +165,14 @@ ast_inlay_hints_multi_return_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		func :: proc (a: int, b: int = 2, c := 3) {}
+		takes_three_required :: proc (a, b, c: int) {}
+		takes_three_optional :: proc (a: int, b: int = 2, c := 3) {}
 
-		two :: proc () -> (int, int) {return 1, 2}
+		returns_two :: proc () -> (int, int) {return 1, 2}
 
-		main :: proc() {
-			func([[a, b = ]]two()[[, c = 3]])
+		main :: proc () {
+			takes_three_required([[a, b = ]]returns_two(), [[c = ]]3)
+			takes_three_optional([[a, b = ]]returns_two()[[, c = 3]])
 		}
 		`,
 		packages = {},
