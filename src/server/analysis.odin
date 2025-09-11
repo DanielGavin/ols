@@ -1997,6 +1997,21 @@ internal_resolve_comp_literal :: proc(
 		}
 	} else if position_context.value_decl != nil && position_context.value_decl.type != nil {
 		symbol = resolve_proc(ast_context, position_context.value_decl.type) or_return
+	} else if position_context.assign != nil {
+		if len(position_context.assign.lhs) > 0 {
+			index := 0
+			for value, i in position_context.assign.rhs {
+				if position_in_node(value, position_context.position) {
+					index = i
+					break
+				}
+			}
+			// Just to be safe
+			if index >= len(position_context.assign.lhs) {
+				index = 0
+			}
+			symbol = resolve_proc(ast_context, position_context.assign.lhs[index]) or_return
+		}
 	}
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)

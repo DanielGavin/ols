@@ -4545,6 +4545,90 @@ ast_hover_proc_named_return_parens :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc() -> (a: int)")
 }
+
+@(test)
+ast_hover_map_value_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			m: map[int]Foo
+			m[0] = {
+				f{*}oo = 1,
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.foo: int")
+}
+
+@(test)
+ast_hover_assign_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo = {
+				f{*}oo = 1,
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.foo: int")
+}
+
+@(test)
+ast_hover_assign_comp_lit_with_multiple_assigns_first :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+		}
+
+		Bar :: struct {
+			b: int,
+		}
+
+		main :: proc() {
+			foo: Foo
+			bar: Bar
+
+			foo, bar = {a{*} = 1}, {b = 2}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.a: int")
+}
+
+@(test)
+ast_hover_assign_comp_lit_with_multiple_assigns_second :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+		}
+
+		Bar :: struct {
+			b: int,
+		}
+
+		main :: proc() {
+			foo: Foo
+			bar: Bar
+
+			foo, bar = {a = 1}, {b{*} = 2}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Bar.b: int")
+}
 /*
 
 Waiting for odin fix
