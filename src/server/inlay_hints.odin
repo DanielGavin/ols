@@ -14,77 +14,65 @@ get_inlay_hints :: proc(
 	[]InlayHint,
 	bool,
 ) {
-	hints := make([dynamic]InlayHint, context.temp_allocator)
-
-	ast_context := make_ast_context(
-		document.ast,
-		document.imports,
-		document.package_name,
-		document.uri.uri,
-		document.fullpath,
-	)
-
-	Visit_Data :: struct {
-		calls: [dynamic]^ast.Node,
+	Visitor_Data :: struct {
+		hints:    [dynamic]InlayHint,
+		document: ^Document,
+		symbols:  map[uintptr]SymbolAndNode,
+		config:   ^common.Config,
 	}
 
-	data := Visit_Data {
-		calls = make([dynamic]^ast.Node, context.temp_allocator),
+	data := Visitor_Data{
+		hints    = make([dynamic]InlayHint, context.temp_allocator),
+		document = document,
+		symbols  = symbols,
+		config   = config,
 	}
 
-	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
-		if node == nil || visitor == nil {
-			return nil
-		}
-
-		data := cast(^Visit_Data)visitor.data
-
-		if call, ok := node.derived.(^ast.Call_Expr); ok {
-			append(&data.calls, node)
-		}
-
-		return visitor
-	}
-
-	visitor := ast.Visitor {
+	visitor := ast.Visitor{
 		data  = &data,
-		visit = visit,
+		visit = proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+			if node == nil || visitor == nil {
+				return nil
+			}
+
+			if call, ok := node.derived.(^ast.Call_Expr); ok {
+				visit_call(call, (^Visitor_Data)(visitor.data))
+			}
+
+			return visitor
+		},
 	}
 
 	for decl in document.ast.decls {
 		ast.walk(&visitor, decl)
 	}
 
-
-	loop: for node_call in &data.calls {
+	visit_call :: proc (
+		call: ^ast.Call_Expr,
+		data: ^Visitor_Data,
+	) -> (ok: bool) {
 
 		is_ellipsis := false
 		has_added_default := false
 
-		call := node_call.derived.(^ast.Call_Expr)
-
 		selector, is_selector_call := call.expr.derived.(^ast.Selector_Expr)
 		is_selector_call &&= selector.op.kind == .Arrow_Right
 
-		end_pos := common.token_pos_to_position(call.close, string(document.text))
+		end_pos := common.token_pos_to_position(call.close, string(data.document.text))
 
-		symbol_and_node := symbols[cast(uintptr)call.expr] or_continue
-		symbol_call := symbol_and_node.symbol.value.(SymbolProcedureValue) or_continue
-		
+		symbol_and_node := data.symbols[cast(uintptr)call.expr] or_return
+		symbol_call := symbol_and_node.symbol.value.(SymbolProcedureValue) or_return
+
 		positional_arg_idx := 0
 
 		expr_name :: proc (node: ^ast.Node) -> (name: string, ok: bool) {
 			#partial switch v in node.derived {
-			case ^ast.Ident:
-				return v.name, true
-			case ^ast.Poly_Type:
-				ident := v.type.derived.(^ast.Ident) or_return
-				return ident.name, true
-			case:
-				return
+			case ^ast.Ident: return v.name, true
+			case ^ast.Poly_Type: return expr_name(v.type)
+			case: return
 			}
 		}
-		
+
 		for arg, arg_type_idx in symbol_call.arg_types {
 			if arg_type_idx == 0 && is_selector_call {
 				continue
@@ -95,7 +83,7 @@ get_inlay_hints :: proc(
 				arg_call_idx := arg_type_idx + name_idx
 				if is_selector_call do arg_call_idx -= 1
 
-				label := expr_name(name) or_continue loop
+				label := expr_name(name) or_return
 
 				is_provided_named, is_provided_positional: bool
 				call_arg: ^ast.Expr
@@ -122,11 +110,11 @@ get_inlay_hints :: proc(
 				if is_ellipsis || (!is_provided_named && !is_provided_positional) {
 					// This parameter is not provided, so it should use default value
 					if arg.default_value == nil {
-						continue loop
+						return
 					}
 
-					if !config.enable_inlay_hints_default_params {
-						continue loop
+					if !data.config.enable_inlay_hints_default_params {
+						return
 					}
 
 					value := node_to_string(arg.default_value)
@@ -134,7 +122,7 @@ get_inlay_hints :: proc(
 					needs_leading_comma := arg_call_idx > 0
 
 					if !has_added_default && needs_leading_comma {
-						till_end := string(document.text[:call.close.offset])
+						till_end := string(data.document.text[:call.close.offset])
 						#reverse for ch in till_end {
 							switch ch {
 							case ' ', '\t', '\n':
@@ -151,22 +139,22 @@ get_inlay_hints :: proc(
 						label    = fmt.tprintf("%s%v = %v", needs_leading_comma ? ", " : "", label, value),
 						position = end_pos,
 					}
-					append(&hints, hint)
+					append(&data.hints, hint)
 
 					has_added_default = true
-				} else if config.enable_inlay_hints_params && is_provided_positional && !is_provided_named {
+				} else if data.config.enable_inlay_hints_params && is_provided_positional && !is_provided_named {
 					// This parameter is provided via positional argument, show parameter hint
 
 					// if the arg name and param name are the same, don't add it.
 					call_arg_name, _ := expr_name(call_arg)
 					if call_arg_name != label {
-						range := common.get_token_range(call_arg, string(document.text))
+						range := common.get_token_range(call_arg, string(data.document.text))
 						hint := InlayHint {
 							kind     = .Parameter,
 							label    = fmt.tprintf("%v = ", label),
 							position = range.start,
 						}
-						append(&hints, hint)
+						append(&data.hints, hint)
 					}
 				}
 
@@ -176,7 +164,9 @@ get_inlay_hints :: proc(
 				}
 			}
 		}
+
+		return true
 	}
 
-	return hints[:], true
+	return data.hints[:], true
 }
