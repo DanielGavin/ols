@@ -1999,18 +1999,36 @@ internal_resolve_comp_literal :: proc(
 		symbol = resolve_proc(ast_context, position_context.value_decl.type) or_return
 	} else if position_context.assign != nil {
 		if len(position_context.assign.lhs) > 0 {
-			index := 0
-			for value, i in position_context.assign.rhs {
-				if position_in_node(value, position_context.position) {
-					index = i
-					break
+			if position_in_exprs(position_context.assign.lhs, position_context.position) {
+				for n in position_context.assign.lhs {
+					if position_in_node(n, position_context.position) {
+						// check if we're a comp literal of a map key
+						if index_expr, ok := n.derived.(^ast.Index_Expr); ok {
+							if s, ok := resolve_proc(ast_context, index_expr.expr); ok {
+								if value, ok := s.value.(SymbolMapValue); ok {
+									symbol = resolve_proc(ast_context, value.key) or_return
+								}
+							}
+						} else {
+							symbol = resolve_proc(ast_context, n) or_return
+						}
+						break
+					}
 				}
+			} else {
+				index := 0
+				for value, i in position_context.assign.rhs {
+					if position_in_node(value, position_context.position) {
+						index = i
+						break
+					}
+				}
+				// Just to be safe
+				if index >= len(position_context.assign.lhs) {
+					index = 0
+				}
+				symbol = resolve_proc(ast_context, position_context.assign.lhs[index]) or_return
 			}
-			// Just to be safe
-			if index >= len(position_context.assign.lhs) {
-				index = 0
-			}
-			symbol = resolve_proc(ast_context, position_context.assign.lhs[index]) or_return
 		}
 	}
 

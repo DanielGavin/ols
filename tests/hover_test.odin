@@ -4629,6 +4629,27 @@ ast_hover_assign_comp_lit_with_multiple_assigns_second :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "Bar.b: int")
 }
+
+@(test)
+ast_hover_comp_lit_map_key :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+		}
+
+		Bar :: struct {
+			b: int,
+		}
+
+		main :: proc() {
+			m: map[Foo]Bar
+			m[{a{*} = 1}] = {b = 2}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.a: int")
+}
 /*
 
 Waiting for odin fix
