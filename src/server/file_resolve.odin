@@ -561,6 +561,15 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.name, data)
 		resolve_node(n.type, data)
 		resolve_node(n.bit_size, data)
+		if data.flag != .None {
+			data.symbols[cast(uintptr)n.name] = SymbolAndNode {
+				node = n.name,
+				symbol = Symbol{
+					range = common.get_token_range(n.name, string(data.document.text)),
+					uri = strings.clone(common.create_uri(n.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+				},
+			}
+		}
 	case:
 	}
 
