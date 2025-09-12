@@ -627,3 +627,51 @@ ast_goto_soa_field :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_nested_using_bit_field_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			a: int,
+			using _: bit_field u8 {
+				b: u8 | 4
+			}
+		}
+
+		main :: proc() {
+			foo: Foo
+			b := foo.b{*}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 4, character = 4}, end = {line = 4, character = 5}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_goto_nested_using_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			a: int,
+			using _: struct {
+				b: u8
+			}
+		}
+
+		main :: proc() {
+			foo: Foo
+			b := foo.b{*}
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 4, character = 4}, end = {line = 4, character = 5}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}

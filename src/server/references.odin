@@ -50,42 +50,13 @@ prepare_references :: proc(
 	ok = false
 	pkg := ""
 
-	if position_context.struct_type != nil {
-		found := false
-		done_struct: for field in position_context.struct_type.fields.list {
-			for name in field.names {
-				if position_in_node(name, position_context.position) {
-					symbol = Symbol {
-						range = common.get_token_range(name, ast_context.file.src),
-						pkg = ast_context.current_package,
-					}
-					found = true
-					resolve_flag = .Field
-					break done_struct
-				}
-			}
-			if position_in_node(field.type, position_context.position) {
-				node := get_desired_expr(field.type, position_context.position)
-				symbol, ok = resolve_location_type_expression(ast_context, node)
-				if !ok {
-					return
-				}
-
-				found = true
-				resolve_flag = .Identifier
-				break done_struct
-			}
-		}
-		if !found {
-			return
-		}
-	} else if position_context.enum_type != nil {
+	if position_context.enum_type != nil {
 		found := false
 		done_enum: for field in position_context.enum_type.fields {
 			if ident, ok := field.derived.(^ast.Ident); ok {
 				if position_in_node(ident, position_context.position) {
 					symbol = Symbol {
-						pkg = ast_context.current_package,
+						pkg   = ast_context.current_package,
 						range = common.get_token_range(ident, ast_context.file.src),
 					}
 					found = true
@@ -96,7 +67,7 @@ prepare_references :: proc(
 				if position_in_node(value.field, position_context.position) {
 					symbol = Symbol {
 						range = common.get_token_range(value.field, ast_context.file.src),
-						pkg = ast_context.current_package,
+						pkg   = ast_context.current_package,
 					}
 					found = true
 					resolve_flag = .Field
@@ -198,17 +169,61 @@ prepare_references :: proc(
 		if !ok {
 			return
 		}
-	} else if position_context.identifier != nil {
-		ident := position_context.identifier.derived.(^ast.Ident)
-		symbol, ok = resolve_location_identifier(ast_context, ident^)
+	} else {
+		// The order of these is important as a lot of the above can be defined within a struct so we 
+		// need to make sure we resolve that last
+		if position_context.bit_field_type != nil {
+			for field in position_context.bit_field_type.fields {
+				if position_in_node(field.name, position_context.position) {
+					symbol = Symbol {
+						range = common.get_token_range(field.name, ast_context.file.src),
+						pkg   = ast_context.current_package,
+						uri   = document.uri.uri,
+					}
+					return symbol, .Field, true
+				}
+				if position_in_node(field.type, position_context.position) {
+					node := get_desired_expr(field.type, position_context.position)
+					if symbol, ok = resolve_location_type_expression(ast_context, node); ok {
+						return symbol, .Identifier, true
+					}
+				}
+			}
+		}
 
-		resolve_flag = .Identifier
+		if position_context.struct_type != nil {
+			for field in position_context.struct_type.fields.list {
+				for name in field.names {
+					if position_in_node(name, position_context.position) {
+						symbol = Symbol {
+							range = common.get_token_range(name, ast_context.file.src),
+							pkg   = ast_context.current_package,
+							uri   = document.uri.uri,
+						}
+						return symbol, .Field, true
+					}
+				}
+				if position_in_node(field.type, position_context.position) {
+					node := get_desired_expr(field.type, position_context.position)
+					if symbol, ok = resolve_location_type_expression(ast_context, node); ok {
+						return symbol, .Identifier, true
+					}
+				}
+			}
+		}
 
-		if !ok {
+		if position_context.identifier != nil {
+			ident := position_context.identifier.derived.(^ast.Ident)
+			symbol, ok = resolve_location_identifier(ast_context, ident^)
+
+			resolve_flag = .Identifier
+
+			if !ok {
+				return
+			}
+		} else {
 			return
 		}
-	} else {
-		return
 	}
 	if symbol.uri == "" {
 		symbol.uri = document.uri.uri

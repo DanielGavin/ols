@@ -4650,6 +4650,36 @@ ast_hover_comp_lit_map_key :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "Foo.a: int")
 }
+
+@(test)
+ast_hover_inner_struct_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+			b: struct {
+				c{*}: int,
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "struct.c: int")
+}
+
+@(test)
+ast_hover_using_bit_field_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+			using _: bit_field u8 {
+				c{*}: u8 | 8,
+			},
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "bit_field.c: u8 | 8")
+}
 /*
 
 Waiting for odin fix
