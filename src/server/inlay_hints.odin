@@ -38,10 +38,7 @@ get_inlay_hints :: proc(
 
 			if call, is_call := node.derived.(^ast.Call_Expr); is_call {
 				data := (^Visitor_Data)(visitor.data)
-				if !visit_call(call, data) {
-					log.errorf("Failed to get inlay hints for call expression: `%s`",
-						get_ast_node_string(call, string(data.document.text)))
-				}
+				visit_call(call, data)
 			}
 
 			return visitor
@@ -65,20 +62,20 @@ get_inlay_hints :: proc(
 		data: ^Visitor_Data,
 	) -> (ok: bool) {
 
-		selector, is_selector_call := call.expr.derived.(^ast.Selector_Expr)
-		is_selector_call &&= selector.op.kind == .Arrow_Right
-
 		src := string(data.document.text)
 		end_pos := common.token_pos_to_position(call.close, src)
 
-		symbol_and_node := data.symbols[uintptr(call.expr)] or_return
-		proc_symbol := symbol_and_node.symbol.value.(SymbolProcedureValue) or_return
+		selector, is_selector_call := call.expr.derived.(^ast.Selector_Expr)
+		is_selector_call &&= selector.op.kind == .Arrow_Right
+
+		symbol_and_node := data.symbols[uintptr(call.expr)] or_return // could not resolve symbol
+		proc_symbol := symbol_and_node.symbol.value.(SymbolProcedureValue) or_return // not a procedure call, e.g. type cast
 
 		param_idx := 1 if is_selector_call else 0
 		label_idx := 0
 		arg_idx   := 0
 
-		if param_idx >= len(proc_symbol.arg_types) do return true
+		if param_idx >= len(proc_symbol.arg_types) do return true // no parameters
 
 		// Positional arguments
 		positional: for ; arg_idx < len(call.args); arg_idx += 1 {
@@ -118,7 +115,7 @@ get_inlay_hints :: proc(
 
 				// Add combined param name hint
 				if data.config.enable_inlay_hints_params && strings.builder_len(hint_text_sb) > 0 {
-					range := common.get_token_range(arg, string(data.document.text))
+					range := common.get_token_range(arg, src)
 					strings.write_string(&hint_text_sb, " = ")
 					hint_text := strings.to_string(hint_text_sb)
 					append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
@@ -137,16 +134,18 @@ get_inlay_hints :: proc(
 				if _, is_variadic := param.type.derived.(^ast.Ellipsis); is_variadic do break
 			}
 
-			// Single-value argument
-			label := param.names[label_idx]
-			label_name := expr_name(label) or_return
-			arg_name, arg_has_name := expr_name(arg)
+			// Add param name hint for single-value arg
+			if data.config.enable_inlay_hints_params {
+				label := param.names[label_idx]
+				label_name, label_has_name := expr_name(label)
+				arg_name, arg_has_name := expr_name(arg)
 
-			// Add param name hint (skip idents with same name as param)
-			if data.config.enable_inlay_hints_params && (!arg_has_name || arg_name != label_name) {
-				range := common.get_token_range(arg, string(data.document.text))
-				hint_text := fmt.tprintf("%v = ", label_name)
-				append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
+				// Add param name hint (skip idents with same name as param)
+				if label_has_name && (!arg_has_name || arg_name != label_name) {
+					range := common.get_token_range(arg, src)
+					hint_text := fmt.tprintf("%v = ", label_name)
+					append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
+				}
 			}
 
 			// advance to next param
@@ -168,24 +167,20 @@ get_inlay_hints :: proc(
 			if param.type == nil do break variadic
 			_ = param.type.derived.(^ast.Ellipsis) or_break variadic
 
-			label := param.names[0]
-			label_name := expr_name(label) or_return
-
+			// skip all provided args
 			init_arg_idx := arg_idx
-			for arg_idx < len(call.args) {
-
+			for ; arg_idx < len(call.args); arg_idx += 1 {
 				// provided as named
 				if _, is_field := call.args[arg_idx].derived.(^ast.Field_Value); is_field do break
-
-				arg_idx += 1
 			}
 
 			// Add param name hint
 			if arg_idx > init_arg_idx && data.config.enable_inlay_hints_params {
-				// get range from first variadic arg
-				range := common.get_token_range(call.args[init_arg_idx], string(data.document.text))
-				hint_text := fmt.tprintf("%v = ", label_name)
-				append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
+				if label_name, label_has_name := expr_name(param.names[0]); label_has_name {
+					range := common.get_token_range(call.args[init_arg_idx], src)
+					hint_text := fmt.tprintf("%v = ", label_name)
+					append(&data.hints, InlayHint{range.start, .Parameter, hint_text})
+				}
 			}
 
 			// advance to next param
@@ -207,7 +202,7 @@ get_inlay_hints :: proc(
 
 				label_loop: for ; label_idx < len(param.names); label_idx += 1 {
 					label := param.names[label_idx]
-					label_name := expr_name(label) or_return
+					label_name := expr_name(label) or_continue
 
 					if param.default_value == nil do continue
 
