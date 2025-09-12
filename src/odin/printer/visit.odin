@@ -2094,7 +2094,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 			if len(field.names) != 0 {
 				document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), align)
 			}
-			document = cons_with_opl(document, visit_expr(p, field.type))
+			document = cons_with_nopl(document, visit_expr(p, field.type))
 		} else {
 			document = cons(document, text(":"), text("="))
 			document = cons_with_opl(document, visit_expr(p, field.default_value))
