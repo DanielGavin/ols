@@ -10,7 +10,7 @@ then
     #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
     cd tests
 
-    odin test ../tests -collection:src=../src -test-name:$@ -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_TRACK_MEMORY=false
+    odin test ../tests -collection:src=../src -define:ODIN_TEST_NAMES=$@ -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_TRACK_MEMORY=false
 
     shift
 
@@ -40,6 +40,25 @@ then
 
 	exit 0
 fi
+
+if [[ $1 == "build_test" ]]
+then
+    shift
+
+    #BUG in odin test, it makes the executable with the same name as a folder and gets confused.
+    cd tests
+
+    odin build ../tests -build-mode:test -collection:src=../src $@ -define:ODIN_TEST_THREADS=1 -define:ODIN_TEST_TRACK_MEMORY=false
+
+    if ([ $? -ne 0 ])
+    then
+        echo "Build failed"
+        exit 1
+    fi
+
+	exit 0
+fi
+
 if [[ $1 == "debug" ]]
 then
     shift

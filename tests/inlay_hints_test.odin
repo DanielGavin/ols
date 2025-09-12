@@ -10,10 +10,12 @@ ast_inlay_hints_default_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		my_function :: proc(a := false, b := 42) {}
+		foo :: proc(a := false, b := 42) {}
+		bar :: proc(a: int, b := false, c := 42) {}
 
 		main :: proc() {
-			my_function()
+			foo([[a = false]][[, b = 42]])
+			bar(1[[, b = false]][[, c = 42]])
 		}
 		`,
 		packages = {},
@@ -22,43 +24,7 @@ ast_inlay_hints_default_params :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 15},
-		kind     = .Parameter,
-		label    = "a = false",
-	}, {
-		position = {5, 15},
-		kind     = .Parameter,
-		label    = ", b = 42",
-	}})
-}
-
-@(test)
-ast_inlay_hints_default_params_after_required :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-
-		my_function :: proc(a: int, b := false, c := 42) {}
-
-		main :: proc() {
-			my_function(1)
-		}
-		`,
-		packages = {},
-		config = {
-			enable_inlay_hints_default_params = true,
-		},
-	}
-
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 16},
-		kind     = .Parameter,
-		label    = ", b = false",
-	}, {
-		position = {5, 16},
-		kind     = .Parameter,
-		label    = ", c = 42",
-	}})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -66,10 +32,13 @@ ast_inlay_hints_default_params_after_named :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		my_function :: proc(a: int, b := false, c := 42) {}
+		my_function :: proc(a: int = 1, b := false, c := 42) {}
 
 		main :: proc() {
-			my_function(a=1)
+			my_function(a=1[[, b = false]][[, c = 42]])
+			my_function([[a = ]]1, c=42[[, b = false]])
+			my_function(c=42, a=1[[, b = false]])
+			my_function(b=true, a=1[[, c = 42]])
 		}
 		`,
 		packages = {},
@@ -79,39 +48,7 @@ ast_inlay_hints_default_params_after_named :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 18},
-		kind     = .Parameter,
-		label    = ", b = false",
-	}, {
-		position = {5, 18},
-		kind     = .Parameter,
-		label    = ", c = 42",
-	}})
-}
-
-@(test)
-ast_inlay_hints_default_params_named_ooo :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-
-		my_function :: proc(a: int, b := false, c := 42) {}
-
-		main :: proc() {
-			my_function(1, c=42)
-		}
-		`,
-		packages = {},
-		config = {
-			enable_inlay_hints_default_params = true,
-		},
-	}
-
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 22},
-		kind     = .Parameter,
-		label    = ", b = false",
-	}})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -122,7 +59,7 @@ ast_inlay_hints_params :: proc(t: ^testing.T) {
 		my_function :: proc(param1: int, param2: string) {}
 
 		main :: proc() {
-			my_function(123, "hello")
+			my_function([[param1 = ]]123, [[param2 = ]]"hello")
 		}
 		`,
 		packages = {},
@@ -131,15 +68,7 @@ ast_inlay_hints_params :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 15},
-		kind     = .Parameter,
-		label    = "param1 = ",
-	}, {
-		position = {5, 20},
-		kind     = .Parameter,
-		label    = "param2 = ",
-	}})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -150,7 +79,7 @@ ast_inlay_hints_mixed_params :: proc(t: ^testing.T) {
 		my_function :: proc(required: int, optional := false) {}
 
 		main :: proc() {
-			my_function(42)
+			my_function([[required = ]]42[[, optional = false]])
 		}
 		`,
 		packages = {},
@@ -160,15 +89,7 @@ ast_inlay_hints_mixed_params :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 15},
-		kind     = .Parameter,
-		label    = "required = ",
-	}, {
-		position = {5, 17},
-		kind     = .Parameter,
-		label    = ", optional = false",
-	}})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -183,7 +104,7 @@ ast_inlay_hints_selector_call :: proc(t: ^testing.T) {
 
 		main :: proc() {
 			p: Point
-			p->move(1.0, 2.0)
+			p->move([[dx = ]]1.0, [[dy = ]]2.0)
 		}
 		`,
 		packages = {},
@@ -192,15 +113,7 @@ ast_inlay_hints_selector_call :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {9, 11},
-		kind     = .Parameter,
-		label    = "dx = ",
-	}, {
-		position = {9, 16},
-		kind     = .Parameter,
-		label    = "dy = ",
-	}})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -222,7 +135,7 @@ ast_inlay_hints_no_hints_same_name :: proc(t: ^testing.T) {
 	}
 
 	// No hints should be shown when argument name matches parameter name
-	test.expect_inlay_hints(t, &source, {})
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -230,23 +143,46 @@ ast_inlay_hints_variadic_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 
-		variadic_func :: proc(args: ..int) {}
+		variadic_func :: proc(args: ..int, default := 2) {}
 
 		main :: proc() {
-			variadic_func(1, 2, 3)
+			variadic_func([[args = ]]1, 2, 3[[, default = 2]])
+			variadic_func([[args = ]]1, 2, default=3)
 		}
 		`,
 		packages = {},
 		config = {
 			enable_inlay_hints_params = true,
+			enable_inlay_hints_default_params = true,
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {{
-		position = {5, 17},
-		kind     = .Parameter,
-		label    = "args = ",
-	}})
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
+ast_inlay_hints_multi_return_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		takes_three_required :: proc (a, b, c: int) {}
+		takes_three_optional :: proc (a: int, b: int = 2, c := 3) {}
+
+		returns_two :: proc () -> (int, int) {return 1, 2}
+
+		main :: proc () {
+			takes_three_required([[a, b = ]]returns_two(), [[c = ]]3)
+			takes_three_optional([[a, b = ]]returns_two()[[, c = 3]])
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_params = true,
+			enable_inlay_hints_default_params = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
 }
 
 @(test)
@@ -267,5 +203,5 @@ ast_inlay_hints_disabled :: proc(t: ^testing.T) {
 		},
 	}
 
-	test.expect_inlay_hints(t, &source, {})
+	test.expect_inlay_hints(t, &source)
 }

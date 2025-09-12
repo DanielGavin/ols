@@ -1,4 +1,6 @@
 *.exe
+*.o
+*.bin
 *.pdb
 *.rdbg
 *.obj
