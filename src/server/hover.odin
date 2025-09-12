@@ -62,9 +62,9 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		return {}, false, true
 	}
 
-	if position_context.type_cast != nil && // check that we're actually on the 'cast' word
+	if position_context.type_cast != nil &&
 	   !position_in_node(position_context.type_cast.type, position_context.position) &&
-	   !position_in_node(position_context.type_cast.expr, position_context.position) {
+	   !position_in_node(position_context.type_cast.expr, position_context.position) { 	// check that we're actually on the 'cast' word
 		if str, ok := keywords_docs[position_context.type_cast.tok.text]; ok {
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
@@ -134,18 +134,24 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
 								if struct_symbol, ok := resolve_type_expression(
 									&ast_context,
-									position_context.value_decl.names[0],
+									&position_context.struct_type.node,
 								); ok {
-									if value, ok := struct_symbol.value.(SymbolStructValue); ok {
-										construct_struct_field_symbol(
-											&symbol,
-											struct_symbol.name,
-											value,
-											field_index + name_index,
-										)
-										build_documentation(&ast_context, &symbol, true)
-										hover.contents = write_hover_content(&ast_context, symbol)
-										return hover, true, true
+									if value_decl_symbol, ok := resolve_type_expression(
+										&ast_context,
+										position_context.value_decl.names[0],
+									); ok {
+										name := get_field_parent_name(value_decl_symbol, struct_symbol)
+										if value, ok := struct_symbol.value.(SymbolStructValue); ok {
+											construct_struct_field_symbol(
+												&symbol,
+												name,
+												value,
+												field_index + name_index,
+											)
+											build_documentation(&ast_context, &symbol, true)
+											hover.contents = write_hover_content(&ast_context, symbol)
+											return hover, true, true
+										}
 									}
 								}
 							}
@@ -162,12 +168,18 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
 							if bit_field_symbol, ok := resolve_type_expression(
 								&ast_context,
-								position_context.value_decl.names[0],
+								&position_context.bit_field_type.node,
 							); ok {
-								if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
-									construct_bit_field_field_symbol(&symbol, bit_field_symbol.name, value, i)
-									hover.contents = write_hover_content(&ast_context, symbol)
-									return hover, true, true
+								if value_decl_symbol, ok := resolve_type_expression(
+									&ast_context,
+									position_context.value_decl.names[0],
+								); ok {
+									name := get_field_parent_name(value_decl_symbol, bit_field_symbol)
+									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
+										construct_bit_field_field_symbol(&symbol, name, value, i)
+										hover.contents = write_hover_content(&ast_context, symbol)
+										return hover, true, true
+									}
 								}
 							}
 						}
@@ -456,4 +468,12 @@ get_soa_field_hover :: proc(
 		return hover, true, true
 	}
 	return {}, false, true
+}
+
+@(private = "file")
+get_field_parent_name :: proc(value_decl_symbol, symbol: Symbol) -> string {
+	if value_decl_symbol.range != symbol.range {
+		return symbol.name
+	}
+	return value_decl_symbol.name
 }
