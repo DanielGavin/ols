@@ -437,7 +437,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		return is_symbol_same_typed(ast_context, a_symbol, b_symbol) && a_is_soa == b_is_soa
 	case SymbolFixedArrayValue:
 		b_value := b.value.(SymbolFixedArrayValue)
-		if !are_fixed_arrays_same_len(ast_context, a_value, b_value) {
+		if !are_same_size(ast_context, a_value.len, b_value.len) {
 			return false
 		}
 
@@ -559,14 +559,45 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 			is_symbol_same_typed(ast_context, a_key_symbol, b_key_symbol) &&
 			is_symbol_same_typed(ast_context, a_value_symbol, b_value_symbol) \
 		)
+	case SymbolMatrixValue:
+		b_value := b.value.(SymbolMatrixValue)
+		if !are_same_size(ast_context, a_value.x, b_value.x) {
+			return false
+		}
+
+		if !are_same_size(ast_context, a_value.y, b_value.y) {
+			return false
+		}
+
+		a_symbol: Symbol
+		b_symbol: Symbol
+		ok: bool
+
+		set_ast_package_from_symbol_scoped(ast_context, a)
+
+		a_symbol, ok = resolve_type_expression(ast_context, a_value.expr)
+
+		if !ok {
+			return false
+		}
+
+		set_ast_package_from_symbol_scoped(ast_context, b)
+
+		b_symbol, ok = resolve_type_expression(ast_context, b_value.expr)
+
+		if !ok {
+			return false
+		}
+
+		return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
 	}
 
 	return false
 }
 
-are_fixed_arrays_same_len :: proc(ast_context: ^AstContext, a, b: SymbolFixedArrayValue) -> bool {
-	if a_symbol, ok := resolve_type_expression(ast_context, a.len); ok {
-		if b_symbol, ok := resolve_type_expression(ast_context, b.len); ok {
+are_same_size :: proc(ast_context: ^AstContext, a, b: ^ast.Expr) -> bool {
+	if a_symbol, ok := resolve_type_expression(ast_context, a); ok {
+		if b_symbol, ok := resolve_type_expression(ast_context, b); ok {
 			if a_len, ok := a_symbol.value.(SymbolUntypedValue); ok && a_len.type == .Integer {
 				if b_len, ok := b_symbol.value.(SymbolUntypedValue); ok && b_len.type == .Integer {
 					return a_len.tok.text == b_len.tok.text

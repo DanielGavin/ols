@@ -4680,6 +4680,38 @@ ast_hover_using_bit_field_struct :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "bit_field.c: u8 | 8")
 }
+
+@(test)
+ast_hover_proc_group_parapoly_matrix :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		mul :: proc {
+			matrix_mul,
+			matrix_mul_differ,
+		}
+
+		@(require_results)
+		matrix_mul :: proc "contextless" (a, b: $M/matrix[$N, N]$E) -> (c: M)
+			where !IS_ARRAY(E), IS_NUMERIC(E) #no_bounds_check {
+			return a * b
+		}
+
+		@(require_results)
+		matrix_mul_differ :: proc "contextless" (a: $A/matrix[$I, $J]$E, b: $B/matrix[J, $K]E) -> (c: matrix[I, K]E)
+			where !IS_ARRAY(E), IS_NUMERIC(E), I != K #no_bounds_check {
+			return a * b
+		}
+
+		main :: proc() {
+			a: matrix[3,3]int
+			b: matrix[3,2]int
+			c{*} := mul(a, b)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.c: matrix[3,2]int")
+}
 /*
 
 Waiting for odin fix
