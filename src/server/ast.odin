@@ -12,7 +12,9 @@ import "core:strings"
 keyword_map: map[string]struct{} = {
 	"typeid"        = {},
 	"string"        = {},
+	"string16"      = {},
 	"cstring"       = {},
+	"cstring16"     = {},
 	"int"           = {},
 	"uint"          = {},
 	"u8"            = {},

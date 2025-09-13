@@ -11,7 +11,9 @@ import "core:strings"
 keywords_docs: map[string]string = {
 	"typeid"        = "```odin\ntypeid :: typeid\n```\n`typeid` is a unique identifier for an Odin type at runtime. It can be mapped to relevant type information through `type_info_of`.",
 	"string"        = "```odin\nstring :: string\n```\n`string` is the set of all strings of 8-bit bytes, conventionally but not necessarily representing UTF-8 encoding text. A `string` may be empty but not `nil`. Elements of `string` type are immutable and indexable.",
+	"string16"      = "",
 	"cstring"       = "```odin\ncstring :: cstring\n```\n`cstring` is the set of all strings of 8-bit bytes terminated with a NUL (0) byte, conventionally but not necessarily representing UTF-8 encoding text. A `cstring` may be empty or `nil`. Elements of `cstring` type are immutable but not indexable.",
+	"cstring16"     = "",
 	"int"           = "```odin\nint :: int\n```\n`int` is a signed integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `i32`.",
 	"uint"          = "```odin\nuint :: uint\n```\n`uint` is an unsigned integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `u32`.",
 	"u8"            = "```odin\nu8 :: u8\n```\n`u8` is the set of all unsigned 8-bit integers. Range 0 through 255.",
@@ -489,7 +491,7 @@ write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProc
 		add_parens := false
 		if len(value.orig_return_types) > 1 {
 			add_parens = true
-		} else if field, ok := value.orig_return_types[0].derived.(^ast.Field); ok && len(field.names) > 0{
+		} else if field, ok := value.orig_return_types[0].derived.(^ast.Field); ok && len(field.names) > 0 {
 			add_parens = true
 		}
 
