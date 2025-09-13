@@ -296,12 +296,18 @@ resolve_type_comp_literal :: proc(
 	return current_symbol, current_comp_lit, true
 }
 
+// odinfmt: disable
 untyped_map: map[SymbolUntypedValueType][]string = {
-	.Integer = {"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte"},
+	.Integer = {
+		"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte",
+		"i16le", "i16be", "i32le", "i32be", "i64le", "i64be", "i128le", "i128be",
+		"u16le", "u16be", "u32le", "u32be", "u64le", "u64be", "u128le", "u128be",
+	},
 	.Bool    = {"bool", "b8", "b16", "b32", "b64"},
-	.Float   = {"f16", "f32", "f64"},
+	.Float   = {"f16", "f32", "f64", "f16le", "f16be", "f32le", "f32be", "f64le", "f64be"},
 	.String  = {"string", "cstring"},
 }
+// odinfmt: enable
 
 // NOTE: This function is not commutative
 are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
