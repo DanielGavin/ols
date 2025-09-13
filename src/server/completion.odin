@@ -101,6 +101,8 @@ get_completion_list :: proc(
 				if !position_in_node(selector_call.call, position_context.position) {
 					completion_type = .Selector
 				}
+			} else if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
+				completion_type = .Selector
 			}
 		} else if _, ok := position_context.selector.derived.(^ast.Implicit_Selector_Expr); !ok {
 			// variadic args seem to work by setting it as an implicit selector expr, in that case
