@@ -1127,7 +1127,7 @@ visit_stmt :: proc(
 			document = cons(document, nest_if_break(group(rhs), "assignments"))
 			document = group(document)
 		} else {
-			document = group(cons_with_opl(assign_document, group(rhs)))
+			document = group(cons_with_nopl(assign_document, group(rhs)))
 		}
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
