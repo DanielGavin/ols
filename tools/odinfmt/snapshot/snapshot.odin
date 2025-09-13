@@ -106,7 +106,7 @@ snapshot_file :: proc(path: string) -> bool {
 				}
 
 				if s_ch != f_ch {
-					fmt.eprintf("\nFormatted file was different from snapshot file: %v", snapshot_path)
+					fmt.eprintf("\nFormatted file was different from snapshot file: %v\n", snapshot_path)
 					os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
 					return false
 				}
