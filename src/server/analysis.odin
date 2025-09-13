@@ -313,6 +313,15 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 					return true, true
 				}
 			}
+			// Untyped ints are allowed to map to floats
+			if untyped.type == .Integer {
+				names := untyped_map[.Float]
+				for name in names {
+					if basic.ident.name == name {
+						return true, true
+					}
+				}
+			}
 			return false, true
 		} else if untyped_b, ok := b.value.(SymbolUntypedValue); ok {
 			return untyped.type == untyped_b.type, true
