@@ -1943,6 +1943,10 @@ resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slic
 	case SymbolDynamicArrayValue:
 		expr = v.expr
 	case SymbolMultiPointerValue:
+		// Slicing multi-pointer behaviour outlined here: https://odin-lang.org/docs/overview/#multi-pointers
+		if slice_expr.high == nil {
+			return symbol, true
+		}
 		expr = v.expr
 	case SymbolUntypedValue:
 		if v.type == .String {
