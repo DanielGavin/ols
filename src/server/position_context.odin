@@ -138,7 +138,7 @@ get_document_position_context :: proc(
 		position_context.parent_binary = nil
 	}
 
-	if hint == .Completion {
+	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
 		fallback_position_context_completion(document, position, &position_context)
 	}
 
@@ -649,10 +649,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 			}
 		}
 	case ^Selector_Expr:
-		if position_context.hint == .Definition ||
-		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion {
+		if position_context.hint == .Definition || position_context.hint == .Hover && n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
 			position_context.selector_expr = node

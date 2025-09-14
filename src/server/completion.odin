@@ -96,15 +96,11 @@ get_completion_list :: proc(
 	}
 
 	if position_context.selector != nil {
-		if _, ok := position_context.selector.derived.(^ast.Ident); ok {
-			completion_type = .Selector
-		} else if position_context.selector_expr != nil {
+		if position_context.selector_expr != nil {
 			if selector_call, ok := position_context.selector_expr.derived.(^ast.Selector_Call_Expr); ok {
 				if !position_in_node(selector_call.call, position_context.position) {
 					completion_type = .Selector
 				}
-			} else if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
-				completion_type = .Selector
 			}
 		} else if _, ok := position_context.selector.derived.(^ast.Implicit_Selector_Expr); !ok {
 			// variadic args seem to work by setting it as an implicit selector expr, in that case
@@ -1403,10 +1399,7 @@ get_implicit_completion :: proc(
 		}
 
 		if len(position_context.assign.lhs) > rhs_index {
-			if enum_value, unwrapped_super_enum, ok := unwrap_enum(
-				ast_context,
-				position_context.assign.lhs[rhs_index],
-			); ok {
+			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
