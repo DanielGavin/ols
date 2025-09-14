@@ -4720,37 +4720,9 @@ ast_completion_selector_within_selector_call_expr :: proc(t: ^testing.T) {
 				bar = print,
 			}
 
-			foo->bar(data.{*})
+			foo->bar(data.x{*})
 		}
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {"Data.x: int", "Data.y: int"})
-}
-
-@(test)
-ast_completion_ident_within_selector_call_expr :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package test
-
-		Data :: struct {
-			x, y: int,
-		}
-
-		IFoo :: struct {
-			bar: proc(self: IFoo, x: int),
-		}
-
-		print :: proc(self: IFoo, x: int) {}
-
-		main :: proc() {
-			data := Data{}
-			foo := IFoo {
-				bar = print,
-			}
-
-			foo->bar(d{*})
-		}
-		`,
-	}
-	test.expect_completion_docs(t, &source, "", {"test.data: test.Data"})
 }

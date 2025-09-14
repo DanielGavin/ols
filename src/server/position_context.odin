@@ -138,7 +138,7 @@ get_document_position_context :: proc(
 		position_context.parent_binary = nil
 	}
 
-	if hint == .Completion {
+	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
 		fallback_position_context_completion(document, position, &position_context)
 	}
 
