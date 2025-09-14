@@ -4202,7 +4202,7 @@ ast_hover_untyped_string_index :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_multi_pointer_slice_range :: proc(t: ^testing.T) {
+ast_hover_multi_pointer_slice_end_range :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		main :: proc() {
@@ -4212,6 +4212,32 @@ ast_hover_multi_pointer_slice_range :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.bar: []int")
+}
+
+@(test)
+ast_hover_multi_pointer_slice_start_range :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: [^]int
+			b{*}ar := foo[1:]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: [^]int")
+}
+
+@(test)
+ast_hover_multi_pointer_slice_no_range :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: [^]int
+			b{*}ar := foo[:]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: [^]int")
 }
 
 @(test)
