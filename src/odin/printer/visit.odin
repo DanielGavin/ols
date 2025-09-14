@@ -1049,7 +1049,7 @@ visit_stmt :: proc(
 		document = enforce_fit_if_do(v.body, document)
 	case ^Switch_Stmt:
 		if v.partial {
-			document = cons(document, text("#partial"), break_with_space())
+			document = cons(document, text("#partial"), break_with_no_newline())
 		}
 
 		if v.label != nil {
@@ -1093,7 +1093,7 @@ visit_stmt :: proc(
 		}
 	case ^Type_Switch_Stmt:
 		if v.partial {
-			document = cons(document, text("#partial"), break_with_space())
+			document = cons(document, text("#partial"), break_with_no_newline())
 		}
 
 		if v.label != nil {
