@@ -63,7 +63,8 @@ resolve_poly :: proc(
 		if ident, ok := unwrap_ident(type); ok {
 			call_node_id := reflect.union_variant_typeid(call_node.derived)
 			specialization_id := reflect.union_variant_typeid(specialization.derived)
-			if call_node_id == specialization_id {
+			if ast_context.position_hint == .TypeDefinition && call_node_id == specialization_id {
+				// TODO: Fix this so it doesn't need to be aware that we're in a type definition
 				// if the specialization type matches the type of the parameter passed to the proc
 				// we store that rather than the specialization so we can follow it correctly
 				// for things like `textDocument/typeDefinition`
@@ -526,6 +527,9 @@ resolve_generic_function_symbol :: proc(
 			ast_context.current_package = ast_context.document_package
 
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
+				if ident, ok := call_expr.args[i].derived.(^ast.Ident); ok && symbol.name == "" {
+					symbol.name = ident.name
+				}
 				file := strings.trim_prefix(symbol.uri, "file://")
 
 				if file == "" {

@@ -4782,6 +4782,26 @@ ast_hover_proc_group_variadic_args_with_generic_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.append: proc(array: ^$T/[dynamic]$E, args: ..E)")
 }
+
+@(test)
+ast_hover_proc_group_with_generic_type_from_proc_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		append_elems :: proc(array: ^$T/[dynamic]$E, args: ..E) {}
+		append_elem :: proc(array: ^$T/[dynamic]$E, arg: E) {}
+
+		append :: proc {
+			append_elem,
+			append_elems,
+		}
+
+		foo :: proc(bars: ^[dynamic]string) {
+			app{*}end(bars, "test")
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.append: proc(array: ^$T/[dynamic]$E, arg: E)")
+}
 /*
 
 Waiting for odin fix

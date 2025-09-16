@@ -14,6 +14,7 @@ DocumentPositionContextHint :: enum {
 	SignatureHelp,
 	Definition,
 	Hover,
+	TypeDefinition,
 }
 
 DocumentPositionContext :: struct {
@@ -629,27 +630,25 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.expr, position_context)
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
-		if position_context.hint == .Definition ||
-		   position_context.hint == .Hover ||
-		   position_context.hint == .SignatureHelp ||
-		   position_context.hint == .Completion {
-			position_context.selector = n.expr
-			position_context.field = n.call
-			position_context.selector_expr = node
+		position_context.selector = n.expr
+		position_context.field = n.call
+		position_context.selector_expr = node
 
-			if _, ok := n.call.derived.(^ast.Call_Expr); ok {
-				position_context.call = n.call
-			}
+		if _, ok := n.call.derived.(^ast.Call_Expr); ok {
+			position_context.call = n.call
+		}
 
-			get_document_position(n.expr, position_context)
-			get_document_position(n.call, position_context)
+		get_document_position(n.expr, position_context)
+		get_document_position(n.call, position_context)
 
-			if position_context.hint == .SignatureHelp {
-				position_context.arrow = true
-			}
+		if position_context.hint == .SignatureHelp {
+			position_context.arrow = true
 		}
 	case ^Selector_Expr:
-		if position_context.hint == .Definition || position_context.hint == .Hover && n.field != nil {
+		if (position_context.hint == .Definition ||
+			   position_context.hint == .Hover ||
+			   position_context.hint == .TypeDefinition) &&
+		   n.field != nil {
 			position_context.selector = n.expr
 			position_context.field = n.field
 			position_context.selector_expr = node
