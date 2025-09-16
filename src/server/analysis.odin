@@ -1124,7 +1124,15 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Helper_Type:
 		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Ellipsis:
-		return internal_resolve_type_expression(ast_context, v.expr, out)
+		out.range = common.get_token_range(v.node, ast_context.file.src)
+		out.type = .Type
+		out.pkg = get_package_from_node(v.node)
+		out.name = ast_context.field_name.name
+		out.uri = common.create_uri(v.pos.file, ast_context.allocator).uri
+		out.value = SymbolSliceValue {
+			expr = v.expr,
+		}
+		return true
 	case ^Implicit:
 		ident := new_type(Ident, v.node.pos, v.node.end, ast_context.allocator)
 		ident.name = v.tok.text
