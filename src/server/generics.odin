@@ -207,6 +207,26 @@ resolve_poly :: proc(
 
 			return found
 		}
+	case ^ast.Ellipsis:
+		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
+			found := false
+
+			if array_is_soa(call_array^) {
+				return false
+			}
+
+			if poly_type, ok := p.expr.derived.(^ast.Poly_Type); ok {
+				if ident, ok := unwrap_ident(poly_type.type); ok {
+					save_poly_map(ident, call_array.elem, poly_map)
+				}
+
+				if poly_type.specialization != nil {
+					return resolve_poly(ast_context, call_array.elem, call_symbol, p.expr, poly_map)
+				}
+				found |= true
+			}
+			return found
+		}
 	case ^ast.Map_Type:
 		if call_map, ok := call_node.derived.(^ast.Map_Type); ok {
 			found := false
@@ -424,6 +444,12 @@ find_and_replace_poly_type :: proc(expr: ^ast.Expr, poly_map: ^map[string]^ast.E
 						result.end.file = expr.end.file
 					}
 				}
+			}
+		case ^ast.Ellipsis:
+			if expr, ok := get_poly_map(v.expr, poly_map); ok {
+				v.expr = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
 			}
 		}
 
