@@ -27,7 +27,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 	uri: string
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
-	position_context, ok := get_document_position_context(document, position, .Definition)
+	position_context, ok := get_document_position_context(document, position, .TypeDefinition)
 
 	if !ok {
 		log.warn("Failed to get position context")

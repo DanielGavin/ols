@@ -63,7 +63,8 @@ resolve_poly :: proc(
 		if ident, ok := unwrap_ident(type); ok {
 			call_node_id := reflect.union_variant_typeid(call_node.derived)
 			specialization_id := reflect.union_variant_typeid(specialization.derived)
-			if call_node_id == specialization_id {
+			if ast_context.position_hint == .TypeDefinition && call_node_id == specialization_id {
+				// TODO: Fix this so it doesn't need to be aware that we're in a type definition
 				// if the specialization type matches the type of the parameter passed to the proc
 				// we store that rather than the specialization so we can follow it correctly
 				// for things like `textDocument/typeDefinition`
@@ -205,6 +206,26 @@ resolve_poly :: proc(
 				}
 			}
 
+			return found
+		}
+	case ^ast.Ellipsis:
+		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
+			found := false
+
+			if array_is_soa(call_array^) {
+				return false
+			}
+
+			if poly_type, ok := p.expr.derived.(^ast.Poly_Type); ok {
+				if ident, ok := unwrap_ident(poly_type.type); ok {
+					save_poly_map(ident, call_array.elem, poly_map)
+				}
+
+				if poly_type.specialization != nil {
+					return resolve_poly(ast_context, call_array.elem, call_symbol, p.expr, poly_map)
+				}
+				found |= true
+			}
 			return found
 		}
 	case ^ast.Map_Type:
@@ -425,6 +446,12 @@ find_and_replace_poly_type :: proc(expr: ^ast.Expr, poly_map: ^map[string]^ast.E
 					}
 				}
 			}
+		case ^ast.Ellipsis:
+			if expr, ok := get_poly_map(v.expr, poly_map); ok {
+				v.expr = expr
+				v.pos.file = expr.pos.file
+				v.end.file = expr.end.file
+			}
 		}
 
 		return visitor
@@ -500,6 +527,9 @@ resolve_generic_function_symbol :: proc(
 			ast_context.current_package = ast_context.document_package
 
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
+				if ident, ok := call_expr.args[i].derived.(^ast.Ident); ok && symbol.name == "" {
+					symbol.name = ident.name
+				}
 				file := strings.trim_prefix(symbol.uri, "file://")
 
 				if file == "" {
