@@ -2275,10 +2275,12 @@ resolve_implicit_selector :: proc(
 	}
 
 	if position_context.binary != nil {
-		if position_in_node(position_context.binary.left, position_context.position) {
+		if position_in_node(position_context.binary, position_context.position) {
+			// We resolve whichever is not the implicit_selector
+			if implicit, ok := position_context.binary.left.derived.(^ast.Implicit_Selector_Expr); ok {
+				return resolve_type_expression(ast_context, position_context.binary.right)
+			}
 			return resolve_type_expression(ast_context, position_context.binary.left)
-		} else if position_in_node(position_context.binary.left, position_context.position) {
-			return resolve_type_expression(ast_context, position_context.binary.right)
 		}
 	}
 
