@@ -4802,6 +4802,25 @@ ast_hover_proc_group_with_generic_type_from_proc_param :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.append: proc(array: ^$T/[dynamic]$E, arg: E)")
 }
+
+@(test)
+ast_hover_enum_implicit_if_statement :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		main :: proc() {
+			foo: Foo
+			if foo == .A{*} {
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
