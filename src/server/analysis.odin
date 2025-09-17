@@ -1405,7 +1405,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				set_ast_package_from_symbol_scoped(ast_context, selector)
 
 				ok := internal_resolve_type_expression(ast_context, s.expr, &symbol)
-				symbol.type = .Variable
+				symbol.type = .Field
+				symbol.flags |= {.Mutable}
 				return symbol, ok
 			} else {
 				value := SymbolFixedArrayValue {
@@ -2489,6 +2490,7 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 			symbol.signature = ret.signature
 			symbol.value = ret.value
 			symbol.pkg = ret.pkg
+			symbol.flags = ret.flags
 		} else {
 			return false
 		}

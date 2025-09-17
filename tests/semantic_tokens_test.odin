@@ -117,7 +117,28 @@ semantic_tokens_proc_return :: proc(t: ^testing.T) {
 	test.expect_semantic_tokens(t, &src, {
 		{1, 2,  3, .Function, {.ReadOnly}}, // [0]  foo
 		{0, 18, 3, .Variable, {}},          // [1]  ret
-		{0, 5,  3, .Type,     {.ReadOnly}}, // [2]  proc
+		{0, 5,  3, .Type,     {.ReadOnly}}, // [2]  int
 		{1, 3,  3, .Variable, {}},          // [3]  ret
+	})
+}
+
+@(test)
+semantic_tokens_fixed_array_fields :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: [2]f32
+			y := foo.x
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2, 4, .Function, {.ReadOnly}}, // [0]  main
+		{1, 3, 3, .Variable, {}},          // [1]  foo
+		{0, 8, 3, .Type,     {.ReadOnly}}, // [2]  f32
+		{1, 3, 1, .Variable, {}},          // [3]  y
+		{0, 5, 3, .Variable, {}},          // [4]  foo
+		{0, 4, 1, .Property, {}},          // [5]  x
 	})
 }
