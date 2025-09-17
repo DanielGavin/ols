@@ -1185,10 +1185,10 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^ = make_symbol_poly_type_from_ast(ast_context, v.type)
 		return true
 	case ^ast.Ternary_If_Expr:
-		out^, ok = resolve_type_expression(ast_context, v.x)
+		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Ternary_When_Expr:
-		out^, ok = resolve_type_expression(ast_context, v.x)
+		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
