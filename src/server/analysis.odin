@@ -297,7 +297,7 @@ resolve_type_comp_literal :: proc(
 }
 
 // odinfmt: disable
-untyped_map: map[SymbolUntypedValueType][]string = {
+untyped_map: [SymbolUntypedValueType][]string = {
 	.Integer = {
 		"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte",
 		"i16le", "i16be", "i32le", "i32be", "i64le", "i64be", "i128le", "i128be",
@@ -882,18 +882,11 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		value.type = .Integer
 	} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
 		value.type = .Bool
-	} else if v, ok := strconv.parse_int(basic_lit.tok.text[0:1]); ok {
+	} else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
 		value.type = .Float
 	} else {
 		value.type = .String
 	}
-
-	/*
-	out commented because of an infinite loop in parse_f64
-	else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
-		value.type = .Float
-	}
-	*/
 
 	symbol.pkg = ast_context.current_package
 	symbol.value = value
