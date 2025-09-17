@@ -272,6 +272,10 @@ get_generic_assignment :: proc(
 
 			append(results, b)
 		}
+	case ^Ternary_If_Expr:
+		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
+	case ^Ternary_When_Expr:
+		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
 	case:
 		append(results, value)
 	}

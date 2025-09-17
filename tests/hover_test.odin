@@ -4821,6 +4821,19 @@ ast_hover_enum_implicit_if_statement :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_if_ternary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo: []int
+			ba{*}r := len(foo) if true else 2
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: int")
+}
 /*
 
 Waiting for odin fix
