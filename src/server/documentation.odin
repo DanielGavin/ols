@@ -478,6 +478,18 @@ get_bit_field_field_signature :: proc(
 write_proc_param_list_and_return :: proc(sb: ^strings.Builder, value: SymbolProcedureValue) {
 	strings.write_string(sb, "(")
 	for arg, i in value.orig_arg_types {
+		if .Any_Int in arg.flags {
+			strings.write_string(sb, "#any_int ")
+		}
+		if .By_Ptr in arg.flags {
+			strings.write_string(sb, "#by_ptr ")
+		}
+		if .C_Vararg in arg.flags {
+			strings.write_string(sb, "#c_vararg ")
+		}
+		if .No_Alias in arg.flags {
+			strings.write_string(sb, "#no_alias ")
+		}
 		build_string_node(arg, sb, false)
 		if i != len(value.orig_arg_types) - 1 {
 			strings.write_string(sb, ", ")

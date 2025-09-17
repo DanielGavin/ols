@@ -4834,6 +4834,16 @@ ast_hover_if_ternary_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: int")
 }
+
+@(test)
+ast_hover_proc_param_tags :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		f{*}oo :: proc (#by_ptr a: int, #any_int b: int) {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: proc(#by_ptr a: int, #any_int b: int)")
+}
 /*
 
 Waiting for odin fix
