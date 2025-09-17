@@ -142,3 +142,27 @@ semantic_tokens_fixed_array_fields :: proc(t: ^testing.T) {
 		{0, 4, 1, .Property, {}},          // [5]  x
 	})
 }
+
+@(test)
+semantic_tokens_enum_member_default_param :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		bar :: proc(foo: Foo = .A) {}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Enum,       {.ReadOnly}}, // [0]  Foo
+		{1, 3,  1, .EnumMember, {}},          // [1]  A
+		{1, 3,  1, .EnumMember, {}},          // [2]  B
+		{3, 2,  3, .Function,   {.ReadOnly}}, // [3]  bar
+		{0, 12, 3, .Parameter,  {}},          // [4]  foo
+		{0, 5,  3, .Enum,       {.ReadOnly}}, // [5]  Foo
+		{0, 7,  1, .EnumMember, {}},          // [6]  A
+	})
+}

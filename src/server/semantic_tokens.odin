@@ -423,6 +423,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 			}
 
 			visit_node(param.type, builder)
+			visit_node(param.default_value, builder)
 		}
 	}
 
