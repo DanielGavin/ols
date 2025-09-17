@@ -1902,6 +1902,9 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		return_symbol.comment = get_comment(global.comment)
 	}
 
+	return_symbol.type_expr = global.type_expr
+	return_symbol.value_expr = global.value_expr
+
 	return return_symbol, ok
 }
 

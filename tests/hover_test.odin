@@ -4844,6 +4844,16 @@ ast_hover_proc_param_tags :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc(#by_ptr a: int, #any_int b: int)")
 }
+
+@(test)
+ast_hover_const_untyped_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}OO :: 123
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO :: 123")
+}
 /*
 
 Waiting for odin fix
