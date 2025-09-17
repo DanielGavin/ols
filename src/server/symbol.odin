@@ -225,6 +225,8 @@ Symbol :: struct {
 	value:       SymbolValue,
 	pointers:    int, //how many `^` are applied to the symbol
 	flags:       SymbolFlags,
+	type_expr:   ^ast.Expr,
+	value_expr:  ^ast.Expr,
 }
 
 SymbolType :: enum {

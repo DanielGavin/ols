@@ -4864,6 +4864,16 @@ ast_hover_simd_array_pointer :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: ^#simd[4]f32")
 }
+
+@(test)
+ast_hover_const_untyped_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		F{*}OO :: 123
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO :: 123")
+}
 /*
 
 Waiting for odin fix
