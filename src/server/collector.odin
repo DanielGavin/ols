@@ -745,6 +745,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.Variable}
 		}
 
+		if .Mutable in expr.flags {
+			symbol.flags |= {.Mutable}
+		}
 
 		pkg: ^SymbolPackage
 		ok: bool
