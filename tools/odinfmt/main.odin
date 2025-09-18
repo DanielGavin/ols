@@ -3,6 +3,7 @@ package odinfmt
 import "core:encoding/json"
 import "core:flags"
 import "core:fmt"
+import "core:io"
 import "core:mem"
 import "core:odin/tokenizer"
 import "core:os"
@@ -11,6 +12,12 @@ import "core:strings"
 import "core:time"
 import "src:odin/format"
 import "src:odin/printer"
+
+Args :: struct {
+	write: bool `args:"name=w" usage:"write the new format to file"`,
+	stdin: bool `usage:"formats code from standard input"`,
+	path:  string `args:"pos=0" usage:"set the file or directory to format"`,
+}
 
 format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
@@ -44,16 +51,19 @@ main :: proc() {
 
 	init_global_temporary_allocator(mem.Megabyte * 20) //enough space for the walk
 
-	args: struct {
-		write: bool `args:"name=w" usage:"write the new format to file"`,
-		stdin: bool `usage:"formats code from standard input"`,
-		path:  string `args:"pos=0" usage:"set the file or directory to format"`,
-	}
+	args: Args
 	flags.parse_or_exit(&args, os.args)
 
-	// if no file was specified, use current directory as the starting path to look for `odinfmt.json`
+	// only allow the path to not be specified when formatting from stdin
 	if args.path == "" {
-		args.path = "."
+		if args.stdin {
+			// use current directory as the starting path to look for `odinfmt.json`
+			args.path = "."
+		} else {
+			fmt.fprint(os.stderr, "Missing path to format\n")
+			flags.write_usage(os.stream_from_handle(os.stderr), Args, os.args[0])
+			os.exit(1)
+		}
 	}
 
 	tick_time := time.tick_now()
