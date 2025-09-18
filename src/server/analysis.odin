@@ -2458,6 +2458,12 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if symbol.type == .Variable {
 			ret.type = symbol.type
 		}
+		if .Variable in symbol.flags {
+			ret.flags |= {.Variable}
+		}
+		if .Mutable in symbol.flags {
+			ret.flags |= {.Mutable}
+		}
 		return ret, ok
 	}
 
@@ -2490,7 +2496,7 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 			symbol.signature = ret.signature
 			symbol.value = ret.value
 			symbol.pkg = ret.pkg
-			symbol.flags = ret.flags
+			symbol.flags |= ret.flags
 		} else {
 			return false
 		}
