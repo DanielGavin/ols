@@ -1348,6 +1348,7 @@ resolve_soa_selector_field :: proc(
 						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 							resolved.pkg = symbol.name
 							resolved.range = v.ranges[i]
+							resolved.type = .Field
 							return resolved, ok
 						} else {
 							return {}, false
@@ -2618,6 +2619,7 @@ resolve_type_location_proc_param_name :: proc(
 			symbol.type_name = symbol.name
 			symbol.pkg = call_symbol.name
 			symbol.name = ident.name
+			symbol.type = .Field
 			return symbol, true
 		}
 	}

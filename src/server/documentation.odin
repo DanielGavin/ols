@@ -430,6 +430,19 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		strings.write_string(sb, "package")
 		return
 	case SymbolUntypedValue:
+		if .Mutable in symbol.flags || symbol.type == .Field {
+			switch v.type {
+			case .Float:
+				strings.write_string(sb, "float")
+			case .String:
+				strings.write_string(sb, "string")
+			case .Bool:
+				strings.write_string(sb, "bool")
+			case .Integer:
+				strings.write_string(sb, "int")
+			}
+			return
+		}
 		strings.write_string(sb, v.tok.text)
 		return
 	case SymbolGenericValue:
@@ -789,7 +802,12 @@ construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -
 	sb := strings.builder_make(ast_context.allocator)
 	write_symbol_attributes(&sb, symbol)
 	write_symbol_name(&sb, symbol)
-	if .Mutable not_in symbol.flags {
+
+	if symbol.type == .Package {
+		return strings.to_string(sb)
+	}
+
+	if symbol.type != .Field && .Mutable not_in symbol.flags {
 		if symbol.type_expr != nil && symbol.value_expr != nil {
 			strings.write_string(&sb, " : ")
 			build_string_node(symbol.type_expr, &sb, false)
@@ -802,9 +820,6 @@ construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -
 		strings.write_string(&sb, ": ")
 	}
 
-	if symbol.type == .Package {
-		return strings.to_string(sb)
-	}
 
 	if write_symbol_type_information(&sb, ast_context, symbol) {
 		return strings.to_string(sb)
