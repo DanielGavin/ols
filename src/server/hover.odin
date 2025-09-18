@@ -344,6 +344,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						name      = selector.name,
 						pkg       = selector.pkg,
 						signature = get_enum_field_signature(v, i),
+						type      = .Field,
 					}
 					hover.contents = write_hover_content(&ast_context, symbol)
 					return hover, true, true
