@@ -237,7 +237,7 @@ ast_hover_on_array_infer_length_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.vec :: [?]f32")
+	test.expect_hover(t, &source, "test.vec :: [?]f32 {\n\t1,\n\t2,\n\t3,\n}")
 }
 
 @(test)
@@ -3192,7 +3192,7 @@ ast_hover_documentation_reexported :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.Foo :: struct {}\n Documentation for Foo")
+	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n Documentation for Foo")
 }
 
 @(test)
@@ -3218,7 +3218,7 @@ ast_hover_override_documentation_reexported :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.Foo :: struct {}\n New docs for Foo")
+	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n New docs for Foo")
 }
 
 @(test)
@@ -3913,7 +3913,7 @@ ast_hover_map_empty_struct_literal :: proc(t: ^testing.T) {
 		m{*}: map[int]struct{}
 		`,
 	}
-	test.expect_hover(t, &source, "test.m: map[int]struct {}")
+	test.expect_hover(t, &source, "test.m: map[int]struct{}")
 }
 
 @(test)
@@ -4877,6 +4877,42 @@ ast_hover_const_untyped_value :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.FOO :: 123")
+}
+
+@(test)
+ast_hover_const_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			a: int,
+			b: string,
+		}
+
+		F{*}OO :: Foo {
+			a = 1,
+			b = "b",
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO :: Foo {\n\ta = 1,\n\tb = \"b\",\n}")
+}
+
+@(test)
+ast_hover_const_comp_lit_with_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			a: int,
+			b: string,
+		}
+
+		F{*}OO : Foo : {
+			a = 1,
+			b = "b",
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO : Foo : {\n\ta = 1,\n\tb = \"b\",\n}")
 }
 /*
 

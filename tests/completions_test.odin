@@ -4681,7 +4681,7 @@ ast_completion_struct_field_name :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {}, {"test.Foo :: struct {}"})
+	test.expect_completion_docs(t, &source, "", {}, {"test.Foo :: struct{}"})
 }
 
 @(test)
@@ -4696,7 +4696,7 @@ ast_completion_struct_field_value :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct {}"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct{}"})
 }
 
 @(test)

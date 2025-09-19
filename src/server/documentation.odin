@@ -165,7 +165,7 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		}
 		if len(v.names) == 0 {
 			write_indent(sb, depth)
-			strings.write_string(sb, "enum {}")
+			strings.write_string(sb, "enum{}")
 			if symbol.comment != "" {
 				fmt.sbprintf(sb, " %s", symbol.comment)
 			}
@@ -220,7 +220,7 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		}
 		write_where_clauses(sb, v.where_clauses)
 		if len(v.types) == 0 {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 			return
 		}
 		strings.write_string(sb, " {\n")
@@ -332,7 +332,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.names) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolMapValue:
@@ -354,7 +354,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.types) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolUnionValue:
@@ -364,7 +364,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.types) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolBitFieldValue:
@@ -595,36 +595,49 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 	strings.write_string(sb, "struct")
 	write_poly_list(sb, v.poly, v.poly_names)
 
+	wrote_tag := false
 	if v.max_field_align != nil {
 		strings.write_string(sb, " #max_field_align")
 		build_string_node(v.max_field_align, sb, false)
+		wrote_tag = true
 	}
 
 	if v.min_field_align != nil {
 		strings.write_string(sb, " #min_field_align")
 		build_string_node(v.min_field_align, sb, false)
+		wrote_tag = true
 	}
 
 	if v.align != nil {
 		strings.write_string(sb, " #align")
 		build_string_node(v.align, sb, false)
+		wrote_tag = true
 	}
 
 	for tag in v.tags {
 		switch tag {
 		case .Is_Raw_Union:
+			wrote_tag = true
 			strings.write_string(sb, " #raw_union")
 		case .Is_Packed:
+			wrote_tag = true
 			strings.write_string(sb, " #packed")
 		case .Is_No_Copy:
+			wrote_tag = true
 			strings.write_string(sb, " #no_copy")
 		}
 	}
 
-	write_where_clauses(sb, v.where_clauses)
+	if len(v.where_clauses) > 0 {
+		write_where_clauses(sb, v.where_clauses)
+		wrote_tag = true
+	}
 
 	if len(v.names) == 0 {
-		strings.write_string(sb, " {}")
+		if wrote_tag {
+			strings.write_string(sb, " ")
+		}
+		strings.write_string(sb, "{}")
 		return
 	}
 
@@ -765,6 +778,31 @@ write_node :: proc(
 	case ^ast.Proc_Type:
 		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
+	case ^ast.Comp_Lit:
+		build_string(n.type, sb, false)
+		if len(n.elems) == 0 {
+			strings.write_string(sb, "{}")
+			return
+		}
+		if n.type != nil {
+			strings.write_string(sb, " {\n")
+		} else {
+			strings.write_string(sb, "{\n")
+		}
+
+		for elem, i in n.elems {
+			write_indent(sb, depth)
+			if field, ok := elem.derived.(^ast.Field_Value); ok {
+				build_string(field.field, sb, false)
+				strings.write_string(sb, " = ")
+				build_string(field.value, sb, false)
+			} else {
+				build_string(elem, sb, false)
+			}
+			strings.write_string(sb, ",\n")
+		}
+		strings.write_string(sb, "}")
+		return
 	}
 	if ok {
 		if short_signature {
@@ -808,12 +846,18 @@ construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -
 	}
 
 	if symbol.type != .Field && .Mutable not_in symbol.flags {
-		if symbol.type_expr != nil && symbol.value_expr != nil {
-			strings.write_string(&sb, " : ")
-			build_string_node(symbol.type_expr, &sb, false)
-			strings.write_string(&sb, " : ")
-			build_string_node(symbol.value_expr, &sb, false)
-			return strings.to_string(sb)
+		if symbol.value_expr != nil {
+			if symbol.type_expr != nil {
+				strings.write_string(&sb, " : ")
+				build_string_node(symbol.type_expr, &sb, false)
+				strings.write_string(&sb, " : ")
+				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
+				return strings.to_string(sb)
+			} else if _, ok := symbol.value_expr.derived.(^ast.Comp_Lit); ok {
+				strings.write_string(&sb, " :: ")
+				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
+				return strings.to_string(sb)
+			}
 		}
 		strings.write_string(&sb, " :: ")
 	} else {
