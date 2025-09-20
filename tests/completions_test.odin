@@ -4698,3 +4698,43 @@ ast_completion_struct_field_value :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {}"})
 }
+
+@(test)
+ast_completion_handle_matching_with_unary :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		do_foo :: proc(foo: ^Foo){}
+
+		main :: proc() {
+			foo: Foo
+			do_foo(&f{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		},
+	}
+	test.expect_completion_insert_text(t, &source, "", {"foo"})
+}
+
+@(test)
+ast_completion_handle_matching_field_with_unary :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		do_foo :: proc(foo: ^Foo){}
+
+		main :: proc() {
+			foo: Foo
+			do_foo(foo = &f{*})
+		}
+		`,
+		config = {
+			enable_completion_matching = true,
+		},
+	}
+	test.expect_completion_insert_text(t, &source, "", {"foo"})
+}
