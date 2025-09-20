@@ -3224,6 +3224,9 @@ make_symbol_array_from_ast :: proc(ast_context: ^AstContext, v: ast.Array_Type, 
 	if array_is_soa(v) {
 		symbol.flags |= {.Soa}
 	}
+	if array_is_simd(v) {
+		symbol.flags |= {.Simd}
+	}
 
 	return symbol
 }

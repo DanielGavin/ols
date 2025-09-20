@@ -407,6 +407,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 			strings.write_string(sb, "#soa")
 		}
 		strings.write_string(sb, pointer_prefix)
+		if .Simd in symbol.flags {
+			strings.write_string(sb, "#simd")
+		}
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")
 		}

@@ -268,6 +268,15 @@ array_is_soa :: proc(array: ast.Array_Type) -> bool {
 	return false
 }
 
+array_is_simd :: proc(array: ast.Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "simd" {
+			return true
+		}
+	}
+	return false
+}
+
 dynamic_array_is_soa :: proc(array: ast.Dynamic_Array_Type) -> bool {
 	if array.tag != nil {
 		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {

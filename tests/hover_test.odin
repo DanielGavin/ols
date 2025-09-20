@@ -4844,6 +4844,26 @@ ast_hover_proc_param_tags :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: proc(#by_ptr a: int, #any_int b: int)")
 }
+
+@(test)
+ast_hover_simd_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		f{*}oo := #simd[2]f32{}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: #simd[2]f32")
+}
+
+@(test)
+ast_hover_simd_array_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		f{*}oo := &#simd[4]f32{}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: ^#simd[4]f32")
+}
 /*
 
 Waiting for odin fix
