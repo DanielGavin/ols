@@ -34,6 +34,7 @@ DocumentPositionContext :: struct {
 	tag:                    ^ast.Node,
 	field:                  ^ast.Expr, //used for completion
 	call:                   ^ast.Expr, //used for signature help
+	call_arg:               ^ast.Expr, //used for completion
 	returns:                ^ast.Return_Stmt, //used for completion
 	comp_lit:               ^ast.Comp_Lit, //used for completion
 	parent_comp_lit:        ^ast.Comp_Lit, //used for completion
@@ -628,6 +629,11 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^Call_Expr:
 		position_context.call = n
 		get_document_position(n.expr, position_context)
+		for arg in n.args {
+			if position_in_node(arg, position_context.position) {
+				position_context.call_arg = arg
+			}
+		}
 		get_document_position(n.args, position_context)
 	case ^Selector_Call_Expr:
 		position_context.selector = n.expr

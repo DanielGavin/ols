@@ -237,7 +237,7 @@ convert_completion_results :: proc(
 	position_context: ^DocumentPositionContext,
 	results: []CompletionResult,
 	completion_type: Completion_Type,
-	symbol: Maybe(Symbol),
+	target_symbol: Maybe(Symbol),
 	config: ^common.Config,
 ) -> []CompletionItem {
 	for &result in results {
@@ -334,7 +334,7 @@ convert_completion_results :: proc(
 		}
 
 		if config.enable_completion_matching {
-			if s, ok := symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
+			if s, ok := target_symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
 				handle_matching(ast_context, position_context, result.symbol, s, &item, completion_type)
 			}
 		}
@@ -431,6 +431,12 @@ handle_matching :: proc(
 			return false
 		}
 
+		if r, ok := result_symbol.value.(SymbolBasicValue); ok {
+			if a, ok := arg_symbol.value.(SymbolBasicValue); ok {
+				return r.ident.name != a.ident.name
+			}
+		}
+
 		if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
 			if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
 				return false
@@ -456,6 +462,21 @@ handle_matching :: proc(
 		return false
 	}
 
+	contains_unary :: proc(arg: ^ast.Expr) -> bool {
+		if arg == nil {
+			return false
+		}
+
+		#partial switch n in arg.derived {
+		case ^ast.Unary_Expr:
+			return true
+		case ^ast.Field_Value:
+			return contains_unary(n.value)
+		}
+
+		return false
+	}
+
 	if should_skip(arg_symbol, result_symbol) {
 		return
 	}
@@ -473,7 +494,8 @@ handle_matching :: proc(
 	if diff > 0 {
 		suffix = repeat("^", diff, context.temp_allocator)
 	}
-	if diff < 0 {
+
+	if diff < 0 && !contains_unary(position_context.call_arg) {
 		prefix = "&"
 	}
 
