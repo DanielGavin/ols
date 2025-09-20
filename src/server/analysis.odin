@@ -1348,6 +1348,7 @@ resolve_soa_selector_field :: proc(
 						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 							resolved.pkg = symbol.name
 							resolved.range = v.ranges[i]
+							resolved.type = .Field
 							return resolved, ok
 						} else {
 							return {}, false
@@ -1901,6 +1902,9 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	if global.comment != nil {
 		return_symbol.comment = get_comment(global.comment)
 	}
+
+	return_symbol.type_expr = global.type_expr
+	return_symbol.value_expr = global.value_expr
 
 	return return_symbol, ok
 }
@@ -2615,6 +2619,7 @@ resolve_type_location_proc_param_name :: proc(
 			symbol.type_name = symbol.name
 			symbol.pkg = call_symbol.name
 			symbol.name = ident.name
+			symbol.type = .Field
 			return symbol, true
 		}
 	}

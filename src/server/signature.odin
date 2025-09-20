@@ -187,6 +187,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 get_signature :: proc(symbol: Symbol) -> string {
 	sb := strings.builder_make()
 	write_symbol_name(&sb, symbol)
+	strings.write_string(&sb, " :: ")
 	strings.write_string(&sb, symbol.signature)
 	return strings.to_string(sb)
 }

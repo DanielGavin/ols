@@ -223,7 +223,7 @@ ast_completion_identifier_proc_group :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.group_function: proc (..)"})
+	test.expect_completion_docs(t, &source, "", {"test.group_function :: proc (..)"})
 }
 
 @(test)
@@ -244,7 +244,7 @@ ast_completion_identifier_proc_group_2 :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.zzcool: proc(v: $T/[]$E) -> [^]E"})
+	test.expect_completion_docs(t, &source, "", {"test.zzcool :: proc(v: $T/[]$E) -> [^]E"})
 }
 
 @(test)
@@ -289,7 +289,7 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.My_Struct: struct {..}"})
+	test.expect_completion_docs(t, &source, "", {"test.My_Struct :: struct {..}"})
 }
 
 @(test)
@@ -373,7 +373,7 @@ index_package_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.My_Struct: struct {..}"})
+	test.expect_completion_docs(t, &source, ".", {"my_package.My_Struct :: struct {..}"})
 }
 
 @(test)
@@ -961,7 +961,7 @@ ast_package_procedure_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.my_proc: proc() -> bool"})
+	test.expect_completion_docs(t, &source, ".", {"my_package.my_proc :: proc() -> bool"})
 }
 
 @(test)
@@ -1137,7 +1137,7 @@ ast_non_mutable_variable_struct_completion :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.Im: struct {..}"})
+	test.expect_completion_docs(t, &source, ".", {"my_package.Im :: struct {..}"})
 }
 
 @(test)
@@ -1461,7 +1461,7 @@ ast_union_identifier_completion :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"test.My_Union: union {..}"})
+	test.expect_completion_docs(t, &source, ".", {"test.My_Union :: union {..}"})
 }
 
 @(test)
@@ -1606,7 +1606,7 @@ ast_new_completion_for_proc_defined :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.Http_Ctx: struct {..}"})
+	test.expect_completion_docs(t, &source, "", {"test.Http_Ctx :: struct {..}"})
 }
 
 @(test)
@@ -1851,7 +1851,7 @@ ast_package_uppercase_test :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"My_package.Foo: enum {..}", "My_package.Bar: struct {..}"})
+	test.expect_completion_docs(t, &source, ".", {"My_package.Foo :: enum {..}", "My_package.Bar :: struct {..}"})
 }
 
 
@@ -2013,7 +2013,7 @@ ast_procedure_in_procedure_non_mutable_completion :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.Int: int"})
+	test.expect_completion_docs(t, &source, "", {"test.Int :: int"})
 }
 
 @(test)
@@ -2381,7 +2381,7 @@ ast_local_global_function :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.my_function_two: proc(one: int)"})
+	test.expect_completion_docs(t, &source, "", {"test.my_function_two :: proc(one: int)"})
 }
 
 @(test)
@@ -3853,7 +3853,7 @@ ast_completion_using_aliased_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"my_package.foo: proc()"})
+	test.expect_completion_docs(t, &source, ".", {"my_package.foo :: proc()"})
 }
 
 @(test)
@@ -3883,7 +3883,7 @@ ast_completion_using_aliased_package_multiple :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"foo_pkg.foo: proc()"})
+	test.expect_completion_docs(t, &source, ".", {"foo_pkg.foo :: proc()"})
 }
 
 @(test)
@@ -4245,7 +4245,7 @@ ast_completion_proc_variadiac_arg :: proc(t: ^testing.T) {
 		foo :: proc(foos: ..{*}) {}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"test.Foo: enum {..}"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: enum {..}"})
 }
 
 @(test)
@@ -4265,7 +4265,7 @@ ast_completion_within_struct_decl :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"test.Foo: enum {..}"}, {"test.foo: proc(f: Foo)"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: enum {..}"}, {"test.foo :: proc(f: Foo)"})
 }
 
 @(test)
@@ -4595,7 +4595,7 @@ ast_completion_poly_proc_narrow_type :: proc(t: ^testing.T) {
 		foo :: proc (a: $T/F{*}) {}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {..}"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct {..}"})
 }
 
 @(test)
@@ -4681,7 +4681,7 @@ ast_completion_struct_field_name :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {}, {"test.Foo: struct {}"})
+	test.expect_completion_docs(t, &source, "", {}, {"test.Foo :: struct{}"})
 }
 
 @(test)
@@ -4696,7 +4696,7 @@ ast_completion_struct_field_value :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"test.Foo: struct {}"})
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct{}"})
 }
 
 @(test)
