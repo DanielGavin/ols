@@ -2895,7 +2895,7 @@ ast_hover_builtin_max_with_type_global :: proc(t: ^testing.T) {
 		ma{*}x_u32 :: max(u32)
 	`,
 	}
-	test.expect_hover(t, &source, "test.max_u32 :: u32")
+	test.expect_hover(t, &source, "test.max_u32 :: max(u32)")
 }
 
 @(test)
@@ -2905,7 +2905,7 @@ ast_hover_builtin_max_ints :: proc(t: ^testing.T) {
 		ma{*}x_int :: max(1, 2, 3, 4)
 	`,
 	}
-	test.expect_hover(t, &source, "test.max_int :: 4")
+	test.expect_hover(t, &source, "test.max_int :: max(1, 2, 3, 4)")
 }
 
 @(test)
@@ -2941,7 +2941,7 @@ ast_hover_builtin_max_mix_global_const :: proc(t: ^testing.T) {
 		m{*} :: max(1, 2.0, 3, 4.6)
 	`,
 	}
-	test.expect_hover(t, &source, "test.m :: 4.6")
+	test.expect_hover(t, &source, "test.m :: max(1, 2.0, 3, 4.6)")
 }
 
 @(test)
@@ -4247,7 +4247,7 @@ ast_hover_binary_expr_with_type :: proc(t: ^testing.T) {
 		F{*}OO :: 1 + u8(2)
 		`,
 	}
-	test.expect_hover(t, &source, "test.FOO :: u8")
+	test.expect_hover(t, &source, "test.FOO :: 1 + u8(2)")
 }
 
 @(test)
@@ -4913,6 +4913,16 @@ ast_hover_const_comp_lit_with_type :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.FOO : Foo : {\n\ta = 1,\n\tb = \"b\",\n}")
+}
+
+@(test)
+ast_hover_const_binary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}OO :: 3 + 4
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO :: 3 + 4")
 }
 /*
 

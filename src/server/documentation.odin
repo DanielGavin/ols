@@ -853,7 +853,7 @@ construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -
 				strings.write_string(&sb, " : ")
 				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
 				return strings.to_string(sb)
-			} else if _, ok := symbol.value_expr.derived.(^ast.Comp_Lit); ok {
+			} else if .Variable in symbol.flags {
 				strings.write_string(&sb, " :: ")
 				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
 				return strings.to_string(sb)
