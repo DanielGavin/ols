@@ -1459,3 +1459,24 @@ ast_references_nested_using_bit_field_field_from_declaration :: proc(t: ^testing
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_union_member_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		Foos :: union {
+			Foo,
+			^F{*}oo,
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+		{range = {start = {line = 4, character = 3}, end = {line = 4, character = 6}}},
+		{range = {start = {line = 5, character = 4}, end = {line = 5, character = 7}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
