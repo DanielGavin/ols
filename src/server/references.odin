@@ -102,8 +102,8 @@ prepare_references :: proc(
 		found := false
 		for variant in position_context.union_type.variants {
 			if position_in_node(variant, position_context.position) {
-				if ident, ok := variant.derived.(^ast.Ident); ok {
-					symbol, ok = resolve_location_identifier(ast_context, ident^)
+				if ident, _, ok := unwrap_pointer_ident(variant); ok {
+					symbol, ok = resolve_location_identifier(ast_context, ident)
 					resolve_flag = .Identifier
 
 					if !ok {
