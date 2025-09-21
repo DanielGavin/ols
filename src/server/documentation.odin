@@ -249,6 +249,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		strings.write_string(sb, "}")
 		return
 	case SymbolProcedureValue:
+		if symbol.type == .Type_Function && depth == 0 {
+			strings.write_string(sb, "#type ")
+		}
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
 	case SymbolBitFieldValue:
@@ -342,6 +345,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.value, "", short_signature = true)
 		return
 	case SymbolProcedureValue:
+		if symbol.type == .Type_Function {
+			strings.write_string(sb, "#type ")
+		}
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
 	case SymbolAggregateValue, SymbolProcedureGroupValue:

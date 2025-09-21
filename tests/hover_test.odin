@@ -182,7 +182,7 @@ ast_hover_procedure_with_default_comp_lit :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.fa :: proc(color_: Color = {255, 255, 255, 255})")
+	test.expect_hover(t, &source, "test.fa :: #type proc(color_: Color = {255, 255, 255, 255})")
 }
 
 @(test)
@@ -4957,6 +4957,28 @@ ast_hover_const_complex_comp_lit :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.COLOURS :: Colours {\n\tblue = frgba{0.1, 0.1, 0.1, 0.1},\n\tgreen = frgba{0.1, 0.1, 0.1, 0.1},\n\tfoo = {\n\t\ta = 32,\n\t\tb = \"testing\",\n\t},\n\tbar = 1 + 2,\n}")
+}
+
+@(test)
+ast_hover_proc_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo :: proc(a: int) -> int
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: #type proc(a: int) -> int")
+}
+
+@(test)
+ast_hover_proc_impl :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo :: proc(a: int) -> int {
+			return a + 1
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(a: int) -> int")
 }
 /*
 
