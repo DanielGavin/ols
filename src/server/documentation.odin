@@ -779,29 +779,44 @@ write_node :: proc(
 		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
 	case ^ast.Comp_Lit:
-		build_string(n.type, sb, false)
-		if len(n.elems) == 0 {
-			strings.write_string(sb, "{}")
-			return
-		}
-		if n.type != nil {
-			strings.write_string(sb, " {\n")
-		} else {
-			strings.write_string(sb, "{\n")
-		}
-
-		for elem, i in n.elems {
-			write_indent(sb, depth)
-			if field, ok := elem.derived.(^ast.Field_Value); ok {
-				build_string(field.field, sb, false)
-				strings.write_string(sb, " = ")
-				build_string(field.value, sb, false)
-			} else {
-				build_string(elem, sb, false)
+		same_line := true
+		start_line := -1
+		for elem in n.elems {
+			if start_line == -1 {
+				start_line = elem.pos.line
+			} else if start_line != elem.pos.line {
+				same_line = false
+				break
 			}
-			strings.write_string(sb, ",\n")
 		}
-		strings.write_string(sb, "}")
+		if same_line {
+			build_string(n, sb, false)
+		} else {
+			build_string(n.type, sb, false)
+			if len(n.elems) == 0 {
+				strings.write_string(sb, "{}")
+				return
+			}
+			if n.type != nil {
+				strings.write_string(sb, " {\n")
+			} else {
+				strings.write_string(sb, "{\n")
+			}
+
+			for elem, i in n.elems {
+				write_indent(sb, depth)
+				if field, ok := elem.derived.(^ast.Field_Value); ok {
+					build_string(field.field, sb, false)
+					strings.write_string(sb, " = ")
+					write_node(sb, ast_context, field.value, "", depth+1, false)
+				} else {
+					build_string(elem, sb, false)
+				}
+				strings.write_string(sb, ",\n")
+			}
+			write_indent(sb, depth-1)
+			strings.write_string(sb, "}")
+		}
 		return
 	}
 	if ok {

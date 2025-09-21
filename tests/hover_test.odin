@@ -237,7 +237,7 @@ ast_hover_on_array_infer_length_variable :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.vec :: [?]f32 {\n\t1,\n\t2,\n\t3,\n}")
+	test.expect_hover(t, &source, "test.vec :: [?]f32{1, 2, 3}")
 }
 
 @(test)
@@ -4923,6 +4923,40 @@ ast_hover_const_binary_expr :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.FOO :: 3 + 4")
+}
+
+@(test)
+ast_hover_const_complex_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		frgba :: distinct [4]f32
+
+		COLOUR_BLUE :: frgba{0.1, 0.1, 0.1, 0.1}
+
+		Foo :: struct {
+			a: int,
+			b: string,
+		}
+
+		Colours :: struct {
+			blue:  frgba,
+			green: frgba,
+			foo:   Foo,
+			bar:   int,
+		}
+
+		COL{*}OURS :: Colours {
+			blue = frgba{0.1, 0.1, 0.1, 0.1},
+			green = frgba{0.1, 0.1, 0.1, 0.1},
+			foo = {
+				a = 32,
+				b = "testing"
+			},
+			bar = 1 + 2,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.COLOURS :: Colours {\n\tblue = frgba{0.1, 0.1, 0.1, 0.1},\n\tgreen = frgba{0.1, 0.1, 0.1, 0.1},\n\tfoo = {\n\t\ta = 32,\n\t\tb = \"testing\",\n\t},\n\tbar = 1 + 2,\n}")
 }
 /*
 
