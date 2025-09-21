@@ -93,6 +93,8 @@ GlobalExpr :: struct {
 	name:       string,
 	name_expr:  ^ast.Expr,
 	expr:       ^ast.Expr,
+	type_expr:  ^ast.Expr,
+	value_expr: ^ast.Expr,
 	flags:      bit_set[GlobalFlags],
 	docs:       ^ast.Comment_Group,
 	comment:    ^ast.Comment_Group,
@@ -373,7 +375,7 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 // a const variable declaration, so we do a quick check here to distinguish the cases.
 is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
 	#partial switch v in expr.derived {
-	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr:
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr, ^ast.Binary_Expr:
 		return true
 	case:
 		return false
@@ -447,10 +449,12 @@ collect_value_decl :: proc(
 		if len(value_decl.values) > i {
 			if is_variable_declaration(value_decl.values[i]) {
 				global_expr.flags += {.Variable}
+				global_expr.value_expr = value_decl.values[i]
 			}
 		}
 		if value_decl.type != nil {
 			global_expr.expr = value_decl.type
+			global_expr.type_expr = value_decl.type
 			append(exprs, global_expr)
 		} else if len(value_decl.values) > i {
 			global_expr.expr = value_decl.values[i]

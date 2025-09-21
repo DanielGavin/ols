@@ -165,7 +165,7 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		}
 		if len(v.names) == 0 {
 			write_indent(sb, depth)
-			strings.write_string(sb, "enum {}")
+			strings.write_string(sb, "enum{}")
 			if symbol.comment != "" {
 				fmt.sbprintf(sb, " %s", symbol.comment)
 			}
@@ -220,7 +220,7 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		}
 		write_where_clauses(sb, v.where_clauses)
 		if len(v.types) == 0 {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 			return
 		}
 		strings.write_string(sb, " {\n")
@@ -249,6 +249,9 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		strings.write_string(sb, "}")
 		return
 	case SymbolProcedureValue:
+		if symbol.type == .Type_Function && depth == 0 {
+			strings.write_string(sb, "#type ")
+		}
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
 	case SymbolBitFieldValue:
@@ -332,7 +335,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.names) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolMapValue:
@@ -342,6 +345,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		write_node(sb, ast_context, v.value, "", short_signature = true)
 		return
 	case SymbolProcedureValue:
+		if symbol.type == .Type_Function {
+			strings.write_string(sb, "#type ")
+		}
 		write_procedure_symbol_signature(sb, v, detailed_signature = true)
 		return
 	case SymbolAggregateValue, SymbolProcedureGroupValue:
@@ -354,7 +360,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.types) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolUnionValue:
@@ -364,7 +370,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if len(v.types) > 0 {
 			strings.write_string(sb, " {..}")
 		} else {
-			strings.write_string(sb, " {}")
+			strings.write_string(sb, "{}")
 		}
 		return
 	case SymbolBitFieldValue:
@@ -430,16 +436,20 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		strings.write_string(sb, "package")
 		return
 	case SymbolUntypedValue:
-		switch v.type {
-		case .Float:
-			strings.write_string(sb, "float")
-		case .String:
-			strings.write_string(sb, "string")
-		case .Bool:
-			strings.write_string(sb, "bool")
-		case .Integer:
-			strings.write_string(sb, "int")
+		if .Mutable in symbol.flags || symbol.type == .Field {
+			switch v.type {
+			case .Float:
+				strings.write_string(sb, "float")
+			case .String:
+				strings.write_string(sb, "string")
+			case .Bool:
+				strings.write_string(sb, "bool")
+			case .Integer:
+				strings.write_string(sb, "int")
+			}
+			return
 		}
+		strings.write_string(sb, v.tok.text)
 		return
 	case SymbolGenericValue:
 		build_string_node(v.expr, sb, false)
@@ -591,36 +601,49 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 	strings.write_string(sb, "struct")
 	write_poly_list(sb, v.poly, v.poly_names)
 
+	wrote_tag := false
 	if v.max_field_align != nil {
 		strings.write_string(sb, " #max_field_align")
 		build_string_node(v.max_field_align, sb, false)
+		wrote_tag = true
 	}
 
 	if v.min_field_align != nil {
 		strings.write_string(sb, " #min_field_align")
 		build_string_node(v.min_field_align, sb, false)
+		wrote_tag = true
 	}
 
 	if v.align != nil {
 		strings.write_string(sb, " #align")
 		build_string_node(v.align, sb, false)
+		wrote_tag = true
 	}
 
 	for tag in v.tags {
 		switch tag {
 		case .Is_Raw_Union:
+			wrote_tag = true
 			strings.write_string(sb, " #raw_union")
 		case .Is_Packed:
+			wrote_tag = true
 			strings.write_string(sb, " #packed")
 		case .Is_No_Copy:
+			wrote_tag = true
 			strings.write_string(sb, " #no_copy")
 		}
 	}
 
-	write_where_clauses(sb, v.where_clauses)
+	if len(v.where_clauses) > 0 {
+		write_where_clauses(sb, v.where_clauses)
+		wrote_tag = true
+	}
 
 	if len(v.names) == 0 {
-		strings.write_string(sb, " {}")
+		if wrote_tag {
+			strings.write_string(sb, " ")
+		}
+		strings.write_string(sb, "{}")
 		return
 	}
 
@@ -761,6 +784,46 @@ write_node :: proc(
 	case ^ast.Proc_Type:
 		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
+	case ^ast.Comp_Lit:
+		same_line := true
+		start_line := -1
+		for elem in n.elems {
+			if start_line == -1 {
+				start_line = elem.pos.line
+			} else if start_line != elem.pos.line {
+				same_line = false
+				break
+			}
+		}
+		if same_line {
+			build_string(n, sb, false)
+		} else {
+			build_string(n.type, sb, false)
+			if len(n.elems) == 0 {
+				strings.write_string(sb, "{}")
+				return
+			}
+			if n.type != nil {
+				strings.write_string(sb, " {\n")
+			} else {
+				strings.write_string(sb, "{\n")
+			}
+
+			for elem, i in n.elems {
+				write_indent(sb, depth)
+				if field, ok := elem.derived.(^ast.Field_Value); ok {
+					build_string(field.field, sb, false)
+					strings.write_string(sb, " = ")
+					write_node(sb, ast_context, field.value, "", depth+1, false)
+				} else {
+					build_string(elem, sb, false)
+				}
+				strings.write_string(sb, ",\n")
+			}
+			write_indent(sb, depth-1)
+			strings.write_string(sb, "}")
+		}
+		return
 	}
 	if ok {
 		if short_signature {
@@ -802,6 +865,26 @@ construct_symbol_information :: proc(ast_context: ^AstContext, symbol: Symbol) -
 	if symbol.type == .Package {
 		return strings.to_string(sb)
 	}
+
+	if symbol.type != .Field && .Mutable not_in symbol.flags {
+		if symbol.value_expr != nil {
+			if symbol.type_expr != nil {
+				strings.write_string(&sb, " : ")
+				build_string_node(symbol.type_expr, &sb, false)
+				strings.write_string(&sb, " : ")
+				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
+				return strings.to_string(sb)
+			} else if .Variable in symbol.flags {
+				strings.write_string(&sb, " :: ")
+				write_node(&sb, ast_context, symbol.value_expr, "", 1, false)
+				return strings.to_string(sb)
+			}
+		}
+		strings.write_string(&sb, " :: ")
+	} else {
+		strings.write_string(&sb, ": ")
+	}
+
 
 	if write_symbol_type_information(&sb, ast_context, symbol) {
 		return strings.to_string(sb)
@@ -867,7 +950,6 @@ write_symbol_name :: proc(sb: ^strings.Builder, symbol: Symbol) {
 		fmt.sbprintf(sb, "%v.", pkg)
 	}
 	strings.write_string(sb, symbol.name)
-	strings.write_string(sb, ": ")
 }
 
 write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) -> bool {
