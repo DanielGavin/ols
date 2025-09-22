@@ -780,7 +780,7 @@ symbol_type_to_completion_kind :: proc(type: SymbolType) -> CompletionItemKind {
 
 symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 	#partial switch type {
-	case .Function:
+	case .Function, .Type_Function:
 		return .Function
 	case .Constant:
 		return .Constant
@@ -796,6 +796,10 @@ symbol_kind_to_type :: proc(type: SymbolType) -> SymbolKind {
 		return .Key
 	case .Field:
 		return .Field
+	case .Unresolved:
+		return .Constant
+	case .Type:
+		return .Class
 	case:
 		return .Null
 	}

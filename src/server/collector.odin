@@ -666,6 +666,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Basic_Lit:
 			token = v^
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)
+			token_type = .Unresolved
 		case ^ast.Ident:
 			token = v^
 			symbol.value = collect_generic(collection, col_expr, package_map, uri)
