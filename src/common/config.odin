@@ -21,6 +21,7 @@ Config :: struct {
 	enable_hover:                      bool,
 	enable_document_symbols:           bool,
 	enable_semantic_tokens:            bool,
+	enable_unused_imports_reporting:   bool,
 	enable_inlay_hints:                bool,
 	enable_inlay_hints_params:         bool,
 	enable_inlay_hints_default_params: bool,
