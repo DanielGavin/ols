@@ -4980,6 +4980,25 @@ ast_hover_proc_impl :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc(a: int) -> int")
 }
+
+@(test)
+ast_hover_proc_overload_generic_map :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		clear_dynamic_array :: proc "contextless" (array: ^$T/[dynamic]$E) {}
+		clear_map :: proc "contextless" (m: ^$T/map[$K]$V) {}
+		clear :: proc{
+			clear_dynamic_array,
+			clear_map,
+		}
+		main :: proc() {
+			foo: map[int]string
+			c{*}lear(&foo)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.clear :: proc(m: ^$T/map[$K]$V)")
+}
 /*
 
 Waiting for odin fix
