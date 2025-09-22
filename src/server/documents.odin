@@ -29,6 +29,7 @@ Package :: struct {
 	base:          string,
 	base_original: string,
 	original:      string,
+	import_decl:   ^ast.Import_Decl,
 }
 
 Document :: struct {
@@ -446,6 +447,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -468,6 +470,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 				allocator = context.temp_allocator,
 			)
 			import_.name = path.clean(import_.name)
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
