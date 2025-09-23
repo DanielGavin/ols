@@ -1,6 +1,7 @@
 package server
 
 import "base:intrinsics"
+import "base:runtime"
 
 import "core:fmt"
 import "core:log"
@@ -112,11 +113,40 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 
 	res_ptr := reflect.deref(res_ptr_any)
 
-	if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
-		reflect.set_union_value(de, res_ptr_any)
+	find_derived :: proc(a: any) -> any {
+		if a == nil {return nil}
+
+		ti := runtime.type_info_base(type_info_of(a.id))
+
+		if s, ok := ti.variant.(runtime.Type_Info_Struct); ok {
+			for field_type, i in s.types[:s.field_count] {
+				switch field_type.id {
+				case typeid_of(ast.Expr), typeid_of(ast.Stmt):
+					field_named := field_type.variant.(runtime.Type_Info_Named) or_break
+					field_s := field_named.base.variant.(runtime.Type_Info_Struct) or_break
+					return any{
+						rawptr(uintptr(a.data) + s.offsets[i] + field_s.offsets[1]),
+						field_s.types[1].id,
+					}
+				}
+
+				if s.usings[i] {
+					f := any{
+						rawptr(uintptr(a.data) + s.offsets[i]),
+						s.types[i].id,
+					}
+
+					if res := find_derived(f); res != nil {
+						return res
+					}
+				}
+			}
+		}
+		return nil
 	}
-	if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
-		reflect.set_union_value(ds, res_ptr_any)
+
+	if derived := find_derived(res_ptr); derived != nil {
+		reflect.set_union_value(derived, res_ptr_any)
 	}
 
 	if res.derived != nil do #partial switch r in res.derived {
