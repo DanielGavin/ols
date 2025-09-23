@@ -113,6 +113,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 
 	res_ptr := reflect.deref(res_ptr_any)
 
+	// Recursively search for ast.Expr.derived_expr or ast.Stmt.derived_stmt field
 	find_derived :: proc(a: any) -> any {
 		if a == nil {return nil}
 
