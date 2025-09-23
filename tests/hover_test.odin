@@ -5028,6 +5028,27 @@ ast_hover_proc_overload_basic_type_alias :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc(i: int)")
 }
+
+@(test)
+ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		foo_int :: proc(i: int) {}
+		foo_ptr :: proc(s: ^string) {}
+		foo :: proc {
+			foo_int,
+			foo_ptr,
+		}
+
+		main :: proc() {
+			f{*}oo(nil)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(s: ^string)")
+}
 /*
 
 Waiting for odin fix
