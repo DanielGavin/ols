@@ -4999,6 +4999,56 @@ ast_hover_proc_overload_generic_map :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.clear :: proc(m: ^$T/map[$K]$V)")
 }
+
+@(test)
+ast_hover_proc_overload_basic_type_alias :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+			Bar :: int
+		`})
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		foo_int :: proc(i: int) {}
+		foo_string :: proc(s: string) {}
+		foo :: proc {
+			foo_int,
+			foo_string,
+		}
+
+		main :: proc() {
+			bar: my_package.Bar
+			f{*}oo(bar)
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(i: int)")
+}
+
+@(test)
+ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		foo_int :: proc(i: int) {}
+		foo_ptr :: proc(s: ^string) {}
+		foo :: proc {
+			foo_int,
+			foo_ptr,
+		}
+
+		main :: proc() {
+			f{*}oo(nil)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(s: ^string)")
+}
 /*
 
 Waiting for odin fix

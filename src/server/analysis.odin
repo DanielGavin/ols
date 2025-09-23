@@ -340,23 +340,41 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 	if are_keyword_aliases(a.name, b.name) {
 		return true
 	}
-	if a.name != b.name {
+	a_value, a_ok := a.value.(SymbolBasicValue)
+	if !a_ok {
 		return false
 	}
-	if _, ok := a.value.(SymbolBasicValue); !ok {
+
+	b_value, b_ok := b.value.(SymbolBasicValue)
+	if !b_ok {
 		return false
 	}
-	if _, ok := b.value.(SymbolBasicValue); !ok {
+	if a_value.ident.name != b_value.ident.name {
 		return false
 	}
-	if _, ok := keyword_map[a.name]; !ok {
+	if _, ok := keyword_map[a_value.ident.name]; !ok {
 		return false
 	}
-	if _, ok := keyword_map[b.name]; !ok {
+	if _, ok := keyword_map[b_value.ident.name]; !ok {
 		return false
 	}
 
 	return true
+}
+
+is_valid_nil_symbol :: proc(symbol: Symbol) -> bool {
+	if symbol.pointers > 0 {
+		return true
+	}
+
+	#partial switch v in symbol.value {
+	case SymbolMapValue, SymbolSliceValue, SymbolProcedureValue, SymbolDynamicArrayValue:
+		return true
+	case SymbolUnionValue:
+		return v.kind != .no_nil
+	}
+
+	return false
 }
 
 is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.Field_Flags = {}) -> bool {
@@ -718,6 +736,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						call_symbol: Symbol
 						arg_symbol: Symbol
 						ok: bool
+						is_call_arg_nil: bool
 
 						if _, ok = call_arg.derived.(^ast.Bad_Expr); ok {
 							continue
@@ -726,9 +745,14 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						//named parameter
 						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
 							named = true
-							call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
-							if !ok {
-								break next_fn
+							if ident, is_ident := field.field.derived.(^ast.Ident); is_ident && ident.name == "nil" {
+								is_call_arg_nil = true
+								ok = true
+							} else {
+								call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
+								if !ok {
+									break next_fn
+								}
 							}
 
 							if ident, is_ident := field.field.derived.(^ast.Ident); is_ident {
@@ -744,7 +768,12 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 								log.error("Expected name parameter after starting named parmeter phase")
 								return {}, false
 							}
-							call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
+							if ident, is_ident := call_arg.derived.(^ast.Ident); is_ident && ident.name == "nil" {
+								is_call_arg_nil = true
+								ok = true
+							} else {
+								call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
+							}
 						}
 
 						if !ok {
@@ -781,6 +810,15 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 						if !ok {
 							break next_fn
+						}
+
+						if is_call_arg_nil {
+							if is_valid_nil_symbol(arg_symbol) {
+								continue
+							} else {
+								break next_fn
+							}
+
 						}
 
 						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
