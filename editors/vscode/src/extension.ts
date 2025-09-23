@@ -42,6 +42,8 @@ const defaultConfig = JSON.stringify(
 
 let ctx: Ctx;
 
+let outputChannel: vscode.LogOutputChannel;
+
 export async function activate(context: vscode.ExtensionContext) {
 
 	const config = new Config(context);
@@ -100,9 +102,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 	};
 
+
+	outputChannel = vscode.window.createOutputChannel("Odin Language Server", { log: true });
+
+
 	let clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'odin' }],
-		outputChannel: vscode.window.createOutputChannel("Odin Language Server")
+		outputChannel: outputChannel,
 	};
 
 	var client = new LanguageClient(

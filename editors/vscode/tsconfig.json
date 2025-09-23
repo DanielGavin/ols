@@ -1,11 +1,10 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
-		"target": "es2019",
+		"moduleResolution": "node16",
+		"module": "Node16",
+		"target": "ES2021",
 		"outDir": "out",
-		"lib": [
-			"es2019"
-		],
+		"lib": ["ES2021"],
 		"sourceMap": true,
 		"rootDir": "src",
 		"useUnknownInCatchVariables": false,
