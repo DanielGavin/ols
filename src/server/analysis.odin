@@ -340,19 +340,22 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 	if are_keyword_aliases(a.name, b.name) {
 		return true
 	}
-	if a.name != b.name {
+	a_value, a_ok := a.value.(SymbolBasicValue)
+	if !a_ok {
 		return false
 	}
-	if _, ok := a.value.(SymbolBasicValue); !ok {
+
+	b_value, b_ok := b.value.(SymbolBasicValue)
+	if !b_ok {
 		return false
 	}
-	if _, ok := b.value.(SymbolBasicValue); !ok {
+	if a_value.ident.name != b_value.ident.name {
 		return false
 	}
-	if _, ok := keyword_map[a.name]; !ok {
+	if _, ok := keyword_map[a_value.ident.name]; !ok {
 		return false
 	}
-	if _, ok := keyword_map[b.name]; !ok {
+	if _, ok := keyword_map[b_value.ident.name]; !ok {
 		return false
 	}
 
