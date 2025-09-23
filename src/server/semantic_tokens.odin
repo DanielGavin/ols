@@ -143,8 +143,11 @@ get_semantic_tokens :: proc(
 		src     = ast_context.file.src,
 	}
 
+	margin := 20
+
 	for decl in document.ast.decls {
-		if range.start.line <= decl.pos.line && decl.end.line <= range.end.line {
+		//Look for declarations that overlap with range
+		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
 			visit_node(decl, &builder)
 		}
 	}

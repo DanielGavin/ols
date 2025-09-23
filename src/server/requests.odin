@@ -717,7 +717,7 @@ request_initialize :: proc(
 				},
 				semanticTokensProvider = SemanticTokensOptions {
 					range = config.enable_semantic_tokens,
-					full = config.enable_semantic_tokens,
+					full = false,
 					legend = SemanticTokensLegend {
 						tokenTypes = semantic_token_type_names,
 						tokenModifiers = semantic_token_modifier_names,
@@ -1205,12 +1205,10 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		resolve_entire_file_cached(document)
+		symbols := resolve_ranged_file(document, semantic_params.range, context.temp_allocator)
 
-		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
-			tokens_params = semantic_tokens_to_response_params(tokens)
-		}
+		tokens := get_semantic_tokens(document, semantic_params.range, symbols)
+		tokens_params = semantic_tokens_to_response_params(tokens)
 	}
 
 	response := make_response_message(params = tokens_params, id = id)
