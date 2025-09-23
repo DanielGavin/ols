@@ -528,10 +528,9 @@ collect_when_body :: proc(
 
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 	file_tags := parser.parse_file_tags(file, context.temp_allocator)
-	if file_tags.ignore {
+	if !should_collect_file(file_tags) {
 		return {}
 	}
-
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
 
