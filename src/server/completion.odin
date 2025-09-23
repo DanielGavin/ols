@@ -2271,12 +2271,12 @@ get_expression_string_from_position_context :: proc(position_context: ^DocumentP
 
 	}
 
-	if position_context.field != nil {
-		return src[position_context.field.pos.offset:position_context.field.end.offset]
-	}
-
 	if position_context.selector != nil {
 		return src[position_context.selector.pos.offset:position_context.selector.end.offset]
+	}
+
+	if position_context.field != nil {
+		return src[position_context.field.pos.offset:position_context.field.end.offset]
 	}
 
 	return ""
