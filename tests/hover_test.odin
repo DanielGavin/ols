@@ -5049,6 +5049,43 @@ ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc(s: ^string)")
 }
+
+@(test)
+ast_hover_package_proc_naming_conflicting_with_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			foo :: proc() {}
+		`,
+		},
+	)
+	append(
+		&packages,
+		test.Package {
+			pkg = "foo",
+			source = `package foo
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		import "foo"
+
+		main :: proc() {
+			f := my_package.fo{*}o
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.foo :: proc()")
+}
 /*
 
 Waiting for odin fix
