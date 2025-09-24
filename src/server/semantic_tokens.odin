@@ -65,10 +65,12 @@ SemanticTokenModifier :: enum u8 {
 semantic_token_modifier_names: []string = {"declaration", "definition", "deprecated", "readonly"}
 SemanticTokenModifiers :: bit_set[SemanticTokenModifier;u32]
 
+SemanticTokensRequest :: struct {
+	range: bool,
+}
+
 SemanticTokensClientCapabilities :: struct {
-	requests:                struct {
-		range: bool,
-	},
+	requests:                SemanticTokensRequest,
 	tokenTypes:              []string,
 	tokenModifiers:          []string,
 	formats:                 []string,
