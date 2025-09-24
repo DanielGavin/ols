@@ -290,6 +290,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		ast_context.current_package = selector.pkg
 
+		// TODO: Use resolve_selector_expression for this?
 		#partial switch v in selector.value {
 		case SymbolStructValue:
 			for name, i in v.names {
@@ -323,7 +324,8 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							}
 						}
 					}
-					if resolved, ok := resolve_type_identifier(&ast_context, ident^); ok {
+
+					if resolved, ok := resolve_symbol_return(&ast_context, lookup(ident.name, selector.pkg, ast_context.fullpath)); ok {
 						build_documentation(&ast_context, &resolved, false)
 						resolved.name = ident.name
 
