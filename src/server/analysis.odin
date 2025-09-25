@@ -1297,6 +1297,13 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 			return indexed, true
 		}
 		return {}, false
+	case SymbolMatrixValue:
+		value := SymbolFixedArrayValue{
+			expr = v2.expr,
+			len = v2.x,
+		}
+		indexed.value = value
+		return indexed, true
 	}
 
 
