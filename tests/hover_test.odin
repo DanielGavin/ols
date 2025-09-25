@@ -5033,7 +5033,6 @@ ast_hover_proc_overload_basic_type_alias :: proc(t: ^testing.T) {
 ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
-		import "my_package"
 
 		foo_int :: proc(i: int) {}
 		foo_ptr :: proc(s: ^string) {}
@@ -5085,6 +5084,33 @@ ast_hover_package_proc_naming_conflicting_with_another_package :: proc(t: ^testi
 	}
 
 	test.expect_hover(t, &source, "my_package.foo :: proc()")
+}
+
+@(test)
+ast_hover_matrix_index :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: matrix[3, 2]f32
+			a{*} := foo[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.a: [3]f32")
+}
+
+@(test)
+ast_hover_matrix_index_twice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: matrix[2, 3]f32
+			a := foo[0]
+			b{*} := a[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: f32")
 }
 /*
 
