@@ -205,3 +205,26 @@ ast_inlay_hints_disabled :: proc(t: ^testing.T) {
 
 	test.expect_inlay_hints(t, &source)
 }
+
+@(test)
+ast_inlay_hints_implicit_return_values :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (res: int, ok: bool) {
+
+			if !condition() do return[[ res, ok]]
+
+			condition() or_return[[ res, ⮡]]
+
+			return value, true
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_implicit_return = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
