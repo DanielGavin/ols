@@ -316,7 +316,7 @@ get_inlay_hints :: proc(
 					strings.write_string(&sb, ", ")
 				}
 				if is_or_return && i == len(proc_data.results)-1 && j == len(res.names)-1 {
-					strings.write_string(&sb, "⮡")
+					strings.write_string(&sb, "_")
 				} else {
 					strings.write_string(&sb, str)
 				}

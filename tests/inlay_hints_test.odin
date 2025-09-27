@@ -215,7 +215,7 @@ ast_inlay_hints_implicit_return_values :: proc(t: ^testing.T) {
 
 			if !condition() do return[[ res, ok]]
 
-			condition() or_return[[ res, ⮡]]
+			condition() or_return[[ res, _]]
 
 			return value, true
 		}
