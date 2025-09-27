@@ -34,7 +34,7 @@ platform_os: map[string]struct{} = {
 }
 
 
-os_enum_to_string: map[runtime.Odin_OS_Type]string = {
+os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.Windows      = "windows",
 	.Darwin       = "darwin",
 	.Linux        = "linux",
@@ -43,11 +43,28 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.WASI         = "wasi",
 	.JS           = "js",
 	.Freestanding = "freestanding",
-	.JS           = "wasm",
 	.Haiku        = "haiku",
 	.OpenBSD      = "openbsd",
 	.NetBSD       = "netbsd",
-	.FreeBSD      = "freebsd",
+	.Orca         = "orca",
+	.Unknown      = "unknown",
+}
+
+os_string_to_enum: map[string]runtime.Odin_OS_Type = {
+	"Windows"      = .Windows,
+	"Darwin"       = .Darwin,
+	"Linux"        = .Linux,
+	"Essence"      = .Essence,
+	"Freebsd"      = .FreeBSD,
+	"Wasi"         = .WASI,
+	"Js"           = .JS,
+	"Freestanding" = .Freestanding,
+	"Wasm"         = .JS,
+	"Haiku"        = .Haiku,
+	"Openbsd"      = .OpenBSD,
+	"Netbsd"       = .NetBSD,
+	"Orca"         = .Orca,
+	"Unknown"      = .Unknown,
 }
 
 @(private = "file")
@@ -88,6 +105,38 @@ skip_file :: proc(filename: string) -> bool {
 	}
 
 	return false
+}
+
+should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
+	if file_tags.ignore {
+		return false
+	}
+
+	if len(file_tags.build) > 0 {
+		when_expr_map := make(map[string]When_Expr, context.temp_allocator)
+
+		for key, value in common.config.profile.defines {
+			when_expr_map[key] = resolve_when_ident(when_expr_map, value) or_continue
+		}
+
+		if when_expr, ok := resolve_when_ident(when_expr_map, "ODIN_OS"); ok {
+			if s, ok := when_expr.(string); ok {
+				if used_os, ok := os_string_to_enum[when_expr.(string)]; ok {
+					found := false
+					for tag in file_tags.build {
+						if used_os in tag.os {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
 }
 
 try_build_package :: proc(pkg_name: string) {

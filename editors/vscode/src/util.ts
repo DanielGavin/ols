@@ -156,11 +156,11 @@ export function execute(command: string, options: ExecOptions): Promise<string> 
             }
 
             if (stderr) {
-                reject(new Error(stderr));
+                reject(new Error(stderr.toString()));
                 return;
             }
-
-            resolve(stdout.trimEnd());
+ 
+            resolve(stdout.toString().trimEnd());
         });
     });
 }

@@ -29,6 +29,7 @@ Package :: struct {
 	base:          string,
 	base_original: string,
 	original:      string,
+	range:         common.Range,
 	import_decl:   ^ast.Import_Decl,
 }
 
@@ -433,6 +434,8 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue
 		}
+		// TODO: Breakdown this range like with semantic tokens
+		range := get_import_range(imp, string(document.text))
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
@@ -452,6 +455,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
+			import_.range = range
 			import_.import_decl = imp
 
 			if imp.name.text != "" {
@@ -475,6 +479,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 				allocator = context.temp_allocator,
 			)
 			import_.name = path.clean(import_.name)
+			import_.range = range
 			import_.import_decl = imp
 
 			if imp.name.text != "" {
@@ -495,4 +500,25 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 	try_build_package(document.package_name)
 
 	document.imports = imports[:]
+}
+
+get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
+	if imp.name.text != "" {
+		start := common.token_pos_to_position(imp.name.pos, src)
+		end := start
+		end.character += len(imp.name.text)
+		return {
+			start = start,
+			end = end,
+		}
+	}
+
+	start := common.token_pos_to_position(imp.relpath.pos, src)
+	end := start
+	text_len := len(imp.relpath.text)
+	end.character += text_len
+	return {
+		start = start,
+		end = end,
+	}
 }

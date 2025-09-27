@@ -190,6 +190,7 @@ TextDocumentClientCapabilities :: struct {
 	signatureHelp:  SignatureHelpClientCapabilities,
 	documentSymbol: DocumentSymbolClientCapabilities,
 	codeAction:     CodeActionClientCapabilities,
+	semanticTokens: SemanticTokensClientCapabilities,
 }
 
 StaleRequestSupport :: struct {

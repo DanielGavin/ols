@@ -675,3 +675,51 @@ ast_goto_nested_using_struct_field :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_package_declaration :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+			Bar :: struct{}
+		`})
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			bar: m{*}y_package.Bar
+		}
+	`,
+		packages = packages[:],
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 9}, end = {line = 1, character = 21}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}
+
+@(test)
+ast_goto_package_declaration_with_alias :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+			Bar :: struct{}
+		`})
+	source := test.Source {
+		main = `package test
+		import mp "my_package"
+
+		main :: proc() {
+			bar: m{*}p.Bar
+		}
+	`,
+		packages = packages[:],
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 9}, end = {line = 1, character = 11}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}

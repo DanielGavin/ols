@@ -4980,6 +4980,138 @@ ast_hover_proc_impl :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc(a: int) -> int")
 }
+
+@(test)
+ast_hover_proc_overload_generic_map :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		clear_dynamic_array :: proc "contextless" (array: ^$T/[dynamic]$E) {}
+		clear_map :: proc "contextless" (m: ^$T/map[$K]$V) {}
+		clear :: proc{
+			clear_dynamic_array,
+			clear_map,
+		}
+		main :: proc() {
+			foo: map[int]string
+			c{*}lear(&foo)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.clear :: proc(m: ^$T/map[$K]$V)")
+}
+
+@(test)
+ast_hover_proc_overload_basic_type_alias :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+			Bar :: int
+		`})
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		foo_int :: proc(i: int) {}
+		foo_string :: proc(s: string) {}
+		foo :: proc {
+			foo_int,
+			foo_string,
+		}
+
+		main :: proc() {
+			bar: my_package.Bar
+			f{*}oo(bar)
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(i: int)")
+}
+
+@(test)
+ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo_int :: proc(i: int) {}
+		foo_ptr :: proc(s: ^string) {}
+		foo :: proc {
+			foo_int,
+			foo_ptr,
+		}
+
+		main :: proc() {
+			f{*}oo(nil)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(s: ^string)")
+}
+
+@(test)
+ast_hover_package_proc_naming_conflicting_with_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			foo :: proc() {}
+		`,
+		},
+	)
+	append(
+		&packages,
+		test.Package {
+			pkg = "foo",
+			source = `package foo
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		import "foo"
+
+		main :: proc() {
+			f := my_package.fo{*}o
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package.foo :: proc()")
+}
+
+@(test)
+ast_hover_matrix_index :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: matrix[3, 2]f32
+			a{*} := foo[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.a: [3]f32")
+}
+
+@(test)
+ast_hover_matrix_index_twice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: matrix[2, 3]f32
+			a := foo[0]
+			b{*} := a[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: f32")
+}
 /*
 
 Waiting for odin fix

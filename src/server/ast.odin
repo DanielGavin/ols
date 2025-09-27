@@ -527,10 +527,12 @@ collect_when_body :: proc(
 }
 
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
+	file_tags := parser.parse_file_tags(file, context.temp_allocator)
+	if !should_collect_file(file_tags) {
+		return {}
+	}
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
-
-	file_tags := parser.parse_file_tags(file, context.temp_allocator)
 
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
