@@ -30,6 +30,7 @@ Package :: struct {
 	base_original: string,
 	original:      string,
 	range:         common.Range,
+	import_decl:   ^ast.Import_Decl,
 }
 
 Document :: struct {
@@ -319,25 +320,49 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
-	if writer != nil && len(errors) > 0 && !config.disable_parser_errors {
+	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
+		diagnostics := make([dynamic]Diagnostic, 0, len(errors), context.temp_allocator)
+
 		params := NotificationPublishDiagnosticsParams {
-			uri         = document.uri.uri,
-			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
+			uri = document.uri.uri,
 		}
 
 		for error, i in errors {
-			params.diagnostics[i] = Diagnostic {
-				range = common.Range {
-					start = common.Position{line = error.line - 1, character = 0},
-					end = common.Position{line = error.line, character = 0},
+			append(
+				&diagnostics,
+				Diagnostic {
+					range = common.Range {
+						start = common.Position{line = error.line - 1, character = 0},
+						end = common.Position{line = error.line, character = 0},
+					},
+					severity = DiagnosticSeverity.Error,
+					code = "Syntax",
+					message = error.message,
 				},
-				severity = DiagnosticSeverity.Error,
-				code = "Syntax",
-				message = error.message,
-			}
+			)
 		}
+
+		if config.enable_unused_imports_reporting {
+			unused_imports := find_unused_imports(document, context.temp_allocator)
+
+			for imp in unused_imports {
+				append(
+					&diagnostics,
+					Diagnostic {
+						range = common.get_token_range(imp.import_decl, document.ast.src),
+						severity = DiagnosticSeverity.Hint,
+						code = "Unused",
+						message = "unused import",
+						tags = {.Unnecessary},
+					},
+				)
+			}
+
+		}
+
+		params.diagnostics = diagnostics[:]
 
 		notifaction := Notification {
 			jsonrpc = "2.0",
@@ -346,25 +371,6 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		}
 
 		send_notification(notifaction, writer)
-	}
-
-	if writer != nil && len(errors) == 0 {
-		//send empty diagnosis to remove the clients errors
-		if document.diagnosed_errors {
-
-			notifaction := Notification {
-				jsonrpc = "2.0",
-				method = "textDocument/publishDiagnostics",
-				params = NotificationPublishDiagnosticsParams {
-					uri = document.uri.uri,
-					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
-				},
-			}
-
-			document.diagnosed_errors = false
-
-			send_notification(notifaction, writer)
-		}
 	}
 
 	return .None
@@ -450,6 +456,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_.original = imp.fullpath
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -473,6 +480,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			)
 			import_.name = path.clean(import_.name)
 			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
