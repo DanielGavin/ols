@@ -15,12 +15,12 @@ find_unused_imports :: proc(document: ^Document, allocator := context.temp_alloc
 
 	context.allocator = runtime.arena_allocator(&arena)
 
-	symbols_and_nodes := resolve_entire_file_cached(document)
+	symbols_and_nodes := resolve_entire_file(document)
 
-	pkgs := make(map[string]bool, context.temp_allocator)
+	pkgs := make(map[string]struct{}, context.temp_allocator)
 
 	for _, v in symbols_and_nodes {
-		pkgs[v.symbol.pkg] = true
+		pkgs[v.symbol.pkg] = {}
 	}
 
 	unused := make([dynamic]Package, allocator)

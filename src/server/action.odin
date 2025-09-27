@@ -68,13 +68,13 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 			add_missing_imports(&ast_context, selector, strings.clone(document.uri.uri), config, &actions)
 		}
 	} else if position_context.import_stmt != nil {
-		remove_missing_imports(document, strings.clone(document.uri.uri), config, &actions)
+		remove_unused_imports(document, strings.clone(document.uri.uri), config, &actions)
 	}
 
 	return actions[:], true
 }
 
-remove_missing_imports :: proc(
+remove_unused_imports :: proc(
 	document: ^Document,
 	uri: string,
 	config: ^common.Config,
@@ -90,13 +90,25 @@ remove_missing_imports :: proc(
 
 	for imp in unused_imports {
 		range := common.get_token_range(imp.import_decl, document.ast.src)
+
 		import_edit := TextEdit {
-			range = range,
+			range   = range,
 			newText = "",
 		}
 
+		if (range.start.line != 1) {
+			if column, ok := common.get_last_column(import_edit.range.start.line - 1, document.text); ok {
+				import_edit.range.start.line -= 1
+				import_edit.range.start.character = column
+			}
+
+		}
+
+
 		append(&textEdits, import_edit)
 	}
+
+	log.error(textEdits[:])
 
 	workspaceEdit: WorkspaceEdit
 	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
