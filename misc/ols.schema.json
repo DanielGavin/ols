@@ -41,19 +41,21 @@
 			"type": "boolean",
 			"description": "Turns on builtin snippets"
 		},
-		"enable_inlay_hints": {
-			"type": "boolean",
-			"description": "Turn on inlay hints for editors that support it."
-		},
+
 		"enable_inlay_hints_params": {
 			"type": "boolean",
 			"description": "Turn on inlay hints for (non-default) parameters.",
-			"default": true
+			"default": false
 		},
 		"enable_inlay_hints_default_params": {
 			"type": "boolean",
 			"description": "Turn on inlay hints for default parameters.",
-			"default": true
+			"default": false
+		},
+		"enable_inlay_hints_implicit_return": {
+			"type": "boolean",
+			"description": "Turn on inlay hints for implicit return values.",
+			"default": false
 		},
 		"enable_procedure_snippet": {
 			"type": "boolean",

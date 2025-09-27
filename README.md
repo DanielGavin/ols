@@ -82,11 +82,11 @@ Options:
 
 - `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
 
-- `enable_inlay_hints`: Turn on inlay hints for editors that support it. When using inlay hints there are 2 configuration options
+- `enable_inlay_hints_params`: Turn on inlay hints for (non-default) parameters.
 
-	- `enable_inlay_hints_params`: Turn on inlay hints for (non-default) parameters. _(Enabled by default)_
+- `enable_inlay_hints_default_params`: Turn on inlay hints for default parameters.
 
-	- `enable_inlay_hints_default_params`: Turn on inlay hints for default parameters. _(Enabled by default)_
+- `enable_inlay_hints_implicit_return`: Turn on inlay hints for implicit return values.
 
 - `enable_semantic_tokens`: Turns on syntax highlighting.
 

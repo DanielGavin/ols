@@ -25,6 +25,7 @@ Config :: struct {
 	enable_inlay_hints:                bool,
 	enable_inlay_hints_params:         bool,
 	enable_inlay_hints_default_params: bool,
+	enable_inlay_hints_implicit_return: bool,
 	enable_procedure_context:          bool,
 	enable_snippets:                   bool,
 	enable_references:                 bool,

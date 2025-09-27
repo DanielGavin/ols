@@ -433,11 +433,12 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.checker_targets = slice.clone(ols_config.checker_targets, context.allocator)
 
-	config.enable_inlay_hints = ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 	config.enable_inlay_hints_params =
 		ols_config.enable_inlay_hints_params.(bool) or_else config.enable_inlay_hints_params
 	config.enable_inlay_hints_default_params =
 		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
+	config.enable_inlay_hints_implicit_return =
+		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
@@ -605,9 +606,9 @@ request_initialize :: proc(
 	config.enable_hover = true
 	config.enable_format = true
 
-	config.enable_inlay_hints = false
-	config.enable_inlay_hints_params = true
-	config.enable_inlay_hints_default_params = true
+	config.enable_inlay_hints_params = false
+	config.enable_inlay_hints_default_params = false
+	config.enable_inlay_hints_implicit_return = false
 
 	config.disable_parser_errors = false
 	config.thread_count = 2
@@ -727,7 +728,11 @@ request_initialize :: proc(
 						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
-				inlayHintProvider = config.enable_inlay_hints,
+				inlayHintProvider = (
+					config.enable_inlay_hints_params ||
+					config.enable_inlay_hints_default_params ||
+					config.enable_inlay_hints_implicit_return
+				),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
@@ -1299,38 +1304,27 @@ request_inlay_hint :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
-	params_object, ok := params.(json.Object)
 
-	if !ok {
-		return .ParseError
-	}
+	_, is_params_object := params.(json.Object)
+	if !is_params_object do return .ParseError
 
 	inlay_params: InlayParams
-
 	if unmarshal(params, inlay_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
 	document := document_get(inlay_params.textDocument.uri)
-
-	if document == nil {
-		return .InternalError
-	}
-
-	hints: []InlayHint
+	if document == nil do return .InternalError
 
 	resolve_entire_file_cached(document)
 
-	if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-		hints, ok = get_inlay_hints(document, file.symbols, config)
-	}
+	file, file_ok := file_resolve_cache.files[document.uri.uri]
+	if !file_ok do return .InternalError
 
-	if !ok {
-		return .InternalError
-	}
+	hints, hints_ok := get_inlay_hints(document, file.symbols, config)
+	if !hints_ok do return .InternalError
 
 	response := make_response_message(params = hints, id = id)
-
 	send_response(response, writer)
 
 	return .None
