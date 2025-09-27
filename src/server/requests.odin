@@ -1314,7 +1314,7 @@ request_inlay_hint :: proc(
 	document := document_get(inlay_params.textDocument.uri)
 	if document == nil do return .InternalError
 
-	resolve_entire_file_cached(document)
+	resolve_ranged_file(document, inlay_params.range, context.temp_allocator)
 
 	file, file_ok := file_resolve_cache.files[document.uri.uri]
 	if !file_ok do return .InternalError
