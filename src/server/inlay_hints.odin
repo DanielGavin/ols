@@ -16,30 +16,45 @@ get_inlay_hints :: proc(
 	bool,
 ) {
 	Visitor_Data :: struct {
-		hints:    [dynamic]InlayHint,
 		document: ^Document,
 		symbols:  map[uintptr]SymbolAndNode,
 		config:   ^common.Config,
+		hints:    [dynamic]InlayHint,
+		depth:    int,
+		procs:    [dynamic]Proc_Data,
+	}
+
+	Proc_Data :: struct {
+		depth:   int,
+		results: []^ast.Field,
 	}
 
 	data := Visitor_Data{
-		hints    = make([dynamic]InlayHint, context.temp_allocator),
 		document = document,
 		symbols  = symbols,
 		config   = config,
+		procs    = make([dynamic]Proc_Data, context.temp_allocator),
+		hints    = make([dynamic]InlayHint, context.temp_allocator),
 	}
 
 	visitor := ast.Visitor{
 		data  = &data,
 		visit = proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
-			if node == nil || visitor == nil {
+
+			data := (^Visitor_Data)(visitor.data)
+
+			if node == nil {
+				if len(data.procs) > 0 && data.depth == data.procs[len(data.procs)-1].depth {
+					pop(&data.procs)
+				}
+				data.depth -= 1
 				return nil
 			}
 
-			if call, is_call := node.derived.(^ast.Call_Expr); is_call {
-				data := (^Visitor_Data)(visitor.data)
-				visit_call(call, data)
-			}
+			data.depth += 1
+
+			add_param_hints(node, data)
+			add_return_hints(node, data)
 
 			return visitor
 		},
@@ -57,10 +72,20 @@ get_inlay_hints :: proc(
 		}
 	}
 
-	visit_call :: proc (
-		call: ^ast.Call_Expr,
+	/*
+		Adds inlay hints for parameter names and default arguments in call expressions.
+	*/
+	add_param_hints :: proc (
+		node: ^ast.Node,
 		data: ^Visitor_Data,
 	) -> (ok: bool) {
+
+		if !data.config.enable_inlay_hints_params &&
+		   !data.config.enable_inlay_hints_default_params {
+			return
+		}
+
+		call := node.derived.(^ast.Call_Expr) or_return
 
 		src := string(data.document.text)
 		end_pos := common.token_pos_to_position(call.close, src)
@@ -238,6 +263,68 @@ get_inlay_hints :: proc(
 				}
 			}
 		}
+
+		return true
+	}
+
+	/*
+		Adds inlay hints for implicit returned values in naked returns.
+	*/
+	add_return_hints :: proc (
+		node: ^ast.Node,
+		data: ^Visitor_Data,
+	) -> (ok: bool) {
+
+		if !data.config.enable_inlay_hints_implicit_return do return
+
+		return_node: ^ast.Node
+		is_or_return: bool
+
+		#partial switch v in node.derived {
+		case ^ast.Proc_Lit:
+			if v.type != nil && v.type.results != nil && len(v.type.results.list) > 0 {
+				// check if all return values are named
+				for res in v.type.results.list {
+					if len(res.names) == 0 do return
+				}
+				append(&data.procs, Proc_Data{data.depth, v.type.results.list})
+			}
+			return
+
+		case ^ast.Return_Stmt:
+			if len(v.results) > 0 do return // explicit return, skip
+			return_node = &v.stmt_base
+
+		case ^ast.Or_Return_Expr:
+			return_node = &v.expr_base
+			is_or_return = true
+
+		case: return
+		}
+
+		if len(data.procs) == 0 do return // not inside a proc
+
+		proc_data := &data.procs[len(data.procs)-1]
+
+		sb := strings.builder_make(context.temp_allocator)
+		strings.write_string(&sb, " ")
+
+		for res, i in proc_data.results {
+			for name, j in res.names {
+				str := expr_name(name) or_continue
+				if i > 0 || j > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if is_or_return && i == len(proc_data.results)-1 && j == len(res.names)-1 {
+					strings.write_string(&sb, "_")
+				} else {
+					strings.write_string(&sb, str)
+				}
+			}
+		}
+
+		range := common.get_token_range(return_node^, string(data.document.text))
+		append(&data.hints, InlayHint{range.end, .Parameter, strings.to_string(sb)})
 
 		return true
 	}
