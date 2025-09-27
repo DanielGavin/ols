@@ -159,8 +159,9 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 					code = "checker",
 					severity = .Error,
 					range = {
-						start = {character = error.pos.column - 1, line = error.pos.line - 1},
-						end = {character = error.pos.end_column - 1, line = error.pos.line - 1},
+						// odin will sometimes report errors on column 0, so we ensure we don't provide a negative column/line to the client
+						start = {character = max(error.pos.column - 1, 0), line = max(error.pos.line - 1, 0)},
+						end = {character = max(error.pos.end_column - 1, 0), line = max(error.pos.line - 1, 0)},
 					},
 					message = message,
 				},
