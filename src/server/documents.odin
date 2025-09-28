@@ -284,7 +284,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	document := &document_storage.documents[uri.path]
 
 	if document == nil || !document.client_owned {
-		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path)
+		log.errorf("Client called close on a document that was never opened: %v ", uri.path)
 		return .InvalidRequest
 	}
 
