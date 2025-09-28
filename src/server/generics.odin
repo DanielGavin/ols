@@ -463,6 +463,12 @@ find_and_replace_poly_type :: proc(expr: ^ast.Expr, poly_map: ^map[string]^ast.E
 				v.pos.file = expr.pos.file
 				v.end.file = expr.end.file
 			}
+		case ^ast.Call_Expr:
+			for &arg in v.args {
+				if expr, ok := get_poly_map(arg, poly_map); ok {
+					arg = expr
+				}
+			}
 		}
 
 		return visitor
