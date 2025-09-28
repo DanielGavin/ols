@@ -241,14 +241,14 @@ convert_completion_results :: proc(
 	config: ^common.Config,
 ) -> []CompletionItem {
 	for &result in results {
-		score_completion_item(&result)
+		score_completion_item(&result, ast_context.current_package)
 	}
 
 	slice.sort_by(results, proc(i, j: CompletionResult) -> bool {
 		if j.score != i.score {
 			return j.score < i.score
 		}
-		return j.symbol.name < i.symbol.name
+		return j.symbol.name > i.symbol.name
 	})
 
 	top_results := results
@@ -387,7 +387,7 @@ convert_completion_results :: proc(
 	return items[:]
 }
 
-score_completion_item :: proc(item: ^CompletionResult) {
+score_completion_item :: proc(item: ^CompletionResult, curr_pkg: string) {
 	if _, ok := item.completion_item.?; ok {
 		return
 	}
@@ -402,6 +402,10 @@ score_completion_item :: proc(item: ^CompletionResult) {
 
 	if item.symbol.type == .Field {
 		item.score += 2
+	}
+
+	if item.symbol.pkg == curr_pkg {
+		item.score += 1
 	}
 }
 
