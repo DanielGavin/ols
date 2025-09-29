@@ -5112,6 +5112,29 @@ ast_hover_matrix_index_twice :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.b: f32")
 }
+
+@(test)
+ast_hover_parapoly_proc_slice_param_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Iter :: struct(T: typeid) {
+			slice: []T,
+			index: int,
+		}
+
+		make_iter :: proc(slice: []$T) -> Iter(T) {
+			return { slice, 0 }
+		}
+
+		main :: proc() {
+			slice := []string{}
+			i{*}t := make_iter(slice)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.it: test.Iter(string)")
+}
 /*
 
 Waiting for odin fix
