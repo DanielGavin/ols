@@ -30,7 +30,7 @@ convert_os_string: map[string]string = {
 	"haiku"        = "Haiku",
 	"openbsd"      = "OpenBSD",
 	"netbsd"       = "NetBSD",
-	"freebsd"      = "FreeBSD",
+	"orca"         = "Orca",
 }
 
 resolve_when_ident :: proc(when_expr_map: map[string]When_Expr, ident: string) -> (When_Expr, bool) {
