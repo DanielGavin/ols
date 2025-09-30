@@ -61,10 +61,13 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"essence"      = .Essence,
 	"Freebsd"      = .FreeBSD,
 	"freebsd"      = .FreeBSD,
+	"FreeBSD"      = .FreeBSD,
 	"Wasi"         = .WASI,
 	"wasi"         = .WASI,
+	"WASI"         = .WASI,
 	"Js"           = .JS,
 	"js"           = .JS,
+	"JS"           = .JS,
 	"Freestanding" = .Freestanding,
 	"freestanding" = .Freestanding,
 	"Wasm"         = .JS,
@@ -73,8 +76,10 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"haiku"        = .Haiku,
 	"Openbsd"      = .OpenBSD,
 	"openbsd"      = .OpenBSD,
+	"OpenBSD"      = .OpenBSD,
 	"Netbsd"       = .NetBSD,
 	"netbsd"       = .NetBSD,
+	"NetBSD"       = .NetBSD,
 	"Orca"         = .Orca,
 	"orca"         = .Orca,
 	"Unknown"      = .Unknown,
@@ -127,16 +132,26 @@ should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
 	}
 
 	if len(file_tags.build) > 0 {
-		if used_os, ok := os_string_to_enum[common.config.profile.os]; ok {
-			found := false
-			for tag in file_tags.build {
-				if used_os in tag.os {
-					found = true
-					break
+		when_expr_map := make(map[string]When_Expr, context.temp_allocator)
+
+		for key, value in common.config.profile.defines {
+			when_expr_map[key] = resolve_when_ident(when_expr_map, value) or_continue
+		}
+
+		if when_expr, ok := resolve_when_ident(when_expr_map, "ODIN_OS"); ok {
+			if s, ok := when_expr.(string); ok {
+				if used_os, ok := os_string_to_enum[when_expr.(string)]; ok {
+					found := false
+					for tag in file_tags.build {
+						if used_os in tag.os {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return false
+					}
 				}
-			}
-			if !found {
-				return false
 			}
 		}
 	}
