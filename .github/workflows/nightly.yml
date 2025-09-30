@@ -1,4 +1,6 @@
 name: nightly
+env:
+  ODIN_BRANCH: dev-2025-09
 
 on:
   workflow_dispatch:
@@ -17,7 +19,7 @@ jobs:
         echo "/opt/homebrew/opt/llvm@17/bin" >> $GITHUB_PATH
     - name: Download Odin
       run: |
-        git clone https://github.com/odin-lang/Odin
+        git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
@@ -47,7 +49,7 @@ jobs:
         echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
     - name: Download Odin
       run: |
-        git clone https://github.com/odin-lang/Odin
+        git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
@@ -77,7 +79,7 @@ jobs:
         echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
     - name: Download Odin
       run: |
-        git clone https://github.com/odin-lang/Odin
+        git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
@@ -107,7 +109,7 @@ jobs:
         echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
     - name: Download Odin
       run: |
-        git clone https://github.com/odin-lang/Odin
+        git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
     - name: Build Odin
       run: |
         cd Odin
@@ -134,7 +136,7 @@ jobs:
     - name: Download Odin
       shell: cmd
       run: |
-        git clone https://github.com/odin-lang/Odin
+        git clone --depth 1 --branch %ODIN_BRANCH% https://github.com/odin-lang/Odin
     - name: Build Odin
       shell: cmd
       run: |

@@ -1,4 +1,6 @@
 name: CI
+env:
+  ODIN_BRANCH: dev-2025-09
 
 on:
   push:
@@ -23,7 +25,7 @@ jobs:
       - name: Download Odin
         shell: cmd
         run: |
-          git clone https://github.com/odin-lang/Odin
+          git clone --depth 1 --branch %ODIN_BRANCH% https://github.com/odin-lang/Odin
       - name: Build Odin
         shell: cmd
         run: |
@@ -50,7 +52,7 @@ jobs:
           echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
       - name: Build Odin
         run: |
-          git clone --depth 1 https://github.com/odin-lang/Odin
+          git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
           cd Odin && ./build_odin.sh release
       - name: Build ols
         run: ./ci.sh CI
@@ -72,7 +74,7 @@ jobs:
           echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
       - name: Build Odin
         run: |
-          git clone --depth 1 https://github.com/odin-lang/Odin
+          git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
           cd Odin && ./build_odin.sh release
       - name: Build ols
         run: ./ci.sh CI
