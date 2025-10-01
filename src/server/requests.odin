@@ -1212,9 +1212,9 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		symbols := resolve_ranged_file(document, semantic_params.range, context.temp_allocator)
+		file := resolve_ranged_file_cached(document, semantic_params.range, context.temp_allocator)
 
-		tokens := get_semantic_tokens(document, semantic_params.range, symbols)
+		tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)
 	}
 
@@ -1314,12 +1314,9 @@ request_inlay_hint :: proc(
 	document := document_get(inlay_params.textDocument.uri)
 	if document == nil do return .InternalError
 
-	resolve_ranged_file(document, inlay_params.range, context.temp_allocator)
+	file := resolve_ranged_file_cached(document, inlay_params.range, context.temp_allocator)
 
-	file, file_ok := file_resolve_cache.files[document.uri.uri]
-	if !file_ok do return .InternalError
-
-	hints, hints_ok := get_inlay_hints(document, file.symbols, config)
+	hints, hints_ok := get_inlay_hints(document, inlay_params.range, file.symbols, config)
 	if !hints_ok do return .InternalError
 
 	response := make_response_message(params = hints, id = id)

@@ -9,6 +9,7 @@ import "src:common"
 
 get_inlay_hints :: proc(
 	document: ^Document,
+	range: common.Range,
 	symbols: map[uintptr]SymbolAndNode,
 	config: ^common.Config,
 ) -> (
@@ -17,6 +18,7 @@ get_inlay_hints :: proc(
 ) {
 	Visitor_Data :: struct {
 		document: ^Document,
+		range:    common.Range,
 		symbols:  map[uintptr]SymbolAndNode,
 		config:   ^common.Config,
 		hints:    [dynamic]InlayHint,
@@ -31,6 +33,7 @@ get_inlay_hints :: proc(
 
 	data := Visitor_Data{
 		document = document,
+		range    = range,
 		symbols  = symbols,
 		config   = config,
 		procs    = make([dynamic]Proc_Data, context.temp_allocator),
@@ -48,6 +51,12 @@ get_inlay_hints :: proc(
 					pop(&data.procs)
 				}
 				data.depth -= 1
+				return nil
+			}
+
+			margin := 20 // skip nodes outside the range
+			if data.range.start.line - margin > node.end.line &&
+			   data.range.end.line   + margin < node.pos.line {
 				return nil
 			}
 

@@ -584,10 +584,12 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	setup(src)
 	defer teardown(src)
 
-	resolve_flag: server.ResolveReferenceFlag
-	symbols_and_nodes := server.resolve_entire_file(src.document, resolve_flag, )
+	symbols_and_nodes := server.resolve_entire_file(src.document, allocator=context.temp_allocator)
 
-	hints, hints_ok := server.get_inlay_hints(src.document, symbols_and_nodes, &src.config)
+	range := common.Range {
+		end = {line = 9000000},
+	} //should be enough
+	hints, hints_ok := server.get_inlay_hints(src.document, range, symbols_and_nodes, &src.config)
 	if !hints_ok {
 		log.error("Failed get_inlay_hints")
 		return

@@ -25,14 +25,31 @@ FileResolveCache :: struct {
 @(thread_local)
 file_resolve_cache: FileResolveCache
 
-resolve_entire_file_cached :: proc(document: ^Document) -> map[uintptr]SymbolAndNode {
-	if document.uri.uri not_in file_resolve_cache.files {
-		file_resolve_cache.files[document.uri.uri] = FileResolve {
+resolve_entire_file_cached :: proc(document: ^Document) -> FileResolve {
+
+	file, cashed := file_resolve_cache.files[document.uri.uri]
+
+	if !cashed {
+		file = {
 			symbols = resolve_entire_file(document, .None, virtual.arena_allocator(document.allocator)),
+		}
+		file_resolve_cache.files[document.uri.uri] = file
+	}
+
+	return file
+}
+
+resolve_ranged_file_cached :: proc(document: ^Document, range: common.Range, allocator := context.allocator) -> FileResolve {
+
+	file, cashed := file_resolve_cache.files[document.uri.uri]
+
+	if !cashed {
+		file = {
+			symbols = resolve_ranged_file(document, range, allocator),
 		}
 	}
 
-	return file_resolve_cache.files[document.uri.uri].symbols
+	return file
 }
 
 BuildCache :: struct {
