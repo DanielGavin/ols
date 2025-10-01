@@ -27,9 +27,9 @@ file_resolve_cache: FileResolveCache
 
 resolve_entire_file_cached :: proc(document: ^Document) -> FileResolve {
 
-	file, cashed := file_resolve_cache.files[document.uri.uri]
+	file, cached := file_resolve_cache.files[document.uri.uri]
 
-	if !cashed {
+	if !cached {
 		file = {
 			symbols = resolve_entire_file(document, .None, virtual.arena_allocator(document.allocator)),
 		}
@@ -41,9 +41,9 @@ resolve_entire_file_cached :: proc(document: ^Document) -> FileResolve {
 
 resolve_ranged_file_cached :: proc(document: ^Document, range: common.Range, allocator := context.allocator) -> FileResolve {
 
-	file, cashed := file_resolve_cache.files[document.uri.uri]
+	file, cached := file_resolve_cache.files[document.uri.uri]
 
-	if !cashed {
+	if !cached {
 		file = {
 			symbols = resolve_ranged_file(document, range, allocator),
 		}
