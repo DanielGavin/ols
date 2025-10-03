@@ -320,18 +320,16 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
+	remove_diagnostics(.Syntax, document.uri.uri)
+	remove_diagnostics(.Check, document.uri.uri)
+
 	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
-		diagnostics := make([dynamic]Diagnostic, 0, len(errors), context.temp_allocator)
-
-		params := NotificationPublishDiagnosticsParams {
-			uri = document.uri.uri,
-		}
-
 		for error, i in errors {
-			append(
-				&diagnostics,
+			add_diagnostics(
+				.Syntax,
+				document.uri.uri,
 				Diagnostic {
 					range = common.Range {
 						start = common.Position{line = error.line - 1, character = 0},
@@ -344,33 +342,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 			)
 		}
 
-		if config.enable_unused_imports_reporting {
-			unused_imports := find_unused_imports(document, context.temp_allocator)
-
-			for imp in unused_imports {
-				append(
-					&diagnostics,
-					Diagnostic {
-						range = common.get_token_range(imp.import_decl, document.ast.src),
-						severity = DiagnosticSeverity.Hint,
-						code = "Unused",
-						message = "unused import",
-						tags = {.Unnecessary},
-					},
-				)
-			}
-
-		}
-
-		params.diagnostics = diagnostics[:]
-
-		notifaction := Notification {
-			jsonrpc = "2.0",
-			method  = "textDocument/publishDiagnostics",
-			params  = params,
-		}
-
-		send_notification(notifaction, writer)
+		push_diagnostics(writer)
 	}
 
 	return .None
@@ -507,18 +479,12 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 		start := common.token_pos_to_position(imp.name.pos, src)
 		end := start
 		end.character += len(imp.name.text)
-		return {
-			start = start,
-			end = end,
-		}
+		return {start = start, end = end}
 	}
 
 	start := common.token_pos_to_position(imp.relpath.pos, src)
 	end := start
 	text_len := len(imp.relpath.text)
 	end.character += text_len
-	return {
-		start = start,
-		end = end,
-	}
+	return {start = start, end = end}
 }

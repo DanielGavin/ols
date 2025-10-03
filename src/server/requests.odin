@@ -1041,6 +1041,12 @@ notification_did_open :: proc(
 		return .InternalError
 	}
 
+	document := document_get(open_params.textDocument.uri)
+
+	check_unused_imports(document, config)
+
+	push_diagnostics(writer)
+
 	return .None
 }
 
@@ -1135,7 +1141,13 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, writer, config)
+	check(config.profile.checker_path[:], corrected_uri, config)
+
+	document := document_get(save_params.textDocument.uri)
+
+	check_unused_imports(document, config)
+
+	push_diagnostics(writer)
 
 	return .None
 }

@@ -108,8 +108,6 @@ remove_unused_imports :: proc(
 		append(&textEdits, import_edit)
 	}
 
-	log.error(textEdits[:])
-
 	workspaceEdit: WorkspaceEdit
 	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
 	workspaceEdit.changes[uri] = textEdits[:]
