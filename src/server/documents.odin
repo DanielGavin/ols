@@ -159,8 +159,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		document_storage.documents[strings.clone(uri.path)] = document
 	}
 
-	delete(uri_string)
-
 	return .None
 }
 

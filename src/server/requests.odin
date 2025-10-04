@@ -1047,6 +1047,8 @@ notification_did_open :: proc(
 
 	push_diagnostics(writer)
 
+	delete(open_params.textDocument.uri)
+
 	return .None
 }
 
