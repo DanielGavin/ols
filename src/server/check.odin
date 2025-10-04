@@ -70,8 +70,6 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 		return
 	}
 
-	diagnostics := make([dynamic]Diagnostic, context.temp_allocator)
-
 	unused_imports := find_unused_imports(document, context.temp_allocator)
 
 	remove_diagnostics(.Unused, document.uri.uri)

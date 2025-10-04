@@ -590,7 +590,6 @@ request_initialize :: proc(
 	initialize_params: RequestInitializeParams
 
 	if err := unmarshal(params, initialize_params, context.temp_allocator); err != nil {
-		log.error("Here?", err, params)
 		return .ParseError
 	}
 
