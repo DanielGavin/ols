@@ -4738,3 +4738,52 @@ ast_completion_handle_matching_field_with_unary :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_insert_text(t, &source, "", {"foo"})
 }
+
+@(test)
+ast_completion_overload_proc_returning_proc_complete_comp_lit_arg_local :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			bazz: string,
+		}
+
+		foo_none :: proc() -> proc(config: Foo) -> bool {}
+		foo_string :: proc(s: string) -> proc(config: Foo) -> bool {}
+
+		foo :: proc{foo_none, foo_string}
+
+		main :: proc() {
+			result := foo()
+			result({
+				{*}
+			})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int", "Foo.bazz: string"})
+}
+
+@(test)
+ast_completion_overload_proc_returning_proc_complete_comp_lit_arg_direct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+			bazz: string,
+		}
+
+		foo_none :: proc() -> proc(config: Foo) -> bool {}
+		foo_string :: proc(s: string) -> proc(config: Foo) -> bool {}
+
+		foo :: proc{foo_none, foo_string}
+
+		main :: proc() {
+			foo()({
+				{*}
+			})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int", "Foo.bazz: string"})
+}
