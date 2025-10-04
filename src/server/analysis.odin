@@ -2482,7 +2482,8 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		}
 	case SymbolProcedureValue:
 		if v.generic {
-			if resolved_symbol, ok := resolve_generic_function(ast_context, v.arg_types, v.return_types); ok {
+			if resolved_symbol, ok := resolve_generic_function(ast_context, v.arg_types, v.return_types, v.inlining);
+			   ok {
 				return resolved_symbol, ok
 			} else {
 				return symbol, true

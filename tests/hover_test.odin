@@ -5135,6 +5135,22 @@ ast_hover_parapoly_proc_slice_param_return :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.it: test.Iter(string)")
 }
+
+@(test)
+ast_hover_generic_proc_with_inlining :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Bar :: struct{}
+
+		foo :: #force_inline proc(data: $T) {}
+
+		main :: proc() {
+			f{*}oo(Bar{})
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: #force_inline proc(data: $T)")
+}
 /*
 
 Waiting for odin fix

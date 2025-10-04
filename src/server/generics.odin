@@ -502,7 +502,7 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 		results = proc_lit.type.results.list
 	}
 
-	return resolve_generic_function_symbol(ast_context, params, results)
+	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining)
 }
 
 
@@ -510,6 +510,7 @@ resolve_generic_function_symbol :: proc(
 	ast_context: ^AstContext,
 	params: []^ast.Field,
 	results: []^ast.Field,
+	inlining: ast.Proc_Inlining,
 ) -> (
 	Symbol,
 	bool,
@@ -686,6 +687,7 @@ resolve_generic_function_symbol :: proc(
 		arg_types         = argument_types[:],
 		orig_arg_types    = params[:],
 		orig_return_types = results[:],
+		inlining          = inlining,
 	}
 
 	return symbol, true
