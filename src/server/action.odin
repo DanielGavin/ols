@@ -67,9 +67,61 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 		if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
 			add_missing_imports(&ast_context, selector, strings.clone(document.uri.uri), config, &actions)
 		}
+	} else if position_context.import_stmt != nil {
+		remove_unused_imports(document, strings.clone(document.uri.uri), config, &actions)
 	}
 
 	return actions[:], true
+}
+
+remove_unused_imports :: proc(
+	document: ^Document,
+	uri: string,
+	config: ^common.Config,
+	actions: ^[dynamic]CodeAction,
+) {
+	unused_imports := find_unused_imports(document, context.temp_allocator)
+
+	if len(unused_imports) == 0 {
+		return
+	}
+
+	textEdits := make([dynamic]TextEdit, context.temp_allocator)
+
+	for imp in unused_imports {
+		range := common.get_token_range(imp.import_decl, document.ast.src)
+
+		import_edit := TextEdit {
+			range   = range,
+			newText = "",
+		}
+
+		if (range.start.line != 1) {
+			if column, ok := common.get_last_column(import_edit.range.start.line - 1, document.text); ok {
+				import_edit.range.start.line -= 1
+				import_edit.range.start.character = column
+			}
+
+		}
+
+
+		append(&textEdits, import_edit)
+	}
+
+	workspaceEdit: WorkspaceEdit
+	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
+	workspaceEdit.changes[uri] = textEdits[:]
+
+	append(
+		actions,
+		CodeAction {
+			kind = "refactor.rewrite",
+			isPreferred = true,
+			title = fmt.tprint("remove unused imports"),
+			edit = workspaceEdit,
+		},
+	)
+
 }
 
 add_missing_imports :: proc(

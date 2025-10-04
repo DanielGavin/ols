@@ -362,6 +362,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+	config.enable_unused_imports_reporting = ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
 	config.enable_procedure_context =
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
@@ -589,7 +590,6 @@ request_initialize :: proc(
 	initialize_params: RequestInitializeParams
 
 	if err := unmarshal(params, initialize_params, context.temp_allocator); err != nil {
-		log.error("Here?", err, params)
 		return .ParseError
 	}
 
@@ -615,6 +615,7 @@ request_initialize :: proc(
 	config.enable_format = true
 	config.enable_hover = true
 	config.enable_semantic_tokens = false
+	config.enable_unused_imports_reporting = true
 	config.enable_procedure_context = false
 	config.enable_snippets = false
 	config.enable_references = true
@@ -1035,9 +1036,17 @@ notification_did_open :: proc(
 		return .ParseError
 	}
 
+	defer delete(open_params.textDocument.uri)
+
 	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
 		return .InternalError
 	}
+
+	document := document_get(open_params.textDocument.uri)
+
+	check_unused_imports(document, config)
+
+	push_diagnostics(writer)
 
 	return .None
 }
@@ -1133,7 +1142,13 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, writer, config)
+	check(config.profile.checker_path[:], corrected_uri, config)
+
+	document := document_get(save_params.textDocument.uri)
+
+	check_unused_imports(document, config)
+
+	push_diagnostics(writer)
 
 	return .None
 }

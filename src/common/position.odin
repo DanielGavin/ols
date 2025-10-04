@@ -133,6 +133,20 @@ get_token_range :: proc(node: ast.Node, document_text: string) -> (range: Range)
 	return
 }
 
+get_last_column :: proc(line: int, document_text: []u8) -> (int, bool) {
+	line_count := 0
+	index := 1
+	last := document_text[0]
+
+	if !get_index_at_line(&index, &line_count, &last,  document_text[:], line) {
+		return {}, false
+	}
+
+	column := get_character_offset_u8_to_u16(100000, document_text[index:])
+
+	return column, true
+}
+
 get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange, bool) {
 	absolute: AbsoluteRange
 
