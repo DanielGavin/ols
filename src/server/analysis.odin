@@ -25,27 +25,32 @@ UsingStatement :: struct {
 }
 
 AstContext :: struct {
-	locals:           [dynamic]LocalGroup, //locals all the way to the document position
-	globals:          map[string]GlobalExpr,
-	recursion_map:    map[rawptr]struct{},
-	usings:           [dynamic]UsingStatement,
-	file:             ast.File,
-	allocator:        mem.Allocator,
-	imports:          []Package, //imports for the current document
-	current_package:  string,
-	document_package: string,
-	deferred_package: [DeferredDepth]string, //When a package change happens when resolving
-	deferred_count:   int,
-	use_locals:       bool,
-	call:             ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
-	value_decl:       ^ast.Value_Decl,
-	field_name:       ast.Ident,
-	uri:              string,
-	fullpath:         string,
-	non_mutable_only: bool, //Only store local value declarations that are non mutable.
-	overloading:      bool,
-	position_hint:    DocumentPositionContextHint,
-	resolving_locals: bool,
+	locals:                    [dynamic]LocalGroup, //locals all the way to the document position
+	globals:                   map[string]GlobalExpr,
+	recursion_map:             map[rawptr]struct{},
+	usings:                    [dynamic]UsingStatement,
+	file:                      ast.File,
+	allocator:                 mem.Allocator,
+	imports:                   []Package, //imports for the current document
+	current_package:           string,
+	document_package:          string,
+	deferred_package:          [DeferredDepth]string, //When a package change happens when resolving
+	deferred_count:            int,
+	use_locals:                bool,
+	call:                      ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
+	value_decl:                ^ast.Value_Decl,
+	field_name:                ast.Ident,
+	uri:                       string,
+	fullpath:                  string,
+	non_mutable_only:          bool, //Only store local value declarations that are non mutable.
+	overloading:               bool,
+	position_hint:             DocumentPositionContextHint,
+	resolving_locals:          bool,
+	// Explicitly set whether to only resolve the correct overload, rather than have it be inferred by
+	// whether we're resolving locals and the position hint
+	//
+	// We should probably rework how this is handled in the future
+	resolve_specific_overload: bool,
 }
 
 make_ast_context :: proc(
@@ -669,6 +674,20 @@ get_top_candiate :: proc(candidates: []Candidate) -> (Candidate, bool) {
 	return top, true
 }
 
+
+should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext, call_expr: ^ast.Call_Expr) -> bool {
+	// TODO: We need a better way to handle this
+	if ast_context.resolve_specific_overload {
+		return false
+	}
+
+	if ast_context.resolving_locals {
+		return false
+	}
+
+	return ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -686,15 +705,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		ast_context.overloading = false
 	}
 
-	resolve_all_possibilities: bool
-	if ast_context.resolving_locals {
-		resolve_all_possibilities = false
-	} else {
-		resolve_all_possibilities =
-			ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
-	}
-
-
+	resolve_all_possibilities := should_resolve_all_proc_overload_possibilities(ast_context, call_expr)
 	call_unnamed_arg_count := 0
 	if call_expr != nil {
 		call_unnamed_arg_count = get_unnamed_arg_count(call_expr.args)
@@ -1230,6 +1241,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbol, bool) {
 	symbol := Symbol{}
+	// The function being called may be a local variable
+	ast_context.use_locals = true
 	if ident, ok := v.expr.derived.(^ast.Ident); ok && len(v.args) >= 1 {
 		switch ident.name {
 		case "type_of":
@@ -1239,6 +1252,9 @@ resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbo
 		}
 	} else if call, ok := v.expr.derived.(^ast.Call_Expr); ok {
 		// handle the case where we immediately call a proc returned by another proc
+		// in this case we don't want to resolve all possibilities for a proc overload
+		ast_context.resolve_specific_overload = true
+		defer ast_context.resolve_specific_overload = false
 		if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
 				if len(value.return_types) == 1 {
@@ -1298,9 +1314,9 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 		}
 		return {}, false
 	case SymbolMatrixValue:
-		value := SymbolFixedArrayValue{
+		value := SymbolFixedArrayValue {
 			expr = v2.expr,
-			len = v2.x,
+			len  = v2.x,
 		}
 		indexed.value = value
 		return indexed, true
