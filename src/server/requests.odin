@@ -1036,6 +1036,8 @@ notification_did_open :: proc(
 		return .ParseError
 	}
 
+	defer delete(open_params.textDocument.uri)
+
 	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
 		return .InternalError
 	}
@@ -1045,8 +1047,6 @@ notification_did_open :: proc(
 	check_unused_imports(document, config)
 
 	push_diagnostics(writer)
-
-	delete(open_params.textDocument.uri)
 
 	return .None
 }
