@@ -30,6 +30,7 @@ Package :: struct {
 	base_original: string,
 	original:      string,
 	range:         common.Range,
+	import_decl:   ^ast.Import_Decl,
 }
 
 Document :: struct {
@@ -157,8 +158,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 		document_storage.documents[strings.clone(uri.path)] = document
 	}
-
-	delete(uri_string)
 
 	return .None
 }
@@ -319,52 +318,29 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
-	if writer != nil && len(errors) > 0 && !config.disable_parser_errors {
+	remove_diagnostics(.Syntax, document.uri.uri)
+	remove_diagnostics(.Check, document.uri.uri)
+
+	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
-		params := NotificationPublishDiagnosticsParams {
-			uri         = document.uri.uri,
-			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
-		}
-
 		for error, i in errors {
-			params.diagnostics[i] = Diagnostic {
-				range = common.Range {
-					start = common.Position{line = error.line - 1, character = 0},
-					end = common.Position{line = error.line, character = 0},
+			add_diagnostics(
+				.Syntax,
+				document.uri.uri,
+				Diagnostic {
+					range = common.Range {
+						start = common.Position{line = error.line - 1, character = 0},
+						end = common.Position{line = error.line, character = 0},
+					},
+					severity = DiagnosticSeverity.Error,
+					code = "Syntax",
+					message = error.message,
 				},
-				severity = DiagnosticSeverity.Error,
-				code = "Syntax",
-				message = error.message,
-			}
+			)
 		}
 
-		notifaction := Notification {
-			jsonrpc = "2.0",
-			method  = "textDocument/publishDiagnostics",
-			params  = params,
-		}
-
-		send_notification(notifaction, writer)
-	}
-
-	if writer != nil && len(errors) == 0 {
-		//send empty diagnosis to remove the clients errors
-		if document.diagnosed_errors {
-
-			notifaction := Notification {
-				jsonrpc = "2.0",
-				method = "textDocument/publishDiagnostics",
-				params = NotificationPublishDiagnosticsParams {
-					uri = document.uri.uri,
-					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
-				},
-			}
-
-			document.diagnosed_errors = false
-
-			send_notification(notifaction, writer)
-		}
+		push_diagnostics(writer)
 	}
 
 	return .None
@@ -450,6 +426,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_.original = imp.fullpath
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
 			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -473,6 +450,7 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			)
 			import_.name = path.clean(import_.name)
 			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -499,18 +477,12 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 		start := common.token_pos_to_position(imp.name.pos, src)
 		end := start
 		end.character += len(imp.name.text)
-		return {
-			start = start,
-			end = end,
-		}
+		return {start = start, end = end}
 	}
 
 	start := common.token_pos_to_position(imp.relpath.pos, src)
 	end := start
 	text_len := len(imp.relpath.text)
 	end.character += text_len
-	return {
-		start = start,
-		end = end,
-	}
+	return {start = start, end = end}
 }
