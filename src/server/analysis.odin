@@ -9,11 +9,8 @@ import "core:odin/tokenizer"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:reflect"
-import "core:slice"
-import "core:sort"
 import "core:strconv"
 import "core:strings"
-import "core:unicode/utf8"
 
 import "src:common"
 
@@ -37,6 +34,7 @@ AstContext :: struct {
 	deferred_package:          [DeferredDepth]string, //When a package change happens when resolving
 	deferred_count:            int,
 	use_locals:                bool,
+	use_usings:                bool,
 	call:                      ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
 	value_decl:                ^ast.Value_Decl,
 	field_name:                ast.Ident,
@@ -69,6 +67,7 @@ make_ast_context :: proc(
 		file             = file,
 		imports          = imports,
 		use_locals       = true,
+		use_usings       = true,
 		document_package = package_name,
 		current_package  = package_name,
 		uri              = uri,
@@ -1617,6 +1616,18 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		return resolve_local_identifier(ast_context, node, &local)
 	}
 
+	if ast_context.use_usings {
+		for u in ast_context.usings {
+			for imp in ast_context.imports {
+				if strings.compare(imp.name, u.pkg_name) == 0 {
+					if symbol, ok := lookup(node.name, imp.name, node.pos.file); ok {
+						return resolve_symbol_return(ast_context, symbol)
+					}
+				}
+			}
+		}
+	}
+
 	for imp in ast_context.imports {
 		if imp.name == ast_context.current_package {
 			continue
@@ -1697,16 +1708,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	for built in indexer.builtin_packages {
 		if symbol, ok := lookup(node.name, built, node.pos.file); ok {
 			return resolve_symbol_return(ast_context, symbol)
-		}
-	}
-
-	for u in ast_context.usings {
-		for imp in ast_context.imports {
-			if strings.compare(imp.name, u.pkg_name) == 0 {
-				if symbol, ok := lookup(node.name, imp.name, node.pos.file); ok {
-					return resolve_symbol_return(ast_context, symbol)
-				}
-			}
 		}
 	}
 
@@ -2617,6 +2618,16 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		return symbol, true
 	}
 
+	if ast_context.use_usings {
+		usings := get_using_packages(ast_context)
+
+		for pkg in usings {
+			if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
+				return symbol, ok
+			}
+		}
+	}
+
 	if global, ok := ast_context.globals[node.name]; ok {
 		symbol.range = common.get_token_range(global.name_expr, ast_context.file.src)
 		uri := common.create_uri(global.expr.pos.file, ast_context.allocator)
@@ -2647,14 +2658,6 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	pkg := get_package_from_node(node)
 	if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
 		return symbol, ok
-	}
-
-	usings := get_using_packages(ast_context)
-
-	for pkg in usings {
-		if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
-			return symbol, ok
-		}
 	}
 
 	if symbol, ok := lookup(node.name, "$builtin", node.pos.file); ok {
@@ -2869,6 +2872,9 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
 	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
+		ast_context.use_usings = false
+		defer ast_context.use_usings = true
+
 		symbol = resolve_type_expression(ast_context, selector.expr) or_return
 		return resolve_symbol_selector(ast_context, selector, symbol)
 	}

@@ -5151,6 +5151,34 @@ ast_hover_generic_proc_with_inlining :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: #force_inline proc(data: $T)")
 }
+
+@(test)
+ast_hover_using_import_statement_name_conflict :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+			Bar :: struct {
+				b: string,
+			}
+		`})
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		Bar :: struct {
+			a: int,
+		}
+
+		main :: proc() {
+			using my_package
+			bar := Ba{*}r{}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "my_package.Bar :: struct {\n\tb: string,\n}")
+}
 /*
 
 Waiting for odin fix
