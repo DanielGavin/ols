@@ -3,15 +3,8 @@ package server
 
 import "core:fmt"
 import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:path/filepath"
-import path "core:path/slashpath"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
 import "core:strings"
 
 import "src:common"
@@ -104,6 +97,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									if name == ident.name {
 										construct_enum_field_symbol(&enum_symbol, v, i)
 										hover.contents = write_hover_content(&ast_context, enum_symbol)
+										hover.range = enum_symbol.range
 										return hover, true, true
 									}
 								}
@@ -114,6 +108,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									for name, i in v.names {
 										if name == ident.name {
 											construct_enum_field_symbol(&enum_symbol, v, i)
+											hover.range = enum_symbol.range
 											hover.contents = write_hover_content(&ast_context, enum_symbol)
 										}
 									}
@@ -149,6 +144,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 												field_index + name_index,
 											)
 											build_documentation(&ast_context, &symbol, true)
+											hover.range = symbol.range
 											hover.contents = write_hover_content(&ast_context, symbol)
 											return hover, true, true
 										}
@@ -177,6 +173,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									name := get_field_parent_name(value_decl_symbol, bit_field_symbol)
 									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
 										construct_bit_field_field_symbol(&symbol, name, value, i)
+										hover.range = symbol.range
 										hover.contents = write_hover_content(&ast_context, symbol)
 										return hover, true, true
 									}
@@ -202,6 +199,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										construct_struct_field_symbol(&symbol, comp_symbol.name, v, i)
 										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
+										hover.range = symbol.range
 										return hover, true, true
 									}
 								}
@@ -213,6 +211,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 									construct_bit_field_field_symbol(&symbol, comp_symbol.name, v, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
+									hover.range = symbol.range
 									return hover, true, true
 								}
 							}
@@ -226,6 +225,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
 				build_documentation(&ast_context, &symbol, false)
 				hover.contents = write_hover_content(&ast_context, symbol)
+				hover.range = symbol.range
 				return hover, true, true
 			}
 		}
@@ -381,6 +381,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if strings.compare(name, implicit_selector.field.name) == 0 {
 						construct_enum_field_symbol(&symbol, v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.range = symbol.range
 						return hover, true, true
 					}
 				}
@@ -392,6 +393,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						if strings.compare(name, implicit_selector.field.name) == 0 {
 							construct_enum_field_symbol(&enum_symbol, v, i)
 							hover.contents = write_hover_content(&ast_context, enum_symbol)
+							hover.range = symbol.range
 							return hover, true, true
 						}
 					}
@@ -403,6 +405,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if strings.compare(name, implicit_selector.field.name) == 0 {
 								construct_enum_field_symbol(&enum_symbol, v, i)
 								hover.contents = write_hover_content(&ast_context, enum_symbol)
+								hover.range = symbol.range
 								return hover, true, true
 							}
 						}
