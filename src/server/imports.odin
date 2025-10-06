@@ -26,7 +26,7 @@ find_unused_imports :: proc(document: ^Document, allocator := context.temp_alloc
 	unused := make([dynamic]Package, allocator)
 
 	for imp in document.imports {
-		if imp.name not_in pkgs {
+		if imp.base != "_" && imp.name not_in pkgs {
 			append(&unused, imp)
 		}
 	}

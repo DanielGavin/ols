@@ -321,6 +321,8 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	remove_diagnostics(.Syntax, document.uri.uri)
 	remove_diagnostics(.Check, document.uri.uri)
 
+	check_unused_imports(document, config)
+
 	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
