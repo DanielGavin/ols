@@ -4,16 +4,13 @@ package server
 import "base:runtime"
 import "core:fmt"
 import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:reflect"
 import "core:slice"
-import "core:sort"
 import "core:strconv"
 import "core:strings"
 
@@ -334,7 +331,8 @@ convert_completion_results :: proc(
 		}
 
 		if config.enable_completion_matching {
-			if s, ok := target_symbol.(Symbol); ok && (completion_type == .Selector || completion_type == .Identifier) {
+			if s, ok := target_symbol.(Symbol);
+			   ok && (completion_type == .Selector || completion_type == .Identifier) {
 				handle_matching(ast_context, position_context, result.symbol, s, &item, completion_type)
 			}
 		}
@@ -1425,7 +1423,10 @@ get_implicit_completion :: proc(
 		}
 
 		if len(position_context.assign.lhs) > rhs_index {
-			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, position_context.assign.lhs[rhs_index]); ok {
+			if enum_value, unwrapped_super_enum, ok := unwrap_enum(
+				ast_context,
+				position_context.assign.lhs[rhs_index],
+			); ok {
 				for name in enum_value.names {
 					item := CompletionItem {
 						label  = name,
@@ -2086,10 +2087,6 @@ append_non_imported_packages :: proc(
 	}
 
 	for collection, pkgs in build_cache.pkg_aliases {
-		//Right now only do it for core and builtin
-		if collection != "core" && collection != "base" {
-			continue
-		}
 		for pkg in pkgs {
 			fullpath := path.join({config.collections[collection], pkg})
 			found := false
@@ -2115,13 +2112,16 @@ append_non_imported_packages :: proc(
 				additionalTextEdits[0] = import_edit
 
 				item := CompletionItem {
-					label               = pkg,
-					kind                = .Module,
-					detail              = pkg,
-					insertText          = path.base(pkg),
+					label = pkg,
+					kind = .Module,
+					documentation = MarkupContent {
+						kind = "markdown",
+						value = fmt.tprintf("```odin\n%v\n```", import_edit.newText),
+					},
+					insertText = path.base(pkg),
 					additionalTextEdits = additionalTextEdits,
-					insertTextFormat    = .PlainText,
-					InsertTextMode      = .adjustIndentation,
+					insertTextFormat = .PlainText,
+					InsertTextMode = .adjustIndentation,
 				}
 
 				append(items, item)
