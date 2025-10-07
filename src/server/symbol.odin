@@ -902,6 +902,7 @@ construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, ind
 	symbol.doc = get_doc(nil, value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_enum_field_signature(value, index)
+	symbol.range = value.ranges[index]
 }
 
 // Adds name and type information to the symbol when it's for an identifier
