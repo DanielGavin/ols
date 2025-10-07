@@ -188,6 +188,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 	if position_context.field_value != nil &&
 	   position_in_node(position_context.field_value.field, position_context.position) {
+		hover.range = common.get_token_range(position_context.field_value.field^, document.ast.src)
 		if position_context.comp_lit != nil {
 			if comp_symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 				if field, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
@@ -199,7 +200,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										construct_struct_field_symbol(&symbol, comp_symbol.name, v, i)
 										build_documentation(&ast_context, &symbol, true)
 										hover.contents = write_hover_content(&ast_context, symbol)
-										hover.range = symbol.range
 										return hover, true, true
 									}
 								}
@@ -211,7 +211,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 									construct_bit_field_field_symbol(&symbol, comp_symbol.name, v, i)
 									hover.contents = write_hover_content(&ast_context, symbol)
-									hover.range = symbol.range
 									return hover, true, true
 								}
 							}
@@ -225,7 +224,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
 				build_documentation(&ast_context, &symbol, false)
 				hover.contents = write_hover_content(&ast_context, symbol)
-				hover.range = symbol.range
 				return hover, true, true
 			}
 		}
@@ -374,6 +372,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
+		hover.range = common.get_token_range(implicit_selector, document.ast.src)
 		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context, implicit_selector); ok {
 			#partial switch v in symbol.value {
 			case SymbolEnumValue:
@@ -381,7 +380,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if strings.compare(name, implicit_selector.field.name) == 0 {
 						construct_enum_field_symbol(&symbol, v, i)
 						hover.contents = write_hover_content(&ast_context, symbol)
-						hover.range = symbol.range
 						return hover, true, true
 					}
 				}
@@ -393,7 +391,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						if strings.compare(name, implicit_selector.field.name) == 0 {
 							construct_enum_field_symbol(&enum_symbol, v, i)
 							hover.contents = write_hover_content(&ast_context, enum_symbol)
-							hover.range = symbol.range
 							return hover, true, true
 						}
 					}
@@ -405,7 +402,6 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if strings.compare(name, implicit_selector.field.name) == 0 {
 								construct_enum_field_symbol(&enum_symbol, v, i)
 								hover.contents = write_hover_content(&ast_context, enum_symbol)
-								hover.range = symbol.range
 								return hover, true, true
 							}
 						}
