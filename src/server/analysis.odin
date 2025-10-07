@@ -2301,6 +2301,16 @@ resolve_implicit_selector :: proc(
 	Symbol,
 	bool,
 ) {
+	if position_context.binary != nil {
+		if position_in_node(position_context.binary, position_context.position) {
+			// We resolve whichever is not the implicit_selector
+			if implicit, ok := position_context.binary.left.derived.(^ast.Implicit_Selector_Expr); ok {
+				return resolve_type_expression(ast_context, position_context.binary.right)
+			}
+			return resolve_type_expression(ast_context, position_context.binary.left)
+		}
+	}
+
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
@@ -2331,16 +2341,6 @@ resolve_implicit_selector :: proc(
 					return symbol, ok
 				}
 			}
-		}
-	}
-
-	if position_context.binary != nil {
-		if position_in_node(position_context.binary, position_context.position) {
-			// We resolve whichever is not the implicit_selector
-			if implicit, ok := position_context.binary.left.derived.(^ast.Implicit_Selector_Expr); ok {
-				return resolve_type_expression(ast_context, position_context.binary.right)
-			}
-			return resolve_type_expression(ast_context, position_context.binary.left)
 		}
 	}
 
