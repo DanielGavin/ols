@@ -1550,7 +1550,7 @@ notification_did_change_watched_files :: proc(
 			find_all_package_aliases()
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
-				if data, ok := os.read_entire_file(uri.path); ok {
+				if data, ok := os.read_entire_file(uri.path, context.temp_allocator); ok {
 					index_file(uri, cast(string)data)
 				}
 			}
@@ -1559,8 +1559,6 @@ notification_did_change_watched_files :: proc(
 				find_all_package_aliases()
 			}
 		}
-
-
 	}
 
 	return .None
