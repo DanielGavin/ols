@@ -5179,6 +5179,24 @@ ast_hover_using_import_statement_name_conflict :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "my_package.Bar :: struct {\n\tb: string,\n}")
 }
+
+@(test)
+ast_hover_enum_in_bitset_within_call_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {A, B}
+		Foos :: bit_set[Foo]
+
+		bar :: proc(a: bool) {}
+
+		main :: proc() {
+			foos: Foos
+			bar(.A{*} in foos)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix
