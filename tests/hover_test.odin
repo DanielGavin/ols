@@ -5197,6 +5197,17 @@ ast_hover_enum_in_bitset_within_call_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_typeid_with_specialization :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		foo{*} :: proc($T: typeid/[]$E) {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc($T: typeid/[]$E)")
+}
 /*
 
 Waiting for odin fix
