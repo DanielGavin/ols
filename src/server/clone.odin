@@ -28,7 +28,11 @@ new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) 
 	return n
 }
 
-// Recursively deduplicate strings in AST nodes without cloning the structure
+/*
+Recursively clone all strings the ast node to collection's unique string map.
+
+**Note:** This mutates the original node to point to the deduplicated strings.
+*/
 collection_clone_node_strings :: proc(collection: ^SymbolCollection, node: ^ast.Node) {
 
 	if node == nil || collection == nil {
@@ -44,7 +48,7 @@ collection_clone_node_strings :: proc(collection: ^SymbolCollection, node: ^ast.
 
 			collection := cast(^SymbolCollection)visitor.data
 
-			// Deduplicate position file names
+			// Clone position file names
 			if node.pos.file != "" {
 				node.pos.file = get_index_unique_string(collection, node.pos.file)
 			}
@@ -52,7 +56,7 @@ collection_clone_node_strings :: proc(collection: ^SymbolCollection, node: ^ast.
 				node.end.file = get_index_unique_string(collection, node.end.file)
 			}
 
-			// Deduplicate strings in specific nodes
+			// Clone strings in specific nodes
 			#partial switch n in node.derived {
 			case ^ast.Ident:
 				n.name = get_index_unique_string(collection, n.name)

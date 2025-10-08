@@ -542,7 +542,11 @@ collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory
 
 }
 
+/*
+Collect all file symbols and add them to the collection.
 
+**Note:** This mutates the original AST nodes—which should already be allocated with `collection.allocator`.
+*/
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
