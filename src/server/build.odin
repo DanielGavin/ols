@@ -246,19 +246,18 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	for k, &v in indexer.index.collection.packages {
-		for k2, v2 in v.symbols {
-			if strings.equal_fold(corrected_uri.uri, v2.uri) {
-				free_symbol(v2, indexer.index.collection.allocator)
-				delete_key(&v.symbols, k2)
+	for _, &pkg in indexer.index.collection.packages {
+		for symbol_key, symbol in pkg.symbols {
+			if strings.equal_fold(corrected_uri.uri, symbol.uri) {
+				free_symbol(symbol, indexer.index.collection.allocator)
+				delete_key(&pkg.symbols, symbol_key)
 			}
 		}
 
-		for method, &symbols in v.methods {
-			for i := len(symbols) - 1; i >= 0; i -= 1 {
-				#no_bounds_check symbol := symbols[i]
+		for method, &symbols in pkg.methods {
+			#reverse for symbol, i in symbols {
 				if strings.equal_fold(corrected_uri.uri, symbol.uri) {
-					unordered_remove(&symbols, i)
+					unordered_remove(&symbols, len(symbols) - 1 - i)
 				}
 			}
 		}
