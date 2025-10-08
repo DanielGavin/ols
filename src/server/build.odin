@@ -118,7 +118,7 @@ skip_file :: proc(filename: string) -> bool {
 			return !is_bsd_variant(name_between)
 		}
 
-		if _, ok := platform_os[name_between]; ok {
+		if name_between in platform_os {
 			return name_between != common.config.profile.os
 		}
 	}
