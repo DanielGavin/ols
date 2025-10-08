@@ -212,7 +212,7 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			parse_file(&p, &file, context.allocator) or_continue
+			parse_file(&p, &file, indexer.index.collection.allocator) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 
@@ -308,7 +308,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	parse_file(&p, &file, context.temp_allocator)
+	parse_file(&p, &file, indexer.index.collection.allocator)
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
