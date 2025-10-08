@@ -15,29 +15,6 @@ import "core:strings"
 
 import "src:common"
 
-fullpaths: [dynamic]string
-
-walk_directories :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
-	document := cast(^Document)user_data
-
-	if info.is_dir {
-		return nil, false
-	}
-
-	if info.fullpath == "" {
-		return nil, false
-	}
-
-	if strings.contains(info.name, ".odin") {
-		slash_path, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
-		if slash_path != document.fullpath {
-			append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
-		}
-	}
-
-	return nil, false
-}
-
 prepare_references :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -241,7 +218,7 @@ resolve_references :: proc(
 	bool,
 ) {
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
-	fullpaths = make([dynamic]string, 0, ast_context.allocator)
+	fullpaths := make([dynamic]string, 0, ast_context.allocator)
 
 	symbol, resolve_flag, ok := prepare_references(document, ast_context, position_context)
 
@@ -250,9 +227,39 @@ resolve_references :: proc(
 	}
 
 	when !ODIN_TEST {
+		Walk_Data :: struct {
+			document:  ^Document,
+			fullpaths: ^[dynamic]string,
+		}
+		walk_data := &(Walk_Data{
+			document  = document,
+			fullpaths = &fullpaths,
+		})
+
+		walk_directories :: proc(info: os.File_Info, in_err: os.Errno, walk_data: rawptr) -> (err: os.Error, skip_dir: bool) {
+			data := cast(^Walk_Data)walk_data
+
+			if info.is_dir {
+				return nil, false
+			}
+
+			if info.fullpath == "" {
+				return nil, false
+			}
+
+			if strings.contains(info.name, ".odin") {
+				slash_path, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
+				if slash_path != data.document.fullpath {
+					append(data.fullpaths, strings.clone(info.fullpath, context.temp_allocator))
+				}
+			}
+
+			return nil, false
+		}
+
 		for workspace in common.config.workspace_folders {
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			filepath.walk(uri.path, walk_directories, document)
+			filepath.walk(uri.path, walk_directories, walk_data)
 		}
 	}
 
@@ -267,10 +274,8 @@ resolve_references :: proc(
 
 	context.allocator = runtime.arena_allocator(&arena)
 
-	fullpaths := slice.unique(fullpaths[:])
-
 	if .Local not_in symbol.flags {
-		for fullpath in fullpaths {
+		for fullpath in slice.unique(fullpaths[:]) {
 			dir := filepath.dir(fullpath)
 			base := filepath.base(dir)
 			forward_dir, _ := filepath.to_slash(dir)
