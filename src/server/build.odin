@@ -234,6 +234,25 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
+remove_file_symbols :: proc(uri: common.Uri) {
+
+	for _, &pkg in indexer.index.collection.packages {
+		for symbol_key, symbol in pkg.symbols {
+			if strings.equal_fold(uri.uri, symbol.uri) {
+				free_symbol(symbol, indexer.index.collection.allocator)
+				delete_key(&pkg.symbols, symbol_key)
+			}
+		}
+
+		for method, &symbols in pkg.methods {
+			#reverse for symbol, i in symbols {
+				if strings.equal_fold(uri.uri, symbol.uri) {
+					unordered_remove(&symbols, len(symbols) - 1 - i)
+				}
+			}
+		}
+	}
+}
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
@@ -245,23 +264,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
-
-	for _, &pkg in indexer.index.collection.packages {
-		for symbol_key, symbol in pkg.symbols {
-			if strings.equal_fold(corrected_uri.uri, symbol.uri) {
-				free_symbol(symbol, indexer.index.collection.allocator)
-				delete_key(&pkg.symbols, symbol_key)
-			}
-		}
-
-		for method, &symbols in pkg.methods {
-			#reverse for symbol, i in symbols {
-				if strings.equal_fold(corrected_uri.uri, symbol.uri) {
-					unordered_remove(&symbols, len(symbols) - 1 - i)
-				}
-			}
-		}
-	}
+	remove_file_symbols(corrected_uri)
 
 	return .None
 }
@@ -300,9 +303,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	}
 
 	{
-		allocator := context.allocator
 		context.allocator = context.temp_allocator
-		defer context.allocator = allocator
 
 		ok = parser.parse_file(&p, &file)
 
@@ -315,23 +316,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	for k, &v in indexer.index.collection.packages {
-		for k2, v2 in v.symbols {
-			if corrected_uri.uri == v2.uri {
-				free_symbol(v2, indexer.index.collection.allocator)
-				delete_key(&v.symbols, k2)
-			}
-		}
-
-		for method, &symbols in v.methods {
-			for i := len(symbols) - 1; i >= 0; i -= 1 {
-				#no_bounds_check symbol := symbols[i]
-				if corrected_uri.uri == symbol.uri {
-					unordered_remove(&symbols, i)
-				}
-			}
-		}
-	}
+	remove_file_symbols(corrected_uri)
 
 	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)
