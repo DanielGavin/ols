@@ -212,14 +212,7 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			ok = parser.parse_file(&p, &file)
-
-			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-					log.errorf("error in parse file for indexing %v", fullpath)
-				}
-				continue
-			}
+			parse_file(&p, &file) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 
@@ -232,6 +225,16 @@ try_build_package :: proc(pkg_name: string) {
 	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
 		timestamp = time.now(),
 	}
+}
+
+parse_file :: proc(p: ^parser.Parser, file: ^ast.File, loc := #caller_location) -> (ok: bool) {
+	ok = parser.parse_file(p, file)
+	if !ok &&
+	   !strings.ends_with(file.fullpath, "builtin.odin") &&
+	   !strings.ends_with(file.fullpath, "intrinsics.odin") {
+		log.errorf("parse_file failed for %s", file.fullpath, location=loc)
+	}
+	return ok
 }
 
 remove_file_symbols :: proc(uri: common.Uri) {
@@ -255,10 +258,8 @@ remove_file_symbols :: proc(uri: common.Uri) {
 }
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
-	ok: bool
 
 	fullpath := uri.path
-
 	when ODIN_OS == .Windows {
 		fullpath, _ = filepath.to_slash(fullpath, context.temp_allocator)
 	}
@@ -270,7 +271,6 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 }
 
 index_file :: proc(uri: common.Uri, text: string) -> common.Error {
-	ok: bool
 
 	fullpath := uri.path
 
@@ -304,14 +304,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	{
 		context.allocator = context.temp_allocator
-
-		ok = parser.parse_file(&p, &file)
-
-		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-				log.errorf("error in parse file for indexing %v", fullpath)
-			}
-		}
+		parse_file(&p, &file)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)

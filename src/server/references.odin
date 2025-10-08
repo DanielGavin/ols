@@ -309,14 +309,7 @@ resolve_references :: proc(
 				pkg      = pkg,
 			}
 
-			ok = parser.parse_file(&p, &file)
-
-			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-					log.errorf("error in parse file for indexing %v", fullpath)
-				}
-				continue
-			}
+			parse_file(&p, &file) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 
