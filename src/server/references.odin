@@ -309,7 +309,7 @@ resolve_references :: proc(
 				pkg      = pkg,
 			}
 
-			parse_file(&p, &file) or_continue
+			parse_file(&p, &file, context.allocator) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 

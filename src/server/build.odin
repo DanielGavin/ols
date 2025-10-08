@@ -212,7 +212,7 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			parse_file(&p, &file) or_continue
+			parse_file(&p, &file, context.allocator) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 
@@ -227,7 +227,13 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
-parse_file :: proc(p: ^parser.Parser, file: ^ast.File, loc := #caller_location) -> (ok: bool) {
+parse_file :: proc(
+	p:         ^parser.Parser,
+	file:      ^ast.File,
+	allocator: mem.Allocator,
+	loc := #caller_location,
+) -> (ok: bool) {
+	context.allocator = allocator
 	ok = parser.parse_file(p, file)
 	if !ok &&
 	   !strings.ends_with(file.fullpath, "builtin.odin") &&
@@ -302,10 +308,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	{
-		context.allocator = context.temp_allocator
-		parse_file(&p, &file)
-	}
+	parse_file(&p, &file, context.temp_allocator)
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
