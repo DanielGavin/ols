@@ -1466,7 +1466,7 @@ get_file_doc :: proc(
 get_field_docs_and_comments :: proc(
 	file: ast.File,
 	fields: []^ast.Expr,
-	allocator := context.temp_allocator,
+	allocator: mem.Allocator,
 ) -> (
 	[dynamic]^ast.Comment_Group,
 	[dynamic]^ast.Comment_Group,
