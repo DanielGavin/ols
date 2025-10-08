@@ -118,7 +118,7 @@ skip_file :: proc(filename: string) -> bool {
 			return !is_bsd_variant(name_between)
 		}
 
-		if _, ok := platform_os[name_between]; ok {
+		if name_between in platform_os {
 			return name_between != common.config.profile.os
 		}
 	}
@@ -212,14 +212,7 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			ok = parser.parse_file(&p, &file)
-
-			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-					log.errorf("error in parse file for indexing %v", fullpath)
-				}
-				continue
-			}
+			parse_file(&p, &file, indexer.index.collection.allocator) or_continue
 
 			uri := common.create_uri(fullpath, context.allocator)
 
@@ -234,41 +227,56 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
+parse_file :: proc(
+	p:         ^parser.Parser,
+	file:      ^ast.File,
+	allocator: mem.Allocator,
+	loc := #caller_location,
+) -> (ok: bool) {
+	context.allocator = allocator
+	ok = parser.parse_file(p, file)
+	if !ok &&
+	   !strings.ends_with(file.fullpath, "builtin.odin") &&
+	   !strings.ends_with(file.fullpath, "intrinsics.odin") {
+		log.errorf("parse_file failed for %s", file.fullpath, location=loc)
+	}
+	return ok
+}
+
+remove_file_symbols :: proc(uri: common.Uri) {
+
+	for _, &pkg in indexer.index.collection.packages {
+		for symbol_key, symbol in pkg.symbols {
+			if strings.equal_fold(uri.uri, symbol.uri) {
+				free_symbol(symbol, indexer.index.collection.allocator)
+				delete_key(&pkg.symbols, symbol_key)
+			}
+		}
+
+		for method, &symbols in pkg.methods {
+			#reverse for symbol, i in symbols {
+				if strings.equal_fold(uri.uri, symbol.uri) {
+					unordered_remove(&symbols, len(symbols) - 1 - i)
+				}
+			}
+		}
+	}
+}
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
-	ok: bool
 
 	fullpath := uri.path
-
 	when ODIN_OS == .Windows {
 		fullpath, _ = filepath.to_slash(fullpath, context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
-
-	for k, &v in indexer.index.collection.packages {
-		for k2, v2 in v.symbols {
-			if strings.equal_fold(corrected_uri.uri, v2.uri) {
-				free_symbol(v2, indexer.index.collection.allocator)
-				delete_key(&v.symbols, k2)
-			}
-		}
-
-		for method, &symbols in v.methods {
-			for i := len(symbols) - 1; i >= 0; i -= 1 {
-				#no_bounds_check symbol := symbols[i]
-				if strings.equal_fold(corrected_uri.uri, symbol.uri) {
-					unordered_remove(&symbols, i)
-				}
-			}
-		}
-	}
+	remove_file_symbols(corrected_uri)
 
 	return .None
 }
 
 index_file :: proc(uri: common.Uri, text: string) -> common.Error {
-	ok: bool
 
 	fullpath := uri.path
 
@@ -300,39 +308,11 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	{
-		allocator := context.allocator
-		context.allocator = context.temp_allocator
-		defer context.allocator = allocator
-
-		ok = parser.parse_file(&p, &file)
-
-		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-				log.errorf("error in parse file for indexing %v", fullpath)
-			}
-		}
-	}
+	parse_file(&p, &file, indexer.index.collection.allocator)
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	for k, &v in indexer.index.collection.packages {
-		for k2, v2 in v.symbols {
-			if corrected_uri.uri == v2.uri {
-				free_symbol(v2, indexer.index.collection.allocator)
-				delete_key(&v.symbols, k2)
-			}
-		}
-
-		for method, &symbols in v.methods {
-			for i := len(symbols) - 1; i >= 0; i -= 1 {
-				#no_bounds_check symbol := symbols[i]
-				if corrected_uri.uri == symbol.uri {
-					unordered_remove(&symbols, i)
-				}
-			}
-		}
-	}
+	remove_file_symbols(corrected_uri)
 
 	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
 		log.errorf("failed to collect symbols on save %v", ret)

@@ -86,37 +86,34 @@ collect_procedure_fields :: proc(
 	attributes: []^ast.Attribute,
 	inlining: ast.Proc_Inlining,
 	where_clauses: []^ast.Expr,
-) -> SymbolProcedureValue {
-	returns := make([dynamic]^ast.Field, 0, collection.allocator)
-	args := make([dynamic]^ast.Field, 0, collection.allocator)
-	attrs := make([dynamic]^ast.Attribute, 0, collection.allocator)
+) -> (value: SymbolProcedureValue) {
 
-	if return_list != nil {
-		for ret in return_list.list {
-			cloned := cast(^ast.Field)clone_type(ret, collection.allocator, &collection.unique_strings)
-			replace_package_alias(cloned, package_map, collection)
-			append(&returns, cloned)
-		}
+	returns := return_list.list if return_list != nil else {}
+	args := arg_list.list if arg_list != nil else {}
+
+	for ret in returns {
+		collection_clone_node_strings(collection, ret)
+		replace_package_alias(ret, package_map, collection)
 	}
 
-	if arg_list != nil {
-		for arg in arg_list.list {
-			cloned := cast(^ast.Field)clone_type(arg, collection.allocator, &collection.unique_strings)
-			replace_package_alias(cloned, package_map, collection)
-			append(&args, cloned)
-		}
+	for arg in args {
+		collection_clone_node_strings(collection, arg)
+		replace_package_alias(arg, package_map, collection)
 	}
 
 	for attr in attributes {
-		cloned := cast(^ast.Attribute)clone_type(attr, collection.allocator, &collection.unique_strings)
-		append(&attrs, cloned)
+		collection_clone_node_strings(collection, attr)
 	}
 
-	value := SymbolProcedureValue {
-		return_types       = returns[:],
-		orig_return_types  = returns[:],
-		arg_types          = args[:],
-		orig_arg_types     = args[:],
+	for clause in where_clauses {
+		collection_clone_node_strings(collection, clause)
+	}
+
+	return {
+		return_types       = returns,
+		orig_return_types  = returns,
+		arg_types          = args,
+		orig_arg_types     = args,
 		generic            = is_procedure_generic(proc_type),
 		diverging          = proc_type.diverging,
 		calling_convention = clone_calling_convention(
@@ -125,12 +122,10 @@ collect_procedure_fields :: proc(
 			&collection.unique_strings,
 		),
 		tags               = proc_type.tags,
-		attributes         = attrs[:],
+		attributes         = attributes,
 		inlining           = inlining,
-		where_clauses      = clone_array(where_clauses, collection.allocator, &collection.unique_strings),
+		where_clauses      = where_clauses,
 	}
-
-	return value
 }
 
 collect_struct_fields :: proc(
@@ -144,45 +139,47 @@ collect_struct_fields :: proc(
 
 	for field in struct_type.fields.list {
 		for n in field.names {
-			if ident, ok := n.derived.(^ast.Ident); ok {
-				append(&b.names, get_index_unique_string(collection, ident.name))
+			ident := n.derived.(^ast.Ident) or_continue
 
-				cloned := clone_type(field.type, collection.allocator, &collection.unique_strings)
-				replace_package_alias(cloned, package_map, collection)
-				append(&b.types, cloned)
+			append(&b.names, get_index_unique_string(collection, ident.name))
 
-				if .Using in field.flags {
-					append(&b.unexpanded_usings, len(b.names) - 1)
-					b.usings[len(b.names) - 1] = struct{}{}
-				}
+			collection_clone_node_strings(collection, field.type)
+			replace_package_alias(field.type, package_map, collection)
+			append(&b.types, field.type)
 
-				append(&b.ranges, common.get_token_range(n, file.src))
-
-				cloned_docs := clone_type(field.docs, collection.allocator, &collection.unique_strings)
-				append(&b.docs, cloned_docs)
-				cloned_comment := clone_type(field.comment, collection.allocator, &collection.unique_strings)
-				append(&b.comments, cloned_comment)
-				append(&b.from_usings, -1)
+			if .Using in field.flags {
+				append(&b.unexpanded_usings, len(b.names) - 1)
+				b.usings[len(b.names) - 1] = struct{}{}
 			}
+
+			append(&b.ranges, common.get_token_range(n, file.src))
+
+			collection_clone_node_strings(collection, field.docs)
+			append(&b.docs, field.docs)
+
+			collection_clone_node_strings(collection, field.comment)
+			append(&b.comments, field.comment)
+			append(&b.from_usings, -1)
 		}
 	}
 
-	b.align = clone_expr(struct_type.align, collection.allocator, &collection.unique_strings)
-	b.max_field_align = clone_expr(struct_type.max_field_align, collection.allocator, &collection.unique_strings)
-	b.min_field_align = clone_expr(struct_type.min_field_align, collection.allocator, &collection.unique_strings)
-	if struct_type.is_no_copy {
-		b.tags |= {.Is_No_Copy}
-	}
-	if struct_type.is_packed {
-		b.tags |= {.Is_Packed}
-	}
-	if struct_type.is_raw_union {
-		b.tags |= {.Is_Raw_Union}
-	}
+	collection_clone_node_strings(collection, struct_type.align)
+	collection_clone_node_strings(collection, struct_type.max_field_align)
+	collection_clone_node_strings(collection, struct_type.min_field_align)
+	collection_clone_node_strings(collection, struct_type.poly_params)
 
-	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
+	b.align           = struct_type.align
+	b.max_field_align = struct_type.max_field_align
+	b.min_field_align = struct_type.min_field_align
+	b.poly            = struct_type.poly_params
+
+	if struct_type.is_no_copy   do b.tags |= {.Is_No_Copy}
+	if struct_type.is_packed    do b.tags |= {.Is_Packed}
+	if struct_type.is_raw_union do b.tags |= {.Is_Raw_Union}
+
 	for clause in struct_type.where_clauses {
-		append(&b.where_clauses, clone_expr(clause, collection.allocator, &collection.unique_strings))
+		collection_clone_node_strings(collection, clause)
+		append(&b.where_clauses, clause)
 	}
 	value := to_symbol_struct_value(b)
 
@@ -195,31 +192,39 @@ collect_bit_field_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
+	context.allocator = collection.allocator
+
 	construct_bit_field_field_docs(file, bit_field_type, collection.allocator)
-	names := make([dynamic]string, 0, len(bit_field_type.fields), collection.allocator)
-	types := make([dynamic]^ast.Expr, 0, len(bit_field_type.fields), collection.allocator)
-	ranges := make([dynamic]common.Range, 0, len(bit_field_type.fields), collection.allocator)
-	docs := make([dynamic]^ast.Comment_Group, 0, collection.allocator)
-	comments := make([dynamic]^ast.Comment_Group, 0, collection.allocator)
-	bit_sizes := make([dynamic]^ast.Expr, 0, collection.allocator)
 
-	for field, i in bit_field_type.fields {
-		if ident, ok := field.name.derived.(^ast.Ident); ok {
-			append(&names, get_index_unique_string(collection, ident.name))
+	names := make([]string, len(bit_field_type.fields))
+	ranges := make([]common.Range, len(bit_field_type.fields))
+	types := make([]^ast.Expr, len(bit_field_type.fields))
+	docs := make([]^ast.Comment_Group, len(bit_field_type.fields))
+	comments := make([]^ast.Comment_Group, len(bit_field_type.fields))
+	bit_sizes := make([]^ast.Expr, len(bit_field_type.fields))
 
-			cloned := clone_type(field.type, collection.allocator, &collection.unique_strings)
-			replace_package_alias(cloned, package_map, collection)
-			append(&types, cloned)
+	#no_bounds_check for field, i in bit_field_type.fields {
+		collection_clone_node_strings(collection, field.type)
+		replace_package_alias(field.type, package_map, collection)
 
-			append(&ranges, common.get_token_range(ident, file.src))
-			append(&docs, clone_comment_group(field.docs, collection.allocator, &collection.unique_strings))
-			append(&comments, clone_comment_group(field.comments, collection.allocator, &collection.unique_strings))
-			append(&bit_sizes, clone_type(field.bit_size, collection.allocator, &collection.unique_strings))
-		}
+		collection_clone_node_strings(collection, field.docs)
+		collection_clone_node_strings(collection, field.comments)
+		collection_clone_node_strings(collection, field.bit_size)
+
+		types[i] = field.type
+		docs[i] = field.docs
+		comments[i] = field.comments
+		bit_sizes[i] = field.bit_size
+
+		ident := field.name.derived.(^ast.Ident) or_continue
+		names[i] = get_index_unique_string(collection, ident.name)
+		ranges[i] = common.get_token_range(ident, file.src)
 	}
 
-	value := SymbolBitFieldValue {
-		backing_type = clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings),
+	collection_clone_node_strings(collection, bit_field_type.backing_type)
+
+	return {
+		backing_type = bit_field_type.backing_type,
 		names        = names[:],
 		types        = types[:],
 		ranges       = ranges[:],
@@ -227,8 +232,6 @@ collect_bit_field_fields :: proc(
 		comments     = comments[:],
 		bit_sizes    = bit_sizes[:],
 	}
-
-	return value
 }
 
 collect_enum_fields :: proc(
@@ -237,31 +240,40 @@ collect_enum_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolEnumValue {
-	names := make([dynamic]string, 0, collection.allocator)
-	ranges := make([dynamic]common.Range, 0, collection.allocator)
-	values := make([dynamic]^ast.Expr, 0, collection.allocator)
+	context.allocator = collection.allocator
 
-	for n in enum_type.fields {
-		name, range, value := get_enum_field_name_range_value(n, file.src)
-		append(&names, strings.clone(name, collection.allocator))
-		append(&ranges, range)
-		append(&values, clone_type(value, collection.allocator, &collection.unique_strings))
+	names := make([]string, len(enum_type.fields))
+	ranges := make([]common.Range, len(enum_type.fields))
+	values := make([]^ast.Expr, len(enum_type.fields))
+
+	#no_bounds_check for n, i in enum_type.fields {
+		name, range, field_value := get_enum_field_name_range_value(n, file.src)
+		collection_clone_node_strings(collection, field_value)
+
+		names[i] = strings.clone(name)
+		ranges[i] = range
+		values[i] = field_value
 	}
 
-	temp_docs, temp_comments := get_field_docs_and_comments(file, enum_type.fields, context.temp_allocator)
-	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
-	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
+	docs, comments := get_field_docs_and_comments(file, enum_type.fields, collection.allocator)
 
-	value := SymbolEnumValue {
+	for doc in docs {
+		collection_clone_node_strings(collection, doc)
+	}
+	for comment in comments {
+		collection_clone_node_strings(collection, comment)
+	}
+
+	collection_clone_node_strings(collection, enum_type.base_type)
+
+	return {
 		names     = names[:],
 		ranges    = ranges[:],
 		values    = values[:],
-		base_type = clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings),
+		base_type = enum_type.base_type,
 		comments  = comments[:],
 		docs      = docs[:],
 	}
-
-	return value
 }
 
 collect_union_fields :: proc(
@@ -270,29 +282,40 @@ collect_union_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolUnionValue {
-	types := make([dynamic]^ast.Expr, 0, collection.allocator)
+	context.allocator = collection.allocator
 
-	for variant in union_type.variants {
-		cloned := clone_type(variant, collection.allocator, &collection.unique_strings)
-		replace_package_alias(cloned, package_map, collection)
-		append(&types, cloned)
+	types := union_type.variants
+
+	for type in types {
+		collection_clone_node_strings(collection, type)
+		replace_package_alias(type, package_map, collection)
 	}
 
-	temp_docs, temp_comments := get_field_docs_and_comments(file, union_type.variants, context.temp_allocator)
-	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
-	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
+	docs, comments := get_field_docs_and_comments(file, union_type.variants, collection.allocator)
 
-	value := SymbolUnionValue {
+	for doc in docs {
+		collection_clone_node_strings(collection, doc)
+	}
+	for comment in comments {
+		collection_clone_node_strings(collection, comment)
+	}
+
+	collection_clone_node_strings(collection, union_type.poly_params)
+	collection_clone_node_strings(collection, union_type.align)
+
+	for clause in union_type.where_clauses {
+		collection_clone_node_strings(collection, clause)
+	}
+
+	return {
 		types         = types[:],
-		poly          = cast(^ast.Field_List)clone_type(union_type.poly_params, collection.allocator, &collection.unique_strings),
+		poly          = union_type.poly_params,
 		comments      = comments[:],
 		docs          = docs[:],
 		kind          = union_type.kind,
-		align         = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
-		where_clauses = clone_array(union_type.where_clauses, collection.allocator, &collection.unique_strings),
+		align         = union_type.align,
+		where_clauses = union_type.where_clauses,
 	}
-
-	return value
 }
 
 collect_bitset_field :: proc(
@@ -300,10 +323,10 @@ collect_bitset_field :: proc(
 	bitset_type: ast.Bit_Set_Type,
 	package_map: map[string]string,
 ) -> SymbolBitSetValue {
-	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings)
-	replace_package_alias(cloned, package_map, collection)
+	collection_clone_node_strings(collection, bitset_type.elem)
+	replace_package_alias(bitset_type.elem, package_map, collection)
 
-	return SymbolBitSetValue{expr = cloned}
+	return SymbolBitSetValue{expr = bitset_type.elem}
 }
 
 collect_slice :: proc(
@@ -311,11 +334,10 @@ collect_slice :: proc(
 	array: ast.Array_Type,
 	package_map: map[string]string,
 ) -> SymbolSliceValue {
-	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, array.elem)
+	replace_package_alias(array.elem, package_map, collection)
 
-	replace_package_alias(elem, package_map, collection)
-
-	return SymbolSliceValue{expr = elem}
+	return SymbolSliceValue{expr = array.elem}
 }
 
 collect_array :: proc(
@@ -323,23 +345,23 @@ collect_array :: proc(
 	array: ast.Array_Type,
 	package_map: map[string]string,
 ) -> SymbolFixedArrayValue {
-	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
-	len := clone_type(array.len, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, array.elem)
+	collection_clone_node_strings(collection, array.len)
 
-	replace_package_alias(elem, package_map, collection)
-	replace_package_alias(len, package_map, collection)
+	replace_package_alias(array.elem, package_map, collection)
+	replace_package_alias(array.len, package_map, collection)
 
-	return SymbolFixedArrayValue{expr = elem, len = len}
+	return SymbolFixedArrayValue{expr = array.elem, len = array.len}
 }
 
 collect_map :: proc(collection: ^SymbolCollection, m: ast.Map_Type, package_map: map[string]string) -> SymbolMapValue {
-	key := clone_type(m.key, collection.allocator, &collection.unique_strings)
-	value := clone_type(m.value, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, m.key)
+	collection_clone_node_strings(collection, m.value)
 
-	replace_package_alias(key, package_map, collection)
-	replace_package_alias(value, package_map, collection)
+	replace_package_alias(m.key, package_map, collection)
+	replace_package_alias(m.value, package_map, collection)
 
-	return SymbolMapValue{key = key, value = value}
+	return SymbolMapValue{key = m.key, value = m.value}
 }
 
 collect_dynamic_array :: proc(
@@ -347,11 +369,10 @@ collect_dynamic_array :: proc(
 	array: ast.Dynamic_Array_Type,
 	package_map: map[string]string,
 ) -> SymbolDynamicArrayValue {
-	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, array.elem)
+	replace_package_alias(array.elem, package_map, collection)
 
-	replace_package_alias(elem, package_map, collection)
-
-	return SymbolDynamicArrayValue{expr = elem}
+	return SymbolDynamicArrayValue{expr = array.elem}
 }
 
 collect_matrix :: proc(
@@ -359,17 +380,15 @@ collect_matrix :: proc(
 	mat: ast.Matrix_Type,
 	package_map: map[string]string,
 ) -> SymbolMatrixValue {
-	elem := clone_type(mat.elem, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, mat.elem)
+	collection_clone_node_strings(collection, mat.column_count)
+	collection_clone_node_strings(collection, mat.row_count)
 
-	y := clone_type(mat.column_count, collection.allocator, &collection.unique_strings)
+	replace_package_alias(mat.elem, package_map, collection)
+	replace_package_alias(mat.row_count, package_map, collection)
+	replace_package_alias(mat.column_count, package_map, collection)
 
-	x := clone_type(mat.row_count, collection.allocator, &collection.unique_strings)
-
-	replace_package_alias(elem, package_map, collection)
-	replace_package_alias(x, package_map, collection)
-	replace_package_alias(y, package_map, collection)
-
-	return SymbolMatrixValue{expr = elem, x = x, y = y}
+	return SymbolMatrixValue{expr = mat.elem, x = mat.row_count, y = mat.column_count}
 }
 
 collect_multi_pointer :: proc(
@@ -377,11 +396,10 @@ collect_multi_pointer :: proc(
 	array: ast.Multi_Pointer_Type,
 	package_map: map[string]string,
 ) -> SymbolMultiPointerValue {
-	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+	collection_clone_node_strings(collection, array.elem)
+	replace_package_alias(array.elem, package_map, collection)
 
-	replace_package_alias(elem, package_map, collection)
-
-	return SymbolMultiPointerValue{expr = elem}
+	return SymbolMultiPointerValue{expr = array.elem}
 }
 
 
@@ -396,21 +414,21 @@ collect_generic :: proc(
 	if selector, ok := expr.derived.(^ast.Selector_Expr); ok {
 		if ident, ok := selector.expr.derived.(^ast.Ident); ok {
 			if ident.name == "builtin" && strings.contains(uri, "/core/c/c.odin") {
-				cloned := clone_type(selector.field, collection.allocator, &collection.unique_strings)
-				replace_package_alias(cloned, package_map, collection)
+				collection_clone_node_strings(collection, selector.field)
+				replace_package_alias(selector.field, package_map, collection)
 				value := SymbolGenericValue {
-					expr = cloned,
+					expr = selector.field,
 				}
 				return value
 			}
 		}
 	}
 
-	cloned := clone_type(expr, collection.allocator, &collection.unique_strings)
-	replace_package_alias(cloned, package_map, collection)
+	collection_clone_node_strings(collection, expr)
+	replace_package_alias(expr, package_map, collection)
 
 	value := SymbolGenericValue {
-		expr = cloned,
+		expr = expr,
 	}
 
 	return value
@@ -524,7 +542,11 @@ collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory
 
 }
 
+/*
+Collect all file symbols and add them to the collection.
 
+**Note:** This mutates the original AST nodes—which should already be allocated with `collection.allocator`.
+*/
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
@@ -599,8 +621,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Proc_Group:
 			token = v^
 			token_type = .Function
+			collection_clone_node_strings(collection, col_expr)
 			symbol.value = SymbolProcedureGroupValue {
-				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
+				group = col_expr,
 			}
 		case ^ast.Struct_Type:
 			token = v^
@@ -708,8 +731,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.type = token_type
 		symbol.doc = get_doc(expr.name_expr, expr.docs, collection.allocator)
 		symbol.uri = get_index_unique_string(collection, uri)
-		symbol.type_expr = clone_type(expr.type_expr, collection.allocator, &collection.unique_strings)
-		symbol.value_expr = clone_type(expr.value_expr, collection.allocator, &collection.unique_strings)
+		collection_clone_node_strings(collection, expr.type_expr)
+		symbol.type_expr = expr.type_expr
+
+		collection_clone_node_strings(collection, expr.value_expr)
+		symbol.value_expr = expr.value_expr
 		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
 
