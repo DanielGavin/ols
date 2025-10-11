@@ -5234,6 +5234,54 @@ ast_hover_proc_group_with_enum_arg :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar :: proc(foo: Foo)")
 }
+
+@(test)
+ast_hover_proc_group_with_enum_named_arg :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		bar_none :: proc() {}
+		bar_foo :: proc(i: int, foo: Foo) {}
+		bar :: proc {
+			bar_none,
+			bar_foo,
+		}
+
+		main :: proc() {
+			b{*}ar(foo = .B, i = 2)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar :: proc(i: int, foo: Foo)")
+}
+
+@(test)
+ast_hover_proc_group_named_arg_with_nil :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {}
+
+		bar_none :: proc() {}
+		bar_foo :: proc(i: int, foo: ^Foo) {}
+		bar :: proc {
+			bar_none,
+			bar_foo,
+		}
+
+		main :: proc() {
+			b{*}ar(foo = nil, i = 2)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar :: proc(i: int, foo: ^Foo)")
+}
 /*
 
 Waiting for odin fix

@@ -729,7 +729,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 
 				if !resolve_all_possibilities {
 					arg_count := get_proc_arg_count(procedure)
-					if call_expr != nil && arg_count < call_unnamed_arg_count {
+					if call_expr != nil && arg_count < len(call_expr.args) {
 						break next_fn
 					}
 				}
