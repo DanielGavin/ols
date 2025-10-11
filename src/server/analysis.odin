@@ -747,6 +747,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						arg_symbol: Symbol
 						ok: bool
 						is_call_arg_nil: bool
+						implicit_selector: ^ast.Implicit_Selector_Expr
 
 						if _, ok = call_arg.derived.(^ast.Bad_Expr); ok {
 							continue
@@ -755,8 +756,12 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						//named parameter
 						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
 							named = true
-							if ident, is_ident := field.field.derived.(^ast.Ident); is_ident && ident.name == "nil" {
+							if ident, is_ident := field.value.derived.(^ast.Ident); is_ident && ident.name == "nil" {
 								is_call_arg_nil = true
+								ok = true
+							} else if implicit, is_implicit := field.value.derived.(^ast.Implicit_Selector_Expr);
+							   is_implicit {
+								implicit_selector = implicit
 								ok = true
 							} else {
 								call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
@@ -781,6 +786,10 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 							if ident, is_ident := call_arg.derived.(^ast.Ident); is_ident && ident.name == "nil" {
 								is_call_arg_nil = true
 								ok = true
+							} else if implicit, is_implicit_selector := call_arg.derived.(^ast.Implicit_Selector_Expr);
+							   is_implicit_selector {
+								implicit_selector = implicit
+								ok = true
 							} else {
 								call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
 							}
@@ -789,6 +798,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						if !ok {
 							break next_fn
 						}
+
 
 						if p, ok := call_symbol.value.(SymbolProcedureValue); ok {
 							if len(p.return_types) != 1 {
@@ -819,6 +829,23 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 						}
 
 						if !ok {
+							break next_fn
+						}
+
+						if implicit_selector != nil {
+							if value, ok := arg_symbol.value.(SymbolEnumValue); ok {
+								found: bool
+								for name in value.names {
+									if implicit_selector.field.name == name {
+										found = true
+										break
+									}
+								}
+								if found {
+									continue
+								}
+
+							}
 							break next_fn
 						}
 
@@ -2296,7 +2323,6 @@ resolve_implicit_selector_comp_literal :: proc(
 resolve_implicit_selector :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	selector_expr: ^ast.Implicit_Selector_Expr,
 ) -> (
 	Symbol,
 	bool,
@@ -2787,7 +2813,7 @@ resolve_location_implicit_selector :: proc(
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	symbol = resolve_implicit_selector(ast_context, position_context, implicit_selector) or_return
+	symbol = resolve_implicit_selector(ast_context, position_context) or_return
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:

@@ -373,7 +373,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
 		hover.range = common.get_token_range(implicit_selector, document.ast.src)
-		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context, implicit_selector); ok {
+		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context); ok {
 			#partial switch v in symbol.value {
 			case SymbolEnumValue:
 				for name, i in v.names {
