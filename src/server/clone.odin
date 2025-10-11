@@ -2,15 +2,11 @@ package server
 
 import "base:intrinsics"
 
-import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
 import "core:strings"
-
-_ :: intrinsics
 
 new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n, _ := mem.new(T, allocator)
@@ -110,14 +106,16 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 
 	reflect.set_union_value(res.derived, res_ptr_any)
 
-	res_ptr := reflect.deref(res_ptr_any)
-
-	if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
-		reflect.set_union_value(de, res_ptr_any)
-	}
-	if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
-		reflect.set_union_value(ds, res_ptr_any)
-	}
+	// NOTE: These are not needed as we don't actually use `derived_expr` or `derived_stmt` in the codebase
+	//
+	//res_ptr := reflect.deref(res_ptr_any)
+	//
+	//if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
+	//	reflect.set_union_value(de, res_ptr_any)
+	//}
+	//if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
+	//	reflect.set_union_value(ds, res_ptr_any)
+	//}
 
 	if res.derived != nil do #partial switch r in res.derived {
 	case ^Ident:
