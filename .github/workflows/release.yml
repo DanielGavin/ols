@@ -1,11 +1,14 @@
-name: nightly
+name: release
 env:
   ODIN_BRANCH: dev-2025-09
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: 0 2 * * 0
+    - cron: 0 2 * * 0 # weekly 'nightly' release
+  push:
+    tags:
+      - dev-**
 
 jobs:
   dist-arm64-darwin:
@@ -13,6 +16,9 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
+    - name: Set ODIN_BRANCH from tag if available
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: echo "ODIN_BRANCH=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
     - name: Download LLVM and setup PATH
       run: |
         brew install llvm@17
@@ -41,6 +47,9 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
+    - name: Set ODIN_BRANCH from tag if available
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: echo "ODIN_BRANCH=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
     - name: Download LLVM and setup PATH
       run: |
         brew install llvm@17
@@ -71,6 +80,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: Set ODIN_BRANCH from tag if available
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: echo "ODIN_BRANCH=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
     - name: Download LLVM
       run:  |
         wget https://apt.llvm.org/llvm.sh
@@ -101,6 +113,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: Set ODIN_BRANCH from tag if available
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: echo "ODIN_BRANCH=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
     - name: Download LLVM
       run:  |
         wget https://apt.llvm.org/llvm.sh
@@ -133,6 +148,12 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v1
+    - name: Set ODIN_BRANCH from tag if available
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      shell: pwsh
+      run: |
+        $tagName = $env:GITHUB_REF.Replace('refs/tags/', '')
+        echo "ODIN_BRANCH=$tagName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
     - name: Download Odin
       shell: cmd
       run: |
@@ -224,5 +245,5 @@ jobs:
       uses: ./.github/actions/github-release
       with:
         files: "dist/*"
-        name: "nightly"
+        name: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.ref_name || 'nightly' }}
         token: ${{ secrets.GITHUB_TOKEN }}
