@@ -293,6 +293,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Or_Else_Expr:
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Or_Branch_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.label = clone_type(r.label, allocator, unique_strings)
 	case ^Comment_Group:
 		list := make([dynamic]tokenizer.Token, 0, len(r.list), allocator)
 		for t in r.list {
