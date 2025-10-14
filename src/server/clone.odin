@@ -24,6 +24,62 @@ new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) 
 	return n
 }
 
+/*
+Recursively clone all strings the ast node to collection's unique string map.
+
+**Note:** This mutates the original node to point to the deduplicated strings.
+*/
+collection_clone_node_strings :: proc(collection: ^SymbolCollection, node: ^ast.Node) {
+
+	if node == nil || collection == nil {
+		return
+	}
+
+	visitor := ast.Visitor{
+		data = collection,
+		visit = proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+			if node == nil {
+				return nil
+			}
+
+			collection := cast(^SymbolCollection)visitor.data
+
+			// Clone position file names
+			if node.pos.file != "" {
+				node.pos.file = get_index_unique_string(collection, node.pos.file)
+			}
+			if node.end.file != "" {
+				node.end.file = get_index_unique_string(collection, node.end.file)
+			}
+
+			// Clone strings in specific nodes
+			#partial switch n in node.derived {
+			case ^ast.Ident:
+				n.name = get_index_unique_string(collection, n.name)
+			case ^ast.Basic_Lit:
+				n.tok.text = get_index_unique_string(collection, n.tok.text)
+			case ^ast.Basic_Directive:
+				n.name = get_index_unique_string(collection, n.name)
+			case ^ast.Implicit:
+				n.tok.text = get_index_unique_string(collection, n.tok.text)
+			case ^ast.Unary_Expr:
+				n.op.text = get_index_unique_string(collection, n.op.text)
+			case ^ast.Binary_Expr:
+				n.op.text = get_index_unique_string(collection, n.op.text)
+			case ^ast.Comment_Group:
+				for &token in n.list {
+					token.text = get_index_unique_string(collection, token.text)
+					token.pos.file = get_index_unique_string(collection, token.pos.file)
+				}
+			}
+
+			return visitor
+		},
+	}
+
+	ast.walk(&visitor, node)
+}
+
 clone_type :: proc {
 	clone_node,
 	clone_expr,
