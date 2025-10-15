@@ -1808,13 +1808,13 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, group(visit_expr(p, v.type)))
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
-			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
+			   ok && is_matrix_type_constant(matrix_type) && is_matrix_filled_comp_lit(matrix_type, v) {
 				document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 				set_source_position(p, v.open)
 				document = cons(
 					document,
-					nest(cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))),
+					nest(cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, matrix_type, v))),
 				)
 				set_source_position(p, v.end)
 
@@ -1911,7 +1911,6 @@ visit_expr :: proc(
 	case ^ast.Tag_Expr:
 		document = cons(
 			text(v.op.text),
-			break_with_no_newline(),
 			text(v.name),
 			break_with_no_newline(),
 			visit_expr(p, v.expr),
@@ -1945,10 +1944,20 @@ is_matrix_type_constant :: proc(matrix_type: ^ast.Matrix_Type) -> bool {
 }
 
 @(private)
-visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type: ^ast.Matrix_Type) -> ^Document {
-	document := empty()
-
+is_matrix_filled_comp_lit :: proc(matrix_type: ^ast.Matrix_Type, comp_lit: ^ast.Comp_Lit) -> bool {
 	//these values have already been validated
+	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
+	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
+
+	if row_count * column_count > len(comp_lit.elems) {
+		return false
+	}
+	return true
+}
+
+@(private)
+visit_matrix_comp_lit :: proc(p: ^Printer, matrix_type: ^ast.Matrix_Type, comp_lit: ^ast.Comp_Lit) -> ^Document {
+	document := empty()
 	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
 	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
 
