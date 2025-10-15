@@ -4,7 +4,7 @@ if [[ $1 == "debug" ]]
 then
     shift
 
-	odin build tools/odinfmt/main.odin -file -show-timings -collection:src=src -out:odinfmt -o:none
+	odin build tools/odinfmt/main.odin -file -show-timings -collection:src=src -out:odinfmt -o:none -debug
     exit 0
 fi
 
