@@ -274,6 +274,42 @@ local M = {
 return M
 ```
 
+#### LazyVim
+
+~/.config/nvim/lua/config/lsp.lua based on https://github.com/neovim/nvim-lspconfig/blob/master/lsp/ols.lua
+
+```
+return {
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
+        ols = {
+          cmd = { "ols" },
+          filetypes = { "odin" },
+          root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
+        },
+      },
+    },
+  },
+}
+```
+
+~/.config/nvim/lua/plugins/treesitter.lua
+
+```lua
+return {
+  {
+    "nvim-treesitter/nvim-treesitter",
+    opts = {
+      ensure_installed = {
+        "odin",
+      },
+    },
+  },
+}
+```
+
 ### Emacs
 
 For Emacs, there are two packages available for LSP; lsp-mode and eglot.
