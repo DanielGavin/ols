@@ -276,19 +276,20 @@ return M
 
 #### LazyVim
 
-~/.config/nvim/lua/config/lsp.lua based on https://github.com/neovim/nvim-lspconfig/blob/master/lsp/ols.lua
+~/.config/nvim/lua/plugins/lsp.lua based on https://github.com/neovim/nvim-lspconfig/blob/master/lsp/ols.lua
 
 ```
 return {
   {
     "neovim/nvim-lspconfig",
     opts = {
-      servers = {
-        ols = {
-          cmd = { "ols" },
+      setup = {
+        require('lspconfig').ols.setup {
+          -- needs to be full path, otherwise ols cannot find builtin folder
+          cmd = { vim.fn.exepath("ols") },
           filetypes = { "odin" },
           root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
-        },
+        }
       },
     },
   },
