@@ -285,7 +285,7 @@ return {
     opts = {
       setup = {
         require('lspconfig').ols.setup {
-          -- needs to be full path, otherwise ols cannot find builtin folder
+          -- needs to be full path, :LspLog shows that ols cannot find builtin folder.
           cmd = { vim.fn.exepath("ols") },
           filetypes = { "odin" },
           root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
