@@ -1,19 +1,7 @@
 package server
 
-import "core:fmt"
 import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
-import "core:odin/tokenizer"
-import "core:os"
-import "core:path/filepath"
-import path "core:path/slashpath"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
-import "core:strings"
-
 
 import "src:common"
 
@@ -51,6 +39,9 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 				case SymbolStructValue:
 					children := make([dynamic]DocumentSymbol, context.temp_allocator)
 					for name, i in v.names {
+						if name == "" {
+							continue
+						}
 						child: DocumentSymbol
 						child.range = v.ranges[i]
 						child.selectionRange = v.ranges[i]
@@ -62,6 +53,9 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 				case SymbolBitFieldValue:
 					children := make([dynamic]DocumentSymbol, context.temp_allocator)
 					for name, i in v.names {
+						if name == "" {
+							continue
+						}
 						child: DocumentSymbol
 						child.range = v.ranges[i]
 						child.selectionRange = v.ranges[i]
