@@ -159,6 +159,10 @@ get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange,
 	line_count := 0
 	index := 1
 	last := document_text[0]
+	if last == '\n' {
+		// if we start with a new line, we set the index back to 0 to ensure it gets accounted for
+		index = 0
+	}
 
 	if !get_index_at_line(&index, &line_count, &last, document_text, range.start.line) {
 		return absolute, false
@@ -168,7 +172,7 @@ get_absolute_range :: proc(range: Range, document_text: []u8) -> (AbsoluteRange,
 
 	//if the last line was indexed at zero we have to move it back to index 1.
 	//This happens when line = 0
-	if index == 0 {
+	if index == 0 && last != '\n' {
 		index = 1
 	}
 

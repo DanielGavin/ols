@@ -3,7 +3,6 @@ package server
 import "core:log"
 import "core:slice"
 import "core:strings"
-import "src:common"
 
 DiagnosticType :: enum {
 	Syntax,
