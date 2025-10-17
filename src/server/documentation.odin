@@ -2,7 +2,6 @@
 package server
 
 import "core:fmt"
-import "core:log"
 import "core:odin/ast"
 import path "core:path/slashpath"
 import "core:strings"
@@ -651,7 +650,7 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 	longestNameLen := 0
 	for name, i in v.names {
 		l := len(name)
-		if _, ok := v.usings[i]; ok {
+		if symbol_struct_value_has_using(v, i) {
 			l += len(using_prefix)
 		}
 		if l > longestNameLen {
@@ -692,7 +691,7 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 		write_indent(sb, depth + 1)
 
 		name_len := len(v.names[i])
-		if _, ok := v.usings[i]; ok {
+		if symbol_struct_value_has_using(v, i) {
 			strings.write_string(sb, using_prefix)
 			name_len += len(using_prefix)
 		}

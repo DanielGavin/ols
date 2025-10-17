@@ -1,13 +1,9 @@
 package server
 
-import "core:fmt"
-import "core:hash"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:strconv"
 import "core:strings"
 
 import "src:common"
@@ -153,7 +149,7 @@ collect_struct_fields :: proc(
 
 				if .Using in field.flags {
 					append(&b.unexpanded_usings, len(b.names) - 1)
-					b.usings[len(b.names) - 1] = struct{}{}
+					append(&b.usings, len(b.names) - 1)
 				}
 
 				append(&b.ranges, common.get_token_range(n, file.src))
