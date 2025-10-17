@@ -1,6 +1,5 @@
 package server
 
-import "core:log"
 import "core:odin/ast"
 
 import "src:common"

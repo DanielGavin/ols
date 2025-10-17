@@ -1,16 +1,9 @@
 package server
 
-import "core:fmt"
-import "core:hash"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:slice"
-import "core:strings"
 
 import "src:common"
 
@@ -31,7 +24,7 @@ SymbolStructValue :: struct {
 	names:             []string,
 	ranges:            []common.Range,
 	types:             []^ast.Expr,
-	usings:            map[int]struct{},
+	usings:            []int,
 	from_usings:       []int,
 	unexpanded_usings: []int,
 	poly:              ^ast.Field_List,
@@ -50,6 +43,15 @@ SymbolStructValue :: struct {
 	min_field_align:   ^ast.Expr,
 	max_field_align:   ^ast.Expr,
 	tags:              SymbolStructTags,
+}
+
+symbol_struct_value_has_using :: proc(v: SymbolStructValue, index: int) -> bool {
+	for u in v.usings {
+		if u == index {
+			return true
+		}
+	}
+	return false
 }
 
 SymbolBitFieldValue :: struct {
@@ -253,7 +255,7 @@ SymbolStructValueBuilder :: struct {
 	ranges:            [dynamic]common.Range,
 	docs:              [dynamic]^ast.Comment_Group,
 	comments:          [dynamic]^ast.Comment_Group,
-	usings:            map[int]struct{},
+	usings:            [dynamic]int,
 	from_usings:       [dynamic]int,
 	unexpanded_usings: [dynamic]int,
 	poly:              ^ast.Field_List,
@@ -279,9 +281,7 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		ranges            = make([dynamic]common.Range, allocator),
 		docs              = make([dynamic]^ast.Comment_Group, allocator),
 		comments          = make([dynamic]^ast.Comment_Group, allocator),
-		// Set it to an arbitary size due to issues with crashes
-		// See https://github.com/DanielGavin/ols/issues/787
-		usings            = make(map[int]struct{}, 16, allocator),
+		usings            = make([dynamic]int, allocator),
 		from_usings       = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
 		poly_names        = make([dynamic]string, allocator),
@@ -303,7 +303,7 @@ symbol_struct_value_builder_make_symbol :: proc(
 		ranges = make([dynamic]common.Range, allocator),
 		docs = make([dynamic]^ast.Comment_Group, allocator),
 		comments = make([dynamic]^ast.Comment_Group, allocator),
-		usings = make(map[int]struct{}, allocator),
+		usings = make([dynamic]int, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
@@ -326,7 +326,7 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		ranges = slice.to_dynamic(v.ranges, allocator),
 		docs = slice.to_dynamic(v.docs, allocator),
 		comments = slice.to_dynamic(v.comments, allocator),
-		usings = v.usings,
+		usings = slice.to_dynamic(v.usings, allocator),
 		from_usings = slice.to_dynamic(v.from_usings, allocator),
 		unexpanded_usings = slice.to_dynamic(v.unexpanded_usings, allocator),
 		poly_names = slice.to_dynamic(v.poly_names, allocator),
@@ -360,7 +360,7 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		args = b.args[:],
 		docs = b.docs[:],
 		comments = b.comments[:],
-		usings = b.usings,
+		usings = b.usings[:],
 		from_usings = b.from_usings[:],
 		unexpanded_usings = b.unexpanded_usings[:],
 		poly = b.poly,
@@ -391,7 +391,7 @@ write_struct_type :: proc(
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
 				if .Using in field.flags {
 					append(&b.unexpanded_usings, len(b.types))
-					b.usings[len(b.types)] = struct{}{}
+					append(&b.usings, len(b.types))
 				}
 
 				append(&b.names, identifier.name)
@@ -485,7 +485,7 @@ write_symbol_struct_value :: proc(
 		b.bit_sizes[k + base_index] = value
 	}
 	for k in v.usings {
-		b.usings[k + base_index] = struct{}{}
+		append(&b.usings, k + base_index)
 	}
 	expand_usings(ast_context, b)
 }
@@ -534,7 +534,7 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 			continue
 		}
 
-		b.usings[u] = struct{}{}
+		append(&b.usings, u)
 
 		derived := field_expr.derived
 		if ptr, ok := field_expr.derived.(^ast.Pointer_Type); ok {
