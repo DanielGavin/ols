@@ -289,13 +289,8 @@ return {
           cmd = { vim.fn.exepath("ols") },
           filetypes = { "odin" },
           root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
-          on_attach = function(client)
-            -- Disable lsp completion, because it works incorrectly.
-            -- i.e. typing rl. will show all
-            -- but typing rl.Draw will not show DrawRectangleV
-            client.server_capabilities.completionProvider = nil
-          end,
-
+		  -- disable lsp completion if bug happens in ols
+		  -- on_attach = function(client) client.server_capabilities.completionProvider = nil end,
         }
       },
     },
