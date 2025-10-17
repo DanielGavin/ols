@@ -311,6 +311,20 @@ return {
 }
 ```
 
+~/.config/nvim/lua/plugins/conform.lua
+
+```lua
+return {
+  "stevearc/conform.nvim",
+  opts = {
+    formatters_by_ft = {
+      -- needed: autoformat of odin files will behave strange when used with ols
+      odin = { "odinfmt" },
+    },
+  },
+}
+```
+
 ### Emacs
 
 For Emacs, there are two packages available for LSP; lsp-mode and eglot.
