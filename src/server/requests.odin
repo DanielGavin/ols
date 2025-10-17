@@ -1145,8 +1145,9 @@ notification_did_save :: proc(
 	check(config.profile.checker_path[:], corrected_uri, config)
 
 	document := document_get(save_params.textDocument.uri)
-
-	check_unused_imports(document, config)
+	if document != nil {
+		check_unused_imports(document, config)
+	}
 
 	push_diagnostics(writer)
 
