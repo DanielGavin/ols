@@ -278,7 +278,7 @@ return M
 
 ~/.config/nvim/lua/plugins/lsp.lua based on https://github.com/neovim/nvim-lspconfig/blob/master/lsp/ols.lua
 
-```
+```lua
 return {
   {
     "neovim/nvim-lspconfig",
