@@ -2034,6 +2034,11 @@ get_type_switch_completion :: proc(
 						)
 						item.detail = item.label
 					}
+					if position_context.implicit_selector_expr != nil {
+						if remove_edit, ok := create_implicit_selector_remove_edit(position_context); ok {
+							item.additionalTextEdits = remove_edit
+						}
+					}
 
 					append(results, CompletionResult{completion_item = item})
 				}
