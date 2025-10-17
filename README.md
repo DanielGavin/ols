@@ -289,8 +289,8 @@ return {
           cmd = { vim.fn.exepath("ols") },
           filetypes = { "odin" },
           root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
-		  -- disable lsp completion if bug happens in ols
-		  -- on_attach = function(client) client.server_capabilities.completionProvider = nil end,
+          -- disable lsp completion if bug happens in ols
+          -- on_attach = function(client) client.server_capabilities.completionProvider = nil end,
         }
       },
     },
