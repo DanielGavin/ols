@@ -248,8 +248,6 @@ require'lspconfig'.ols.setup {
 }
 ```
 
-Note: Look at `:LspLog`. Now it seems your code needs to be in src directory in order for format on save to work.
-
 Neovim can run Odinfmt on save using the [conform](https://github.com/stevearc/conform.nvim) plugin. Here is a sample configuration using the [lazy.nvim](https://github.com/folke/lazy.nvim) package manager:
 
 ```lua
