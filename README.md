@@ -285,7 +285,7 @@ return {
     opts = {
       setup = {
         require('lspconfig').ols.setup {
-          -- needs to be full path, :LspLog shows that ols cannot find builtin folder.
+          -- needs to be full path, :LspLog shows ols cannot find builtin folder otherwise.
           cmd = { vim.fn.exepath("ols") },
           filetypes = { "odin" },
           root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
@@ -313,6 +313,8 @@ return {
 }
 ```
 
+You may need conform.nvim if autoformat with sole ols of odin files is behaving strange
+
 ~/.config/nvim/lua/plugins/conform.lua
 
 ```lua
@@ -320,7 +322,6 @@ return {
   "stevearc/conform.nvim",
   opts = {
     formatters_by_ft = {
-      -- needed: autoformat of odin files will behave strange when used with ols
       odin = { "odinfmt" },
     },
   },
