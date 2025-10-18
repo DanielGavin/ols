@@ -241,6 +241,7 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/rename"               = request_rename,
 	"textDocument/prepareRename"        = request_prepare_rename,
 	"textDocument/references"           = request_references,
+	"textDocument/documentHighlight"    = request_highlights,
 	"textDocument/codeAction"           = request_code_action,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
@@ -708,6 +709,7 @@ request_initialize :: proc(
 				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
+				documentHighlightProvider = config.enable_references,
 				definitionProvider = true,
 				typeDefinitionProvider = true,
 				completionProvider = CompletionOptions {
@@ -1487,6 +1489,52 @@ request_references :: proc(
 	}
 
 	response := make_response_message(params = locations, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_highlights :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	highlight_param: HighlightParams
+
+	if unmarshal(params, highlight_param, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(highlight_param.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	locations: []common.Location
+	locations, ok = get_references(document, highlight_param.position)
+
+	if !ok {
+		return .InternalError
+	}
+
+	highlights := make([dynamic]DocumentHighlight, 0, context.temp_allocator)
+	for location in locations {
+		// highlights are essentially references scoped to the requested file
+		if location.uri == highlight_param.textDocument.uri {
+			append(&highlights, DocumentHighlight{kind = .Text, range = location.range})
+		}
+	}
+
+	response := make_response_message(params = highlights[:], id = id)
 
 	send_response(response, writer)
 

@@ -32,6 +32,7 @@ ResponseParams :: union {
 	WorkspaceEdit,
 	common.Range,
 	[]CodeAction,
+	[]DocumentHighlight,
 }
 
 RequestMessage :: struct {
@@ -143,6 +144,7 @@ ServerCapabilities :: struct {
 	inlayHintProvider:          bool,
 	renameProvider:             RenameOptions,
 	referencesProvider:         bool,
+	documentHighlightProvider:  bool,
 	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
 	codeActionProvider:         CodeActionOptions,
@@ -560,6 +562,11 @@ ReferenceParams :: struct {
 	position:     common.Position,
 }
 
+HighlightParams :: struct {
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
 OptionalVersionedTextDocumentIdentifier :: struct {
 	uri:     string,
 	version: Maybe(int),
@@ -586,4 +593,15 @@ WorkspaceSymbol :: struct {
 
 DidChangeConfigurationParams :: struct {
 	settings: OlsConfig,
+}
+
+DocumentHighlight :: struct {
+	range: common.Range,
+	kind:  DocumentHighlightKind,
+}
+
+DocumentHighlightKind :: enum {
+	Text  = 1,
+	Read  = 2,
+	Write = 3,
 }
