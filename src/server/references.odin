@@ -236,6 +236,7 @@ resolve_references :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
+	current_file_only := false,
 ) -> (
 	[]common.Location,
 	bool,
@@ -269,7 +270,7 @@ resolve_references :: proc(
 
 	fullpaths := slice.unique(fullpaths[:])
 
-	if .Local not_in symbol.flags {
+	if .Local not_in symbol.flags && !current_file_only {
 		for fullpath in fullpaths {
 			dir := filepath.dir(fullpath)
 			base := filepath.base(dir)
@@ -384,7 +385,7 @@ resolve_references :: proc(
 	return locations[:], true
 }
 
-get_references :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
+get_references :: proc(document: ^Document, position: common.Position, current_file_only := false) -> ([]common.Location, bool) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -410,7 +411,7 @@ get_references :: proc(document: ^Document, position: common.Position) -> ([]com
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	locations, ok2 := resolve_references(document, &ast_context, &position_context)
+	locations, ok2 := resolve_references(document, &ast_context, &position_context, current_file_only)
 
 	temp_locations := make([dynamic]common.Location, 0, context.temp_allocator)
 
