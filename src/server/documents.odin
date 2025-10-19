@@ -326,10 +326,12 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 
+		uri := common.create_uri(document.uri.path, context.temp_allocator)
+
 		for error, i in errors {
 			add_diagnostics(
 				.Syntax,
-				document.uri.uri,
+				uri.uri,
 				Diagnostic {
 					range = common.Range {
 						start = common.Position{line = error.line - 1, character = 0},

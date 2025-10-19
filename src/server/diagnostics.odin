@@ -20,12 +20,6 @@ add_diagnostics :: proc(type: DiagnosticType, uri: string, diagnostic: Diagnosti
 		return
 	}
 
-	uri := uri
-
-	when ODIN_OS == .Windows {
-		uri = strings.to_lower(uri, context.temp_allocator)
-	}
-
 	diagnostic_array := &diagnostic_type[uri]
 
 	if diagnostic_array == nil {
@@ -47,12 +41,6 @@ remove_diagnostics :: proc(type: DiagnosticType, uri: string) {
 	if diagnostic_type == nil {
 		log.errorf("Diagnostic type did not exist: %v", type)
 		return
-	}
-
-	uri := uri
-
-	when ODIN_OS == .Windows {
-		uri = strings.to_lower(uri, context.temp_allocator)
 	}
 
 	diagnostic_array := &diagnostic_type[uri]
