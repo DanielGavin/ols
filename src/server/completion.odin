@@ -154,7 +154,7 @@ get_completion_list :: proc(
 	// TODO: as these are mutally exclusive, should probably just make them return a slice?
 	switch completion_type {
 	case .Comp_Lit:
-		is_incomplete = get_comp_lit_completion(&ast_context, &position_context, &results)
+		is_incomplete = get_comp_lit_completion(&ast_context, &position_context, &results, config)
 	case .Identifier:
 		is_incomplete = get_identifier_completion(&ast_context, &position_context, &results, config)
 	case .Implicit:
@@ -646,6 +646,7 @@ get_comp_lit_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
+	config: ^common.Config,
 ) -> bool {
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
@@ -666,6 +667,7 @@ get_comp_lit_completion :: proc(
 					append(results, CompletionResult{symbol = resolved})
 				}
 			}
+			return false
 		case SymbolBitFieldValue:
 			for name, i in v.names {
 				if name == "_" {
@@ -683,6 +685,7 @@ get_comp_lit_completion :: proc(
 					append(results, CompletionResult{symbol = resolved})
 				}
 			}
+			return false
 		case SymbolFixedArrayValue:
 			if symbol, ok := resolve_type_expression(ast_context, v.len); ok {
 				if v, ok := symbol.value.(SymbolEnumValue); ok {
@@ -694,9 +697,11 @@ get_comp_lit_completion :: proc(
 						construct_enum_field_symbol(&symbol, v, i)
 						append(results, CompletionResult{symbol = symbol})
 					}
+					return false
 				}
 			}
 		}
+		return get_identifier_completion(ast_context, position_context, results, config)
 	}
 
 	return false
