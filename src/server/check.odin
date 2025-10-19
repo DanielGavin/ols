@@ -72,12 +72,14 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 
 	unused_imports := find_unused_imports(document, context.temp_allocator)
 
-	remove_diagnostics(.Unused, document.uri.uri)
+	uri := common.create_uri(document.uri.path, context.temp_allocator)
+
+	remove_diagnostics(.Unused, uri.uri)
 
 	for imp in unused_imports {
 		add_diagnostics(
 			.Unused,
-			document.uri.uri,
+			uri.uri,
 			Diagnostic {
 				range = common.get_token_range(imp.import_decl, document.ast.src),
 				severity = DiagnosticSeverity.Hint,
