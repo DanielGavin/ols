@@ -318,15 +318,15 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
-	remove_diagnostics(.Syntax, document.uri.uri)
-	remove_diagnostics(.Check, document.uri.uri)
+	uri := common.create_uri(document.uri.path, context.temp_allocator)
+
+	remove_diagnostics(.Syntax, uri.uri)
+	remove_diagnostics(.Check, uri.uri)
 
 	check_unused_imports(document, config)
 
 	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
-
-		uri := common.create_uri(document.uri.path, context.temp_allocator)
 
 		for error, i in errors {
 			add_diagnostics(
