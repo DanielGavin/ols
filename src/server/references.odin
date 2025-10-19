@@ -2,7 +2,6 @@ package server
 
 import "base:runtime"
 
-import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:odin/ast"
@@ -170,7 +169,7 @@ prepare_references :: proc(
 			return
 		}
 	} else {
-		// The order of these is important as a lot of the above can be defined within a struct so we 
+		// The order of these is important as a lot of the above can be defined within a struct so we
 		// need to make sure we resolve that last
 		if position_context.bit_field_type != nil {
 			for field in position_context.bit_field_type.fields {
@@ -249,118 +248,7 @@ resolve_references :: proc(
 	if !ok {
 		return {}, true
 	}
-
-	when !ODIN_TEST {
-		for workspace in common.config.workspace_folders {
-			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			filepath.walk(uri.path, walk_directories, document)
-		}
-	}
-
-	reset_ast_context(ast_context)
-
-
-	arena: runtime.Arena
-
-	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
-
-	defer runtime.arena_destroy(&arena)
-
-	context.allocator = runtime.arena_allocator(&arena)
-
-	fullpaths := slice.unique(fullpaths[:])
-
-	if .Local not_in symbol.flags && !current_file_only {
-		for fullpath in fullpaths {
-			dir := filepath.dir(fullpath)
-			base := filepath.base(dir)
-			forward_dir, _ := filepath.to_slash(dir)
-
-			data, ok := os.read_entire_file(fullpath, context.allocator)
-
-			if !ok {
-				log.errorf("failed to read entire file for indexing %v", fullpath)
-				continue
-			}
-
-			p := parser.Parser {
-				err   = log_error_handler,
-				warn  = log_warning_handler,
-				flags = {.Optional_Semicolons},
-			}
-
-
-			pkg := new(ast.Package)
-			pkg.kind = .Normal
-			pkg.fullpath = fullpath
-			pkg.name = base
-
-			if base == "runtime" {
-				pkg.kind = .Runtime
-			}
-
-			file := ast.File {
-				fullpath = fullpath,
-				src      = string(data),
-				pkg      = pkg,
-			}
-
-			ok = parser.parse_file(&p, &file)
-
-			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
-					log.errorf("error in parse file for indexing %v", fullpath)
-				}
-				continue
-			}
-
-			uri := common.create_uri(fullpath, context.allocator)
-
-			document := Document {
-				ast = file,
-			}
-
-			document.uri = uri
-			document.text = transmute([]u8)file.src
-			document.used_text = len(file.src)
-
-			document_setup(&document)
-
-			parse_imports(&document, &common.config)
-
-			in_pkg := false
-
-			for pkg in document.imports {
-				if pkg.name == symbol.pkg {
-					in_pkg = true
-					continue
-				}
-			}
-
-			if in_pkg || symbol.pkg == document.package_name {
-				symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
-				for k, v in symbols_and_nodes {
-					if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
-						node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
-						range := common.get_token_range(v.node^, string(document.text))
-						//We don't have to have the `.` with, otherwise it renames the dot.
-						if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
-							range.start.character += 1
-						}
-						location := common.Location {
-							range = range,
-							uri   = strings.clone(node_uri.uri, ast_context.allocator),
-						}
-						append(&locations, location)
-					}
-				}
-			}
-
-			free_all(context.allocator)
-		}
-	}
-
-	symbols_and_nodes := resolve_entire_file(document, resolve_flag, context.allocator)
+	symbols_and_nodes := resolve_entire_file(document, resolve_flag, ast_context.allocator)
 
 	for k, v in symbols_and_nodes {
 		if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
@@ -382,10 +270,129 @@ resolve_references :: proc(
 		}
 	}
 
+	if .Local in symbol.flags || current_file_only {
+		return locations[:], true
+	}
+
+	when !ODIN_TEST {
+		for workspace in common.config.workspace_folders {
+			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+			filepath.walk(uri.path, walk_directories, document)
+		}
+	}
+
+	reset_ast_context(ast_context)
+
+
+	arena: runtime.Arena
+
+	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+
+	defer runtime.arena_destroy(&arena)
+
+	context.allocator = runtime.arena_allocator(&arena)
+
+	fullpaths := slice.unique(fullpaths[:])
+
+	for fullpath in fullpaths {
+		dir := filepath.dir(fullpath)
+		base := filepath.base(dir)
+		forward_dir, _ := filepath.to_slash(dir)
+
+		data, ok := os.read_entire_file(fullpath, context.allocator)
+
+		if !ok {
+			log.errorf("failed to read entire file for indexing %v", fullpath)
+			continue
+		}
+
+		p := parser.Parser {
+			err   = log_error_handler,
+			warn  = log_warning_handler,
+			flags = {.Optional_Semicolons},
+		}
+
+
+		pkg := new(ast.Package)
+		pkg.kind = .Normal
+		pkg.fullpath = fullpath
+		pkg.name = base
+
+		if base == "runtime" {
+			pkg.kind = .Runtime
+		}
+
+		file := ast.File {
+			fullpath = fullpath,
+			src      = string(data),
+			pkg      = pkg,
+		}
+
+		ok = parser.parse_file(&p, &file)
+
+		if !ok {
+			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				log.errorf("error in parse file for indexing %v", fullpath)
+			}
+			continue
+		}
+
+		uri := common.create_uri(fullpath, context.allocator)
+
+		document := Document {
+			ast = file,
+		}
+
+		document.uri = uri
+		document.text = transmute([]u8)file.src
+		document.used_text = len(file.src)
+
+		document_setup(&document)
+
+		parse_imports(&document, &common.config)
+
+		in_pkg := false
+
+		for pkg in document.imports {
+			if pkg.name == symbol.pkg {
+				in_pkg = true
+				continue
+			}
+		}
+
+		if in_pkg || symbol.pkg == document.package_name {
+			symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
+			for k, v in symbols_and_nodes {
+				if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
+					node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
+					range := common.get_token_range(v.node^, string(document.text))
+					//We don't have to have the `.` with, otherwise it renames the dot.
+					if _, ok := v.node.derived.(^ast.Implicit_Selector_Expr); ok {
+						range.start.character += 1
+					}
+					location := common.Location {
+						range = range,
+						uri   = strings.clone(node_uri.uri, ast_context.allocator),
+					}
+					append(&locations, location)
+				}
+			}
+		}
+
+		free_all(context.allocator)
+	}
+
 	return locations[:], true
 }
 
-get_references :: proc(document: ^Document, position: common.Position, current_file_only := false) -> ([]common.Location, bool) {
+get_references :: proc(
+	document: ^Document,
+	position: common.Position,
+	current_file_only := false,
+) -> (
+	[]common.Location,
+	bool,
+) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
