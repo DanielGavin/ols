@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:strings"
 import "core:testing"
 
@@ -4786,4 +4785,20 @@ ast_completion_overload_proc_returning_proc_complete_comp_lit_arg_direct :: proc
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.bar: int", "Foo.bazz: string"})
+}
+
+@(test)
+ast_completion_array_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo1 := 1
+			foo2 := 2
+
+			foos: [2]int
+			foos = {{*}}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.foo1: int", "test.foo2: int"})
 }
