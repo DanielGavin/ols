@@ -78,6 +78,8 @@ Options:
 
 - `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
+- `enable_document_highlights`: Turns on highlighting of symbol references in file. _(Enabled by default)_
+
 - `enable_document_links`: Follow links when opening documentation. This is usually done via `<ctrl+click>` and will open the documentation in a browser (or similar). _(Enabled by default)_
 
 - `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_

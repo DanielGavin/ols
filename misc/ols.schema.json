@@ -72,6 +72,11 @@
 			"description": "Turns on finding references for a symbol.",
 			"default": true
 		},
+		"enable_document_highlights": {
+			"type": "boolean",
+			"description": "Turns on highlighting of symbol references in file.",
+			"default": true
+		},
 		"enable_completion_matching": {
 			"type": "boolean",
 			"description": "Attempt to match types and pointers when passing arguments to procedures.",

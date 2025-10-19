@@ -241,6 +241,7 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/rename"               = request_rename,
 	"textDocument/prepareRename"        = request_prepare_rename,
 	"textDocument/references"           = request_references,
+	"textDocument/documentHighlight"    = request_highlights,
 	"textDocument/codeAction"           = request_code_action,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
@@ -367,6 +368,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
 	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
+	config.enable_document_highlights = ols_config.enable_document_highlights.(bool) or_else config.enable_document_highlights
 	config.enable_completion_matching =
 		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
 	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
@@ -619,6 +621,7 @@ request_initialize :: proc(
 	config.enable_procedure_context = false
 	config.enable_snippets = false
 	config.enable_references = true
+	config.enable_document_highlights = true
 	config.enable_completion_matching = true
 	config.enable_document_links = true
 	config.verbose = false
@@ -708,6 +711,7 @@ request_initialize :: proc(
 				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
+				documentHighlightProvider = config.enable_document_highlights,
 				definitionProvider = true,
 				typeDefinitionProvider = true,
 				completionProvider = CompletionOptions {
@@ -1487,6 +1491,49 @@ request_references :: proc(
 	}
 
 	response := make_response_message(params = locations, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_highlights :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	highlight_param: HighlightParams
+
+	if unmarshal(params, highlight_param, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(highlight_param.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	locations: []common.Location
+	locations, ok = get_references(document, highlight_param.position, true)
+
+	if !ok {
+		return .InternalError
+	}
+
+	highlights := make([dynamic]DocumentHighlight, 0, context.temp_allocator)
+	for location in locations {
+		append(&highlights, DocumentHighlight{kind = .Text, range = location.range})
+	}
+
+	response := make_response_message(params = highlights[:], id = id)
 
 	send_response(response, writer)
 
