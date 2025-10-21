@@ -318,7 +318,13 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
-	uri := common.create_uri(document.uri.path, context.temp_allocator)
+	path := document.uri.path
+
+	when ODIN_OS == .Windows {
+		path = common.get_case_sensitive_path(path, context.temp_allocator)
+	}
+
+	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Syntax, uri.uri)
 	remove_diagnostics(.Check, uri.uri)

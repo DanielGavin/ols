@@ -72,7 +72,13 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 
 	unused_imports := find_unused_imports(document, context.temp_allocator)
 
-	uri := common.create_uri(document.uri.path, context.temp_allocator)
+	path := document.uri.path
+
+	when ODIN_OS == .Windows {
+		path = common.get_case_sensitive_path(path, context.temp_allocator)
+	}
+
+	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Unused, uri.uri)
 
@@ -174,7 +180,13 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 				continue
 			}
 
-			uri := common.create_uri(error.pos.file, context.temp_allocator)
+			path := error.pos.file
+
+			when ODIN_OS == .Windows {
+				path = common.get_case_sensitive_path(path, context.temp_allocator)
+			}
+
+			uri := common.create_uri(path, context.temp_allocator)
 
 			add_diagnostics(
 				.Check,
