@@ -175,6 +175,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Selector_Expr:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
+	case ^Selector_Call_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.call = auto_cast clone_type(r.call, allocator, unique_strings)
 	case ^Implicit_Selector_Expr:
 		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
 	case ^Slice_Expr:

@@ -659,6 +659,9 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^Selector_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.field, allocator)
+	case ^Selector_Call_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.call, allocator)
 	case ^Implicit_Selector_Expr:
 		free_ast(n.field, allocator)
 	case ^Index_Expr:
