@@ -42,6 +42,8 @@ const defaultConfig = JSON.stringify(
 
 let ctx: Ctx;
 
+let outputChannel: vscode.LogOutputChannel;
+
 export async function activate(context: vscode.ExtensionContext) {
 
 	const config = new Config(context);
@@ -60,6 +62,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		log.error("Bootstrap error", err);
 		throw new Error(message);
 	});
+
+	checkForUpdates(config, state, false)
 
 
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -98,9 +102,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 	};
 
+
+	outputChannel = vscode.window.createOutputChannel("Odin Language Server", { log: true });
+
+
 	let clientOptions: LanguageClientOptions = {
 		documentSelector: [{ scheme: 'file', language: 'odin' }],
-		outputChannel: vscode.window.createOutputChannel("Odin Language Server")
+		outputChannel: outputChannel,
 	};
 
 	var client = new LanguageClient(
@@ -301,6 +309,38 @@ function serverPath(config: Config): string | null {
 	return config.serverPath;
 }
 
+function getPlatform(): string {
+	const platforms: { [key: string]: string } = {
+		"x64 win32": "x86_64-pc-windows-msvc",
+		"x64 linux": "x86_64-unknown-linux-gnu",
+		"x64 darwin": "x86_64-darwin",
+		"arm64 darwin": "arm64-darwin"
+	};
+
+	let platform = platforms[`${process.arch} ${process.platform}`];
+	return platform
+}
+
+function getDestFolder(config: Config, releaseId: number | undefined): string {
+	return path.join(config.globalStorageUri.fsPath, (releaseId ?? 0).toString());
+}
+
+function getExt(): string {
+	const platform = getPlatform()
+	const isWindows = platform.indexOf("-windows-") !== -1;
+	const ext = isWindows ? ".exe" : "";
+
+	return ext
+}
+
+
+function getExecutable(config: Config, releaseId: number | undefined): string {
+	const platform = getPlatform()
+	const ext = getExt()
+	return path.join(getDestFolder(config, releaseId), `ols-${platform}${ext}`);
+}
+
+
 async function getServer(config: Config, state: PersistentState): Promise<string | undefined> {
 	const explicitPath = serverPath(config);
 	if (explicitPath) {
@@ -310,15 +350,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 		return explicitPath;
 	};
 
-	const platforms: { [key: string]: string } = {
-		"x64 win32": "x86_64-pc-windows-msvc",
-		"x64 linux": "x86_64-unknown-linux-gnu",
-		"x64 darwin": "x86_64-darwin",
-		"arm64 darwin": "arm64-darwin"
-	};
-
-	let platform = platforms[`${process.arch} ${process.platform}`];
-
+	const platform = getPlatform()
 	if (platform === undefined) {
 		await vscode.window.showErrorMessage(
 			"Unfortunately we don't ship binaries for your platform yet. " +
@@ -333,35 +365,30 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 	}
 	*/
 
-	const isWindows = platform.indexOf("-windows-") !== -1;
-	const ext = isWindows ? ".exe" : "";
-	// use a separate folder for each release on windows because we can't overwrite files while they are still in use
-	const getDestFolder = (releaseId: number | undefined) => path.join(config.globalStorageUri.fsPath, (releaseId ?? 0).toString());
-	const getExecutable = (releaseId: number | undefined) => path.join(getDestFolder(releaseId), `ols-${platform}${ext}`);
-	const zipFolder = config.globalStorageUri.fsPath;
-	const destExecutable = getExecutable(state.releaseId);
+	const destExecutable = getExecutable(config, state.releaseId);
 
 	const exists = await fs.stat(destExecutable).then(() => true, () => false);
 
 	if (!exists) {
 		await state.updateReleaseId(0);
+		await checkForUpdates(config, state, !exists)
 	}
 
 	/*
 		Temp: right now it doesn't check for versions, since ols has no versioning right now
 	*/
+	return destExecutable
+}
 
-	if (exists && state.lastCheck !== undefined && state.lastCheck + (3 * 60 * 60 * 1000) > Date.now()) {
-		return destExecutable;
-	}
-
-	const release = await downloadWithRetryDialog(state, !exists, async () => {
+async function checkForUpdates(config: Config, state: PersistentState, required: boolean): Promise<void> {
+	const platform = getPlatform()
+	const release = await downloadWithRetryDialog(state, required, async () => {
 		return await fetchRelease("nightly", state.githubToken, config.httpProxy);
 	});
 
 	if (release === undefined || release.id === state.releaseId) {
 		await state.updateLastCheck(Date.now());
-		return destExecutable;
+		return;
 	}
 
 	const userResponse = await vscode.window.showInformationMessage(
@@ -370,12 +397,13 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 	);
 
 	if (userResponse !== "Update") {
-		return destExecutable;
+		return;
 	}
 
 	const artifact = release.assets.find(artifact => artifact.name === `ols-${platform}.zip`);
 	assert(!!artifact, `Bad release: ${JSON.stringify(release)}`);
 
+	const zipFolder = config.globalStorageUri.fsPath;
 	const destZip = path.join(zipFolder, `ols-${platform}.zip`);
 
 	await downloadWithRetryDialog(state, true, async () => {
@@ -389,17 +417,25 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 
 	var zip = new AdmZip(destZip);
 
-	const latestDestFolder = getDestFolder(release.id);
-	const latestExecutable = getExecutable(release.id);
+
+	const latestDestFolder = getDestFolder(config, release.id);
+	const latestExecutable = getExecutable(config, release.id);
 
 	if (!await fs.stat(latestDestFolder).then(() => true, () => false)) {
-		await fs.mkdir(latestDestFolder)
+		await fs.mkdir(latestDestFolder);
 	}
 
 	zip.extractAllTo(latestDestFolder, true);
 
+	const ext = getExt();
 	if (ext !== ".exe") {
 		fs.chmod(latestExecutable, 0o755);
+	}
+
+	const prevFolder = getDestFolder(config, state.releaseId);
+	const prevOlsConfig = `${prevFolder}/ols.json`;
+	if (await fs.stat(prevOlsConfig).then(() => true, () => false)) {
+		await fs.copyFile(prevOlsConfig, `${latestDestFolder}/ols.json`)
 	}
 
 	await state.updateServerVersion(config.package.version);
@@ -407,7 +443,7 @@ async function getServer(config: Config, state: PersistentState): Promise<string
 	await state.updateLastCheck(Date.now());
 	await vscode.commands.executeCommand("workbench.action.reloadWindow");
 
-	return latestExecutable;
+	return;
 }
 
 async function downloadWithRetryDialog<T>(state: PersistentState, required: boolean, downloadFunc: () => Promise<T>): Promise<T> {

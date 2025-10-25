@@ -41,18 +41,19 @@ Disabled_Info :: struct {
 }
 
 Config :: struct {
-	character_width:         int,
-	spaces:                  int, //Spaces per indentation
-	newline_limit:           int, //The limit of newlines between statements and declarations.
-	tabs:                    bool, //Enable or disable tabs
-	tabs_width:              int,
-	convert_do:              bool, //Convert all do statements to brace blocks
-	brace_style:             Brace_Style,
-	indent_cases:            bool,
-	newline_style:           Newline_Style,
-	sort_imports:            bool,
-	inline_single_stmt_case: bool,
-	spaces_around_colons:    bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
+	character_width:          int,
+	spaces:                   int, //Spaces per indentation
+	newline_limit:            int, //The limit of newlines between statements and declarations.
+	tabs:                     bool, //Enable or disable tabs
+	tabs_width:               int,
+	convert_do:               bool, //Convert all do statements to brace blocks
+	brace_style:              Brace_Style,
+	indent_cases:             bool,
+	newline_style:            Newline_Style,
+	sort_imports:             bool,
+	inline_single_stmt_case:  bool,
+	spaces_around_colons:     bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
+	space_single_line_blocks: bool,
 }
 
 Brace_Style :: enum {
@@ -231,8 +232,12 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	// Keep track of the first import in a row, to sort them later.
 	import_group_start: Maybe(int)
 
+	prev_decl: ^ast.Stmt
 	for decl, i in file.decls {
 		decl := cast(^ast.Decl)decl
+		defer {
+			prev_decl = decl
+		}
 
 		if imp, is_import := decl.derived.(^ast.Import_Decl); p.config.sort_imports && is_import {
 			// First import in this group.
@@ -256,6 +261,9 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 				import_group_start = nil
 			}
 
+			if prev_decl != nil && prev_decl.end.line == decl.pos.line && decl.pos.line not_in p.disabled_lines {
+				p.document = cons(p.document, break_with("; "))
+			}
 			p.document = cons(p.document, visit_decl(p, decl))
 		}
 	}

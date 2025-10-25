@@ -27,7 +27,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 	uri: string
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
-	position_context, ok := get_document_position_context(document, position, .Definition)
+	position_context, ok := get_document_position_context(document, position, .TypeDefinition)
 
 	if !ok {
 		log.warn("Failed to get position context")
@@ -56,11 +56,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
-			if _, ok := keyword_map[ident.name]; ok {
-				return {}, false
-			}
-
-			if str, ok := builtin_identifier_hover[ident.name]; ok {
+			if _, ok := keywords_docs[ident.name]; ok {
 				return {}, false
 			}
 		}
@@ -102,7 +98,6 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 			}
 		}
 	}
-
 
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
@@ -247,6 +242,13 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 				append_symbol_to_locations(&locations, document, symbol)
 				return locations[:], true
 			}
+			append_symbol_to_locations(&locations, document, symbol)
+			return locations[:], true
+		}
+	}
+
+	if position_context.comp_lit != nil {
+		if symbol, ok := resolve_location_comp_literal(&ast_context, &position_context); ok {
 			append_symbol_to_locations(&locations, document, symbol)
 			return locations[:], true
 		}

@@ -17,24 +17,24 @@ import "core:time"
 
 import "src:common"
 
-platform_os: map[string]bool = {
-	"windows" = true,
-	"linux"   = true,
-	"essence" = true,
-	"js"      = true,
-	"freebsd" = true,
-	"darwin"  = true,
-	"wasm32"  = true,
-	"openbsd" = true,
-	"wasi"    = true,
-	"wasm"    = true,
-	"haiku"   = true,
-	"netbsd"  = true,
-	"freebsd" = true,
+platform_os: map[string]struct{} = {
+	"windows" = {},
+	"linux"   = {},
+	"essence" = {},
+	"js"      = {},
+	"freebsd" = {},
+	"darwin"  = {},
+	"wasm32"  = {},
+	"openbsd" = {},
+	"wasi"    = {},
+	"wasm"    = {},
+	"haiku"   = {},
+	"netbsd"  = {},
+	"freebsd" = {},
 }
 
 
-os_enum_to_string: map[runtime.Odin_OS_Type]string = {
+os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.Windows      = "windows",
 	.Darwin       = "darwin",
 	.Linux        = "linux",
@@ -43,11 +43,47 @@ os_enum_to_string: map[runtime.Odin_OS_Type]string = {
 	.WASI         = "wasi",
 	.JS           = "js",
 	.Freestanding = "freestanding",
-	.JS           = "wasm",
 	.Haiku        = "haiku",
 	.OpenBSD      = "openbsd",
 	.NetBSD       = "netbsd",
-	.FreeBSD      = "freebsd",
+	.Orca         = "orca",
+	.Unknown      = "unknown",
+}
+
+os_string_to_enum: map[string]runtime.Odin_OS_Type = {
+	"Windows"      = .Windows,
+	"windows"      = .Windows,
+	"Darwin"       = .Darwin,
+	"darwin"       = .Darwin,
+	"Linux"        = .Linux,
+	"linux"        = .Linux,
+	"Essence"      = .Essence,
+	"essence"      = .Essence,
+	"Freebsd"      = .FreeBSD,
+	"freebsd"      = .FreeBSD,
+	"FreeBSD"      = .FreeBSD,
+	"Wasi"         = .WASI,
+	"wasi"         = .WASI,
+	"WASI"         = .WASI,
+	"Js"           = .JS,
+	"js"           = .JS,
+	"JS"           = .JS,
+	"Freestanding" = .Freestanding,
+	"freestanding" = .Freestanding,
+	"Wasm"         = .JS,
+	"wasm"         = .JS,
+	"Haiku"        = .Haiku,
+	"haiku"        = .Haiku,
+	"Openbsd"      = .OpenBSD,
+	"openbsd"      = .OpenBSD,
+	"OpenBSD"      = .OpenBSD,
+	"Netbsd"       = .NetBSD,
+	"netbsd"       = .NetBSD,
+	"NetBSD"       = .NetBSD,
+	"Orca"         = .Orca,
+	"orca"         = .Orca,
+	"Unknown"      = .Unknown,
+	"unknown"      = .Unknown,
 }
 
 @(private = "file")
@@ -88,6 +124,38 @@ skip_file :: proc(filename: string) -> bool {
 	}
 
 	return false
+}
+
+should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
+	if file_tags.ignore {
+		return false
+	}
+
+	if len(file_tags.build) > 0 {
+		when_expr_map := make(map[string]When_Expr, context.temp_allocator)
+
+		for key, value in common.config.profile.defines {
+			when_expr_map[key] = resolve_when_ident(when_expr_map, value) or_continue
+		}
+
+		if when_expr, ok := resolve_when_ident(when_expr_map, "ODIN_OS"); ok {
+			if s, ok := when_expr.(string); ok {
+				if used_os, ok := os_string_to_enum[when_expr.(string)]; ok {
+					found := false
+					for tag in file_tags.build {
+						if used_os in tag.os {
+							found = true
+							break
+						}
+					}
+					if !found {
+						return false
+					}
+				}
+			}
+		}
+	}
+	return true
 }
 
 try_build_package :: proc(pkg_name: string) {
@@ -282,20 +350,15 @@ setup_index :: proc() {
 	dir_exe := common.get_executable_path(context.temp_allocator)
 	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
 
-	if os.exists(builtin_path) {
-		try_build_package(builtin_path)
+	if !os.exists(builtin_path) {
+		log.errorf(
+			"Failed to find the builtin folder at `%v`.\nPlease ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins",
+			builtin_path,
+		)
 		return
 	}
 
-	root_path := os.get_env("ODIN_ROOT", context.temp_allocator)
-	root_builtin_path := path.join({root_path, "/base/builtin"}, context.temp_allocator)
-
-	if !os.exists(root_builtin_path) {
-		log.errorf("Failed to find the builtin folder at `%v` or `%v`", builtin_path, root_builtin_path)
-		return
-	}
-
-	try_build_package(root_builtin_path)
+	try_build_package(builtin_path)
 }
 
 free_index :: proc() {

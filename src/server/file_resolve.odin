@@ -36,6 +36,45 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.index = nil
 }
 
+resolve_ranged_file :: proc(
+	document: ^Document,
+	range: common.Range,
+	allocator := context.allocator,
+) -> map[uintptr]SymbolAndNode {
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		allocator,
+	)
+
+	position_context: DocumentPositionContext
+
+	get_globals(document.ast, &ast_context)
+
+	ast_context.current_package = ast_context.document_package
+
+	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
+
+	margin := 20
+
+	for decl in document.ast.decls {
+		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
+			continue
+		}
+
+		//Look for declarations that overlap with range
+		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
+			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, allocator)
+			clear(&ast_context.locals)
+		}	
+	}
+
+	return symbols
+}
+
 resolve_entire_file :: proc(
 	document: ^Document,
 	flag := ResolveReferenceFlag.None,
@@ -277,6 +316,10 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
 	case ^Switch_Stmt:
+		old_switch := data.position_context.switch_stmt
+		defer {
+			data.position_context.switch_stmt = old_switch
+		}
 		local_scope(data, n)
 		data.position_context.switch_stmt = n
 		resolve_node(n.label, data)
@@ -407,8 +450,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_nodes(n.list, data)
 		resolve_nodes(n.body, data)
 	case ^Type_Switch_Stmt:
+		old_switch := data.position_context.switch_type_stmt
+		defer {
+			data.position_context.switch_type_stmt = old_switch
+		}
 		data.position_context.switch_type_stmt = n
 		resolve_node(n.label, data)
+		local_scope(data, n)
 		resolve_node(n.tag, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
@@ -552,6 +600,15 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.name, data)
 		resolve_node(n.type, data)
 		resolve_node(n.bit_size, data)
+		if data.flag != .None {
+			data.symbols[cast(uintptr)n.name] = SymbolAndNode {
+				node = n.name,
+				symbol = Symbol{
+					range = common.get_token_range(n.name, string(data.document.text)),
+					uri = strings.clone(common.create_uri(n.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+				},
+			}
+		}
 	case:
 	}
 

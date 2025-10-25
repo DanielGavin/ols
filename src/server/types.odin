@@ -31,6 +31,8 @@ ResponseParams :: union {
 	[]WorkspaceSymbol,
 	WorkspaceEdit,
 	common.Range,
+	[]CodeAction,
+	[]DocumentHighlight,
 }
 
 RequestMessage :: struct {
@@ -142,8 +144,10 @@ ServerCapabilities :: struct {
 	inlayHintProvider:          bool,
 	renameProvider:             RenameOptions,
 	referencesProvider:         bool,
+	documentHighlightProvider:  bool,
 	workspaceSymbolProvider:    bool,
 	documentLinkProvider:       DocumentLinkOptions,
+	codeActionProvider:         CodeActionOptions,
 }
 
 DidChangeWatchedFilesRegistrationOptions :: struct {
@@ -187,6 +191,8 @@ TextDocumentClientCapabilities :: struct {
 	hover:          HoverClientCapabilities,
 	signatureHelp:  SignatureHelpClientCapabilities,
 	documentSymbol: DocumentSymbolClientCapabilities,
+	codeAction:     CodeActionClientCapabilities,
+	semanticTokens: SemanticTokensClientCapabilities,
 }
 
 StaleRequestSupport :: struct {
@@ -224,7 +230,6 @@ WorkspaceCapabilities :: struct {
 DidChangeWatchedFilesClientCapabilities :: struct {
 	dynamicRegistration: bool,
 }
-
 
 RangeOptional :: union {
 	common.Range,
@@ -272,11 +277,17 @@ DiagnosticSeverity :: enum {
 	Hint        = 4,
 }
 
+DiagnosticTag :: enum int {
+	Unnecessary = 1,
+	Deprecated  = 2,
+}
+
 Diagnostic :: struct {
 	range:    common.Range,
 	severity: DiagnosticSeverity,
 	code:     string,
 	message:  string,
+	tags:     [1]DiagnosticTag,
 }
 
 DidOpenTextDocumentParams :: struct {
@@ -374,6 +385,7 @@ CompletionItem :: struct {
 	deprecated:          bool,
 	command:             Maybe(Command),
 	labelDetails:        Maybe(CompletionItemLabelDetails),
+	sortText:            Maybe(string),
 }
 
 CompletionItemLabelDetails :: struct {
@@ -401,32 +413,36 @@ FileSystemWatcher :: struct {
 }
 
 OlsConfig :: struct {
-	collections:                       [dynamic]OlsConfigCollection,
-	thread_pool_count:                 Maybe(int),
-	enable_semantic_tokens:            Maybe(bool),
-	enable_document_symbols:           Maybe(bool),
-	enable_format:                     Maybe(bool),
-	enable_hover:                      Maybe(bool),
-	enable_hover_struct_size_info:     Maybe(bool),
-	enable_procedure_context:          Maybe(bool),
-	enable_snippets:                   Maybe(bool),
-	enable_inlay_hints:                Maybe(bool),
-	enable_inlay_hints_params:         Maybe(bool),
-	enable_inlay_hints_default_params: Maybe(bool),
-	enable_references:                 Maybe(bool),
-	enable_rename:                     Maybe(bool),
-	enable_fake_methods:               Maybe(bool),
-	enable_procedure_snippet:          Maybe(bool),
-	enable_checker_only_saved:         Maybe(bool),
-	enable_auto_import:                Maybe(bool),
-	disable_parser_errors:             Maybe(bool),
-	verbose:                           Maybe(bool),
-	file_log:                          Maybe(bool),
-	odin_command:                      string,
-	checker_args:                      string,
-	checker_targets:                   []string,
-	profiles:                          [dynamic]common.ConfigProfile,
-	profile:                           string,
+	collections:                        [dynamic]OlsConfigCollection,
+	thread_pool_count:                  Maybe(int),
+	enable_format:                      Maybe(bool),
+	enable_hover:                       Maybe(bool),
+	enable_hover_struct_size_info:      Maybe(bool),
+	enable_document_symbols:            Maybe(bool),
+	enable_fake_methods:                Maybe(bool),
+	enable_references:                  Maybe(bool),
+	enable_document_highlights:         Maybe(bool),
+	enable_document_links:              Maybe(bool),
+	enable_completion_matching:         Maybe(bool),
+	enable_inlay_hints_params:          Maybe(bool),
+	enable_inlay_hints_default_params:  Maybe(bool),
+	enable_inlay_hints_implicit_return: Maybe(bool),
+	enable_semantic_tokens:             Maybe(bool),
+	enable_unused_imports_reporting:    Maybe(bool),
+	enable_procedure_context:           Maybe(bool),
+	enable_snippets:                    Maybe(bool),
+	enable_procedure_snippet:           Maybe(bool),
+	enable_checker_only_saved:          Maybe(bool),
+	enable_auto_import:                 Maybe(bool),
+	disable_parser_errors:              Maybe(bool),
+	verbose:                            Maybe(bool),
+	file_log:                           Maybe(bool),
+	odin_command:                       string,
+	odin_root_override:                 string,
+	checker_args:                       string,
+	checker_targets:                    []string,
+	profiles:                           [dynamic]common.ConfigProfile,
+	profile:                            string,
 }
 
 OlsConfigCollection :: struct {
@@ -548,6 +564,11 @@ ReferenceParams :: struct {
 	position:     common.Position,
 }
 
+HighlightParams :: struct {
+	textDocument: TextDocumentIdentifier,
+	position:     common.Position,
+}
+
 OptionalVersionedTextDocumentIdentifier :: struct {
 	uri:     string,
 	version: Maybe(int),
@@ -574,4 +595,15 @@ WorkspaceSymbol :: struct {
 
 DidChangeConfigurationParams :: struct {
 	settings: OlsConfig,
+}
+
+DocumentHighlight :: struct {
+	range: common.Range,
+	kind:  DocumentHighlightKind,
+}
+
+DocumentHighlightKind :: enum {
+	Text  = 1,
+	Read  = 2,
+	Write = 3,
 }

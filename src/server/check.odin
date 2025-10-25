@@ -19,9 +19,6 @@ import "core:thread"
 
 import "src:common"
 
-//Store uris we have reported on since last save. We use this to clear them on next save.
-uris_reported := make([dynamic]string)
-
 Json_Error :: struct {
 	type: string,
 	pos:  Json_Type_Error,
@@ -68,7 +65,39 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	return data[:]
 }
 
-check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common.Config) {
+check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
+	if !config.enable_unused_imports_reporting {
+		return
+	}
+
+	unused_imports := find_unused_imports(document, context.temp_allocator)
+
+	path := document.uri.path
+
+	when ODIN_OS == .Windows {
+		path = common.get_case_sensitive_path(path, context.temp_allocator)
+	}
+
+	uri := common.create_uri(path, context.temp_allocator)
+
+	remove_diagnostics(.Unused, uri.uri)
+
+	for imp in unused_imports {
+		add_diagnostics(
+			.Unused,
+			uri.uri,
+			Diagnostic {
+				range = common.get_token_range(imp.import_decl, document.ast.src),
+				severity = DiagnosticSeverity.Hint,
+				code = "Unused",
+				message = "unused import",
+				tags = {.Unnecessary},
+			},
+		)
+	}
+}
+
+check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 	paths := paths
 
 	if len(paths) == 0 {
@@ -138,6 +167,8 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 			log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer))
 		}
 
+		clear_diagnostics(.Check)
+
 		for error in json_errors.errors {
 			if len(error.msgs) == 0 {
 				break
@@ -149,69 +180,28 @@ check :: proc(paths: []string, uri: common.Uri, writer: ^Writer, config: ^common
 				continue
 			}
 
-			if error.pos.file not_in errors {
-				errors[error.pos.file] = make([dynamic]Diagnostic, context.temp_allocator)
+			path := error.pos.file
+
+			when ODIN_OS == .Windows {
+				path = common.get_case_sensitive_path(path, context.temp_allocator)
 			}
 
-			append(
-				&errors[error.pos.file],
+			uri := common.create_uri(path, context.temp_allocator)
+
+			add_diagnostics(
+				.Check,
+				uri.uri,
 				Diagnostic {
 					code = "checker",
 					severity = .Error,
 					range = {
-						start = {character = error.pos.column - 1, line = error.pos.line - 1},
-						end = {character = error.pos.end_column - 1, line = error.pos.line - 1},
+						// odin will sometimes report errors on column 0, so we ensure we don't provide a negative column/line to the client
+						start = {character = max(error.pos.column - 1, 0), line = max(error.pos.line - 1, 0)},
+						end = {character = max(error.pos.end_column - 1, 0), line = max(error.pos.line - 1, 0)},
 					},
 					message = message,
 				},
 			)
 		}
 	}
-
-	for uri in uris_reported {
-		params := NotificationPublishDiagnosticsParams {
-			uri         = uri,
-			diagnostics = {},
-		}
-
-		notification := Notification {
-			jsonrpc = "2.0",
-			method  = "textDocument/publishDiagnostics",
-			params  = params,
-		}
-
-		if writer != nil {
-			send_notification(notification, writer)
-		}
-
-		delete(uri)
-	}
-
-	clear(&uris_reported)
-
-	for k, v in errors {
-		uri := common.create_uri(k, context.temp_allocator)
-
-		//Find the unique diagnostics, since some poor profile settings make the checker check the same file multiple times
-		unique := slice.unique(v[:])
-
-		params := NotificationPublishDiagnosticsParams {
-			uri         = uri.uri,
-			diagnostics = unique,
-		}
-
-		notifaction := Notification {
-			jsonrpc = "2.0",
-			method  = "textDocument/publishDiagnostics",
-			params  = params,
-		}
-
-		append(&uris_reported, strings.clone(uri.uri))
-
-		if writer != nil {
-			send_notification(notifaction, writer)
-		}
-	}
-
-
 }

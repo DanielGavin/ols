@@ -2,15 +2,11 @@ package server
 
 import "base:intrinsics"
 
-import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
 import "core:strings"
-
-_ :: intrinsics
 
 new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n, _ := mem.new(T, allocator)
@@ -110,14 +106,16 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 
 	reflect.set_union_value(res.derived, res_ptr_any)
 
-	res_ptr := reflect.deref(res_ptr_any)
-
-	if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
-		reflect.set_union_value(de, res_ptr_any)
-	}
-	if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
-		reflect.set_union_value(ds, res_ptr_any)
-	}
+	// NOTE: These are not needed as we don't actually use `derived_expr` or `derived_stmt` in the codebase
+	//
+	//res_ptr := reflect.deref(res_ptr_any)
+	//
+	//if de := reflect.struct_field_value_by_name(res_ptr, "derived_expr", true); de != nil {
+	//	reflect.set_union_value(de, res_ptr_any)
+	//}
+	//if ds := reflect.struct_field_value_by_name(res_ptr, "derived_stmt", true); ds != nil {
+	//	reflect.set_union_value(ds, res_ptr_any)
+	//}
 
 	if res.derived != nil do #partial switch r in res.derived {
 	case ^Ident:
@@ -177,6 +175,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Selector_Expr:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
+	case ^Selector_Call_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.call = auto_cast clone_type(r.call, allocator, unique_strings)
 	case ^Implicit_Selector_Expr:
 		r.field = auto_cast clone_type(r.field, allocator, unique_strings)
 	case ^Slice_Expr:
@@ -190,7 +191,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Proc_Type:
 		r.params = auto_cast clone_type(r.params, allocator, unique_strings)
 		r.results = auto_cast clone_type(r.results, allocator, unique_strings)
+		r.calling_convention = clone_calling_convention(r.calling_convention, allocator, unique_strings)
 	case ^Pointer_Type:
+		r.tag = clone_type(r.tag, allocator, unique_strings)
 		r.elem = clone_type(r.elem, allocator, unique_strings)
 	case ^Array_Type:
 		r.len = clone_type(r.len, allocator, unique_strings)
@@ -204,6 +207,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.align = clone_type(r.align, allocator, unique_strings)
 		r.fields = auto_cast clone_type(r.fields, allocator, unique_strings)
 		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
+		r.align = clone_type(r.align, allocator, unique_strings)
+		r.max_field_align = clone_type(r.max_field_align, allocator, unique_strings)
+		r.min_field_align = clone_type(r.min_field_align, allocator, unique_strings)
 	case ^Field:
 		r.names = clone_type(r.names, allocator, unique_strings)
 		r.type = clone_type(r.type, allocator, unique_strings)
@@ -238,6 +244,10 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.cond = clone_type(r.cond, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Ternary_If_Expr:
+		r.x = clone_type(r.x, allocator, unique_strings)
+		r.cond = clone_type(r.cond, allocator, unique_strings)
+		r.y = clone_type(r.y, allocator, unique_strings)
 	case ^Poly_Type:
 		r.type = auto_cast clone_type(r.type, allocator, unique_strings)
 		r.specialization = clone_type(r.specialization, allocator, unique_strings)
@@ -249,7 +259,7 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Proc_Lit:
 		r.type = cast(^Proc_Type)clone_type(cast(^Node)r.type, allocator, unique_strings)
 		r.body = nil
-		r.where_clauses = nil
+		r.where_clauses = clone_type(r.where_clauses, allocator, unique_strings)
 	case ^Helper_Type:
 		r.type = clone_type(r.type, allocator, unique_strings)
 	case ^Type_Cast:
@@ -284,6 +294,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^Or_Else_Expr:
 		r.x = clone_type(r.x, allocator, unique_strings)
 		r.y = clone_type(r.y, allocator, unique_strings)
+	case ^Or_Branch_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.label = clone_type(r.label, allocator, unique_strings)
 	case ^Comment_Group:
 		list := make([dynamic]tokenizer.Token, 0, len(r.list), allocator)
 		for t in r.list {
@@ -313,7 +326,10 @@ clone_calling_convention :: proc(
 
 	switch v in cc {
 	case string:
-		return get_index_unique_string(unique_strings, allocator, v)
+		if unique_strings != nil {
+			return get_index_unique_string(unique_strings, allocator, v)
+		}
+		return strings.clone(v, allocator)
 	case ast.Proc_Calling_Convention_Extra:
 		return v
 	}

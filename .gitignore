@@ -1,4 +1,6 @@
 *.exe
+*.o
+*.bin
 *.pdb
 *.rdbg
 *.obj
@@ -17,3 +19,5 @@ tests/tests
 ols.json
 .vscode/
 deno.lock
+*.dSYM/
+.DS_store

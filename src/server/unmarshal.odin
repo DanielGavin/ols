@@ -60,6 +60,19 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		}
 	case json.Array:
 		#partial switch variant in type_info.variant {
+		case Type_Info_Slice:
+			array := (^mem.Raw_Slice)(v.data)
+			data :=  mem.alloc(variant.elem.size * int(len(j)), variant.elem.align, allocator) or_else panic("OOM")
+			array.data = data
+			array.len = len(j)
+
+			for i in 0 ..< array.len {
+				a := any{rawptr(uintptr(array.data) + uintptr(variant.elem_size * i)), variant.elem.id}
+
+				if ret := unmarshal(j[i], a, allocator); ret != nil {
+					return ret
+				}
+			}
 		case Type_Info_Dynamic_Array:
 			array := (^mem.Raw_Dynamic_Array)(v.data)
 			if array.data == nil {

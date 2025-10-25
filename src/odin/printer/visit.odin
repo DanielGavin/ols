@@ -185,15 +185,26 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 
 	move := cons(move_line(p, pos_one_line_before), escape_nest(move_line(p, node_pos)))
 
-	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
-		next_comment_group(p)
-	}
-
 	p.disabled_until_line = disabled_info.end_line
 	p.source_position = node.end
 	p.source_position.line = disabled_info.end_line
 
-	return cons(move, text(disabled_info.text))
+	document := cons(move, text(disabled_info.text))
+
+	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
+		// we need to handle the rest of the comment group
+		comment_group := p.comments[p.latest_comment_index]
+		for comment in comment_group.list {
+			if comment.pos.line <= disabled_info.end_line {
+				continue
+			}
+			newlined, tmp_document := visit_comment(p, comment)
+			document = cons(document, tmp_document)
+		}
+		next_comment_group(p)
+	}
+
+	return document
 }
 
 @(private)
@@ -329,13 +340,12 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		} else if len(v.values) > 0 && v.type != nil {
-			rhs = cons_with_nopl(
-				rhs,
-				cons_with_nopl(
-					text(" :" if p.config.spaces_around_colons else ":"),
-					visit_exprs(p, v.values, {.Add_Comma}),
-				),
-			)
+			if v.type != nil {
+				lhs = cons_with_nopl(lhs, text(":"))
+			} else {
+				lhs = cons(lhs, text(":"))
+			}
+			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}))
 		} else {
 			rhs = cons_with_nopl(rhs, visit_exprs(p, v.values, {.Add_Comma}, .Value_Decl))
 		}
@@ -940,6 +950,7 @@ visit_stmt :: proc(
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^Block_Stmt:
 		uses_do := v.uses_do
+		is_single_line := v.open.line == v.end.line
 
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
@@ -947,6 +958,9 @@ visit_stmt :: proc(
 
 		if !uses_do {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type))
+			if p.config.space_single_line_blocks && is_single_line {
+				document = cons(document, break_with_no_newline())
+			}
 		} else {
 			document = cons(document, text("do"), break_with(" ", false))
 		}
@@ -966,6 +980,9 @@ visit_stmt :: proc(
 		}
 
 		if !uses_do {
+			if p.config.space_single_line_blocks && is_single_line {
+				document = cons(document, break_with_no_newline())
+			}
 			document = cons(document, visit_end_brace(p, v.end))
 		}
 	case ^If_Stmt:
@@ -1032,7 +1049,7 @@ visit_stmt :: proc(
 		document = enforce_fit_if_do(v.body, document)
 	case ^Switch_Stmt:
 		if v.partial {
-			document = cons(document, text("#partial"), break_with_space())
+			document = cons(document, text("#partial"), break_with_no_newline())
 		}
 
 		if v.label != nil {
@@ -1043,9 +1060,6 @@ visit_stmt :: proc(
 
 		if v.init != nil {
 			document = cons_with_opl(document, visit_stmt(p, v.init))
-		}
-
-		if v.init != nil && v.cond != nil {
 			document = cons(document, text(";"))
 		}
 
@@ -1071,16 +1085,15 @@ visit_stmt :: proc(
 
 		if count := len(v.body); count > 0 {
 			set_source_position(p, v.body[0].pos)
-			fst_stmt, is_assign := v.body[0].derived_stmt.(^Assign_Stmt)
-			if is_assign && count == 1 && p.config.inline_single_stmt_case {
-				document = cons_with_opl(document, nest(visit_stmt(p, fst_stmt)))
+			if count == 1 && p.config.inline_single_stmt_case {
+				document = group(nest(cons_with_opl(document, nest(visit_stmt(p, v.body[0])))))
 			} else {
 				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
 			}
 		}
 	case ^Type_Switch_Stmt:
 		if v.partial {
-			document = cons(document, text("#partial"), break_with_space())
+			document = cons(document, text("#partial"), break_with_no_newline())
 		}
 
 		if v.label != nil {
@@ -1114,7 +1127,7 @@ visit_stmt :: proc(
 			document = cons(document, nest_if_break(group(rhs), "assignments"))
 			document = group(document)
 		} else {
-			document = group(cons_with_opl(assign_document, group(rhs)))
+			document = group(cons_with_nopl(assign_document, group(rhs)))
 		}
 	case ^Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
@@ -1247,7 +1260,9 @@ visit_stmt :: proc(
 	case ^When_Stmt:
 		document = cons(document, cons_with_nopl(text("when"), visit_expr(p, v.cond)))
 
+		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
+		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
 			if p.config.brace_style == .Allman {
@@ -1617,8 +1632,11 @@ visit_expr :: proc(
 
 
 		if v.fields != nil && len(v.fields.list) == 0 {
-
-			document = cons_with_nopl(document, text("{"))
+			if called_from == .Generic {
+				document = cons(document, text("{"))
+			} else {
+				document = cons_with_nopl(document, text("{"))
+			}
 
 			if contains_comments_in_range(p, v.pos, v.end) {
 				comments, _ := visit_comments(p, v.end)
@@ -1790,13 +1808,13 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, group(visit_expr(p, v.type)))
 
 			if matrix_type, ok := v.type.derived.(^ast.Matrix_Type);
-			   ok && len(v.elems) > 0 && is_matrix_type_constant(matrix_type) {
+			   ok && is_matrix_type_constant(matrix_type) && is_matrix_filled_comp_lit(matrix_type, v) {
 				document = cons(document, visit_begin_brace(p, v.pos, .Comp_Lit))
 
 				set_source_position(p, v.open)
 				document = cons(
 					document,
-					nest(cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, v, matrix_type))),
+					nest(cons(newline_position(p, 1, v.elems[0].pos), visit_matrix_comp_lit(p, matrix_type, v))),
 				)
 				set_source_position(p, v.end)
 
@@ -1893,7 +1911,6 @@ visit_expr :: proc(
 	case ^ast.Tag_Expr:
 		document = cons(
 			text(v.op.text),
-			break_with_no_newline(),
 			text(v.name),
 			break_with_no_newline(),
 			visit_expr(p, v.expr),
@@ -1927,10 +1944,20 @@ is_matrix_type_constant :: proc(matrix_type: ^ast.Matrix_Type) -> bool {
 }
 
 @(private)
-visit_matrix_comp_lit :: proc(p: ^Printer, comp_lit: ^ast.Comp_Lit, matrix_type: ^ast.Matrix_Type) -> ^Document {
-	document := empty()
-
+is_matrix_filled_comp_lit :: proc(matrix_type: ^ast.Matrix_Type, comp_lit: ^ast.Comp_Lit) -> bool {
 	//these values have already been validated
+	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
+	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
+
+	if row_count * column_count > len(comp_lit.elems) {
+		return false
+	}
+	return true
+}
+
+@(private)
+visit_matrix_comp_lit :: proc(p: ^Printer, matrix_type: ^ast.Matrix_Type, comp_lit: ^ast.Comp_Lit) -> ^Document {
+	document := empty()
 	row_count, _ := strconv.parse_int(matrix_type.row_count.derived.(^ast.Basic_Lit).tok.text)
 	column_count, _ := strconv.parse_int(matrix_type.column_count.derived.(^ast.Basic_Lit).tok.text)
 
@@ -1998,7 +2025,7 @@ visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt) -> ^Document {
 	for stmt, i in stmts {
 		last_index := max(0, i - 1)
 		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
-			document = cons(document, break_with(";"))
+			document = group(cons(document, break_with("; ")))
 		}
 
 		if p.force_statement_fit {
@@ -2076,7 +2103,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 			if len(field.names) != 0 {
 				document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), align)
 			}
-			document = cons_with_opl(document, visit_expr(p, field.type))
+			document = cons_with_nopl(document, visit_expr(p, field.type))
 		} else {
 			document = cons(document, text(":"), text("="))
 			document = cons_with_opl(document, visit_expr(p, field.default_value))

@@ -31,7 +31,7 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 			continue
 		}
 
-		if e[0] != "core" {
+		if e[0] != "core" && e[0] != "vendor" && e[0] != "base" {
 			continue
 		}
 

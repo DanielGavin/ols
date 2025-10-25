@@ -1,47 +1,23 @@
 package odinfmt
 
 import "core:encoding/json"
+import "core:flags"
 import "core:fmt"
+import "core:io"
 import "core:mem"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
-import "flag"
 import "src:odin/format"
 import "src:odin/printer"
 
 Args :: struct {
-	write: Maybe(bool) `flag:"w" usage:"write the new format to file"`,
-	stdin: Maybe(bool) `flag:"stdin" usage:"formats code from standard input"`,
+	write: bool `args:"name=w" usage:"write the new format to file"`,
+	stdin: bool `usage:"formats code from standard input"`,
+	path:  string `args:"pos=0" usage:"set the file or directory to format"`,
 }
-
-print_help :: proc(args: []string) {
-	fmt.eprintln("usage: odinfmt [-w {filepath}] [-stdin]")
-}
-
-print_arg_error :: proc(args: []string, error: flag.Flag_Error) {
-	switch error {
-	case .None:
-		print_help(args)
-	case .No_Base_Struct:
-		fmt.eprintln(args[0], "no base struct")
-	case .Arg_Error:
-		fmt.eprintln(args[0], "argument error")
-	case .Arg_Unsupported_Field_Type:
-		fmt.eprintln(args[0], "argument: unsupported field type")
-	case .Arg_Not_Defined:
-		fmt.eprintln(args[0], "argument: no defined")
-	case .Arg_Non_Optional:
-		fmt.eprintln(args[0], "argument: non optional")
-	case .Value_Parse_Error:
-		fmt.eprintln(args[0], "argument: value parse error")
-	case .Tag_Error:
-		fmt.eprintln(args[0], "argument: tag error")
-	}
-}
-
 
 format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
 	if data, ok := os.read_entire_file(filepath, allocator); ok {
@@ -76,29 +52,18 @@ main :: proc() {
 	init_global_temporary_allocator(mem.Megabyte * 20) //enough space for the walk
 
 	args: Args
+	flags.parse_or_exit(&args, os.args)
 
-	if len(os.args) < 2 {
-		print_help(os.args)
-		os.exit(1)
-	}
-
-	// When running `$ odinfmt some_odin_file.odin`, the file shouldn't be passed to
-	// `flag.parse`. But, when running `$ odinfmt -stdin`, we do want to pass `-stdin` to
-	// `flag.parse`. Need to check if last arg is a flag, and if so, include it in the
-	// args to parse.
-	args_to_parse := os.args[1:len(os.args) - 1]
-	path := os.args[len(os.args) - 1]
-	if strings.has_prefix(os.args[len(os.args) - 1], "-") {
-		args_to_parse = os.args[1:]
-	}
-
-	if len(path) <= 1 {
-		path = "." // if no file was specified, use current directory as the starting path to look for `odinfmt.json`
-	}
-
-	if res := flag.parse(args, args_to_parse); res != .None {
-		print_arg_error(os.args, res)
-		os.exit(1)
+	// only allow the path to not be specified when formatting from stdin
+	if args.path == "" {
+		if args.stdin {
+			// use current directory as the starting path to look for `odinfmt.json`
+			args.path = "."
+		} else {
+			fmt.fprint(os.stderr, "Missing path to format\n")
+			flags.write_usage(os.stream_from_handle(os.stderr), Args, os.args[0])
+			os.exit(1)
+		}
 	}
 
 	tick_time := time.tick_now()
@@ -107,9 +72,9 @@ main :: proc() {
 
 	watermark := 0
 
-	config := format.find_config_file_or_default(path)
+	config := format.find_config_file_or_default(args.path)
 
-	if _, ok := args.stdin.(bool); ok {
+	if args.stdin {
 		data := make([dynamic]byte, arena_allocator)
 
 		for {
@@ -128,28 +93,28 @@ main :: proc() {
 		}
 
 		write_failure = !ok
-	} else if os.is_file(path) {
-		if _, ok := args.write.(bool); ok {
-			backup_path := strings.concatenate({path, "_bk"})
+	} else if os.is_file(args.path) {
+		if args.write {
+			backup_path := strings.concatenate({args.path, "_bk"})
 			defer delete(backup_path)
 
-			if data, ok := format_file(path, config, arena_allocator); ok {
-				os.rename(path, backup_path)
+			if data, ok := format_file(args.path, config, arena_allocator); ok {
+				os.rename(args.path, backup_path)
 
-				if os.write_entire_file(path, transmute([]byte)data) {
+				if os.write_entire_file(args.path, transmute([]byte)data) {
 					os.remove(backup_path)
 				}
 			} else {
-				fmt.eprintf("Failed to write %v", path)
+				fmt.eprintf("Failed to write %v", args.path)
 				write_failure = true
 			}
 		} else {
-			if data, ok := format_file(path, config, arena_allocator); ok {
+			if data, ok := format_file(args.path, config, arena_allocator); ok {
 				fmt.println(data)
 			}
 		}
-	} else if os.is_dir(path) {
-		filepath.walk(path, walk_files, nil)
+	} else if os.is_dir(args.path) {
+		filepath.walk(args.path, walk_files, nil)
 
 		for file in files {
 			fmt.println(file)
@@ -158,7 +123,7 @@ main :: proc() {
 			defer delete(backup_path)
 
 			if data, ok := format_file(file, config, arena_allocator); ok {
-				if _, ok := args.write.(bool); ok {
+				if args.write {
 					os.rename(file, backup_path)
 
 					if os.write_entire_file(file, transmute([]byte)data) {
@@ -184,7 +149,7 @@ main :: proc() {
 		)
 		fmt.printf("Peak memory used: %v \n", watermark / mem.Megabyte)
 	} else {
-		fmt.eprintf("%v is neither a directory nor a file \n", path)
+		fmt.eprintf("%v is neither a directory nor a file \n", args.path)
 		os.exit(1)
 	}
 

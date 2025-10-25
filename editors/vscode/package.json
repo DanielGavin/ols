@@ -7,7 +7,7 @@
 		"type": "git",
 		"url": "git://github.com/DanielGavin/ols.git"
 	},
-	"version": "0.1.37",
+	"version": "0.1.44",
 	"engines": {
 		"vscode": "^1.96.0"
 	},
@@ -137,11 +137,21 @@
 			{
 				"name": "odin",
 				"owner": "odin",
-				"fileLocation": [
-					"absolute"
-				],
+				"fileLocation": "absolute",
 				"pattern": {
-					"regexp": "^(.+)\\(([0-9]+)\\:([0-9]+)\\) ([^:]+)(.+)$",
+					"regexp": "^(.+)\\((\\d+):(\\d+)\\) ([^:]+): (.+)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"severity": 4,
+					"message": 5
+				}
+			}, {
+				"name": "odin-unix",
+				"owner": "odin",
+				"fileLocation": "absolute",
+				"pattern": {
+					"regexp": "^(.+):(\\d+):(\\d+): ([^:]+): (.+)$",
 					"file": 1,
 					"line": 2,
 					"column": 3,
@@ -163,7 +173,7 @@
 	"devDependencies": {
 		"@types/glob": "^7.2.0",
 		"@types/mocha": "^9.1.0",
-		"@types/node": "~16.11.7",
+		"@types/node": "^20.0.0",
 		"@types/node-fetch": "^2.6.1",
 		"@types/vscode": "^1.96.0",
 		"@typescript-eslint/eslint-plugin": "^4.33.0",
@@ -180,7 +190,7 @@
 		"https-proxy-agent": "^5.0.0",
 		"json5": "^2.2.1",
 		"node-fetch": "^2.6.7",
-		"vscode-languageclient": "9.0.1"
+		"vscode-languageclient": "10.0.0-next.15"
 	},
 	"configurationDefaults": {
 		"[odin]": {

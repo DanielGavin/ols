@@ -29,6 +29,8 @@ Package :: struct {
 	base:          string,
 	base_original: string,
 	original:      string,
+	range:         common.Range,
+	import_decl:   ^ast.Import_Decl,
 }
 
 Document :: struct {
@@ -75,7 +77,7 @@ document_get_allocator :: proc() -> ^virtual.Arena {
 		return pop(&document_storage.free_allocators)
 	} else {
 		allocator := new(virtual.Arena)
-		_ = virtual.arena_init_growing(allocator) 
+		_ = virtual.arena_init_growing(allocator)
 		return allocator
 	}
 }
@@ -156,8 +158,6 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 		document_storage.documents[strings.clone(uri.path)] = document
 	}
-
-	delete(uri_string)
 
 	return .None
 }
@@ -283,7 +283,7 @@ document_close :: proc(uri_string: string) -> common.Error {
 	document := &document_storage.documents[uri.path]
 
 	if document == nil || !document.client_owned {
-		log.errorf("Client called close on a document that was never opened: %v ", document.uri.path)
+		log.errorf("Client called close on a document that was never opened: %v ", uri.path)
 		return .InvalidRequest
 	}
 
@@ -318,52 +318,39 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .None
 	}
 
-	if writer != nil && len(errors) > 0 && !config.disable_parser_errors {
-		document.diagnosed_errors = true
+	path := document.uri.path
 
-		params := NotificationPublishDiagnosticsParams {
-			uri         = document.uri.uri,
-			diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
-		}
-
-		for error, i in errors {
-			params.diagnostics[i] = Diagnostic {
-				range = common.Range {
-					start = common.Position{line = error.line - 1, character = 0},
-					end = common.Position{line = error.line, character = 0},
-				},
-				severity = DiagnosticSeverity.Error,
-				code = "Syntax",
-				message = error.message,
-			}
-		}
-
-		notifaction := Notification {
-			jsonrpc = "2.0",
-			method  = "textDocument/publishDiagnostics",
-			params  = params,
-		}
-
-		send_notification(notifaction, writer)
+	when ODIN_OS == .Windows {
+		path = common.get_case_sensitive_path(path, context.temp_allocator)
 	}
 
-	if writer != nil && len(errors) == 0 {
-		//send empty diagnosis to remove the clients errors
-		if document.diagnosed_errors {
+	uri := common.create_uri(path, context.temp_allocator)
 
-			notifaction := Notification {
-				jsonrpc = "2.0",
-				method = "textDocument/publishDiagnostics",
-				params = NotificationPublishDiagnosticsParams {
-					uri = document.uri.uri,
-					diagnostics = make([]Diagnostic, len(errors), context.temp_allocator),
+	remove_diagnostics(.Syntax, uri.uri)
+	remove_diagnostics(.Check, uri.uri)
+
+	check_unused_imports(document, config)
+
+	if writer != nil && !config.disable_parser_errors {
+		document.diagnosed_errors = true
+
+		for error, i in errors {
+			add_diagnostics(
+				.Syntax,
+				uri.uri,
+				Diagnostic {
+					range = common.Range {
+						start = common.Position{line = error.line - 1, character = 0},
+						end = common.Position{line = error.line, character = 0},
+					},
+					severity = DiagnosticSeverity.Error,
+					code = "Syntax",
+					message = error.message,
 				},
-			}
-
-			document.diagnosed_errors = false
-
-			send_notification(notifaction, writer)
+			)
 		}
+
+		push_diagnostics(writer)
 	}
 
 	return .None
@@ -427,6 +414,8 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 		if i := strings.index(imp.fullpath, "\""); i == -1 {
 			continue
 		}
+		// TODO: Breakdown this range like with semantic tokens
+		range := get_import_range(imp, string(document.text))
 
 		//collection specified
 		if i := strings.index(imp.fullpath, ":"); i != -1 && i > 1 && i < len(imp.fullpath) - 1 {
@@ -446,6 +435,8 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 			import_: Package
 			import_.original = imp.fullpath
 			import_.name = strings.clone(path.join(elems = {dir, p}, allocator = context.temp_allocator))
+			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -468,6 +459,8 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 				allocator = context.temp_allocator,
 			)
 			import_.name = path.clean(import_.name)
+			import_.range = range
+			import_.import_decl = imp
 
 			if imp.name.text != "" {
 				import_.base = imp.name.text
@@ -487,4 +480,19 @@ parse_imports :: proc(document: ^Document, config: ^common.Config) {
 	try_build_package(document.package_name)
 
 	document.imports = imports[:]
+}
+
+get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
+	if imp.name.text != "" {
+		start := common.token_pos_to_position(imp.name.pos, src)
+		end := start
+		end.character += len(imp.name.text)
+		return {start = start, end = end}
+	}
+
+	start := common.token_pos_to_position(imp.relpath.pos, src)
+	end := start
+	text_len := len(imp.relpath.text)
+	end.character += text_len
+	return {start = start, end = end}
 }

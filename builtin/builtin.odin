@@ -1,17 +1,19 @@
 package ols_builtin
 
 // Procedures
+
+
 @builtin len :: proc(array: Array_Type) -> int ---
 @builtin cap :: proc(array: Array_Type) -> int ---
 
-size_of      :: proc($T: typeid) -> int ---
+@builtin size_of      :: proc($T: typeid) -> int ---
 @builtin align_of     :: proc($T: typeid) -> int ---
 @builtin type_of      :: proc(x: expr) -> type ---
 @builtin type_info_of :: proc($T: typeid) -> ^runtime.Type_Info ---
 @builtin typeid_of    :: proc($T: typeid) -> typeid ---
 
-offset_of_selector :: proc(selector: $T) -> uintptr ---
-offset_of_member   :: proc($T: typeid, member: $M) -> uintptr ---
+@builtin offset_of_selector :: proc(selector: $T) -> uintptr ---
+@builtin offset_of_member   :: proc($T: typeid, member: $M) -> uintptr ---
 
 @builtin offset_of :: proc{offset_of_selector, offset_of_member}
 
@@ -19,13 +21,13 @@ offset_of_member   :: proc($T: typeid, member: $M) -> uintptr ---
 
 @builtin swizzle :: proc(x: [N]T, indices: ..int) -> [len(indices)]T ---
 
-complex    :: proc(real, imag: Float) -> Complex_Type ---
-quaternion :: proc(real, imag, jmag, kmag: Float) -> Quaternion_Type ---
-real       :: proc(value: Complex_Or_Quaternion) -> Float ---
-imag       :: proc(value: Complex_Or_Quaternion) -> Float ---
-jmag       :: proc(value: Quaternion) -> Float ---
-kmag       :: proc(value: Quaternion) -> Float ---
-conj       :: proc(value: Complex_Or_Quaternion) -> Complex_Or_Quaternion ---
+@builtin complex    :: proc(real, imag: Float) -> Complex_Type ---
+@builtin quaternion :: proc(real, imag, jmag, kmag: Float) -> Quaternion_Type --- // fields must be named
+@builtin real       :: proc(value: Complex_Or_Quaternion) -> Float ---
+@builtin imag       :: proc(value: Complex_Or_Quaternion) -> Float ---
+@builtin jmag       :: proc(value: Quaternion) -> Float ---
+@builtin kmag       :: proc(value: Quaternion) -> Float ---
+@builtin conj       :: proc(value: Complex_Or_Quaternion) -> Complex_Or_Quaternion ---
 
 @builtin min   :: proc(values: ..T) -> T ---
 @builtin max   :: proc(values: ..T) -> T ---
@@ -46,6 +48,8 @@ conj       :: proc(value: Complex_Or_Quaternion) -> Complex_Or_Quaternion ---
 	This is interally from the compiler
 */
 
+
+@builtin
 Odin_Arch_Type :: enum int {
 	Unknown,
 	amd64,
@@ -71,6 +75,7 @@ ODIN_ARCH: Odin_Arch_Type
 @builtin
 ODIN_ARCH_STRING: string
 
+@builtin
 Odin_Build_Mode_Type :: enum int {
 	Executable,
 	Dynamic,
@@ -135,6 +140,7 @@ ODIN_DISABLE_ASSERT: bool
 @builtin
 ODIN_ENDIAN_STRING: string
 
+@builtin
 Odin_Endian_Type :: enum int {
 	Unknown,
 	Little,
@@ -148,6 +154,7 @@ Odin_Endian_Type :: enum int {
 @builtin
 ODIN_ENDIAN: Odin_Endian_Type
 
+@builtin
 Odin_Error_Pos_Style_Type :: enum int {
 	Default = 0,
 	Unix    = 1,
@@ -212,6 +219,7 @@ ODIN_NO_RTTI: bool
 @builtin
 ODIN_NO_TYPE_ASSERT: bool
 
+@builtin
 Odin_Optimization_Mode :: enum int {
 	None       = -1,
 	Minimal    =  0,
@@ -230,6 +238,7 @@ Odin_Optimization_Mode :: enum int {
 @builtin
 ODIN_OPTIMIZATION_MODE: Odin_Optimization_Mode
 
+@builtin
 Odin_OS_Type :: enum int {
 	Unknown,
 	Windows,
@@ -258,6 +267,7 @@ ODIN_OS: Odin_OS_Type
 @builtin
 ODIN_OS_STRING: string
 
+@builtin
 Odin_Platform_Subtarget_Type :: enum int {
 	Default,
 	iPhone,
@@ -279,11 +289,14 @@ ODIN_PLATFORM_SUBTARGET: Odin_Platform_Subtarget_Type
 @builtin
 ODIN_ROOT: string
 
+@builtin
 Odin_Sanitizer_Flag :: enum u32 {
 	Address = 0,
 	Memory  = 1,
 	Thread  = 2,
 }
+
+@builtin
 Odin_Sanitizer_Flags :: distinct bit_set[Odin_Sanitizer_Flag; u32]
 
 /*
@@ -338,8 +351,9 @@ ODIN_VERSION: string
 	Empty if `.git` could not be detected at the time the compiler was built.
 */
 @builtin
-ODIN_VERSION_HASH:string
+ODIN_VERSION_HASH: string
 
+@builtin
 Odin_Windows_Subsystem_Type :: enum int {
 	Unknown,
 	Console,

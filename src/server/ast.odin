@@ -9,72 +9,93 @@ import "core:odin/parser"
 import path "core:path/slashpath"
 import "core:strings"
 
-keyword_map: map[string]bool = {
-	"typeid"        = true,
-	"int"           = true,
-	"uint"          = true,
-	"string"        = true,
-	"cstring"       = true,
-	"u64"           = true,
-	"f32"           = true,
-	"f64"           = true,
-	"i64"           = true,
-	"i128"          = true,
-	"i32"           = true,
-	"i16"           = true,
-	"u16"           = true,
-	"bool"          = true,
-	"rawptr"        = true,
-	"any"           = true,
-	"u32"           = true,
-	"u128"          = true,
-	"b8"            = true,
-	"b16"           = true,
-	"b32"           = true,
-	"b64"           = true,
-	"true"          = true,
-	"false"         = true,
-	"nil"           = true,
-	"byte"          = true,
-	"u8"            = true,
-	"i8"            = true,
-	"rune"          = true,
-	"f16be"         = true,
-	"f16le"         = true,
-	"f32be"         = true,
-	"f32le"         = true,
-	"f64be"         = true,
-	"f64le"         = true,
-	"i16be"         = true,
-	"i16le"         = true,
-	"i32be"         = true,
-	"i32le"         = true,
-	"i64be"         = true,
-	"i64le"         = true,
-	"u16be"         = true,
-	"u16le"         = true,
-	"u32be"         = true,
-	"u32le"         = true,
-	"u64be"         = true,
-	"u64le"         = true,
-	"i128be"        = true,
-	"i128le"        = true,
-	"u128be"        = true,
-	"u128le"        = true,
-	"complex32"     = true,
-	"complex64"     = true,
-	"complex128"    = true,
-	"quaternion64"  = true,
-	"quaternion128" = true,
-	"quaternion256" = true,
-	"uintptr"       = true,
+keyword_map: map[string]struct{} = {
+	"typeid"        = {},
+	"string"        = {},
+	"string16"      = {},
+	"cstring"       = {},
+	"cstring16"     = {},
+	"int"           = {},
+	"uint"          = {},
+	"u8"            = {},
+	"i8"            = {},
+	"u16"           = {},
+	"i16"           = {},
+	"u32"           = {},
+	"i32"           = {},
+	"u64"           = {},
+	"i64"           = {},
+	"u128"          = {},
+	"i128"          = {},
+	"f16"           = {},
+	"f32"           = {},
+	"f64"           = {},
+	"bool"          = {},
+	"rawptr"        = {},
+	"any"           = {},
+	"b8"            = {},
+	"b16"           = {},
+	"b32"           = {},
+	"b64"           = {},
+	"true"          = {},
+	"false"         = {},
+	"nil"           = {},
+	"byte"          = {},
+	"rune"          = {},
+	"f16be"         = {},
+	"f16le"         = {},
+	"f32be"         = {},
+	"f32le"         = {},
+	"f64be"         = {},
+	"f64le"         = {},
+	"i16be"         = {},
+	"i16le"         = {},
+	"i32be"         = {},
+	"i32le"         = {},
+	"i64be"         = {},
+	"i64le"         = {},
+	"u16be"         = {},
+	"u16le"         = {},
+	"u32be"         = {},
+	"u32le"         = {},
+	"u64be"         = {},
+	"u64le"         = {},
+	"i128be"        = {},
+	"i128le"        = {},
+	"u128be"        = {},
+	"u128le"        = {},
+	"complex32"     = {},
+	"complex64"     = {},
+	"complex128"    = {},
+	"quaternion64"  = {},
+	"quaternion128" = {},
+	"quaternion256" = {},
+	"uintptr"       = {},
+}
+
+are_keyword_aliases :: proc(a, b: string) -> bool {
+	// right now only the only alias is `byte` for `u8`, so this simple check will do
+	if a == "u8" && b == "byte" {
+		return true
+	}
+	if a == "byte" && b == "u8" {
+		return true
+	}
+	return false
+}
+
+GlobalFlags :: enum {
+	Mutable, // or constant
+	Variable, // or type
 }
 
 GlobalExpr :: struct {
 	name:       string,
 	name_expr:  ^ast.Expr,
 	expr:       ^ast.Expr,
-	mutable:    bool,
+	type_expr:  ^ast.Expr,
+	value_expr: ^ast.Expr,
+	flags:      bit_set[GlobalFlags],
 	docs:       ^ast.Comment_Group,
 	comment:    ^ast.Comment_Group,
 	attributes: []^ast.Attribute,
@@ -156,6 +177,8 @@ unwrap_comp_literal :: proc(expr: ^ast.Expr) -> (^ast.Comp_Lit, int, bool) {
 			if unary.op.kind == .And {
 				expr = unary.expr
 				n += 1
+			} else {
+				break
 			}
 		} else {
 			break
@@ -229,9 +252,27 @@ unwrap_pointer_expr :: proc(expr: ^ast.Expr) -> (^ast.Expr, int, bool) {
 	return expr, n, true
 }
 
+pointer_is_soa :: proc(pointer: ast.Pointer_Type) -> bool {
+	if pointer.tag != nil {
+		if basic, ok := pointer.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
 array_is_soa :: proc(array: ast.Array_Type) -> bool {
 	if array.tag != nil {
 		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
+array_is_simd :: proc(array: ast.Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "simd" {
 			return true
 		}
 	}
@@ -281,39 +322,97 @@ is_expr_basic_lit :: proc(expr: ^ast.Expr) -> bool {
 	return ok
 }
 
+unwrap_attr_elem :: proc(elem: ^ast.Expr) -> (^ast.Ident, ^ast.Expr, bool) {
+	#partial switch v in elem.derived {
+	case ^ast.Field_Value:
+		if ident, ok := v.field.derived.(^ast.Ident); ok {
+			return ident, v.value, true
+		}
+	case ^ast.Ident:
+		return v, nil, true
+	}
+
+	return nil, nil, false
+}
+
+merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribute) -> []^ast.Attribute {
+	if len(foreign_attrs) == 0 {
+		return attrs
+	}
+
+	new_attrs := make([dynamic]^ast.Attribute, context.temp_allocator)
+	attr_names := make(map[string]struct{}, context.temp_allocator)
+	for attr in attrs {
+		append(&new_attrs, attr)
+		for elem in attr.elems {
+			if ident, _, ok := unwrap_attr_elem(elem); ok {
+				attr_names[ident.name] = {}
+			}
+		}
+	}
+
+	for attr in foreign_attrs {
+		for elem in attr.elems {
+			if ident, _, ok := unwrap_attr_elem(elem); ok {
+				name_to_check := ident.name
+				if ident.name == "link_prefix" || ident.name == "link_suffix" {
+					name_to_check = "link_name"
+				}
+				if _, ok := attr_names[name_to_check]; !ok {
+					new_attr := new_type(ast.Attribute, attr.pos, attr.end, context.temp_allocator)
+					elems := make([dynamic]^ast.Expr)
+					append(&elems, elem)
+					new_attr.elems = elems[:]
+					append(&new_attrs, new_attr)
+				}
+			}
+		}
+	}
+	return new_attrs[:]
+}
+
+// TODO: it seems the global symbols don't distinguish between a type decl and
+// a const variable declaration, so we do a quick check here to distinguish the cases.
+is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
+	#partial switch v in expr.derived {
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr, ^ast.Binary_Expr:
+		return true
+	case:
+		return false
+	}
+}
+
 collect_value_decl :: proc(
 	exprs: ^[dynamic]GlobalExpr,
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	stmt: ^ast.Node,
-	skip_private: bool,
+	foreign_attrs: []^ast.Attribute,
 ) {
 	value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl)
 
 	if !is_value_decl {
 		return
 	}
+	comment, _ := get_file_comment(file, value_decl.pos.line)
+
+	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
 	global_expr := GlobalExpr {
-		mutable    = value_decl.is_mutable,
 		docs       = value_decl.docs,
-		comment    = get_file_comment(file, value_decl.pos.line),
-		attributes = value_decl.attributes[:],
+		comment    = comment,
+		attributes = attributes,
 		private    = file_tags.private,
 	}
 
-	for attribute in value_decl.attributes {
-		for elem in attribute.elems {
-			ident: ^ast.Ident
-			value: ast.Any_Node
+	if value_decl.is_mutable {
+		global_expr.flags += {.Mutable}
+	}
 
-			#partial switch v in elem.derived {
-			case ^ast.Field_Value:
-				ident = v.field.derived.(^ast.Ident) or_continue
-				value = v.value.derived
-			case ^ast.Ident:
-				ident = v
-			case:
+	for attribute in attributes {
+		for elem in attribute.elems {
+			ident, value, ok := unwrap_attr_elem(elem)
+			if !ok {
 				continue
 			}
 
@@ -323,7 +422,9 @@ collect_value_decl :: proc(
 			case "builtin":
 				global_expr.builtin = true
 			case "private":
-				if val, ok := value.(^ast.Basic_Lit); ok {
+				if value == nil {
+					global_expr.private = .Package
+				} else if val, ok := value.derived.(^ast.Basic_Lit); ok {
 					switch val.tok.text {
 					case "\"file\"":
 						global_expr.private = .File
@@ -341,16 +442,19 @@ collect_value_decl :: proc(
 		global_expr.private = .File
 	}
 
-	if skip_private && global_expr.private == .File {
-		return
-	}
-
 	for name, i in value_decl.names {
 		global_expr.name = get_ast_node_string(name, file.src)
 		global_expr.name_expr = name
 
+		if len(value_decl.values) > i {
+			if is_variable_declaration(value_decl.values[i]) {
+				global_expr.flags += {.Variable}
+				global_expr.value_expr = value_decl.values[i]
+			}
+		}
 		if value_decl.type != nil {
 			global_expr.expr = value_decl.type
+			global_expr.type_expr = value_decl.type
 			append(exprs, global_expr)
 		} else if len(value_decl.values) > i {
 			global_expr.expr = value_decl.values[i]
@@ -364,7 +468,6 @@ collect_when_stmt :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	when_decl: ^ast.When_Stmt,
-	skip_private: bool,
 ) {
 	if when_decl.cond == nil {
 		return
@@ -376,23 +479,7 @@ collect_when_stmt :: proc(
 
 	if resolve_when_condition(when_decl.cond) {
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-			for stmt in block.stmts {
-				if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-					collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
-				} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
-					if foreign_decl.body == nil {
-						continue
-					}
-
-					if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
-						for foreign_stmt in foreign_block.stmts {
-							collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
-						}
-					}
-				} else {
-					collect_value_decl(exprs, file, file_tags, stmt, skip_private)
-				}
-			}
+			collect_when_body(exprs, file, file_tags, block)
 		}
 	} else {
 		else_stmt := when_decl.else_stmt
@@ -401,45 +488,57 @@ collect_when_stmt :: proc(
 			if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
 				if resolve_when_condition(else_when.cond) {
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
-						for stmt in block.stmts {
-							if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-								collect_when_stmt(exprs, file, file_tags, when_stmt, skip_private)
-							} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
-								if foreign_decl.body != nil {
-									if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
-										for foreign_stmt in foreign_block.stmts {
-											collect_value_decl(exprs, file, file_tags, foreign_stmt, skip_private)
-										}
-									}
-								}
-							} else {
-								collect_value_decl(exprs, file, file_tags, stmt, skip_private)
-							}
-						}
+						collect_when_body(exprs, file, file_tags, block)
 					}
 					return
 				}
 				else_stmt = else_when.else_stmt
 			} else {
+				if block, ok := else_stmt.derived.(^ast.Block_Stmt); ok {
+					collect_when_body(exprs, file, file_tags, block)
+				}
 				return
 			}
 		}
 	}
-
-
 }
 
-collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
+collect_when_body :: proc(
+	exprs: ^[dynamic]GlobalExpr,
+	file: ast.File,
+	file_tags: parser.File_Tags,
+	block: ^ast.Block_Stmt,
+) {
+	for stmt in block.stmts {
+		if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
+			collect_when_stmt(exprs, file, file_tags, when_stmt)
+		} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
+			if foreign_decl.body != nil {
+				if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
+					for foreign_stmt in foreign_block.stmts {
+						collect_value_decl(exprs, file, file_tags, foreign_stmt, foreign_decl.attributes[:])
+					}
+				}
+			}
+		} else {
+			collect_value_decl(exprs, file, file_tags, stmt, {})
+		}
+	}
+}
+
+collect_globals :: proc(file: ast.File) -> []GlobalExpr {
+	file_tags := parser.parse_file_tags(file, context.temp_allocator)
+	if !should_collect_file(file_tags) {
+		return {}
+	}
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
 
-	file_tags := parser.parse_file_tags(file, context.temp_allocator)
-
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
-			collect_value_decl(&exprs, file, file_tags, decl, skip_private)
+			collect_value_decl(&exprs, file, file_tags, decl, {})
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(&exprs, file, file_tags, when_decl, skip_private)
+			collect_when_stmt(&exprs, file, file_tags, when_decl)
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body == nil {
 				continue
@@ -447,7 +546,7 @@ collect_globals :: proc(file: ast.File, skip_private := false) -> []GlobalExpr {
 
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
-					collect_value_decl(&exprs, file, file_tags, stmt, skip_private)
+					collect_value_decl(&exprs, file, file_tags, stmt, foreign_decl.attributes[:])
 				}
 			}
 		}
@@ -460,20 +559,22 @@ get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset])
 }
 
-get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
-	if comment != nil {
-		tmp: string
+get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
+	if comment == nil {
+		return ""
+	}
 
-		for doc in comment.list {
-			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
-		}
+	tmp: string
 
-		if tmp != "" {
-			no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
-			no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
-			no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
-			return strings.clone(no_end_comments, allocator)
-		}
+	for doc in comment.list {
+		tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+	}
+
+	if tmp != "" {
+		no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
+		no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
+		no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
+		return strings.clone(no_end_comments, allocator)
 	}
 
 	return ""
@@ -558,6 +659,9 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^Selector_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.field, allocator)
+	case ^Selector_Call_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.call, allocator)
 	case ^Implicit_Selector_Expr:
 		free_ast(n.field, allocator)
 	case ^Index_Expr:
@@ -666,8 +770,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.default_value, allocator)
-	//free_ast(n.docs);
-	//free_ast(n.comment);
+		free_ast_comment(n.docs, allocator)
+		free_ast_comment(n.comment, allocator)
 	case ^Field_List:
 		free_ast(n.list, allocator)
 	case ^Typeid_Type:
@@ -729,6 +833,9 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.y, allocator)
 	case ^ast.Or_Return_Expr:
 		free_ast(n.expr, allocator)
+	case ^ast.Or_Branch_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.label, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}
@@ -1116,7 +1223,10 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		}
 	case ^Typeid_Type:
 		strings.write_string(builder, "typeid")
-		build_string(n.specialization, builder, remove_pointers)
+		if n.specialization != nil {
+			strings.write_string(builder, "/")
+			build_string(n.specialization, builder, remove_pointers)
+		}
 	case ^Helper_Type:
 		build_string(n.type, builder, remove_pointers)
 	case ^Distinct_Type:
@@ -1139,16 +1249,19 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			build_string(n.results, builder, remove_pointers)
 		}
 	case ^Pointer_Type:
+		build_string(n.tag, builder, remove_pointers)
 		if !remove_pointers {
 			strings.write_string(builder, "^")
 		}
 		build_string(n.elem, builder, remove_pointers)
 	case ^Array_Type:
+		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.len, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^Dynamic_Array_Type:
+		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[dynamic]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^Struct_Type:
@@ -1174,6 +1287,14 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		build_string(n.key, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.value, builder, remove_pointers)
+	case ^Matrix_Type:
+		strings.write_string(builder, "matrix")
+		strings.write_string(builder, "[")
+		build_string(n.row_count, builder, remove_pointers)
+		strings.write_string(builder, ",")
+		build_string(n.column_count, builder, remove_pointers)
+		strings.write_string(builder, "]")
+		build_string(n.elem, builder, remove_pointers)
 	case ^ast.Multi_Pointer_Type:
 		strings.write_string(builder, "[^]")
 		build_string(n.elem, builder, remove_pointers)
@@ -1202,7 +1323,9 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 	return strings.repeat(value, count, allocator)
 }
 
-construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
+// Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
+// using the provided allocator, so `v` should have the same lifetime as the allocator.
+construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1213,7 +1336,7 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 		// skipped on the last line) eg
 		// Foo :: struct {
 		//     foo: int // my int <-- skipped as no ',' after 'int'
-	    // }
+		// }
 
 		// remove any unwanted docs
 		if i != len(v.fields.list) - 1 {
@@ -1223,14 +1346,15 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 				if list[0].pos.line == field.pos.line {
 					// if the comment is missing from the appropriate field, we add it (for older versions of the parser)
 					if field.comment == nil {
-						field.comment = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comment = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
 						field.comment.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = ast.new(
+						next_field.docs = new_type(
 							ast.Comment_Group,
 							list[1].pos,
 							parser.end_pos(list[len(list) - 2]),
+							allocator,
 						)
 						next_field.docs.list = list[1:]
 					} else {
@@ -1240,31 +1364,34 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type) {
 			}
 		} else if field.comment == nil {
 			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment = get_file_comment(file, field.pos.line)
+			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }
 
-construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
+// Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
+// using the provided allocator, so `v` should have the same lifetime as the allocator.
+construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
 	for field, i in v.fields {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
 		// see https://github.com/odin-lang/Odin/issues/5353
-			// We check if the comment is at the start of the next field
+		// We check if the comment is at the start of the next field
 		if i != len(v.fields) - 1 {
 			next_field := v.fields[i + 1]
 			if next_field.docs != nil && len(next_field.docs.list) > 0 {
 				list := next_field.docs.list
 				if list[0].pos.line == field.pos.line {
 					if field.comments == nil {
-						field.comments = ast.new(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]))
+						field.comments = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
 						field.comments.list = list[:1]
 					}
 					if len(list) > 1 {
-						next_field.docs = ast.new(
+						next_field.docs = new_type(
 							ast.Comment_Group,
 							list[1].pos,
 							parser.end_pos(list[len(list) - 2]),
+							allocator,
 						)
 						next_field.docs.list = list[1:]
 					} else {
@@ -1274,26 +1401,120 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type) {
 			}
 		} else if field.comments == nil {
 			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments = get_file_comment(file, field.pos.line)
+			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }
 
 // Retrives the comment group from the specified line of the file
-get_file_comment :: proc(file: ast.File, line: int) -> ^ast.Comment_Group {
+// Returns the index where the comment was found
+get_file_comment :: proc(
+	file: ast.File,
+	line: int,
+	start_index := 0,
+	allocator := context.temp_allocator,
+) -> (
+	^ast.Comment_Group,
+	int,
+) {
 	// TODO: linear scan might be a bit slow for files with lots of comments?
-	for c in file.comments {
+	for i := start_index; i < len(file.comments); i += 1 {
+		c := file.comments[i]
 		if c.pos.line == line {
 			for item, j in c.list {
-				comment := ast.new(ast.Comment_Group, item.pos, parser.end_pos(item))
+				comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
 				if j == len(c.list) - 1 {
 					comment.list = c.list[j:]
 				} else {
 					comment.list = c.list[j:j + 1]
 				}
-				return comment
+				return comment, i
 			}
 		}
 	}
-	return nil
+	return nil, -1
+}
+
+// Retrieves the comment group that ends on the specified line of the file
+// If start_line is specified, it will only add the docs that on that line and beyond
+get_file_doc :: proc(
+	file: ast.File,
+	end_line: int,
+	start_line := -1,
+	start_index := 0,
+	allocator := context.temp_allocator,
+) -> (
+	^ast.Comment_Group,
+	int,
+) {
+	for i := start_index; i < len(file.comments); i += 1 {
+		c := file.comments[i]
+		if c.end.line == end_line {
+			docs := new_type(ast.Comment_Group, c.pos, c.end, allocator)
+			if start_line != -1 {
+				for item, j in c.list {
+					if item.pos.line >= start_line {
+						docs.list = c.list[j:]
+						return docs, i
+					}
+				}
+			}
+			docs.list = c.list
+			return docs, i
+		}
+	}
+	return nil, -1
+}
+
+// Returns the docs and comments for a list of field types
+//
+// We use this as the odin parser does not include comments and docs on enum and union fields
+get_field_docs_and_comments :: proc(
+	file: ast.File,
+	fields: []^ast.Expr,
+	allocator := context.temp_allocator,
+) -> (
+	[dynamic]^ast.Comment_Group,
+	[dynamic]^ast.Comment_Group,
+) {
+	docs := make([dynamic]^ast.Comment_Group, allocator)
+	comments := make([dynamic]^ast.Comment_Group, allocator)
+	prev_line := -1
+	last_comment := -1
+	last_doc := -1
+	for n, i in fields {
+		doc: ^ast.Comment_Group
+		comment: ^ast.Comment_Group
+
+		if n.pos.line == prev_line {
+			// if we're on the same line, just add the previous docs and comments
+			doc = docs[i - 1]
+			comment = comments[i - 1]
+		} else {
+			// Check to see if there's space below the previous field for a comment
+			if n.pos.line - 1 > prev_line {
+				doc, last_doc = get_file_doc(
+					file,
+					n.pos.line - 1,
+					start_line = prev_line + 1,
+					start_index = last_doc + 1,
+					allocator = allocator,
+				)
+			}
+
+			comment, last_comment = get_file_comment(
+				file,
+				n.pos.line,
+				start_index = last_comment + 1,
+				allocator = allocator,
+			)
+		}
+
+		append(&docs, doc)
+		append(&comments, comment)
+		prev_line = n.pos.line
+	}
+
+
+	return docs, comments
 }

@@ -65,10 +65,12 @@ SemanticTokenModifier :: enum u8 {
 semantic_token_modifier_names: []string = {"declaration", "definition", "deprecated", "readonly"}
 SemanticTokenModifiers :: bit_set[SemanticTokenModifier;u32]
 
+SemanticTokensRequest :: struct {
+	range: bool,
+}
+
 SemanticTokensClientCapabilities :: struct {
-	requests:                struct {
-		range: bool,
-	},
+	requests:                SemanticTokensRequest,
 	tokenTypes:              []string,
 	tokenModifiers:          []string,
 	formats:                 []string,
@@ -143,8 +145,11 @@ get_semantic_tokens :: proc(
 		src     = ast_context.file.src,
 	}
 
+	margin := 20
+
 	for decl in document.ast.decls {
-		if range.start.line <= decl.pos.line && decl.end.line <= range.end.line {
+		//Look for declarations that overlap with range
+		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
 			visit_node(decl, &builder)
 		}
 	}
@@ -390,44 +395,14 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	}
 }
 
-// TODO: it seems the global symbols don't distinguish between a type decl and
-// a const variable declaration, so we do a quick check here to distinguish the cases.
-is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
-	#partial switch v in expr.derived {
-	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr:
-		return true
-	case:
-		return false
-	}
-}
-
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	using ast
 
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
 
-	// Check if we are a comp lit or a type declaration
-
-	// a, b, c :: 1, 2, 3
-	// a := 1
-	if len(value_decl.values) == len(value_decl.names) {
-		for name, i in value_decl.names {
-			ident := name.derived.(^Ident) or_continue
-			is_var_decl := is_variable_declaration(value_decl.values[i])
-			visit_ident(ident, ident, modifiers, builder, is_var_decl)
-		}
-	} else if len(value_decl.values) > 0 {
-		// a, b: int
-		is_var_decl := is_variable_declaration(value_decl.values[0])
-		for name in value_decl.names {
-			ident := name.derived.(^Ident) or_continue
-			visit_ident(ident, ident, modifiers, builder, is_var_decl)
-		}
-	} else {
-		for name in value_decl.names {
-			ident := name.derived.(^Ident) or_continue
-			visit_ident(ident, ident, modifiers, builder)
-		}
+	for name in value_decl.names {
+		ident := name.derived.(^Ident) or_continue
+		visit_ident(ident, ident, modifiers, builder)
 	}
 
 	visit_node(value_decl.type, builder)
@@ -453,6 +428,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 			}
 
 			visit_node(param.type, builder)
+			visit_node(param.default_value, builder)
 		}
 	}
 
@@ -559,7 +535,6 @@ visit_ident :: proc(
 	symbol_ptr: rawptr,
 	modifiers: SemanticTokenModifiers,
 	builder: ^SemanticTokenBuilder,
-	is_variable_decl := false,
 ) {
 	using ast
 
@@ -571,14 +546,15 @@ visit_ident :: proc(
 
 	modifiers := modifiers
 
-	if symbol.type != .Variable {
+	if .Mutable not_in symbol.flags {
 		modifiers += {.ReadOnly}
 	}
 
-	if is_variable_decl {
+	if .Variable in symbol.flags {
 		write_semantic_node(builder, ident, .Variable, modifiers)
 		return
 	}
+
 	/* variable idents */
 	#partial switch symbol.type {
 	case .Variable, .Constant, .Function:
@@ -594,6 +570,8 @@ visit_ident :: proc(
 		}
 	case .EnumMember:
 		write_semantic_node(builder, ident, .EnumMember, modifiers)
+	case .Field:
+		write_semantic_node(builder, ident, .Property, modifiers)
 	case:
 		/* type idents */
 		switch v in symbol.value {
@@ -611,7 +589,8 @@ visit_ident :: proc(
 		     SymbolSliceValue,
 		     SymbolMapValue,
 		     SymbolMultiPointerValue,
-		     SymbolBasicValue:
+		     SymbolBasicValue,
+		     SymbolPolyTypeValue:
 			write_semantic_node(builder, ident, .Type, modifiers)
 		case SymbolUntypedValue:
 		// handled by static syntax highlighting

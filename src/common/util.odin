@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
+import "core:os/os2"
 import "core:path/filepath"
 import "core:path/slashpath"
 import "core:strings"
@@ -58,17 +59,24 @@ resolve_home_dir :: proc(
 	when ODIN_OS == .Windows {
 		return path, false
 	} else {
-		if !strings.has_prefix(path, "~") {
-			return path, false
-		}
+		if strings.has_prefix(path, "~") {
+			home := os.get_env("HOME", context.temp_allocator)
+			if home == "" {
+				log.error("could not find $HOME in the environment to be able to resolve ~ in collection paths")
+				return path, false
+			}
 
-		home := os.get_env("HOME", context.temp_allocator)
-		if home == "" {
-			log.error("could not find $HOME in the environment to be able to resolve ~ in collection paths")
-			return path, false
-		}
+			return filepath.join({home, path[1:]}, allocator), true
+		} else if strings.has_prefix(path, "$HOME") {
+			home := os.get_env("HOME", context.temp_allocator)
+			if home == "" {
+				log.error("could not find $HOME in the environment to be able to resolve $HOME in collection paths")
+				return path, false
+			}
 
-		return filepath.join({home, path[1:]}, allocator), true
+			return filepath.join({home, path[5:]}, allocator), true
+		}
+		return path, false
 	}
 }
 
@@ -119,12 +127,13 @@ when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS =
 }
 
 get_executable_path :: proc(allocator := context.temp_allocator) -> string {
-	exe_path, ok := filepath.abs(os.args[0], context.temp_allocator)
+	exe_dir, err := os2.get_executable_directory(context.temp_allocator)
 
-	if !ok {
-		log.error("Failed to resolve executable path")
+	if err != nil {
+		log.error("Failed to resolve executable path: ", err)
 		return ""
 	}
 
-	return filepath.dir(exe_path, allocator)
+	return exe_dir
 }
+

@@ -22,7 +22,7 @@ ast_declare_proc_signature :: proc(t: ^testing.T) {
 ast_naked_parens :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
-		main :: proc() { 
+		main :: proc() {
 
 			if node == nil {
 				return;
@@ -47,7 +47,7 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function({*})
 		}
 		`,
@@ -57,7 +57,7 @@ ast_simple_proc_signature :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.cool_function: proc(a: int)"},
+		{"test.cool_function :: proc(a: int)"},
 	)
 }
 
@@ -68,7 +68,7 @@ ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b := context.allocator) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function({*})
 		}
 		`,
@@ -78,7 +78,7 @@ ast_default_assignment_proc_signature :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.cool_function: proc(a: int, b := context.allocator)"},
+		{"test.cool_function :: proc(a: int, b := context.allocator)"},
 	)
 }
 
@@ -89,7 +89,7 @@ ast_proc_signature_argument_last_position :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(2,{*}
 		}
 		`,
@@ -106,7 +106,7 @@ ast_proc_signature_argument_first_position :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(2{*},)
 		}
 		`,
@@ -124,7 +124,7 @@ ast_proc_signature_argument_move_position :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b: int, c: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(2,3{*}, 3);
 		}
 		`,
@@ -141,7 +141,7 @@ ast_proc_signature_argument_complex :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b: int, c: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(a(2,5,b(3,sdf[2],{})), {*});
 		}
 		`,
@@ -158,7 +158,7 @@ ast_proc_signature_argument_open_brace_position :: proc(t: ^testing.T) {
 		cool_function :: proc(a: int, b: int, c: int) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(2,3, 3{*}
 		}
 		`,
@@ -175,7 +175,7 @@ ast_proc_signature_argument_any_ellipsis_position :: proc(t: ^testing.T) {
 		cool_function :: proc(args: ..any, b := 2) {
 		}
 
-		main :: proc() { 
+		main :: proc() {
 			cool_function(3, 4, 5{*})
 		}
 		`,
@@ -211,8 +211,8 @@ ast_proc_group_signature_empty_call :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			"test.int_function: proc(a: int)",
-			"test.bool_function: proc(a: bool)",
+			"test.int_function :: proc(a: int)",
+			"test.bool_function :: proc(a: bool)",
 		},
 	)
 }
@@ -226,7 +226,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 
 		clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A {
 		}
-	  
+
 		main :: proc() {
 			clone_array({*})
 		}
@@ -238,7 +238,7 @@ ast_proc_signature_generic :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{
-			"test.clone_array: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A",
+			"test.clone_array :: proc(array: $A/[]^$T, allocator: mem.Allocator, unique_strings: ^map[string]string) -> A",
 		},
 	)
 }
@@ -268,7 +268,7 @@ ast_proc_group_signature_basic_types :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.int_function: proc(a: int, b: bool, c: int)"},
+		{"test.int_function :: proc(a: int, b: bool, c: int)"},
 	)
 }
 
@@ -304,7 +304,7 @@ ast_proc_group_signature_distinct_basic_types :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.distinct_function: proc(a: My_Int, c: int)"},
+		{"test.distinct_function :: proc(a: My_Int, c: int)"},
 	)
 }
 
@@ -348,7 +348,7 @@ ast_proc_group_signature_struct :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.struct_function: proc(a: int, b: My_Struct, c: int)"},
+		{"test.struct_function :: proc(a: int, b: My_Struct, c: int)"},
 	)
 }
 
@@ -383,7 +383,7 @@ index_simple_signature :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"my_package.my_function: proc(a: int, b := context.allocator)"},
+		{"my_package.my_function :: proc(a: int, b := context.allocator)"},
 	)
 }
 
@@ -401,7 +401,7 @@ ast_index_builtin_len_proc :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"$builtin.len: proc(array: Array_Type) -> int"},
+		{"len :: proc(array: Array_Type) -> int"},
 	)
 }
 
@@ -437,7 +437,7 @@ ast_signature_variable_pointer :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"})
+	test.expect_signature_labels(t, &source, {"test.My_Fun :: proc(a: int)"})
 
 }
 
@@ -459,7 +459,7 @@ ast_signature_global_variable_pointer :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_signature_labels(t, &source, {"test.My_Fun: proc(a: int)"})
+	test.expect_signature_labels(t, &source, {"test.My_Fun :: proc(a: int)"})
 }
 
 @(test)
@@ -493,7 +493,7 @@ index_variable_pointer_signature :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"my_package.My_Fun: proc(a: int)"},
+		{"my_package.My_Fun :: proc(a: int)"},
 	)
 }
 
@@ -516,7 +516,7 @@ shared_value_decl_type_signature :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.my_function: proc(a: int, b: int)"},
+		{"test.my_function :: proc(a: int, b: int)"},
 	)
 }
 
@@ -538,7 +538,7 @@ proc_with_struct_poly :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_signature_labels(t, &source, {"test.uf: proc(u: U($T, $E))"})
+	test.expect_signature_labels(t, &source, {"test.uf :: proc(u: U($T, $E))"})
 }
 
 @(test)
@@ -558,7 +558,7 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 	test.expect_signature_labels(
 		t,
 		&source,
-		{"test.my_cool_function: proc(aa: int, ba: int, c: int)"},
+		{"test.my_cool_function :: proc(aa: int, ba: int, c: int)"},
 	)
 }
 

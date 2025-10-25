@@ -241,20 +241,22 @@ call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Wr
 	"textDocument/rename"               = request_rename,
 	"textDocument/prepareRename"        = request_prepare_rename,
 	"textDocument/references"           = request_references,
+	"textDocument/documentHighlight"    = request_highlights,
+	"textDocument/codeAction"           = request_code_action,
 	"window/progress"                   = request_noop,
 	"workspace/symbol"                  = request_workspace_symbols,
 	"workspace/didChangeConfiguration"  = notification_workspace_did_change_configuration,
 	"workspace/didChangeWatchedFiles"   = notification_did_change_watched_files,
 }
 
-notification_map: map[string]bool = {
-	"textDocument/didOpen"            = true,
-	"textDocument/didChange"          = true,
-	"textDocument/didClose"           = true,
-	"textDocument/didSave"            = true,
-	"initialized"                     = true,
-	"window/progress"                 = true,
-	"workspace/didChangeWatchedFiles" = true,
+notification_map: map[string]struct{} = {
+	"textDocument/didOpen"            = {},
+	"textDocument/didChange"          = {},
+	"textDocument/didClose"           = {},
+	"textDocument/didSave"            = {},
+	"initialized"                     = {},
+	"window/progress"                 = {},
+	"workspace/didChangeWatchedFiles" = {},
 }
 
 consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
@@ -361,14 +363,17 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+	config.enable_unused_imports_reporting = ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
 	config.enable_procedure_context =
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
 	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
+	config.enable_document_highlights = ols_config.enable_document_highlights.(bool) or_else config.enable_document_highlights
+	config.enable_completion_matching =
+		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
+	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
-
-	config.enable_rename = ols_config.enable_rename.(bool) or_else config.enable_rename
 
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
@@ -385,6 +390,16 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		config.odin_command, allocated = common.resolve_home_dir(config.odin_command)
 		if !allocated {
 			config.odin_command = strings.clone(config.odin_command, context.allocator)
+		}
+	}
+
+	if ols_config.odin_root_override != "" {
+		config.odin_root_override = strings.clone(ols_config.odin_root_override, context.temp_allocator)
+
+		allocated: bool
+		config.odin_root_override, allocated = common.resolve_home_dir(config.odin_root_override)
+		if !allocated {
+			config.odin_root_override = strings.clone(config.odin_root_override, context.allocator)
 		}
 	}
 
@@ -420,11 +435,12 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.checker_targets = slice.clone(ols_config.checker_targets, context.allocator)
 
-	config.enable_inlay_hints = ols_config.enable_inlay_hints.(bool) or_else config.enable_inlay_hints
 	config.enable_inlay_hints_params =
 		ols_config.enable_inlay_hints_params.(bool) or_else config.enable_inlay_hints_params
 	config.enable_inlay_hints_default_params =
 		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
+	config.enable_inlay_hints_implicit_return =
+		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 	config.enable_hover_struct_size_info =
@@ -482,39 +498,43 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	// their config and it would break.
 
 	odin_core_env: string
-	odin_bin := "odin" if config.odin_command == "" else config.odin_command
-
-	// If we don't have an absolute path
-	if !filepath.is_abs(odin_bin) {
-		// Join with the project path
-		tmp_path := path.join(elems = {uri.path, odin_bin})
-		if os.exists(tmp_path) {
-			odin_bin = tmp_path
-		}
-	}
-
-	root_buf: [1024]byte
-	root_slice := root_buf[:]
-	root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
-	code, ok, out := common.run_executable(root_command, &root_slice)
-	if ok && !strings.contains(string(out), "Usage") {
-		odin_core_env = string(out)
+	if config.odin_root_override != "" {
+		odin_core_env = config.odin_root_override
 	} else {
-		log.warnf("failed executing %q with code %v", root_command, code)
+		odin_bin := "odin" if config.odin_command == "" else config.odin_command
 
-		// User is probably on an older Odin version, let's try our best.
-
-		odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
-		if odin_core_env == "" {
-			if os.exists(odin_bin) {
-				odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
-			} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
-				odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+		// If we don't have an absolute path
+		if !filepath.is_abs(odin_bin) {
+			// Join with the project path
+			tmp_path := path.join(elems = {uri.path, odin_bin})
+			if os.exists(tmp_path) {
+				odin_bin = tmp_path
 			}
 		}
 
-		if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
-			odin_core_env = abs_core_env
+		root_buf: [1024]byte
+		root_slice := root_buf[:]
+		root_command := strings.concatenate({odin_bin, " root"}, context.temp_allocator)
+		code, ok, out := common.run_executable(root_command, &root_slice)
+		if ok && !strings.contains(string(out), "Usage") {
+			odin_core_env = string(out)
+		} else {
+			log.warnf("failed executing %q with code %v", root_command, code)
+
+			// User is probably on an older Odin version, let's try our best.
+
+			odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
+			if odin_core_env == "" {
+				if os.exists(odin_bin) {
+					odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
+				} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
+					odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+				}
+			}
+
+			if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
+				odin_core_env = abs_core_env
+			}
 		}
 	}
 
@@ -572,7 +592,7 @@ request_initialize :: proc(
 
 	initialize_params: RequestInitializeParams
 
-	if unmarshal(params, initialize_params, context.temp_allocator) != nil {
+	if err := unmarshal(params, initialize_params, context.temp_allocator); err != nil {
 		return .ParseError
 	}
 
@@ -588,9 +608,9 @@ request_initialize :: proc(
 	config.enable_hover = true
 	config.enable_format = true
 
-	config.enable_inlay_hints = false
-	config.enable_inlay_hints_params = true
-	config.enable_inlay_hints_default_params = true
+	config.enable_inlay_hints_params = false
+	config.enable_inlay_hints_default_params = false
+	config.enable_inlay_hints_implicit_return = false
 
 	config.disable_parser_errors = false
 	config.thread_count = 2
@@ -598,10 +618,13 @@ request_initialize :: proc(
 	config.enable_format = true
 	config.enable_hover = true
 	config.enable_semantic_tokens = false
+	config.enable_unused_imports_reporting = true
 	config.enable_procedure_context = false
 	config.enable_snippets = false
-	config.enable_references = false
-	config.enable_rename = false
+	config.enable_references = true
+	config.enable_document_highlights = true
+	config.enable_completion_matching = true
+	config.enable_document_links = true
 	config.verbose = false
 	config.file_log = false
 	config.odin_command = ""
@@ -680,6 +703,8 @@ request_initialize :: proc(
 	signatureTriggerCharacters := []string{"(", ","}
 	signatureRetriggerCharacters := []string{","}
 
+	semantic_range_support := initialize_params.capabilities.textDocument.semanticTokens.requests.range
+
 	response := make_response_message(
 		params = ResponseInitializeParams {
 			capabilities = ServerCapabilities {
@@ -687,6 +712,7 @@ request_initialize :: proc(
 				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
+				documentHighlightProvider = config.enable_document_highlights,
 				definitionProvider = true,
 				typeDefinitionProvider = true,
 				completionProvider = CompletionOptions {
@@ -699,18 +725,23 @@ request_initialize :: proc(
 					retriggerCharacters = signatureRetriggerCharacters,
 				},
 				semanticTokensProvider = SemanticTokensOptions {
-					range = config.enable_semantic_tokens,
-					full = config.enable_semantic_tokens,
+					range = config.enable_semantic_tokens && semantic_range_support,
+					full = config.enable_semantic_tokens && !semantic_range_support,
 					legend = SemanticTokensLegend {
 						tokenTypes = semantic_token_type_names,
 						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
-				inlayHintProvider = config.enable_inlay_hints,
+				inlayHintProvider = (
+					config.enable_inlay_hints_params ||
+					config.enable_inlay_hints_default_params ||
+					config.enable_inlay_hints_implicit_return
+				),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
 				documentLinkProvider = {resolveProvider = false},
+				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite"}},
 			},
 		},
 		id = id,
@@ -891,7 +922,7 @@ request_completion :: proc(
 	}
 
 	list: CompletionList
-	list, ok = get_completion_list(document, completition_params.position, completition_params.context_)
+	list, ok = get_completion_list(document, completition_params.position, completition_params.context_, config)
 
 	if !ok {
 		return .InternalError
@@ -1010,9 +1041,17 @@ notification_did_open :: proc(
 		return .ParseError
 	}
 
+	defer delete(open_params.textDocument.uri)
+
 	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
 		return .InternalError
 	}
+
+	document := document_get(open_params.textDocument.uri)
+
+	check_unused_imports(document, config)
+
+	push_diagnostics(writer)
 
 	return .None
 }
@@ -1108,7 +1147,14 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, writer, config)
+	check(config.profile.checker_path[:], corrected_uri, config)
+
+	document := document_get(save_params.textDocument.uri)
+	if document != nil {
+		check_unused_imports(document, config)
+	}
+
+	push_diagnostics(writer)
 
 	return .None
 }
@@ -1187,12 +1233,10 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		resolve_entire_file_cached(document)
+		file := resolve_ranged_file_cached(document, semantic_params.range, context.temp_allocator)
 
-		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
-			tokens_params = semantic_tokens_to_response_params(tokens)
-		}
+		tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
+		tokens_params = semantic_tokens_to_response_params(tokens)
 	}
 
 	response := make_response_message(params = tokens_params, id = id)
@@ -1279,38 +1323,24 @@ request_inlay_hint :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
-	params_object, ok := params.(json.Object)
 
-	if !ok {
-		return .ParseError
-	}
+	_, is_params_object := params.(json.Object)
+	if !is_params_object do return .ParseError
 
 	inlay_params: InlayParams
-
 	if unmarshal(params, inlay_params, context.temp_allocator) != nil {
 		return .ParseError
 	}
 
 	document := document_get(inlay_params.textDocument.uri)
+	if document == nil do return .InternalError
 
-	if document == nil {
-		return .InternalError
-	}
+	file := resolve_ranged_file_cached(document, inlay_params.range, context.temp_allocator)
 
-	hints: []InlayHint
-
-	resolve_entire_file_cached(document)
-
-	if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-		hints, ok = get_inlay_hints(document, file.symbols, config)
-	}
-
-	if !ok {
-		return .InternalError
-	}
+	hints, hints_ok := get_inlay_hints(document, inlay_params.range, file.symbols, config)
+	if !hints_ok do return .InternalError
 
 	response := make_response_message(params = hints, id = id)
-
 	send_response(response, writer)
 
 	return .None
@@ -1322,6 +1352,14 @@ request_document_links :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	if !config.enable_document_links {
+		links: []DocumentLink
+		response := make_response_message(params = links, id = id)
+
+		send_response(response, writer)
+		return .None
+	}
+
 	params_object, ok := params.(json.Object)
 
 	if !ok {
@@ -1460,6 +1498,80 @@ request_references :: proc(
 	return .None
 }
 
+request_highlights :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	highlight_param: HighlightParams
+
+	if unmarshal(params, highlight_param, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(highlight_param.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	locations: []common.Location
+	locations, ok = get_references(document, highlight_param.position, true)
+
+	if !ok {
+		return .InternalError
+	}
+
+	highlights := make([dynamic]DocumentHighlight, 0, context.temp_allocator)
+	for location in locations {
+		append(&highlights, DocumentHighlight{kind = .Text, range = location.range})
+	}
+
+	response := make_response_message(params = highlights[:], id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
+request_code_action :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+	params_object, ok := params.(json.Object)
+
+	if !ok {
+		return .ParseError
+	}
+
+	code_action_params: CodeActionParams
+
+	if unmarshal(params, code_action_params, context.temp_allocator) != nil {
+		return .ParseError
+	}
+
+	document := document_get(code_action_params.textDocument.uri)
+
+	if document == nil {
+		return .InternalError
+	}
+
+	code_actions: []CodeAction
+	code_actions, ok = get_code_actions(document, code_action_params.range, config)
+	if !ok {
+		return .InternalError
+	}
+	response := make_response_message(params = code_actions, id = id)
+
+	send_response(response, writer)
+
+	return .None
+}
+
 notification_did_change_watched_files :: proc(
 	params: json.Value,
 	id: RequestId,
@@ -1487,7 +1599,7 @@ notification_did_change_watched_files :: proc(
 			find_all_package_aliases()
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
-				if data, ok := os.read_entire_file(uri.path); ok {
+				if data, ok := os.read_entire_file(uri.path, context.temp_allocator); ok {
 					index_file(uri, cast(string)data)
 				}
 			}
@@ -1496,8 +1608,6 @@ notification_did_change_watched_files :: proc(
 				find_all_package_aliases()
 			}
 		}
-
-
 	}
 
 	return .None
