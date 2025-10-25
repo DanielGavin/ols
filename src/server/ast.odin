@@ -1218,7 +1218,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		for field, i in n.list {
 			build_string(field, builder, remove_pointers)
 			if len(n.list) - 1 != i {
-				strings.write_string(builder, ",")
+				strings.write_string(builder, ", ")
 			}
 		}
 	case ^Typeid_Type:
@@ -1265,16 +1265,33 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		strings.write_string(builder, "[dynamic]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^Struct_Type:
+		strings.write_string(builder, "struct{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
 		build_string(n.fields, builder, remove_pointers)
+		strings.write_string(builder, "}")
 	case ^Union_Type:
+		strings.write_string(builder, "union{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
-		build_string(n.variants, builder, remove_pointers)
+		for variant, i in n.variants {
+			if i != 0 {
+				strings.write_string(builder, ", ")
+			}
+			build_string(variant, builder, remove_pointers)
+		}
+		strings.write_string(builder, "}")
 	case ^Enum_Type:
+		strings.write_string(builder, "enum")
 		build_string(n.base_type, builder, remove_pointers)
-		build_string(n.fields, builder, remove_pointers)
+		strings.write_string(builder, "{")
+		for field, i in n.fields {
+			if i != 0 {
+				strings.write_string(builder, ", ")
+			}
+			build_string(field, builder, remove_pointers)
+		}
+		strings.write_string(builder, "}")
 	case ^Bit_Set_Type:
 		strings.write_string(builder, "bit_set")
 		strings.write_string(builder, "[")
