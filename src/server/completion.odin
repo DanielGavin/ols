@@ -1353,6 +1353,9 @@ get_implicit_completion :: proc(
 					return is_incomplete
 				} else if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
 					for enum_name in s.names {
+						if field_exists_in_comp_lit(position_context.comp_lit, enum_name) {
+							continue
+						}
 						item := CompletionItem {
 							label  = enum_name,
 							kind   = .EnumMember,

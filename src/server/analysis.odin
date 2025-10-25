@@ -2096,21 +2096,8 @@ internal_resolve_comp_literal :: proc(
 		symbol = resolve_proc(ast_context, position_context.parent_comp_lit.type) or_return
 	} else if position_context.call != nil {
 		if call_expr, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-			arg_index := find_position_in_call_param(position_context, call_expr^) or_return
-
-			symbol = resolve_proc(ast_context, position_context.call) or_return
-
-			value := symbol.value.(SymbolProcedureValue) or_return
-
-			if len(value.arg_types) <= arg_index {
-				return {}, false
-			}
-
-			if value.arg_types[arg_index].type == nil {
-				return {}, false
-			}
-
-			symbol = resolve_proc(ast_context, value.arg_types[arg_index].type) or_return
+			type := get_call_argument_type(ast_context, position_context, call_expr) or_return
+			symbol = resolve_proc(ast_context, type) or_return
 		}
 	} else if position_context.returns != nil {
 		return_index: int
@@ -3149,6 +3136,33 @@ find_position_in_call_param :: proc(position_context: ^DocumentPositionContext, 
 	}
 
 	return len(call.args) - 1, true
+}
+
+get_call_argument_type :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	call: ^ast.Call_Expr,
+) -> (
+	expr: ^ast.Expr,
+	ok: bool,
+) {
+	index := find_position_in_call_param(position_context, call^) or_return
+	symbol := resolve_type_expression(ast_context, call) or_return
+	value := symbol.value.(SymbolProcedureValue) or_return
+
+	arg: ^ast.Field
+	if field, ok := call.args[index].derived.(^ast.Field_Value); ok {
+		ident := field.field.derived.(^ast.Ident) or_return
+		arg = get_proc_arg_type_from_name(value, ident.name) or_return
+	} else {
+		arg = get_proc_arg_type_from_index(value, index) or_return
+	}
+
+	if arg.type == nil {
+		return arg.default_value, true
+	}
+
+	return arg.type, true
 }
 
 make_pointer_ast :: proc(ast_context: ^AstContext, elem: ^ast.Expr) -> ^ast.Pointer_Type {
