@@ -4802,3 +4802,29 @@ ast_completion_array_comp_lit :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"test.foo1: int", "test.foo2: int"})
 }
+
+@(test)
+ast_completion_named_proc_arg_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: string,
+		}
+
+		Bar :: struct {
+			bar: int,
+		}
+
+		bazz :: proc(foos: []Foo = {}, bars: []Bar = {}) {}
+
+		main :: proc() {
+			bazz(bars = {
+				{
+					{*}
+				}
+			})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Bar.bar: int"})
+}
