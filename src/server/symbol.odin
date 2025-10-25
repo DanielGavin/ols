@@ -275,19 +275,19 @@ SymbolStructValueBuilder :: struct {
 
 symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) -> SymbolStructValueBuilder {
 	return SymbolStructValueBuilder {
-		names             = make([dynamic]string, allocator),
-		types             = make([dynamic]^ast.Expr, allocator),
-		args              = make([dynamic]^ast.Expr, allocator),
-		ranges            = make([dynamic]common.Range, allocator),
-		docs              = make([dynamic]^ast.Comment_Group, allocator),
-		comments          = make([dynamic]^ast.Comment_Group, allocator),
-		usings            = make([dynamic]int, allocator),
-		from_usings       = make([dynamic]int, allocator),
+		names = make([dynamic]string, allocator),
+		types = make([dynamic]^ast.Expr, allocator),
+		args = make([dynamic]^ast.Expr, allocator),
+		ranges = make([dynamic]common.Range, allocator),
+		docs = make([dynamic]^ast.Comment_Group, allocator),
+		comments = make([dynamic]^ast.Comment_Group, allocator),
+		usings = make([dynamic]int, allocator),
+		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
-		poly_names        = make([dynamic]string, allocator),
-		backing_types     = make(map[int]^ast.Expr, allocator),
-		bit_sizes         = make(map[int]^ast.Expr, allocator),
-		where_clauses     = make([dynamic]^ast.Expr, allocator),
+		poly_names = make([dynamic]string, allocator),
+		backing_types = make(map[int]^ast.Expr, allocator),
+		bit_sizes = make(map[int]^ast.Expr, allocator),
+		where_clauses = make([dynamic]^ast.Expr, allocator),
 	}
 }
 

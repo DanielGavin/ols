@@ -9,22 +9,111 @@ import "core:strings"
 
 import "src:common"
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
-	content: MarkupContent
-	cat := construct_symbol_information(ast_context, symbol)
-	doc := construct_symbol_docs(symbol)
-
-	if cat != "" {
-		content.kind = "markdown"
-		content.value = fmt.tprintf("```odin\n%v\n```%v", cat, doc)
-	} else {
-		content.kind = "plaintext"
+get_expr_size_and_align :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (size: int, align: int) {
+	if expr == nil {
+		return 0, 1
 	}
 
-	return content
+	if ident, ok := expr.derived.(^ast.Ident); ok {
+		switch ident.name {
+		case "int", "uint", "i32", "u32", "uintptr", "rawptr":
+			return size_of(u32), align_of(u32)
+		case "i16", "u16":
+			return size_of(u16), align_of(u16)
+		case "i64", "u64":
+			return size_of(u64), align_of(u64)
+		case "bool":
+			return size_of(bool), align_of(bool)
+		case "string":
+			return size_of(string), align_of(string)
+		case "f32":
+			return size_of(f32), align_of(f32)
+		case "f64":
+			return size_of(f64), align_of(f64)
+		case "byte":
+			return size_of(byte), align_of(byte)
+		}
+	}
+
+	if _, ok := expr.derived.(^ast.Proc_Type); ok {
+		return size_of(^rawptr), align_of(^rawptr)
+	}
+
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if s, is_struct := symbol.value.(SymbolStructValue); is_struct {
+			current_offset := 0
+			max_align := 1
+			for field_type in s.types {
+				field_size, field_align := get_expr_size_and_align(ast_context, field_type)
+				if field_align > max_align {
+					max_align = field_align
+				}
+				if field_align > 0 {
+					padding := (field_align - (current_offset % field_align)) % field_align
+					current_offset += padding
+				}
+				current_offset += field_size
+			}
+			if max_align > 0 {
+				final_padding := (max_align - (current_offset % max_align)) % max_align
+				current_offset += final_padding
+			}
+			return current_offset, max_align
+		}
+	}
+
+	return 0, 1
 }
 
-get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
+write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^common.Config) -> MarkupContent {
+    content: MarkupContent
+    cat := construct_symbol_information(ast_context, symbol)
+    doc := construct_symbol_docs(symbol)
+    
+	struct_info := ""
+	if config != nil && config.enable_hover_struct_size_info {
+		if symbol.type == .Struct {
+			if s, ok := symbol.value.(SymbolStructValue); ok {
+				current_offset := 0
+				max_align := 1
+
+				for field_type in s.types {
+					field_size, field_align := get_expr_size_and_align(ast_context, field_type)
+
+					if field_align > max_align {
+						max_align = field_align
+					}
+					if field_align > 0 {
+						padding := (field_align - (current_offset % field_align)) % field_align
+						current_offset += padding
+					}
+					current_offset += field_size
+				}
+
+				if max_align > 0 {
+					final_padding := (max_align - (current_offset % max_align)) % max_align
+					current_offset += final_padding
+				}
+				
+				if current_offset > 0 {
+					struct_info = fmt.aprintf("Size: %v bytes, Alignment: %v bytes", current_offset, max_align)
+				}
+			}
+		}
+	}
+    
+    content.kind = "markdown"
+
+	if struct_info != "" {
+        content.value = fmt.tprintf("```odin\n%v\n```%v\n%v", cat, doc, struct_info)
+    } else {
+		content.value = fmt.tprintf("```odin\n%v\n```%v", cat, doc)
+    }
+    
+    return content
+}
+
+get_hover_information :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> (Hover, bool, bool) {
 	hover := Hover {
 		contents = {kind = "plaintext"},
 	}
@@ -96,7 +185,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 								for name, i in v.names {
 									if name == ident.name {
 										construct_enum_field_symbol(&enum_symbol, v, i)
-										hover.contents = write_hover_content(&ast_context, enum_symbol)
+										hover.contents = write_hover_content(&ast_context, enum_symbol, config)
 										hover.range = enum_symbol.range
 										return hover, true, true
 									}
@@ -109,7 +198,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 										if name == ident.name {
 											construct_enum_field_symbol(&enum_symbol, v, i)
 											hover.range = enum_symbol.range
-											hover.contents = write_hover_content(&ast_context, enum_symbol)
+											hover.contents = write_hover_content(&ast_context, enum_symbol, config)
 										}
 									}
 								}
@@ -145,7 +234,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 											)
 											build_documentation(&ast_context, &symbol, true)
 											hover.range = symbol.range
-											hover.contents = write_hover_content(&ast_context, symbol)
+											hover.contents = write_hover_content(&ast_context, symbol, config)
 											return hover, true, true
 										}
 									}
@@ -174,7 +263,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									if value, ok := bit_field_symbol.value.(SymbolBitFieldValue); ok {
 										construct_bit_field_field_symbol(&symbol, name, value, i)
 										hover.range = symbol.range
-										hover.contents = write_hover_content(&ast_context, symbol)
+										hover.contents = write_hover_content(&ast_context, symbol, config)
 										return hover, true, true
 									}
 								}
@@ -199,7 +288,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 										construct_struct_field_symbol(&symbol, comp_symbol.name, v, i)
 										build_documentation(&ast_context, &symbol, true)
-										hover.contents = write_hover_content(&ast_context, symbol)
+										hover.contents = write_hover_content(&ast_context, symbol, config)
 										return hover, true, true
 									}
 								}
@@ -210,7 +299,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 							if name == field.name {
 								if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 									construct_bit_field_field_symbol(&symbol, comp_symbol.name, v, i)
-									hover.contents = write_hover_content(&ast_context, symbol)
+									hover.contents = write_hover_content(&ast_context, symbol, config)
 									return hover, true, true
 								}
 							}
@@ -223,7 +312,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		if position_context.call != nil {
 			if symbol, ok := resolve_type_location_proc_param_name(&ast_context, &position_context); ok {
 				build_documentation(&ast_context, &symbol, false)
-				hover.contents = write_hover_content(&ast_context, symbol)
+				hover.contents = write_hover_content(&ast_context, symbol, config)
 				return hover, true, true
 			}
 		}
@@ -251,7 +340,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						resolved.pkg = ast_context.document_package
 					}
 
-					hover.contents = write_hover_content(&ast_context, resolved)
+					hover.contents = write_hover_content(&ast_context, resolved, config)
 					return hover, true, true
 				}
 			}
@@ -296,7 +385,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						construct_struct_field_symbol(&symbol, selector.name, v, i)
 						build_documentation(&ast_context, &symbol, true)
-						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.contents = write_hover_content(&ast_context, symbol, config)
 						return hover, true, true
 					}
 				}
@@ -306,7 +395,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				if name == field {
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						construct_bit_field_field_symbol(&symbol, selector.name, v, i)
-						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.contents = write_hover_content(&ast_context, symbol, config)
 						return hover, true, true
 					}
 				}
@@ -323,7 +412,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 
-					if resolved, ok := resolve_symbol_return(&ast_context, lookup(ident.name, selector.pkg, ast_context.fullpath)); ok {
+					if resolved, ok := resolve_symbol_return(
+						&ast_context,
+						lookup(ident.name, selector.pkg, ast_context.fullpath),
+					); ok {
 						build_documentation(&ast_context, &resolved, false)
 						resolved.name = ident.name
 
@@ -332,7 +424,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 
 
-						hover.contents = write_hover_content(&ast_context, resolved)
+						hover.contents = write_hover_content(&ast_context, resolved, config)
 						return hover, true, true
 					}
 				}
@@ -346,26 +438,26 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						signature = get_enum_field_signature(v, i),
 						type      = .Field,
 					}
-					hover.contents = write_hover_content(&ast_context, symbol)
+					hover.contents = write_hover_content(&ast_context, symbol, config)
 					return hover, true, true
 				}
 			}
 		case SymbolSliceValue:
-			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field, config)
 		case SymbolDynamicArrayValue:
 			if field == "allocator" {
 				if symbol, ok := resolve_container_allocator(&ast_context, "Raw_Dynamic_Array"); ok {
-					hover.contents = write_hover_content(&ast_context, symbol)
+					hover.contents = write_hover_content(&ast_context, symbol, config)
 					return hover, true, true
 				}
 			}
-			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, nil, field, config)
 		case SymbolFixedArrayValue:
-			return get_soa_field_hover(&ast_context, selector, v.expr, v.len, field)
+			return get_soa_field_hover(&ast_context, selector, v.expr, v.len, field, config)
 		case SymbolMapValue:
 			if field == "allocator" {
 				if symbol, ok := resolve_container_allocator(&ast_context, "Raw_Map"); ok {
-					hover.contents = write_hover_content(&ast_context, symbol)
+					hover.contents = write_hover_content(&ast_context, symbol, config)
 					return hover, true, true
 				}
 			}
@@ -379,7 +471,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 				for name, i in v.names {
 					if strings.compare(name, implicit_selector.field.name) == 0 {
 						construct_enum_field_symbol(&symbol, v, i)
-						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.contents = write_hover_content(&ast_context, symbol, config)
 						return hover, true, true
 					}
 				}
@@ -390,7 +482,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					for name, i in v.names {
 						if strings.compare(name, implicit_selector.field.name) == 0 {
 							construct_enum_field_symbol(&enum_symbol, v, i)
-							hover.contents = write_hover_content(&ast_context, enum_symbol)
+							hover.contents = write_hover_content(&ast_context, enum_symbol, config)
 							return hover, true, true
 						}
 					}
@@ -401,7 +493,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						for name, i in v.names {
 							if strings.compare(name, implicit_selector.field.name) == 0 {
 								construct_enum_field_symbol(&enum_symbol, v, i)
-								hover.contents = write_hover_content(&ast_context, enum_symbol)
+								hover.contents = write_hover_content(&ast_context, enum_symbol, config)
 								return hover, true, true
 							}
 						}
@@ -436,7 +528,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			construct_ident_symbol_info(&resolved, ident.name, ast_context.document_package)
 
 			build_documentation(&ast_context, &resolved, false)
-			hover.contents = write_hover_content(&ast_context, resolved)
+			hover.contents = write_hover_content(&ast_context, resolved, config)
 			return hover, true, true
 		}
 	}
@@ -451,6 +543,7 @@ get_soa_field_hover :: proc(
 	expr: ^ast.Expr,
 	size: ^ast.Expr,
 	field: string,
+	config: ^common.Config,
 ) -> (
 	Hover,
 	bool,
@@ -466,7 +559,7 @@ get_soa_field_hover :: proc(
 		symbol.name = field
 		build_documentation(ast_context, &symbol, false)
 		hover: Hover
-		hover.contents = write_hover_content(ast_context, symbol)
+		hover.contents = write_hover_content(ast_context, symbol, config)
 		return hover, true, true
 	}
 	return {}, false, true

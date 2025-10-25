@@ -326,7 +326,7 @@ convert_completion_results :: proc(
 		build_documentation(ast_context, &result.symbol, true)
 		item := CompletionItem {
 			label         = result.symbol.name,
-			documentation = write_hover_content(ast_context, result.symbol),
+			documentation = write_hover_content(ast_context, result.symbol, config),
 			sortText      = fmt.tprintf("%05d", i),
 		}
 
