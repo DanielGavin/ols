@@ -2287,12 +2287,29 @@ resolve_implicit_selector_comp_literal :: proc(
 
 			return resolve_type_expression(ast_context, type)
 		case SymbolFixedArrayValue:
-			//This will be a comp_lit for an enumerated array
-			//EnumIndexedArray :: [TestEnum]u32 {
-			//	.valueOne = 1,
-			//	.valueTwo = 2,
-			//}
-			return resolve_type_expression(ast_context, v.len)
+			if position_in_node(v.len, position_context.position) {
+				return resolve_type_expression(ast_context, v.len)
+			} else if position_in_node(v.expr, position_context.position) {
+				return resolve_type_expression(ast_context, v.expr)
+			}
+			if _, _, ok := unwrap_enum(ast_context, v.len); ok {
+				for elem in comp_lit.elems {
+					if position_in_node(elem, position_context.position) {
+						if field, ok := elem.derived.(^ast.Field_Value); ok {
+							if position_in_node(field.field, position_context.position) {
+								return resolve_type_expression(ast_context, v.len)
+							}
+							return resolve_type_expression(ast_context, v.expr)
+						}
+						return resolve_type_expression(ast_context, v.len)
+					}
+				}
+			}
+			return resolve_type_expression(ast_context, v.expr)
+		case SymbolSliceValue:
+			return resolve_type_expression(ast_context, v.expr)
+		case SymbolDynamicArrayValue:
+			return resolve_type_expression(ast_context, v.expr)
 		case SymbolMapValue:
 			for elem in comp_lit.elems {
 				if position_in_node(elem, position_context.position) {
