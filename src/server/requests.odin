@@ -539,34 +539,29 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	log.infof("resolved odin root to: %q", odin_core_env)
 
-	if "core" not_in config.collections && odin_core_env != "" {
+	if odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
-		config.collections[strings.clone("core")] = path.join(
-			elems = {forward_path, "core"},
-			allocator = context.allocator,
-		)
-	}
 
-	if "vendor" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
-		config.collections[strings.clone("vendor")] = path.join(
-			elems = {forward_path, "vendor"},
-			allocator = context.allocator,
-		)
-	}
-
-	if "base" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
+		// base
 		config.collections[strings.clone("base")] = path.join(
 			elems = {forward_path, "base"},
 			allocator = context.allocator,
 		)
-	}
 
-	if "shared" not_in config.collections && odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
+		// core
+		config.collections[strings.clone("core")] = path.join(
+			elems = {forward_path, "core"},
+			allocator = context.allocator,
+		)
+
+		// vendor
+		config.collections[strings.clone("vendor")] = path.join(
+			elems = {forward_path, "vendor"},
+			allocator = context.allocator,
+		)
+
+		// shared
 		shared_path := path.join(elems = {forward_path, "shared"}, allocator = context.allocator)
-
 		if os.exists(shared_path) {
 			config.collections[strings.clone("shared")] = shared_path
 		} else {
