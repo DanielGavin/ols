@@ -5312,6 +5312,16 @@ ast_hover_proc_return_with_enum :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc() -> enum{A, B}")
 }
+
+@(test)
+ast_hover_proc_arg_generic_bit_set :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo :: proc($T: typeid/bit_set[$F; $E]) {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc($T: typeid/bit_set[$F; $E])")
+}
 /*
 
 Waiting for odin fix
