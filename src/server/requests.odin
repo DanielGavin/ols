@@ -444,15 +444,16 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
-	// Delete old keys.
+	// Delete old collections.
 	{
 		old_keys := make([dynamic]string)
 		defer delete(old_keys)
-		for k, v in common.config.collections {
+		for k, v in config.collections {
 			append(&old_keys, k)
 		}
 		for k in old_keys {
-			delete_key(&common.config.collections, k)
+			delete(config.collections[k])
+			delete_key(&config.collections, k)
 			delete(k)
 		}
 	}
