@@ -1296,8 +1296,11 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		strings.write_string(builder, "bit_set")
 		strings.write_string(builder, "[")
 		build_string(n.elem, builder, remove_pointers)
+		if n.underlying != nil {
+			strings.write_string(builder, "; ")
+			build_string(n.underlying, builder, remove_pointers)
+		}
 		strings.write_string(builder, "]")
-		build_string(n.underlying, builder, remove_pointers)
 	case ^Map_Type:
 		strings.write_string(builder, "map")
 		strings.write_string(builder, "[")
