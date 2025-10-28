@@ -444,13 +444,20 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
+	// Delete old keys.
+	{
+		old_keys := make([dynamic]string)
+		defer delete(old_keys)
+		for k, v in common.config.collections {
+			append(&old_keys, k)
+		}
+		for k in old_keys {
+			delete_key(&common.config.collections, k)
+			delete(k)
+		}
+	}
 
 	for it in ols_config.collections {
-		if it.name in config.collections {
-			delete(config.collections[it.name])
-			delete_key(&config.collections, it.name)
-		}
-
 		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
 
 		forward_path = common.resolve_home_dir(forward_path, context.temp_allocator)
