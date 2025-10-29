@@ -445,6 +445,10 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 				strings.write_string(sb, "bool")
 			case .Integer:
 				strings.write_string(sb, "int")
+			case .Complex:
+				strings.write_string(sb, "complex")
+			case .Quaternion:
+				strings.write_string(sb, "quaternion")
 			}
 			return
 		}

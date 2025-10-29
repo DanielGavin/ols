@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import test "src:testing"
@@ -5321,6 +5320,32 @@ ast_hover_proc_arg_generic_bit_set :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.foo :: proc($T: typeid/bit_set[$F; $E])")
+}
+
+@(test)
+ast_hover_complex_number_literal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			f{*}oo := 1 + 1i
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: complex")
+}
+
+@(test)
+ast_hover_quaternion_literal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			f{*}oo := 1 + 2i + 3j + 4k
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: quaternion")
 }
 /*
 
