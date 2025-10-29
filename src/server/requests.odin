@@ -676,7 +676,7 @@ request_initialize :: proc(
 	}
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		// Apply the default ols config.
+		// Apply the requested ols config.
 		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 
 		// Apply the global ols config.
