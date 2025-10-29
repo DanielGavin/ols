@@ -138,6 +138,8 @@ SymbolBitSetValue :: struct {
 SymbolUntypedValueType :: enum {
 	Integer,
 	Float,
+	Complex,
+	Quaternion,
 	String,
 	Bool,
 }

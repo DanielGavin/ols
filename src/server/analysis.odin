@@ -302,14 +302,16 @@ resolve_type_comp_literal :: proc(
 
 // odinfmt: disable
 untyped_map: [SymbolUntypedValueType][]string = {
-	.Integer = {
+	.Integer    = {
 		"int", "uint", "u8", "i8", "u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128", "byte",
 		"i16le", "i16be", "i32le", "i32be", "i64le", "i64be", "i128le", "i128be",
 		"u16le", "u16be", "u32le", "u32be", "u64le", "u64be", "u128le", "u128be",
 	},
-	.Bool    = {"bool", "b8", "b16", "b32", "b64"},
-	.Float   = {"f16", "f32", "f64", "f16le", "f16be", "f32le", "f32be", "f64le", "f64be"},
-	.String  = {"string", "cstring"},
+	.Bool       = {"bool", "b8", "b16", "b32", "b64"},
+	.Float      = {"f16", "f32", "f64", "f16le", "f16be", "f32le", "f32be", "f64le", "f64be"},
+	.String     = {"string", "cstring"},
+	.Complex    = {"complex32", "complex64", "complex128"},
+	.Quaternion = {"quaternion64", "quaternion128", "quaternion256"},
 }
 // odinfmt: enable
 
@@ -953,14 +955,27 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		return {}, false
 	}
 
-	if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+	#partial switch basic_lit.tok.kind {
+	case .Integer:
 		value.type = .Integer
-	} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
-		value.type = .Bool
-	} else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
+	case .Float:
 		value.type = .Float
-	} else {
-		value.type = .String
+	case .Imag:
+		if v, ok := strconv.parse_complex64(basic_lit.tok.text); ok {
+			value.type = .Complex
+		} else {
+			value.type = .Quaternion
+		}
+	case:
+		if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
+			value.type = .Integer
+		} else if v, ok := strconv.parse_bool(basic_lit.tok.text); ok {
+			value.type = .Bool
+		} else if v, ok := strconv.parse_f64(basic_lit.tok.text); ok {
+			value.type = .Float
+		} else {
+			value.type = .String
+		}
 	}
 
 	symbol.pkg = ast_context.current_package
