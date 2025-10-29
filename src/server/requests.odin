@@ -542,8 +542,10 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 				}
 			}
 
-			if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
-				odin_core_env = abs_core_env
+			if odin_core_env != "" {
+				if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
+					odin_core_env = abs_core_env
+				}
 			}
 		}
 	}
@@ -676,15 +678,15 @@ request_initialize :: proc(
 	}
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		// Apply the requested ols config.
-		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
-
 		// Apply the global ols config.
 		global_ols_config_path := path.join(
 			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
 			allocator = context.temp_allocator,
 		)
 		read_ols_config(global_ols_config_path, config, uri)
+
+		// Apply the requested ols config.
+		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
