@@ -444,20 +444,24 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 
-	// Delete old collections.
-	{
-		old_keys := make([dynamic]string)
-		defer delete(old_keys)
+	// Delete overriding collections.
+	for it in ols_config.collections {
+		overrides := make([dynamic]string)
+		defer delete(overrides)
 		for k, v in config.collections {
-			append(&old_keys, k)
+			if it.name == k {
+				append(&overrides, k)
+				log.errorf("Delete %s", k)
+			}
 		}
-		for k in old_keys {
+		for k in overrides {
 			delete(config.collections[k])
 			delete_key(&config.collections, k)
 			delete(k)
 		}
 	}
 
+	// Apply custom collections.
 	for it in ols_config.collections {
 		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
 
@@ -547,33 +551,42 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	log.infof("resolved odin root to: %q", odin_core_env)
 
+	// Insert the default collections if they are not specified in the config.
 	if odin_core_env != "" {
 		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
 
 		// base
-		config.collections[strings.clone("base")] = path.join(
-			elems = {forward_path, "base"},
-			allocator = context.allocator,
-		)
+		if "base" not_in config.collections {
+			config.collections[strings.clone("base")] = path.join(
+				elems = {forward_path, "base"},
+				allocator = context.allocator,
+			)
+		}
 
 		// core
-		config.collections[strings.clone("core")] = path.join(
-			elems = {forward_path, "core"},
-			allocator = context.allocator,
-		)
+		if "core" not_in config.collections {
+			config.collections[strings.clone("core")] = path.join(
+				elems = {forward_path, "core"},
+				allocator = context.allocator,
+			)
+		}
 
 		// vendor
-		config.collections[strings.clone("vendor")] = path.join(
-			elems = {forward_path, "vendor"},
-			allocator = context.allocator,
-		)
+		if "vendor" not_in config.collections {
+			config.collections[strings.clone("vendor")] = path.join(
+				elems = {forward_path, "vendor"},
+				allocator = context.allocator,
+			)
+		}
 
 		// shared
-		shared_path := path.join(elems = {forward_path, "shared"}, allocator = context.allocator)
-		if os.exists(shared_path) {
-			config.collections[strings.clone("shared")] = shared_path
-		} else {
-			delete(shared_path)
+		if "shared" not_in config.collections {
+			shared_path := path.join(elems = {forward_path, "shared"}, allocator = context.allocator)
+			if os.exists(shared_path) {
+				config.collections[strings.clone("shared")] = shared_path
+			} else {
+				delete(shared_path)
+			}
 		}
 	}
 
@@ -664,22 +677,22 @@ request_initialize :: proc(
 	}
 
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		// Apply the default ols config.
+		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+
+		// Apply the global ols config.
 		global_ols_config_path := path.join(
 			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
 			allocator = context.temp_allocator,
 		)
-
 		read_ols_config(global_ols_config_path, config, uri)
 
+		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
-
 		read_ols_config(ols_config_path, config, uri)
-
-		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 	} else {
 		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
 	}
-
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
