@@ -451,7 +451,6 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		for k, v in config.collections {
 			if it.name == k {
 				append(&overrides, k)
-				log.errorf("Delete %s", k)
 			}
 		}
 		for k in overrides {
