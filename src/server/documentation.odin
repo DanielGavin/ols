@@ -438,7 +438,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if .Mutable in symbol.flags || symbol.type == .Field {
 			switch v.type {
 			case .Float:
-				strings.write_string(sb, "float")
+				strings.write_string(sb, "f64")
 			case .String:
 				strings.write_string(sb, "string")
 			case .Bool:
@@ -446,9 +446,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 			case .Integer:
 				strings.write_string(sb, "int")
 			case .Complex:
-				strings.write_string(sb, "complex")
+				strings.write_string(sb, "complex128")
 			case .Quaternion:
-				strings.write_string(sb, "quaternion")
+				strings.write_string(sb, "quaternion256")
 			}
 			return
 		}
