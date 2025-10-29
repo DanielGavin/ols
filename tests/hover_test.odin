@@ -4506,7 +4506,7 @@ ast_hover_float_binary_expr :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.bar: float")
+	test.expect_hover(t, &source, "test.bar: f64")
 }
 
 @(test)
@@ -5332,7 +5332,7 @@ ast_hover_complex_number_literal :: proc(t: ^testing.T) {
 
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo: complex")
+	test.expect_hover(t, &source, "test.foo: complex128")
 }
 
 @(test)
@@ -5345,7 +5345,7 @@ ast_hover_quaternion_literal :: proc(t: ^testing.T) {
 
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo: quaternion")
+	test.expect_hover(t, &source, "test.foo: quaternion256")
 }
 /*
 
