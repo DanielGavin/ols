@@ -5347,6 +5347,27 @@ ast_hover_quaternion_literal :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: quaternion256")
 }
+
+@(test)
+ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+		// Docs!
+		bar :: proc(_: $T) {} // Comment!
+		`})
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			my_package.ba{*}r("test")
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)\n Docs!\n\n// Comment!")
+}
 /*
 
 Waiting for odin fix

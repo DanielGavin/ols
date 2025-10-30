@@ -2,8 +2,6 @@ package server
 
 import "src:common"
 
-import "core:fmt"
-import "core:log"
 import "core:mem/virtual"
 import "core:os"
 import "core:path/filepath"

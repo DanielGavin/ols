@@ -1,19 +1,9 @@
 package server
 
-import "core:fmt"
-import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:reflect"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
 import "core:strings"
-import "core:unicode/utf8"
 
 import "src:common"
 
@@ -487,7 +477,14 @@ resolve_generic_function :: proc {
 	resolve_generic_function_symbol,
 }
 
-resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
+resolve_generic_function_ast :: proc(
+	ast_context: ^AstContext,
+	proc_lit: ast.Proc_Lit,
+	proc_symbol: Symbol,
+) -> (
+	Symbol,
+	bool,
+) {
 	if ast_context.call == nil {
 		return Symbol{}, false
 	}
@@ -502,7 +499,9 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 		results = proc_lit.type.results.list
 	}
 
-	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining)
+	range := common.get_token_range(proc_lit, ast_context.file.src)
+	uri := common.create_uri(proc_lit.pos.file, ast_context.allocator).uri
+	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining, proc_symbol)
 }
 
 
@@ -511,6 +510,7 @@ resolve_generic_function_symbol :: proc(
 	params: []^ast.Field,
 	results: []^ast.Field,
 	inlining: ast.Proc_Inlining,
+	proc_symbol: Symbol,
 ) -> (
 	Symbol,
 	bool,
@@ -606,27 +606,13 @@ resolve_generic_function_symbol :: proc(
 	}
 
 	function_name := ""
-	function_range: common.Range
-	function_uri := ""
 
 	if ident, ok := call_expr.expr.derived.(^ast.Ident); ok {
 		function_name = ident.name
-		function_range = common.get_token_range(ident, ast_context.file.src)
-		function_uri = common.create_uri(ident.pos.file, ast_context.allocator).uri
 	} else if selector, ok := call_expr.expr.derived.(^ast.Selector_Expr); ok {
 		function_name = selector.field.name
-		function_range = common.get_token_range(selector, ast_context.file.src)
-		function_uri = common.create_uri(selector.field.pos.file, ast_context.allocator).uri
 	} else {
 		return {}, false
-	}
-
-	symbol := Symbol {
-		range = function_range,
-		type  = .Function,
-		name  = function_name,
-		pkg   = ast_context.current_package,
-		uri   = function_uri,
 	}
 
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
@@ -682,6 +668,7 @@ resolve_generic_function_symbol :: proc(
 	}
 
 
+	symbol := proc_symbol
 	symbol.value = SymbolProcedureValue {
 		return_types      = return_types[:],
 		arg_types         = argument_types[:],
