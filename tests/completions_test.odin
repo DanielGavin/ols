@@ -4889,3 +4889,39 @@ ast_completion_cast_rawptr_selector :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.bar: bool"})
 }
+
+@(test)
+ast_completion_local_when_condition :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			when true {
+				foo : i32 = 5
+			} else {
+				foo : i64 = 6
+			}
+			fo{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.foo: i32"})
+}
+
+@(test)
+ast_completion_local_when_condition_false :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			when false {
+				foo : i32 = 5
+			} else {
+				foo : i64 = 6
+			}
+			fo{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.foo: i64"})
+}

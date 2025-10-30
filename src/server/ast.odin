@@ -476,10 +476,15 @@ collect_when_stmt :: proc(
 	if when_decl.body == nil {
 		return
 	}
+	if stmt, ok := get_when_block_stmt(when_decl); ok {
+		collect_when_body(exprs, file, file_tags, stmt)
+	}
+}
 
+get_when_block_stmt :: proc(when_decl: ^ast.When_Stmt) -> (^ast.Block_Stmt, bool) {
 	if resolve_when_condition(when_decl.cond) {
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-			collect_when_body(exprs, file, file_tags, block)
+			return block, true
 		}
 	} else {
 		else_stmt := when_decl.else_stmt
@@ -488,19 +493,18 @@ collect_when_stmt :: proc(
 			if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
 				if resolve_when_condition(else_when.cond) {
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
-						collect_when_body(exprs, file, file_tags, block)
+						return block, true
 					}
-					return
 				}
 				else_stmt = else_when.else_stmt
 			} else {
 				if block, ok := else_stmt.derived.(^ast.Block_Stmt); ok {
-					collect_when_body(exprs, file, file_tags, block)
+					return block, true
 				}
-				return
 			}
 		}
 	}
+	return nil, false
 }
 
 collect_when_body :: proc(

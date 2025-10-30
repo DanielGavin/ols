@@ -438,8 +438,9 @@ get_locals_stmt :: proc(
 	case ^Using_Stmt:
 		get_locals_using_stmt(v^, ast_context)
 	case ^When_Stmt:
-		get_locals_stmt(file, v.else_stmt, ast_context, document_position)
-		get_locals_stmt(file, v.body, ast_context, document_position)
+		if stmt, ok := get_when_block_stmt(v); ok {
+			get_locals_block_stmt(file, stmt^, ast_context, document_position, true)
+		}
 	case ^Case_Clause:
 		get_locals_case_clause(file, v, ast_context, document_position)
 	case ^ast.Defer_Stmt:
@@ -470,6 +471,7 @@ get_locals_block_stmt :: proc(
 	block: ast.Block_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
+	skip_position_check := false,
 ) {
 	/*
 	   We need to handle blocks for non mutable and mutable: non mutable has no order for their value declarations, except for nested blocks where they are hidden by scope
@@ -491,14 +493,16 @@ get_locals_block_stmt :: proc(
 	   } <-- document_position.position
 	*/
 
-	if ast_context.non_mutable_only {
-		if !(block.pos.offset <= document_position.nested_position &&
-			   document_position.nested_position <= block.end.offset) {
-			return
-		}
-	} else {
-		if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
-			return
+	if !skip_position_check {
+		if ast_context.non_mutable_only {
+			if !(block.pos.offset <= document_position.nested_position &&
+			document_position.nested_position <= block.end.offset) {
+				return
+			}
+		} else {
+			if !(block.pos.offset <= document_position.position && document_position.position <= block.end.offset) {
+				return
+			}
 		}
 	}
 
