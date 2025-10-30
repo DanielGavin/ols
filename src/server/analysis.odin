@@ -1852,6 +1852,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	}
 
 	return_symbol.flags |= {.Local}
+	return_symbol.value_expr = local.value_expr
+	return_symbol.type_expr = local.type_expr
 
 	return return_symbol, ok
 }

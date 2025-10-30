@@ -1,6 +1,5 @@
 package server
 
-import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 
@@ -12,6 +11,8 @@ LocalFlag :: enum {
 DocumentLocal :: struct {
 	lhs:             ^ast.Expr,
 	rhs:             ^ast.Expr,
+	type_expr:       ^ast.Expr,
+	value_expr:      ^ast.Expr,
 	offset:          int,
 	resolved_global: bool, //Some locals have already been resolved and are now in global space
 	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
@@ -33,6 +34,8 @@ store_local :: proc(
 	flags: bit_set[LocalFlag],
 	pkg: string,
 	parameter: bool,
+	type_expr: ^ast.Expr = nil,
+	value_expr: ^ast.Expr = nil,
 ) {
 	local_group := get_local_group(ast_context)
 	local_stack := &local_group[name]
@@ -47,6 +50,8 @@ store_local :: proc(
 		DocumentLocal {
 			lhs = lhs,
 			rhs = rhs,
+			type_expr = type_expr,
+			value_expr = value_expr,
 			offset = offset,
 			resolved_global = resolved_global,
 			local_global = local_global,
@@ -309,7 +314,13 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			flags: bit_set[LocalFlag]
 			if value_decl.is_mutable {
 				flags |= {.Mutable}
-
+			}
+			value_expr: ^ast.Expr
+			if len(value_decl.values) > i {
+				if is_variable_declaration(value_decl.values[i]) {
+				flags |= {.Variable}
+					value_expr = value_decl.values[i]
+				}
 			}
 			store_local(
 				ast_context,
@@ -322,6 +333,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 				flags,
 				"",
 				false,
+				value_decl.type,
+				value_expr,
 			)
 		}
 		return
@@ -350,8 +363,12 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		flags: bit_set[LocalFlag]
 
 		expr := results[result_i]
+		value_expr: ^ast.Expr
 		if is_variable_declaration(expr) {
 			flags |= {.Variable}
+			if len(value_decl.values) > i {
+				value_expr = value_decl.values[i]
+			}
 		}
 		if value_decl.is_mutable {
 			flags |= {.Mutable}
@@ -368,6 +385,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			flags,
 			get_package_from_node(results[result_i]^),
 			false,
+			value_decl.type,
+			value_expr,
 		)
 	}
 }
@@ -502,7 +521,18 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, {.Mutable}, "", false)
+				store_local(
+					ast_context,
+					expr,
+					selector,
+					0,
+					name,
+					false,
+					ast_context.non_mutable_only,
+					{.Mutable},
+					"",
+					false,
+				)
 			}
 		case SymbolBitFieldValue:
 			for name, i in v.names {
@@ -510,7 +540,18 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 				selector.expr = expr
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
-				store_local(ast_context, expr, selector, 0, name, false, ast_context.non_mutable_only, {.Mutable}, "", false)
+				store_local(
+					ast_context,
+					expr,
+					selector,
+					0,
+					name,
+					false,
+					ast_context.non_mutable_only,
+					{.Mutable},
+					"",
+					false,
+				)
 			}
 		}
 	}

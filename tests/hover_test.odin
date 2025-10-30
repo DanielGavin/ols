@@ -2930,7 +2930,7 @@ ast_hover_builtin_max_mix_const :: proc(t: ^testing.T) {
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.m :: 4.6")
+	test.expect_hover(t, &source, "test.m :: max(1, 2.0, 3, 4.6)")
 }
 
 @(test)
@@ -5367,6 +5367,32 @@ ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)\n Docs!\n\n// Comment!")
+}
+
+@(test)
+ast_hover_local_const_binary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			f{*}oo :: 1 + 2
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: 1 + 2")
+}
+
+@(test)
+ast_hover_local_const_binary_expr_with_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			f{*}oo : i32 : 1 + 2
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo : i32 : 1 + 2")
 }
 /*
 
