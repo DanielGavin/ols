@@ -4846,3 +4846,23 @@ ast_completion_fixed_array_enum :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
 }
+
+@(test)
+ast_completion_proc_enum_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		bar :: proc(foo := Foo.A) {}
+
+		main :: proc() {
+			bar(.{*})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+}
