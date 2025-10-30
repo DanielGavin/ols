@@ -1180,9 +1180,13 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^, ok = resolve_basic_lit(ast_context, v^)
 		return ok
 	case ^Type_Cast:
-		return internal_resolve_type_expression(ast_context, v.type, out)
+		ok = internal_resolve_type_expression(ast_context, v.type, out)
+		out.type = .Variable
+		return ok
 	case ^Auto_Cast:
-		return internal_resolve_type_expression(ast_context, v.expr, out)
+		ok = internal_resolve_type_expression(ast_context, v.expr, out)
+		out.type = .Variable
+		return ok
 	case ^Comp_Lit:
 		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Unary_Expr:

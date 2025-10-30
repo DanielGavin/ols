@@ -4866,3 +4866,26 @@ ast_completion_proc_enum_default_value :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
 }
+
+@(test)
+ast_completion_cast_rawptr_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+			bar: bool,
+		}
+
+		Baz :: struct {
+			foo: Foo,
+		}
+
+		main :: proc() {
+			baz: Baz
+			baz_ptr := &baz
+			foo_ptr := (cast(^Foo)rawptr(baz_ptr)).{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: bool"})
+}
