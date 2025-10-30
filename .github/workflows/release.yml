@@ -45,7 +45,7 @@ jobs:
         path: ./dist
 
   dist-x86_64-darwin:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v1
