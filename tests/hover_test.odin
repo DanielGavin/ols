@@ -5354,7 +5354,7 @@ ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
 
 	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 		// Docs!
-		bar :: proc(_: $T) {}
+		bar :: proc(_: $T) {} // Comment!
 		`})
 	source := test.Source {
 		main = `package test
@@ -5366,7 +5366,7 @@ ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)")
+	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)\n Docs!\n\n// Comment!")
 }
 /*
 

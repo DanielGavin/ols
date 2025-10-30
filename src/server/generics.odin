@@ -1,19 +1,9 @@
 package server
 
-import "core:fmt"
-import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:reflect"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
 import "core:strings"
-import "core:unicode/utf8"
 
 import "src:common"
 
@@ -487,7 +477,14 @@ resolve_generic_function :: proc {
 	resolve_generic_function_symbol,
 }
 
-resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Proc_Lit) -> (Symbol, bool) {
+resolve_generic_function_ast :: proc(
+	ast_context: ^AstContext,
+	proc_lit: ast.Proc_Lit,
+	proc_symbol: Symbol,
+) -> (
+	Symbol,
+	bool,
+) {
 	if ast_context.call == nil {
 		return Symbol{}, false
 	}
@@ -504,7 +501,7 @@ resolve_generic_function_ast :: proc(ast_context: ^AstContext, proc_lit: ast.Pro
 
 	range := common.get_token_range(proc_lit, ast_context.file.src)
 	uri := common.create_uri(proc_lit.pos.file, ast_context.allocator).uri
-	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining, range, uri)
+	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining, proc_symbol)
 }
 
 
@@ -513,8 +510,7 @@ resolve_generic_function_symbol :: proc(
 	params: []^ast.Field,
 	results: []^ast.Field,
 	inlining: ast.Proc_Inlining,
-	proc_range: common.Range,
-	proc_uri: string,
+	proc_symbol: Symbol,
 ) -> (
 	Symbol,
 	bool,
@@ -619,14 +615,6 @@ resolve_generic_function_symbol :: proc(
 		return {}, false
 	}
 
-	symbol := Symbol {
-		range = proc_range,
-		type  = .Function,
-		name  = function_name,
-		uri   = proc_uri,
-		pkg   = get_package_from_filepath(proc_uri),
-	}
-
 	return_types := make([dynamic]^ast.Field, ast_context.allocator)
 	argument_types := make([dynamic]^ast.Field, ast_context.allocator)
 
@@ -680,6 +668,7 @@ resolve_generic_function_symbol :: proc(
 	}
 
 
+	symbol := proc_symbol
 	symbol.value = SymbolProcedureValue {
 		return_types      = return_types[:],
 		arg_types         = argument_types[:],
