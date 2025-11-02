@@ -841,6 +841,15 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 	case SymbolStructValue:
 		type := new_type(ast.Struct_Type, pos, end, allocator)
 		return type
+	case SymbolEnumValue:
+		type := new_type(ast.Enum_Type, pos, end, allocator)
+		return type
+	case SymbolUnionValue:
+		type := new_type(ast.Union_Type, pos, end, allocator)
+		return type
+	case SymbolBitSetValue:
+		type := new_type(ast.Bit_Set_Type, pos, end, allocator)
+		return type
 	case SymbolUntypedValue:
 		type := new_type(ast.Basic_Lit, pos, end, allocator)
 		type.tok = v.tok

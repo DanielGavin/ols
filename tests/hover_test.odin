@@ -5408,6 +5408,91 @@ ast_hover_loop_over_enum :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
+
+@(test)
+ast_hover_parapoly_return_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {A, B, C}
+
+		get :: proc($T: typeid) -> T {}
+
+		main :: proc() {
+			f{*}oo := get(Foo)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
+
+@(test)
+ast_hover_parapoly_return_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {int}
+
+		get :: proc($T: typeid) -> T {}
+
+		main :: proc() {
+			f{*}oo := get(Foo)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
+
+@(test)
+ast_hover_parapoly_return_bit_set :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {int}
+
+		get :: proc($T: typeid) -> T {}
+
+		main :: proc() {
+			f{*}oo := get(Foo)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
+
+@(test)
+ast_hover_parapoly_return_slice :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: []int
+
+		get :: proc($T: typeid) -> T {}
+
+		main :: proc() {
+			f{*}oo := get(Foo)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: []int")
+}
+
+@(test)
+ast_hover_parapoly_return_dynamic_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: [dynamic]string
+
+		get :: proc($T: typeid) -> T {}
+
+		main :: proc() {
+			f{*}oo := get(Foo)
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: [dynamic]string")
+}
 /*
 
 Waiting for odin fix
