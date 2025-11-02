@@ -98,6 +98,8 @@ get_completion_list :: proc(
 				if !position_in_node(selector_call.call, position_context.position) {
 					completion_type = .Selector
 				}
+			} else if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
+				completion_type = .Selector
 			}
 		} else if _, ok := position_context.selector.derived.(^ast.Implicit_Selector_Expr); !ok {
 			// variadic args seem to work by setting it as an implicit selector expr, in that case
@@ -1017,22 +1019,17 @@ get_selector_completion :: proc(
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
-					if expr.op.text == "->" && symbol.type != .Function {
+					if expr.op.kind == .Arrow_Right {
+						if symbol.type != .Function && symbol.type != .Type_Function {
+							continue
+						}
+						if .ObjCIsClassMethod in symbol.flags {
+							assert(.ObjC in symbol.flags)
+							continue
+						}
+					} else if .ObjC in selector.flags {
 						continue
 					}
-				}
-
-				if position_context.arrow {
-					if symbol.type != .Function && symbol.type != .Type_Function {
-						continue
-					}
-					if .ObjCIsClassMethod in symbol.flags {
-						assert(.ObjC in symbol.flags)
-						continue
-					}
-				}
-				if !position_context.arrow && .ObjC in selector.flags {
-					continue
 				}
 
 				construct_struct_field_symbol(&symbol, selector.name, v, i)

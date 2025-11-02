@@ -1,6 +1,6 @@
 name: release
 env:
-  ODIN_BRANCH: dev-2025-10
+  ODIN_BRANCH: master
 
 on:
   workflow_dispatch:

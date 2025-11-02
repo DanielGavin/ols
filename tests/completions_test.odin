@@ -4925,3 +4925,29 @@ ast_completion_local_when_condition_false :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"test.foo: i64"})
 }
+
+@(test)
+ast_completion_selector_after_selector_call_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Data :: struct {
+			x, y: int,
+		}
+
+		IFoo :: struct {
+			bar: proc(self: IFoo, x: int),
+		}
+
+		print :: proc(self: IFoo, x: int) {}
+
+		main :: proc() {
+			data := Data{3, 4}
+			foo := IFoo {
+				bar = print,
+			}
+			foo->bar(data.{*})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Data.x: int", "Data.y: int"})
+}
