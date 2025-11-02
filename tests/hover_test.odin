@@ -5394,6 +5394,20 @@ ast_hover_local_const_binary_expr_with_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo : i32 : 1 + 2")
 }
+
+@(test)
+ast_hover_loop_over_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {A, B, C}
+		main :: proc() {
+			for f{*}oo in Foo {}
+		}
+
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
 /*
 
 Waiting for odin fix
