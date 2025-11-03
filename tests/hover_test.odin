@@ -5493,6 +5493,28 @@ ast_hover_parapoly_return_dynamic_array :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: [dynamic]string")
 }
+
+@(test)
+ast_hover_proc_overload_with_less_args :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {}
+
+		foo_out :: proc(input: int, out_struct: ^Foo) -> (ok: bool) {}
+		foo_helper :: proc(input: int) -> (out_struct: Foo, ok: bool) {}
+
+		foo :: proc {
+			foo_out,
+			foo_helper,
+		}
+
+		main :: proc() {
+			some, ok := f{*}oo(1)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc(input: int) -> (out_struct: Foo, ok: bool)")
+}
 /*
 
 Waiting for odin fix

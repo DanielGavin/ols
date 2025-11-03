@@ -734,6 +734,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 					if call_expr != nil && arg_count < len(call_expr.args) {
 						break next_fn
 					}
+					if arg_count == len(call_expr.args) {
+						candidate.score /= 2
+					}
 				}
 				for proc_arg in procedure.arg_types {
 					for name in proc_arg.names {
