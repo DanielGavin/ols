@@ -281,6 +281,9 @@ convert_completion_results :: proc(
 				}
 				item.detail = ""
 			}
+			if item.sortText == nil {
+				item.sortText = fmt.tprintf("%05d", i)
+			}
 			append(&items, item)
 			continue
 		}
