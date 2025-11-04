@@ -156,6 +156,8 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 			return
 		}
 
+		clear_diagnostics(.Check)
+
 		if len(buffer) == 0 {
 			continue
 		}
@@ -166,8 +168,6 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 		   res != nil {
 			log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer))
 		}
-
-		clear_diagnostics(.Check)
 
 		for error in json_errors.errors {
 			if len(error.msgs) == 0 {
