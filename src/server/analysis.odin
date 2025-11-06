@@ -2367,29 +2367,6 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
-	if position_context.index != nil {
-		symbol: Symbol
-		ok := false
-		if position_context.previous_index != nil {
-			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
-			if !ok {
-				return {}, false
-			}
-		} else {
-			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
-			if !ok {
-				return {}, false
-			}
-		}
-
-		#partial switch value in symbol.value {
-		case SymbolFixedArrayValue:
-			return resolve_type_expression(ast_context, value.len)
-		case SymbolMapValue:
-			return resolve_type_expression(ast_context, value.key)
-		}
-	}
-
 	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil {
 		if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 			return resolve_implicit_selector_comp_literal(ast_context, position_context, symbol)
@@ -2427,6 +2404,29 @@ resolve_implicit_selector :: proc(
 					}
 				}
 			}
+		}
+	}
+
+	if position_context.index != nil {
+		symbol: Symbol
+		ok := false
+		if position_context.previous_index != nil {
+			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
+			if !ok {
+				return {}, false
+			}
+		} else {
+			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
+			if !ok {
+				return {}, false
+			}
+		}
+
+		#partial switch value in symbol.value {
+		case SymbolFixedArrayValue:
+			return resolve_type_expression(ast_context, value.len)
+		case SymbolMapValue:
+			return resolve_type_expression(ast_context, value.key)
 		}
 	}
 

@@ -1,19 +1,8 @@
 package server
 
-import "core:fmt"
-import "core:log"
-import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:path/filepath"
-import path "core:path/slashpath"
-import "core:reflect"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
 import "core:strings"
-import "core:unicode/utf8"
 
 import "src:common"
 

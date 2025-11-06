@@ -1480,3 +1480,43 @@ ast_references_union_member_pointer :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_enum_with_enumerated_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: enum {
+		  A, B,
+		}
+
+		Bar :: enum {
+		  C, D,
+		}
+
+		Bazz :: struct {
+		  foobars: [Bar]Foo
+		}
+
+		main :: proc() {
+		  bazz: Bazz
+		  bar: Bar
+
+		  foo: Foo
+		  foo = .A{*}
+
+		  switch bazz.foobars[bar] {
+		  case .A:
+		  case .B:
+		  }
+		}
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 4}, end = {line = 3, character = 5}}},
+		{range = {start = {line = 19, character = 11}, end = {line = 19, character = 12}}},
+		{range = {start = {line = 22, character = 10}, end = {line = 22, character = 11}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
