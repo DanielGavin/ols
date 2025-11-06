@@ -4951,3 +4951,80 @@ ast_completion_selector_after_selector_call_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Data.x: int", "Data.y: int"})
 }
+
+@(test)
+ast_completion_empty_selector_before_label :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+		  bar: int,
+		}
+
+		main :: proc() {
+		  foo: Foo
+		  foo.{*}
+
+		  Label: {
+
+		  }
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int"})
+}
+
+@(test)
+ast_completion_empty_selector_if_init :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+		  bar: int,
+		}
+
+		main :: proc() {
+		  foo: Foo
+		  if bar := foo.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int"})
+}
+
+@(test)
+ast_completion_empty_selector_switch_init :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Bar :: enum {
+			A, B,
+		}
+
+		Foo :: struct {
+		  bar: Bar,
+		}
+
+		main :: proc() {
+		  foo: Foo
+		  switch bar := foo.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: test.Bar"})
+}
+
+@(test)
+ast_completion_empty_selector_for_init :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct {
+		  bars: [5]int,
+		}
+
+		main :: proc() {
+		  foo: Foo
+		  for bars := foo.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bars: [5]int"})
+}
