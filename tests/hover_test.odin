@@ -5541,6 +5541,21 @@ ast_hover_array_elem_local_scope :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: int")
 }
+
+@(test)
+ast_hover_array_of_array_type_x_elem_local_scope :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			Array :: [2]int
+			Array_2 :: [2]Array
+			array_2: Array_2
+			f{*}oo := array_2.x
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: [2]int")
+}
 /*
 
 Waiting for odin fix
