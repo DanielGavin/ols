@@ -1,5 +1,6 @@
 package server
 
+import "core:strings"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/parser"
@@ -139,6 +140,10 @@ get_document_position_context :: proc(
 		position_context.parent_binary = nil
 	}
 
+	if hint == .Completion && position_context.selector == nil && position_context.field == nil {
+		fallback_position_context_completion(document, position, &position_context)
+	}
+
 	if (hint == .SignatureHelp || hint == .Completion) && position_context.call == nil {
 		fallback_position_context_signature(document, position, &position_context)
 	}
@@ -148,6 +153,235 @@ get_document_position_context :: proc(
 	}
 
 	return position_context, true
+}
+
+//terrible fallback code
+fallback_position_context_completion :: proc(
+	document: ^Document,
+	position: common.Position,
+	position_context: ^DocumentPositionContext,
+) {
+	paren_count: int
+	bracket_count: int
+	end: int
+	start: int
+	empty_dot: bool
+	empty_arrow: bool
+	last_dot: bool
+	last_arrow: bool
+	dots_seen: int
+	partial_arrow: bool
+
+	i := position_context.position - 1
+
+	end = i
+
+	for i > 0 {
+		c := position_context.file.src[i]
+
+		if c == '(' && paren_count == 0 {
+			start = i + 1
+			break
+		} else if c == '[' && bracket_count == 0 {
+			start = i + 1
+			break
+		} else if c == ']' && !last_dot && !last_arrow {
+			start = i + 1
+			break
+		} else if c == ')' && !last_dot && !last_arrow {
+			start = i + 1
+			break
+		} else if c == ')' {
+			paren_count -= 1
+		} else if c == '(' {
+			paren_count += 1
+		} else if c == '[' {
+			bracket_count += 1
+		} else if c == ']' {
+			bracket_count -= 1
+		} else if c == '.' {
+			dots_seen += 1
+			last_dot = true
+			i -= 1
+			continue
+		} else if position_context.file.src[max(0, i - 1)] == '-' && c == '>' {
+			last_arrow = true
+			i -= 2
+			continue
+		}
+
+		//ignore everything in the bracket
+		if bracket_count != 0 || paren_count != 0 {
+			i -= 1
+			continue
+		}
+
+		//yeah..
+		if c == ' ' ||
+		   c == '{' ||
+		   c == ',' ||
+		   c == '}' ||
+		   c == '^' ||
+		   c == ':' ||
+		   c == '\n' ||
+		   c == '\r' ||
+		   c == '\t' ||
+		   c == '=' ||
+		   c == '<' ||
+		   c == '-' ||
+		   c == '!' ||
+		   c == '+' ||
+		   c == '&' ||
+		   c == '|' {
+			start = i + 1
+			break
+		} else if c == '>' {
+			partial_arrow = true
+		}
+
+		last_dot = false
+		last_arrow = false
+
+		i -= 1
+	}
+
+	if i >= 0 && position_context.file.src[end] == '.' {
+		empty_dot = true
+		end -= 1
+	} else if i >= 0 && position_context.file.src[max(0, end - 1)] == '-' && position_context.file.src[end] == '>' {
+		empty_arrow = true
+		end -= 2
+		position_context.arrow = true
+	}
+
+	begin_offset := max(0, start)
+	end_offset := max(start, end + 1)
+	line_offset := begin_offset
+
+	if line_offset < len(position_context.file.src) {
+		for line_offset > 0 {
+			c := position_context.file.src[line_offset]
+			if c == '\n' || c == '\r' {
+				line_offset += 1
+				break
+			}
+			line_offset -= 1
+		}
+	}
+
+	str := position_context.file.src[0:end_offset]
+
+	if empty_dot && end_offset - begin_offset == 0 {
+		position_context.implicit = true
+		return
+	}
+
+	s := string(position_context.file.src[begin_offset:end_offset])
+
+	if !partial_arrow {
+		only_whitespaces := true
+
+		for r in s {
+			if !strings.is_space(r) {
+				only_whitespaces = false
+			}
+		}
+
+		if only_whitespaces {
+			return
+		}
+	}
+
+	p := parser.Parser {
+		err   = common.parser_warning_handler, //empty
+		warn  = common.parser_warning_handler, //empty
+		flags = {.Optional_Semicolons},
+		file  = &position_context.file,
+	}
+
+	tokenizer.init(&p.tok, str, position_context.file.fullpath, common.parser_warning_handler)
+
+	p.tok.ch = ' '
+	p.tok.line_count = position.line + 1
+	p.tok.line_offset = line_offset
+	p.tok.offset = begin_offset
+	p.tok.read_offset = begin_offset
+
+	tokenizer.advance_rune(&p.tok)
+
+	if p.tok.ch == utf8.RUNE_BOM {
+		tokenizer.advance_rune(&p.tok)
+	}
+
+	parser.advance_token(&p)
+
+	context.allocator = context.temp_allocator
+
+	e := parser.parse_expr(&p, true)
+
+	if empty_dot || empty_arrow {
+		position_context.selector = e
+	} else if s, ok := e.derived.(^ast.Selector_Expr); ok {
+		position_context.selector = s.expr
+		position_context.field = s.field
+	} else if s, ok := e.derived.(^ast.Implicit_Selector_Expr); ok {
+		position_context.implicit = true
+		position_context.implicit_selector_expr = s
+	} else if s, ok := e.derived.(^ast.Tag_Expr); ok {
+		position_context.tag = s.expr
+	} else if bad_expr, ok := e.derived.(^ast.Bad_Expr); ok {
+		//this is most likely because of use of 'in', 'context', etc.
+		//try to go back one dot.
+
+		src_with_dot := string(position_context.file.src[0:min(len(position_context.file.src), end_offset + 1)])
+		last_dot := strings.last_index(src_with_dot, ".")
+
+		if last_dot == -1 {
+			return
+		}
+
+		tokenizer.init(
+			&p.tok,
+			position_context.file.src[0:last_dot],
+			position_context.file.fullpath,
+			common.parser_warning_handler,
+		)
+
+		p.tok.ch = ' '
+		p.tok.line_count = position.line + 1
+		p.tok.line_offset = line_offset
+		p.tok.offset = begin_offset
+		p.tok.read_offset = begin_offset
+
+		tokenizer.advance_rune(&p.tok)
+
+		if p.tok.ch == utf8.RUNE_BOM {
+			tokenizer.advance_rune(&p.tok)
+		}
+
+		parser.advance_token(&p)
+
+		e := parser.parse_expr(&p, true)
+
+		if e == nil {
+			position_context.abort_completion = true
+			return
+		} else if e, ok := e.derived.(^ast.Bad_Expr); ok {
+			position_context.abort_completion = true
+			return
+		}
+
+		position_context.selector = e
+
+		ident := new_type(ast.Ident, e.pos, e.end, context.temp_allocator)
+		ident.name = string(position_context.file.src[last_dot + 1:end_offset])
+
+		if ident.name != "" {
+			position_context.field = ident
+		}
+	} else {
+		position_context.identifier = e
+	}
 }
 
 fallback_position_context_signature :: proc(
