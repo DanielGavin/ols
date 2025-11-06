@@ -317,6 +317,16 @@ get_document_position_label :: proc(label: ^ast.Expr, position_context: ^Documen
 
 	if ident, ok := label.derived.(^ast.Ident); ok {
 		position_context.label = ident
+	} else if selector, ok := label.derived.(^ast.Selector_Expr); ok {
+		if (position_context.hint == .Definition ||
+			   position_context.hint == .Hover ||
+			   position_context.hint == .TypeDefinition ||
+			   position_context.hint == .Completion) &&
+		   selector.field != nil {
+			position_context.selector = selector.expr
+			position_context.field = selector.field
+			position_context.selector_expr = label
+		}
 	}
 }
 
@@ -328,6 +338,25 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	}
 
 	if !position_in_node(node, position_context.position) {
+		// Labels are defined outside of position of the statements themselves
+		#partial switch n in node.derived {
+		case ^Block_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.For_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.If_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.Range_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.Switch_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.Type_Switch_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.Branch_Stmt:
+			get_document_position_label(n.label, position_context)
+		case ^ast.Or_Branch_Expr:
+			get_document_position_label(n.label, position_context)
+		}
 		return
 	}
 

@@ -4951,3 +4951,24 @@ ast_completion_selector_after_selector_call_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Data.x: int", "Data.y: int"})
 }
+
+@(test)
+ast_completion_selector_before_label :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+		  bar: int,
+		}
+
+		main :: proc() {
+		  foo: Foo
+		  foo.{*}
+
+		  Label: {
+
+		  }
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int"})
+}
