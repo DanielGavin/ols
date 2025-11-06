@@ -677,21 +677,23 @@ get_locals_for_range_stmt :: proc(
 		case SymbolProcedureValue:
 			calls := make(map[int]struct{}, context.temp_allocator)
 			get_generic_assignment(file, stmt.expr, ast_context, &results, &calls, {}, false)
-			for val, i in stmt.vals {
-				if ident, ok := unwrap_ident(val); ok {
-					result_i := min(len(results) - 1, i)
-					store_local(
-						ast_context,
-						ident,
-						results[result_i],
-						ident.pos.offset,
-						ident.name,
-						ast_context.non_mutable_only,
-						false,
-						{.Mutable},
-						symbol.pkg,
-						false,
-					)
+			if len(results) > 0 {
+				for val, i in stmt.vals {
+					if ident, ok := unwrap_ident(val); ok {
+						result_i := min(len(results) - 1, i)
+						store_local(
+							ast_context,
+							ident,
+							results[result_i],
+							ident.pos.offset,
+							ident.name,
+							ast_context.non_mutable_only,
+							false,
+							{.Mutable},
+							symbol.pkg,
+							false,
+						)
+					}
 				}
 			}
 		case SymbolUntypedValue:
