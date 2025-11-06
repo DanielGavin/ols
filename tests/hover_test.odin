@@ -5515,6 +5515,32 @@ ast_hover_proc_overload_with_less_args :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc(input: int) -> (out_struct: Foo, ok: bool)")
 }
+
+@(test)
+ast_hover_array_type_local_scope :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			Arra{*}y :: [2]int
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Array :: [2]int")
+}
+
+@(test)
+ast_hover_array_elem_local_scope :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			Array :: [2]int
+			array: Array
+			f{*}oo := array[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: int")
+}
 /*
 
 Waiting for odin fix

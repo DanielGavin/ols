@@ -247,10 +247,12 @@ get_generic_assignment :: proc(
 			append(results, v.type)
 		}
 	case ^Array_Type:
+		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
 	case ^Dynamic_Array_Type:
+		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
