@@ -1488,8 +1488,6 @@ resolve_soa_selector_field :: proc(
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
 	selector := Symbol{}
 	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
-		ast_context.use_locals = false
-
 		set_ast_package_from_symbol_scoped(ast_context, selector)
 
 		symbol := Symbol{}
