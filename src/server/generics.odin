@@ -129,7 +129,6 @@ resolve_poly :: proc(
 		}
 	case ^ast.Dynamic_Array_Type:
 		if call_array, ok := call_node.derived.(^ast.Dynamic_Array_Type); ok {
-
 			if dynamic_array_is_soa(p^) != dynamic_array_is_soa(call_array^) {
 				return false
 			}
@@ -635,7 +634,6 @@ resolve_generic_function_symbol :: proc(
 
 		append(&return_types, field)
 	}
-
 
 	for param in params {
 		field := cast(^ast.Field)clone_node(param, ast_context.allocator, nil)

@@ -5556,6 +5556,21 @@ ast_hover_array_of_array_type_x_elem_local_scope :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: [2]int")
 }
+
+@(test)
+ast_hover_soa_poly_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc (arr: ^#soa[dynamic]$E) -> #soa^#soa[dynamic]E {}
+
+		main :: proc() {
+			array: #soa[dynamic]struct{}
+			b{*}ar := foo(&array)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: #soa^#soa[dynamic]struct{}")
+}
 /*
 
 Waiting for odin fix

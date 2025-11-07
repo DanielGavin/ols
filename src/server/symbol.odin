@@ -821,11 +821,21 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 	case SymbolDynamicArrayValue:
 		type := new_type(ast.Dynamic_Array_Type, pos, end, allocator)
 		type.elem = v.expr
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolFixedArrayValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
 		type.len = v.len
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolMapValue:
 		type := new_type(ast.Map_Type, pos, end, allocator)
@@ -837,6 +847,11 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 	case SymbolSliceValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolStructValue:
 		type := new_type(ast.Struct_Type, pos, end, allocator)
