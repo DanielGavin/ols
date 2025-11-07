@@ -3267,6 +3267,16 @@ get_using_packages :: proc(ast_context: ^AstContext) -> []string {
 	return usings
 }
 
+// Returns whether the provided package is being used with a `using` statement
+is_using_package :: proc(ast_context: ^AstContext, pkg: string) -> bool {
+	for u in ast_context.usings {
+		if strings.compare(pkg, u.pkg_name) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 get_symbol_pkg_name :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> string {
 	return get_pkg_name(ast_context, symbol.pkg)
 }

@@ -934,7 +934,8 @@ get_selector_completion :: proc(
 				if symbol.pkg == ast_context.document_package ||
 				   base == "runtime" ||
 				   base == "$builtin" ||
-				   is_selector {
+				   is_selector ||
+				   is_using_package(ast_context, symbol.pkg) {
 					item.label = fmt.aprintf(
 						"(%v%v)",
 						repeat("^", symbol.pointers, context.temp_allocator),

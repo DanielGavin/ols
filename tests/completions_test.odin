@@ -5028,3 +5028,39 @@ ast_completion_empty_selector_for_init :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.bars: [5]int"})
 }
+
+@(test)
+ast_completion_union_option_with_using :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Foo :: struct{}
+
+		Bar :: struct{}
+
+		Bazz :: union {
+			^Foo,
+			^Bar,
+		}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			using my_package
+
+			bazz: Bazz
+			if foo, ok := bazz.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_labels(t, &source, "", {"(^Foo)", "(^Bar)"})
+}
