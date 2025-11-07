@@ -501,6 +501,7 @@ get_when_block_stmt :: proc(when_decl: ^ast.When_Stmt) -> (^ast.Block_Stmt, bool
 				if block, ok := else_stmt.derived.(^ast.Block_Stmt); ok {
 					return block, true
 				}
+				return nil, false
 			}
 		}
 	}
