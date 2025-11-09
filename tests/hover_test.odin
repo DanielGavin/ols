@@ -5571,6 +5571,34 @@ ast_hover_soa_poly_proc :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: #soa^#soa[dynamic]struct{}")
 }
+
+@(test)
+ast_hover_slice_function_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() -> []int {}
+
+		main :: proc() {
+			x{*} := foo()[:1]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.x: []int")
+}
+
+@(test)
+ast_hover_index_function_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() -> []int {}
+
+		main :: proc() {
+			x{*} := foo()[0]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.x: int")
+}
 /*
 
 Waiting for odin fix
