@@ -1207,7 +1207,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Paren_Expr:
 		return internal_resolve_type_expression(ast_context, v.expr, out)
 	case ^Slice_Expr:
-		out^, ok = resolve_slice_expression(ast_context, v)
+		out^, ok = resolve_slice_expression(ast_context, v, v.expr)
 		return ok
 	case ^Tag_Expr:
 		return internal_resolve_type_expression(ast_context, v.expr, out)
@@ -1251,7 +1251,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			}
 		}
 	case ^Index_Expr:
-		out^, ok = resolve_index_expr(ast_context, v)
+		out^, ok = resolve_index_expr(ast_context, v, v.expr)
 		return ok
 	case ^Call_Expr:
 		old_call := ast_context.call
@@ -1320,40 +1320,38 @@ resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbo
 	return symbol, ok
 }
 
-resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Symbol, bool) {
+resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr, expr: ^ast.Expr) -> (Symbol, bool) {
 	indexed := Symbol{}
-	ok := internal_resolve_type_expression(ast_context, v.expr, &indexed)
+	ok := internal_resolve_type_expression(ast_context, expr, &indexed)
 
 	if !ok {
 		return {}, false
 	}
 
-	set_ast_package_set_scoped(ast_context, indexed.pkg)
-
 	symbol: Symbol
 
-	#partial switch v2 in indexed.value {
+	#partial switch v in indexed.value {
 	case SymbolDynamicArrayValue:
-		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
+		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolSliceValue:
-		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
+		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolFixedArrayValue:
-		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
+		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolMapValue:
-		ok = internal_resolve_type_expression(ast_context, v2.value, &symbol)
+		ok = internal_resolve_type_expression(ast_context, v.value, &symbol)
 	case SymbolMultiPointerValue:
-		ok = internal_resolve_type_expression(ast_context, v2.expr, &symbol)
+		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolBasicValue:
-		if v2.ident.name == "string" {
-			v2.ident.name = "u8"
+		if v.ident.name == "string" {
+			v.ident.name = "u8"
 			indexed.name = "u8"
 			return indexed, true
 		}
 		return {}, false
 	case SymbolUntypedValue:
-		if v2.type == .String {
+		if v.type == .String {
 			value := SymbolBasicValue {
-				ident = ast.new(ast.Ident, v2.tok.pos, v2.tok.pos),
+				ident = ast.new(ast.Ident, v.tok.pos, v.tok.pos),
 			}
 			value.ident.name = "u8"
 			indexed.name = "u8"
@@ -1363,13 +1361,17 @@ resolve_index_expr :: proc(ast_context: ^AstContext, v: ^ast.Index_Expr) -> (Sym
 		return {}, false
 	case SymbolMatrixValue:
 		value := SymbolFixedArrayValue {
-			expr = v2.expr,
-			len  = v2.x,
+			expr = v.expr,
+			len  = v.x,
 		}
 		indexed.value = value
 		return indexed, true
+	case SymbolProcedureValue:
+		if len(v.return_types) != 1 {
+			return {}, false
+		}
+		return resolve_index_expr(ast_context, index_expr, v.return_types[0].type)
 	}
-
 
 	symbol.type = indexed.type
 
@@ -2018,8 +2020,15 @@ struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 }
 
 
-resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slice_Expr) -> (symbol: Symbol, ok: bool) {
-	symbol = resolve_type_expression(ast_context, slice_expr.expr) or_return
+resolve_slice_expression :: proc(
+	ast_context: ^AstContext,
+	slice_expr: ^ast.Slice_Expr,
+	expr: ^ast.Expr,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
+	symbol = resolve_type_expression(ast_context, expr) or_return
 
 	expr: ^ast.Expr
 
@@ -2046,6 +2055,11 @@ resolve_slice_expression :: proc(ast_context: ^AstContext, slice_expr: ^ast.Slic
 			return symbol, true
 		}
 		return {}, false
+	case SymbolProcedureValue:
+		if len(v.return_types) != 1 {
+			return {}, false
+		}
+		return resolve_slice_expression(ast_context, slice_expr, v.return_types[0].type)
 	case:
 		return {}, false
 	}
