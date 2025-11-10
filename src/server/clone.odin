@@ -303,6 +303,14 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 			append(&list, tokenizer.Token{text = strings.clone(t.text, allocator), kind = t.kind, pos = tokenizer.Pos{file = strings.clone(t.pos.file, allocator), offset = t.pos.offset, line = t.pos.line, column = t.pos.column}})
 		}
 		r.list = list[:]
+	case ^Auto_Cast:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Or_Return_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+	case ^Matrix_Index_Expr:
+		r.expr = clone_type(r.expr, allocator, unique_strings)
+		r.row_index = clone_type(r.row_index, allocator, unique_strings)
+		r.column_index = clone_type(r.column_index, allocator, unique_strings)
 	case:
 	}
 
