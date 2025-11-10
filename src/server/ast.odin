@@ -833,14 +833,18 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.name, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.bit_size, allocator)
-	case ^ast.Or_Else_Expr:
+	case ^Or_Else_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.y, allocator)
-	case ^ast.Or_Return_Expr:
+	case ^Or_Return_Expr:
 		free_ast(n.expr, allocator)
-	case ^ast.Or_Branch_Expr:
+	case ^Or_Branch_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.label, allocator)
+	case ^Matrix_Index_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.row_index, allocator)
+		free_ast(n.column_index, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}
