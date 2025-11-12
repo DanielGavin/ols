@@ -639,7 +639,7 @@ get_locals_for_range_stmt :: proc(
 	}
 
 	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
-		if binary.op.kind == .Range_Half {
+		if binary.op.kind == .Range_Half || binary.op.kind == .Range_Full {
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
 					store_local(
