@@ -634,6 +634,9 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 		case .Is_No_Copy:
 			wrote_tag = true
 			strings.write_string(sb, " #no_copy")
+		case .Is_All_Or_None:
+			wrote_tag = true
+			strings.write_string(sb, " #all_or_none")
 		}
 	}
 

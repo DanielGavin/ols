@@ -166,6 +166,9 @@ collect_struct_fields :: proc(
 	b.align = clone_expr(struct_type.align, collection.allocator, &collection.unique_strings)
 	b.max_field_align = clone_expr(struct_type.max_field_align, collection.allocator, &collection.unique_strings)
 	b.min_field_align = clone_expr(struct_type.min_field_align, collection.allocator, &collection.unique_strings)
+	if struct_type.is_all_or_none {
+		b.tags |= {.Is_All_Or_None}
+	}
 	if struct_type.is_no_copy {
 		b.tags |= {.Is_No_Copy}
 	}
