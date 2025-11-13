@@ -2744,13 +2744,25 @@ resolve_type_location_proc_param_name :: proc(
 
 	reset_ast_context(ast_context)
 	if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
-		if symbol, ok := resolve_type_expression(ast_context, position_context.field_value.value); ok {
-			symbol.type_pkg = symbol.pkg
-			symbol.type_name = symbol.name
-			symbol.pkg = call_symbol.name
-			symbol.name = ident.name
-			symbol.type = .Field
-			return symbol, true
+		for arg in value.arg_types {
+			for name_expr in arg.names {
+				if name, ok := name_expr.derived.(^ast.Ident); ok {
+					if name.name == ident.name {
+						type := arg.type
+						if type == nil {
+							type = arg.default_value
+						}
+						if symbol, ok := resolve_type_expression(ast_context, type); ok {
+							symbol.type_pkg = symbol.pkg
+							symbol.type_name = symbol.name
+							symbol.pkg = call_symbol.name
+							symbol.name = ident.name
+							symbol.type = .Field
+							return symbol, true
+						}
+					}
+				}
+			}
 		}
 	}
 	return call_symbol, false
