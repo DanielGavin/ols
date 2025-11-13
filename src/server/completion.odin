@@ -2103,6 +2103,7 @@ append_non_imported_packages :: proc(
 		return
 	}
 
+	i := len(items)
 	for collection, pkgs in build_cache.pkg_aliases {
 		for pkg in pkgs {
 			fullpath := path.join({config.collections[collection], pkg})
@@ -2139,9 +2140,11 @@ append_non_imported_packages :: proc(
 					additionalTextEdits = additionalTextEdits,
 					insertTextFormat = .PlainText,
 					InsertTextMode = .adjustIndentation,
+					sortText = fmt.tprintf("%05d", i),
 				}
 
 				append(items, item)
+				i += 1
 			}
 		}
 	}
