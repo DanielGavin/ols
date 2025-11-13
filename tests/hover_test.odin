@@ -5612,6 +5612,22 @@ ast_hover_local_proc_docs :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc()\n foo doc")
 }
+
+@(test)
+ast_hover_struct_using_with_parentheses :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			using bar: (struct { a: int }),
+		}
+		main :: proc() {
+			foo: Foo
+			foo.a{*}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.a: int")
+}
 /*
 
 Waiting for odin fix

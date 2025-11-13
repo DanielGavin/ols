@@ -543,7 +543,11 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 		append(&b.usings, u)
 
 		derived := field_expr.derived
-		if ptr, ok := field_expr.derived.(^ast.Pointer_Type); ok {
+		if param, ok := derived.(^ast.Paren_Expr); ok {
+			derived = param.expr.derived
+		}
+
+		if ptr, ok := derived.(^ast.Pointer_Type); ok {
 			(ptr.elem != nil) or_continue
 			derived = ptr.elem.derived
 		}
