@@ -19,6 +19,8 @@ DocumentLocal :: struct {
 	pkg:             string,
 	flags:           bit_set[LocalFlag],
 	parameter:       bool,
+	docs:            ^ast.Comment_Group,
+	comment:         ^ast.Comment_Group,
 }
 
 LocalGroup :: map[string][dynamic]DocumentLocal
@@ -36,6 +38,8 @@ store_local :: proc(
 	parameter: bool,
 	type_expr: ^ast.Expr = nil,
 	value_expr: ^ast.Expr = nil,
+	docs: ^ast.Comment_Group = nil,
+	comment: ^ast.Comment_Group = nil,
 ) {
 	local_group := get_local_group(ast_context)
 	local_stack := &local_group[name]
@@ -58,6 +62,8 @@ store_local :: proc(
 			pkg = pkg,
 			flags = flags,
 			parameter = parameter,
+			docs = docs,
+			comment = comment,
 		},
 	)
 }
@@ -320,7 +326,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			value_expr: ^ast.Expr
 			if len(value_decl.values) > i {
 				if is_variable_declaration(value_decl.values[i]) {
-				flags |= {.Variable}
+					flags |= {.Variable}
 					value_expr = value_decl.values[i]
 				}
 			}
@@ -337,6 +343,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 				false,
 				value_decl.type,
 				value_expr,
+				value_decl.docs,
+				value_decl.comment,
 			)
 		}
 		return
@@ -389,6 +397,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			false,
 			value_decl.type,
 			value_expr,
+			value_decl.docs,
+			value_decl.comment,
 		)
 	}
 }
@@ -498,7 +508,7 @@ get_locals_block_stmt :: proc(
 	if !skip_position_check {
 		if ast_context.non_mutable_only {
 			if !(block.pos.offset <= document_position.nested_position &&
-			document_position.nested_position <= block.end.offset) {
+				   document_position.nested_position <= block.end.offset) {
 				return
 			}
 		} else {

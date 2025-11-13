@@ -1861,6 +1861,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	return_symbol.flags |= {.Local}
 	return_symbol.value_expr = local.value_expr
 	return_symbol.type_expr = local.type_expr
+	return_symbol.doc = get_doc(local.docs, ast_context.allocator)
+	return_symbol.comment = get_comment(local.comment)
 
 	return return_symbol, ok
 }
@@ -1948,7 +1950,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	}
 
 	if global.docs != nil {
-		return_symbol.doc = get_doc(global.name_expr, global.docs, ast_context.allocator)
+		return_symbol.doc = get_doc(global.docs, ast_context.allocator)
 	}
 
 	if global.comment != nil {
