@@ -5628,6 +5628,20 @@ ast_hover_struct_using_with_parentheses :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "Foo.a: int")
 }
+
+@(test)
+ast_hover_named_proc_arg_hover :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc(bar: f32) {}
+
+		main :: proc() {
+			foo(b{*}ar=42)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "foo.bar: f32")
+}
 /*
 
 Waiting for odin fix
