@@ -564,7 +564,7 @@ get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset])
 }
 
-get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
+get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
 	if comment == nil {
 		return ""
 	}

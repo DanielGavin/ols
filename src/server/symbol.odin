@@ -907,7 +907,7 @@ construct_struct_field_symbol :: proc(symbol: ^Symbol, parent_name: string, valu
 	symbol.name = value.names[index]
 	symbol.type = .Field
 	symbol.parent_name = parent_name
-	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
+	symbol.doc = get_doc(value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
 	symbol.range = value.ranges[index]
 }
@@ -921,7 +921,7 @@ construct_bit_field_field_symbol :: proc(
 	symbol.name = value.names[index]
 	symbol.parent_name = parent_name
 	symbol.type = .Field
-	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
+	symbol.doc = get_doc(value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_bit_field_field_signature(value, index)
 	symbol.range = value.ranges[index]
@@ -929,7 +929,7 @@ construct_bit_field_field_symbol :: proc(
 
 construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, index: int) {
 	symbol.type = .Field
-	symbol.doc = get_doc(nil, value.docs[index], context.temp_allocator)
+	symbol.doc = get_doc(value.docs[index], context.temp_allocator)
 	symbol.comment = get_comment(value.comments[index])
 	symbol.signature = get_enum_field_signature(value, index)
 	symbol.range = value.ranges[index]

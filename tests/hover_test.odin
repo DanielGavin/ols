@@ -5599,6 +5599,19 @@ ast_hover_index_function_call :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.x: int")
 }
+
+@(test)
+ast_hover_local_proc_docs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			// foo doc
+			f{*}oo :: proc() {}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc()\n foo doc")
+}
 /*
 
 Waiting for odin fix
