@@ -586,6 +586,7 @@ DIRECTIVE_NAME_LIST :: []string {
 	"packed",
 	"raw_union",
 	"align",
+	"all_or_none",
 	/* union type */
 	"no_nil",
 	"shared_nil",
