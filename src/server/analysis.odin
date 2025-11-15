@@ -49,6 +49,12 @@ AstContext :: struct {
 	//
 	// We should probably rework how this is handled in the future
 	resolve_specific_overload: bool,
+	call_expr_recursion_cache: map[rawptr]SymbolResult,
+}
+
+SymbolResult :: struct {
+	symbol: Symbol,
+	ok:     bool,
 }
 
 make_ast_context :: proc(
@@ -60,19 +66,20 @@ make_ast_context :: proc(
 	allocator := context.temp_allocator,
 ) -> AstContext {
 	ast_context := AstContext {
-		locals           = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
-		globals          = make(map[string]GlobalExpr, 0, allocator),
-		usings           = make([dynamic]UsingStatement, allocator),
-		recursion_map    = make(map[rawptr]struct{}, 0, allocator),
-		file             = file,
-		imports          = imports,
-		use_locals       = true,
-		use_usings       = true,
-		document_package = package_name,
-		current_package  = package_name,
-		uri              = uri,
-		fullpath         = fullpath,
-		allocator        = allocator,
+		locals                    = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
+		globals                   = make(map[string]GlobalExpr, 0, allocator),
+		usings                    = make([dynamic]UsingStatement, allocator),
+		recursion_map             = make(map[rawptr]struct{}, 0, allocator),
+		call_expr_recursion_cache = make(map[rawptr]SymbolResult, 0, allocator),
+		file                      = file,
+		imports                   = imports,
+		use_locals                = true,
+		use_usings                = true,
+		document_package          = package_name,
+		current_package           = package_name,
+		uri                       = uri,
+		fullpath                  = fullpath,
+		allocator                 = allocator,
 	}
 
 	add_local_group(&ast_context)
@@ -692,18 +699,24 @@ should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext,
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
-resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Group) -> (Symbol, bool) {
+resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Group) -> (Symbol, bool) {
 	old_overloading := ast_context.overloading
 	ast_context.overloading = true
-
 	defer {
 		ast_context.overloading = old_overloading
 	}
 
 	call_expr := ast_context.call
-
 	if call_expr == nil || len(call_expr.args) == 0 {
 		ast_context.overloading = false
+	} else if call_expr != nil {
+		// Due to some infinite loops with resolving symbols, we add an explicit cache for this function.
+		// We may want to expand this in the future.
+		//
+		// See https://github.com/DanielGavin/ols/issues/1182
+		if result, ok := check_call_expr_cache(ast_context, call_expr); ok {
+			return result.symbol, result.ok
+		}
 	}
 
 	resolve_all_possibilities := should_resolve_all_proc_overload_possibilities(ast_context, call_expr)
@@ -910,29 +923,38 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ast.Proc_Grou
 		}
 	}
 
-	if candidate, ok := get_top_candiate(candidates[:]); ok {
-		if !resolve_all_possibilities {
-			return candidate.symbol, true
-		} else if len(candidates) > 1 {
-			symbols := make([dynamic]Symbol, context.temp_allocator)
-			for c in candidates {
-				append(&symbols, c.symbol)
+	get_candidate_symbol :: proc(candidates: []Candidate, resolve_all_possibilities: bool) -> (Symbol, bool) {
+		if candidate, ok := get_top_candiate(candidates); ok {
+			if !resolve_all_possibilities {
+				return candidate.symbol, true
+			} else if len(candidates) > 1 {
+				symbols := make([dynamic]Symbol, context.temp_allocator)
+				for c in candidates {
+					append(&symbols, c.symbol)
+				}
+				return Symbol {
+						type = candidate.symbol.type,
+						name = candidate.symbol.name,
+						pkg = candidate.symbol.pkg,
+						uri = candidate.symbol.uri,
+						value = SymbolAggregateValue{symbols = symbols[:]},
+					},
+					true
+			} else if len(candidates) == 1 {
+				return candidate.symbol, true
 			}
-			return Symbol {
-					type = candidate.symbol.type,
-					name = candidate.symbol.name,
-					pkg = candidate.symbol.pkg,
-					uri = candidate.symbol.uri,
-					value = SymbolAggregateValue{symbols = symbols[:]},
-				},
-				true
-		} else if len(candidates) == 1 {
-			return candidate.symbol, true
 		}
+		return {}, false
 	}
 
-
-	return Symbol{}, false
+	symbol, ok := get_candidate_symbol(candidates[:], resolve_all_possibilities)
+	if call_expr != nil {
+		ast_context.call_expr_recursion_cache[cast(rawptr)call_expr] = SymbolResult {
+			symbol = symbol,
+			ok     = ok,
+		}
+	}
+	return symbol, ok
 }
 
 resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
@@ -1051,6 +1073,14 @@ check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool 
 	ast_context.recursion_map[raw] = {}
 
 	return false
+}
+
+check_call_expr_cache :: proc(ast_context: ^AstContext, expr: ^ast.Call_Expr) -> (SymbolResult, bool) {
+	if result, ok := ast_context.call_expr_recursion_cache[cast(rawptr)expr]; ok {
+		return result, ok
+	}
+
+	return {}, false
 }
 
 // Resolves the location of the underlying type of the expression
@@ -1820,7 +1850,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	case ^ast.Proc_Lit:
 		return_symbol, ok = resolve_proc_lit(ast_context, local.rhs, v, node.name, {}, false)
 	case ^ast.Proc_Group:
-		return_symbol, ok = resolve_function_overload(ast_context, v^)
+		return_symbol, ok = resolve_function_overload(ast_context, v)
 	case ^ast.Array_Type:
 		return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
 	case ^ast.Multi_Pointer_Type:
@@ -1918,7 +1948,7 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 	case ^ast.Proc_Lit:
 		return_symbol, ok = resolve_proc_lit(ast_context, global.expr, v, node.name, global.attributes, false)
 	case ^ast.Proc_Group:
-		return_symbol, ok = resolve_function_overload(ast_context, v^)
+		return_symbol, ok = resolve_function_overload(ast_context, v)
 	case ^ast.Array_Type:
 		return_symbol, ok = make_symbol_array_from_ast(ast_context, v^, node), true
 	case ^ast.Dynamic_Array_Type:
@@ -2507,7 +2537,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 
 	#partial switch &v in symbol.value {
 	case SymbolProcedureGroupValue:
-		if s, ok := resolve_function_overload(ast_context, v.group.derived.(^ast.Proc_Group)^); ok {
+		if s, ok := resolve_function_overload(ast_context, v.group.derived.(^ast.Proc_Group)); ok {
 			if s.doc == "" {
 				s.doc = symbol.doc
 			}
