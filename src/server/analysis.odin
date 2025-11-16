@@ -1223,13 +1223,22 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^Comp_Lit:
 		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^Unary_Expr:
+		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		if v.op.kind == .And {
-			ok := internal_resolve_type_expression(ast_context, v.expr, out)
 			out.pointers += 1
-			return ok
-		} else {
-			return internal_resolve_type_expression(ast_context, v.expr, out)
+		} else if v.op.kind == .Sub || v.op.kind == .Add {
+			if value, ok := out.value.(SymbolProcedureValue); ok {
+				if len(value.return_types) > 0 {
+					type := value.return_types[0].type
+					if type == nil {
+						type = value.return_types[0].default_value
+					}
+					ok = internal_resolve_type_expression(ast_context, type, out)
+					return ok
+				}
+			}
 		}
+		return ok
 	case ^Deref_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		out.pointers -= 1
