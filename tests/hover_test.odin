@@ -5642,6 +5642,39 @@ ast_hover_named_proc_arg_hover :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "foo.bar: f32")
 }
+
+@(test)
+ast_hover_unary_function_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() -> int {}
+
+		main :: proc() {
+			b{*}ar := -foo()
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: int")
+}
+
+@(test)
+ast_hover_unary_overload_function_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo_int :: proc() -> int {}
+		foo_string :: proc(s: string) -> string {}
+		foo :: proc {
+			foo_int,
+			foo_string,
+		}
+
+		main :: proc() {
+			b{*}ar := -foo()
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: int")
+}
 /*
 
 Waiting for odin fix
