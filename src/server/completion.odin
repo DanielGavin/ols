@@ -1307,36 +1307,6 @@ get_implicit_completion :: proc(
 		reset_ast_context(ast_context)
 	}
 
-	/*
-		if it's comp literals for enumerated array:
-			asset_paths := [Asset]cstring {
-				.Layer0 = "assets/layer0.png",
-			}
-
-		Right now `core:odin/parser` is not tolerant enough, so I just look at the type and if it's a enumerated array. I can't get the field value is on the left side.
-	*/
-	if position_context.comp_lit != nil {
-		if symbol, ok := resolve_type_expression(ast_context, position_context.comp_lit); ok {
-			if symbol_value, ok := symbol.value.(SymbolFixedArrayValue); ok {
-				if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, symbol_value.len); ok {
-					for enum_name in enum_value.names {
-						item := CompletionItem {
-							label  = enum_name,
-							kind   = .EnumMember,
-							detail = enum_name,
-						}
-						if unwrapped_super_enum {
-							add_implicit_selector_remove_edit(position_context, &item, enum_name, enum_value.names)
-						}
-
-						append(results, CompletionResult{completion_item = item})
-					}
-					return is_incomplete
-				}
-			}
-		}
-	}
-
 	//infer bitset and enums based on the identifier comp_lit, i.e. a := My_Struct { my_ident = . }
 	if position_context.comp_lit != nil && position_context.parent_comp_lit != nil {
 		if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
@@ -1504,6 +1474,56 @@ get_implicit_completion :: proc(
 		reset_ast_context(ast_context)
 	}
 
+	if position_context.index != nil {
+		symbol: Symbol
+		ok := false
+		if position_context.previous_index != nil {
+			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
+			if !ok {
+				return is_incomplete
+			}
+		} else {
+			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
+		}
+
+		#partial switch v in symbol.value {
+		case SymbolFixedArrayValue:
+			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.len); ok {
+				for name in enum_value.names {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+					if unwrapped_super_enum {
+						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
+					}
+
+					append(results, CompletionResult{completion_item = item})
+				}
+
+				return is_incomplete
+			}
+		case SymbolMapValue:
+			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.key); ok {
+				for name in enum_value.names {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+					if unwrapped_super_enum {
+						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
+					}
+
+					append(results, CompletionResult{completion_item = item})
+				}
+
+				return is_incomplete
+			}
+		}
+	}
+
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
@@ -1578,56 +1598,6 @@ get_implicit_completion :: proc(
 		}
 
 		reset_ast_context(ast_context)
-	}
-
-	if position_context.index != nil {
-		symbol: Symbol
-		ok := false
-		if position_context.previous_index != nil {
-			symbol, ok = resolve_type_expression(ast_context, position_context.previous_index)
-			if !ok {
-				return is_incomplete
-			}
-		} else {
-			symbol, ok = resolve_type_expression(ast_context, position_context.index.expr)
-		}
-
-		#partial switch v in symbol.value {
-		case SymbolFixedArrayValue:
-			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.len); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
-					append(results, CompletionResult{completion_item = item})
-				}
-
-				return is_incomplete
-			}
-		case SymbolMapValue:
-			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.key); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
-					append(results, CompletionResult{completion_item = item})
-				}
-
-				return is_incomplete
-			}
-		}
 	}
 	return is_incomplete
 }
