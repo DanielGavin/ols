@@ -5675,6 +5675,20 @@ ast_hover_unary_overload_function_call :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: int")
 }
+
+@(test)
+ast_hover_negate_function_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() -> bool {}
+
+		main :: proc() {
+			b{*}ar := !foo()
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: bool")
+}
 /*
 
 Waiting for odin fix

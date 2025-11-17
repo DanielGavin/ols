@@ -1226,7 +1226,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		if v.op.kind == .And {
 			out.pointers += 1
-		} else if v.op.kind == .Sub || v.op.kind == .Add {
+		} else if v.op.kind == .Sub || v.op.kind == .Add || v.op.kind == .Not || v.op.kind == .Xor {
 			if value, ok := out.value.(SymbolProcedureValue); ok {
 				if len(value.return_types) > 0 {
 					type := value.return_types[0].type
