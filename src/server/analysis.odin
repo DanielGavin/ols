@@ -1226,7 +1226,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		if v.op.kind == .And {
 			out.pointers += 1
-		} else if v.op.kind == .Sub || v.op.kind == .Add {
+		} else if v.op.kind == .Sub || v.op.kind == .Add || v.op.kind == .Not || v.op.kind == .Xor {
 			if value, ok := out.value.(SymbolProcedureValue); ok {
 				if len(value.return_types) > 0 {
 					type := value.return_types[0].type
@@ -1244,7 +1244,18 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out.pointers -= 1
 		return ok
 	case ^Paren_Expr:
-		return internal_resolve_type_expression(ast_context, v.expr, out)
+		ok = internal_resolve_type_expression(ast_context, v.expr, out)
+		if value, ok := out.value.(SymbolProcedureValue); ok {
+			if len(value.return_types) > 0 {
+				type := value.return_types[0].type
+				if type == nil {
+					type = value.return_types[0].default_value
+				}
+				ok = internal_resolve_type_expression(ast_context, type, out)
+				return ok
+			}
+		}
+		return ok
 	case ^Slice_Expr:
 		out^, ok = resolve_slice_expression(ast_context, v, v.expr)
 		return ok
