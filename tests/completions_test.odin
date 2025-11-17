@@ -5064,3 +5064,52 @@ ast_completion_union_option_with_using :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_labels(t, &source, "", {"(^Foo)", "(^Bar)"})
 }
+
+@(test)
+ast_completion_implicit_selector_enumerated_array_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		A :: enum {
+			A1,
+			A2,
+		}
+
+		B :: enum {
+			B1,
+			B2,
+		}
+
+		A_TO_B :: [A]B{
+			.A1 = .{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"B1", "B2"})
+}
+
+@(test)
+ast_completion_implicit_selector_enumerated_array_in_proc_call_arg :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		A :: enum {
+			A1,
+			A2,
+		}
+
+		B :: enum {
+			B1,
+			B2,
+		}
+
+		A_TO_B :: [A]B{}
+
+		foo :: proc(b: B) {}
+
+		main :: proc() {
+			foo(A_TO_B[.{*}])
+
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"A1", "A2"})
+}
