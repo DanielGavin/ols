@@ -3113,6 +3113,8 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 			type = .Bool,
 		}
 		return symbol_a, true
+	case .Shl, .Shr:
+		return resolve_type_expression(ast_context, binary.left)
 	}
 
 	if expr, ok := binary.left.derived.(^ast.Binary_Expr); ok {
