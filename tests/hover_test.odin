@@ -5703,6 +5703,19 @@ ast_hover_function_call_with_parens :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: bool")
 }
+
+@(test)
+ast_hover_bitshift_integer_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: u16
+			b{*}ar := 6 << foo
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar: int")
+}
 /*
 
 Waiting for odin fix
