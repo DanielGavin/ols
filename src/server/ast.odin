@@ -2,7 +2,6 @@
 package server
 
 import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/parser"
@@ -572,7 +571,26 @@ get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string
 	tmp: string
 
 	for doc in comment.list {
-		tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+		if strings.starts_with(doc.text, "/*") && doc.pos.column != 1 {
+			lines := strings.split(doc.text, "\n", context.temp_allocator)
+			for line, i in lines {
+				if i != 0 && len(line) > 0 {
+					column := 0
+					for column < doc.pos.column - 1 {
+						if line[column] == '\t' || line[column] == ' ' {
+							column += 1
+						} else {
+							break
+						}
+					}
+					tmp = strings.concatenate({tmp, "\n", line[column:]}, context.temp_allocator)
+				} else {
+					tmp = strings.concatenate({tmp, "\n", line}, context.temp_allocator)
+				}
+			}
+		} else {
+			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+		}
 	}
 
 	if tmp != "" {
