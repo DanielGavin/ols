@@ -285,6 +285,12 @@ get_generic_assignment :: proc(
 
 			append(results, b)
 		}
+	case ^Unary_Expr:
+		append(results, value)
+		if n, ok := v.expr.derived.(^Type_Assertion); ok {
+			b := make_bool_ast(ast_context, n.type.pos, n.type.end)
+			append(results, b)
+		}
 	case ^Ternary_If_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
 	case ^Ternary_When_Expr:

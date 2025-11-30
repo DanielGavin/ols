@@ -5716,6 +5716,60 @@ ast_hover_bitshift_integer_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: int")
 }
+
+@(test)
+ast_hover_type_assertion_unary_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			int,
+			f64,
+		}
+
+		main :: proc() {
+			foo := Foo(0.0)
+			i{*} := &foo.(int)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.i: ^int")
+}
+
+@(test)
+ast_hover_type_assertion_unary_value_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			int,
+			f64,
+		}
+
+		main :: proc() {
+			foo := Foo(0.0)
+			i{*}, ok := &foo.(int)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.i: ^int")
+}
+
+@(test)
+ast_hover_type_assertion_unary_value_ok :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+			int,
+			f64,
+		}
+
+		main :: proc() {
+			foo := Foo(0.0)
+			i, ok{*} := &foo.(int)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.ok: bool")
+}
 /*
 
 Waiting for odin fix
