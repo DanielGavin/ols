@@ -2658,6 +2658,12 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 			symbol.value = ret.value
 			symbol.pkg = ret.pkg
 			symbol.flags |= ret.flags
+			if symbol.doc == "" {
+				symbol.doc = ret.doc
+			}
+			if symbol.comment == "" {
+				symbol.comment = ret.comment
+			}
 		} else {
 			return false
 		}

@@ -5804,6 +5804,54 @@ ast_hover_nested_proc_docs_spaces :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo :: proc()\n\nDocs!\n    Docs2\n")
 }
+
+@(test)
+ast_hover_propagate_docs_alias_in_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+		// Docs!
+		foo :: proc() {} // Comment!
+
+		bar :: foo
+		`})
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			my_package.ba{*}r()
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "my_package.bar :: proc()\n Docs!\n\n// Comment!")
+}
+
+@(test)
+ast_hover_propagate_docs_alias_in_package_override :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+		// Docs!
+		foo :: proc() {} // Comment!
+
+		// Overridden
+		bar :: foo
+		`})
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			my_package.ba{*}r()
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "my_package.bar :: proc()\n Overridden\n\n// Comment!")
+}
+
 /*
 
 Waiting for odin fix
