@@ -5770,6 +5770,40 @@ ast_hover_type_assertion_unary_value_ok :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.ok: bool")
 }
+
+@(test)
+ast_hover_nested_proc_docs_tabs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			/*
+			Docs!
+				Docs2
+			*/
+			f{*}oo :: proc() {}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc()\n\nDocs!\n\tDocs2\n")
+}
+
+@(test)
+ast_hover_nested_proc_docs_spaces :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+            /*
+            Docs!
+                Docs2
+            */
+			f{*}oo :: proc() {}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc()\n\nDocs!\n    Docs2\n")
+}
 /*
 
 Waiting for odin fix
