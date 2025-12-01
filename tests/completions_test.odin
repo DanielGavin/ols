@@ -5113,3 +5113,20 @@ ast_completion_implicit_selector_enumerated_array_in_proc_call_arg :: proc(t: ^t
 	}
 	test.expect_completion_docs(t, &source, "", {"A1", "A2"})
 }
+
+@(test)
+ast_completion_implicit_selector_binary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+		main :: proc() {
+			foo: Foo
+			if foo < .{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
+}

@@ -1345,7 +1345,7 @@ get_implicit_completion :: proc(
 
 	if position_context.binary != nil {
 		#partial switch position_context.binary.op.kind {
-		case .Cmp_Eq, .Not_Eq, .In, .Not_In:
+		case .Cmp_Eq, .Not_Eq, .In, .Not_In, .Lt, .Lt_Eq, .Gt, .Gt_Eq:
 			context_node: ^ast.Expr
 			enum_node: ^ast.Expr
 
