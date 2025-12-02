@@ -761,9 +761,15 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 					// need to be updated
 					if data.parent_proc.params != nil {
 						for &param in data.parent_proc.params.list {
-							if param_ident, ok := param.type.derived.(^ast.Ident); ok {
-								if param_ident.name == ident.name {
-									param.type = expr
+							type := param.type
+							if type == nil {
+								type = param.default_value
+							}
+							if type != nil {
+								if param_ident, ok := type.derived.(^ast.Ident); ok {
+									if param_ident.name == ident.name {
+										param.type = expr
+									}
 								}
 							}
 						}
