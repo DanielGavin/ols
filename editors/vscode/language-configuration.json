@@ -28,5 +28,10 @@
         "increaseIndentPattern": "^.*\\{[^}\"']*$|^.*\\([^\\)\"']*$|^\\s*case.*:$",
         "decreaseIndentPattern": "^\\s*(\\s*\\/[*].*[*]\\/\\s*)*[})]"
     },
-    
+    "folding": {
+        "markers": {
+            "start": "^\\s*//\\s*?region\\b",
+            "end": "^\\s*//\\s*?endregion\\b"
+        }
+    }  
 }
