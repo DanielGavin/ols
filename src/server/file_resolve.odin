@@ -463,15 +463,19 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.value_decl = n
 
 		reset_position_context(data.position_context)
+		resolve_nodes(n.attributes[:], data)
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_nodes(n.values, data)
 	case ^Package_Decl:
 	case ^Import_Decl:
+		resolve_nodes(n.attributes[:], data)
 	case ^Foreign_Block_Decl:
+		resolve_nodes(n.attributes[:], data)
 		resolve_node(n.foreign_library, data)
 		resolve_node(n.body, data)
 	case ^Foreign_Import_Decl:
+		resolve_nodes(n.attributes[:], data)
 		resolve_node(n.name, data)
 	case ^Proc_Group:
 		resolve_nodes(n.args, data)

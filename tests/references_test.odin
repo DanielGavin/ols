@@ -1520,3 +1520,21 @@ ast_references_enum_with_enumerated_array :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_deferred_attributes :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() {}
+
+		@(deferred_in = fo{*}o)
+		bar :: proc() {}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+		{range = {start = {line = 3, character = 18}, end = {line = 3, character = 21}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
