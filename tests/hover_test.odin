@@ -5852,6 +5852,19 @@ ast_hover_propagate_docs_alias_in_package_override :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "my_package.bar :: proc()\n Overridden\n\n// Comment!")
 }
 
+@(test)
+ast_hover_deferred_attributes :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc() {}
+
+		@(deferred_in = fo{*}o)
+		bar :: proc() {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo :: proc()")
+}
+
 /*
 
 Waiting for odin fix

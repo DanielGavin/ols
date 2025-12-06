@@ -1,10 +1,10 @@
 package server
 
-import "core:strings"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:odin/tokenizer"
+import "core:strings"
 import "core:unicode/utf8"
 
 import "src:common"
@@ -63,9 +63,33 @@ DocumentPositionContext :: struct {
 	call_commas:            []int,
 }
 
+
+get_stmt_attrs :: proc(decl: ^ast.Stmt) -> []^ast.Attribute {
+	if decl == nil {
+		return nil
+	}
+	#partial switch v in decl.derived {
+	case ^ast.Value_Decl:
+		return v.attributes[:]
+	case ^ast.Import_Decl:
+		return v.attributes[:]
+	case ^ast.Foreign_Block_Decl:
+		return v.attributes[:]
+	case ^ast.Foreign_Import_Decl:
+		return v.attributes[:]
+	}
+	return nil
+}
+
 get_document_position_decls :: proc(decls: []^ast.Stmt, position_context: ^DocumentPositionContext) -> bool {
 	exists_in_decl := false
 	for decl in decls {
+		for attr in get_stmt_attrs(decl) {
+			if position_in_node(attr, position_context.position) {
+				get_document_position(attr, position_context)
+				return true
+			}
+		}
 		if position_in_node(decl, position_context.position) {
 			get_document_position(decl, position_context)
 			exists_in_decl = true
