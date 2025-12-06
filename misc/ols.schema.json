@@ -128,6 +128,10 @@
 						"type": "string",
 						"description": "The operating system for the profile."
 					},
+					"arch": {
+						"type": "string",
+						"description": "The architecture for the profile."
+					},
 					"checker_path": {
 						"type": "array",
 						"description": "List of paths where to run the checker.",
@@ -139,6 +143,13 @@
 						"type": "array",
 						"description": "List of paths that will be excluded from workspace symbol searches.",
 						"items": {
+							"type": "string"
+						}
+					},
+					"defines": {
+						"type": "object",
+						"description": "Key-value pairs of defines. Used for evaluating when expressions, for example `ODIN_DEBUG`. The value must be a string.",
+						"additionalProperties": {
 							"type": "string"
 						}
 					}

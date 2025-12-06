@@ -2,19 +2,11 @@ package main
 
 import "base:intrinsics"
 
-import "core:encoding/json"
 import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
-import "core:reflect"
-import "core:slice"
-import "core:strconv"
-import "core:strings"
-import "core:sync"
 import "core:thread"
-
-import "core:sys/windows"
 
 import "src:common"
 import "src:server"

@@ -363,12 +363,14 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
-	config.enable_unused_imports_reporting = ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
+	config.enable_unused_imports_reporting =
+		ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
 	config.enable_procedure_context =
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
 	config.enable_references = ols_config.enable_references.(bool) or_else config.enable_references
-	config.enable_document_highlights = ols_config.enable_document_highlights.(bool) or_else config.enable_document_highlights
+	config.enable_document_highlights =
+		ols_config.enable_document_highlights.(bool) or_else config.enable_document_highlights
 	config.enable_completion_matching =
 		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
 	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
@@ -420,6 +422,11 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			}
 
 			config.profile.os = strings.clone(profile.os)
+			config.profile.arch = strings.clone(profile.arch)
+
+			for key, value in profile.defines {
+				config.profile.defines[strings.clone(key)] = strings.clone(value)
+			}
 
 			break
 		}
@@ -652,17 +659,13 @@ request_initialize :: proc(
 
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
 		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
-			if value, err := json.parse(data = data, allocator = context.temp_allocator, parse_integers = true);
-			   err == .None {
-				ols_config: OlsConfig
+			ols_config: OlsConfig
 
-				if unmarshal(value, ols_config, context.temp_allocator) == nil {
-					read_ols_initialize_options(config, ols_config, uri)
-				} else {
-					log.warnf("Failed to unmarshal %v", file)
-				}
+			err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
+			if err == nil {
+				read_ols_initialize_options(config, ols_config, uri)
 			} else {
-				log.warnf("Failed to parse json %v", file)
+				log.errorf("Failed to unmarshal %v: %v", file, err)
 			}
 		} else {
 			log.warnf("Failed to read/find %v", file)
@@ -748,11 +751,9 @@ request_initialize :: proc(
 						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
-				inlayHintProvider = (
-					config.enable_inlay_hints_params ||
+				inlayHintProvider = (config.enable_inlay_hints_params ||
 					config.enable_inlay_hints_default_params ||
-					config.enable_inlay_hints_implicit_return
-				),
+					config.enable_inlay_hints_implicit_return),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
@@ -1557,7 +1558,12 @@ request_highlights :: proc(
 	return .None
 }
 
-request_code_action :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_code_action :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	params_object, ok := params.(json.Object)
 
 	if !ok {
