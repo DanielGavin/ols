@@ -59,9 +59,10 @@ Example of `ols.json`:
 	"enable_snippets": true,
 	"profile": "default",
 	"profiles": [
-		{ "name": "default", "checker_path": ["src"]},
-		{ "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"]},
-		{ "name": "windows_profile", "os": "windows", "checker_path": ["src"]}
+		{ "name": "default", "checker_path": ["src"], "defines": { "ODIN_DEBUG": "false" }},
+		{ "name": "linux_profile", "os": "linux", "checker_path": ["src/main.odin"], "defines": { "ODIN_DEBUG": "false" }},
+		{ "name": "mac_profile", "os": "darwin", "arch": "arm64", "defines": { "ODIN_DEBUG": "false" }},
+		{ "name": "windows_profile", "os": "windows", "checker_path": ["src"], "defines": { "ODIN_DEBUG": "false" }}
 	]
 }
 ```
@@ -110,7 +111,7 @@ Options:
 
 - `profile`: What profile to currently use.
 
-- `profiles`: List of different profiles that describe the environment ols is running under.
+- `profiles`: List of different profiles that describe the environment ols is running under. This allows you to define different operating systems, architectures and defines for `ols` to use during development, easily switching between them using the `profile` configuration.
 
 ### Odinfmt configurations
 
