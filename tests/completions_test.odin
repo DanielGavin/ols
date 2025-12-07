@@ -5130,3 +5130,21 @@ ast_completion_implicit_selector_binary_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_global_selector_from_local_scope :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		FOO :: Foo{}
+
+		main :: proc() {
+			FOO.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.foo: int"})
+}
