@@ -785,7 +785,10 @@ get_selector_completion :: proc(
 	   selector.type != .Field &&
 	   selector.type != .Package &&
 	   selector.type != .Enum &&
-	   selector.type != .Function {
+	   selector.type != .Function &&
+	   (selector.type == .Struct && .Variable not_in selector.flags) {
+		// We don't want completions for struct types, but we do want completions for constant variables.
+		// See tests `ast_global_non_mutable_completion` vs `ast_completion_global_selector_from_local_scope`
 		return is_incomplete
 	}
 
