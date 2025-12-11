@@ -2,7 +2,6 @@ package ols_testing
 
 import "core:fmt"
 import "core:log"
-import "core:mem"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
@@ -127,7 +126,7 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position)
+	help, ok := server.get_signature_information(src.document, src.position, &src.config)
 
 	if !ok {
 		log.error("Failed get_signature_information")
@@ -159,7 +158,7 @@ expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, positio
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position)
+	help, ok := server.get_signature_information(src.document, src.position, &src.config)
 
 	if help.activeParameter != position {
 		log.errorf("expected parameter position %v, but received %v", position, help.activeParameter)
@@ -463,7 +462,10 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range{start=src.position, end=src.position}
+	input_range := common.Range {
+		start = src.position,
+		end   = src.position,
+	}
 	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
@@ -537,31 +539,30 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	src_builder := strings.builder_make(context.temp_allocator)
 	expected_hints := make([dynamic]server.InlayHint, context.temp_allocator)
 
-	HINT_OPEN  :: "[["
+	HINT_OPEN :: "[["
 	HINT_CLOSE :: "]]"
 
 	{
 		last, line, col: int
 		saw_brackets: bool
-		for i:= 0; i < len(src.main); i += 1 {
+		for i := 0; i < len(src.main); i += 1 {
 			if saw_brackets {
-				if i+1 < len(src.main) && src.main[i:][:len(HINT_CLOSE)] == HINT_CLOSE {
+				if i + 1 < len(src.main) && src.main[i:][:len(HINT_CLOSE)] == HINT_CLOSE {
 					saw_brackets = false
 					hint_str := src.main[last:i]
-					last = i+len(HINT_CLOSE)
-					i = last-1
-					append(&expected_hints, server.InlayHint{
-						position = {line, col},
-						label    = hint_str,
-						kind     = .Parameter,
-					})
+					last = i + len(HINT_CLOSE)
+					i = last - 1
+					append(
+						&expected_hints,
+						server.InlayHint{position = {line, col}, label = hint_str, kind = .Parameter},
+					)
 				}
 			} else {
-				if i+1 < len(src.main) && src.main[i:][:len(HINT_OPEN)] == HINT_OPEN {
+				if i + 1 < len(src.main) && src.main[i:][:len(HINT_OPEN)] == HINT_OPEN {
 					strings.write_string(&src_builder, src.main[last:i])
 					saw_brackets = true
-					last = i+len(HINT_OPEN)
-					i = last-1
+					last = i + len(HINT_OPEN)
+					i = last - 1
 				} else if src.main[i] == '\n' {
 					line += 1
 					col = 0
@@ -584,7 +585,7 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	setup(src)
 	defer teardown(src)
 
-	symbols_and_nodes := server.resolve_entire_file(src.document, allocator=context.temp_allocator)
+	symbols_and_nodes := server.resolve_entire_file(src.document, allocator = context.temp_allocator)
 
 	range := common.Range {
 		end = {line = 9000000},
@@ -595,7 +596,8 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 		return
 	}
 
-	testing.expectf(t,
+	testing.expectf(
+		t,
 		len(expected_hints) == len(hints),
 		"Expected %d inlay hints, but received %d",
 		len(expected_hints),
@@ -620,20 +622,30 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 
 	for i in 0 ..< max(len(expected_hints), len(hints)) {
 		expected_text := "---"
-		actual_text   := "---"
+		actual_text := "---"
 
 		if i < len(expected_hints) {
 			expected := expected_hints[i]
 			expected_line := get_source_line_with_hint(lines, expected)
-			expected_text = fmt.tprintf("\"%s\" at (%d, %d): \"%s\"",
-				expected.label, expected.position.line, expected.position.character, expected_line)
+			expected_text = fmt.tprintf(
+				"\"%s\" at (%d, %d): \"%s\"",
+				expected.label,
+				expected.position.line,
+				expected.position.character,
+				expected_line,
+			)
 		}
 
 		if i < len(hints) {
 			actual := hints[i]
 			actual_line := get_source_line_with_hint(lines, actual)
-			actual_text = fmt.tprintf("\"%s\" at (%d, %d): \"%s\"",
-				actual.label, actual.position.line, actual.position.character, actual_line)
+			actual_text = fmt.tprintf(
+				"\"%s\" at (%d, %d): \"%s\"",
+				actual.label,
+				actual.position.line,
+				actual.position.character,
+				actual_line,
+			)
 		}
 
 		if i >= len(expected_hints) {

@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import test "src:testing"
@@ -559,6 +558,94 @@ proc_signature_move_outside :: proc(t: ^testing.T) {
 		t,
 		&source,
 		{"test.my_cool_function :: proc(aa: int, ba: int, c: int)"},
+	)
+}
+
+@(test)
+signature_comp_lit_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+			b: string,
+		}
+
+		main :: proc() {
+			foo := Foo{
+				{*}
+			}
+		}
+		`,
+		packages = {},
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct {\n\ta: int,\n\tb: string,\n}"},
+	)
+}
+
+@(test)
+signature_comp_lit_struct_pre_declared :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int, // comment for a
+			b: string,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo = {
+				{*}
+			}
+		}
+		`,
+		packages = {},
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct {\n\ta: int, // comment for a\n\tb: string,\n}"},
+	)
+}
+
+@(test)
+signature_comp_lit_bit_set :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			A,
+			B,
+		}
+
+		Bar :: bit_set[Foo]
+
+		main :: proc() {
+			bar: Bar
+			bar = {
+				{*}
+			}
+		}
+		`,
+		packages = {},
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Bar :: bit_set[Foo]"},
 	)
 }
 

@@ -62,7 +62,14 @@ seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
 }
 
 
-get_signature_information :: proc(document: ^Document, position: common.Position) -> (SignatureHelp, bool) {
+get_signature_information :: proc(
+	document: ^Document,
+	position: common.Position,
+	config: ^common.Config,
+) -> (
+	SignatureHelp,
+	bool,
+) {
 	signature_help: SignatureHelp
 
 	ast_context := make_ast_context(
@@ -81,7 +88,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	ast_context.position_hint = position_context.hint
 
 	//TODO(should probably not be an ast.Expr, but ast.Call_Expr)
-	if position_context.call == nil {
+	if position_context.call == nil && !config.enable_comp_lit_signature_help {
 		return signature_help, true
 	}
 
@@ -90,29 +97,65 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
+	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
+	if config.enable_comp_lit_signature_help {
+		if symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
+			build_documentation(&ast_context, &symbol, short_signature = false)
+			append(
+				&signature_information,
+				SignatureInformation {
+					label = get_signature(symbol),
+					documentation = construct_symbol_docs(symbol, markdown = false),
+				},
+			)
+		}
+	}
+
+	if position_context.call != nil {
+		signature_help.activeParameter = add_proc_signature(&ast_context, &position_context, &signature_information)
+	}
+
+	signature_help.signatures = signature_information[:]
+
+	return signature_help, true
+}
+
+@(private = "file")
+get_signature :: proc(symbol: Symbol) -> string {
+	sb := strings.builder_make()
+	write_symbol_name(&sb, symbol)
+	strings.write_string(&sb, " :: ")
+	strings.write_string(&sb, symbol.signature)
+	return strings.to_string(sb)
+}
+
+@(private = "file")
+add_proc_signature :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	signature_information: ^[dynamic]SignatureInformation,
+) -> (
+	active_parameter: int,
+) {
 	for comma, i in position_context.call_commas {
 		if position_context.position > comma {
-			signature_help.activeParameter = i + 1
+			active_parameter = i + 1
 		} else if position_context.position == comma {
-			signature_help.activeParameter = i
+			active_parameter = i
 		}
 	}
 
 	if position_context.arrow {
-		signature_help.activeParameter += 1
+		active_parameter = 1
 	}
 
-	call: Symbol
-	call, ok = resolve_type_expression(&ast_context, position_context.call)
-
+	call, ok := resolve_type_expression(ast_context, position_context.call)
 	if !ok {
-		return signature_help, true
+		return active_parameter
 	}
 
 	seperate_proc_field_arguments(&call)
-
-	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
 		parameters := make([]ParameterInformation, len(value.orig_arg_types), context.temp_allocator)
@@ -120,7 +163,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		for arg, i in value.orig_arg_types {
 			if arg.type != nil {
 				if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
-					signature_help.activeParameter = min(i, signature_help.activeParameter)
+					active_parameter = min(i, active_parameter)
 				}
 			}
 
@@ -130,13 +173,13 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 		sb := strings.builder_make(context.temp_allocator)
 		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
 		call.signature = strings.to_string(sb)
-		
+
 		info := SignatureInformation {
-			label         =	get_signature(call),
+			label         = get_signature(call),
 			documentation = construct_symbol_docs(call, markdown = false),
 			parameters    = parameters,
 		}
-		append(&signature_information, info)
+		append(signature_information, info)
 	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
 		for symbol in value.symbols {
@@ -148,7 +191,7 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				for arg, i in value.orig_arg_types {
 					if arg.type != nil {
 						if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
-							signature_help.activeParameter = min(i, signature_help.activeParameter)
+							active_parameter = min(i, active_parameter)
 						}
 					}
 
@@ -158,28 +201,16 @@ get_signature_information :: proc(document: ^Document, position: common.Position
 				sb := strings.builder_make(context.temp_allocator)
 				write_procedure_symbol_signature(&sb, value, detailed_signature = false)
 				symbol.signature = strings.to_string(sb)
-				
+
 				info := SignatureInformation {
-					label         =	get_signature(symbol),
+					label         = get_signature(symbol),
 					documentation = construct_symbol_docs(symbol, markdown = false),
 					parameters    = parameters,
 				}
 
-				append(&signature_information, info)
+				append(signature_information, info)
 			}
 		}
 	}
-
-	signature_help.signatures = signature_information[:]
-
-	return signature_help, true
-}
-
-@(private="file")
-get_signature :: proc(symbol: Symbol) -> string {
-	sb := strings.builder_make()
-	write_symbol_name(&sb, symbol)
-	strings.write_string(&sb, " :: ")
-	strings.write_string(&sb, symbol.signature)
-	return strings.to_string(sb)
+	return active_parameter
 }
