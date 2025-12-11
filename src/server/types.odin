@@ -422,6 +422,7 @@ OlsConfig :: struct {
 	enable_references:                 Maybe(bool),
 	enable_document_highlights:        Maybe(bool),
 	enable_document_links:             Maybe(bool),
+	enable_comp_lit_signature_help:    Maybe(bool),
 	enable_completion_matching:        Maybe(bool),
 	enable_inlay_hints_params:         Maybe(bool),
 	enable_inlay_hints_default_params: Maybe(bool),

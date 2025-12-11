@@ -411,6 +411,9 @@ write_struct_type :: proc(
 			}
 		}
 	}
+    s := Symbol{
+        
+    }
 
 	if _, ok := get_attribute_objc_class_name(attributes); ok {
 		b.symbol.flags |= {.ObjC}

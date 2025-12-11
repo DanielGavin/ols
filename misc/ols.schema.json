@@ -92,6 +92,11 @@
 			"description": "Follow links when opening documentation.",
 			"default": true
 		},
+		"enable_comp_lit_signature_help": {
+			"type": "boolean",
+			"description": "Provide signature help for comp lits such as when instanciating structs. Will not display correctly on some editors such as vscode.",
+			"default": false
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",

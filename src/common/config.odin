@@ -38,6 +38,7 @@ Config :: struct {
 	enable_auto_import:                 bool,
 	enable_completion_matching:         bool,
 	enable_document_links:              bool,
+	enable_comp_lit_signature_help:     bool,
 	disable_parser_errors:              bool,
 	thread_count:                       int,
 	file_log:                           bool,
