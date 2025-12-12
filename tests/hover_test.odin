@@ -5865,6 +5865,35 @@ ast_hover_deferred_attributes :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.foo :: proc()")
 }
 
+@(test)
+ast_hover_const_aliases :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: 3 + 4
+		B{*}ar :: Foo
+		`,
+	}
+	test.expect_hover(t, &source, "test.Bar :: Foo")
+}
+
+@(test)
+ast_hover_const_aliases_from_other_pkg :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+		Foo :: 3 + 4
+		`})
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		B{*}ar :: my_package.Foo
+		`,
+		packages = packages[:],
+	}
+	test.expect_hover(t, &source, "test.Bar :: my_package.Foo")
+}
+
 /*
 
 Waiting for odin fix
