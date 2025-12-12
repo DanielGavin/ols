@@ -947,7 +947,7 @@ construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: string, document_pkg
 	symbol.type_name = symbol.name
 	symbol.type_pkg = symbol.pkg
 	symbol.name = ident
-	if symbol.type == .Variable {
+	if symbol.type == .Variable || symbol.type == .Constant {
 		symbol.pkg = document_pkg
 	}
 

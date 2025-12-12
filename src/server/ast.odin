@@ -446,9 +446,9 @@ collect_value_decl :: proc(
 		global_expr.name_expr = name
 
 		if len(value_decl.values) > i {
+			global_expr.value_expr = value_decl.values[i]
 			if is_variable_declaration(value_decl.values[i]) {
 				global_expr.flags += {.Variable}
-				global_expr.value_expr = value_decl.values[i]
 			}
 		}
 		if value_decl.type != nil {
