@@ -37,7 +37,7 @@ jobs:
     - name: Move to Dist
       run: |
         mkdir dist
-        mv ols dist/ols-arm64-darwin
+        mv ols odinfmt builtin dist
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -72,7 +72,7 @@ jobs:
     - name: Move to Dist
       run: |
         mkdir dist
-        mv ols dist/ols-x86_64-darwin
+        mv ols odinfmt builtin dist
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -107,7 +107,7 @@ jobs:
     - name: Move to Dist
       run: |
         mkdir dist
-        mv ols dist/ols-x86_64-unknown-linux-gnu
+        mv ols odinfmt builtin dist
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -144,7 +144,7 @@ jobs:
     - name: Move to Dist
       run: |
         mkdir dist
-        mv ols dist/ols-arm64-unknown-linux-gnu
+        mv ols odinfmt builtin dist
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -181,9 +181,8 @@ jobs:
       run: |
         mkdir dist
         move ols.exe dist/
+        move odinfmt.exe dist/
         move builtin dist/
-        cd dist
-        ren ols.exe ols-x86_64-pc-windows-msvc.exe
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -210,49 +209,54 @@ jobs:
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-x86_64-unknown-linux-gnu
-        path: dist
+        path: dist/x86_64-unknown-linux-gnu
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-arm64-unknown-linux-gnu
-        path: dist
+        path: dist/arm64-unknown-linux-gnu
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-x86_64-pc-windows-msvc
-        path: dist
+        path: dist/x86_64-pc-windows-msvc
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-x86_64-darwin
-        path: dist
+        path: dist/x86_64-darwin
     - uses: actions/download-artifact@v4.1.7
       with:
         name: dist-arm64-darwin
-        path: dist
+        path: dist/arm64-darwin
     - run: |
-        ls -al ./dist
-        cd dist
-        zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe builtin
-        rm ols-x86_64-pc-windows-msvc.exe
+        ls -al dist
 
-        chmod +x ols-x86_64-unknown-linux-gnu
-        zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu builtin
-        rm ols-x86_64-unknown-linux-gnu
+        pushd dist/x86_64-pc-windows-msvc
+        zip -r ../ols-x86_64-pc-windows-msvc.zip .
+        popd
 
-        chmod +x ols-arm64-unknown-linux-gnu
-        zip -r ols-arm64-unknown-linux-gnu.zip ols-arm64-unknown-linux-gnu builtin
-        rm ols-arm64-unknown-linux-gnu
+        pushd dist/x86_64-unknown-linux-gnu
+        chmod +x ols odinfmt
+        zip -r ../ols-x86_64-unknown-linux-gnu.zip .
+        popd
 
-        chmod +x ols-x86_64-darwin
-        zip -r ols-x86_64-darwin.zip ols-x86_64-darwin builtin
-        rm ols-x86_64-darwin
+        pushd dist/arm64-unknown-linux-gnu
+        chmod +x ols odinfmt
+        zip -r ../ols-arm64-unknown-linux-gnu.zip .
+        popd
 
-        chmod +x ols-arm64-darwin
-        zip -r ols-arm64-darwin.zip ols-arm64-darwin builtin
-        rm ols-arm64-darwin
+        pushd dist/x86_64-darwin
+        chmod +x ols odinfmt
+        zip -r ../ols-x86_64-darwin.zip .
+        popd
 
-        rm -rf builtin
+        pushd dist/arm64-darwin
+        chmod +x ols odinfmt
+        zip -r ../ols-arm64-darwin.zip .
+        popd
+
+        ls -al dist
     - name: Publish Release
       uses: ./.github/actions/github-release
       with:
-        files: "dist/*"
+        files: "dist/*.zip"
         name: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.ref_name || 'nightly' }}
         token: ${{ secrets.GITHUB_TOKEN }}
