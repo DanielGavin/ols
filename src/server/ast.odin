@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:odin/ast"
@@ -388,12 +389,14 @@ collect_value_decl :: proc(
 	stmt: ^ast.Node,
 	foreign_attrs: []^ast.Attribute,
 ) {
+	index := build_comment_index(file)
+	defer destroy_comment_index(&index)
 	value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl)
 
 	if !is_value_decl {
 		return
 	}
-	comment, _ := get_file_comment(file, value_decl.pos.line)
+	comment, _ := get_file_comment(file, value_decl.pos.line, index = &index)
 
 	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
@@ -1373,6 +1376,9 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 // Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
 // using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
+	index := build_comment_index(file)
+	defer destroy_comment_index(&index)
+
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1411,7 +1417,7 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 			}
 		} else if field.comment == nil {
 			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
+			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator, index = &index)
 		}
 	}
 }
@@ -1419,6 +1425,8 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 // Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
 // using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
+	index := build_comment_index(file)
+	defer destroy_comment_index(&index)
 	for field, i in v.fields {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1448,9 +1456,41 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, a
 			}
 		} else if field.comments == nil {
 			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
+			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator, index = &index)
 		}
 	}
+}
+
+Comment_Index :: struct {
+	line_to_idx: map[int][dynamic]int,
+	allocator:   runtime.Allocator,
+}
+
+build_comment_index :: proc(file: ast.File, allocator := context.allocator) -> Comment_Index {
+	index := Comment_Index {
+		line_to_idx = make(map[int][dynamic]int, allocator),
+		allocator   = allocator,
+	}
+
+	for c, i in file.comments {
+		line := c.pos.line
+
+		if line not_in index.line_to_idx {
+			index.line_to_idx[line] = make([dynamic]int, 0, 1, allocator)
+		}
+
+		append(&index.line_to_idx[line], i)
+	}
+
+	return index
+}
+
+destroy_comment_index :: proc(index: ^Comment_Index) {
+	for _, &indices in index.line_to_idx {
+		delete(indices)
+	}
+
+	delete(index.line_to_idx)
 }
 
 // Retrives the comment group from the specified line of the file
@@ -1459,26 +1499,58 @@ get_file_comment :: proc(
 	file: ast.File,
 	line: int,
 	start_index := 0,
+	index: ^Comment_Index = nil,
 	allocator := context.temp_allocator,
 ) -> (
 	^ast.Comment_Group,
 	int,
 ) {
-	// TODO: linear scan might be a bit slow for files with lots of comments?
+	if index != nil {
+		indices, ok := index.line_to_idx[line]
+
+		if !ok {
+			return nil, -1
+		}
+
+		for idx in indices {
+			if idx >= start_index {
+				c := file.comments[idx]
+
+				for item, j in c.list {
+					comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
+
+					if j == len(c.list) - 1 {
+						comment.list = c.list[j:]
+					} else {
+						comment.list = c.list[j:j + 1]
+					}
+
+					return comment, idx
+				}
+			}
+		}
+
+		return nil, -1
+	}
+
 	for i := start_index; i < len(file.comments); i += 1 {
 		c := file.comments[i]
+
 		if c.pos.line == line {
 			for item, j in c.list {
 				comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
+
 				if j == len(c.list) - 1 {
 					comment.list = c.list[j:]
 				} else {
 					comment.list = c.list[j:j + 1]
 				}
+
 				return comment, i
 			}
 		}
 	}
+
 	return nil, -1
 }
 
@@ -1524,6 +1596,9 @@ get_field_docs_and_comments :: proc(
 	[dynamic]^ast.Comment_Group,
 	[dynamic]^ast.Comment_Group,
 ) {
+	index := build_comment_index(file)
+	defer destroy_comment_index(&index)
+
 	docs := make([dynamic]^ast.Comment_Group, allocator)
 	comments := make([dynamic]^ast.Comment_Group, allocator)
 	prev_line := -1
@@ -1554,6 +1629,7 @@ get_field_docs_and_comments :: proc(
 				n.pos.line,
 				start_index = last_comment + 1,
 				allocator = allocator,
+				index = &index,
 			)
 		}
 
