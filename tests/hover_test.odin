@@ -5950,6 +5950,16 @@ ast_hover_directives_load :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar :: #load(\"foo.txt\")")
 }
+
+@(test)
+ast_hover_directives_config_info :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		bar :: #c{*}onfig(TEST, false)
+		`,
+	}
+	test.expect_hover(t, &source, "#config(<identifier>, default)\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.")
+}
 /*
 
 Waiting for odin fix
