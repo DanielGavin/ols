@@ -53,11 +53,7 @@ resolve_poly :: proc(
 		if ident, ok := unwrap_ident(type); ok {
 			call_node_id := reflect.union_variant_typeid(call_node.derived)
 			specialization_id := reflect.union_variant_typeid(specialization.derived)
-			if ast_context.position_hint == .TypeDefinition && call_node_id == specialization_id {
-				// TODO: Fix this so it doesn't need to be aware that we're in a type definition
-				// if the specialization type matches the type of the parameter passed to the proc
-				// we store that rather than the specialization so we can follow it correctly
-				// for things like `textDocument/typeDefinition`
+			if call_node_id == specialization_id {
 				save_poly_map(
 					ident,
 					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
@@ -133,7 +129,6 @@ resolve_poly :: proc(
 				return false
 			}
 
-			//It's not enough for them to both arrays, they also have to share soa attributes
 			if p.tag != nil && call_array.tag != nil {
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
@@ -162,7 +157,6 @@ resolve_poly :: proc(
 				return false
 			}
 
-			//It's not enough for them to both arrays, they also have to share soa attributes
 			if p.tag != nil && call_array.tag != nil {
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
@@ -796,6 +790,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 					}
 				} else if data.parent_proc == nil {
 					data.symbol_value_builder.types[data.i] = expr
+
 					data.poly_index += 1
 				}
 			}
