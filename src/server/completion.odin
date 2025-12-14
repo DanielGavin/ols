@@ -587,10 +587,150 @@ get_directive_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 ) -> bool {
 	is_incomplete := false
+	context_directives := make([dynamic]CompletionResult, 0, context.temp_allocator)
 
-	// Right now just return all the possible completions, but later on I should give the context specific ones
-	append(results, ..completion_items_directives[:])
+	if position_context.value_decl != nil {
+		for value in position_context.value_decl.values {
+			if _, ok := value.derived.(^ast.Struct_Type); ok {
+				append_struct_directives(&context_directives)
+				break
+			} else if _, ok := value.derived.(^ast.Bit_Field_Type); ok {
+				append_bitfield_directives(&context_directives)
+				break
+			} else if _, ok := value.derived.(^ast.Union_Type); ok {
+				append_union_directives(&context_directives)
+				break
+			}
+		}
+	}
+
+	if position_context.function != nil {
+		append_procedure_directives(&context_directives)
+	}
+
+	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
+		append_switch_directives(&context_directives)
+	}
+
+	if len(context_directives) > 0 {
+		append(results, ..context_directives[:])
+	} else {
+		append(results, ..completion_items_directives[:])
+	}
+
 	return is_incomplete
+}
+
+@(private = "file")
+append_struct_directives :: proc(results: ^[dynamic]CompletionResult) {
+	struct_directives := []string{"align", "packed", "raw_union"}
+
+	for directive in struct_directives {
+		if doc, ok := directive_docs[directive]; ok {
+			documentation := MarkupContent {
+				kind  = "markdown",
+				value = doc,
+			}
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = directive,
+						kind = .Constant,
+						documentation = documentation,
+					},
+				},
+			)
+		}
+	}
+}
+
+@(private = "file")
+append_bitfield_directives :: proc(results: ^[dynamic]CompletionResult) {
+	if doc, ok := directive_docs["align"]; ok {
+		documentation := MarkupContent {
+			kind  = "markdown",
+			value = doc,
+		}
+		append(
+			results,
+			CompletionResult {
+				completion_item = CompletionItem{label = "align", kind = .Constant, documentation = documentation},
+			},
+		)
+	}
+}
+
+@(private = "file")
+append_union_directives :: proc(results: ^[dynamic]CompletionResult) {
+	union_directives := []string{"no_nil", "shared_nil", "align"}
+
+	for directive in union_directives {
+		if doc, ok := directive_docs[directive]; ok {
+			documentation := MarkupContent {
+				kind  = "markdown",
+				value = doc,
+			}
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = directive,
+						kind = .Constant,
+						documentation = documentation,
+					},
+				},
+			)
+		}
+	}
+}
+
+@(private = "file")
+append_procedure_directives :: proc(results: ^[dynamic]CompletionResult) {
+	proc_directives := []string{"optional_ok", "require_results", "deprecated", "cold", "test"}
+
+	for directive in proc_directives {
+		if doc, ok := directive_docs[directive]; ok {
+			documentation := MarkupContent {
+				kind  = "markdown",
+				value = doc,
+			}
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = directive,
+						kind = .Constant,
+						documentation = documentation,
+					},
+				},
+			)
+		}
+	}
+}
+
+@(private = "file")
+append_switch_directives :: proc(results: ^[dynamic]CompletionResult) {
+	switch_directives := []string{"partial"}
+
+	for directive in switch_directives {
+		if doc, ok := directive_docs[directive]; ok {
+			documentation := MarkupContent {
+				kind  = "markdown",
+				value = doc,
+			}
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = directive,
+						kind = .Constant,
+						documentation = documentation,
+					},
+				},
+			)
+		}
+	}
 }
 
 get_comp_lit_completion :: proc(
