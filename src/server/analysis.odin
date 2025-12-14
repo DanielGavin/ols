@@ -1400,7 +1400,18 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		ident.name = "int"
 		return resolve_type_identifier(ast_context, ident^)
 	case "load_directory":
-		return lookup("Load_Directory_File", indexer.runtime_package, call.pos.file)
+		pkg := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
+		pkg.name = "runtime"
+		field := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
+		field.name = "Load_Directory_File"
+		selector := new_type(ast.Selector_Expr, call.pos, call.end, ast_context.allocator)
+		selector.expr = pkg
+		selector.field = field
+		value := SymbolSliceValue{
+			expr = selector
+		}
+		symbol := Symbol{name = "#load_directory", pkg = ast_context.current_package, value = value}
+		return symbol, true
 	}
 
 	return {}, false

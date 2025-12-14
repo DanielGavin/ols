@@ -560,80 +560,25 @@ get_attribute_completion :: proc(
 
 }
 
-DIRECTIVE_NAME_LIST :: []string {
-	// basic directives
-	"file",
-	"directory",
-	"line",
-	"procedure",
-	"caller_location",
-	"reverse",
-	// call directives
-	"location",
-	"caller_expression",
-	"exists",
-	"load",
-	"load_directory",
-	"load_hash",
-	"hash",
-	"assert",
-	"panic",
-	"defined",
-	"config",
-	/* type helper */
-	"type",
-	/* struct type */
-	"packed",
-	"raw_union",
-	"align",
-	"all_or_none",
-	/* union type */
-	"no_nil",
-	"shared_nil",
-	/* array type */
-	"simd",
-	"soa",
-	"sparse",
-	/* ptr type */
-	"relative",
-	/* field flags */
-	"no_alias",
-	"c_vararg",
-	"const",
-	"any_int",
-	"subtype",
-	"by_ptr",
-	"no_broadcast",
-	"no_capture",
-	/* swich flags */
-	"partial",
-	/* block flags */
-	"bounds_check",
-	"no_bounds_check",
-	"type_assert",
-	"no_type_assert",
-	/* proc inlining */
-	"force_inline",
-	"force_no_inline",
-	/* return values flags */
-	"optional_ok",
-	"optional_allocator_error",
-}
-
 completion_items_directives: []CompletionResult
 
 @(init)
 _init_completion_items_directives :: proc "contextless" () {
 	context = runtime.default_context()
-	completion_items_directives = slice.mapper(DIRECTIVE_NAME_LIST, proc(name: string) -> CompletionResult {
-		return CompletionResult {
-			completion_item = CompletionItem {
-				detail = strings.concatenate({"#", name}) or_else name,
-				label = name,
-				kind = .Constant,
-			},
+	directives := make([dynamic]CompletionResult, 0, len(directive_docs), allocator = context.allocator)
+	for name, doc in directive_docs {
+		documentation := MarkupContent {
+			kind  = "markdown",
+			value = doc,
 		}
-	})
+		append(
+			&directives,
+			CompletionResult {
+				completion_item = CompletionItem{label = name, kind = .Constant, documentation = documentation},
+			},
+		)
+	}
+	completion_items_directives = directives[:]
 }
 
 get_directive_completion :: proc(

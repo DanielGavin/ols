@@ -66,6 +66,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	}
 
+	if position_context.directive != nil && position_in_node(position_context.directive, position_context.position) {
+		if str, ok := directive_docs[position_context.directive.name]; ok {
+			hover.contents.kind = "markdown"
+			hover.contents.value = str
+			hover.range = common.get_token_range(position_context.directive, ast_context.file.src)
+			return hover, true, true
+		}
+	}
+
 	if position_context.identifier != nil {
 		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
 			if str, ok := keywords_docs[ident.name]; ok {
@@ -323,7 +332,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 						}
 					}
 
-					if resolved, ok := resolve_symbol_return(&ast_context, lookup(ident.name, selector.pkg, ast_context.fullpath)); ok {
+					if resolved, ok := resolve_symbol_return(
+						&ast_context,
+						lookup(ident.name, selector.pkg, ast_context.fullpath),
+					); ok {
 						build_documentation(&ast_context, &resolved, false)
 						resolved.name = ident.name
 
