@@ -99,6 +99,10 @@ get_signature_information :: proc(
 	}
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
+	if position_context.call != nil {
+		signature_help.activeParameter = add_proc_signature(&ast_context, &position_context, &signature_information)
+	}
+
 	if config.enable_comp_lit_signature_help {
 		if symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 			build_documentation(&ast_context, &symbol, short_signature = false)
@@ -110,10 +114,6 @@ get_signature_information :: proc(
 				},
 			)
 		}
-	}
-
-	if position_context.call != nil {
-		signature_help.activeParameter = add_proc_signature(&ast_context, &position_context, &signature_information)
 	}
 
 	signature_help.signatures = signature_information[:]
