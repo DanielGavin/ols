@@ -216,6 +216,8 @@ get_generic_assignment :: proc(
 					}
 				}
 			}
+		} else if directive, ok := v.expr.derived.(^Basic_Directive); ok {
+			append(results, v)
 		}
 
 		//We have to resolve early and can't rely on lazy evalutation because it can have multiple returns.

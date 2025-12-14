@@ -1364,10 +1364,46 @@ resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbo
 		} else {
 			return {}, false
 		}
+	} else if directive, ok := v.expr.derived.(^ast.Basic_Directive); ok {
+		return resolve_call_directive(ast_context, v)
 	}
 
 	ok := internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	return symbol, ok
+}
+
+resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> (Symbol, bool) {
+	directive, ok := call.expr.derived.(^ast.Basic_Directive)
+	if !ok {
+		return {}, false
+	}
+
+	switch directive.name {
+	case "config":
+		return resolve_type_expression(ast_context, call.args[1])
+	case "load":
+		if len(call.args) == 1 {
+			ident := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
+			ident.name = "u8"
+			value := SymbolSliceValue{
+				expr = ident
+			}
+			symbol := Symbol{name = "#load", pkg = ast_context.current_package, value = value}
+			return symbol, true
+		} else if len(call.args) == 2 {
+			return resolve_type_expression(ast_context, call.args[1])
+		}
+	case "location":
+		return lookup("Source_Code_Location", indexer.runtime_package, call.pos.file)
+	case "hash", "load_hash":
+		ident := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
+		ident.name = "int"
+		return resolve_type_identifier(ast_context, ident^)
+	case "load_directory":
+		return lookup("Load_Directory_File", indexer.runtime_package, call.pos.file)
+	}
+
+	return {}, false
 }
 
 resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr, expr: ^ast.Expr) -> (Symbol, bool) {
@@ -1941,8 +1977,9 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		defer {
 			ast_context.call = old_call
 		}
-
-		if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
+		if _, ok = v.expr.derived.(^ast.Basic_Directive); ok {
+			return_symbol, ok = resolve_call_directive(ast_context, v)
+		} else if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
 			return_types := get_proc_return_types(ast_context, return_symbol, v, .Mutable in global.flags)
 			if len(return_types) > 0 {
 				ok = internal_resolve_type_expression(ast_context, return_types[0], &return_symbol)

@@ -1,12 +1,7 @@
 package server
 
-import "core:fmt"
 import "core:log"
-import "core:odin/ast"
-import "core:path/filepath"
-import "core:slice"
 import "core:strings"
-
 
 Indexer :: struct {
 	builtin_packages: [dynamic]string,

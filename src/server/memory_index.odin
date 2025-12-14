@@ -1,8 +1,6 @@
 package server
 
 import "core:fmt"
-import "core:hash"
-import "core:log"
 import "core:slice"
 import "core:strings"
 
