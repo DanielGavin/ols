@@ -684,7 +684,6 @@ get_top_candiate :: proc(candidates: []Candidate) -> (Candidate, bool) {
 
 
 should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext, call_expr: ^ast.Call_Expr) -> bool {
-	// TODO: We need a better way to handle this
 	if ast_context.resolve_specific_overload {
 		return false
 	}
@@ -693,7 +692,12 @@ should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext,
 		return false
 	}
 
-	return ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
+	#partial switch ast_context.position_hint {
+	case .Completion, .SignatureHelp:
+		return true
+	case:
+		return call_expr == nil
+	}
 }
 
 /*
@@ -1385,10 +1389,14 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		if len(call.args) == 1 {
 			ident := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
 			ident.name = "u8"
-			value := SymbolSliceValue{
-				expr = ident
+			value := SymbolSliceValue {
+				expr = ident,
 			}
-			symbol := Symbol{name = "#load", pkg = ast_context.current_package, value = value}
+			symbol := Symbol {
+				name  = "#load",
+				pkg   = ast_context.current_package,
+				value = value,
+			}
 			return symbol, true
 		} else if len(call.args) == 2 {
 			return resolve_type_expression(ast_context, call.args[1])
@@ -1407,10 +1415,14 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		selector := new_type(ast.Selector_Expr, call.pos, call.end, ast_context.allocator)
 		selector.expr = pkg
 		selector.field = field
-		value := SymbolSliceValue{
-			expr = selector
+		value := SymbolSliceValue {
+			expr = selector,
 		}
-		symbol := Symbol{name = "#load_directory", pkg = ast_context.current_package, value = value}
+		symbol := Symbol {
+			name  = "#load_directory",
+			pkg   = ast_context.current_package,
+			value = value,
+		}
 		return symbol, true
 	}
 
