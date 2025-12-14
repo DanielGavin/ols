@@ -5930,6 +5930,26 @@ ast_hover_directives_load_hash_local :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: int")
 }
+
+@(test)
+ast_hover_directives_config :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		b{*}ar :: #config(TEST, false)
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar :: #config(TEST, false)")
+}
+
+@(test)
+ast_hover_directives_load :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		b{*}ar :: #load("foo.txt")
+		`,
+	}
+	test.expect_hover(t, &source, "test.bar :: #load(\"foo.txt\")")
+}
 /*
 
 Waiting for odin fix

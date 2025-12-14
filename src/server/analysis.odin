@@ -1388,7 +1388,7 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 			value := SymbolSliceValue{
 				expr = ident
 			}
-			symbol := Symbol{name = "#load", value = value}
+			symbol := Symbol{name = "#load", pkg = ast_context.current_package, value = value}
 			return symbol, true
 		} else if len(call.args) == 2 {
 			return resolve_type_expression(ast_context, call.args[1])
@@ -1977,8 +1977,9 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		defer {
 			ast_context.call = old_call
 		}
-
-		if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
+		if _, ok = v.expr.derived.(^ast.Basic_Directive); ok {
+			return_symbol, ok = resolve_call_directive(ast_context, v)
+		} else if ok = internal_resolve_type_expression(ast_context, v.expr, &return_symbol); ok {
 			return_types := get_proc_return_types(ast_context, return_symbol, v, .Mutable in global.flags)
 			if len(return_types) > 0 {
 				ok = internal_resolve_type_expression(ast_context, return_types[0], &return_symbol)
