@@ -53,7 +53,7 @@ resolve_poly :: proc(
 		if ident, ok := unwrap_ident(type); ok {
 			call_node_id := reflect.union_variant_typeid(call_node.derived)
 			specialization_id := reflect.union_variant_typeid(specialization.derived)
-			if call_node_id == specialization_id {
+			if ast_context.position_hint == .TypeDefinition && call_node_id == specialization_id {
 				save_poly_map(
 					ident,
 					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
@@ -253,6 +253,28 @@ resolve_poly :: proc(
 	case ^ast.Pointer_Type:
 		if call_pointer, ok := call_node.derived.(^ast.Pointer_Type); ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
+				if poly_type.specialization != nil {
+					if poly_dynamic, ok := poly_type.specialization.derived.(^ast.Dynamic_Array_Type); ok {
+						if call_dynamic, ok := call_pointer.elem.derived.(^ast.Dynamic_Array_Type); ok {
+							if poly_type.type != nil {
+								if ident, ok := unwrap_ident(poly_type.type); ok {
+									save_poly_map(ident, call_pointer.elem, poly_map)
+								}
+							}
+
+							if elem_poly, ok := poly_dynamic.elem.derived.(^ast.Poly_Type); ok {
+								if elem_ident, ok := unwrap_ident(elem_poly.type); ok {
+									save_poly_map(elem_ident, call_dynamic.elem, poly_map)
+								}
+							}
+
+							return true
+						}
+					}
+				}
+			}
+
+			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
 					save_poly_map(ident, call_pointer.elem, poly_map)
 				}
@@ -260,6 +282,7 @@ resolve_poly :: proc(
 				if poly_type.specialization != nil {
 					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
 				}
+
 				return true
 			}
 		}

@@ -389,14 +389,12 @@ collect_value_decl :: proc(
 	stmt: ^ast.Node,
 	foreign_attrs: []^ast.Attribute,
 ) {
-	index := build_comment_index(file)
-	defer destroy_comment_index(&index)
 	value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl)
 
 	if !is_value_decl {
 		return
 	}
-	comment, _ := get_file_comment(file, value_decl.pos.line, index = &index)
+	comment, _ := get_file_comment(file, value_decl.pos.line)
 
 	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
@@ -1376,9 +1374,6 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 // Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
 // using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
-	index := build_comment_index(file)
-	defer destroy_comment_index(&index)
-
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1417,7 +1412,7 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 			}
 		} else if field.comment == nil {
 			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator, index = &index)
+			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }
@@ -1425,8 +1420,6 @@ construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocat
 // Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
 // using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
-	index := build_comment_index(file)
-	defer destroy_comment_index(&index)
 	for field, i in v.fields {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.
@@ -1456,7 +1449,7 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, a
 			}
 		} else if field.comments == nil {
 			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator, index = &index)
+			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
 		}
 	}
 }

@@ -684,6 +684,7 @@ get_top_candiate :: proc(candidates: []Candidate) -> (Candidate, bool) {
 
 
 should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext, call_expr: ^ast.Call_Expr) -> bool {
+	// TODO: We need a better way to handle this
 	if ast_context.resolve_specific_overload {
 		return false
 	}
@@ -692,12 +693,7 @@ should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext,
 		return false
 	}
 
-	#partial switch ast_context.position_hint {
-	case .Completion, .SignatureHelp:
-		return true
-	case:
-		return call_expr == nil
-	}
+	return ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
 }
 
 /*
@@ -964,8 +960,13 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
 	old_current_package := ast_context.current_package
 	ast_context.current_package = ast_context.document_package
+
+	old_use_locals := ast_context.use_locals
+	ast_context.use_locals = true
+
 	defer {
 		ast_context.current_package = old_current_package
+		ast_context.use_locals = old_use_locals
 	}
 
 	return resolve_type_expression(ast_context, node)
@@ -1128,6 +1129,12 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 }
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+	if node != nil {
+		if _, ok := node.derived.(^ast.Bad_Expr); ok {
+			return {}, false
+		}
+	}
+
 	clear(&ast_context.recursion_map)
 	symbol := Symbol{}
 	ok := internal_resolve_type_expression(ast_context, node, &symbol)
