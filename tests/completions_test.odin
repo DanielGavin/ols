@@ -5148,3 +5148,35 @@ ast_completion_global_selector_from_local_scope :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.foo: int"})
 }
+
+@(test)
+ast_completion_empty_selector_with_ident_newline :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+		Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+
+		Foo :: struct{
+			x: int,
+		}
+
+		import "my_package"
+
+		main :: proc() {
+			my_package.{*}
+			y := 2
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_docs(t, &source, "", {"my_package.Foo :: struct{}"})
+}

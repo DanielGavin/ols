@@ -1,9 +1,7 @@
 package common
 
-import "core:fmt"
 import "core:log"
 import "core:mem"
-import "core:strings"
 import "core:time"
 
 import win32 "core:sys/windows"
