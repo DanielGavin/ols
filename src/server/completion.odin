@@ -410,6 +410,10 @@ score_completion_item :: proc(item: ^CompletionResult, curr_pkg: string) {
 	if item.symbol.pkg == curr_pkg {
 		item.score += 1
 	}
+
+	if strings.has_prefix(item.symbol.name, "_") {
+		item.score -= 0.5
+	}
 }
 
 @(private = "file")
