@@ -1206,35 +1206,6 @@ get_implicit_completion :: proc(
 		}
 	}
 
-	if position_context.assign != nil &&
-	   position_context.assign.lhs != nil &&
-	   len(position_context.assign.lhs) == 1 &&
-	   is_bitset_assignment_operator(position_context.assign.op.text) {
-		//bitsets
-		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
-			set_ast_package_set_scoped(ast_context, symbol.pkg)
-			if value, ok := unwrap_bitset(ast_context, symbol); ok {
-				for name in value.names {
-					if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
-						continue
-					}
-
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-
-					append(results, CompletionResult{completion_item = item})
-				}
-
-				return is_incomplete
-			}
-		}
-
-		reset_ast_context(ast_context)
-	}
-
 	if position_context.comp_lit != nil &&
 	   position_context.parent_binary != nil &&
 	   is_bitset_binary_operator(position_context.binary.op.text) {
@@ -1330,53 +1301,6 @@ get_implicit_completion :: proc(
 
 			reset_ast_context(ast_context)
 		}
-	}
-
-	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
-		rhs_index: int
-
-		for elem in position_context.assign.rhs {
-			if position_in_node(elem, position_context.position) {
-				break
-			} else {
-				//procedures are the only types that can return more than one value
-				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
-					if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
-						if procedure.return_types == nil {
-							return is_incomplete
-						}
-
-						rhs_index += len(procedure.return_types)
-					} else {
-						rhs_index += 1
-					}
-				}
-			}
-		}
-
-		if len(position_context.assign.lhs) > rhs_index {
-			if enum_value, unwrapped_super_enum, ok := unwrap_enum(
-				ast_context,
-				position_context.assign.lhs[rhs_index],
-			); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
-					append(results, CompletionResult{completion_item = item})
-				}
-
-				return is_incomplete
-			}
-		}
-
-		reset_ast_context(ast_context)
 	}
 
 	if position_context.returns != nil && position_context.function != nil {
@@ -1551,6 +1475,83 @@ get_implicit_completion :: proc(
 
 		reset_ast_context(ast_context)
 	}
+
+	if position_context.assign != nil &&
+	   position_context.assign.lhs != nil &&
+	   len(position_context.assign.lhs) == 1 &&
+	   is_bitset_assignment_operator(position_context.assign.op.text) {
+		//bitsets
+		if symbol, ok := resolve_type_expression(ast_context, position_context.assign.lhs[0]); ok {
+			set_ast_package_set_scoped(ast_context, symbol.pkg)
+			if value, ok := unwrap_bitset(ast_context, symbol); ok {
+				for name in value.names {
+					if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
+						continue
+					}
+
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+
+					append(results, CompletionResult{completion_item = item})
+				}
+
+				return is_incomplete
+			}
+		}
+
+		reset_ast_context(ast_context)
+	}
+
+	if position_context.assign != nil && position_context.assign.rhs != nil && position_context.assign.lhs != nil {
+		rhs_index: int
+
+		for elem in position_context.assign.rhs {
+			if position_in_node(elem, position_context.position) {
+				break
+			} else {
+				//procedures are the only types that can return more than one value
+				if symbol, ok := resolve_type_expression(ast_context, elem); ok {
+					if procedure, ok := symbol.value.(SymbolProcedureValue); ok {
+						if procedure.return_types == nil {
+							return is_incomplete
+						}
+
+						rhs_index += len(procedure.return_types)
+					} else {
+						rhs_index += 1
+					}
+				}
+			}
+		}
+
+		if len(position_context.assign.lhs) > rhs_index {
+			if enum_value, unwrapped_super_enum, ok := unwrap_enum(
+				ast_context,
+				position_context.assign.lhs[rhs_index],
+			); ok {
+				for name in enum_value.names {
+					item := CompletionItem {
+						label  = name,
+						kind   = .EnumMember,
+						detail = name,
+					}
+					if unwrapped_super_enum {
+						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
+					}
+
+					append(results, CompletionResult{completion_item = item})
+				}
+
+				return is_incomplete
+			}
+		}
+
+		reset_ast_context(ast_context)
+	}
+
 	return is_incomplete
 }
 

@@ -5164,11 +5164,6 @@ ast_completion_empty_selector_with_ident_newline :: proc(t: ^testing.T) {
 	)
 	source := test.Source {
 		main = `package test
-
-		Foo :: struct{
-			x: int,
-		}
-
 		import "my_package"
 
 		main :: proc() {
@@ -5179,4 +5174,45 @@ ast_completion_empty_selector_with_ident_newline :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 	test.expect_completion_docs(t, &source, "", {"my_package.Foo :: struct{}"})
+}
+
+@(test)
+ast_completion_implicit_selector_binary_expr_proc_call :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Foo :: enum {
+				A,
+				B,
+				C,
+			}
+
+			Bar :: enum {
+				X,
+				Y,
+			}
+
+			foo :: proc(f: Foo) -> bit_set[Bar] {
+				return {.X}
+			}
+		`,
+		},
+	)
+	source := test.Source {
+		main = `package test
+		import "my_package"
+
+		main :: proc() {
+			results: bit_set[my_package.Bar]
+
+			results |= my_package.foo(.{*})
+		}
+		`,
+		packages = packages[:],
+	}
+	test.expect_completion_labels(t, &source, "", {"A", "B", "C"}, {"X", "Y"})
 }
