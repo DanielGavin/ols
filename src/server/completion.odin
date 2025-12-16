@@ -741,7 +741,7 @@ get_selector_completion :: proc(
 
 	field: string
 
-	if position_context.field != nil {
+	if position_context.field != nil && position_in_node(position_context.field, position_context.position) {
 		#partial switch v in position_context.field.derived {
 		case ^ast.Ident:
 			field = v.name
