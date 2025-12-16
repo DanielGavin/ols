@@ -748,7 +748,7 @@ request_initialize :: proc(
 				},
 				semanticTokensProvider = SemanticTokensOptions {
 					range = config.enable_semantic_tokens && semantic_range_support,
-					full = config.enable_semantic_tokens && !semantic_range_support,
+					full = config.enable_semantic_tokens,
 					legend = SemanticTokensLegend {
 						tokenTypes = semantic_token_type_names,
 						tokenModifiers = semantic_token_modifier_names,
