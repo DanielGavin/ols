@@ -197,6 +197,7 @@ SymbolValue :: union {
 }
 
 SymbolFlag :: enum {
+	Builtin,
 	Distinct,
 	Deprecated,
 	PrivateFile,

@@ -731,6 +731,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.Distinct}
 		}
 
+		if expr.builtin {
+			symbol.flags |= {.Builtin}
+		}
+
 		if expr.deprecated {
 			symbol.flags |= {.Deprecated}
 		}

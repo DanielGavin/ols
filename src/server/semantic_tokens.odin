@@ -57,12 +57,13 @@ semantic_token_type_names: []string = {
 
 SemanticTokenModifier :: enum u8 {
 	Declaration,
+	DefaultLibrary,
 	Definition,
 	Deprecated,
 	ReadOnly,
 }
 // Need to be in the same order as SemanticTokenModifier
-semantic_token_modifier_names: []string = {"declaration", "definition", "deprecated", "readonly"}
+semantic_token_modifier_names: []string = {"declaration", "defaultLibrary", "definition", "deprecated", "readonly"}
 SemanticTokenModifiers :: bit_set[SemanticTokenModifier;u32]
 
 SemanticTokensRequest :: struct {
@@ -545,6 +546,10 @@ visit_ident :: proc(
 	symbol := symbol_and_node.symbol
 
 	modifiers := modifiers
+
+	if .Builtin in symbol.flags {
+		modifiers += {.DefaultLibrary}
+	}
 
 	if .Mutable not_in symbol.flags {
 		modifiers += {.ReadOnly}
