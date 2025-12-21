@@ -2101,8 +2101,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 				}
 			}
 			document = cons(document, visit_exprs(p, field.names, name_options))
-		} 
-		else {
+		} else {
 			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
 		}
 
