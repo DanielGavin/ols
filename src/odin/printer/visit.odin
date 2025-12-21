@@ -2082,24 +2082,27 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 
 		name_options := List_Options{.Add_Comma}
 		
-		if (.Enforce_Newline in options) && p.config.align_struct_fields {
-			alignment := get_possible_field_alignment(list.list)
-
-			if alignment > 0 {
-				length := 0
-				for name in field.names {
-					length += get_node_length(name) + 2
-					if .Using in field.flags {
-						length += 6
+		if (.Enforce_Newline in options)  {
+			if p.config.align_struct_fields {
+				alignment := get_possible_field_alignment(list.list)
+	
+				if alignment > 0 {
+					length := 0
+					for name in field.names {
+						length += get_node_length(name) + 2
+						if .Using in field.flags {
+							length += 6
+						}
+						if .Subtype in field.flags {
+							length += 9
+						}
 					}
-					if .Subtype in field.flags {
-						length += 9
-					}
+					align = repeat_space(alignment - length)
 				}
-				align = repeat_space(alignment - length)
 			}
 			document = cons(document, visit_exprs(p, field.names, name_options))
-		} else if (.Enforce_Newline in options) {
+		} 
+		else {
 			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
 		}
 
