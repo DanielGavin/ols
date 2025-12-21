@@ -54,6 +54,7 @@ Config :: struct {
 	inline_single_stmt_case:  bool,
 	spaces_around_colons:     bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
 	space_single_line_blocks: bool,
+	align_struct_fields:      bool,
 }
 
 Brace_Style :: enum {
@@ -104,6 +105,7 @@ when ODIN_OS == .Windows {
 		character_width      = 100,
 		sort_imports         = true,
 		spaces_around_colons = false,
+		align_struct_fields  = true,
 	}
 } else {
 	default_style := Config {
@@ -118,6 +120,7 @@ when ODIN_OS == .Windows {
 		character_width      = 100,
 		sort_imports         = true,
 		spaces_around_colons = false,
+		align_struct_fields  = true,
 	}
 }
 

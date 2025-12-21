@@ -2081,8 +2081,8 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		}
 
 		name_options := List_Options{.Add_Comma}
-
-		if (.Enforce_Newline in options) {
+		
+		if (.Enforce_Newline in options) && p.config.align_struct_fields {
 			alignment := get_possible_field_alignment(list.list)
 
 			if alignment > 0 {
@@ -2096,10 +2096,10 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 						length += 9
 					}
 				}
-				// align = repeat_space(alignment - length)
+				align = repeat_space(alignment - length)
 			}
 			document = cons(document, visit_exprs(p, field.names, name_options))
-		} else {
+		} else if (.Enforce_Newline in options) {
 			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
 		}
 
