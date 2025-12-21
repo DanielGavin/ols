@@ -158,6 +158,8 @@ Options:
 
 - `space_single_line_blocks`: Put spaces around braces of single-line blocks: `{return 0}` => `{ return 0 }`
 
+- `align_struct_fields`: Align the types of struct fields so they all start at the same column.
+
 ## Features
 
 Support Language server features:
