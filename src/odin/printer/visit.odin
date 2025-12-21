@@ -2096,7 +2096,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 						length += 9
 					}
 				}
-				align = repeat_space(alignment - length)
+				// align = repeat_space(alignment - length)
 			}
 			document = cons(document, visit_exprs(p, field.names, name_options))
 		} else {
