@@ -160,6 +160,8 @@ Options:
 
 - `align_struct_fields`: Align the types of struct fields so they all start at the same column.
 
+- `align_struct_values`: Align the values of struct fields when assigning a struct value to a variable so they all start at the same column.
+
 ## Features
 
 Support Language server features:

@@ -798,7 +798,7 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 			alignment := get_possible_comp_lit_alignment(comp_lit.elems)
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				align := empty()
-				if should_align_comp_lit(p, comp_lit) {
+				if should_align_comp_lit(p, comp_lit) && p.config.align_struct_values {
 					align = repeat_space(alignment - get_node_length(value.field))
 				}
 				document = cons(

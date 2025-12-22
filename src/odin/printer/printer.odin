@@ -55,6 +55,7 @@ Config :: struct {
 	spaces_around_colons:     bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
 	space_single_line_blocks: bool,
 	align_struct_fields:      bool,
+	align_struct_values:      bool,
 }
 
 Brace_Style :: enum {
@@ -91,7 +92,6 @@ Line_Suffix_Option :: enum {
 	Indent,
 }
 
-
 when ODIN_OS == .Windows {
 	default_style := Config {
 		spaces               = 4,
@@ -106,6 +106,7 @@ when ODIN_OS == .Windows {
 		sort_imports         = true,
 		spaces_around_colons = false,
 		align_struct_fields  = true,
+		align_struct_values  = true,
 	}
 } else {
 	default_style := Config {
@@ -121,6 +122,7 @@ when ODIN_OS == .Windows {
 		sort_imports         = true,
 		spaces_around_colons = false,
 		align_struct_fields  = true,
+		align_struct_values  = true,
 	}
 }
 
