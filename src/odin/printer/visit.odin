@@ -798,7 +798,7 @@ visit_comp_lit_exprs :: proc(p: ^Printer, comp_lit: ast.Comp_Lit, options := Lis
 			alignment := get_possible_comp_lit_alignment(comp_lit.elems)
 			if value, ok := expr.derived.(^ast.Field_Value); ok && alignment > 0 {
 				align := empty()
-				if should_align_comp_lit(p, comp_lit) {
+				if should_align_comp_lit(p, comp_lit) && p.config.align_struct_values {
 					align = repeat_space(alignment - get_node_length(value.field))
 				}
 				document = cons(
@@ -2081,22 +2081,24 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		}
 
 		name_options := List_Options{.Add_Comma}
-
-		if (.Enforce_Newline in options) {
-			alignment := get_possible_field_alignment(list.list)
-
-			if alignment > 0 {
-				length := 0
-				for name in field.names {
-					length += get_node_length(name) + 2
-					if .Using in field.flags {
-						length += 6
+		
+		if (.Enforce_Newline in options)  {
+			if p.config.align_struct_fields {
+				alignment := get_possible_field_alignment(list.list)
+	
+				if alignment > 0 {
+					length := 0
+					for name in field.names {
+						length += get_node_length(name) + 2
+						if .Using in field.flags {
+							length += 6
+						}
+						if .Subtype in field.flags {
+							length += 9
+						}
 					}
-					if .Subtype in field.flags {
-						length += 9
-					}
+					align = repeat_space(alignment - length)
 				}
-				align = repeat_space(alignment - length)
 			}
 			document = cons(document, visit_exprs(p, field.names, name_options))
 		} else {
