@@ -1435,6 +1435,8 @@ get_implicit_completion :: proc(
 							type = comp_lit.type
 						} else if selector, ok := arg_type.default_value.derived.(^ast.Selector_Expr); ok {
 							type = selector.expr
+						} else {
+							type = arg_type.default_value
 						}
 					}
 

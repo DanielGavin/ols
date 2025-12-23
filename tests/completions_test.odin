@@ -5216,3 +5216,25 @@ ast_completion_implicit_selector_binary_expr_proc_call :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_labels(t, &source, "", {"A", "B", "C"}, {"X", "Y"})
 }
+
+@(test)
+ast_completion_proc_arg_default_enum_alias :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: Foo.A
+
+		foo :: proc(f := Bar) {}
+
+		main :: proc() {
+			foo(.{*})
+		}
+
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
+}
