@@ -5238,3 +5238,39 @@ ast_completion_proc_arg_default_enum_alias :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"A", "B"})
 }
+
+@(test)
+ast_completion_struct_using_anonymous_vector_types :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			using _: [3]f32,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo.{*}
+		}
+
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"r: f32", "x: f32"})
+}
+
+@(test)
+ast_completion_struct_using_named_vector_types :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			using bar: [3]f32,
+		}
+
+		main :: proc() {
+			foo: Foo
+			foo.{*}
+		}
+
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: [3]f32", "r: f32", "x: f32"})
+}
