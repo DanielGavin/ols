@@ -772,99 +772,7 @@ get_selector_completion :: proc(
 	case SymbolFixedArrayValue:
 		is_incomplete = true
 		append_magic_array_like_completion(position_context, selector, results)
-
-		containsColor := 1
-		containsCoord := 1
-
-		expr_len := 0
-
-		if v.len != nil {
-			if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
-				if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
-					expr_len = 0
-				}
-			}
-		}
-
-		if field != "" {
-			for i := 0; i < len(field); i += 1 {
-				c := field[i]
-				if _, ok := swizzle_color_map[c]; ok {
-					containsColor += 1
-				} else if _, ok := swizzle_coord_map[c]; ok {
-					containsCoord += 1
-				} else {
-					return is_incomplete
-				}
-			}
-		}
-
-		if containsColor == 1 && containsCoord == 1 {
-			save := expr_len
-			for k in swizzle_color_components {
-				if expr_len <= 0 {
-					break
-				}
-
-				expr_len -= 1
-
-				item := CompletionItem {
-					label  = fmt.tprintf("%v%v", field, k),
-					kind   = .Property,
-					detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
-				}
-				append(results, CompletionResult{completion_item = item})
-			}
-
-			expr_len = save
-
-			for k in swizzle_coord_components {
-				if expr_len <= 0 {
-					break
-				}
-
-				expr_len -= 1
-
-				item := CompletionItem {
-					label  = fmt.tprintf("%v%v", field, k),
-					kind   = .Property,
-					detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
-				}
-				append(results, CompletionResult{completion_item = item})
-			}
-		}
-
-		if containsColor > 1 {
-			for k in swizzle_color_components {
-				if expr_len <= 0 {
-					break
-				}
-
-				expr_len -= 1
-
-				item := CompletionItem {
-					label  = fmt.tprintf("%v%v", field, k),
-					kind   = .Property,
-					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsColor, node_to_string(v.expr)),
-				}
-				append(results, CompletionResult{completion_item = item})
-			}
-		} else if containsCoord > 1 {
-			for k in swizzle_coord_components {
-				if expr_len <= 0 {
-					break
-				}
-
-				expr_len -= 1
-
-				item := CompletionItem {
-					label  = fmt.tprintf("%v%v", field, k),
-					kind   = .Property,
-					detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsCoord, node_to_string(v.expr)),
-				}
-				append(results, CompletionResult{completion_item = item})
-			}
-		}
+		add_fixed_array_selector_completions(v, field, results)
 		add_soa_field_completion(ast_context, selector, v.expr, v.len, results, selector.name)
 	case SymbolUnionValue:
 		is_incomplete = false
@@ -971,6 +879,13 @@ get_selector_completion :: proc(
 		is_incomplete = false
 		for name, i in v.names {
 			if name == "_" {
+				if is_struct_field_using(v, i) {
+					if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+						if value, ok := symbol.value.(SymbolFixedArrayValue); ok {
+							add_fixed_array_selector_completions(value, field, results)
+						}
+					}
+				}
 				continue
 			}
 
@@ -991,6 +906,12 @@ get_selector_completion :: proc(
 
 				construct_struct_field_symbol(&symbol, selector.name, v, i)
 				append(results, CompletionResult{symbol = symbol})
+
+				if is_struct_field_using(v, i) {
+					if value, ok := symbol.value.(SymbolFixedArrayValue); ok {
+						add_fixed_array_selector_completions(value, field, results)
+					}
+				}
 			} else {
 				//just give some generic symbol with name.
 				item := CompletionItem {
@@ -1082,6 +1003,105 @@ get_selector_completion :: proc(
 	}
 
 	return is_incomplete
+}
+
+add_fixed_array_selector_completions :: proc(
+	v: SymbolFixedArrayValue,
+	field: string,
+	results: ^[dynamic]CompletionResult,
+) {
+	containsColor := 1
+	containsCoord := 1
+
+	expr_len := 0
+
+	if v.len != nil {
+		if basic, ok := v.len.derived.(^ast.Basic_Lit); ok {
+			if expr_len, ok = strconv.parse_int(basic.tok.text); !ok {
+				expr_len = 0
+			}
+		}
+	}
+
+	if field != "" {
+		for i := 0; i < len(field); i += 1 {
+			c := field[i]
+			if _, ok := swizzle_color_map[c]; ok {
+				containsColor += 1
+			} else if _, ok := swizzle_coord_map[c]; ok {
+				containsCoord += 1
+			} else {
+				return
+			}
+		}
+	}
+
+	if containsColor == 1 && containsCoord == 1 {
+		save := expr_len
+		for k in swizzle_color_components {
+			if expr_len <= 0 {
+				break
+			}
+
+			expr_len -= 1
+
+			item := CompletionItem {
+				label  = fmt.tprintf("%v%v", field, k),
+				kind   = .Property,
+				detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
+			}
+			append(results, CompletionResult{completion_item = item})
+		}
+
+		expr_len = save
+
+		for k in swizzle_coord_components {
+			if expr_len <= 0 {
+				break
+			}
+
+			expr_len -= 1
+
+			item := CompletionItem {
+				label  = fmt.tprintf("%v%v", field, k),
+				kind   = .Property,
+				detail = fmt.tprintf("%v%v: %v", field, k, node_to_string(v.expr)),
+			}
+			append(results, CompletionResult{completion_item = item})
+		}
+	}
+
+	if containsColor > 1 {
+		for k in swizzle_color_components {
+			if expr_len <= 0 {
+				break
+			}
+
+			expr_len -= 1
+
+			item := CompletionItem {
+				label  = fmt.tprintf("%v%v", field, k),
+				kind   = .Property,
+				detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsColor, node_to_string(v.expr)),
+			}
+			append(results, CompletionResult{completion_item = item})
+		}
+	} else if containsCoord > 1 {
+		for k in swizzle_coord_components {
+			if expr_len <= 0 {
+				break
+			}
+
+			expr_len -= 1
+
+			item := CompletionItem {
+				label  = fmt.tprintf("%v%v", field, k),
+				kind   = .Property,
+				detail = fmt.tprintf("%v%v: [%v]%v", field, k, containsCoord, node_to_string(v.expr)),
+			}
+			append(results, CompletionResult{completion_item = item})
+		}
+	}
 }
 
 get_implicit_completion :: proc(

@@ -412,10 +412,8 @@ write_struct_type :: proc(
 			}
 		}
 	}
-    s := Symbol{
-        
-    }
 
+	s: Symbol
 	if _, ok := get_attribute_objc_class_name(attributes); ok {
 		b.symbol.flags |= {.ObjC}
 		if get_attribute_objc_is_class_method(attributes) {
@@ -627,6 +625,15 @@ expand_objc :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 			}
 		}
 	}
+}
+
+is_struct_field_using :: proc(v: SymbolStructValue, index: int) -> bool {
+	for i in v.usings {
+		if i == index {
+			return true
+		}
+	}
+	return false
 }
 
 get_proc_arg_count :: proc(v: SymbolProcedureValue) -> int {
