@@ -761,7 +761,7 @@ request_initialize :: proc(
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
 				documentLinkProvider = {resolveProvider = false},
-				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite"}},
+				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite", "source.organizeImports"}},
 			},
 		},
 		id = id,
@@ -1586,7 +1586,7 @@ request_code_action :: proc(
 	}
 
 	code_actions: []CodeAction
-	code_actions, ok = get_code_actions(document, code_action_params.range, config)
+	code_actions, ok = get_code_actions(document, code_action_params.context_, code_action_params.range, config)
 	if !ok {
 		return .InternalError
 	}
