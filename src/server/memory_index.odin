@@ -51,6 +51,82 @@ score_name :: proc(matchers: []^common.FuzzyMatcher, name: string) -> (f32, bool
 	return score, true
 }
 
+traverse_nested_fields :: proc(
+	index: ^MemoryIndex,
+	symbol: Symbol,
+	prefix: string,
+	matchers: []^common.FuzzyMatcher,
+	symbols: ^[dynamic]FuzzyResult,
+) {
+	#partial switch v in symbol.value {
+	case SymbolStructValue:
+		for name, i in v.names {
+			full_name := fmt.tprintf("%s.%s", prefix, name)
+
+			if score, ok := score_name(matchers, full_name); ok {
+				s := symbol
+				construct_struct_field_symbol(&s, prefix, v, i)
+				s.name = full_name
+				result := FuzzyResult {
+					symbol = s,
+					score  = score,
+				}
+
+				append(symbols, result)
+			}
+
+			field_symbol := symbol
+			construct_struct_field_symbol(&field_symbol, prefix, v, i)
+			traverse_nested_fields(index, field_symbol, full_name, matchers, symbols)
+		}
+
+	case SymbolBitFieldValue:
+		for name, i in v.names {
+			full_name := fmt.tprintf("%s.%s", prefix, name)
+
+			if score, ok := score_name(matchers, full_name); ok {
+				s := symbol
+				construct_bit_field_field_symbol(&s, prefix, v, i)
+				s.name = full_name
+				result := FuzzyResult {
+					symbol = s,
+					score  = score,
+				}
+
+				append(symbols, result)
+			}
+
+			field_symbol := symbol
+			construct_bit_field_field_symbol(&field_symbol, prefix, v, i)
+			traverse_nested_fields(index, field_symbol, full_name, matchers, symbols)
+		}
+
+	case SymbolGenericValue:
+		for name, i in v.field_names {
+			full_name := fmt.tprintf("%s.%s", prefix, name)
+
+			if score, ok := score_name(matchers, full_name); ok {
+				s := symbol
+				s.name = full_name
+				s.type = .Field
+				s.range = v.ranges[i]
+				result := FuzzyResult {
+					symbol = s,
+					score  = score,
+				}
+
+				append(symbols, result)
+			}
+
+			field_symbol := symbol
+			field_symbol.name = full_name
+			field_symbol.type = .Field
+			field_symbol.range = v.ranges[i]
+			traverse_nested_fields(index, field_symbol, full_name, matchers, symbols)
+		}
+	}
+}
+
 memory_index_fuzzy_search :: proc(
 	index: ^MemoryIndex,
 	name: string,
@@ -63,9 +139,9 @@ memory_index_fuzzy_search :: proc(
 	bool,
 ) {
 	symbols := make([dynamic]FuzzyResult, 0, context.temp_allocator)
-
 	fields := strings.fields(name, context.temp_allocator)
 	matchers := make([dynamic]^common.FuzzyMatcher, 0, len(fields), context.temp_allocator)
+
 	for field in fields {
 		append(&matchers, common.make_fuzzy_matcher(field))
 	}
@@ -79,57 +155,11 @@ memory_index_fuzzy_search :: proc(
 				if should_skip_private_symbol(symbol, current_pkg, current_file) {
 					continue
 				}
+
 				if resolve_fields {
-					// TODO: this only does the top level fields, we may want to travers all the way down in the future
-					#partial switch v in symbol.value {
-					case SymbolStructValue:
-						for name, i in v.names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := score_name(matchers[:], full_name); ok {
-								s := symbol
-								construct_struct_field_symbol(&s, symbol.name, v, i)
-								s.name = full_name
-								result := FuzzyResult {
-									symbol = s,
-									score  = score,
-								}
-
-								append(&symbols, result)
-							}
-						}
-					case SymbolBitFieldValue:
-						for name, i in v.names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := score_name(matchers[:], full_name); ok {
-								s := symbol
-								construct_bit_field_field_symbol(&s, symbol.name, v, i)
-								s.name = full_name
-								result := FuzzyResult {
-									symbol = s,
-									score  = score,
-								}
-
-								append(&symbols, result)
-							}
-						}
-					case SymbolGenericValue:
-						for name, i in v.field_names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
-							if score, ok := score_name(matchers[:], full_name); ok {
-								s := symbol
-								s.name = full_name
-								s.type = .Field
-								s.range = v.ranges[i]
-								result := FuzzyResult {
-									symbol = s,
-									score  = score,
-								}
-
-								append(&symbols, result)
-							}
-						}
-					}
+					traverse_nested_fields(index, symbol, symbol.name, matchers[:], &symbols)
 				}
+
 				if score, ok := score_name(matchers[:], symbol.name); ok {
 					result := FuzzyResult {
 						symbol = symbol,
