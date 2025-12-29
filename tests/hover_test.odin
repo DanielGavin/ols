@@ -5960,6 +5960,32 @@ ast_hover_directives_config_info :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "#config(<identifier>, default)\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.")
 }
+
+@(test)
+ast_hover_proc_group_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Foos :: bit_set[Foo]
+
+		foo_one :: proc(i: int, foos: Foos) {}
+		foo_two :: proc(s: string, foos: Foos) {}
+		foo :: proc {
+			foo_one,
+			foo_two,
+		}
+
+		main :: proc() {
+			foo(1, {.A{*}})
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
 /*
 
 Waiting for odin fix

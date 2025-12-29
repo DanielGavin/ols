@@ -2451,6 +2451,11 @@ resolve_implicit_selector :: proc(
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
+			old := ast_context.resolve_specific_overload
+			ast_context.resolve_specific_overload = true
+			defer {
+				ast_context.resolve_specific_overload = old
+			}
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
 				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(proc_value.arg_types) <= parameter_index {
