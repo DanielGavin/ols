@@ -5233,7 +5233,32 @@ ast_completion_proc_arg_default_enum_alias :: proc(t: ^testing.T) {
 		main :: proc() {
 			foo(.{*})
 		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"A", "B"})
+}
 
+@(test)
+ast_completion_proc_group_bitset :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Foos :: bit_set[Foo]
+
+		foo_one :: proc(i: int, foos: Foos) {}
+		foo_two :: proc(s: string, foos: Foos) {}
+		foo :: proc {
+			foo_one,
+			foo_two,
+		}
+
+		main :: proc() {
+			foo(1, {.{*}})
+		}
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {"A", "B"})
