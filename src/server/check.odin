@@ -118,7 +118,7 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 	collection_builder := strings.builder_make(context.temp_allocator)
 
 	for k, v in common.config.collections {
-		if k == "" || k == "core" || k == "vendor" || k == "base" {
+		if k == "" || k == "core" || k == "vendor" || k == "base" || k == "shared" {
 			continue
 		}
 		strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=\"%v\" ", k, v))
