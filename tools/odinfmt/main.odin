@@ -14,9 +14,10 @@ import "src:odin/format"
 import "src:odin/printer"
 
 Args :: struct {
-	write: bool `args:"name=w" usage:"write the new format to file"`,
-	stdin: bool `usage:"formats code from standard input"`,
-	path:  string `args:"pos=0" usage:"set the file or directory to format"`,
+	write:  bool `args:"name=w" usage:"write the new format to file"`,
+	stdin:  bool `usage:"formats code from standard input"`,
+	stdout: bool `usage:"outputs formatted code to standard output (only when stdin is used)"`,
+	path:   string `args:"pos=0" usage:"set the file or directory to format"`,
 }
 
 format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
@@ -89,10 +90,18 @@ main :: proc() {
 		source, ok := format.format("<stdin>", string(data[:]), config, {.Optional_Semicolons}, arena_allocator)
 
 		if ok {
-			fmt.println(source)
+			if args.stdout {
+				_, err := os.write(os.stdout, transmute([]byte)source)
+				if err != os.ERROR_NONE {
+					write_failure = true
+				}
+			} else {
+				fmt.println(source)
+			}
+		} else {
+			write_failure = true
 		}
 
-		write_failure = !ok
 	} else if os.is_file(args.path) {
 		if args.write {
 			backup_path := strings.concatenate({args.path, "_bk"})
