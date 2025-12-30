@@ -87,7 +87,7 @@ main :: proc() {
 			append(&data, ..tmp[:r])
 		}
 
-		source, ok := format.format("<stdin>", string(data[:]), config, {.Optional_Semicolons}, arena_allocator)
+		source, ok := format.format("<stdin>", transmute(string)data[:], config, {.Optional_Semicolons}, arena_allocator)
 
 		if ok {
 			if args.stdout {
@@ -101,7 +101,6 @@ main :: proc() {
 		} else {
 			write_failure = true
 		}
-
 	} else if os.is_file(args.path) {
 		if args.write {
 			backup_path := strings.concatenate({args.path, "_bk"})
