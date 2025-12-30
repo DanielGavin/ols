@@ -16,7 +16,7 @@ import "src:odin/printer"
 Args :: struct {
 	write:  bool `args:"name=w" usage:"write the new format to file"`,
 	stdin:  bool `usage:"formats code from standard input"`,
-	stdout: bool `usage:"outputs formatted code to standard output (only when stdin is used)"`,
+	stdout: bool `usage:"outputs formatted code to standard output (only valid when stdin is also used)"`,
 	path:   string `args:"pos=0" usage:"set the file or directory to format"`,
 }
 
