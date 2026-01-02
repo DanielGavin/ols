@@ -212,7 +212,6 @@ get_switch_cases_info :: proc(
 	is_enum: bool,
 	ok: bool,
 ) {
-	log.error(position_context.switch_stmt, position_context.switch_type_stmt)
 	if (position_context.switch_stmt == nil && position_context.switch_type_stmt == nil) ||
 	   (position_context.switch_stmt != nil && position_context.switch_stmt.cond == nil) {
 		return nil, nil, false, false
@@ -251,7 +250,6 @@ get_switch_cases_info :: proc(
 			}
 		}
 	}
-	log.error(existing_cases)
 	if is_enum {
 		enum_value, was_super_enum, unwrap_ok := unwrap_enum(ast_context, position_context.switch_stmt.cond)
 		if !unwrap_ok {return nil, nil, true, false}
