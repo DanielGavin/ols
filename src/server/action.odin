@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import path "core:path/slashpath"
+import "core:slice"
 import "core:strings"
 
 import "src:common"
@@ -71,6 +72,15 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 		remove_unused_imports(document, strings.clone(document.uri.uri), config, &actions)
 	}
 
+	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
+		add_populate_switch_cases_action(
+			document,
+			&ast_context,
+			&position_context,
+			strings.clone(document.uri.uri),
+			&actions,
+		)
+	}
 	return actions[:], true
 }
 
@@ -181,4 +191,120 @@ add_missing_imports :: proc(
 	}
 
 	return
+}
+
+get_block_original_text :: proc(block: []^ast.Stmt, document_text: []u8) -> string {
+	if len(block) == 0 {
+		return ""
+	}
+	start := block[0].pos
+	end := block[max(0, len(block) - 1)].end
+	return string(document_text[start.offset:end.offset])
+}
+
+get_switch_cases_info :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> (
+	existing_cases: map[string]string,
+	enum_names: []string,
+	ok: bool,
+) {
+	if switch_block, ok := position_context.switch_stmt.body.derived.(^ast.Block_Stmt); ok {
+		existing_cases = make(map[string]string, 5, context.temp_allocator)
+		for stmt in switch_block.stmts {
+			if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
+				case_name := ""
+				for name in case_clause.list {
+					if implicit, ok := name.derived.(^ast.Implicit_Selector_Expr); ok {
+						case_name = implicit.field.name
+						break
+					}
+				}
+				if case_name != "" {
+					existing_cases[case_name] = get_block_original_text(case_clause.body, document.text)
+				}
+			}
+		}
+	}
+	enum_value, _, unwrap_ok := unwrap_enum(ast_context, position_context.switch_stmt.cond)
+	if !unwrap_ok {return nil, nil, false}
+	return existing_cases, enum_value.names, true
+}
+
+create_populate_switch_cases_edit :: proc(
+	position_context: ^DocumentPositionContext,
+	existing_cases: map[string]string,
+	enum_names: []string,
+) -> (
+	TextEdit,
+	bool,
+) {
+	//we need to be either in a switch stmt or a switch type stmt
+	if position_context.switch_stmt == nil && position_context.switch_type_stmt == nil {
+		return {}, false
+	}
+	//entirety of the switch block
+	range := common.get_token_range(position_context.switch_stmt.body.stmt_base, position_context.file.src)
+	replacement_builder := strings.builder_make()
+	b := &replacement_builder
+	fmt.sbprintln(b, "{")
+	for name in enum_names {
+		fmt.sbprintln(b, "case .", name, ":", sep = "")
+		if name in existing_cases {
+			case_block := existing_cases[name]
+			if case_block != "" {
+				fmt.sbprintln(b, existing_cases[name])
+			}
+		}
+	}
+	for name in existing_cases {
+		if !slice.contains(enum_names, name) {
+			//this case probably shouldn't exist
+			//since it's not one of the legal enum names,
+			//but don't delete the user's code inside the block
+			fmt.sbprintln(b, "case .", name, ":", sep = "")
+			case_block := existing_cases[name]
+			if case_block != "" {
+				fmt.sbprintln(b, existing_cases[name])
+			}
+		}
+	}
+	fmt.sbprint(b, "}")
+	return TextEdit{range = range, newText = strings.to_string(replacement_builder)}, true
+}
+add_populate_switch_cases_action :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	uri: string,
+	actions: ^[dynamic]CodeAction,
+) {
+	existing_cases, enum_names, ok := get_switch_cases_info(document, ast_context, position_context)
+	if !ok {return}
+	all_cases_covered := true
+	for name in enum_names {
+		if name not_in existing_cases {
+			all_cases_covered = false
+		}
+	}
+	if all_cases_covered {return} 	//action not needed
+	edit, edit_ok := create_populate_switch_cases_edit(position_context, existing_cases, enum_names)
+	if !edit_ok {return}
+	textEdits := make([dynamic]TextEdit, context.temp_allocator)
+	append(&textEdits, edit)
+
+	workspaceEdit: WorkspaceEdit
+	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
+	workspaceEdit.changes[uri] = textEdits[:]
+	append(
+		actions,
+		CodeAction {
+			kind = "refactor.rewrite",
+			isPreferred = true,
+			title = "populate remaining switch cases",
+			edit = workspaceEdit,
+		},
+	)
 }
