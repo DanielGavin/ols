@@ -835,6 +835,9 @@ get_selector_completion :: proc(
 		remove_edit, rok := create_remove_edit(position_context, true)
 		if !rok {break}
 
+		// Sublime Text will remove the original `.` for some reason
+		is_sublime := config.client_name == "Sublime Text LSP"
+
 		for name in enumv.names {
 			append(
 				results,
@@ -855,7 +858,7 @@ get_selector_completion :: proc(
 						label = fmt.tprintf(".%s in", name),
 						kind = .EnumMember,
 						detail = in_text,
-						insertText = in_text[1:],
+						insertText = is_sublime ? in_text : in_text[1:],
 						additionalTextEdits = remove_edit,
 					},
 				},
@@ -868,7 +871,7 @@ get_selector_completion :: proc(
 						label = fmt.tprintf(".%s not_in", name),
 						kind = .EnumMember,
 						detail = not_in_text,
-						insertText = not_in_text[1:],
+						insertText = is_sublime ? not_in_text : not_in_text[1:],
 						additionalTextEdits = remove_edit,
 					},
 				},
