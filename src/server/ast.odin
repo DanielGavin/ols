@@ -7,6 +7,7 @@ import "core:odin/ast"
 import "core:odin/parser"
 import path "core:path/slashpath"
 import "core:strings"
+import "core:log"
 
 keyword_map: map[string]struct{} = {
 	"typeid"        = {},
@@ -563,51 +564,79 @@ get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
 	return string(src[node.pos.offset:node.end.offset])
 }
 
-get_doc :: proc(comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
-	if comment == nil {
-		return ""
+COMMENT_DELIMITER_LENGTH :: len("//")
+#assert(COMMENT_DELIMITER_LENGTH == len("/*"))
+#assert(COMMENT_DELIMITER_LENGTH == len("*/"))
+
+// Returns the minimum indentation across all non-empty lines
+get_min_indent :: proc(lines: []string) -> int {
+	min_indent := max(int)
+	for line in lines {
+		if strings.trim_space(line) == "" do continue
+		for c, i in line {
+			if !strings.is_space(c) {
+				min_indent = min(min_indent, i)
+				break
+			}
+		}
 	}
+	return 0 if min_indent == max(int) else min_indent
+}
 
-	tmp: string
+// Strips min_indent characters from each line and joins with newlines
+strip_indent_and_join :: proc(lines: []string, min_indent: int, allocator: mem.Allocator) -> string {
+	result := make([dynamic]string, context.temp_allocator)
+	for line in lines {
+		if len(line) >= min_indent {
+			append(&result, line[min_indent:])
+		} else {
+			append(&result, strings.trim_left_space(line))
+		}
+	}
+	return strings.join(result[:], "\n", allocator)
+}
 
-	for doc in comment.list {
-		if strings.starts_with(doc.text, "/*") && doc.pos.column != 1 {
-			lines := strings.split(doc.text, "\n", context.temp_allocator)
-			for line, i in lines {
-				if i != 0 && len(line) > 0 {
-					column := 0
-					for column < doc.pos.column - 1 {
-						if line[column] == '\t' || line[column] == ' ' {
-							column += 1
-						} else {
-							break
-						}
-					}
-					tmp = strings.concatenate({tmp, "\n", line[column:]}, context.temp_allocator)
-				} else {
-					tmp = strings.concatenate({tmp, "\n", line}, context.temp_allocator)
+// Aggregates the content from the provided comment group,
+// omitting extraneous spaces and delimiters.
+get_comment :: proc(comment: ^ast.Comment_Group, allocator := context.allocator) -> string {
+	if comment == nil do return ""
+
+	lines := make([dynamic]string, context.temp_allocator)
+
+	for token in comment.list {
+		if len(token.text) < COMMENT_DELIMITER_LENGTH do continue
+		delimiter := token.text[:COMMENT_DELIMITER_LENGTH]
+
+		switch delimiter {
+		case "/*":
+			if len(token.text) <= COMMENT_DELIMITER_LENGTH * 2 do continue
+			content := token.text[COMMENT_DELIMITER_LENGTH:len(token.text) - COMMENT_DELIMITER_LENGTH]
+
+			// Check if this is a single-line block comment (no newlines)
+			if !strings.contains(content, "\n") {
+				text := strings.trim_space(content)
+				if text != "" do append(&lines, text)
+			} else {
+				// Multi-line block comment: strip leading/trailing newlines
+				content = strings.trim(content, "\r\n")
+				for line in strings.split_lines(content, context.temp_allocator) {
+					append(&lines, line)
 				}
 			}
-		} else {
-			tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
+
+		case "//":
+			text := token.text[COMMENT_DELIMITER_LENGTH:]
+			append(&lines, text)
+
+		case:
+			log.error("unsupported comment delimiter")
 		}
 	}
 
-	if tmp != "" {
-		no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
-		no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
-		no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
-		return strings.clone(no_end_comments, allocator)
-	}
+	if len(lines) == 0 do return ""
 
-	return ""
-}
-
-get_comment :: proc(comment: ^ast.Comment_Group) -> string {
-	if comment != nil && len(comment.list) > 0 {
-		return comment.list[0].text
-	}
-	return ""
+	min_indent := get_min_indent(lines[:])
+	return strip_indent_and_join(lines[:], min_indent, allocator)
 }
 
 free_ast :: proc {

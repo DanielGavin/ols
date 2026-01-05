@@ -401,7 +401,7 @@ ast_hover_proc_group :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_hover(t, &source, "test.add :: proc(a, b: int) -> int\n docs\n\n// comment")
+	test.expect_hover(t, &source, "test.add :: proc(a, b: int) -> int\n---\ndocs\n---\ncomment")
 }
 
 @(test)
@@ -672,7 +672,7 @@ ast_hover_struct_field_complex_definition :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "Foo.bar: ^test.Bar\n Docs\n\n// inline docs")
+	test.expect_hover(t, &source, "Foo.bar: ^test.Bar\n---\nDocs\n---\ninline docs")
 }
 
 @(test)
@@ -1084,7 +1084,7 @@ ast_hover_proc_overloading_named_arg_with_selector_expr_with_another_package :: 
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.foo :: proc(x := 1) -> (_: int, _: bool)\n Docs\n\n// comment")
+	test.expect_hover(t, &source, "my_package.foo :: proc(x := 1) -> (_: int, _: bool)\n---\nDocs\n---\ncomment")
 }
 
 @(test)
@@ -1479,7 +1479,7 @@ ast_hover_proc_comments :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo :: proc()\n doc\n\n// do foo")
+	test.expect_hover(t, &source, "test.foo :: proc()\n---\ndoc\n---\ndo foo")
 }
 
 @(test)
@@ -1507,7 +1507,7 @@ ast_hover_proc_comments_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_hover(t, &source, "my_package.foo :: proc()\n// do foo")
+	test.expect_hover(t, &source, "my_package.foo :: proc()\n---\ndo foo")
 }
 
 @(test)
@@ -1525,7 +1525,7 @@ ast_hover_struct_field_distinct :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "S.fb: test.B\n// type: fb")
+	test.expect_hover(t, &source, "S.fb: test.B\n---\ntype: fb")
 }
 
 @(test)
@@ -2135,7 +2135,7 @@ ast_hover_bit_field_field :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.foo_aa: uint | 6\n// last 6 bits")
+	test.expect_hover(t, &source, "Foo.foo_aa: uint | 6\n---\nlast 6 bits")
 }
 
 @(test)
@@ -2154,7 +2154,7 @@ ast_hover_bit_field_variable_with_docs :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.foo_a: uint | 2\n doc\n\n// foo a")
+	test.expect_hover(t, &source, "Foo.foo_a: uint | 2\n---\ndoc\n---\nfoo a")
 }
 
 @(test)
@@ -2353,7 +2353,7 @@ ast_hover_struct_field_should_show_docs_and_comments :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.a: int\n a docs\n\n// a comment")
+	test.expect_hover(t, &source, "Foo.a: int\n---\na docs\n---\na comment")
 }
 
 @(test)
@@ -2367,7 +2367,7 @@ ast_hover_struct_field_should_show_docs_and_comments_field :: proc(t: ^testing.T
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.a: int\n a docs\n\n// a comment")
+	test.expect_hover(t, &source, "Foo.a: int\n---\na docs\n---\na comment")
 }
 
 @(test)
@@ -2388,7 +2388,7 @@ ast_hover_struct_field_should_show_docs_and_comments_struct_types :: proc(t: ^te
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: test.Bar\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: test.Bar\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2407,7 +2407,7 @@ ast_hover_struct_field_should_show_docs_and_comments_procs :: proc(t: ^testing.T
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: proc(a: int) -> int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: proc(a: int) -> int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2428,7 +2428,7 @@ ast_hover_struct_field_should_show_docs_and_comments_named_procs :: proc(t: ^tes
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: proc(a: int) -> string\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: proc(a: int) -> string\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2447,7 +2447,7 @@ ast_hover_struct_field_should_show_docs_and_comments_maps :: proc(t: ^testing.T)
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: map[int]int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: map[int]int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2466,7 +2466,7 @@ ast_hover_struct_field_should_show_docs_and_comments_bit_sets :: proc(t: ^testin
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: bit_set[0 ..< 10]\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: bit_set[0 ..< 10]\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2490,7 +2490,7 @@ ast_hover_struct_field_should_show_docs_and_comments_unions :: proc(t: ^testing.
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: test.Bar\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: test.Bar\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2509,7 +2509,7 @@ ast_hover_struct_field_should_show_docs_and_comments_multipointers :: proc(t: ^t
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: [^]int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: [^]int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2528,7 +2528,7 @@ ast_hover_struct_field_should_show_docs_and_comments_dynamic_arrays :: proc(t: ^
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: [dynamic]int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: [dynamic]int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2547,7 +2547,7 @@ ast_hover_struct_field_should_show_docs_and_comments_fixed_arrays :: proc(t: ^te
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: [5]int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: [5]int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -2566,7 +2566,7 @@ ast_hover_struct_field_should_show_docs_and_comments_matrix :: proc(t: ^testing.
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "Foo.bar: matrix[4,5]int\n bar docs\n\n// bar comment")
+	test.expect_hover(t, &source, "Foo.bar: matrix[4,5]int\n---\nbar docs\n---\nbar comment")
 }
 
 @(test)
@@ -3191,7 +3191,7 @@ ast_hover_documentation_reexported :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n Documentation for Foo")
+	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n---\nDocumentation for Foo")
 }
 
 @(test)
@@ -3217,7 +3217,7 @@ ast_hover_override_documentation_reexported :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n New docs for Foo")
+	test.expect_hover(t, &source, "my_package.Foo :: struct{}\n---\nNew docs for Foo")
 }
 
 @(test)
@@ -3495,7 +3495,7 @@ ast_hover_enum_field_directly :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.Foo: .A\n Doc for A and B\n Mulitple lines!\n\n// comment for A and B")
+	test.expect_hover(t, &source, "test.Foo: .A\n---\nDoc for A and B\nMulitple lines!\n---\ncomment for A and B")
 }
 
 @(test)
@@ -3624,7 +3624,7 @@ ast_hover_bit_set_intersection :: proc(t: ^testing.T) {
 		foo_{*}b := foo_bar & {.Foo}  // hover for foo_b
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo_b: distinct bit_set[Flag]\n// hover for foo_b")
+	test.expect_hover(t, &source, "test.foo_b: distinct bit_set[Flag]\n---\nhover for foo_b")
 }
 
 @(test)
@@ -3638,7 +3638,7 @@ ast_hover_bit_set_union :: proc(t: ^testing.T) {
 		foo_{*}b := {.Foo} | foo_bar  // hover for foo_b
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo_b: distinct bit_set[Flag]\n// hover for foo_b")
+	test.expect_hover(t, &source, "test.foo_b: distinct bit_set[Flag]\n---\nhover for foo_b")
 }
 
 @(test)
@@ -5366,7 +5366,7 @@ ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)\n Docs!\n\n// Comment!")
+	test.expect_hover(t, &source, "my_package.bar :: proc(_: $T)\n---\nDocs!\n---\nComment!")
 }
 
 @(test)
@@ -5610,7 +5610,7 @@ ast_hover_local_proc_docs :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo :: proc()\n foo doc")
+	test.expect_hover(t, &source, "test.foo :: proc()\n---\nfoo doc")
 }
 
 @(test)
@@ -5785,7 +5785,7 @@ ast_hover_nested_proc_docs_tabs :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo :: proc()\n\nDocs!\n\tDocs2\n")
+	test.expect_hover(t, &source, "test.foo :: proc()\n---\nDocs!\n\tDocs2\n")
 }
 
 @(test)
@@ -5802,7 +5802,7 @@ ast_hover_nested_proc_docs_spaces :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo :: proc()\n\nDocs!\n    Docs2\n")
+	test.expect_hover(t, &source, "test.foo :: proc()\n---\nDocs!\n    Docs2\n")
 }
 
 @(test)
@@ -5825,7 +5825,7 @@ ast_hover_propagate_docs_alias_in_package :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.bar :: proc()\n Docs!\n\n// Comment!")
+	test.expect_hover(t, &source, "my_package.bar :: proc()\n---\nDocs!\n---\nComment!")
 }
 
 @(test)
@@ -5849,7 +5849,7 @@ ast_hover_propagate_docs_alias_in_package_override :: proc(t: ^testing.T) {
 		`,
 		packages = packages[:],
 	}
-	test.expect_hover(t, &source, "my_package.bar :: proc()\n Overridden\n\n// Comment!")
+	test.expect_hover(t, &source, "my_package.bar :: proc()\n---\nOverridden\n---\nComment!")
 }
 
 @(test)
