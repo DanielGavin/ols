@@ -430,9 +430,6 @@ write_struct_type :: proc(
 		b.align = v.align
 		b.max_field_align = v.max_field_align
 		b.min_field_align = v.min_field_align
-		if v.is_all_or_none {
-			b.tags |= {.Is_All_Or_None}
-		}
 		if v.is_no_copy {
 			b.tags |= {.Is_No_Copy}
 		}

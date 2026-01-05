@@ -1613,10 +1613,6 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("#no_copy"))
 		}
 
-		if v.is_all_or_none {
-			document = cons_with_nopl(document, text("#all_or_none"))
-		}
-
 		if v.align != nil {
 			document = cons_with_nopl(document, text("#align"))
 			document = cons_with_nopl(document, visit_expr(p, v.align))
