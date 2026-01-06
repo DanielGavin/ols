@@ -239,19 +239,19 @@ jobs:
         zip -r ols-x86_64-pc-windows-msvc.zip ols-x86_64-pc-windows-msvc.exe odinfmt-x86_64-pc-windows-msvc.exe builtin
         rm ols-x86_64-pc-windows-msvc.exe odinfmt-x86_64-pc-windows-msvc.exe
 
-        chmod +x ols-x86_64-unknown-linux-gnu
+        chmod +x ols-x86_64-unknown-linux-gnu odinfmt-x86_64-unknown-linux-gnu
         zip -r ols-x86_64-unknown-linux-gnu.zip ols-x86_64-unknown-linux-gnu odinfmt-x86_64-unknown-linux-gnu builtin
         rm ols-x86_64-unknown-linux-gnu odinfmt-x86_64-unknown-linux-gnu
 
-        chmod +x ols-arm64-unknown-linux-gnu
+        chmod +x ols-arm64-unknown-linux-gnu odinfmt-arm64-unknown-linux-gnu
         zip -r ols-arm64-unknown-linux-gnu.zip ols-arm64-unknown-linux-gnu odinfmt-arm64-unknown-linux-gnu builtin
         rm ols-arm64-unknown-linux-gnu odinfmt-arm64-unknown-linux-gnu
 
-        chmod +x ols-x86_64-darwin
+        chmod +x ols-x86_64-darwin odinfmt-x86_64-darwin
         zip -r ols-x86_64-darwin.zip ols-x86_64-darwin odinfmt-x86_64-darwin builtin
         rm ols-x86_64-darwin odinfmt-x86_64-darwin
 
-        chmod +x ols-arm64-darwin
+        chmod +x ols-arm64-darwin odinfmt-arm64-darwin
         zip -r ols-arm64-darwin.zip ols-arm64-darwin odinfmt-arm64-darwin builtin
         rm ols-arm64-darwin odinfmt-arm64-darwin
 
