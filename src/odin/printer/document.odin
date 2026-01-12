@@ -75,7 +75,7 @@ Document_Group_Options :: struct {
 
 Document_Break_Parent :: struct {}
 
-@private
+@(private)
 append_or_panic :: proc(array: ^[dynamic]$E, #no_broadcast arg: E, loc := #caller_location) -> int {
 	n, err := append(array, arg, loc)
 	if err != nil {
