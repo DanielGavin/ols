@@ -77,9 +77,9 @@ Document_Break_Parent :: struct {}
 
 @private
 append_or_panic :: proc(array: ^[dynamic]$E, #no_broadcast arg: E, loc := #caller_location) -> int {
-	n, err := append(array, arg)
+	n, err := append(array, arg, loc)
 	if err != nil {
-		panic(fmt.tprintf("%v", err))
+		panic(fmt.tprintf("%v", err), loc)
 	}
 	return n
 }
