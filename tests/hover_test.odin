@@ -5986,6 +5986,24 @@ ast_hover_proc_group_bitset :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
+
+@(test)
+ast_hover_soa_struct_field_indexed :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		Bar :: struct {
+			foos: #soa[dynamic]Foo,
+		}
+
+		bazz :: proc(bar: ^Bar, index: int) {
+			f{*}oo := &bar.foos[index]
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: #soa^#soa[dynamic]Foo")
+}
 /*
 
 Waiting for odin fix

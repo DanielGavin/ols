@@ -1385,10 +1385,14 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		if len(call.args) == 1 {
 			ident := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
 			ident.name = "u8"
-			value := SymbolSliceValue{
-				expr = ident
+			value := SymbolSliceValue {
+				expr = ident,
 			}
-			symbol := Symbol{name = "#load", pkg = ast_context.current_package, value = value}
+			symbol := Symbol {
+				name  = "#load",
+				pkg   = ast_context.current_package,
+				value = value,
+			}
 			return symbol, true
 		} else if len(call.args) == 2 {
 			return resolve_type_expression(ast_context, call.args[1])
@@ -1407,10 +1411,14 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		selector := new_type(ast.Selector_Expr, call.pos, call.end, ast_context.allocator)
 		selector.expr = pkg
 		selector.field = field
-		value := SymbolSliceValue{
-			expr = selector
+		value := SymbolSliceValue {
+			expr = selector,
 		}
-		symbol := Symbol{name = "#load_directory", pkg = ast_context.current_package, value = value}
+		symbol := Symbol {
+			name  = "#load_directory",
+			pkg   = ast_context.current_package,
+			value = value,
+		}
 		return symbol, true
 	}
 
@@ -1429,11 +1437,23 @@ resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr
 
 	#partial switch v in indexed.value {
 	case SymbolDynamicArrayValue:
+		if .Soa in indexed.flags {
+			indexed.flags |= { .SoaPointer }
+			return indexed, true
+		}
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolSliceValue:
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
+		if .Soa in indexed.flags {
+			indexed.flags |= { .SoaPointer }
+			return indexed, true
+		}
 	case SymbolFixedArrayValue:
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
+		if .Soa in indexed.flags {
+			indexed.flags |= { .SoaPointer }
+			return indexed, true
+		}
 	case SymbolMapValue:
 		ok = internal_resolve_type_expression(ast_context, v.value, &symbol)
 	case SymbolMultiPointerValue:
@@ -1471,6 +1491,9 @@ resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr
 	}
 
 	symbol.type = indexed.type
+	if .Soa in indexed.flags {
+		symbol.flags |= {.SoaPointer}
+	}
 
 	return symbol, ok
 }
