@@ -46,7 +46,7 @@ walk_files :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (
 
 main :: proc() {
 	arena: vmem.Arena
-	arena_err := vmem.arena_init_growing(&arena, 50)
+	arena_err := vmem.arena_init_growing(&arena)
 	ensure(arena_err == nil)
 	arena_allocator := vmem.arena_allocator(&arena)
 
