@@ -5,6 +5,7 @@ import "core:flags"
 import "core:fmt"
 import "core:io"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
@@ -44,6 +45,11 @@ walk_files :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (
 }
 
 main :: proc() {
+	arena: vmem.Arena
+	arena_err := vmem.arena_init_growing(&arena, 50)
+	ensure(arena_err == nil)
+	arena_allocator := vmem.arena_allocator(&arena)
+
 	init_global_temporary_allocator(mem.Megabyte * 20) //enough space for the walk
 
 	args: Args
@@ -65,10 +71,12 @@ main :: proc() {
 
 	write_failure := false
 
+	watermark : uint = 0
+
 	config := format.find_config_file_or_default(args.path)
 
 	if args.stdin {
-		data := make([dynamic]byte)
+		data := make([dynamic]byte, arena_allocator)
 
 		for {
 			tmp: [mem.Kilobyte]byte
@@ -79,7 +87,7 @@ main :: proc() {
 			append(&data, ..tmp[:r])
 		}
 
-		source, ok := format.format("<stdin>", string(data[:]), config, {.Optional_Semicolons})
+		source, ok := format.format("<stdin>", string(data[:]), config, {.Optional_Semicolons}, arena_allocator)
 
 		if ok {
 			fmt.println(source)
@@ -91,7 +99,7 @@ main :: proc() {
 			backup_path := strings.concatenate({args.path, "_bk"})
 			defer delete(backup_path)
 
-			if data, ok := format_file(args.path, config); ok {
+			if data, ok := format_file(args.path, config, arena_allocator); ok {
 				os.rename(args.path, backup_path)
 
 				if os.write_entire_file(args.path, transmute([]byte)data) {
@@ -102,7 +110,7 @@ main :: proc() {
 				write_failure = true
 			}
 		} else {
-			if data, ok := format_file(args.path, config); ok {
+			if data, ok := format_file(args.path, config, arena_allocator); ok {
 				fmt.println(data)
 			}
 		}
@@ -115,7 +123,7 @@ main :: proc() {
 			backup_path := strings.concatenate({file, "_bk"})
 			defer delete(backup_path)
 
-			if data, ok := format_file(file, config); ok {
+			if data, ok := format_file(file, config, arena_allocator); ok {
 				if args.write {
 					os.rename(file, backup_path)
 
@@ -129,6 +137,10 @@ main :: proc() {
 				fmt.eprintf("Failed to format %v", file)
 				write_failure = true
 			}
+
+			watermark = max(watermark, arena.total_used)
+
+			free_all(arena_allocator)
 		}
 
 		fmt.printf(
@@ -136,6 +148,7 @@ main :: proc() {
 			len(files),
 			time.duration_milliseconds(time.tick_lap_time(&tick_time)),
 		)
+		fmt.printf("Peak memory used: %v \n", watermark / mem.Megabyte)
 	} else {
 		fmt.eprintf("%v is neither a directory nor a file \n", args.path)
 		os.exit(1)
