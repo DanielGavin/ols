@@ -5,6 +5,7 @@ import "core:flags"
 import "core:fmt"
 import "core:io"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
@@ -44,10 +45,10 @@ walk_files :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (
 }
 
 main :: proc() {
-	arena: mem.Arena
-	mem.arena_init(&arena, make([]byte, 50 * mem.Megabyte))
-
-	arena_allocator := mem.arena_allocator(&arena)
+	arena: vmem.Arena
+	arena_err := vmem.arena_init_growing(&arena)
+	ensure(arena_err == nil)
+	arena_allocator := vmem.arena_allocator(&arena)
 
 	init_global_temporary_allocator(mem.Megabyte * 20) //enough space for the walk
 
@@ -70,7 +71,7 @@ main :: proc() {
 
 	write_failure := false
 
-	watermark := 0
+	watermark : uint = 0
 
 	config := format.find_config_file_or_default(args.path)
 
@@ -137,7 +138,7 @@ main :: proc() {
 				write_failure = true
 			}
 
-			watermark = max(watermark, arena.offset)
+			watermark = max(watermark, arena.total_used)
 
 			free_all(arena_allocator)
 		}
