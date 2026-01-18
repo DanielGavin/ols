@@ -6,6 +6,10 @@ import "core:odin/ast"
 import path "core:path/slashpath"
 import "core:strings"
 
+DOC_SECTION_DELIMITER :: "\n---\n"                                   // The string separating each section of documentation
+DOC_FMT_ODIN          :: "```odin\n%v\n```"                          // The format for wrapping odin code in a markdown codeblock
+DOC_FMT_MARKDOWN      :: DOC_FMT_ODIN + DOC_SECTION_DELIMITER + "%v" // The format for presenting documentation on hover
+
 // Adds signature and docs information to the provided symbol
 // This should only be used for a symbol created with the temp allocator
 build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_signature := true) {
@@ -20,21 +24,17 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 	}
 }
 
-construct_symbol_docs :: proc(symbol: Symbol, markdown := true, allocator := context.temp_allocator) -> string {
+construct_symbol_docs :: proc(symbol: Symbol, allocator := context.temp_allocator) -> string {
 	sb := strings.builder_make(allocator = allocator)
 	if symbol.doc != "" {
 		strings.write_string(&sb, symbol.doc)
-		if symbol.comment != "" {
-			strings.write_string(&sb, "\n")
-		}
 	}
 
 	if symbol.comment != "" {
-		if markdown {
-			fmt.sbprintf(&sb, "\n```odin\n%s\n```", symbol.comment)
-		} else {
-			fmt.sbprintf(&sb, "\n%s", symbol.comment)
+		if symbol.doc != "" {
+			strings.write_string(&sb, DOC_SECTION_DELIMITER)
 		}
+		strings.write_string(&sb, symbol.comment)
 	}
 
 	return strings.to_string(sb)

@@ -110,7 +110,7 @@ get_signature_information :: proc(
 				&signature_information,
 				SignatureInformation {
 					label = get_signature(symbol),
-					documentation = construct_symbol_docs(symbol, markdown = false),
+					documentation = construct_symbol_docs(symbol),
 				},
 			)
 		}
@@ -176,7 +176,7 @@ add_proc_signature :: proc(
 
 		info := SignatureInformation {
 			label         = get_signature(call),
-			documentation = construct_symbol_docs(call, markdown = false),
+			documentation = construct_symbol_docs(call),
 			parameters    = parameters,
 		}
 		append(signature_information, info)
@@ -204,7 +204,7 @@ add_proc_signature :: proc(
 
 				info := SignatureInformation {
 					label         = get_signature(symbol),
-					documentation = construct_symbol_docs(symbol, markdown = false),
+					documentation = construct_symbol_docs(symbol),
 					parameters    = parameters,
 				}
 
