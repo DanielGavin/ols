@@ -212,6 +212,7 @@ SymbolFlag :: enum {
 	SoaPointer,
 	Simd,
 	Parameter, //If the symbol is a procedure argument
+	PolyType,
 }
 
 SymbolFlags :: bit_set[SymbolFlag]

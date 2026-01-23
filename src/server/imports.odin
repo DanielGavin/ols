@@ -1,8 +1,6 @@
 package server
 
-import "core:log"
 import "core:mem"
-import "core:odin/ast"
 
 import "base:runtime"
 

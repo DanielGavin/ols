@@ -1977,6 +1977,9 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	if .Variable in local.flags {
 		return_symbol.flags |= {.Variable}
 	}
+	if .PolyType in local.flags {
+		return_symbol.flags |= {.PolyType}
+	}
 
 	return_symbol.flags |= {.Local}
 	return_symbol.value_expr = local.value_expr
