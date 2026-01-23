@@ -6004,6 +6004,26 @@ ast_hover_soa_struct_field_indexed :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: #soa^#soa[dynamic]Foo")
 }
+
+@(test)
+ast_hover_proc_poly_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc($T{*}: int) {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.$T: int")
+}
+
+@(test)
+ast_hover_proc_poly_params_where_clause :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foo :: proc($T: int) where T{*} >= 0 {}
+		`,
+	}
+	test.expect_hover(t, &source, "test.$T: int")
+}
 /*
 
 Waiting for odin fix

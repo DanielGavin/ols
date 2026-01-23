@@ -561,7 +561,7 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 }
 
 get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
-	return string(src[node.pos.offset:node.end.offset])
+	return strings.trim_prefix(string(src[node.pos.offset:node.end.offset]), "$")
 }
 
 COMMENT_DELIMITER_LENGTH :: len("//")

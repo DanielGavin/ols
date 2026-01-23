@@ -848,6 +848,9 @@ write_symbol_name :: proc(sb: ^strings.Builder, symbol: Symbol) {
 	} else if pkg != "" && pkg != "$builtin" {
 		fmt.sbprintf(sb, "%v.", pkg)
 	}
+	if .PolyType in symbol.flags {
+		strings.write_string(sb, "$")
+	}
 	strings.write_string(sb, symbol.name)
 }
 

@@ -512,6 +512,9 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.struct_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
+		for clause in n.where_clauses {
+			resolve_node(clause, data)
+		}
 		resolve_node(n.fields, data)
 
 		if data.flag != .None {
