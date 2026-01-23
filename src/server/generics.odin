@@ -793,6 +793,14 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 						v.elem = expr
 					case ^ast.Pointer_Type:
 						v.elem = expr
+					case ^ast.Call_Expr:
+						for arg, i in v.args {
+							if call_ident, ok := arg.derived.(^ast.Ident); ok {
+								if ident.name == call_ident.name {
+									v.args[i] = expr
+								}
+							}
+						}
 					}
 				} else if data.parent_proc == nil {
 					data.symbol_value_builder.types[data.i] = expr
@@ -806,6 +814,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			data.parent = node
 		case ^ast.Proc_Type:
 			data.parent_proc = v
+		case ^ast.Call_Expr:
+			data.parent = v
 		}
 
 		return visitor

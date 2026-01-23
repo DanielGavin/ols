@@ -5299,3 +5299,31 @@ ast_completion_struct_using_named_vector_types :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.bar: [3]f32", "r: f32", "x: f32"})
 }
+
+@(test)
+ast_completion_parapoly_struct_with_parapoly_child :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		SomeEnum :: enum {
+			enumVal1,
+			enumVal2
+		}
+
+		ChildStruct:: struct($enumGeneric: typeid){
+			Something : string,
+			GenericParam: enumGeneric
+		}
+
+		ParentStruct :: struct($enumGeneric: typeid){
+			ParentSomething: string,
+			Child: ChildStruct(enumGeneric)
+		}
+
+		TestGenericStructs :: proc(){
+			parent : ParentStruct(SomeEnum) = {};
+			parent.Child.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"ChildStruct.GenericParam: test.SomeEnum", "ChildStruct.Something: string"})
+}
