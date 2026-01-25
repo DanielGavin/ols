@@ -2299,6 +2299,9 @@ internal_resolve_comp_literal :: proc(
 
 	set_ast_package_set_scoped(ast_context, symbol.pkg)
 
+	if position_context.parent_comp_lit == nil {
+		return {}, false
+	}
 	symbol, _ = resolve_type_comp_literal(
 		ast_context,
 		position_context,
