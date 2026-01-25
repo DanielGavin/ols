@@ -649,6 +649,44 @@ signature_comp_lit_bit_set :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+signature_comp_lit_struct_field_after_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			A,{*}
+			B,
+		}
+		`,
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{},
+	)
+}
+
+@(test)
+signature_comp_lit_proc_field_after_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(a, b,{*}: int) {}
+		`,
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{},
+	)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {
