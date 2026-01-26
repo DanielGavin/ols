@@ -452,6 +452,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
+	config.enable_overload_resolution =
+	 ols_config.enable_overload_resolution.(bool) or_else config.enable_overload_resolution
 
 	// Delete overriding collections.
 	for it in ols_config.collections {

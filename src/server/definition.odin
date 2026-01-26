@@ -100,12 +100,14 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		}
 
 		if resolved, ok := resolve_location_selector(&ast_context, position_context.selector_expr); ok {
-			resolved = try_resolve_proc_group_overload(
-				&ast_context,
-				&position_context,
-				resolved,
-				position_context.selector_expr,
-			)
+			if common.config.enable_overload_resolution {
+				resolved = try_resolve_proc_group_overload(
+					&ast_context,
+					&position_context,
+					resolved,
+					position_context.selector_expr,
+				)
+			}
 			location.range = resolved.range
 			uri = resolved.uri
 		} else {
@@ -145,7 +147,9 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 			&ast_context,
 			position_context.identifier.derived.(^ast.Ident)^,
 		); ok {
-			resolved = try_resolve_proc_group_overload(&ast_context, &position_context, resolved)
+			if common.config.enable_overload_resolution {
+				resolved = try_resolve_proc_group_overload(&ast_context, &position_context, resolved)
+			}
 			if v, ok := resolved.value.(SymbolAggregateValue); ok {
 				for symbol in v.symbols {
 					append(&locations, common.Location{range = symbol.range, uri = symbol.uri})

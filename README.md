@@ -77,6 +77,8 @@ Options:
 
 - `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
 
+- `enable_overload_resolution`: Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.
+
 - `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
 - `enable_document_highlights`: Turns on highlighting of symbol references in file. _(Enabled by default)_
