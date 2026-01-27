@@ -5441,3 +5441,30 @@ ast_completion_fake_method_builtin_type_uses_builtin_pkg :: proc(t: ^testing.T) 
 	// the lookup correctly uses "$builtin" instead of "test" for the package
 	test.expect_completion_labels(t, &source, ".", {"square", "cube"})
 }
+
+@(test)
+ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		// All members only take a single argument (the receiver)
+		negate_a :: proc(x: int) -> int { return -x }
+		negate_b :: proc(x: int) -> int { return 0 - x }
+		negate :: proc { negate_a, negate_b }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// The proc group 'negate' should have cursor AFTER parentheses since no additional args
+	test.expect_completion_edit_text(t, &source, ".", "negate", "methods.negate(n)$0")
+}

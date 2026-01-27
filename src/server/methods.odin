@@ -250,8 +250,23 @@ add_proc_group_method_completion :: proc(
 
 	references, dereferences := compute_pointer_adjustments(first_arg.pointers, pointers)
 
-	// Proc groups always have multiple args (the receiver plus at least one overload's additional args)
-	new_text := build_method_call_text(ast_context, symbol, receiver, references, dereferences, true)
+	// Check if any member of the proc group has additional arguments beyond the receiver
+	has_additional_args := false
+	for member_expr in proc_group.args {
+		member: Symbol
+		member, ok = resolve_type_expression(ast_context, member_expr)
+		if !ok {
+			continue
+		}
+		if proc_val, is_proc_val := member.value.(SymbolProcedureValue); is_proc_val {
+			if len(proc_val.arg_types) > 1 {
+				has_additional_args = true
+				break
+			}
+		}
+	}
+
+	new_text := build_method_call_text(ast_context, symbol, receiver, references, dereferences, has_additional_args)
 
 	item := CompletionItem {
 		label = symbol.name,
