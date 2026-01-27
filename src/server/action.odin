@@ -72,6 +72,7 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 	}
 
 	add_invert_if_action(document, position_context.position, strings.clone(document.uri.uri), &actions)
+	add_redundant_else_action(document, position_context.position, strings.clone(document.uri.uri), &actions)
 
 	return actions[:], true
 }
