@@ -4,6 +4,8 @@ import "core:testing"
 
 import test "src:testing"
 
+INVERT_IF_ACTION :: "Invert if"
+
 @(test)
 action_invert_if_simple :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -19,7 +21,7 @@ main :: proc() {
 		packages = {},
 	}
 
-	test.expect_action(t, &source, {"Invert if"})
+	test.expect_action(t, &source, {INVERT_IF_ACTION})
 }
 
 @(test)
@@ -42,7 +44,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -62,7 +64,7 @@ main :: proc() {
 		packages = {},
 	}
 
-	test.expect_action(t, &source, {"Invert if"})
+	test.expect_action(t, &source, {INVERT_IF_ACTION})
 }
 
 @(test)
@@ -88,7 +90,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -105,7 +107,7 @@ main :: proc() {
 		packages = {},
 	}
 
-	test.expect_action(t, &source, {"Invert if"})
+	test.expect_action(t, &source, {INVERT_IF_ACTION})
 }
 
 @(test)
@@ -127,7 +129,7 @@ main :: proc() {
 		bar()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -165,7 +167,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -187,7 +189,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -209,7 +211,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -231,7 +233,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -253,7 +255,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -275,7 +277,7 @@ main :: proc() {
 		foo()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -307,7 +309,7 @@ main :: proc() {
 		statement1()
 	}`
 
-	test.expect_action_with_edit(t, &source, "Invert if", expected)
+	test.expect_action_with_edit(t, &source, INVERT_IF_ACTION, expected)
 }
 
 @(test)
@@ -376,5 +378,5 @@ main :: proc() {
 	}
 
 	// Should have the invert action for an if statement nested inside an else-if body
-	test.expect_action(t, &source, {"Invert if"})
+	test.expect_action(t, &source, {INVERT_IF_ACTION})
 }
