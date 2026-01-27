@@ -1525,8 +1525,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> bool {
@@ -1562,8 +1562,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(&x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: ^int) -> bool {
@@ -1600,8 +1600,8 @@ compute :: proc() -> int {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> bool {
@@ -1635,8 +1635,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(i) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(i: int) -> bool {
@@ -1672,8 +1672,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(i) {
-	continue
-}`,
+			continue
+		}`,
 		`
 
 extracted_proc :: proc(i: int) -> bool {
@@ -1710,12 +1710,12 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`__should_break, __should_continue := extracted_proc(i)
-if __should_break {
-	break
-}
-if __should_continue {
-	continue
-}`,
+		if __should_break {
+			break
+		}
+		if __should_continue {
+			continue
+		}`,
 		`
 
 extracted_proc :: proc(i: int) -> (bool, bool) {
@@ -1752,8 +1752,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(val) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(val: string) -> bool {
@@ -1788,8 +1788,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(k, val) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(k: string, val: ^f32) -> bool {
@@ -1865,8 +1865,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> bool {
@@ -1905,8 +1905,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(i, &sum) {
-	continue
-}`,
+			continue
+		}`,
 		`
 
 extracted_proc :: proc(i: int, sum: ^int) -> bool {
@@ -1942,8 +1942,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if __should_return, result := extracted_proc(x); __should_return {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> (bool, int) {
@@ -1981,8 +1981,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> bool {
@@ -2023,8 +2023,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(i) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(i: int) -> bool {
@@ -2061,8 +2061,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(x) {
-	return
-}`,
+		return
+	}`,
 		`
 
 extracted_proc :: proc(x: int) -> bool {
@@ -2098,8 +2098,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(index, value) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(index: int, value: f32) -> bool {
@@ -2134,8 +2134,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(char) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(char: rune) -> bool {
@@ -2170,8 +2170,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(char, index) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(char: rune, index: int) -> bool {
@@ -2205,8 +2205,8 @@ main :: proc() {
 		&source,
 		EXTRACT_PROC_ACTION,
 		`if extracted_proc(key, value) {
-	break
-}`,
+			break
+		}`,
 		`
 
 extracted_proc :: proc(key: string, value: f32) -> bool {
