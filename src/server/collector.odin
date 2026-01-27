@@ -486,7 +486,6 @@ get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 	pkg := &collection.packages[symbol.pkg]
 
-	// Skip procedures that are part of proc groups
 	if symbol.name in pkg.proc_group_members {
 		return
 	}
@@ -549,7 +548,6 @@ collect_proc_group_method :: proc(collection: ^SymbolCollection, symbol: Symbol)
 			continue
 		}
 
-		// Only add once per distinct method key
 		if method not_in registered_methods {
 			registered_methods[method] = true
 			add_symbol_to_method(collection, pkg, method, symbol)
@@ -580,7 +578,6 @@ get_method_from_first_arg :: proc(
 		method.pkg = get_index_unique_string(collection, ident.name)
 		method.name = get_index_unique_string(collection, v.field.name)
 	case ^ast.Ident:
-		// Check if this is a builtin type
 		if is_builtin_type_name(v.name) {
 			method.pkg = "$builtin"
 		} else {
@@ -595,7 +592,6 @@ get_method_from_first_arg :: proc(
 }
 
 is_builtin_type_name :: proc(name: string) -> bool {
-	// Check all builtin type names from untyped_map
 	for names in untyped_map {
 		for builtin_name in names {
 			if name == builtin_name {

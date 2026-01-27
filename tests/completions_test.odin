@@ -5411,6 +5411,38 @@ ast_completion_fake_method_proc_group_only_shows_group :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_completion_fake_method_proc_group_with_only_one_proc :: proc(t: ^testing.T) {
+	// This is to verify that even if a proc group has only one member,
+	// it still shows up as a group and does not show the individual proc.
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			s: methods.My_Struct
+			s.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		My_Struct :: struct { x: int }
+
+		do_thing_int :: proc(s: My_Struct, v: int) {}
+		do_thing :: proc { do_thing_int }
+
+		// standalone proc not in a group
+		standalone_method :: proc(s: My_Struct) {}
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	
+	test.expect_completion_labels(t, &source, ".", {"do_thing", "standalone_method"}, {"do_thing_int" })
+}
+
+@(test)
 ast_completion_fake_method_builtin_type_uses_builtin_pkg :: proc(t: ^testing.T) {
 	// This test verifies that fake methods for builtin types (int, f32, string, etc.)
 	// are correctly looked up using "$builtin" as the package, not the package where
