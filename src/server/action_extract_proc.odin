@@ -10,7 +10,7 @@ import "core:strings"
 
 import "src:common"
 
-EXTRACT_PROC_ACTION_TITLE :: "Extract to procedure"
+EXTRACT_PROC_ACTION_TITLE :: "Extract Proc"
 EXTRACT_PROC_ACTION_KIND :: "refactor.extract"
 DEFAULT_PROC_NAME :: "extracted_proc"
 
@@ -75,7 +75,7 @@ add_extract_proc_action :: proc(document: ^Document, range: common.Range, uri: s
 
 	analyze_variables(&ctx)
 
-	edit, edit_ok := generate_extract_edit(&ctx, uri)
+	edit, edit_ok := generate_extract_edit(&ctx, uri, range)
 	if !edit_ok {
 		return
 	}
@@ -871,7 +871,7 @@ is_builtin_identifier :: proc(name: string) -> bool {
 	return false
 }
 
-generate_extract_edit :: proc(ctx: ^ExtractProcContext, uri: string) -> (WorkspaceEdit, bool) {
+generate_extract_edit :: proc(ctx: ^ExtractProcContext, uri: string, selection_range: common.Range) -> (WorkspaceEdit, bool) {
 	src := ctx.document.ast.src
 
 	params := build_parameter_list(ctx)
@@ -895,11 +895,6 @@ generate_extract_edit :: proc(ctx: ^ExtractProcContext, uri: string) -> (Workspa
 
 	call_text := build_call_text(params, returns)
 	proc_text := build_proc_definition(ctx, params, returns)
-
-	selection_range := common.Range {
-		start = common.token_pos_to_position(tokenizer.Pos{offset = ctx.selection_start}, src),
-		end   = common.token_pos_to_position(tokenizer.Pos{offset = ctx.selection_end}, src),
-	}
 
 	// Find position after the containing procedure to insert the new proc
 	proc_end_pos := common.token_pos_to_position(ctx.containing_proc.end, src)

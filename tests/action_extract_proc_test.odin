@@ -4,7 +4,7 @@ import "core:testing"
 
 import test "src:testing"
 
-EXTRACT_PROC_ACTION :: "Extract to procedure"
+EXTRACT_PROC_ACTION :: "Extract Proc"
 
 @(test)
 action_extract_proc_simple_statement :: proc(t: ^testing.T) {
