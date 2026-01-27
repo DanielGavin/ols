@@ -1524,8 +1524,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(x) {
+		`if extracted_proc(x) {
 	return
 }`,
 		`
@@ -1562,8 +1561,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(&x) {
+		`if extracted_proc(&x) {
 	return
 }`,
 		`
@@ -1601,8 +1599,7 @@ compute :: proc() -> int {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(x) {
+		`if extracted_proc(x) {
 	return
 }`,
 		`
@@ -1637,8 +1634,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(i) {
+		`if extracted_proc(i) {
 	break
 }`,
 		`
@@ -1675,8 +1671,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(i) {
+		`if extracted_proc(i) {
 	continue
 }`,
 		`
@@ -1714,8 +1709,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-__should_break, __should_continue := extracted_proc(i)
+		`__should_break, __should_continue := extracted_proc(i)
 if __should_break {
 	break
 }
@@ -1757,8 +1751,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(val) {
+		`if extracted_proc(val) {
 	break
 }`,
 		`
@@ -1794,8 +1787,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(k, val) {
+		`if extracted_proc(k, val) {
 	break
 }`,
 		`
@@ -1872,8 +1864,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(x) {
+		`if extracted_proc(x) {
 	return
 }`,
 		`
@@ -1913,8 +1904,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(i, &sum) {
+		`if extracted_proc(i, &sum) {
 	continue
 }`,
 		`
@@ -1951,8 +1941,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if __should_return, result := extracted_proc(x); __should_return {
+		`if __should_return, result := extracted_proc(x); __should_return {
 	return
 }`,
 		`
@@ -1991,8 +1980,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(x) {
+		`if extracted_proc(x) {
 	return
 }`,
 		`
@@ -2034,8 +2022,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(i) {
+		`if extracted_proc(i) {
 	break
 }`,
 		`
@@ -2073,8 +2060,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(x) {
+		`if extracted_proc(x) {
 	return
 }`,
 		`
@@ -2111,8 +2097,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(index, value) {
+		`if extracted_proc(index, value) {
 	break
 }`,
 		`
@@ -2148,8 +2133,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(char) {
+		`if extracted_proc(char) {
 	break
 }`,
 		`
@@ -2185,8 +2169,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(char, index) {
+		`if extracted_proc(char, index) {
 	break
 }`,
 		`
@@ -2221,8 +2204,7 @@ main :: proc() {
 		t,
 		&source,
 		EXTRACT_PROC_ACTION,
-		`
-if extracted_proc(key, value) {
+		`if extracted_proc(key, value) {
 	break
 }`,
 		`

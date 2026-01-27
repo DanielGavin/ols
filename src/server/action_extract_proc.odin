@@ -1854,7 +1854,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 		// For return: if extracted_proc(...) { return }
 		// With returns: if should_return, result := extracted_proc(...); should_return { return }
 		if len(returns) > 0 {
-			strings.write_string(&sb, "\nif __should_return")
+			strings.write_string(&sb, "if __should_return")
 			for ret in returns {
 				strings.write_string(&sb, ", ")
 				strings.write_string(&sb, ret.name)
@@ -1873,7 +1873,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 			}
 			strings.write_string(&sb, "); __should_return {\n\treturn\n}")
 		} else {
-			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, "if ")
 			strings.write_string(&sb, DEFAULT_PROC_NAME)
 			strings.write_string(&sb, "(")
 			for param, i in params {
@@ -1892,7 +1892,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 	case .Break:
 		// For break: if extracted_proc(...) { break }
 		if len(returns) > 0 {
-			strings.write_string(&sb, "\nif __should_break")
+			strings.write_string(&sb, "if __should_break")
 			for ret in returns {
 				strings.write_string(&sb, ", ")
 				strings.write_string(&sb, ret.name)
@@ -1911,7 +1911,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 			}
 			strings.write_string(&sb, "); __should_break {\n\tbreak\n}")
 		} else {
-			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, "if ")
 			strings.write_string(&sb, DEFAULT_PROC_NAME)
 			strings.write_string(&sb, "(")
 			for param, i in params {
@@ -1930,7 +1930,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 	case .Continue:
 		// For continue: if extracted_proc(...) { continue }
 		if len(returns) > 0 {
-			strings.write_string(&sb, "\nif __should_continue")
+			strings.write_string(&sb, "if __should_continue")
 			for ret in returns {
 				strings.write_string(&sb, ", ")
 				strings.write_string(&sb, ret.name)
@@ -1949,7 +1949,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 			}
 			strings.write_string(&sb, "); __should_continue {\n\tcontinue\n}")
 		} else {
-			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, "if ")
 			strings.write_string(&sb, DEFAULT_PROC_NAME)
 			strings.write_string(&sb, "(")
 			for param, i in params {
@@ -1968,7 +1968,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 	case .BreakAndContinue:
 		// For both: use an enum or multi-return. Let's use a simple approach with two bools
 		if len(returns) > 0 {
-			strings.write_string(&sb, "\n__should_break, __should_continue")
+			strings.write_string(&sb, "__should_break, __should_continue")
 			for ret in returns {
 				strings.write_string(&sb, ", ")
 				strings.write_string(&sb, ret.name)
@@ -1987,7 +1987,7 @@ build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, re
 			}
 			strings.write_string(&sb, ")\nif __should_break {\n\tbreak\n}\nif __should_continue {\n\tcontinue\n}")
 		} else {
-			strings.write_string(&sb, "\n__should_break, __should_continue := ")
+			strings.write_string(&sb, "__should_break, __should_continue := ")
 			strings.write_string(&sb, DEFAULT_PROC_NAME)
 			strings.write_string(&sb, "(")
 			for param, i in params {
