@@ -553,6 +553,44 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 	}
 }
 
+expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range {
+		start = src.position,
+		end   = src.position,
+	}
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title == action_name {
+			// Get the text edit for the document
+			if edits, found := action.edit.changes[src.document.uri.uri]; found {
+				if len(edits) > 0 {
+					actual_text := edits[0].newText
+					testing.expectf(
+						t,
+						actual_text == expected_new_text,
+						"\nExpected edit text:\n%s\n\nGot:\n%s",
+						expected_new_text,
+						actual_text,
+					)
+					return
+				}
+			}
+			log.errorf("Action '%s' found but has no edits", action_name)
+			return
+		}
+	}
+
+	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
+}
+
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
 	setup(src)
 	defer teardown(src)
