@@ -26,22 +26,34 @@ VariableUsage :: struct {
 	type_str:       string,
 }
 
+// Types of control flow that affect extraction
+ControlFlowType :: enum {
+	None,
+	Return,           // return statement - needs bool return + if wrapper
+	Break,            // break from loop - needs special handling
+	Continue,         // continue in loop - needs special handling
+	BreakAndContinue, // both break and continue
+}
+
 ExtractProcContext :: struct {
-	document:         ^Document,
-	selection_start:  common.AbsolutePosition,
-	selection_end:    common.AbsolutePosition,
-	containing_proc:  ^ast.Proc_Lit,
-	selected_stmts:   [dynamic]^ast.Stmt,
-	variables:        map[string]VariableUsage,
-	has_control_flow: bool,
-	has_defer:        bool,
-	ast_context:      ^AstContext,
+	document:          ^Document,
+	selection_start:   common.AbsolutePosition,
+	selection_end:     common.AbsolutePosition,
+	containing_proc:   ^ast.Proc_Lit,
+	selected_stmts:    [dynamic]^ast.Stmt,
+	variables:         map[string]VariableUsage,
+	has_control_flow:  bool,
+	control_flow_type: ControlFlowType,
+	has_defer:         bool,
+	has_loop:          bool, // true if selection contains a loop (break/continue are scoped to it)
+	ast_context:       ^AstContext,
 }
 
 ParamInfo :: struct {
-	name:      string,
-	pass_addr: bool,
-	type_str:  string,
+	name:       string,
+	pass_addr:  bool,   // Add & at call site, need deref in extracted code
+	needs_deref: bool,  // Already a pointer, need deref in extracted code but no & at call site
+	type_str:   string,
 }
 
 ReturnInfo :: struct {
@@ -252,10 +264,35 @@ check_statement_properties :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 	#partial switch n in stmt.derived {
 	case ^ast.Return_Stmt:
 		ctx.has_control_flow = true
+		ctx.control_flow_type = .Return
 	case ^ast.Branch_Stmt:
 		ctx.has_control_flow = true
+		// Only track break/continue if not inside a loop in the selection
+		// (if break/continue is inside a loop that's entirely in the selection, it's fine)
+		if !ctx.has_loop {
+			if n.tok.kind == .Break {
+				if ctx.control_flow_type == .Continue {
+					ctx.control_flow_type = .BreakAndContinue
+				} else if ctx.control_flow_type != .BreakAndContinue {
+					ctx.control_flow_type = .Break
+				}
+			} else if n.tok.kind == .Continue {
+				if ctx.control_flow_type == .Break {
+					ctx.control_flow_type = .BreakAndContinue
+				} else if ctx.control_flow_type != .BreakAndContinue {
+					ctx.control_flow_type = .Continue
+				}
+			}
+		}
 	case ^ast.Defer_Stmt:
 		ctx.has_defer = true
+	case ^ast.For_Stmt, ^ast.Range_Stmt:
+		// Mark that we have a loop - break/continue inside will be scoped to it
+		old_has_loop := ctx.has_loop
+		ctx.has_loop = true
+		check_nested_control_flow(stmt, ctx)
+		ctx.has_loop = old_has_loop
+		return
 	}
 
 	check_nested_control_flow(stmt, ctx)
@@ -285,6 +322,20 @@ check_nested_control_flow :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 	case ^ast.Range_Stmt:
 		if n.body != nil {
 			check_statement_properties(n.body, ctx)
+		}
+	case ^ast.Switch_Stmt:
+		// Switch body contains Case_Clauses - recurse into them
+		if n.body != nil {
+			check_statement_properties(n.body, ctx)
+		}
+	case ^ast.Type_Switch_Stmt:
+		if n.body != nil {
+			check_statement_properties(n.body, ctx)
+		}
+	case ^ast.Case_Clause:
+		// Case clauses contain statements
+		for s in n.body {
+			check_statement_properties(s, ctx)
 		}
 	}
 }
@@ -329,11 +380,172 @@ find_variables_before_selection :: proc(ctx: ^ExtractProcContext) {
 		return
 	}
 
-	for stmt in body.stmts {
-		if stmt == nil || stmt.pos.offset >= ctx.selection_start {
+	collect_variables_in_scope(body.stmts[:], ctx)
+}
+
+// Recursively collect variables that are in scope at the selection
+// This handles variables declared before the selection and in containing structures
+collect_variables_in_scope :: proc(stmts: []^ast.Stmt, ctx: ^ExtractProcContext) {
+	for stmt in stmts {
+		if stmt == nil {
+			continue
+		}
+		
+		// If the statement ends before selection starts, collect its declarations
+		if stmt.end.offset <= ctx.selection_start {
+			collect_declared_variables(stmt, ctx)
+			continue
+		}
+		
+		// If the statement starts after selection, we're done
+		if stmt.pos.offset >= ctx.selection_start {
 			break
 		}
-		collect_declared_variables(stmt, ctx)
+		
+		// The statement contains the selection - look inside for variable declarations
+		// that would be in scope (e.g., for loop init)
+		collect_containing_scope_variables(stmt, ctx)
+	}
+}
+
+// Collect variables from containing structures (for loops, etc.) that are in scope
+collect_containing_scope_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	#partial switch n in stmt.derived {
+	case ^ast.For_Stmt:
+		// Collect for-loop init variables (e.g., for i := 0; ...)
+		if n.init != nil {
+			collect_declared_variables(n.init, ctx)
+		}
+		// Recurse into body to find more containing structures
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_variables_in_scope(block.stmts[:], ctx)
+			}
+		}
+	case ^ast.Range_Stmt:
+		// Collect range loop variables
+		// Semantics depend on container type:
+		// - Arrays/slices: for value, index in arr (first=value, second=index:int)
+		// - Maps: for key, value in map (first=key, second=value)
+		// - Strings: for char in str (char is rune)
+		container_type := ""
+		if n.expr != nil {
+			container_type = infer_type_from_expr(n.expr, ctx)
+		}
+		
+		is_map := strings.has_prefix(container_type, "map[")
+		is_string := container_type == "string"
+		
+		for val, idx in n.vals {
+			if val != nil {
+				// Check for &val (address-of for by-reference iteration)
+				is_by_ref := false
+				var_name := ""
+				
+				if ident, ok := val.derived.(^ast.Ident); ok {
+					var_name = ident.name
+				} else if unary, ok := val.derived.(^ast.Unary_Expr); ok {
+					if unary.op.kind == .And {
+						if ident, ident_ok := unary.expr.derived.(^ast.Ident); ident_ok {
+							var_name = ident.name
+							is_by_ref = true
+						}
+					}
+				}
+				
+				if var_name != "" {
+					type_str := ""
+					
+					if is_map {
+						// Map: first var is key, second is value
+						if idx == 0 {
+							type_str = extract_map_key_type(container_type)
+						} else {
+							type_str = extract_element_type(container_type)
+						}
+					} else if is_string {
+						// String: loop variable is rune
+						if idx == 0 {
+							type_str = "rune"
+						} else {
+							// Second variable is byte index (int)
+							type_str = "int"
+						}
+					} else {
+						// Array/slice: first var is value, second is index (int)
+						if len(n.vals) == 1 {
+							// Single variable - it's the value
+							type_str = extract_element_type(container_type)
+						} else if idx == 0 {
+							// First of two variables - it's the value
+							type_str = extract_element_type(container_type)
+						} else {
+							// Second variable - it's the index
+							type_str = "int"
+						}
+					}
+					
+					// If it's a by-reference variable, it's already a pointer
+					if is_by_ref && type_str != "" {
+						type_str = strings.concatenate({"^", type_str}, context.temp_allocator)
+					}
+					
+					usage := VariableUsage {
+						name       = var_name,
+						type_str   = type_str,
+						is_pointer = is_by_ref,
+					}
+					ctx.variables[var_name] = usage
+				}
+			}
+		}
+		// Recurse into body
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_variables_in_scope(block.stmts[:], ctx)
+			}
+		}
+	case ^ast.If_Stmt:
+		// If statements can have init (if x := foo(); x != nil)
+		if n.init != nil {
+			collect_declared_variables(n.init, ctx)
+		}
+		// Check which branch contains the selection
+		if n.body != nil && n.body.pos.offset <= ctx.selection_start && ctx.selection_start < n.body.end.offset {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_variables_in_scope(block.stmts[:], ctx)
+			}
+		}
+		if n.else_stmt != nil && n.else_stmt.pos.offset <= ctx.selection_start && ctx.selection_start < n.else_stmt.end.offset {
+			collect_containing_scope_variables(n.else_stmt, ctx)
+		}
+	case ^ast.Block_Stmt:
+		collect_variables_in_scope(n.stmts[:], ctx)
+	case ^ast.Switch_Stmt:
+		if n.init != nil {
+			collect_declared_variables(n.init, ctx)
+		}
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_variables_in_scope(block.stmts[:], ctx)
+			}
+		}
+	case ^ast.Type_Switch_Stmt:
+		if n.tag != nil {
+			collect_declared_variables(n.tag, ctx)
+		}
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_variables_in_scope(block.stmts[:], ctx)
+			}
+		}
+	case ^ast.Case_Clause:
+		// Case clauses themselves don't declare variables, but their body might contain the selection
+		for s in n.body {
+			if s != nil && s.pos.offset <= ctx.selection_start && ctx.selection_start < s.end.offset {
+				collect_containing_scope_variables(s, ctx)
+			}
+		}
 	}
 }
 
@@ -447,6 +659,30 @@ analyze_statement_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 		}
 	case ^ast.Block_Stmt:
 		for s in n.stmts {
+			analyze_statement_variables(s, ctx)
+		}
+	case ^ast.Switch_Stmt:
+		if n.init != nil {
+			analyze_statement_variables(n.init, ctx)
+		}
+		if n.cond != nil {
+			analyze_expr_reads(n.cond, ctx)
+		}
+		if n.body != nil {
+			analyze_statement_variables(n.body, ctx)
+		}
+	case ^ast.Type_Switch_Stmt:
+		if n.tag != nil {
+			analyze_statement_variables(n.tag, ctx)
+		}
+		if n.body != nil {
+			analyze_statement_variables(n.body, ctx)
+		}
+	case ^ast.Case_Clause:
+		for expr in n.list {
+			analyze_expr_reads(expr, ctx)
+		}
+		for s in n.body {
 			analyze_statement_variables(s, ctx)
 		}
 	case ^ast.Defer_Stmt:
@@ -893,7 +1129,7 @@ generate_extract_edit :: proc(ctx: ^ExtractProcContext, uri: string, selection_r
 		}
 	}
 
-	call_text := build_call_text(params, returns)
+	call_text := build_call_text(ctx, params, returns)
 	proc_text := build_proc_definition(ctx, params, returns)
 
 	// Find position after the containing procedure to insert the new proc
@@ -928,11 +1164,18 @@ build_parameter_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ParamInfo {
 
 		param := ParamInfo {
 			name     = name,
-			type_str = usage.type_str != "" ? usage.type_str : "auto",
+			type_str = usage.type_str != "" ? usage.type_str : "untyped",
 		}
 
 		if usage.is_modified && !usage.is_pointer {
 			param.pass_addr = true
+		}
+		
+		// If variable is already a pointer (e.g., from &val in range loop)
+		// and it's modified, we need to dereference in the extracted code
+		// but not add & at the call site
+		if usage.is_modified && usage.is_pointer {
+			param.needs_deref = true
 		}
 
 		// Pass fixed-size arrays by pointer to avoid copying
@@ -957,7 +1200,7 @@ build_return_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ReturnInfo {
 		if usage.is_declared && usage.is_used_after {
 			ret := ReturnInfo {
 				name     = name,
-				type_str = usage.type_str != "" ? usage.type_str : "auto",
+				type_str = usage.type_str != "" ? usage.type_str : "untyped",
 			}
 			append(&returns, ret)
 		}
@@ -999,27 +1242,61 @@ build_proc_definition :: proc(
 
 	strings.write_string(&sb, ")")
 
-	// Return types (if any)
-	if len(returns) > 0 {
+	// Return types - handle control flow types
+	has_control_flow_return := ctx.control_flow_type != .None
+
+	// Build return type based on control flow and normal returns
+	#partial switch ctx.control_flow_type {
+	case .Return, .Break, .Continue:
+		// Single bool for control flow + any normal returns
 		strings.write_string(&sb, " -> ")
-		if len(returns) > 1 {
-			strings.write_string(&sb, "(")
-		}
-		for ret, i in returns {
-			if i > 0 {
+		if len(returns) > 0 {
+			strings.write_string(&sb, "(bool")
+			for ret in returns {
 				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.type_str)
 			}
-			strings.write_string(&sb, ret.type_str)
-		}
-		if len(returns) > 1 {
 			strings.write_string(&sb, ")")
+		} else {
+			strings.write_string(&sb, "bool")
+		}
+	case .BreakAndContinue:
+		// Two bools for break and continue + any normal returns
+		strings.write_string(&sb, " -> ")
+		if len(returns) > 0 {
+			strings.write_string(&sb, "(bool, bool")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.type_str)
+			}
+			strings.write_string(&sb, ")")
+		} else {
+			strings.write_string(&sb, "(bool, bool)")
+		}
+	case:
+		// No control flow - normal returns only
+		if len(returns) > 0 {
+			strings.write_string(&sb, " -> ")
+			if len(returns) > 1 {
+				strings.write_string(&sb, "(")
+			}
+			for ret, i in returns {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				strings.write_string(&sb, ret.type_str)
+			}
+			if len(returns) > 1 {
+				strings.write_string(&sb, ")")
+			}
 		}
 	}
 
 	strings.write_string(&sb, " {\n")
 
 	// Extract the selected code and transform variable references for pointer params
-	selected_code := transform_extracted_code(ctx, params)
+	// Also transform control flow statements
+	selected_code := transform_extracted_code(ctx, params, returns)
 
 	// Split into lines and find common indentation
 	lines := strings.split(selected_code, "\n", context.temp_allocator)
@@ -1044,14 +1321,40 @@ build_proc_definition :: proc(
 		}
 	}
 
-	// Add return statement if needed
-	if len(returns) > 0 {
-		strings.write_string(&sb, "\n\treturn ")
-		for ret, i in returns {
-			if i > 0 {
+	// Add return statement based on control flow type
+	#partial switch ctx.control_flow_type {
+	case .Return, .Break, .Continue:
+		// Add "return false" at the end (control flow didn't happen)
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\n\treturn false")
+			for ret in returns {
 				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
 			}
-			strings.write_string(&sb, ret.name)
+		} else {
+			strings.write_string(&sb, "\n\treturn false")
+		}
+	case .BreakAndContinue:
+		// Add "return false, false" at the end
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\n\treturn false, false")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
+			}
+		} else {
+			strings.write_string(&sb, "\n\treturn false, false")
+		}
+	case:
+		// Normal returns only
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\n\treturn ")
+			for ret, i in returns {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				strings.write_string(&sb, ret.name)
+			}
 		}
 	}
 
@@ -1060,25 +1363,25 @@ build_proc_definition :: proc(
 	return strings.to_string(sb)
 }
 
-// Transform the extracted code to handle pointer parameters
+// Transform the extracted code to handle pointer parameters and control flow
 // Variables passed by address need to be dereferenced in the extracted code
-transform_extracted_code :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo) -> string {
+// Control flow statements (return, break, continue) are transformed to return true
+transform_extracted_code :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, returns: [dynamic]ReturnInfo) -> string {
 	// Build a set of variables that need to be dereferenced
 	deref_vars := make(map[string]bool, context.temp_allocator)
 	for param in params {
-		if param.pass_addr {
+		if param.pass_addr || param.needs_deref {
 			deref_vars[param.name] = true
 		}
 	}
 
-	if len(deref_vars) == 0 {
+	if len(deref_vars) == 0 && ctx.control_flow_type == .None {
 		// No transformations needed, return original code
 		return string(ctx.document.text[ctx.selection_start:ctx.selection_end])
 	}
 
 	// Transform the code by walking through and replacing variable references
 	sb := strings.builder_make(context.temp_allocator)
-	src := ctx.document.text[ctx.selection_start:ctx.selection_end]
 
 	// Process each selected statement and transform it
 	last_offset := ctx.selection_start
@@ -1090,7 +1393,7 @@ transform_extracted_code :: proc(ctx: ^ExtractProcContext, params: [dynamic]Para
 		}
 
 		// Transform this statement
-		transformed := transform_statement(stmt, ctx.document.text, deref_vars)
+		transformed := transform_statement(stmt, ctx.document.text, deref_vars, ctx.control_flow_type, returns)
 		strings.write_string(&sb, transformed)
 
 		last_offset = stmt.end.offset
@@ -1105,25 +1408,32 @@ transform_extracted_code :: proc(ctx: ^ExtractProcContext, params: [dynamic]Para
 }
 
 // Transform a statement, adding dereferences for pointer parameters
-transform_statement :: proc(stmt: ^ast.Stmt, source: []u8, deref_vars: map[string]bool) -> string {
+// and transforming control flow statements
+transform_statement :: proc(stmt: ^ast.Stmt, source: []u8, deref_vars: map[string]bool, control_flow_type: ControlFlowType, returns: [dynamic]ReturnInfo) -> string {
 	if stmt == nil {
 		return ""
 	}
 
 	sb := strings.builder_make(context.temp_allocator)
-	transform_node(stmt, source, deref_vars, &sb, int(stmt.pos.offset), false)
+	transform_node(stmt, source, deref_vars, &sb, int(stmt.pos.offset), false, control_flow_type, false, returns)
 	return strings.to_string(sb)
 }
 
 // Recursively transform a node, tracking position to copy whitespace/text between nodes
 // auto_deref_context is true when we're in a context where pointers auto-dereference (field/index access)
+// control_flow_type indicates what kind of control flow statements need to be transformed
+// in_loop is true when we're inside a loop in the extracted code (break/continue should not be transformed)
+// returns contains the list of variables that need to be returned
 transform_node :: proc(
 	node: ^ast.Node,
 	source: []u8,
 	deref_vars: map[string]bool,
 	sb: ^strings.Builder,
 	start_offset: int,
-	auto_deref_context := false,
+	auto_deref_context: bool,
+	control_flow_type: ControlFlowType,
+	in_loop: bool,
+	returns: [dynamic]ReturnInfo,
 ) -> int {
 	if node == nil {
 		return start_offset
@@ -1137,6 +1447,68 @@ transform_node :: proc(
 	current_offset := int(node.pos.offset)
 
 	#partial switch n in node.derived {
+	case ^ast.Return_Stmt:
+		// Transform return statement based on control flow type
+		if control_flow_type == .Return {
+			strings.write_string(sb, "return true")
+			// Also return the declared variables
+			for ret in returns {
+				strings.write_string(sb, ", ")
+				strings.write_string(sb, ret.name)
+			}
+			return int(node.end.offset)
+		}
+		// Default: copy as-is
+		strings.write_string(sb, string(source[node.pos.offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Branch_Stmt:
+		// Get the actual token position - Branch_Stmt.tok contains the keyword
+		tok_start := n.tok.pos.offset
+		tok_end := tok_start + len(n.tok.text)
+		// Transform break/continue if not inside a loop in extracted code
+		if !in_loop && control_flow_type != .None {
+			if n.tok.kind == tokenizer.Token_Kind.Break {
+				#partial switch control_flow_type {
+				case .Break:
+					strings.write_string(sb, "return true")
+					// Also return the declared variables
+					for ret in returns {
+						strings.write_string(sb, ", ")
+						strings.write_string(sb, ret.name)
+					}
+					return int(tok_end)
+				case .BreakAndContinue:
+					strings.write_string(sb, "return true, false")
+					for ret in returns {
+						strings.write_string(sb, ", ")
+						strings.write_string(sb, ret.name)
+					}
+					return int(tok_end)
+				}
+			} else if n.tok.kind == tokenizer.Token_Kind.Continue {
+				#partial switch control_flow_type {
+				case .Continue:
+					strings.write_string(sb, "return true")
+					for ret in returns {
+						strings.write_string(sb, ", ")
+						strings.write_string(sb, ret.name)
+					}
+					return int(tok_end)
+				case .BreakAndContinue:
+					strings.write_string(sb, "return false, true")
+					for ret in returns {
+						strings.write_string(sb, ", ")
+						strings.write_string(sb, ret.name)
+					}
+					return int(tok_end)
+				}
+			}
+		}
+		// Default: copy as-is using token position
+		strings.write_string(sb, string(source[tok_start:tok_end]))
+		return int(tok_end)
+
 	case ^ast.Ident:
 		// Only add ^ if we're NOT in an auto-deref context (field/index access)
 		if n.name in deref_vars && !auto_deref_context {
@@ -1160,19 +1532,19 @@ transform_node :: proc(
 		}
 		// Write the operator
 		strings.write_string(sb, string(source[current_offset:n.expr.pos.offset]))
-		current_offset = transform_node(n.expr, source, deref_vars, sb, int(n.expr.pos.offset))
+		current_offset = transform_node(n.expr, source, deref_vars, sb, int(n.expr.pos.offset), auto_deref_context, control_flow_type, in_loop, returns)
 		return max(current_offset, int(node.end.offset))
 
 	case ^ast.Binary_Expr:
-		current_offset = transform_node(n.left, source, deref_vars, sb, current_offset)
-		current_offset = transform_node(n.right, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.left, source, deref_vars, sb, current_offset, auto_deref_context, control_flow_type, in_loop, returns)
+		current_offset = transform_node(n.right, source, deref_vars, sb, current_offset, auto_deref_context, control_flow_type, in_loop, returns)
 		return max(current_offset, int(node.end.offset))
 
 	case ^ast.Paren_Expr:
 		// Write opening paren
 		strings.write_byte(sb, '(')
 		current_offset = int(n.expr.pos.offset)
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, auto_deref_context, control_flow_type, in_loop, returns)
 		strings.write_byte(sb, ')')
 		return int(node.end.offset)
 
@@ -1186,7 +1558,7 @@ transform_node :: proc(
 			}
 		}
 
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, auto_deref_context, control_flow_type, in_loop, returns)
 		// Write the opening paren
 		strings.write_string(sb, string(source[current_offset:n.open.offset + 1]))
 		current_offset = int(n.open.offset) + 1
@@ -1202,6 +1574,9 @@ transform_node :: proc(
 				sb,
 				int(arg.pos.offset),
 				is_pointer_accepting_builtin,
+				control_flow_type,
+				in_loop,
+				returns,
 			)
 		}
 		// Write closing paren
@@ -1210,28 +1585,28 @@ transform_node :: proc(
 
 	case ^ast.Index_Expr:
 		// Base expression is in auto-deref context (arr[i] auto-dereferences)
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true, control_flow_type, in_loop, returns)
 		strings.write_string(sb, string(source[current_offset:n.index.pos.offset]))
-		current_offset = transform_node(n.index, source, deref_vars, sb, int(n.index.pos.offset), false)
+		current_offset = transform_node(n.index, source, deref_vars, sb, int(n.index.pos.offset), false, control_flow_type, in_loop, returns)
 		strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		return int(node.end.offset)
 
 	case ^ast.Slice_Expr:
 		// Base expression is in auto-deref context
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true, control_flow_type, in_loop, returns)
 		// Write the rest including brackets and indices
 		strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		return int(node.end.offset)
 
 	case ^ast.Selector_Expr:
 		// Base expression is in auto-deref context (x.field auto-dereferences)
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true, control_flow_type, in_loop, returns)
 		// Write the dot and field name
 		strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		return int(node.end.offset)
 
 	case ^ast.Deref_Expr:
-		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, false, control_flow_type, in_loop, returns)
 		strings.write_string(sb, "^")
 		return int(node.end.offset)
 
@@ -1240,7 +1615,7 @@ transform_node :: proc(
 			if i > 0 {
 				strings.write_string(sb, string(source[current_offset:lhs.pos.offset]))
 			}
-			current_offset = transform_node(lhs, source, deref_vars, sb, int(lhs.pos.offset))
+			current_offset = transform_node(lhs, source, deref_vars, sb, int(lhs.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		// Write the operator and spacing
 		strings.write_string(sb, string(source[current_offset:n.rhs[0].pos.offset]))
@@ -1249,7 +1624,7 @@ transform_node :: proc(
 			if i > 0 {
 				strings.write_string(sb, string(source[current_offset:rhs.pos.offset]))
 			}
-			current_offset = transform_node(rhs, source, deref_vars, sb, int(rhs.pos.offset))
+			current_offset = transform_node(rhs, source, deref_vars, sb, int(rhs.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		return max(current_offset, int(node.end.offset))
 
@@ -1271,13 +1646,13 @@ transform_node :: proc(
 				if i > 0 {
 					strings.write_string(sb, string(source[current_offset:value.pos.offset]))
 				}
-				current_offset = transform_node(value, source, deref_vars, sb, int(value.pos.offset))
+				current_offset = transform_node(value, source, deref_vars, sb, int(value.pos.offset), false, control_flow_type, in_loop, returns)
 			}
 		}
 		return max(current_offset, int(node.end.offset))
 
 	case ^ast.Expr_Stmt:
-		return transform_node(n.expr, source, deref_vars, sb, current_offset)
+		return transform_node(n.expr, source, deref_vars, sb, current_offset, false, control_flow_type, in_loop, returns)
 
 	case ^ast.If_Stmt:
 		// "if" keyword
@@ -1285,37 +1660,38 @@ transform_node :: proc(
 		current_offset = int(node.pos.offset) + 2
 		if n.cond != nil {
 			strings.write_string(sb, string(source[current_offset:n.cond.pos.offset]))
-			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset))
+			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.body != nil {
 			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
-			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.else_stmt != nil {
 			strings.write_string(sb, string(source[current_offset:n.else_stmt.pos.offset]))
-			current_offset = transform_node(n.else_stmt, source, deref_vars, sb, int(n.else_stmt.pos.offset))
+			current_offset = transform_node(n.else_stmt, source, deref_vars, sb, int(n.else_stmt.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		return max(current_offset, int(node.end.offset))
 
 	case ^ast.For_Stmt:
-		// "for" keyword
+		// "for" keyword - inside loops, break/continue should not be transformed
 		strings.write_string(sb, "for")
 		current_offset = int(node.pos.offset) + 3
 		if n.init != nil {
 			strings.write_string(sb, string(source[current_offset:n.init.pos.offset]))
-			current_offset = transform_node(n.init, source, deref_vars, sb, int(n.init.pos.offset))
+			current_offset = transform_node(n.init, source, deref_vars, sb, int(n.init.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.cond != nil {
 			strings.write_string(sb, string(source[current_offset:n.cond.pos.offset]))
-			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset))
+			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.post != nil {
 			strings.write_string(sb, string(source[current_offset:n.post.pos.offset]))
-			current_offset = transform_node(n.post, source, deref_vars, sb, int(n.post.pos.offset))
+			current_offset = transform_node(n.post, source, deref_vars, sb, int(n.post.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.body != nil {
 			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
-			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+			// Inside the loop body, break/continue are scoped to this loop
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset), false, control_flow_type, true, returns)
 		}
 		return max(current_offset, int(node.end.offset))
 
@@ -1323,7 +1699,8 @@ transform_node :: proc(
 		// Copy the for and loop variables as-is, transform body
 		if n.body != nil {
 			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
-			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+			// Inside the loop body, break/continue are scoped to this loop
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset), false, control_flow_type, true, returns)
 		} else {
 			strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		}
@@ -1334,20 +1711,70 @@ transform_node :: proc(
 		current_offset = int(node.pos.offset) + 1
 		for stmt in n.stmts {
 			strings.write_string(sb, string(source[current_offset:stmt.pos.offset]))
-			current_offset = transform_node(stmt, source, deref_vars, sb, int(stmt.pos.offset))
+			current_offset = transform_node(stmt, source, deref_vars, sb, int(stmt.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		return int(node.end.offset)
 
+	case ^ast.Switch_Stmt:
+		// switch keyword
+		strings.write_string(sb, "switch")
+		current_offset = int(node.pos.offset) + 6
+		if n.init != nil {
+			strings.write_string(sb, string(source[current_offset:n.init.pos.offset]))
+			current_offset = transform_node(n.init, source, deref_vars, sb, int(n.init.pos.offset), false, control_flow_type, in_loop, returns)
+		}
+		if n.cond != nil {
+			strings.write_string(sb, string(source[current_offset:n.cond.pos.offset]))
+			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset), false, control_flow_type, in_loop, returns)
+		}
+		if n.body != nil {
+			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset), false, control_flow_type, in_loop, returns)
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Type_Switch_Stmt:
+		// switch keyword
+		strings.write_string(sb, "switch")
+		current_offset = int(node.pos.offset) + 6
+		if n.tag != nil {
+			strings.write_string(sb, string(source[current_offset:n.tag.pos.offset]))
+			current_offset = transform_node(n.tag, source, deref_vars, sb, int(n.tag.pos.offset), false, control_flow_type, in_loop, returns)
+		}
+		if n.body != nil {
+			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset), false, control_flow_type, in_loop, returns)
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Case_Clause:
+		// Write the case keyword and expressions
+		if n.body != nil && len(n.body) > 0 {
+			strings.write_string(sb, string(source[current_offset:n.body[0].pos.offset]))
+			current_offset = int(n.body[0].pos.offset)
+			for stmt in n.body {
+				strings.write_string(sb, string(source[current_offset:stmt.pos.offset]))
+				current_offset = transform_node(stmt, source, deref_vars, sb, int(stmt.pos.offset), false, control_flow_type, in_loop, returns)
+			}
+			// Write any remaining text (usually just whitespace to the end of the case)
+			if current_offset < int(node.end.offset) {
+				strings.write_string(sb, string(source[current_offset:node.end.offset]))
+			}
+		} else {
+			strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		}
+		return int(node.end.offset)
+
 	case ^ast.Ternary_If_Expr:
-		current_offset = transform_node(n.cond, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.cond, source, deref_vars, sb, current_offset, false, control_flow_type, in_loop, returns)
 		if n.x != nil {
 			strings.write_string(sb, string(source[current_offset:n.x.pos.offset]))
-			current_offset = transform_node(n.x, source, deref_vars, sb, int(n.x.pos.offset))
+			current_offset = transform_node(n.x, source, deref_vars, sb, int(n.x.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		if n.y != nil {
 			strings.write_string(sb, string(source[current_offset:n.y.pos.offset]))
-			current_offset = transform_node(n.y, source, deref_vars, sb, int(n.y.pos.offset))
+			current_offset = transform_node(n.y, source, deref_vars, sb, int(n.y.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		return max(current_offset, int(node.end.offset))
 
@@ -1360,7 +1787,7 @@ transform_node :: proc(
 		current_offset = int(n.open.offset) + 1
 		for elem in n.elems {
 			strings.write_string(sb, string(source[current_offset:elem.pos.offset]))
-			current_offset = transform_node(elem, source, deref_vars, sb, int(elem.pos.offset))
+			current_offset = transform_node(elem, source, deref_vars, sb, int(elem.pos.offset), false, control_flow_type, in_loop, returns)
 		}
 		strings.write_string(sb, string(source[current_offset:node.end.offset]))
 		return int(node.end.offset)
@@ -1368,7 +1795,7 @@ transform_node :: proc(
 	case ^ast.Field_Value:
 		// field = value
 		strings.write_string(sb, string(source[current_offset:n.value.pos.offset]))
-		current_offset = transform_node(n.value, source, deref_vars, sb, int(n.value.pos.offset))
+		current_offset = transform_node(n.value, source, deref_vars, sb, int(n.value.pos.offset), false, control_flow_type, in_loop, returns)
 		return max(current_offset, int(node.end.offset))
 
 	case:
@@ -1418,9 +1845,166 @@ find_common_indentation :: proc(lines: []string) -> int {
 	return common_indent
 }
 
-build_call_text :: proc(params: [dynamic]ParamInfo, returns: [dynamic]ReturnInfo) -> string {
+build_call_text :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo, returns: [dynamic]ReturnInfo) -> string {
 	sb := strings.builder_make(context.temp_allocator)
 
+	// Handle control flow - wrap call in appropriate control structure
+	#partial switch ctx.control_flow_type {
+	case .Return:
+		// For return: if extracted_proc(...) { return }
+		// With returns: if should_return, result := extracted_proc(...); should_return { return }
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\nif __should_return")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
+			}
+			strings.write_string(&sb, " := ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, "); __should_return {\n\treturn\n}")
+		} else {
+			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, ") {\n\treturn\n}")
+		}
+		return strings.to_string(sb)
+
+	case .Break:
+		// For break: if extracted_proc(...) { break }
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\nif __should_break")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
+			}
+			strings.write_string(&sb, " := ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, "); __should_break {\n\tbreak\n}")
+		} else {
+			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, ") {\n\tbreak\n}")
+		}
+		return strings.to_string(sb)
+
+	case .Continue:
+		// For continue: if extracted_proc(...) { continue }
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\nif __should_continue")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
+			}
+			strings.write_string(&sb, " := ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, "); __should_continue {\n\tcontinue\n}")
+		} else {
+			strings.write_string(&sb, "\nif ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, ") {\n\tcontinue\n}")
+		}
+		return strings.to_string(sb)
+
+	case .BreakAndContinue:
+		// For both: use an enum or multi-return. Let's use a simple approach with two bools
+		if len(returns) > 0 {
+			strings.write_string(&sb, "\n__should_break, __should_continue")
+			for ret in returns {
+				strings.write_string(&sb, ", ")
+				strings.write_string(&sb, ret.name)
+			}
+			strings.write_string(&sb, " := ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, ")\nif __should_break {\n\tbreak\n}\nif __should_continue {\n\tcontinue\n}")
+		} else {
+			strings.write_string(&sb, "\n__should_break, __should_continue := ")
+			strings.write_string(&sb, DEFAULT_PROC_NAME)
+			strings.write_string(&sb, "(")
+			for param, i in params {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				if param.pass_addr {
+					strings.write_string(&sb, "&")
+				}
+				strings.write_string(&sb, param.name)
+			}
+			strings.write_string(&sb, ")\nif __should_break {\n\tbreak\n}\nif __should_continue {\n\tcontinue\n}")
+		}
+		return strings.to_string(sb)
+	}
+
+	// No control flow - normal call
 	if len(returns) > 0 {
 		for ret, i in returns {
 			if i > 0 {
@@ -1727,6 +2311,28 @@ extract_element_type :: proc(type_str: string) -> string {
 		}
 	}
 
+	return ""
+}
+
+// Extract the key type from a map type string like "map[string]int" -> "string"
+extract_map_key_type :: proc(type_str: string) -> string {
+	if type_str == "" || !strings.has_prefix(type_str, "map[") {
+		return ""
+	}
+
+	// Find the matching ] for the key type
+	bracket_count := 0
+	for i := 4; i < len(type_str); i += 1 {
+		if type_str[i] == '[' {
+			bracket_count += 1
+		} else if type_str[i] == ']' {
+			if bracket_count == 0 {
+				// Found the end of key type
+				return type_str[4:i]
+			}
+			bracket_count -= 1
+		}
+	}
 	return ""
 }
 
