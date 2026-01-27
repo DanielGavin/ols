@@ -33,6 +33,7 @@ Config :: struct {
 	enable_std_references:                   bool,
 	enable_import_fixer:                     bool,
 	enable_fake_method:                      bool,
+	enable_overload_resolution:              bool,
 	enable_procedure_snippet:                bool,
 	enable_checker_only_saved:               bool,
 	enable_auto_import:                      bool,

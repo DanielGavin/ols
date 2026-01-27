@@ -346,7 +346,7 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_definition_location(src.document, src.position)
+	locations, ok := server.get_definition_location(src.document, src.position, &src.config)
 
 	if !ok {
 		log.error("Failed get_definition_location")

@@ -87,6 +87,11 @@
 			"description": "Turn on fake methods completion.",
 			"default": false
 		},
+		"enable_overload_resolution": {
+			"type": "boolean",
+			"description": "Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.",
+			"default": false
+		},
 		"enable_document_links": {
 			"type": "boolean",
 			"description": "Follow links when opening documentation.",
