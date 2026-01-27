@@ -97,6 +97,11 @@
 			"description": "Provide signature help for comp lits such as when instantiating structs. Will not display correctly on some editors such as vscode.",
 			"default": false
 		},
+		"enable_comp_lit_signature_help_use_docs": {
+			"type": "boolean",
+			"description": "Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.",
+			"default": false
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",
