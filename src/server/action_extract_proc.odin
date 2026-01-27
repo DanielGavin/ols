@@ -1,0 +1,1803 @@
+#+private file
+#+feature dynamic-literals
+
+package server
+
+import "core:odin/ast"
+import "core:odin/tokenizer"
+import "core:slice"
+import "core:strings"
+
+import "src:common"
+
+EXTRACT_PROC_ACTION_TITLE :: "Extract to procedure"
+EXTRACT_PROC_ACTION_KIND :: "refactor.extract"
+DEFAULT_PROC_NAME :: "extracted_proc"
+
+VariableUsage :: struct {
+	name:           string,
+	is_modified:    bool,
+	is_read:        bool,
+	is_declared:    bool,
+	is_used_after:  bool,
+	is_pointer:     bool,
+	addr_of_source: string, // If this variable is assigned from &x, stores "x"
+	type_expr:      ^ast.Expr,
+	type_str:       string,
+}
+
+ExtractProcContext :: struct {
+	document:         ^Document,
+	selection_start:  common.AbsolutePosition,
+	selection_end:    common.AbsolutePosition,
+	containing_proc:  ^ast.Proc_Lit,
+	selected_stmts:   [dynamic]^ast.Stmt,
+	variables:        map[string]VariableUsage,
+	has_control_flow: bool,
+	has_defer:        bool,
+	ast_context:      ^AstContext,
+}
+
+ParamInfo :: struct {
+	name:      string,
+	pass_addr: bool,
+	type_str:  string,
+}
+
+ReturnInfo :: struct {
+	name:     string,
+	type_str: string,
+}
+
+@(private = "package")
+add_extract_proc_action :: proc(document: ^Document, range: common.Range, uri: string, actions: ^[dynamic]CodeAction) {
+	if !is_valid_selection(range) {
+		return
+	}
+
+	ctx, ok := create_extract_context(document, range)
+	if !ok {
+		return
+	}
+	defer destroy_extract_context(&ctx)
+
+	if ctx.containing_proc == nil {
+		return
+	}
+
+	if len(ctx.selected_stmts) == 0 {
+		return
+	}
+
+	if ctx.has_defer {
+		return
+	}
+
+	analyze_variables(&ctx)
+
+	edit, edit_ok := generate_extract_edit(&ctx, uri)
+	if !edit_ok {
+		return
+	}
+
+	append(
+		actions,
+		CodeAction {
+			kind = EXTRACT_PROC_ACTION_KIND,
+			isPreferred = false,
+			title = EXTRACT_PROC_ACTION_TITLE,
+			edit = edit,
+		},
+	)
+}
+
+is_valid_selection :: proc(range: common.Range) -> bool {
+	if range.start.line == range.end.line && range.start.character == range.end.character {
+		return false
+	}
+	return true
+}
+
+create_extract_context :: proc(document: ^Document, range: common.Range) -> (ExtractProcContext, bool) {
+	ctx := ExtractProcContext {
+		document       = document,
+		variables      = make(map[string]VariableUsage, context.temp_allocator),
+		selected_stmts = make([dynamic]^ast.Stmt, context.temp_allocator),
+	}
+
+	start_pos, start_ok := common.get_absolute_position(range.start, document.text)
+	end_pos, end_ok := common.get_absolute_position(range.end, document.text)
+	if !start_ok || !end_ok {
+		return ctx, false
+	}
+
+	ctx.selection_start = start_pos
+	ctx.selection_end = end_pos
+
+	ctx.containing_proc = find_containing_proc(document.ast.decls[:], ctx.selection_start)
+	if ctx.containing_proc == nil {
+		return ctx, false
+	}
+
+	collect_selected_statements(&ctx)
+
+	return ctx, len(ctx.selected_stmts) > 0
+}
+
+destroy_extract_context :: proc(ctx: ^ExtractProcContext) {
+	delete(ctx.variables)
+	delete(ctx.selected_stmts)
+}
+
+find_containing_proc :: proc(stmts: []^ast.Stmt, position: common.AbsolutePosition) -> ^ast.Proc_Lit {
+	for stmt in stmts {
+		if stmt == nil {
+			continue
+		}
+		if result := find_proc_in_node(stmt, position); result != nil {
+			return result
+		}
+	}
+	return nil
+}
+
+find_proc_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> ^ast.Proc_Lit {
+	if node == nil {
+		return nil
+	}
+
+	if !position_in_node(node, position) {
+		return nil
+	}
+
+	#partial switch n in node.derived {
+	case ^ast.Value_Decl:
+		for value in n.values {
+			if result := find_proc_in_node(value, position); result != nil {
+				return result
+			}
+		}
+
+	case ^ast.Proc_Lit:
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				if nested := find_proc_in_block(block, position); nested != nil {
+					return nested
+				}
+			}
+		}
+		return n
+
+	case ^ast.Block_Stmt:
+		return find_proc_in_block(n, position)
+	}
+
+	return nil
+}
+
+find_proc_in_block :: proc(block: ^ast.Block_Stmt, position: common.AbsolutePosition) -> ^ast.Proc_Lit {
+	if block == nil {
+		return nil
+	}
+
+	for stmt in block.stmts {
+		if result := find_proc_in_node(stmt, position); result != nil {
+			return result
+		}
+	}
+	return nil
+}
+
+collect_selected_statements :: proc(ctx: ^ExtractProcContext) {
+	if ctx.containing_proc == nil || ctx.containing_proc.body == nil {
+		return
+	}
+
+	body, ok := ctx.containing_proc.body.derived.(^ast.Block_Stmt)
+	if !ok {
+		return
+	}
+
+	collect_stmts_in_range(body.stmts, ctx)
+}
+
+collect_stmts_in_range :: proc(stmts: []^ast.Stmt, ctx: ^ExtractProcContext) {
+	for stmt in stmts {
+		if stmt == nil {
+			continue
+		}
+
+		if is_statement_in_selection(stmt, ctx) {
+			append(&ctx.selected_stmts, stmt)
+			check_statement_properties(stmt, ctx)
+		} else if stmt.pos.offset < ctx.selection_end && stmt.end.offset > ctx.selection_start {
+			collect_stmts_in_nested_blocks(stmt, ctx)
+		}
+	}
+}
+
+is_statement_in_selection :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) -> bool {
+	return stmt.pos.offset >= ctx.selection_start && stmt.end.offset <= ctx.selection_end
+}
+
+collect_stmts_in_nested_blocks :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	#partial switch n in stmt.derived {
+	case ^ast.Block_Stmt:
+		collect_stmts_in_range(n.stmts, ctx)
+	case ^ast.If_Stmt:
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_stmts_in_range(block.stmts, ctx)
+			}
+		}
+		if n.else_stmt != nil {
+			collect_stmts_in_nested_blocks(n.else_stmt, ctx)
+		}
+	case ^ast.For_Stmt:
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_stmts_in_range(block.stmts, ctx)
+			}
+		}
+	case ^ast.Range_Stmt:
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				collect_stmts_in_range(block.stmts, ctx)
+			}
+		}
+	}
+}
+
+check_statement_properties :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	#partial switch n in stmt.derived {
+	case ^ast.Return_Stmt:
+		ctx.has_control_flow = true
+	case ^ast.Branch_Stmt:
+		ctx.has_control_flow = true
+	case ^ast.Defer_Stmt:
+		ctx.has_defer = true
+	}
+
+	check_nested_control_flow(stmt, ctx)
+}
+
+check_nested_control_flow :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	if stmt == nil {
+		return
+	}
+
+	#partial switch n in stmt.derived {
+	case ^ast.Block_Stmt:
+		for s in n.stmts {
+			check_statement_properties(s, ctx)
+		}
+	case ^ast.If_Stmt:
+		if n.body != nil {
+			check_statement_properties(n.body, ctx)
+		}
+		if n.else_stmt != nil {
+			check_statement_properties(n.else_stmt, ctx)
+		}
+	case ^ast.For_Stmt:
+		if n.body != nil {
+			check_statement_properties(n.body, ctx)
+		}
+	case ^ast.Range_Stmt:
+		if n.body != nil {
+			check_statement_properties(n.body, ctx)
+		}
+	}
+}
+
+analyze_variables :: proc(ctx: ^ExtractProcContext) {
+	find_variables_before_selection(ctx)
+
+	for stmt in ctx.selected_stmts {
+		analyze_statement_variables(stmt, ctx)
+	}
+
+	check_variables_used_after(ctx)
+}
+
+find_variables_before_selection :: proc(ctx: ^ExtractProcContext) {
+	if ctx.containing_proc == nil || ctx.containing_proc.body == nil {
+		return
+	}
+
+	if ctx.containing_proc.type != nil {
+		if proc_type, ok := ctx.containing_proc.type.derived.(^ast.Proc_Type); ok {
+			if proc_type.params != nil {
+				for field in proc_type.params.list {
+					for name in field.names {
+						if ident, ok := name.derived.(^ast.Ident); ok {
+							usage := VariableUsage {
+								name       = ident.name,
+								type_expr  = field.type,
+								type_str   = get_type_string(field.type),
+								is_pointer = is_pointer_type(field.type),
+							}
+							ctx.variables[ident.name] = usage
+						}
+					}
+				}
+			}
+		}
+	}
+
+	body, ok := ctx.containing_proc.body.derived.(^ast.Block_Stmt)
+	if !ok {
+		return
+	}
+
+	for stmt in body.stmts {
+		if stmt == nil || stmt.pos.offset >= ctx.selection_start {
+			break
+		}
+		collect_declared_variables(stmt, ctx)
+	}
+}
+
+collect_declared_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	#partial switch n in stmt.derived {
+	case ^ast.Value_Decl:
+		for name, i in n.names {
+			if ident, ok := name.derived.(^ast.Ident); ok {
+				type_expr := n.type
+				type_str := get_type_string(type_expr)
+				// If no explicit type, try to infer from value
+				if type_str == "" && i < len(n.values) {
+					type_str = infer_type_from_expr(n.values[i], ctx)
+				}
+				usage := VariableUsage {
+					name       = ident.name,
+					type_expr  = type_expr,
+					type_str   = type_str,
+					is_pointer = is_pointer_type(type_expr),
+				}
+				ctx.variables[ident.name] = usage
+			}
+		}
+	case ^ast.Assign_Stmt:
+		if n.op.text == ":=" {
+			for lhs, i in n.lhs {
+				if ident, ok := lhs.derived.(^ast.Ident); ok {
+					type_str := ""
+					if i < len(n.rhs) {
+						type_str = infer_type_from_expr(n.rhs[i], ctx)
+					}
+					usage := VariableUsage {
+						name     = ident.name,
+						type_str = type_str,
+					}
+					ctx.variables[ident.name] = usage
+				}
+			}
+		}
+	}
+}
+
+analyze_statement_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	if stmt == nil {
+		return
+	}
+
+	#partial switch n in stmt.derived {
+	case ^ast.Value_Decl:
+		analyze_value_decl(n, ctx)
+	case ^ast.Assign_Stmt:
+		analyze_assign_stmt(n, ctx)
+	case ^ast.Expr_Stmt:
+		if n.expr != nil {
+			analyze_expr_reads(n.expr, ctx)
+		}
+	case ^ast.Return_Stmt:
+		for result in n.results {
+			analyze_expr_reads(result, ctx)
+		}
+	case ^ast.If_Stmt:
+		if n.cond != nil {
+			analyze_expr_reads(n.cond, ctx)
+		}
+		if n.body != nil {
+			analyze_statement_variables(n.body, ctx)
+		}
+		if n.else_stmt != nil {
+			analyze_statement_variables(n.else_stmt, ctx)
+		}
+	case ^ast.For_Stmt:
+		// Mark loop init variables as declared (they are loop-scoped)
+		if n.init != nil {
+			mark_loop_variables_declared(n.init, ctx)
+		}
+		if n.cond != nil {
+			analyze_expr_reads(n.cond, ctx)
+		}
+		if n.body != nil {
+			analyze_statement_variables(n.body, ctx)
+		}
+	case ^ast.Range_Stmt:
+		// Mark range loop variables as declared (they are loop-scoped)
+		for val in n.vals {
+			if val != nil {
+				if ident, ok := val.derived.(^ast.Ident); ok {
+					usage := ctx.variables[ident.name]
+					usage.name = ident.name
+					usage.is_declared = true
+					ctx.variables[ident.name] = usage
+				}
+			}
+		}
+		// Iterating over a fixed array creates references, so mark it as modified
+		// to ensure it's passed by pointer
+		if n.expr != nil {
+			if ident, ok := n.expr.derived.(^ast.Ident); ok {
+				if !is_builtin_identifier(ident.name) {
+					usage := ctx.variables[ident.name]
+					usage.name = ident.name
+					usage.is_modified = true // Mark as modified so it's passed by pointer
+					usage.is_read = true
+					ctx.variables[ident.name] = usage
+				}
+			} else {
+				analyze_expr_reads(n.expr, ctx)
+			}
+		}
+		if n.body != nil {
+			analyze_statement_variables(n.body, ctx)
+		}
+	case ^ast.Block_Stmt:
+		for s in n.stmts {
+			analyze_statement_variables(s, ctx)
+		}
+	case ^ast.Defer_Stmt:
+		if n.stmt != nil {
+			analyze_statement_variables(n.stmt, ctx)
+		}
+	}
+}
+
+analyze_value_decl :: proc(decl: ^ast.Value_Decl, ctx: ^ExtractProcContext) {
+	for name, i in decl.names {
+		if ident, ok := name.derived.(^ast.Ident); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			usage.is_declared = true
+			usage.type_expr = decl.type
+			usage.is_pointer = is_pointer_type(decl.type)
+			// Set type string if not already set
+			if usage.type_str == "" {
+				usage.type_str = get_type_string(decl.type)
+				if usage.type_str == "" && i < len(decl.values) {
+					usage.type_str = infer_type_from_expr(decl.values[i], ctx)
+				}
+			}
+			// Track if this is assigned from &x
+			if i < len(decl.values) {
+				if unary, unary_ok := decl.values[i].derived.(^ast.Unary_Expr); unary_ok {
+					if unary.op.kind == .And {
+						if src_ident, src_ok := unary.expr.derived.(^ast.Ident); src_ok {
+							usage.addr_of_source = src_ident.name
+						}
+					}
+				}
+			}
+			ctx.variables[ident.name] = usage
+		}
+	}
+
+	for value in decl.values {
+		analyze_expr_reads(value, ctx)
+	}
+}
+
+analyze_assign_stmt :: proc(stmt: ^ast.Assign_Stmt, ctx: ^ExtractProcContext) {
+	is_declaration := stmt.op.text == ":="
+
+	for lhs, i in stmt.lhs {
+		if ident, ok := lhs.derived.(^ast.Ident); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			if is_declaration {
+				usage.is_declared = true
+				// Set type string from RHS if declaring
+				if usage.type_str == "" && i < len(stmt.rhs) {
+					usage.type_str = infer_type_from_expr(stmt.rhs[i], ctx)
+				}
+				// Track if this is assigned from &x
+				if i < len(stmt.rhs) {
+					if unary, unary_ok := stmt.rhs[i].derived.(^ast.Unary_Expr); unary_ok {
+						if unary.op.kind == .And {
+							if src_ident, src_ok := unary.expr.derived.(^ast.Ident); src_ok {
+								usage.addr_of_source = src_ident.name
+							}
+						}
+					}
+				}
+			} else {
+				usage.is_modified = true
+			}
+			ctx.variables[ident.name] = usage
+		} else {
+			analyze_lhs_modification(lhs, ctx)
+		}
+	}
+
+	for rhs in stmt.rhs {
+		analyze_expr_reads(rhs, ctx)
+	}
+}
+
+analyze_lhs_modification :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) {
+	if expr == nil {
+		return
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Selector_Expr:
+		if ident, ok := get_root_ident(n.expr); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			usage.is_modified = true
+			ctx.variables[ident.name] = usage
+		}
+	case ^ast.Index_Expr:
+		if ident, ok := get_root_ident(n.expr); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			usage.is_modified = true
+			ctx.variables[ident.name] = usage
+		}
+	case ^ast.Deref_Expr:
+		if ident, ok := get_root_ident(n.expr); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			usage.is_read = true
+			ctx.variables[ident.name] = usage
+		}
+	case ^ast.Unary_Expr:
+		if ident, ok := get_root_ident(n.expr); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			ctx.variables[ident.name] = usage
+		}
+	}
+}
+
+get_root_ident :: proc(expr: ^ast.Expr) -> (^ast.Ident, bool) {
+	if expr == nil {
+		return nil, false
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Ident:
+		return n, true
+	case ^ast.Selector_Expr:
+		return get_root_ident(n.expr)
+	case ^ast.Index_Expr:
+		return get_root_ident(n.expr)
+	case ^ast.Unary_Expr:
+		return get_root_ident(n.expr)
+	case ^ast.Deref_Expr:
+		return get_root_ident(n.expr)
+	}
+
+	return nil, false
+}
+
+// Mark variables declared in for-loop init statements as loop-scoped
+mark_loop_variables_declared :: proc(init_stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	if init_stmt == nil {
+		return
+	}
+
+	#partial switch n in init_stmt.derived {
+	case ^ast.Assign_Stmt:
+		if n.op.text == ":=" {
+			for lhs in n.lhs {
+				if ident, ok := lhs.derived.(^ast.Ident); ok {
+					usage := ctx.variables[ident.name]
+					usage.name = ident.name
+					usage.is_declared = true
+					ctx.variables[ident.name] = usage
+				}
+			}
+		}
+	case ^ast.Value_Decl:
+		for name in n.names {
+			if ident, ok := name.derived.(^ast.Ident); ok {
+				usage := ctx.variables[ident.name]
+				usage.name = ident.name
+				usage.is_declared = true
+				ctx.variables[ident.name] = usage
+			}
+		}
+	}
+}
+
+analyze_expr_reads :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) {
+	if expr == nil {
+		return
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Ident:
+		if is_builtin_identifier(n.name) {
+			return
+		}
+		usage := ctx.variables[n.name]
+		usage.name = n.name
+		usage.is_read = true
+		ctx.variables[n.name] = usage
+
+	case ^ast.Binary_Expr:
+		analyze_expr_reads(n.left, ctx)
+		analyze_expr_reads(n.right, ctx)
+
+	case ^ast.Unary_Expr:
+		// For address-of operator, just mark as read (we're reading the value to get its address)
+		analyze_expr_reads(n.expr, ctx)
+
+	case ^ast.Deref_Expr:
+		analyze_expr_reads(n.expr, ctx)
+
+	case ^ast.Call_Expr:
+		for arg in n.args {
+			analyze_expr_reads(arg, ctx)
+		}
+
+	case ^ast.Selector_Expr:
+		analyze_expr_reads(n.expr, ctx)
+
+	case ^ast.Index_Expr:
+		analyze_expr_reads(n.expr, ctx)
+		analyze_expr_reads(n.index, ctx)
+
+	case ^ast.Slice_Expr:
+		// Slicing reads the underlying array/slice - and for arrays, creates a slice
+		// which means the variable should be passed by pointer
+		if ident, ok := get_root_ident(n.expr); ok {
+			usage := ctx.variables[ident.name]
+			usage.name = ident.name
+			usage.is_modified = true // Mark as modified since slicing an array creates a reference
+			ctx.variables[ident.name] = usage
+		}
+		analyze_expr_reads(n.expr, ctx)
+		if n.low != nil {
+			analyze_expr_reads(n.low, ctx)
+		}
+		if n.high != nil {
+			analyze_expr_reads(n.high, ctx)
+		}
+
+	case ^ast.Comp_Lit:
+		for elem in n.elems {
+			analyze_expr_reads(elem, ctx)
+		}
+
+	case ^ast.Field_Value:
+		analyze_expr_reads(n.value, ctx)
+
+	case ^ast.Paren_Expr:
+		analyze_expr_reads(n.expr, ctx)
+
+	case ^ast.Ternary_If_Expr:
+		analyze_expr_reads(n.cond, ctx)
+		analyze_expr_reads(n.x, ctx)
+		analyze_expr_reads(n.y, ctx)
+	}
+}
+
+check_variables_used_after :: proc(ctx: ^ExtractProcContext) {
+	if ctx.containing_proc == nil || ctx.containing_proc.body == nil {
+		return
+	}
+
+	body, ok := ctx.containing_proc.body.derived.(^ast.Block_Stmt)
+	if !ok {
+		return
+	}
+
+	for stmt in body.stmts {
+		if stmt == nil || stmt.pos.offset <= ctx.selection_end {
+			continue
+		}
+		check_stmt_uses_variables(stmt, ctx)
+	}
+}
+
+check_stmt_uses_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
+	if stmt == nil {
+		return
+	}
+
+	#partial switch n in stmt.derived {
+	case ^ast.Expr_Stmt:
+		if n.expr != nil {
+			check_expr_uses_variables(n.expr, ctx)
+		}
+	case ^ast.Value_Decl:
+		for value in n.values {
+			check_expr_uses_variables(value, ctx)
+		}
+	case ^ast.Assign_Stmt:
+		for rhs in n.rhs {
+			check_expr_uses_variables(rhs, ctx)
+		}
+	case ^ast.Return_Stmt:
+		for result in n.results {
+			check_expr_uses_variables(result, ctx)
+		}
+	case ^ast.If_Stmt:
+		if n.cond != nil {
+			check_expr_uses_variables(n.cond, ctx)
+		}
+		if n.body != nil {
+			check_stmt_uses_variables(n.body, ctx)
+		}
+		if n.else_stmt != nil {
+			check_stmt_uses_variables(n.else_stmt, ctx)
+		}
+	case ^ast.For_Stmt:
+		if n.cond != nil {
+			check_expr_uses_variables(n.cond, ctx)
+		}
+		if n.body != nil {
+			check_stmt_uses_variables(n.body, ctx)
+		}
+	case ^ast.Range_Stmt:
+		if n.expr != nil {
+			check_expr_uses_variables(n.expr, ctx)
+		}
+		if n.body != nil {
+			check_stmt_uses_variables(n.body, ctx)
+		}
+	case ^ast.Block_Stmt:
+		for s in n.stmts {
+			check_stmt_uses_variables(s, ctx)
+		}
+	}
+}
+
+check_expr_uses_variables :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) {
+	if expr == nil {
+		return
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Ident:
+		if usage, ok := &ctx.variables[n.name]; ok {
+			if usage.is_declared {
+				usage.is_used_after = true
+			}
+		}
+
+	case ^ast.Binary_Expr:
+		check_expr_uses_variables(n.left, ctx)
+		check_expr_uses_variables(n.right, ctx)
+
+	case ^ast.Unary_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+
+	case ^ast.Call_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+		for arg in n.args {
+			check_expr_uses_variables(arg, ctx)
+		}
+
+	case ^ast.Selector_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+
+	case ^ast.Index_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+		check_expr_uses_variables(n.index, ctx)
+
+	case ^ast.Paren_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+
+	case ^ast.Deref_Expr:
+		check_expr_uses_variables(n.expr, ctx)
+	}
+}
+
+is_pointer_type :: proc(type_expr: ^ast.Expr) -> bool {
+	if type_expr == nil {
+		return false
+	}
+
+	#partial switch n in type_expr.derived {
+	case ^ast.Pointer_Type:
+		return true
+	case ^ast.Multi_Pointer_Type:
+		return true
+	}
+
+	return false
+}
+
+is_builtin_identifier :: proc(name: string) -> bool {
+	if name in keyword_map {
+		return true
+	}
+
+	switch name {
+	case "len",
+	     "cap",
+	     "size_of",
+	     "align_of",
+	     "offset_of",
+	     "type_of",
+	     "type_info_of",
+	     "typeid_of",
+	     "swizzle",
+	     "complex",
+	     "quaternion",
+	     "real",
+	     "imag",
+	     "jmag",
+	     "kmag",
+	     "conj",
+	     "expand_values",
+	     "min",
+	     "max",
+	     "abs",
+	     "clamp",
+	     "soa_zip",
+	     "soa_unzip":
+		return true
+	case "new",
+	     "new_clone",
+	     "free",
+	     "free_all",
+	     "delete",
+	     "make",
+	     "clear",
+	     "reserve",
+	     "resize",
+	     "append",
+	     "append_elems",
+	     "pop",
+	     "inject_at",
+	     "assign_at",
+	     "pop_front",
+	     "unordered_remove",
+	     "ordered_remove":
+		return true
+	case "transmute", "auto_cast", "cast":
+		return true
+	case "context", "raw_data", "card", "assert", "panic", "unreachable":
+		return true
+	}
+
+	return false
+}
+
+generate_extract_edit :: proc(ctx: ^ExtractProcContext, uri: string) -> (WorkspaceEdit, bool) {
+	src := ctx.document.ast.src
+
+	params := build_parameter_list(ctx)
+	returns := build_return_list(ctx)
+
+	// If a returned variable was assigned from &x where x is a parameter,
+	// mark x as needing pass-by-pointer so the returned pointer is valid
+	for ret in returns {
+		if usage, ok := ctx.variables[ret.name]; ok {
+			if usage.addr_of_source != "" {
+				// Find the source parameter and mark it as pass_addr
+				for &param in params {
+					if param.name == usage.addr_of_source {
+						param.pass_addr = true
+						break
+					}
+				}
+			}
+		}
+	}
+
+	call_text := build_call_text(params, returns)
+	proc_text := build_proc_definition(ctx, params, returns)
+
+	selection_range := common.Range {
+		start = common.token_pos_to_position(tokenizer.Pos{offset = ctx.selection_start}, src),
+		end   = common.token_pos_to_position(tokenizer.Pos{offset = ctx.selection_end}, src),
+	}
+
+	// Find position after the containing procedure to insert the new proc
+	proc_end_pos := common.token_pos_to_position(ctx.containing_proc.end, src)
+	insert_range := common.Range {
+		start = proc_end_pos,
+		end   = proc_end_pos,
+	}
+
+	textEdits := make([dynamic]TextEdit, context.temp_allocator)
+	append(&textEdits, TextEdit{range = selection_range, newText = call_text})
+	append(&textEdits, TextEdit{range = insert_range, newText = proc_text})
+
+	workspaceEdit: WorkspaceEdit
+	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
+	workspaceEdit.changes[uri] = textEdits[:]
+
+	return workspaceEdit, true
+}
+
+build_parameter_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ParamInfo {
+	params := make([dynamic]ParamInfo, context.temp_allocator)
+
+	for name, usage in ctx.variables {
+		if usage.is_declared {
+			continue
+		}
+
+		if !usage.is_read && !usage.is_modified {
+			continue
+		}
+
+		param := ParamInfo {
+			name     = name,
+			type_str = usage.type_str != "" ? usage.type_str : "auto",
+		}
+
+		if usage.is_modified && !usage.is_pointer {
+			param.pass_addr = true
+		}
+
+		// Pass fixed-size arrays by pointer to avoid copying
+		if is_fixed_array_type(param.type_str) && !usage.is_pointer {
+			param.pass_addr = true
+		}
+
+		append(&params, param)
+	}
+
+	slice.sort_by(params[:], proc(a, b: ParamInfo) -> bool {
+		return a.name < b.name
+	})
+
+	return params
+}
+
+build_return_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ReturnInfo {
+	returns := make([dynamic]ReturnInfo, context.temp_allocator)
+
+	for name, usage in ctx.variables {
+		if usage.is_declared && usage.is_used_after {
+			ret := ReturnInfo {
+				name     = name,
+				type_str = usage.type_str != "" ? usage.type_str : "auto",
+			}
+			append(&returns, ret)
+		}
+	}
+
+	slice.sort_by(returns[:], proc(a, b: ReturnInfo) -> bool {
+		return a.name < b.name
+	})
+
+	return returns
+}
+
+build_proc_definition :: proc(
+	ctx: ^ExtractProcContext,
+	params: [dynamic]ParamInfo,
+	returns: [dynamic]ReturnInfo,
+) -> string {
+	sb := strings.builder_make(context.temp_allocator)
+
+	// Add newlines before the new procedure
+	strings.write_string(&sb, "\n\n")
+
+	// Procedure signature
+	strings.write_string(&sb, DEFAULT_PROC_NAME)
+	strings.write_string(&sb, " :: proc(")
+
+	// Parameters
+	for param, i in params {
+		if i > 0 {
+			strings.write_string(&sb, ", ")
+		}
+		strings.write_string(&sb, param.name)
+		strings.write_string(&sb, ": ")
+		if param.pass_addr {
+			strings.write_string(&sb, "^")
+		}
+		strings.write_string(&sb, param.type_str)
+	}
+
+	strings.write_string(&sb, ")")
+
+	// Return types (if any)
+	if len(returns) > 0 {
+		strings.write_string(&sb, " -> ")
+		if len(returns) > 1 {
+			strings.write_string(&sb, "(")
+		}
+		for ret, i in returns {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			strings.write_string(&sb, ret.type_str)
+		}
+		if len(returns) > 1 {
+			strings.write_string(&sb, ")")
+		}
+	}
+
+	strings.write_string(&sb, " {\n")
+
+	// Extract the selected code and transform variable references for pointer params
+	selected_code := transform_extracted_code(ctx, params)
+
+	// Split into lines and find common indentation
+	lines := strings.split(selected_code, "\n", context.temp_allocator)
+	common_indent := find_common_indentation(lines)
+
+	// Add each line with normalized indentation
+	for line, i in lines {
+		if i > 0 {
+			strings.write_byte(&sb, '\n')
+		}
+		// First line: don't strip (selection starts at content, no leading whitespace)
+		// Other lines: strip the common indentation from the source
+		strings.write_byte(&sb, '\t')
+		if i == 0 {
+			strings.write_string(&sb, line)
+		} else {
+			stripped := line
+			if len(line) >= common_indent {
+				stripped = line[common_indent:]
+			}
+			strings.write_string(&sb, stripped)
+		}
+	}
+
+	// Add return statement if needed
+	if len(returns) > 0 {
+		strings.write_string(&sb, "\n\treturn ")
+		for ret, i in returns {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			strings.write_string(&sb, ret.name)
+		}
+	}
+
+	strings.write_string(&sb, "\n}")
+
+	return strings.to_string(sb)
+}
+
+// Transform the extracted code to handle pointer parameters
+// Variables passed by address need to be dereferenced in the extracted code
+transform_extracted_code :: proc(ctx: ^ExtractProcContext, params: [dynamic]ParamInfo) -> string {
+	// Build a set of variables that need to be dereferenced
+	deref_vars := make(map[string]bool, context.temp_allocator)
+	for param in params {
+		if param.pass_addr {
+			deref_vars[param.name] = true
+		}
+	}
+
+	if len(deref_vars) == 0 {
+		// No transformations needed, return original code
+		return string(ctx.document.text[ctx.selection_start:ctx.selection_end])
+	}
+
+	// Transform the code by walking through and replacing variable references
+	sb := strings.builder_make(context.temp_allocator)
+	src := ctx.document.text[ctx.selection_start:ctx.selection_end]
+
+	// Process each selected statement and transform it
+	last_offset := ctx.selection_start
+
+	for stmt in ctx.selected_stmts {
+		// Write any text between statements
+		if stmt.pos.offset > last_offset {
+			strings.write_string(&sb, string(ctx.document.text[last_offset:stmt.pos.offset]))
+		}
+
+		// Transform this statement
+		transformed := transform_statement(stmt, ctx.document.text, deref_vars)
+		strings.write_string(&sb, transformed)
+
+		last_offset = stmt.end.offset
+	}
+
+	// Write any remaining text after the last statement
+	if last_offset < ctx.selection_end {
+		strings.write_string(&sb, string(ctx.document.text[last_offset:ctx.selection_end]))
+	}
+
+	return strings.to_string(sb)
+}
+
+// Transform a statement, adding dereferences for pointer parameters
+transform_statement :: proc(stmt: ^ast.Stmt, source: []u8, deref_vars: map[string]bool) -> string {
+	if stmt == nil {
+		return ""
+	}
+
+	sb := strings.builder_make(context.temp_allocator)
+	transform_node(stmt, source, deref_vars, &sb, int(stmt.pos.offset), false)
+	return strings.to_string(sb)
+}
+
+// Recursively transform a node, tracking position to copy whitespace/text between nodes
+// auto_deref_context is true when we're in a context where pointers auto-dereference (field/index access)
+transform_node :: proc(
+	node: ^ast.Node,
+	source: []u8,
+	deref_vars: map[string]bool,
+	sb: ^strings.Builder,
+	start_offset: int,
+	auto_deref_context := false,
+) -> int {
+	if node == nil {
+		return start_offset
+	}
+
+	// Write any text before this node
+	if int(node.pos.offset) > start_offset {
+		strings.write_string(sb, string(source[start_offset:node.pos.offset]))
+	}
+
+	current_offset := int(node.pos.offset)
+
+	#partial switch n in node.derived {
+	case ^ast.Ident:
+		// Only add ^ if we're NOT in an auto-deref context (field/index access)
+		if n.name in deref_vars && !auto_deref_context {
+			strings.write_string(sb, n.name)
+			strings.write_string(sb, "^")
+		} else {
+			strings.write_string(sb, n.name)
+		}
+		return int(node.end.offset)
+
+	case ^ast.Unary_Expr:
+		// Handle &x -> x when x is passed by pointer
+		if n.op.kind == .And {
+			if ident, ok := n.expr.derived.(^ast.Ident); ok {
+				if ident.name in deref_vars {
+					// &x becomes just x (since x is already a pointer)
+					strings.write_string(sb, ident.name)
+					return int(node.end.offset)
+				}
+			}
+		}
+		// Write the operator
+		strings.write_string(sb, string(source[current_offset:n.expr.pos.offset]))
+		current_offset = transform_node(n.expr, source, deref_vars, sb, int(n.expr.pos.offset))
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Binary_Expr:
+		current_offset = transform_node(n.left, source, deref_vars, sb, current_offset)
+		current_offset = transform_node(n.right, source, deref_vars, sb, current_offset)
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Paren_Expr:
+		// Write opening paren
+		strings.write_byte(sb, '(')
+		current_offset = int(n.expr.pos.offset)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		strings.write_byte(sb, ')')
+		return int(node.end.offset)
+
+	case ^ast.Call_Expr:
+		// Check if this is a builtin that accepts pointers to arrays (len, cap, etc.)
+		is_pointer_accepting_builtin := false
+		if ident, ok := n.expr.derived.(^ast.Ident); ok {
+			switch ident.name {
+			case "len", "cap", "size_of", "align_of":
+				is_pointer_accepting_builtin = true
+			}
+		}
+
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		// Write the opening paren
+		strings.write_string(sb, string(source[current_offset:n.open.offset + 1]))
+		current_offset = int(n.open.offset) + 1
+		for arg, i in n.args {
+			if i > 0 {
+				strings.write_string(sb, string(source[current_offset:arg.pos.offset]))
+			}
+			// For builtins that accept pointers, pass args in auto-deref context
+			current_offset = transform_node(
+				arg,
+				source,
+				deref_vars,
+				sb,
+				int(arg.pos.offset),
+				is_pointer_accepting_builtin,
+			)
+		}
+		// Write closing paren
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Index_Expr:
+		// Base expression is in auto-deref context (arr[i] auto-dereferences)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		strings.write_string(sb, string(source[current_offset:n.index.pos.offset]))
+		current_offset = transform_node(n.index, source, deref_vars, sb, int(n.index.pos.offset), false)
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Slice_Expr:
+		// Base expression is in auto-deref context
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		// Write the rest including brackets and indices
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Selector_Expr:
+		// Base expression is in auto-deref context (x.field auto-dereferences)
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset, true)
+		// Write the dot and field name
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Deref_Expr:
+		current_offset = transform_node(n.expr, source, deref_vars, sb, current_offset)
+		strings.write_string(sb, "^")
+		return int(node.end.offset)
+
+	case ^ast.Assign_Stmt:
+		for lhs, i in n.lhs {
+			if i > 0 {
+				strings.write_string(sb, string(source[current_offset:lhs.pos.offset]))
+			}
+			current_offset = transform_node(lhs, source, deref_vars, sb, int(lhs.pos.offset))
+		}
+		// Write the operator and spacing
+		strings.write_string(sb, string(source[current_offset:n.rhs[0].pos.offset]))
+		current_offset = int(n.rhs[0].pos.offset)
+		for rhs, i in n.rhs {
+			if i > 0 {
+				strings.write_string(sb, string(source[current_offset:rhs.pos.offset]))
+			}
+			current_offset = transform_node(rhs, source, deref_vars, sb, int(rhs.pos.offset))
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Value_Decl:
+		// Variable declarations - copy as-is but transform the value expressions
+		for name in n.names {
+			strings.write_string(sb, string(source[current_offset:name.end.offset]))
+			current_offset = int(name.end.offset)
+		}
+		if n.type != nil {
+			strings.write_string(sb, string(source[current_offset:n.type.end.offset]))
+			current_offset = int(n.type.end.offset)
+		}
+		if len(n.values) > 0 {
+			// Write up to the first value (includes the = or :=)
+			strings.write_string(sb, string(source[current_offset:n.values[0].pos.offset]))
+			current_offset = int(n.values[0].pos.offset)
+			for value, i in n.values {
+				if i > 0 {
+					strings.write_string(sb, string(source[current_offset:value.pos.offset]))
+				}
+				current_offset = transform_node(value, source, deref_vars, sb, int(value.pos.offset))
+			}
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Expr_Stmt:
+		return transform_node(n.expr, source, deref_vars, sb, current_offset)
+
+	case ^ast.If_Stmt:
+		// "if" keyword
+		strings.write_string(sb, "if")
+		current_offset = int(node.pos.offset) + 2
+		if n.cond != nil {
+			strings.write_string(sb, string(source[current_offset:n.cond.pos.offset]))
+			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset))
+		}
+		if n.body != nil {
+			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+		}
+		if n.else_stmt != nil {
+			strings.write_string(sb, string(source[current_offset:n.else_stmt.pos.offset]))
+			current_offset = transform_node(n.else_stmt, source, deref_vars, sb, int(n.else_stmt.pos.offset))
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.For_Stmt:
+		// "for" keyword
+		strings.write_string(sb, "for")
+		current_offset = int(node.pos.offset) + 3
+		if n.init != nil {
+			strings.write_string(sb, string(source[current_offset:n.init.pos.offset]))
+			current_offset = transform_node(n.init, source, deref_vars, sb, int(n.init.pos.offset))
+		}
+		if n.cond != nil {
+			strings.write_string(sb, string(source[current_offset:n.cond.pos.offset]))
+			current_offset = transform_node(n.cond, source, deref_vars, sb, int(n.cond.pos.offset))
+		}
+		if n.post != nil {
+			strings.write_string(sb, string(source[current_offset:n.post.pos.offset]))
+			current_offset = transform_node(n.post, source, deref_vars, sb, int(n.post.pos.offset))
+		}
+		if n.body != nil {
+			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Range_Stmt:
+		// Copy the for and loop variables as-is, transform body
+		if n.body != nil {
+			strings.write_string(sb, string(source[current_offset:n.body.pos.offset]))
+			current_offset = transform_node(n.body, source, deref_vars, sb, int(n.body.pos.offset))
+		} else {
+			strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Block_Stmt:
+		strings.write_byte(sb, '{')
+		current_offset = int(node.pos.offset) + 1
+		for stmt in n.stmts {
+			strings.write_string(sb, string(source[current_offset:stmt.pos.offset]))
+			current_offset = transform_node(stmt, source, deref_vars, sb, int(stmt.pos.offset))
+		}
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Ternary_If_Expr:
+		current_offset = transform_node(n.cond, source, deref_vars, sb, current_offset)
+		if n.x != nil {
+			strings.write_string(sb, string(source[current_offset:n.x.pos.offset]))
+			current_offset = transform_node(n.x, source, deref_vars, sb, int(n.x.pos.offset))
+		}
+		if n.y != nil {
+			strings.write_string(sb, string(source[current_offset:n.y.pos.offset]))
+			current_offset = transform_node(n.y, source, deref_vars, sb, int(n.y.pos.offset))
+		}
+		return max(current_offset, int(node.end.offset))
+
+	case ^ast.Comp_Lit:
+		if n.type != nil {
+			strings.write_string(sb, string(source[current_offset:n.type.end.offset]))
+			current_offset = int(n.type.end.offset)
+		}
+		strings.write_byte(sb, '{')
+		current_offset = int(n.open.offset) + 1
+		for elem in n.elems {
+			strings.write_string(sb, string(source[current_offset:elem.pos.offset]))
+			current_offset = transform_node(elem, source, deref_vars, sb, int(elem.pos.offset))
+		}
+		strings.write_string(sb, string(source[current_offset:node.end.offset]))
+		return int(node.end.offset)
+
+	case ^ast.Field_Value:
+		// field = value
+		strings.write_string(sb, string(source[current_offset:n.value.pos.offset]))
+		current_offset = transform_node(n.value, source, deref_vars, sb, int(n.value.pos.offset))
+		return max(current_offset, int(node.end.offset))
+
+	case:
+		// Default: copy as-is
+		strings.write_string(sb, string(source[node.pos.offset:node.end.offset]))
+		return int(node.end.offset)
+	}
+
+	return current_offset
+}
+
+find_common_indentation :: proc(lines: []string) -> int {
+	// The first line has no indentation because selection starts at content
+	// So we find the minimum indentation from lines 2 onwards only
+
+	if len(lines) < 2 {
+		return 0
+	}
+
+	common_indent := max(int)
+
+	for line in lines[1:] {
+		// Skip empty lines
+		trimmed := strings.trim_space(line)
+		if len(trimmed) == 0 {
+			continue
+		}
+
+		// Count leading tabs/spaces
+		indent := 0
+		for ch in line {
+			if ch == '\t' || ch == ' ' {
+				indent += 1
+			} else {
+				break
+			}
+		}
+
+		if indent < common_indent {
+			common_indent = indent
+		}
+	}
+
+	if common_indent == max(int) {
+		return 0
+	}
+	return common_indent
+}
+
+build_call_text :: proc(params: [dynamic]ParamInfo, returns: [dynamic]ReturnInfo) -> string {
+	sb := strings.builder_make(context.temp_allocator)
+
+	if len(returns) > 0 {
+		for ret, i in returns {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			strings.write_string(&sb, ret.name)
+		}
+		strings.write_string(&sb, " := ")
+	}
+
+	strings.write_string(&sb, DEFAULT_PROC_NAME)
+	strings.write_string(&sb, "(")
+
+	for param, i in params {
+		if i > 0 {
+			strings.write_string(&sb, ", ")
+		}
+		if param.pass_addr {
+			strings.write_string(&sb, "&")
+		}
+		strings.write_string(&sb, param.name)
+	}
+
+	strings.write_string(&sb, ")")
+
+	return strings.to_string(sb)
+}
+get_type_string :: proc(type_expr: ^ast.Expr) -> string {
+	if type_expr == nil {
+		return ""
+	}
+	return node_to_string(type_expr)
+}
+
+infer_type_from_expr :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) -> string {
+	if expr == nil {
+		return ""
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Basic_Lit:
+		// Infer type from literal
+		#partial switch n.tok.kind {
+		case .Integer:
+			return "int"
+		case .Float:
+			return "f64"
+		case .String:
+			return "string"
+		case .Rune:
+			return "rune"
+		case:
+			return ""
+		}
+	case ^ast.Ident:
+		// Look up the variable's type
+		if usage, ok := ctx.variables[n.name]; ok {
+			return usage.type_str
+		}
+		// Check if it's a type name used as a cast (e.g., f32(x))
+		return ""
+	case ^ast.Binary_Expr:
+		// Binary expressions - try to infer from operands
+		left_type := infer_type_from_expr(n.left, ctx)
+		if left_type != "" {
+			return left_type
+		}
+		return infer_type_from_expr(n.right, ctx)
+	case ^ast.Unary_Expr:
+		if n.op.kind == .And {
+			// Address-of operator
+			inner := infer_type_from_expr(n.expr, ctx)
+			if inner != "" {
+				return strings.concatenate({"^", inner}, context.temp_allocator)
+			}
+		}
+		return infer_type_from_expr(n.expr, ctx)
+	case ^ast.Paren_Expr:
+		return infer_type_from_expr(n.expr, ctx)
+	case ^ast.Call_Expr:
+		// Handle builtin functions and type casts
+		return infer_call_expr_type(n, ctx)
+	case ^ast.Comp_Lit:
+		// Compound literal - get type from the type part
+		return get_type_string(n.type)
+	case ^ast.Selector_Expr:
+		// Field access - would need full type analysis
+		return ""
+	case ^ast.Index_Expr:
+		// Array/slice/map index - try to get element/value type from container type
+		container_type := infer_type_from_expr(n.expr, ctx)
+		if container_type != "" {
+			return extract_element_type(container_type)
+		}
+		return ""
+	case ^ast.Slice_Expr:
+		// Slicing an array/slice returns a slice
+		inner_type := infer_type_from_expr(n.expr, ctx)
+		if inner_type != "" {
+			// If it's an array type like [3]int, return []int
+			if strings.has_prefix(inner_type, "[") {
+				// Find the closing bracket
+				if idx := strings.index(inner_type, "]"); idx >= 0 {
+					return strings.concatenate({"[]", inner_type[idx + 1:]}, context.temp_allocator)
+				}
+			}
+			return inner_type
+		}
+		return ""
+	case ^ast.Ternary_If_Expr:
+		// Try to infer from then branch
+		return infer_type_from_expr(n.x, ctx)
+	case ^ast.Or_Else_Expr:
+		// or_else expression - type is the type of the fallback value (y)
+		return infer_type_from_expr(n.y, ctx)
+	case ^ast.Or_Return_Expr:
+		// or_return expression - type is the type of the inner expression
+		return infer_type_from_expr(n.expr, ctx)
+	}
+
+	return ""
+}
+
+// Infer type from a call expression (handles builtins and type casts)
+infer_call_expr_type :: proc(call: ^ast.Call_Expr, ctx: ^ExtractProcContext) -> string {
+	if call.expr == nil {
+		return ""
+	}
+
+	// Check if it's a builtin or type cast
+	if ident, ok := call.expr.derived.(^ast.Ident); ok {
+		name := ident.name
+
+		// Builtins that return int
+		switch name {
+		case "len", "cap", "size_of", "align_of", "offset_of":
+			return "int"
+		case "min", "max", "abs", "clamp":
+			// These return the same type as their arguments
+			if len(call.args) > 0 {
+				return infer_type_from_expr(call.args[0], ctx)
+			}
+			return ""
+		case "make":
+			// make returns the type specified as first argument
+			if len(call.args) > 0 {
+				return get_type_string(call.args[0])
+			}
+			return ""
+		case "new", "new_clone":
+			// new returns a pointer to the type
+			if len(call.args) > 0 {
+				inner := get_type_string(call.args[0])
+				if inner != "" {
+					return strings.concatenate({"^", inner}, context.temp_allocator)
+				}
+			}
+			return ""
+		case "type_of":
+			return "typeid"
+		case "transmute", "cast", "auto_cast":
+			// These need the type argument
+			return ""
+		}
+
+		// Check if it's a type cast (e.g., f32(x), int(y))
+		if is_type_name(name) {
+			return name
+		}
+
+		// Try to look up user-defined procedure return type
+		return_type := find_proc_return_type(ctx, name)
+		if return_type != "" {
+			return return_type
+		}
+	}
+
+	return ""
+}
+
+// Check if a name is a built-in type name
+is_type_name :: proc(name: string) -> bool {
+	switch name {
+	case "int",
+	     "uint",
+	     "i8",
+	     "i16",
+	     "i32",
+	     "i64",
+	     "i128",
+	     "u8",
+	     "u16",
+	     "u32",
+	     "u64",
+	     "u128",
+	     "uintptr",
+	     "f16",
+	     "f32",
+	     "f64",
+	     "complex32",
+	     "complex64",
+	     "complex128",
+	     "quaternion64",
+	     "quaternion128",
+	     "quaternion256",
+	     "bool",
+	     "b8",
+	     "b16",
+	     "b32",
+	     "b64",
+	     "string",
+	     "cstring",
+	     "rune",
+	     "rawptr",
+	     "typeid",
+	     "any":
+		return true
+	}
+	return false
+}
+
+// Check if a type string represents a fixed-size array (e.g., "[3]int", "[10]f32")
+// Dynamic arrays "[dynamic]int", slices "[]int" don't count as fixed arrays
+is_fixed_array_type :: proc(type_str: string) -> bool {
+	if len(type_str) < 3 {
+		return false
+	}
+
+	// Must start with [
+	if type_str[0] != '[' {
+		return false
+	}
+
+	// Find closing bracket
+	close_idx := strings.index(type_str, "]")
+	if close_idx < 0 {
+		return false
+	}
+
+	// Content between brackets - if empty, it's a slice
+	inner := type_str[1:close_idx]
+	if len(inner) == 0 {
+		return false
+	}
+
+	// "[dynamic]" is a dynamic array, not a fixed array
+	if inner == "dynamic" {
+		return false
+	}
+
+	// "[^]" is a multi-pointer, not a fixed array
+	if inner == "^" {
+		return false
+	}
+
+	// Check if inner starts with a digit - that's a fixed array size
+	// Fixed arrays have something like [3], [10], etc.
+	// or could be a constant like [N] - but we'll be conservative and only match numbers
+	if len(inner) > 0 && inner[0] >= '0' && inner[0] <= '9' {
+		return true
+	}
+
+	// Could also be a compile-time constant, which we can't easily distinguish
+	// For safety, assume anything else (like identifiers) might be a fixed size
+	// but check it's not a keyword
+	if inner == "?" {
+		// Inferred size, still a fixed array
+		return true
+	}
+
+	// Assume other identifiers could be compile-time constants for array size
+	return true
+}
+// Extract element type from array, slice, or map types
+// e.g., "[3]int" -> "int", "[]string" -> "string", "map[string]int" -> "int"
+extract_element_type :: proc(type_str: string) -> string {
+	if type_str == "" {
+		return ""
+	}
+
+	// Handle map type: map[key_type]value_type
+	if strings.has_prefix(type_str, "map[") {
+		// Find the matching ] for the key type
+		bracket_count := 0
+		for i := 4; i < len(type_str); i += 1 {
+			if type_str[i] == '[' {
+				bracket_count += 1
+			} else if type_str[i] == ']' {
+				if bracket_count == 0 {
+					// Found the end of key type, value type follows
+					return type_str[i + 1:]
+				}
+				bracket_count -= 1
+			}
+		}
+		return ""
+	}
+
+	// Handle array/slice type: [N]type or []type
+	if strings.has_prefix(type_str, "[") {
+		// Find the closing bracket
+		if idx := strings.index(type_str, "]"); idx >= 0 {
+			return type_str[idx + 1:]
+		}
+	}
+
+	return ""
+}
+
+// Find the return type of a user-defined procedure by name
+find_proc_return_type :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
+	if ctx.document == nil || ctx.document.ast.decls == nil {
+		return ""
+	}
+
+	for decl in ctx.document.ast.decls {
+		if decl == nil {
+			continue
+		}
+
+		#partial switch d in decl.derived {
+		case ^ast.Value_Decl:
+			// Look for proc declarations like: helper :: proc(...) -> T { ... }
+			for name, i in d.names {
+				if ident, ok := name.derived.(^ast.Ident); ok {
+					if ident.name == proc_name {
+						// Found the declaration, now get the return type
+						if i < len(d.values) {
+							if proc_lit, ok := d.values[i].derived.(^ast.Proc_Lit); ok {
+								return get_proc_return_type(proc_lit)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// Get the return type string from a procedure literal
+get_proc_return_type :: proc(proc_lit: ^ast.Proc_Lit) -> string {
+	if proc_lit == nil || proc_lit.type == nil {
+		return ""
+	}
+
+	if proc_type, ok := proc_lit.type.derived.(^ast.Proc_Type); ok {
+		if proc_type.results == nil {
+			return ""
+		}
+
+		// Handle single return type
+		if len(proc_type.results.list) == 1 {
+			field := proc_type.results.list[0]
+			return get_type_string(field.type)
+		}
+
+		// Handle multiple return types (tuple)
+		if len(proc_type.results.list) > 1 {
+			sb := strings.builder_make(context.temp_allocator)
+			strings.write_string(&sb, "(")
+			for field, i in proc_type.results.list {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				strings.write_string(&sb, get_type_string(field.type))
+			}
+			strings.write_string(&sb, ")")
+			return strings.to_string(sb)
+		}
+	}
+
+	return ""
+}

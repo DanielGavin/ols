@@ -18,12 +18,14 @@ Package :: struct {
 }
 
 Source :: struct {
-	main:        string,
-	packages:    []Package,
-	document:    ^server.Document,
-	collections: map[string]string,
-	config:      common.Config,
-	position:    common.Position,
+	main:         string,
+	packages:     []Package,
+	document:     ^server.Document,
+	collections:  map[string]string,
+	config:       common.Config,
+	position:     common.Position,
+	end_position: common.Position, // For range selection tests
+	has_range:    bool,            // True if {<} and {>} markers were found
 }
 
 @(private)
@@ -39,32 +41,8 @@ setup :: proc(src: ^Source) {
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
-	//no unicode in tests currently
-	current, last: u8
-	current_line, current_character: int
-
-	for current_index := 0; current_index < len(src.main); current_index += 1 {
-		current = src.main[current_index]
-
-		if last == '\r' {
-			current_line += 1
-			current_character = 0
-		} else if current == '\n' {
-			current_line += 1
-			current_character = 0
-		} else if len(src.main) > current_index + 3 && src.main[current_index:current_index + 3] == "{*}" {
-			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 3:]
-			copy(dst_slice, src_slice)
-			src.position.character = current_character
-			src.position.line = current_line
-			break
-		} else {
-			current_character += 1
-		}
-
-		last = current
-	}
+	// Parse position markers: {*} for cursor, {<} for range start, {>} for range end
+	parse_position_markers(src)
 
 	server.setup_index()
 
@@ -123,6 +101,81 @@ teardown :: proc(src: ^Source) {
 	server.free_index()
 	server.indexer.index = {}
 	virtual.arena_destroy(src.document.allocator)
+}
+
+// Parse position markers from source text
+// Supports: {*} for cursor position, {<} for range start, {>} for range end
+@(private)
+parse_position_markers :: proc(src: ^Source) {
+	CURSOR_MARKER :: "{*}"
+	RANGE_START_MARKER :: "{<}"
+	RANGE_END_MARKER :: "{>}"
+	MARKER_LENGTH :: 3
+
+	current, last: u8
+	current_line, current_character: int
+	found_cursor := false
+	found_range_start := false
+	found_range_end := false
+
+	// First pass: find markers and record positions
+	write_index := 0
+	for read_index := 0; read_index < len(src.main); {
+		current = src.main[read_index]
+
+		if last == '\r' {
+			current_line += 1
+			current_character = 0
+		} else if current == '\n' {
+			current_line += 1
+			current_character = 0
+		}
+
+		// Check for markers
+		remaining := len(src.main) - read_index
+		if remaining >= MARKER_LENGTH {
+			marker := src.main[read_index:read_index + MARKER_LENGTH]
+
+			if marker == CURSOR_MARKER && !found_cursor {
+				src.position.character = current_character
+				src.position.line = current_line
+				found_cursor = true
+				read_index += MARKER_LENGTH
+				last = current
+				continue
+			} else if marker == RANGE_START_MARKER && !found_range_start {
+				src.position.character = current_character
+				src.position.line = current_line
+				found_range_start = true
+				src.has_range = true
+				read_index += MARKER_LENGTH
+				last = current
+				continue
+			} else if marker == RANGE_END_MARKER && !found_range_end {
+				src.end_position.character = current_character
+				src.end_position.line = current_line
+				found_range_end = true
+				read_index += MARKER_LENGTH
+				last = current
+				continue
+			}
+		}
+
+		// Copy character
+		(transmute([]u8)src.main)[write_index] = current
+		write_index += 1
+
+		if current != '\n' && current != '\r' {
+			current_character += 1
+		}
+
+		last = current
+		read_index += 1
+	}
+
+	// Update the document text length
+	src.document.text = transmute([]u8)src.main[:write_index]
+	src.document.used_text = write_index
 }
 
 expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {
@@ -518,15 +571,26 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 	}
 }
 
+// Build the input range from source position markers
+@(private)
+build_action_range :: proc(src: ^Source) -> common.Range {
+	if src.has_range {
+		return common.Range {
+			start = src.position,
+			end   = src.end_position,
+		}
+	}
+	return common.Range {
+		start = src.position,
+		end   = src.position,
+	}
+}
 
 expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range {
-		start = src.position,
-		end   = src.position,
-	}
+	input_range := build_action_range(src)
 	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
@@ -553,14 +617,30 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 	}
 }
 
-expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+expect_action_excludes :: proc(t: ^testing.T, src: ^Source, excluded_action_names: []string) {
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range {
-		start = src.position,
-		end   = src.position,
+	input_range := build_action_range(src)
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
 	}
+
+	for excluded_name in excluded_action_names {
+		for action in actions {
+			if action.title == excluded_name {
+				log.errorf("Expected action '%v' to NOT be present, but it was found", excluded_name)
+			}
+		}
+	}
+}
+
+expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_texts: ..string) {
+	setup(src)
+	defer teardown(src)
+
+	input_range := build_action_range(src)
 	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
@@ -569,19 +649,25 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 
 	for action in actions {
 		if action.title == action_name {
-			// Get the text edit for the document
+			// Get the text edits for the document
 			if edits, found := action.edit.changes[src.document.uri.uri]; found {
-				if len(edits) > 0 {
-					actual_text := edits[0].newText
-					testing.expectf(
-						t,
-						actual_text == expected_new_text,
-						"\nExpected edit text:\n%s\n\nGot:\n%s",
-						expected_new_text,
-						actual_text,
-					)
+				if len(edits) != len(expected_texts) {
+					log.errorf("Expected %d edits but got %d", len(expected_texts), len(edits))
 					return
 				}
+
+				for expected, i in expected_texts {
+					actual := edits[i].newText
+					testing.expectf(
+						t,
+						actual == expected,
+						"\nEdit [%d] mismatch.\nExpected:\n%s\n\nGot:\n%s",
+						i,
+						expected,
+						actual,
+					)
+				}
+				return
 			}
 			log.errorf("Action '%s' found but has no edits", action_name)
 			return
