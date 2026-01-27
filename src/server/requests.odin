@@ -376,6 +376,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
 	config.enable_comp_lit_signature_help =
 		ols_config.enable_comp_lit_signature_help.(bool) or_else config.enable_comp_lit_signature_help
+	config.enable_comp_lit_signature_help_use_docs =
+		ols_config.enable_comp_lit_signature_help_use_docs.(bool) or_else config.enable_comp_lit_signature_help_use_docs
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
