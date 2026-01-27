@@ -32,10 +32,11 @@ Method :: struct {
 }
 
 SymbolPackage :: struct {
-	symbols:      map[string]Symbol,
-	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
-	methods:      map[Method][dynamic]Symbol,
-	imports:      [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
+	symbols:            map[string]Symbol,
+	objc_structs:       map[string]ObjcStruct, //mapping from struct name to function
+	methods:            map[Method][dynamic]Symbol,
+	imports:            [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
+	proc_group_members: map[string]bool, // Tracks procedure names that are part of proc groups (used by fake methods)
 }
 
 get_index_unique_string :: proc {
@@ -437,46 +438,187 @@ add_comp_lit_fields :: proc(
 	generic.ranges = ranges[:]
 }
 
+/*
+	Records the names of procedures that are part of a proc group.
+	This is used by the fake methods feature to hide individual procs
+	when the proc group should be shown instead.
+*/
+record_proc_group_members :: proc(collection: ^SymbolCollection, group: ^ast.Proc_Group, pkg_name: string) {
+	pkg := get_or_create_package(collection, pkg_name)
+
+	for arg in group.args {
+		name := get_proc_group_member_name(arg) or_continue
+		pkg.proc_group_members[get_index_unique_string(collection, name)] = true
+	}
+}
+
+@(private = "file")
+get_proc_group_member_name :: proc(expr: ^ast.Expr) -> (name: string, ok: bool) {
+	#partial switch v in expr.derived {
+	case ^ast.Ident:
+		return v.name, true
+	case ^ast.Selector_Expr:
+		// For package.proc_name, we only care about the proc name
+		if field, is_ident := v.field.derived.(^ast.Ident); is_ident {
+			return field.name, true
+		}
+	}
+	return "", false
+}
+
+@(private = "file")
+get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -> ^SymbolPackage {
+	pkg := &collection.packages[pkg_name]
+	if pkg.symbols == nil {
+		collection.packages[pkg_name] = {}
+		pkg = &collection.packages[pkg_name]
+		pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
+		pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
+		pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
+		pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
+	}
+	return pkg
+}
+
+/*
+	Collects a procedure as a fake method if it's not part of a proc group.
+*/
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 	pkg := &collection.packages[symbol.pkg]
 
-	if value, ok := symbol.value.(SymbolProcedureValue); ok {
-		if len(value.arg_types) == 0 {
-			return
-		}
-
-		expr, _, ok := unwrap_pointer_ident(value.arg_types[0].type)
-
-		if !ok {
-			return
-		}
-
-		method: Method
-
-		#partial switch v in expr.derived {
-		case ^ast.Selector_Expr:
-			if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				method.pkg = get_index_unique_string(collection, ident.name)
-				method.name = get_index_unique_string(collection, v.field.name)
-			} else {
-				return
-			}
-		case ^ast.Ident:
-			method.pkg = symbol.pkg
-			method.name = get_index_unique_string(collection, v.name)
-		case:
-			return
-		}
-
-		symbols := &pkg.methods[method]
-
-		if symbols == nil {
-			pkg.methods[method] = make([dynamic]Symbol, collection.allocator)
-			symbols = &pkg.methods[method]
-		}
-
-		append(symbols, symbol)
+	// Skip procedures that are part of proc groups
+	if symbol.name in pkg.proc_group_members {
+		return
 	}
+
+	value, ok := symbol.value.(SymbolProcedureValue)
+	if !ok {
+		return
+	}
+	if len(value.arg_types) == 0 {
+		return
+	}
+
+	method, method_ok := get_method_from_first_arg(collection, value.arg_types[0].type, symbol.pkg)
+	if !method_ok {
+		return
+	}
+	add_symbol_to_method(collection, pkg, method, symbol)
+}
+
+/*
+	Collects a proc group as a fake method based on its member procedures' first arguments.
+	The proc group is registered as a method for each distinct first-argument type
+	across all its members.
+*/
+collect_proc_group_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
+	pkg := &collection.packages[symbol.pkg]
+
+	group_value, ok := symbol.value.(SymbolProcedureGroupValue)
+	if !ok {
+		return
+	}
+
+	proc_group, is_proc_group := group_value.group.derived.(^ast.Proc_Group)
+	if !is_proc_group || len(proc_group.args) == 0 {
+		return
+	}
+
+	// Track which method keys we've already registered to avoid duplicates
+	registered_methods := make(map[Method]bool, len(proc_group.args), context.temp_allocator)
+
+	// Register the proc group as a method for each distinct first-argument type
+	for member_expr in proc_group.args {
+		member_name, name_ok := get_proc_group_member_name(member_expr)
+		if !name_ok {
+			continue
+		}
+
+		member_symbol, found := pkg.symbols[member_name]
+		if !found {
+			continue
+		}
+
+		member_proc, is_proc := member_symbol.value.(SymbolProcedureValue)
+		if !is_proc || len(member_proc.arg_types) == 0 {
+			continue
+		}
+
+		method, method_ok := get_method_from_first_arg(collection, member_proc.arg_types[0].type, symbol.pkg)
+		if !method_ok {
+			continue
+		}
+
+		// Only add once per distinct method key
+		if method not_in registered_methods {
+			registered_methods[method] = true
+			add_symbol_to_method(collection, pkg, method, symbol)
+		}
+	}
+}
+
+@(private = "file")
+get_method_from_first_arg :: proc(
+	collection: ^SymbolCollection,
+	first_arg_type: ^ast.Expr,
+	default_pkg: string,
+) -> (
+	method: Method,
+	ok: bool,
+) {
+	expr, _, unwrap_ok := unwrap_pointer_ident(first_arg_type)
+	if !unwrap_ok {
+		return {}, false
+	}
+
+	#partial switch v in expr.derived {
+	case ^ast.Selector_Expr:
+		ident, is_ident := v.expr.derived.(^ast.Ident)
+		if !is_ident {
+			return {}, false
+		}
+		method.pkg = get_index_unique_string(collection, ident.name)
+		method.name = get_index_unique_string(collection, v.field.name)
+	case ^ast.Ident:
+		// Check if this is a builtin type
+		if is_builtin_type_name(v.name) {
+			method.pkg = "$builtin"
+		} else {
+			method.pkg = default_pkg
+		}
+		method.name = get_index_unique_string(collection, v.name)
+	case:
+		return {}, false
+	}
+
+	return method, true
+}
+
+is_builtin_type_name :: proc(name: string) -> bool {
+	// Check all builtin type names from untyped_map
+	for names in untyped_map {
+		for builtin_name in names {
+			if name == builtin_name {
+				return true
+			}
+		}
+	}
+	// Also check some other builtin types not in untyped_map
+	switch name {
+	case "rawptr", "uintptr", "typeid", "any", "rune":
+		return true
+	}
+	return false
+}
+
+@(private = "file")
+add_symbol_to_method :: proc(collection: ^SymbolCollection, pkg: ^SymbolPackage, method: Method, symbol: Symbol) {
+	symbols := &pkg.methods[method]
+	if symbols == nil {
+		pkg.methods[method] = make([dynamic]Symbol, collection.allocator)
+		symbols = &pkg.methods[method]
+	}
+	append(symbols, symbol)
 }
 
 collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute, symbol: Symbol) {
@@ -554,6 +696,20 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			}
 		}
 
+		// Compute pkg early so it's available inside the switch
+		if expr.builtin || strings.contains(uri, "builtin.odin") {
+			symbol.pkg = "$builtin"
+		} else if strings.contains(uri, "intrinsics.odin") {
+			intrinsics_path := filepath.join(
+				elems = {common.config.collections["base"], "/intrinsics"},
+				allocator = context.temp_allocator,
+			)
+			intrinsics_path, _ = filepath.to_slash(intrinsics_path, context.temp_allocator)
+			symbol.pkg = get_index_unique_string(collection, intrinsics_path)
+		} else {
+			symbol.pkg = get_index_unique_string(collection, directory)
+		}
+
 		#partial switch v in col_expr.derived {
 		case ^ast.Matrix_Type:
 			token = v^
@@ -600,6 +756,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token_type = .Function
 			symbol.value = SymbolProcedureGroupValue {
 				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
+			}
+			// Record proc group members for fake methods feature
+			if collection.config != nil && collection.config.enable_fake_method {
+				record_proc_group_members(collection, v, symbol.pkg)
 			}
 		case ^ast.Struct_Type:
 			token = v^
@@ -712,20 +872,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
 		symbol.comment = get_comment(comment, collection.allocator)
 
-		if expr.builtin || strings.contains(uri, "builtin.odin") {
-			symbol.pkg = "$builtin"
-		} else if strings.contains(uri, "intrinsics.odin") {
-			path := filepath.join(
-				elems = {common.config.collections["base"], "/intrinsics"},
-				allocator = context.temp_allocator,
-			)
-
-			path, _ = filepath.to_slash(path, context.temp_allocator)
-
-			symbol.pkg = get_index_unique_string(collection, path)
-		} else {
-			symbol.pkg = get_index_unique_string(collection, directory)
-		}
+		// symbol.pkg was already set earlier before the switch
 
 		if is_distinct {
 			symbol.flags |= {.Distinct}
@@ -764,14 +911,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
 			pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
 			pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
+			pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
 		}
 
 		if .ObjC in symbol.flags {
 			collect_objc(collection, expr.attributes, symbol)
-		}
-
-		if symbol.type == .Function && common.config.enable_fake_method {
-			collect_method(collection, symbol)
 		}
 
 		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {
@@ -781,10 +925,57 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		}
 	}
 
+	// Second pass: collect fake methods after all symbols and proc group members are recorded
+	if collection.config != nil && collection.config.enable_fake_method {
+		collect_fake_methods(collection, exprs, directory, uri)
+	}
+
 	collect_imports(collection, file, directory)
 
 
 	return .None
+}
+
+/*
+	Collects fake methods for all procedures and proc groups.
+	This is done as a second pass after all symbols are collected,
+	so that we know which procedures are part of proc groups.
+*/
+@(private = "file")
+collect_fake_methods :: proc(collection: ^SymbolCollection, exprs: []GlobalExpr, directory: string, uri: string) {
+	for expr in exprs {
+		// Determine the package name (same logic as in collect_symbols)
+		pkg_name: string
+		if expr.builtin || strings.contains(uri, "builtin.odin") {
+			pkg_name = "$builtin"
+		} else if strings.contains(uri, "intrinsics.odin") {
+			intrinsics_path := filepath.join(
+				elems = {common.config.collections["base"], "/intrinsics"},
+				allocator = context.temp_allocator,
+			)
+			intrinsics_path, _ = filepath.to_slash(intrinsics_path, context.temp_allocator)
+			pkg_name = get_index_unique_string(collection, intrinsics_path)
+		} else {
+			pkg_name = get_index_unique_string(collection, directory)
+		}
+
+		pkg, ok := &collection.packages[pkg_name]
+		if !ok {
+			continue
+		}
+
+		symbol, found := pkg.symbols[expr.name]
+		if !found {
+			continue
+		}
+
+		#partial switch _ in symbol.value {
+		case SymbolProcedureValue:
+			collect_method(collection, symbol)
+		case SymbolProcedureGroupValue:
+			collect_proc_group_method(collection, symbol)
+		}
+	}
 }
 
 Reference :: struct {

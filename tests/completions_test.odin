@@ -5327,3 +5327,117 @@ ast_completion_parapoly_struct_with_parapoly_child :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"ChildStruct.GenericParam: test.SomeEnum", "ChildStruct.Something: string"})
 }
+
+@(test)
+ast_completion_fake_method_simple :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		double :: proc(x: int) -> int { return x * 2 }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'double' as a fake method for int
+	test.expect_completion_labels(t, &source, ".", {"double"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		add_int :: proc(a, b: int) -> int { return a + b }
+		add_something :: proc(a: int, b: string) {}
+		add_float :: proc(a, b: f32) -> f32 { return a + b }
+		add :: proc { add_float, add_int, add_something }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'add' (the proc group), not 'add_int' or 'add_something' (individual procs)
+	test.expect_completion_labels(t, &source, ".", {"add"}, {"add_int", "add_something"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group_only_shows_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			s: methods.My_Struct
+			s.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		My_Struct :: struct { x: int }
+
+		do_thing_int :: proc(s: My_Struct, v: int) {}
+		do_thing_str :: proc(s: My_Struct, v: string) {}
+		do_thing :: proc { do_thing_int, do_thing_str }
+
+		// standalone proc not in a group
+		standalone_method :: proc(s: My_Struct) {}
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'do_thing' (group) and 'standalone_method', but NOT 'do_thing_int' or 'do_thing_str'
+	test.expect_completion_labels(t, &source, ".", {"do_thing", "standalone_method"}, {"do_thing_int", "do_thing_str"})
+}
+
+@(test)
+ast_completion_fake_method_builtin_type_uses_builtin_pkg :: proc(t: ^testing.T) {
+	// This test verifies that fake methods for builtin types (int, f32, string, etc.)
+	// are correctly looked up using "$builtin" as the package, not the package where
+	// the variable is declared. Without this fix, the method lookup would fail because:
+	// - Storage: method stored with key {pkg = "$builtin", name = "int"}
+	// - Lookup (wrong): would use {pkg = "test", name = "int"} based on variable's declaring package
+	// - Lookup (correct): uses {pkg = "$builtin", name = "int"} for builtin types
+	source := test.Source {
+		main = `package test
+		import "math_utils"
+		main :: proc() {
+			x: f32
+			x.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "math_utils",
+				source = `package math_utils
+		square :: proc(v: f32) -> f32 { return v * v }
+		cube :: proc(v: f32) -> f32 { return v * v * v }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Both methods should appear as fake methods for f32, proving that
+	// the lookup correctly uses "$builtin" instead of "test" for the package
+	test.expect_completion_labels(t, &source, ".", {"square", "cube"})
+}

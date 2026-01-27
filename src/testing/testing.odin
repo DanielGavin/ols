@@ -68,6 +68,9 @@ setup :: proc(src: ^Source) {
 
 	server.setup_index()
 
+	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
+	server.indexer.index.collection.config = &src.config
+
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil)
