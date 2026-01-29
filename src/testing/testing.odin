@@ -68,6 +68,9 @@ setup :: proc(src: ^Source) {
 
 	server.setup_index()
 
+	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
+	server.indexer.index.collection.config = &src.config
+
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil)
@@ -315,6 +318,50 @@ expect_completion_insert_text :: proc(
 		if flag != 1 {
 			log.errorf("Expected completion insert %v, but received %v", expect_inserts[i], completion_list.items)
 		}
+	}
+}
+
+expect_completion_edit_text :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	label: string,
+	expected_text: string,
+) {
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	found := false
+	for completion in completion_list.items {
+		if completion.label == label {
+			found = true
+			if text_edit, has_edit := completion.textEdit.(server.TextEdit); has_edit {
+				if text_edit.newText != expected_text {
+					log.errorf(
+						"Completion '%v' expected textEdit.newText %q, but received %q",
+						label,
+						expected_text,
+						text_edit.newText,
+					)
+				}
+			} else {
+				log.errorf("Completion '%v' has no textEdit", label)
+			}
+			break
+		}
+	}
+	if !found {
+		log.errorf("Expected completion label '%v' not found in %v", label, completion_list.items)
 	}
 }
 
