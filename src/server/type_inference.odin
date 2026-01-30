@@ -1,19 +1,9 @@
-// Type inference utilities for analyzing expressions and statements
-// to determine their types without requiring full semantic analysis.
-//
-// This module provides lightweight type inference that can be used by
-// code actions and other features that need to understand types from
-// syntactic context alone.
-
 package server
 
 import "core:odin/ast"
-import "core:odin/tokenizer"
 import "core:strings"
 
-// Inference_Context provides the necessary context for type inference.
-// It can be created from various sources (ExtractProcContext, AstContext, etc.)
-// Can be embedded in other contexts using `using` to share type inference state.
+// InferenceContext provides the necessary context for type inference.
 InferenceContext :: struct {
 	document:       ^Document,
 	ast_context:    ^AstContext,
@@ -21,7 +11,6 @@ InferenceContext :: struct {
 	variable_types: map[string]string, // variable name -> type string
 }
 
-// Create an inference context from a document and AST context
 make_inference_context :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -34,74 +23,63 @@ make_inference_context :: proc(
 	}
 }
 
-// Destroy an inference context
 destroy_inference_context :: proc(ctx: ^InferenceContext) {
 	delete(ctx.variable_types)
 }
 
-// Register a known variable type for future inference
-register_variable_type :: proc(ctx: ^InferenceContext, name: string, type_str: string) {
-	ctx.variable_types[name] = type_str
-}
-
-// Get the type string of a variable if known
-get_variable_type :: proc(ctx: ^InferenceContext, name: string) -> (string, bool) {
-	if type_str, ok := ctx.variable_types[name]; ok {
-		return type_str, true
-	}
-	return "", false
-}
-
 // Infer the type of an expression, returning a type string.
 // Returns empty string if the type cannot be inferred.
-infer_expr_type :: proc(ctx: ^InferenceContext, expr: ^ast.Expr) -> string {
-	if expr == nil {
+infer_expr_type :: proc(ctx: ^InferenceContext, expression: ^ast.Expr) -> string {
+	if expression == nil {
 		return ""
 	}
 
-	#partial switch n in expr.derived {
+	#partial switch expr in expression.derived {
 	case ^ast.Basic_Lit:
-		return infer_basic_literal_type(n)
+		return infer_basic_literal_type(expr)
 	case ^ast.Ident:
-		return infer_identifier_type(ctx, n)
+		return infer_identifier_type(ctx, expr)
 	case ^ast.Binary_Expr:
-		return infer_binary_expr_type(ctx, n)
+		return infer_binary_expr_type(ctx, expr)
 	case ^ast.Unary_Expr:
-		return infer_unary_expr_type(ctx, n)
+		return infer_unary_expr_type(ctx, expr)
 	case ^ast.Paren_Expr:
-		return infer_expr_type(ctx, n.expr)
+		return infer_expr_type(ctx, expr.expr)
 	case ^ast.Call_Expr:
-		return infer_call_type(ctx, n)
+		return infer_call_type(ctx, expr)
 	case ^ast.Comp_Lit:
-		return expr_to_string(n.type)
+		return expr_to_string(expr.type)
 	case ^ast.Selector_Expr:
-		return infer_selector_type(ctx, n)
+		return infer_selector_type(ctx, expr)
 	case ^ast.Index_Expr:
-		return infer_index_type(ctx, n)
+		return infer_index_type(ctx, expr)
 	case ^ast.Slice_Expr:
-		return infer_slice_type(ctx, n)
+		return infer_slice_type(ctx, expr)
 	case ^ast.Ternary_If_Expr:
-		return infer_expr_type(ctx, n.x)
+		return infer_expr_type(ctx, expr.x)
 	case ^ast.Or_Else_Expr:
-		return infer_expr_type(ctx, n.y)
+		return infer_expr_type(ctx, expr.y)
 	case ^ast.Or_Return_Expr:
-		return infer_expr_type(ctx, n.expr)
+		return infer_expr_type(ctx, expr.expr)
 	case ^ast.Deref_Expr:
-		return infer_deref_type(ctx, n)
+		return infer_deref_type(ctx, expr)
 	case ^ast.Auto_Cast:
-		// auto_cast doesn't tell us the type, but we can try the inner expr
-		return infer_expr_type(ctx, n.expr)
+		return infer_expr_type(ctx, expr.expr)
+	case ^ast.Type_Cast:
+		// cast(Type)expr and transmute(Type)expr - return the target type
+		return expr_to_string(expr.type)
 	case ^ast.Implicit_Selector_Expr:
-		// .field syntax - type depends on context
+		symbol, ok := resolve_type_expression(ctx.ast_context, expr)
+		if ok && symbol.type_expr != nil {
+			return expr_to_string(symbol.type_expr)
+		}
 		return ""
 	case ^ast.Type_Assertion:
-		// x.(T) returns T
-		return expr_to_string(n.type)
+		return expr_to_string(expr.type)
 	case ^ast.Ternary_When_Expr:
-		return infer_expr_type(ctx, n.x)
+		return infer_expr_type(ctx, expr.x)
 	case ^ast.Matrix_Index_Expr:
-		// Matrix indexing - would need matrix element type
-		inner := infer_expr_type(ctx, n.expr)
+		inner := infer_expr_type(ctx, expr.expr)
 		if inner != "" {
 			return extract_matrix_element_type(inner)
 		}
@@ -182,21 +160,16 @@ infer_call_type :: proc(ctx: ^InferenceContext, call: ^ast.Call_Expr) -> string 
 	if ident, ok := call.expr.derived.(^ast.Ident); ok {
 		name := ident.name
 
-		// Handle builtins
+		// Handle special builtins that need custom logic
 		switch name {
-		case "len", "cap", "size_of", "align_of", "offset_of":
-			return "int"
-		case "min", "max", "abs", "clamp":
-			if len(call.args) > 0 {
-				return infer_expr_type(ctx, call.args[0])
-			}
-			return ""
 		case "make":
+			// make returns the type of the first argument
 			if len(call.args) > 0 {
 				return expr_to_string(call.args[0])
 			}
 			return ""
 		case "new", "new_clone":
+			// new returns a pointer to the type argument
 			if len(call.args) > 0 {
 				inner := expr_to_string(call.args[0])
 				if inner != "" {
@@ -204,29 +177,91 @@ infer_call_type :: proc(ctx: ^InferenceContext, call: ^ast.Call_Expr) -> string 
 				}
 			}
 			return ""
-		case "type_of":
-			return "typeid"
-		case "transmute", "cast", "auto_cast":
-			return ""
-		case "expand_values":
-			// Returns multiple values, can't represent as single type
-			return ""
-		case "swizzle":
-			if len(call.args) > 0 {
-				return infer_expr_type(ctx, call.args[0])
-			}
-			return ""
 		}
 
-		// Check if it's a type cast
+		// Check if it's a basic type cast (e.g., f32(x), int(y))
 		if is_builtin_type_name(name) {
 			return name
 		}
 
-		// Try to look up user-defined procedure return type
-		return_type := lookup_proc_return_type(ctx, name)
-		if return_type != "" {
-			return return_type
+		// Try to look up procedure in globals directly (for file-scope procedures)
+		if ctx.ast_context != nil {
+			if global, ok := ctx.ast_context.globals[name]; ok {
+				if proc_lit, ok := global.expr.derived.(^ast.Proc_Lit); ok {
+					return get_proc_literal_return_type(proc_lit)
+				}
+			}
+		}
+	}
+
+	// For all other calls, use resolve_call_expr from analysis.odin
+	if ctx.ast_context == nil {
+		return ""
+	}
+
+	symbol, ok := resolve_call_expr(ctx.ast_context, call)
+	if !ok {
+		return ""
+	}
+
+	// Handle type casts for non-builtin types (e.g., MyInt(x))
+	if _, is_basic := symbol.value.(SymbolBasicValue); is_basic {
+		return symbol.name
+	}
+
+	// Get the return types using get_proc_return_types which handles builtin procs
+	// Pass true for is_mutable to get type names instead of literal values
+	return_types := get_proc_return_types(ctx.ast_context, symbol, call, true)
+
+	if len(return_types) == 0 {
+		return ""
+	}
+
+	// Return the first return type as a string
+	if len(return_types) == 1 {
+		return get_type_string(return_types[0])
+	}
+
+	// Multiple returns - format as tuple
+	sb := strings.builder_make(context.temp_allocator)
+	strings.write_string(&sb, "(")
+	for ret, i in return_types {
+		if i > 0 {
+			strings.write_string(&sb, ", ")
+		}
+		strings.write_string(&sb, get_type_string(ret))
+	}
+	strings.write_string(&sb, ")")
+	return strings.to_string(sb)
+}
+
+// Helper to get return type from a procedure literal
+get_proc_literal_return_type :: proc(proc_lit: ^ast.Proc_Lit) -> string {
+	if proc_lit == nil || proc_lit.type == nil {
+		return ""
+	}
+
+	if proc_type, ok := proc_lit.type.derived.(^ast.Proc_Type); ok {
+		if proc_type.results == nil {
+			return ""
+		}
+
+		if len(proc_type.results.list) == 1 {
+			field := proc_type.results.list[0]
+			return get_type_string(field.type)
+		}
+
+		if len(proc_type.results.list) > 1 {
+			sb := strings.builder_make(context.temp_allocator)
+			strings.write_string(&sb, "(")
+			for field, i in proc_type.results.list {
+				if i > 0 {
+					strings.write_string(&sb, ", ")
+				}
+				strings.write_string(&sb, get_type_string(field.type))
+			}
+			strings.write_string(&sb, ")")
+			return strings.to_string(sb)
 		}
 	}
 
@@ -362,16 +397,6 @@ is_multi_pointer_type :: proc(type_str: string) -> bool {
 	return strings.has_prefix(type_str, "[^]")
 }
 
-// Check if a type string represents a matrix type
-is_matrix_type :: proc(type_str: string) -> bool {
-	return strings.has_prefix(type_str, "matrix[")
-}
-
-// Check if a type string represents an optional type (union with nil)
-is_optional_type :: proc(type_str: string) -> bool {
-	return strings.has_prefix(type_str, "Maybe(") || strings.contains(type_str, "| nil")
-}
-
 // Check if a type is numeric (integers or floats)
 is_numeric_type :: proc(type_str: string) -> bool {
 	switch type_str {
@@ -412,24 +437,6 @@ is_integer_type :: proc(type_str: string) -> bool {
 is_float_type :: proc(type_str: string) -> bool {
 	switch type_str {
 	case "f16", "f32", "f64":
-		return true
-	}
-	return false
-}
-
-// Check if a type is a complex number type
-is_complex_type :: proc(type_str: string) -> bool {
-	switch type_str {
-	case "complex32", "complex64", "complex128":
-		return true
-	}
-	return false
-}
-
-// Check if a type is a quaternion type
-is_quaternion_type :: proc(type_str: string) -> bool {
-	switch type_str {
-	case "quaternion64", "quaternion128", "quaternion256":
 		return true
 	}
 	return false
@@ -598,163 +605,6 @@ get_type_string :: proc(type_expr: ^ast.Expr) -> string {
 	return node_to_string(type_expr)
 }
 
-// Look up the return type of a procedure by name
-lookup_proc_return_type :: proc(ctx: ^InferenceContext, proc_name: string) -> string {
-	if ctx.ast_context == nil {
-		return ""
-	}
-
-	// Try looking up in locals
-	if return_type := try_lookup_proc_in_locals(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	// Try looking up in globals
-	if return_type := try_lookup_proc_in_globals(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	// Try looking up in package index
-	if return_type := try_lookup_proc_in_package_index(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	// Try looking up in builtin package
-	if return_type := try_lookup_proc_in_builtin(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	return ""
-}
-
-// Try to find procedure in local variables
-try_lookup_proc_in_locals :: proc(ctx: ^InferenceContext, proc_name: string) -> string {
-	fake_ident := make_lookup_identifier(ctx, proc_name)
-
-	if local, ok := get_local(ctx.ast_context^, fake_ident); ok {
-		if local.rhs != nil {
-			if proc_lit, ok := local.rhs.derived.(^ast.Proc_Lit); ok {
-				return get_proc_literal_return_type(proc_lit)
-			}
-		}
-		if local.value_expr != nil {
-			if proc_lit, ok := local.value_expr.derived.(^ast.Proc_Lit); ok {
-				return get_proc_literal_return_type(proc_lit)
-			}
-		}
-	}
-
-	return ""
-}
-
-// Try to find procedure in file-level globals
-try_lookup_proc_in_globals :: proc(ctx: ^InferenceContext, proc_name: string) -> string {
-	if global, ok := ctx.ast_context.globals[proc_name]; ok {
-		if proc_lit, ok := global.expr.derived.(^ast.Proc_Lit); ok {
-			return get_proc_literal_return_type(proc_lit)
-		}
-	}
-	return ""
-}
-
-// Try to find procedure in the package index
-try_lookup_proc_in_package_index :: proc(ctx: ^InferenceContext, proc_name: string) -> string {
-	fake_ident := make_lookup_identifier(ctx, proc_name)
-	pkg := get_package_from_node(fake_ident)
-
-	if symbol, ok := lookup(proc_name, pkg, fake_ident.pos.file); ok {
-		return extract_symbol_return_type(symbol)
-	}
-
-	return ""
-}
-
-// Try to find procedure in builtin package
-try_lookup_proc_in_builtin :: proc(ctx: ^InferenceContext, proc_name: string) -> string {
-	fake_ident := make_lookup_identifier(ctx, proc_name)
-
-	if symbol, ok := lookup(proc_name, "$builtin", fake_ident.pos.file); ok {
-		return extract_symbol_return_type(symbol)
-	}
-
-	return ""
-}
-
-// Create a temporary identifier for symbol lookup
-make_lookup_identifier :: proc(ctx: ^InferenceContext, name: string) -> ast.Ident {
-	default_pos: tokenizer.Pos
-	if ctx.document != nil && len(ctx.document.ast.decls) > 0 {
-		default_pos = ctx.document.ast.decls[0].pos
-	}
-	return ast.Ident{name = name, pos = default_pos}
-}
-
-// Extract return type string from a resolved symbol
-extract_symbol_return_type :: proc(symbol: Symbol) -> string {
-	proc_value, ok := symbol.value.(SymbolProcedureValue)
-	if !ok {
-		return ""
-	}
-
-	if len(proc_value.return_types) == 0 {
-		return ""
-	}
-
-	if len(proc_value.return_types) == 1 {
-		return get_type_string(proc_value.return_types[0].type)
-	}
-
-	// Multiple returns - format as tuple
-	return format_tuple_type(proc_value.return_types)
-}
-
-// Format multiple return types as a tuple string
-format_tuple_type :: proc(return_types: []^ast.Field) -> string {
-	sb := strings.builder_make(context.temp_allocator)
-	strings.write_string(&sb, "(")
-	for ret, i in return_types {
-		if i > 0 {
-			strings.write_string(&sb, ", ")
-		}
-		strings.write_string(&sb, get_type_string(ret.type))
-	}
-	strings.write_string(&sb, ")")
-	return strings.to_string(sb)
-}
-
-// Get the return type string from a procedure literal
-get_proc_literal_return_type :: proc(proc_lit: ^ast.Proc_Lit) -> string {
-	if proc_lit == nil || proc_lit.type == nil {
-		return ""
-	}
-
-	if proc_type, ok := proc_lit.type.derived.(^ast.Proc_Type); ok {
-		if proc_type.results == nil {
-			return ""
-		}
-
-		if len(proc_type.results.list) == 1 {
-			field := proc_type.results.list[0]
-			return get_type_string(field.type)
-		}
-
-		if len(proc_type.results.list) > 1 {
-			sb := strings.builder_make(context.temp_allocator)
-			strings.write_string(&sb, "(")
-			for field, i in proc_type.results.list {
-				if i > 0 {
-					strings.write_string(&sb, ", ")
-				}
-				strings.write_string(&sb, get_type_string(field.type))
-			}
-			strings.write_string(&sb, ")")
-			return strings.to_string(sb)
-		}
-	}
-
-	return ""
-}
-
 // Infer variable types from a value declaration
 infer_value_decl_types :: proc(ctx: ^InferenceContext, decl: ^ast.Value_Decl) {
 	for name, i in decl.names {
@@ -785,50 +635,6 @@ infer_assign_stmt_types :: proc(ctx: ^InferenceContext, stmt: ^ast.Assign_Stmt) 
 			if type_str != "" {
 				ctx.variable_types[ident.name] = type_str
 			}
-		}
-	}
-}
-
-// Infer the iteration variable types from a range statement
-// Returns (first_var_type, second_var_type)
-infer_range_stmt_types :: proc(
-	ctx: ^InferenceContext,
-	stmt: ^ast.Range_Stmt,
-) -> (
-	first_type: string,
-	second_type: string,
-) {
-	if stmt.expr == nil {
-		return "", ""
-	}
-
-	container_type := infer_expr_type(ctx, stmt.expr)
-
-	// Strings: for char in str -> (rune, int)
-	if container_type == "string" || container_type == "cstring" {
-		return "rune", "int"
-	}
-
-	// Maps: for key, value in map -> (key_type, value_type)
-	if strings.has_prefix(container_type, "map[") {
-		key_type := extract_map_key_type(container_type)
-		value_type := extract_element_type(container_type)
-		return key_type, value_type
-	}
-
-	// Arrays/Slices: for value, index in arr -> (element_type, int)
-	element_type := extract_element_type(container_type)
-	return element_type, "int"
-}
-
-// Infer variable types for a for-loop init statement
-infer_for_stmt_types :: proc(ctx: ^InferenceContext, stmt: ^ast.For_Stmt) {
-	if stmt.init != nil {
-		#partial switch n in stmt.init.derived {
-		case ^ast.Value_Decl:
-			infer_value_decl_types(ctx, n)
-		case ^ast.Assign_Stmt:
-			infer_assign_stmt_types(ctx, n)
 		}
 	}
 }
@@ -884,40 +690,6 @@ get_common_type :: proc(type1: string, type2: string) -> string {
 	}
 
 	return type1
-}
-
-// Infer type from an expression using a simple variable map
-// This is a convenience function for callers that don't need full Inference_Context
-infer_type_from_expr_simple :: proc(
-	expr: ^ast.Expr,
-	variables: map[string]string,
-	document: ^Document = nil,
-	ast_context: ^AstContext = nil,
-) -> string {
-	if expr == nil {
-		return ""
-	}
-
-	ctx := InferenceContext {
-		document       = document,
-		ast_context    = ast_context,
-		variable_types = variables,
-	}
-
-	return infer_expr_type(&ctx, expr)
-}
-
-// Infer types from multiple expressions, returning a slice of type strings
-infer_types_from_exprs :: proc(
-	ctx: ^InferenceContext,
-	exprs: []^ast.Expr,
-	allocator := context.temp_allocator,
-) -> []string {
-	result := make([]string, len(exprs), allocator)
-	for expr, i in exprs {
-		result[i] = infer_expr_type(ctx, expr)
-	}
-	return result
 }
 
 // Get the type that would be returned by iterating over a container

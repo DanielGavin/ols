@@ -1364,20 +1364,6 @@ check_expr_uses_variables :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) {
 	}
 }
 
-is_pointer_type :: proc(type_expr: ^ast.Expr) -> bool {
-	if type_expr == nil {
-		return false
-	}
-
-	#partial switch n in type_expr.derived {
-	case ^ast.Pointer_Type:
-		return true
-	case ^ast.Multi_Pointer_Type:
-		return true
-	}
-
-	return false
-}
 
 is_builtin_identifier :: proc(name: string) -> bool {
 	if name in keyword_map {
