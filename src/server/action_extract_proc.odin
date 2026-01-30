@@ -2756,7 +2756,7 @@ infer_type_from_expr :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) -> strin
 	case ^ast.Binary_Expr:
 		// Check if this is a comparison operator - these always return bool
 		#partial switch n.op.kind {
-		case .Eq, .Not_Eq, .Lt, .Lt_Eq, .Gt, .Gt_Eq, .Cmp_And, .Cmp_Or:
+		case .Cmp_Eq, .Not_Eq, .Lt, .Lt_Eq, .Gt, .Gt_Eq, .Cmp_And, .Cmp_Or:
 			return "bool"
 		}
 		// Binary expressions - try to infer from operands

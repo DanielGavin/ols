@@ -2412,3 +2412,147 @@ extracted_proc :: proc(x: int, y: int) -> bool {
 }`,
 	)
 }
+
+@(test)
+action_extract_proc_from_expression_not_equal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	x := 5
+	if {<}x != 0{>} {
+		println("not zero")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(x)",
+		`
+
+extracted_proc :: proc(x: int) -> bool {
+	return x != 0
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_expression_greater_equal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	age := 18
+	if {<}age >= 21{>} {
+		println("adult")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(age)",
+		`
+
+extracted_proc :: proc(age: int) -> bool {
+	return age >= 21
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_expression_less_equal :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	score := 100
+	if {<}score <= 50{>} {
+		println("low score")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(score)",
+		`
+
+extracted_proc :: proc(score: int) -> bool {
+	return score <= 50
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_expression_pointer_comparison :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+Data :: struct {
+	value: int
+}
+
+main :: proc() {
+	ptr: ^Data = nil
+	if {<}ptr != nil{>} {
+		println("valid pointer")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(ptr)",
+		`
+
+extracted_proc :: proc(ptr: ^Data) -> bool {
+	return ptr != nil
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_expression_nested_comparison :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	a, b, c := 1, 2, 3
+	if {<}a < b && b == c{>} {
+		println("condition met")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(a, b, c)",
+		`
+
+extracted_proc :: proc(a: int, b: int, c: int) -> bool {
+	return a < b && b == c
+}`,
+	)
+}
