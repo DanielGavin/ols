@@ -575,13 +575,18 @@ make_dynamic_array_type :: proc(type_str: string, allocator := context.temp_allo
 }
 
 // Check if an AST expression is a pointer type
-is_pointer_type :: proc(expr: ^ast.Expr) -> bool {
-	if expr == nil {
+is_pointer_type :: proc(type_expr: ^ast.Expr) -> bool {
+	if type_expr == nil {
 		return false
 	}
-	if _, ok := expr.derived.(^ast.Pointer_Type); ok {
+
+	#partial switch n in type_expr.derived {
+	case ^ast.Pointer_Type:
+		return true
+	case ^ast.Multi_Pointer_Type:
 		return true
 	}
+
 	return false
 }
 
