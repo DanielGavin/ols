@@ -2280,7 +2280,9 @@ action_extract_proc_from_expression_do_return :: proc(t: ^testing.T) {
 main :: proc() {
 	x := helper()
 	
-	if {<}x.field1 > 25{>} do return
+	for i := 0; i < 10; i += 1 {
+		if {<}x == nil{>} do continue
+	}
 }
 `,
 		packages = {},
@@ -2294,7 +2296,7 @@ main :: proc() {
 		`
 
 extracted_proc :: proc(x: ^Custom_Struct) -> bool {
-	return x.field1 > 25
+	return x == nil
 }`,
 	)
 }

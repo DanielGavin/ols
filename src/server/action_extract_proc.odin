@@ -64,12 +64,18 @@ ReturnInfo :: struct {
 }
 
 @(private = "package")
-add_extract_proc_action :: proc(document: ^Document, range: common.Range, uri: string, actions: ^[dynamic]CodeAction) {
+add_extract_proc_action :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	range: common.Range,
+	uri: string,
+	actions: ^[dynamic]CodeAction,
+) {
 	if !is_valid_selection(range) {
 		return
 	}
 
-	ctx, ok := create_extract_context(document, range)
+	ctx, ok := create_extract_context(document, ast_context, range)
 	if !ok {
 		return
 	}
@@ -113,9 +119,17 @@ is_valid_selection :: proc(range: common.Range) -> bool {
 	return true
 }
 
-create_extract_context :: proc(document: ^Document, range: common.Range) -> (ExtractProcContext, bool) {
+create_extract_context :: proc(
+	document: ^Document,
+	ast_context: ^AstContext,
+	range: common.Range,
+) -> (
+	ExtractProcContext,
+	bool,
+) {
 	ctx := ExtractProcContext {
 		document       = document,
+		ast_context    = ast_context,
 		variables      = make(map[string]VariableUsage, context.temp_allocator),
 		selected_stmts = make([dynamic]^ast.Stmt, context.temp_allocator),
 	}
@@ -3016,34 +3030,123 @@ extract_map_key_type :: proc(type_str: string) -> string {
 
 // Find the return type of a user-defined procedure by name
 find_proc_return_type :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	if ctx.document == nil || ctx.document.ast.decls == nil {
+	if ctx.ast_context == nil {
 		return ""
 	}
 
-	for decl in ctx.document.ast.decls {
-		if decl == nil {
-			continue
-		}
+	// Try each lookup method in order
+	if return_type := try_find_proc_in_locals(ctx, proc_name); return_type != "" {
+		return return_type
+	}
 
-		#partial switch d in decl.derived {
-		case ^ast.Value_Decl:
-			// Look for proc declarations like: helper :: proc(...) -> T { ... }
-			for name, i in d.names {
-				if ident, ok := name.derived.(^ast.Ident); ok {
-					if ident.name == proc_name {
-						// Found the declaration, now get the return type
-						if i < len(d.values) {
-							if proc_lit, ok := d.values[i].derived.(^ast.Proc_Lit); ok {
-								return get_proc_return_type(proc_lit)
-							}
-						}
-					}
-				}
+	if return_type := try_find_proc_in_globals(ctx, proc_name); return_type != "" {
+		return return_type
+	}
+
+	if return_type := try_find_proc_in_package_index(ctx, proc_name); return_type != "" {
+		return return_type
+	}
+
+	if return_type := try_find_proc_in_builtin(ctx, proc_name); return_type != "" {
+		return return_type
+	}
+
+	return ""
+}
+
+// Try to find procedure in local variables
+try_find_proc_in_locals :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
+	fake_ident := make_identifier_for_lookup(ctx, proc_name)
+
+	if local, ok := get_local(ctx.ast_context^, fake_ident); ok {
+		if local.rhs != nil {
+			if proc_lit, ok := local.rhs.derived.(^ast.Proc_Lit); ok {
+				return get_proc_return_type(proc_lit)
+			}
+		}
+		if local.value_expr != nil {
+			if proc_lit, ok := local.value_expr.derived.(^ast.Proc_Lit); ok {
+				return get_proc_return_type(proc_lit)
 			}
 		}
 	}
 
 	return ""
+}
+
+// Try to find procedure in file-level globals
+try_find_proc_in_globals :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
+	if global, ok := ctx.ast_context.globals[proc_name]; ok {
+		if proc_lit, ok := global.expr.derived.(^ast.Proc_Lit); ok {
+			return get_proc_return_type(proc_lit)
+		}
+	}
+	return ""
+}
+
+// Try to find procedure in the package index (cross-file lookup)
+try_find_proc_in_package_index :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
+	fake_ident := make_identifier_for_lookup(ctx, proc_name)
+	pkg := get_package_from_node(fake_ident)
+
+	if symbol, ok := lookup(proc_name, pkg, fake_ident.pos.file); ok {
+		return extract_return_type_from_symbol(symbol)
+	}
+
+	return ""
+}
+
+// Try to find procedure in builtin package
+try_find_proc_in_builtin :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
+	fake_ident := make_identifier_for_lookup(ctx, proc_name)
+
+	if symbol, ok := lookup(proc_name, "$builtin", fake_ident.pos.file); ok {
+		return extract_return_type_from_symbol(symbol)
+	}
+
+	return ""
+}
+
+// Create a temporary identifier for symbol lookup
+make_identifier_for_lookup :: proc(ctx: ^ExtractProcContext, name: string) -> ast.Ident {
+	default_pos: tokenizer.Pos
+	if len(ctx.document.ast.decls) > 0 {
+		default_pos = ctx.document.ast.decls[0].pos
+	}
+	return ast.Ident{name = name, pos = default_pos}
+}
+
+// Extract return type string from a resolved symbol
+extract_return_type_from_symbol :: proc(symbol: Symbol) -> string {
+	proc_value, ok := symbol.value.(SymbolProcedureValue)
+	if !ok {
+		return ""
+	}
+
+	if len(proc_value.return_types) == 0 {
+		return ""
+	}
+
+	if len(proc_value.return_types) == 1 {
+		return get_type_string(proc_value.return_types[0].type)
+	}
+
+	// Multiple returns - format as tuple
+	return format_return_types_as_tuple(proc_value.return_types)
+}
+
+// Format multiple return types as a tuple string
+format_return_types_as_tuple :: proc(return_types: []^ast.Field) -> string {
+	sb := strings.builder_make(context.temp_allocator)
+	strings.write_string(&sb, "(")
+	for ret, i in return_types {
+		if i > 0 {
+			strings.write_string(&sb, ", ")
+		}
+		strings.write_string(&sb, get_type_string(ret.type))
+	}
+	strings.write_string(&sb, ")")
+	return strings.to_string(sb)
 }
 
 // Get the return type string from a procedure literal
