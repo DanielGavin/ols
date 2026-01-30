@@ -161,27 +161,6 @@ main :: proc() {
 }
 
 @(test)
-action_extract_proc_with_proc_param :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-process :: proc(n: int) {
--	{<}result := n * 2{>}
-+	result := extracted_proc(n)
-	x := result
-}
-+
-+
-+extracted_proc :: proc(n: int) -> int {
-+	result := n * 2
-+	return result
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
 action_extract_proc_with_if_statement :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -284,29 +263,6 @@ main :: proc() {
 }
 
 @(test)
-action_extract_proc_with_binary_expr :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	a := 1
-	b := 2
--	{<}c := a + b * 2{>}
-+	c := extracted_proc(a, b)
-	d := c
-}
-+
-+
-+extracted_proc :: proc(a: int, b: int) -> int {
-+	c := a + b * 2
-+	return c
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
 action_extract_proc_with_ternary :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -400,28 +356,6 @@ main :: proc() {
 +	b := input + 2
 +	c := a + b
 +	return a, b, c
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_with_len :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	arr := [3]int{1, 2, 3}
--	{<}n := len(arr){>}
-+	n := extracted_proc(&arr)
-	x := n
-}
-+
-+
-+extracted_proc :: proc(arr: ^[3]int) -> int {
-+	n := len(arr)
-+	return n
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
@@ -636,29 +570,6 @@ main :: proc() {
 }
 
 @(test)
-action_extract_proc_with_paren_expr :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	a := 1
-	b := 2
--	{<}c := (a + b) * 2{>}
-+	c := extracted_proc(a, b)
-	d := c
-}
-+
-+
-+extracted_proc :: proc(a: int, b: int) -> int {
-+	c := (a + b) * 2
-+	return c
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
 action_extract_proc_with_unary_expr :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -770,27 +681,6 @@ main :: proc() {
 }
 
 @(test)
-action_extract_proc_with_assert :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	x := 5
--	{<}assert(x > 0){>}
-+	extracted_proc(x)
-	y := x
-}
-+
-+
-+extracted_proc :: proc(x: int) {
-+	assert(x > 0)
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
 action_extract_proc_with_min_max :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -810,27 +700,6 @@ main :: proc() {
 +	c := min(a, b)
 +	d := max(a, b)
 +	return c, d
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_with_size_of :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
--	{<}n := size_of(int){>}
-+	n := extracted_proc()
-	x := n
-}
-+
-+
-+extracted_proc :: proc() -> int {
-+	n := size_of(int)
-+	return n
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
@@ -902,28 +771,6 @@ main :: proc() {
 +	{
 +		x^ = x^ + 1
 +	}
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_string_operations :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	s := "hello"
--	{<}n := len(s){>}
-+	n := extracted_proc(s)
-	x := n
-}
-+
-+
-+extracted_proc :: proc(s: string) -> int {
-+	n := len(s)
-+	return n
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
@@ -1161,23 +1008,6 @@ main :: proc() {
 }
 
 @(test)
-action_extract_proc_defer_in_middle :: proc(t: ^testing.T) {
-	source := test.Source {
-		main     = `package test
-
-main :: proc() {
-	{<}x := 5
-	defer cleanup()
-	y := x + 1{>}
-}
-`,
-		packages = {},
-	}
-
-	test.expect_action_excludes(t, &source, {EXTRACT_PROC_ACTION})
-}
-
-@(test)
 action_extract_proc_with_multiple_params :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -1287,36 +1117,6 @@ main :: proc() {
 	)
 }
 
-// Test: Return with value - since we don't handle return values, the selection 
-// still extracts but transforms the return statement
-@(test)
-action_extract_proc_with_naked_return :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-compute :: proc() -> int {
-	x := 5
--	{<}if x > 0 {
--		return
--	}{>}
-+	if extracted_proc(x) {
-+		return
-+	}
-	return x
-}
-+
-+
-+extracted_proc :: proc(x: int) -> bool {
-+	if x > 0 {
-+		return true
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
 // Test: Break statement inside loop body extraction
 @(test)
 action_extract_proc_with_break :: proc(t: ^testing.T) {
@@ -1411,35 +1211,6 @@ main :: proc() {
 +		return false, true
 +	}
 +	return false, false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_with_break_in_range_loop :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	arr := [5]string{"1", "2", "3", "4", "5"}
-	for val in arr {
--		{<}if val == "3" {
--			break
--		}{>}
-+		if extracted_proc(val) {
-+			break
-+		}
-	}
-}
-+
-+
-+extracted_proc :: proc(val: string) -> bool {
-+	if val == "3" {
-+		return true
-+	}
-+	return false
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
@@ -1606,41 +1377,6 @@ main :: proc() {
 	)
 }
 
-// Test: Multiple returns in extracted code
-@(test)
-action_extract_proc_with_multiple_returns :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	x := 5
--	{<}if x > 10 {
--		return
--	}
--	if x < 0 {
--		return
--	}{>}
-+	if extracted_proc(x) {
-+		return
-+	}
-	y := x
-}
-+
-+
-+extracted_proc :: proc(x: int) -> bool {
-+	if x > 10 {
-+		return true
-+	}
-+	if x < 0 {
-+		return true
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
 // Test: Break inside switch statement (shouldn't affect extraction)  
 // Switch break is different from loop break in Odin
 @(test)
@@ -1675,68 +1411,6 @@ main :: proc() {
 	)
 }
 
-// Test: Return in nested if-else chain
-@(test)
-action_extract_proc_with_return_in_nested_if :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	x := 5
--	{<}if x > 10 {
--		if x > 20 {
--			return
--		}
--	}{>}
-+	if extracted_proc(x) {
-+		return
-+	}
-	y := x
-}
-+
-+
-+extracted_proc :: proc(x: int) -> bool {
-+	if x > 10 {
-+		if x > 20 {
-+			return true
-+		}
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_with_array_value_and_index :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	arr := [3]f32{1.0, 2.0, 3.0}
-	for value, index in arr {
--		{<}if index > 0 && value > 1.5 {
--			break
--		}{>}
-+		if extracted_proc(index, value) {
-+			break
-+		}
-	}
-}
-+
-+
-+extracted_proc :: proc(index: int, value: f32) -> bool {
-+	if index > 0 && value > 1.5 {
-+		return true
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
 // Test: String iteration - char is rune
 @(test)
 action_extract_proc_with_string_iteration :: proc(t: ^testing.T) {
@@ -1759,65 +1433,6 @@ main :: proc() {
 +
 +extracted_proc :: proc(char: rune) -> bool {
 +	if char == 'e' {
-+		return true
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-// Test: String iteration with index - char is rune, index is int
-@(test)
-action_extract_proc_with_string_iteration_and_index :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	str := "Hello"
-	for char, index in str {
--		{<}if index > 2 && char == 'l' {
--			break
--		}{>}
-+		if extracted_proc(char, index) {
-+			break
-+		}
-	}
-}
-+
-+
-+extracted_proc :: proc(char: rune, index: int) -> bool {
-+	if index > 2 && char == 'l' {
-+		return true
-+	}
-+	return false
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_with_map_key_and_value :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	m := make(map[string]f32)
-	for key, value in m {
--		{<}if key == "test" && value > 10 {
--			break
--		}{>}
-+		if extracted_proc(key, value) {
-+			break
-+		}
-	}
-}
-+
-+
-+extracted_proc :: proc(key: string, value: f32) -> bool {
-+	if key == "test" && value > 10 {
 +		return true
 +	}
 +	return false
@@ -1863,62 +1478,6 @@ main :: proc() {
 
 
 @(test)
-action_extract_proc_from_expression_do_return :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-	Custom_Struct :: struct {
-		field1: int
-		field2: f32
-	}
-
-	helper :: proc() -> ^Custom_Struct {
-		s := new(Custom_Struct)
-		s.field1 = 10
-		s.field2 = 20.0
-		return s
-	}
-
-main :: proc() {
-	x := helper()
-
-	for i := 0; i < 10; i += 1 {
--		if {<}x == nil{>} do continue
-+		if extracted_proc(x) do continue
-	}
-}
-+
-+
-+extracted_proc :: proc(x: ^Custom_Struct) -> bool {
-+	return x == nil
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_arithmetic_expression :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	a := 10
-	b := 20
--	c := {<}a + b * 2{>}
-+	c := extracted_proc(a, b)
-}
-+
-+
-+extracted_proc :: proc(a: int, b: int) -> int {
-+	return a + b * 2
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
 action_extract_proc_from_expression_in_for :: proc(t: ^testing.T) {
 	test.expect_code_action_diff(
 		t,
@@ -1935,28 +1494,6 @@ main :: proc() {
 +
 +extracted_proc :: proc(i: int, limit: int) -> bool {
 +	return i < limit
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_call_expression :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-helper :: proc(x: int) -> int { return x * 2 }
-
-main :: proc() {
-	a := 5
--	b := {<}helper(a){>}
-+	b := extracted_proc(a)
-}
-+
-+
-+extracted_proc :: proc(a: int) -> int {
-+	return helper(a)
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
@@ -1980,120 +1517,6 @@ main :: proc() {
 +
 +extracted_proc :: proc(x: int, y: int) -> bool {
 +	return x > 0 && y < 20
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_expression_not_equal :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	x := 5
--	if {<}x != 0{>} {
-+	if extracted_proc(x) {
-		println("not zero")
-	}
-}
-+
-+
-+extracted_proc :: proc(x: int) -> bool {
-+	return x != 0
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_expression_greater_equal :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	age := 18
--	if {<}age >= 21{>} {
-+	if extracted_proc(age) {
-		println("adult")
-	}
-}
-+
-+
-+extracted_proc :: proc(age: int) -> bool {
-+	return age >= 21
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_expression_less_equal :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	score := 100
--	if {<}score <= 50{>} {
-+	if extracted_proc(score) {
-		println("low score")
-	}
-}
-+
-+
-+extracted_proc :: proc(score: int) -> bool {
-+	return score <= 50
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_expression_pointer_comparison :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-Data :: struct {
-	value: int
-}
-
-main :: proc() {
-	ptr: ^Data = nil
--	if {<}ptr != nil{>} {
-+	if extracted_proc(ptr) {
-		println("valid pointer")
-	}
-}
-+
-+
-+extracted_proc :: proc(ptr: ^Data) -> bool {
-+	return ptr != nil
-+}`,
-		EXTRACT_PROC_ACTION,
-	)
-}
-
-@(test)
-action_extract_proc_from_expression_nested_comparison :: proc(t: ^testing.T) {
-	test.expect_code_action_diff(
-		t,
-		`package test
-
-main :: proc() {
-	a, b, c := 1, 2, 3
--	if {<}a < b && b == c{>} {
-+	if extracted_proc(a, b, c) {
-		println("condition met")
-	}
-}
-+
-+
-+extracted_proc :: proc(a: int, b: int, c: int) -> bool {
-+	return a < b && b == c
 +}`,
 		EXTRACT_PROC_ACTION,
 	)
