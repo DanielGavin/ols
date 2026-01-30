@@ -1564,8 +1564,8 @@ build_proc_definition :: proc(
 ) -> string {
 	sb := strings.builder_make(context.temp_allocator)
 
-	// Add newlines before the new procedure
-	strings.write_string(&sb, "\n\n")
+	// Add newline before the new procedure
+	strings.write_string(&sb, "\n")
 
 	// Procedure signature
 	strings.write_string(&sb, DEFAULT_PROC_NAME)

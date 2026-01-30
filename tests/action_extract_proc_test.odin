@@ -19,7 +19,6 @@ main :: proc() {
 	z := y
 }
 +
-+
 +extracted_proc :: proc(x: int) -> int {
 +	y := x + 2
 +	return y
@@ -43,7 +42,6 @@ main :: proc() {
 	w := z
 }
 +
-+
 +extracted_proc :: proc(x: int) -> int {
 +	y := x + 2
 +	z := y * 3
@@ -64,7 +62,6 @@ main :: proc() {
 -	y := 2{>}
 +	extracted_proc()
 }
-+
 +
 +extracted_proc :: proc() {
 +	x := 1
@@ -87,7 +84,6 @@ main :: proc() {
 	y := x
 }
 +
-+
 +extracted_proc :: proc(x: ^int) {
 +	x^ = x^ + 1
 +}`,
@@ -107,7 +103,6 @@ main :: proc() {
 +	extracted_proc(x)
 	y := x^
 }
-+
 +
 +extracted_proc :: proc(x: ^int) {
 +	x^ = 5
@@ -131,7 +126,6 @@ main :: proc() {
 	z := p.x
 }
 +
-+
 +extracted_proc :: proc(p: ^Point) {
 +	p.x = 10
 +}`,
@@ -151,7 +145,6 @@ main :: proc() {
 +	extracted_proc(&arr)
 	x := arr[0]
 }
-+
 +
 +extracted_proc :: proc(arr: ^[3]int) {
 +	arr[0] = 10
@@ -174,7 +167,6 @@ main :: proc() {
 +	extracted_proc(&x)
 	y := x
 }
-+
 +
 +extracted_proc :: proc(x: ^int) {
 +	if x^ > 0 {
@@ -200,7 +192,6 @@ main :: proc() {
 +	extracted_proc(&sum)
 	result := sum
 }
-+
 +
 +extracted_proc :: proc(sum: ^int) {
 +	for i := 0; i < 10; i += 1 {
@@ -228,7 +219,6 @@ main :: proc() {
 	result := sum
 }
 +
-+
 +extracted_proc :: proc(arr: ^[3]f32, sum: ^f32) {
 +	for val in arr {
 +		sum^ += val
@@ -253,7 +243,6 @@ main :: proc() {
 	z := y
 }
 +
-+
 +extracted_proc :: proc(x: int) -> f32 {
 +	y := helper(x)
 +	return y
@@ -274,7 +263,6 @@ main :: proc() {
 +	y := extracted_proc(x)
 	z := y
 }
-+
 +
 +extracted_proc :: proc(x: int) -> int {
 +	y := x > 0 ? 1 : 0
@@ -300,7 +288,6 @@ main :: proc() {
 	z := p.x
 }
 +
-+
 +extracted_proc :: proc(a: int, b: int) -> Point {
 +	p := Point{x = a, y = b}
 +	return p
@@ -324,7 +311,6 @@ main :: proc() {
 +	extracted_proc(&o)
 	x := o.inner.value
 }
-+
 +
 +extracted_proc :: proc(o: ^Outer) {
 +	o.inner.value = 10
@@ -350,7 +336,6 @@ main :: proc() {
 	z := c
 }
 +
-+
 +extracted_proc :: proc(input: int) -> (int, int, int) {
 +	a := input + 1
 +	b := input + 2
@@ -373,7 +358,6 @@ main :: proc() {
 +	arr := extracted_proc(size)
 	x := arr[0]
 }
-+
 +
 +extracted_proc :: proc(size: int) -> [dynamic]int {
 +	arr := make([dynamic]int, size)
@@ -465,7 +449,6 @@ main :: proc() {
 	x := result
 }
 +
-+
 +extracted_proc :: proc(val: int) -> int {
 +	result := 0
 +	switch val {
@@ -495,7 +478,6 @@ main :: proc() {
 	x := a + b
 }
 +
-+
 +extracted_proc :: proc(a: ^int, b: ^int) {
 +	a^ = a^ + 1
 +	b^ = b^ + 1
@@ -516,7 +498,6 @@ main :: proc() {
 +	slice := extracted_proc(&arr)
 	x := slice[0]
 }
-+
 +
 +extracted_proc :: proc(arr: ^[5]int) -> []int {
 +	slice := arr[1:3]
@@ -539,7 +520,6 @@ main :: proc() {
 +	extracted_proc(a, b)
 }
 +
-+
 +extracted_proc :: proc(a: int, b: int) {
 +	c := a + b
 +}`,
@@ -561,7 +541,6 @@ main :: proc() {
 	c := a
 }
 +
-+
 +extracted_proc :: proc(a: ^int, b: int) {
 +	a^ = a^ + b
 +}`,
@@ -581,7 +560,6 @@ main :: proc() {
 +	y := extracted_proc(x)
 	z := y
 }
-+
 +
 +extracted_proc :: proc(x: int) -> int {
 +	y := -x
@@ -604,7 +582,6 @@ main :: proc() {
 +	ptr := extracted_proc(&x)
 	y := ptr^
 }
-+
 +
 +extracted_proc :: proc(x: ^int) -> ^int {
 +	ptr := x
@@ -633,7 +610,6 @@ main :: proc() {
 +	result := extracted_proc(x)
 	y := result
 }
-+
 +
 +extracted_proc :: proc(x: int) -> int {
 +	result := 0
@@ -668,7 +644,6 @@ main :: proc() {
 	result := total
 }
 +
-+
 +extracted_proc :: proc(total: ^int) {
 +	for i := 0; i < 3; i += 1 {
 +		for j := 0; j < 3; j += 1 {
@@ -695,7 +670,6 @@ main :: proc() {
 	x := c + d
 }
 +
-+
 +extracted_proc :: proc(a: int, b: int) -> (int, int) {
 +	c := min(a, b)
 +	d := max(a, b)
@@ -718,7 +692,6 @@ main :: proc() {
 +	extracted_proc(input)
 }
 +
-+
 +extracted_proc :: proc(input: int) {
 +	temp := input * 2
 +	result := temp + 1
@@ -740,7 +713,6 @@ main :: proc() {
 +	result := extracted_proc(input)
 	x := result
 }
-+
 +
 +extracted_proc :: proc(input: int) -> int {
 +	temp := input * 2
@@ -766,7 +738,6 @@ main :: proc() {
 	y := x
 }
 +
-+
 +extracted_proc :: proc(x: ^int) {
 +	{
 +		x^ = x^ + 1
@@ -788,7 +759,6 @@ main :: proc() {
 +	y := extracted_proc(x)
 	z := y
 }
-+
 +
 +extracted_proc :: proc(x: int) -> f32 {
 +	y := f32(x)
@@ -813,7 +783,6 @@ main :: proc() {
 	x := arr[0]
 }
 +
-+
 +extracted_proc :: proc(arr: [dynamic]int, val: int) {
 +	append(&arr, val)
 +}`,
@@ -836,7 +805,6 @@ main :: proc() {
 	z := y
 }
 +
-+
 +extracted_proc :: proc(x: int) -> int {
 +	y := x + 1
 +	return y
@@ -856,7 +824,6 @@ main :: proc() {
 -	{<}y := x + 1{>}
 +	extracted_proc(x)
 }
-+
 +
 +extracted_proc :: proc(x: int) {
 +	y := x + 1
@@ -878,7 +845,6 @@ main :: proc() {
 +	val := extracted_proc(m)
 	x := val
 }
-+
 +
 +extracted_proc :: proc(m: map[string]f32) -> f32 {
 +	val := m["key"]
@@ -902,7 +868,6 @@ main :: proc() {
 	x := m["key"]
 }
 +
-+
 +extracted_proc :: proc(m: ^map[string]int, val: int) {
 +	m["key"] = val
 +}`,
@@ -923,7 +888,6 @@ main :: proc() {
 +	val := extracted_proc()
 	x := val
 }
-+
 +
 +extracted_proc :: proc() -> int {
 +	val := m["key"] or_else 0
@@ -965,7 +929,6 @@ main :: proc() {
 	}
 	inner()
 }
-+
 +
 +extracted_proc :: proc(x: int) -> int {
 +	y := x + 1
@@ -1022,7 +985,6 @@ main :: proc() {
 	e := d
 }
 +
-+
 +extracted_proc :: proc(a: int, b: int, c: int) -> int {
 +	d := a + b + c
 +	return d
@@ -1046,7 +1008,6 @@ main :: proc() {
 +	extracted_proc(&a, b, &c)
 	x := a + c
 }
-+
 +
 +extracted_proc :: proc(a: ^int, b: int, c: ^int) {
 +	a^ = a^ + b
@@ -1072,7 +1033,6 @@ main :: proc() {
 +	}
 	y := x
 }
-+
 +
 +extracted_proc :: proc(x: int) -> bool {
 +	if x > 0 {
@@ -1104,7 +1064,6 @@ main :: proc() {
 	y := x
 }
 +
-+
 +extracted_proc :: proc(x: ^int) -> bool {
 +	if x^ > 0 {
 +		x^ = x^ - 1
@@ -1135,7 +1094,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(i: int) -> bool {
 +	if i > 5 {
 +		return true
@@ -1165,7 +1123,6 @@ main :: proc() {
 		sum += i
 	}
 }
-+
 +
 +extracted_proc :: proc(i: int) -> bool {
 +	if i % 2 == 0 {
@@ -1202,7 +1159,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(i: int) -> (bool, bool) {
 +	if i > 8 {
 +		return true, false
@@ -1235,7 +1191,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(k: string, val: ^f32) -> bool {
 +	if val^ == 3 && k == "five" {
 +		val^ = 5
@@ -1266,7 +1221,6 @@ main :: proc() {
 +	extracted_proc()
 	y := x
 }
-+
 +
 +extracted_proc :: proc() {
 +	for i := 0; i < 10; i += 1 {
@@ -1299,7 +1253,6 @@ main :: proc() {
 +	}
 	y := x
 }
-+
 +
 +extracted_proc :: proc(x: int) -> bool {
 +	for i := 0; i < 10; i += 1 {
@@ -1334,7 +1287,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(i: int, sum: ^int) -> bool {
 +	if i % 2 == 0 {
 +		sum^ += i
@@ -1364,7 +1316,6 @@ main :: proc() {
 +	}
 	y := result
 }
-+
 +
 +extracted_proc :: proc(x: int) -> (bool, int) {
 +	result := x * 2
@@ -1399,7 +1350,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(i: int) -> bool {
 +	switch i {
 +	case 5:
@@ -1429,7 +1379,6 @@ main :: proc() {
 +		}
 	}
 }
-+
 +
 +extracted_proc :: proc(char: rune) -> bool {
 +	if char == 'e' {
@@ -1468,7 +1417,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(x: ^Custom_Struct) -> bool {
 +	return x.field1 > 25
 +}`,
@@ -1491,7 +1439,6 @@ main :: proc() {
 	}
 }
 +
-+
 +extracted_proc :: proc(i: int, limit: int) -> bool {
 +	return i < limit
 +}`,
@@ -1513,7 +1460,6 @@ main :: proc() {
 		println("valid")
 	}
 }
-+
 +
 +extracted_proc :: proc(x: int, y: int) -> bool {
 +	return x > 0 && y < 20
@@ -1540,7 +1486,6 @@ main :: proc() {
 	}
 	helper()
 }
-+
 +
 +extracted_proc :: proc(x: int) -> int {
 +	y := x + 2
