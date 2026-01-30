@@ -98,6 +98,9 @@ find_if_stmt_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition,
 			if nested := find_if_stmt_in_node(n.body, position, false); nested != nil {
 				return nested
 			}
+			// Position is inside the body but no nested if found
+			// Don't return the current if statement
+			return nil
 		}
 
 		// Position is in the condition/init part or we're the closest if
@@ -348,15 +351,7 @@ is_simple_expr :: proc(expr: ^ast.Expr) -> bool {
 		return false
 	}
 	#partial switch e in expr.derived {
-	case ^ast.Ident:
-		return true
-	case ^ast.Paren_Expr:
-		return true
-	case ^ast.Call_Expr:
-		return true
-	case ^ast.Selector_Expr:
-		return true
-	case ^ast.Index_Expr:
+	case ^ast.Ident, ^ast.Paren_Expr, ^ast.Call_Expr, ^ast.Selector_Expr, ^ast.Index_Expr:
 		return true
 	}
 	return false

@@ -148,6 +148,24 @@ main :: proc() {
 	test.expect_action(t, &source, {})
 }
 
+
+@(test)
+action_invert_if_inside_of_statement :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+main :: proc() {
+	if x != 0 {
+		foo{*}()
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action(t, &source, {})
+}
+
 @(test)
 action_invert_if_not_eq :: proc(t: ^testing.T) {
 	source := test.Source {
