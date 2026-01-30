@@ -2217,3 +2217,196 @@ extracted_proc :: proc(key: string, value: f32) -> bool {
 }`,
 	)
 }
+
+@(test)
+action_extract_proc_from_expression :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+	Custom_Struct :: struct {
+		field1: int
+		field2: f32
+	}
+
+	helper :: proc() -> ^Custom_Struct {
+		s := new(Custom_Struct)
+		s.field1 = 10
+		s.field2 = 20.0
+		return s
+	}
+
+main :: proc() {
+	x := helper()
+	
+	if {<}x.field1 > 25{>} {
+		println("The value is greater than 25")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(x)",
+		`
+
+extracted_proc :: proc(x: ^Custom_Struct) -> bool {
+	return x.field1 > 25
+}`,
+	)
+}
+
+
+@(test)
+action_extract_proc_from_expression_do_return :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+	Custom_Struct :: struct {
+		field1: int
+		field2: f32
+	}
+
+	helper :: proc() -> ^Custom_Struct {
+		s := new(Custom_Struct)
+		s.field1 = 10
+		s.field2 = 20.0
+		return s
+	}
+
+main :: proc() {
+	x := helper()
+	
+	if {<}x.field1 > 25{>} do return
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(x)",
+		`
+
+extracted_proc :: proc(x: ^Custom_Struct) -> bool {
+	return x.field1 > 25
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_arithmetic_expression :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	a := 10
+	b := 20
+	c := {<}a + b * 2{>}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(a, b)",
+		`
+
+extracted_proc :: proc(a: int, b: int) -> int {
+	return a + b * 2
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_expression_in_for :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	limit := 100
+	for i := 0; {<}i < limit{>}; i += 1 {
+		println(i)
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(i, limit)",
+		`
+
+extracted_proc :: proc(i: int, limit: int) -> bool {
+	return i < limit
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_call_expression :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+helper :: proc(x: int) -> int { return x * 2 }
+
+main :: proc() {
+	a := 5
+	b := {<}helper(a){>}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(a)",
+		`
+
+extracted_proc :: proc(a: int) -> int {
+	return helper(a)
+}`,
+	)
+}
+
+@(test)
+action_extract_proc_from_logical_expression :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	x := 5
+	y := 10
+	if {<}x > 0 && y < 20{>} {
+		println("valid")
+	}
+}
+`,
+		packages = {},
+	}
+
+	test.expect_action_with_edit(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		"extracted_proc(x, y)",
+		`
+
+extracted_proc :: proc(x: int, y: int) -> bool {
+	return x > 0 && y < 20
+}`,
+	)
+}

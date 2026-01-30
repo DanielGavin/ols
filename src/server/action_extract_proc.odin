@@ -41,6 +41,8 @@ ExtractProcContext :: struct {
 	selection_end:     common.AbsolutePosition,
 	containing_proc:   ^ast.Proc_Lit,
 	selected_stmts:    [dynamic]^ast.Stmt,
+	selected_expr:     ^ast.Expr, // For expression extraction
+	expr_type_str:     string, // Type of the selected expression
 	variables:         map[string]VariableUsage,
 	has_control_flow:  bool,
 	control_flow_type: ControlFlowType,
@@ -77,7 +79,8 @@ add_extract_proc_action :: proc(document: ^Document, range: common.Range, uri: s
 		return
 	}
 
-	if len(ctx.selected_stmts) == 0 {
+	// Must have either selected statements or a selected expression
+	if len(ctx.selected_stmts) == 0 && ctx.selected_expr == nil {
 		return
 	}
 
@@ -133,7 +136,12 @@ create_extract_context :: proc(document: ^Document, range: common.Range) -> (Ext
 
 	collect_selected_statements(&ctx)
 
-	return ctx, len(ctx.selected_stmts) > 0
+	// If no statements selected, try to find a selected expression
+	if len(ctx.selected_stmts) == 0 {
+		find_selected_expression(&ctx)
+	}
+
+	return ctx, len(ctx.selected_stmts) > 0 || ctx.selected_expr != nil
 }
 
 destroy_extract_context :: proc(ctx: ^ExtractProcContext) {
@@ -260,6 +268,214 @@ collect_stmts_in_nested_blocks :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext
 	}
 }
 
+// Find an expression that matches the selection exactly
+// This enables extracting expressions (not just statements) into procedures
+find_selected_expression :: proc(ctx: ^ExtractProcContext) {
+	if ctx.containing_proc == nil || ctx.containing_proc.body == nil {
+		return
+	}
+
+	body, ok := ctx.containing_proc.body.derived.(^ast.Block_Stmt)
+	if !ok {
+		return
+	}
+
+	// Search for an expression that matches the selection
+	ctx.selected_expr = find_expr_in_stmts(body.stmts[:], ctx)
+	if ctx.selected_expr != nil {
+		ctx.expr_type_str = infer_type_from_expr(ctx.selected_expr, ctx)
+	}
+}
+
+// Recursively search for an expression matching the selection in statements
+find_expr_in_stmts :: proc(stmts: []^ast.Stmt, ctx: ^ExtractProcContext) -> ^ast.Expr {
+	for stmt in stmts {
+		if stmt == nil {
+			continue
+		}
+		// Only search in statements that overlap with the selection
+		if stmt.end.offset < ctx.selection_start || stmt.pos.offset > ctx.selection_end {
+			continue
+		}
+		if expr := find_expr_in_stmt(stmt, ctx); expr != nil {
+			return expr
+		}
+	}
+	return nil
+}
+
+// Search for matching expression within a statement
+find_expr_in_stmt :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) -> ^ast.Expr {
+	if stmt == nil {
+		return nil
+	}
+
+	#partial switch n in stmt.derived {
+	case ^ast.If_Stmt:
+		// Check the condition expression
+		if expr := find_matching_expr(n.cond, ctx); expr != nil {
+			return expr
+		}
+		// Check body and else
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				if expr := find_expr_in_stmts(block.stmts[:], ctx); expr != nil {
+					return expr
+				}
+			}
+		}
+		if n.else_stmt != nil {
+			if expr := find_expr_in_stmt(n.else_stmt, ctx); expr != nil {
+				return expr
+			}
+		}
+	case ^ast.For_Stmt:
+		if expr := find_matching_expr(n.cond, ctx); expr != nil {
+			return expr
+		}
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				if expr := find_expr_in_stmts(block.stmts[:], ctx); expr != nil {
+					return expr
+				}
+			}
+		}
+	case ^ast.Range_Stmt:
+		if expr := find_matching_expr(n.expr, ctx); expr != nil {
+			return expr
+		}
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				if expr := find_expr_in_stmts(block.stmts[:], ctx); expr != nil {
+					return expr
+				}
+			}
+		}
+	case ^ast.Value_Decl:
+		for value in n.values {
+			if expr := find_matching_expr(value, ctx); expr != nil {
+				return expr
+			}
+		}
+	case ^ast.Assign_Stmt:
+		for rhs in n.rhs {
+			if expr := find_matching_expr(rhs, ctx); expr != nil {
+				return expr
+			}
+		}
+		for lhs in n.lhs {
+			if expr := find_matching_expr(lhs, ctx); expr != nil {
+				return expr
+			}
+		}
+	case ^ast.Expr_Stmt:
+		if expr := find_matching_expr(n.expr, ctx); expr != nil {
+			return expr
+		}
+	case ^ast.Return_Stmt:
+		for result in n.results {
+			if expr := find_matching_expr(result, ctx); expr != nil {
+				return expr
+			}
+		}
+	case ^ast.Switch_Stmt:
+		if expr := find_matching_expr(n.cond, ctx); expr != nil {
+			return expr
+		}
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				if expr := find_expr_in_stmts(block.stmts[:], ctx); expr != nil {
+					return expr
+				}
+			}
+		}
+	case ^ast.Block_Stmt:
+		if expr := find_expr_in_stmts(n.stmts[:], ctx); expr != nil {
+			return expr
+		}
+	case ^ast.Case_Clause:
+		if expr := find_expr_in_stmts(n.body[:], ctx); expr != nil {
+			return expr
+		}
+	}
+
+	return nil
+}
+
+// Check if an expression matches the selection, or search inside it
+find_matching_expr :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) -> ^ast.Expr {
+	if expr == nil {
+		return nil
+	}
+
+	// Check if this expression exactly matches the selection
+	if expr.pos.offset == ctx.selection_start && expr.end.offset == ctx.selection_end {
+		return expr
+	}
+
+	// If selection is not within this expression, skip
+	if expr.end.offset < ctx.selection_start || expr.pos.offset > ctx.selection_end {
+		return nil
+	}
+
+	// Search inside compound expressions
+	#partial switch n in expr.derived {
+	case ^ast.Binary_Expr:
+		if result := find_matching_expr(n.left, ctx); result != nil {
+			return result
+		}
+		if result := find_matching_expr(n.right, ctx); result != nil {
+			return result
+		}
+	case ^ast.Unary_Expr:
+		if result := find_matching_expr(n.expr, ctx); result != nil {
+			return result
+		}
+	case ^ast.Paren_Expr:
+		if result := find_matching_expr(n.expr, ctx); result != nil {
+			return result
+		}
+	case ^ast.Call_Expr:
+		if result := find_matching_expr(n.expr, ctx); result != nil {
+			return result
+		}
+		for arg in n.args {
+			if result := find_matching_expr(arg, ctx); result != nil {
+				return result
+			}
+		}
+	case ^ast.Index_Expr:
+		if result := find_matching_expr(n.expr, ctx); result != nil {
+			return result
+		}
+		if result := find_matching_expr(n.index, ctx); result != nil {
+			return result
+		}
+	case ^ast.Selector_Expr:
+		if result := find_matching_expr(n.expr, ctx); result != nil {
+			return result
+		}
+	case ^ast.Ternary_If_Expr:
+		if result := find_matching_expr(n.cond, ctx); result != nil {
+			return result
+		}
+		if result := find_matching_expr(n.x, ctx); result != nil {
+			return result
+		}
+		if result := find_matching_expr(n.y, ctx); result != nil {
+			return result
+		}
+	case ^ast.Comp_Lit:
+		for elem in n.elems {
+			if result := find_matching_expr(elem, ctx); result != nil {
+				return result
+			}
+		}
+	}
+
+	return nil
+}
+
 check_statement_properties :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 	#partial switch n in stmt.derived {
 	case ^ast.Return_Stmt:
@@ -343,8 +559,13 @@ check_nested_control_flow :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 analyze_variables :: proc(ctx: ^ExtractProcContext) {
 	find_variables_before_selection(ctx)
 
-	for stmt in ctx.selected_stmts {
-		analyze_statement_variables(stmt, ctx)
+	// Handle expression extraction
+	if ctx.selected_expr != nil {
+		analyze_expression_variables(ctx.selected_expr, ctx)
+	} else {
+		for stmt in ctx.selected_stmts {
+			analyze_statement_variables(stmt, ctx)
+		}
 	}
 
 	check_variables_used_after(ctx)
@@ -588,6 +809,12 @@ collect_declared_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 			}
 		}
 	}
+}
+
+// Analyze variables used in a selected expression
+// For expression extraction, all variables are reads (no declarations or modifications)
+analyze_expression_variables :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) {
+	analyze_expr_reads(expr, ctx)
 }
 
 analyze_statement_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
@@ -1253,6 +1480,20 @@ build_proc_definition :: proc(
 	}
 
 	strings.write_string(&sb, ")")
+
+	// Handle expression extraction - simple return with expression type
+	if ctx.selected_expr != nil {
+		// Add return type from expression
+		if ctx.expr_type_str != "" {
+			strings.write_string(&sb, " -> ")
+			strings.write_string(&sb, ctx.expr_type_str)
+		}
+		strings.write_string(&sb, " {\n")
+		strings.write_string(&sb, "\treturn ")
+		strings.write_string(&sb, string(ctx.document.text[ctx.selection_start:ctx.selection_end]))
+		strings.write_string(&sb, "\n}")
+		return strings.to_string(sb)
+	}
 
 	// Return types - handle control flow types
 	has_control_flow_return := ctx.control_flow_type != .None
@@ -2215,6 +2456,23 @@ build_call_text :: proc(
 ) -> string {
 	sb := strings.builder_make(context.temp_allocator)
 
+	// Handle expression extraction - just output the call (no assignment needed)
+	if ctx.selected_expr != nil {
+		strings.write_string(&sb, DEFAULT_PROC_NAME)
+		strings.write_string(&sb, "(")
+		for param, i in params {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			if param.pass_addr {
+				strings.write_string(&sb, "&")
+			}
+			strings.write_string(&sb, param.name)
+		}
+		strings.write_string(&sb, ")")
+		return strings.to_string(sb)
+	}
+
 	// Handle control flow - wrap call in appropriate control structure
 	#partial switch ctx.control_flow_type {
 	case .Return:
@@ -2482,6 +2740,11 @@ infer_type_from_expr :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) -> strin
 		// Check if it's a type name used as a cast (e.g., f32(x))
 		return ""
 	case ^ast.Binary_Expr:
+		// Check if this is a comparison operator - these always return bool
+		#partial switch n.op.kind {
+		case .Eq, .Not_Eq, .Lt, .Lt_Eq, .Gt, .Gt_Eq, .Cmp_And, .Cmp_Or:
+			return "bool"
+		}
 		// Binary expressions - try to infer from operands
 		left_type := infer_type_from_expr(n.left, ctx)
 		if left_type != "" {
