@@ -1974,7 +1974,8 @@ get_type_switch_completion :: proc(
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
-
+					//TODO: using symbol.name is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
+					//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
 					name := symbol.name
 					if _, ok := used_unions[name]; ok {
 						continue

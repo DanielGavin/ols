@@ -239,8 +239,10 @@ get_switch_cases_info :: proc(
 						break
 					}
 				} else {
-					if ident, ok := name.derived.(^ast.Ident); ok {
-						case_name = ident.name
+					if ty, ok := resolve_type_expression(ast_context, name); ok {
+						//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
+						//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
+						case_name = ty.name != "" ? ty.name : get_signature(ast_context, ty)
 						break
 					}
 				}
@@ -260,7 +262,13 @@ get_switch_cases_info :: proc(
 		if !unwrap_ok {return nil, nil, false, false}
 		case_names := make([]string, len(union_value.types), context.temp_allocator)
 		for t, i in union_value.types {
-			case_names[i] = t.derived.(^ast.Ident).name
+			if ty, ok := resolve_type_expression(ast_context, t); ok {
+				//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
+				//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
+				case_names[i] = ty.name != "" ? ty.name : get_signature(ast_context, ty)
+			} else {
+				case_names[i] = "invalid type expression"
+			}
 		}
 		return existing_cases, case_names, false, true
 	}
