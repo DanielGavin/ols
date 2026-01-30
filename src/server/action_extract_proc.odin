@@ -1716,7 +1716,7 @@ build_proc_definition :: proc(
 		}
 	}
 
-	strings.write_string(&sb, "\n}")
+	strings.write_string(&sb, "\n}\n")
 
 	return strings.to_string(sb)
 }
