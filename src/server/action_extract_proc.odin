@@ -163,6 +163,77 @@ destroy_extract_context :: proc(ctx: ^ExtractProcContext) {
 	delete(ctx.selected_stmts)
 }
 
+// Finds the top-level declaration (at package scope) that contains the given procedure.
+// This is used to determine where to insert extracted procedures - they should be placed
+// after the top-level declaration, not inside nested scopes.
+find_top_level_decl :: proc(decls: []^ast.Stmt, target_proc: ^ast.Proc_Lit) -> ^ast.Stmt {
+	if target_proc == nil {
+		return nil
+	}
+
+	for decl in decls {
+		if decl == nil {
+			continue
+		}
+		if decl_contains_proc(decl, target_proc) {
+			return decl
+		}
+	}
+	return nil
+}
+
+// Checks if a declaration statement contains the given procedure literal.
+decl_contains_proc :: proc(stmt: ^ast.Stmt, target_proc: ^ast.Proc_Lit) -> bool {
+	if stmt == nil || target_proc == nil {
+		return false
+	}
+
+	#partial switch n in stmt.derived {
+	case ^ast.Value_Decl:
+		for value in n.values {
+			if value == target_proc {
+				return true
+			}
+			if expr_contains_proc(value, target_proc) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Recursively checks if an expression contains the target procedure.
+// This handles nested procedure definitions (procedures defined inside other procedures).
+expr_contains_proc :: proc(expr: ^ast.Expr, target_proc: ^ast.Proc_Lit) -> bool {
+	if expr == nil || target_proc == nil {
+		return false
+	}
+
+	if expr == target_proc {
+		return true
+	}
+
+	#partial switch n in expr.derived {
+	case ^ast.Proc_Lit:
+		if n == target_proc {
+			return true
+		}
+		// Check inside proc body for nested procedures
+		if n.body != nil {
+			if block, ok := n.body.derived.(^ast.Block_Stmt); ok {
+				for stmt in block.stmts {
+					if decl_contains_proc(stmt, target_proc) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 find_containing_proc :: proc(stmts: []^ast.Stmt, position: common.AbsolutePosition) -> ^ast.Proc_Lit {
 	for stmt in stmts {
 		if stmt == nil {
@@ -1385,11 +1456,28 @@ generate_extract_edit :: proc(
 	call_text := build_call_text(ctx, params, returns, indent)
 	proc_text := build_proc_definition(ctx, params, returns)
 
-	// Find position after the containing procedure to insert the new proc
-	proc_end_pos := common.token_pos_to_position(ctx.containing_proc.end, src)
-	insert_range := common.Range {
-		start = proc_end_pos,
-		end   = proc_end_pos,
+	// Find the top-level declaration containing the procedure and insert after it
+	// This ensures extracted procedures are placed at package scope, not inside nested procedures
+	insert_range: common.Range
+	top_level_decl := find_top_level_decl(ctx.document.ast.decls[:], ctx.containing_proc)
+	if top_level_decl != nil {
+		insert_pos := common.token_pos_to_position(top_level_decl.end, src)
+		// Move to the start of the next line (after the closing brace)
+		insert_pos.line += 1
+		insert_pos.character = 0
+		insert_range = common.Range {
+			start = insert_pos,
+			end   = insert_pos,
+		}
+	} else {
+		// Fallback: insert after the containing procedure
+		proc_end_pos := common.token_pos_to_position(ctx.containing_proc.end, src)
+		proc_end_pos.line += 1
+		proc_end_pos.character = 0
+		insert_range = common.Range {
+			start = proc_end_pos,
+			end   = proc_end_pos,
+		}
 	}
 
 	textEdits := make([dynamic]TextEdit, context.temp_allocator)

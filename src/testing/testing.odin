@@ -677,6 +677,71 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
 }
 
+// Like expect_action_with_edit but also checks that an edit is placed at or after a specific line
+expect_action_with_edit_at_line :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	action_name: string,
+	edit_index: int,
+	min_line: int,
+	expected_texts: ..string,
+) {
+	setup(src)
+	defer teardown(src)
+
+	input_range := build_action_range(src)
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		testing.expect(t, false, "Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title == action_name {
+			// Get the text edits for the document
+			if edits, found := action.edit.changes[src.document.uri.uri]; found {
+				if len(edits) != len(expected_texts) {
+					testing.expectf(t, false, "Expected %d edits but got %d", len(expected_texts), len(edits))
+					return
+				}
+
+				// Check edit positions
+				if edit_index < len(edits) {
+					actual_line := edits[edit_index].range.start.line
+					testing.expectf(
+						t,
+						actual_line >= min_line,
+						"\nEdit [%d] placed at wrong line.\nExpected: line >= %d\nGot: line %d",
+						edit_index,
+						min_line,
+						actual_line,
+					)
+				}
+
+				// Check edit content
+				for expected, i in expected_texts {
+					actual := edits[i].newText
+					testing.expectf(
+						t,
+						actual == expected,
+						"\nEdit [%d] mismatch.\nExpected:\n%s\n\nGot:\n%s",
+						i,
+						expected,
+						actual,
+					)
+				}
+				return
+			}
+			log.errorf("Action '%s' found but has no edits", action_name)
+			testing.expect(t, false, "Action found but has no edits")
+			return
+		}
+	}
+
+	testing.expectf(t, false, "Action '%s' not found", action_name)
+}
+
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
 	setup(src)
 	defer teardown(src)

@@ -2556,3 +2556,44 @@ extracted_proc :: proc(a: int, b: int, c: int) -> bool {
 }`,
 	)
 }
+
+@(test)
+action_extract_proc_nested_to_top_level :: proc(t: ^testing.T) {
+	// This test verifies that extracting code from a nested procedure
+	// places the extracted procedure at the TOP LEVEL (package scope),
+	// not at the parent procedure's scope.
+	
+	source := test.Source {
+		main     = `package test
+
+main :: proc() {
+	helper :: proc() {
+		x := 1
+		{<}y := x + 2{>}
+		z := y
+	}
+	helper()
+}
+
+some_other_proc :: proc() { }
+`,
+		packages = {},
+	}
+
+	// edit_index=1 is the procedure insertion (index 0 is the replacement)
+	// min_line=9 means the insertion must be at line 9 or later (after main's closing })
+	test.expect_action_with_edit_at_line(
+		t,
+		&source,
+		EXTRACT_PROC_ACTION,
+		1,  // edit index for the inserted procedure
+		10,  // minimum line (after main's closing brace)
+		"y := extracted_proc(x)",
+		`
+
+extracted_proc :: proc(x: int) -> int {
+	y := x + 2
+	return y
+}`,
+	)
+}
