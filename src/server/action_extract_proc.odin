@@ -23,32 +23,29 @@ VariableUsage :: struct {
 	is_pointer:     bool,
 	addr_of_source: string, // If this variable is assigned from &x, stores "x"
 	type_expr:      ^ast.Expr,
-	type_str:       string,
 }
 
-// Types of control flow that affect extraction
 ControlFlowType :: enum {
 	None,
-	Return, // return statement - needs bool return + if wrapper
-	Break, // break from loop - needs special handling
-	Continue, // continue in loop - needs special handling
-	BreakAndContinue, // both break and continue
+	Return,
+	Break,
+	Continue,
+	BreakAndContinue,
 }
 
 ExtractProcContext :: struct {
-	document:          ^Document,
-	selection_start:   common.AbsolutePosition,
-	selection_end:     common.AbsolutePosition,
-	containing_proc:   ^ast.Proc_Lit,
-	selected_stmts:    [dynamic]^ast.Stmt,
-	selected_expr:     ^ast.Expr, // For expression extraction
-	expr_type_str:     string, // Type of the selected expression
-	variables:         map[string]VariableUsage,
-	has_control_flow:  bool,
-	control_flow_type: ControlFlowType,
-	has_defer:         bool,
-	has_loop:          bool, // true if selection contains a loop (break/continue are scoped to it)
-	ast_context:       ^AstContext,
+	using inference_context: InferenceContext,
+	selection_start:         common.AbsolutePosition,
+	selection_end:           common.AbsolutePosition,
+	containing_proc:         ^ast.Proc_Lit,
+	selected_stmts:          [dynamic]^ast.Stmt,
+	selected_expr:           ^ast.Expr, // For expression extraction
+	expr_type_str:           string, // Type of the selected expression
+	variables:               map[string]VariableUsage,
+	has_control_flow:        bool,
+	control_flow_type:       ControlFlowType,
+	has_defer:               bool,
+	has_loop:                bool,
 }
 
 ParamInfo :: struct {
@@ -128,10 +125,9 @@ create_extract_context :: proc(
 	bool,
 ) {
 	ctx := ExtractProcContext {
-		document       = document,
-		ast_context    = ast_context,
-		variables      = make(map[string]VariableUsage, context.temp_allocator),
-		selected_stmts = make([dynamic]^ast.Stmt, context.temp_allocator),
+		variables         = make(map[string]VariableUsage, context.temp_allocator),
+		selected_stmts    = make([dynamic]^ast.Stmt, context.temp_allocator),
+		inference_context = make_inference_context(document, ast_context, context.temp_allocator),
 	}
 
 	start_pos, start_ok := common.get_absolute_position(range.start, document.text)
@@ -368,7 +364,7 @@ find_selected_expression :: proc(ctx: ^ExtractProcContext) {
 	// Search for an expression that matches the selection
 	ctx.selected_expr = find_expr_in_stmts(body.stmts[:], ctx)
 	if ctx.selected_expr != nil {
-		ctx.expr_type_str = infer_type_from_expr(ctx.selected_expr, ctx)
+		ctx.expr_type_str = infer_expr_type(&ctx.inference_context, ctx.selected_expr)
 	}
 }
 
@@ -670,10 +666,14 @@ find_variables_before_selection :: proc(ctx: ^ExtractProcContext) {
 							usage := VariableUsage {
 								name       = ident.name,
 								type_expr  = field.type,
-								type_str   = get_type_string(field.type),
 								is_pointer = is_pointer_type(field.type),
 							}
 							ctx.variables[ident.name] = usage
+							// Store type in InferenceContext
+							type_str := get_type_string(field.type)
+							if type_str != "" {
+								ctx.variable_types[ident.name] = type_str
+							}
 						}
 					}
 				}
@@ -736,7 +736,7 @@ collect_containing_scope_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcCon
 		// - Strings: for char in str (char is rune)
 		container_type := ""
 		if n.expr != nil {
-			container_type = infer_type_from_expr(n.expr, ctx)
+			container_type = infer_expr_type(&ctx.inference_context, n.expr)
 		}
 
 		is_map := strings.has_prefix(container_type, "map[")
@@ -798,10 +798,13 @@ collect_containing_scope_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcCon
 
 					usage := VariableUsage {
 						name       = var_name,
-						type_str   = type_str,
 						is_pointer = is_by_ref,
 					}
 					ctx.variables[var_name] = usage
+					// Store type in InferenceContext
+					if type_str != "" {
+						ctx.variable_types[var_name] = type_str
+					}
 				}
 			}
 		}
@@ -866,15 +869,18 @@ collect_declared_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 				type_str := get_type_string(type_expr)
 				// If no explicit type, try to infer from value
 				if type_str == "" && i < len(n.values) {
-					type_str = infer_type_from_expr(n.values[i], ctx)
+					type_str = infer_expr_type(&ctx.inference_context, n.values[i])
 				}
 				usage := VariableUsage {
 					name       = ident.name,
 					type_expr  = type_expr,
-					type_str   = type_str,
 					is_pointer = is_pointer_type(type_expr),
 				}
 				ctx.variables[ident.name] = usage
+				// Store type in InferenceContext
+				if type_str != "" {
+					ctx.variable_types[ident.name] = type_str
+				}
 			}
 		}
 	case ^ast.Assign_Stmt:
@@ -883,13 +889,16 @@ collect_declared_variables :: proc(stmt: ^ast.Stmt, ctx: ^ExtractProcContext) {
 				if ident, ok := lhs.derived.(^ast.Ident); ok {
 					type_str := ""
 					if i < len(n.rhs) {
-						type_str = infer_type_from_expr(n.rhs[i], ctx)
+						type_str = infer_expr_type(&ctx.inference_context, n.rhs[i])
 					}
 					usage := VariableUsage {
-						name     = ident.name,
-						type_str = type_str,
+						name = ident.name,
 					}
 					ctx.variables[ident.name] = usage
+					// Store type in InferenceContext
+					if type_str != "" {
+						ctx.variable_types[ident.name] = type_str
+					}
 				}
 			}
 		}
@@ -1015,10 +1024,13 @@ analyze_value_decl :: proc(decl: ^ast.Value_Decl, ctx: ^ExtractProcContext) {
 			usage.type_expr = decl.type
 			usage.is_pointer = is_pointer_type(decl.type)
 			// Set type string if not already set
-			if usage.type_str == "" {
-				usage.type_str = get_type_string(decl.type)
-				if usage.type_str == "" && i < len(decl.values) {
-					usage.type_str = infer_type_from_expr(decl.values[i], ctx)
+			if ident.name not_in ctx.variable_types {
+				type_str := get_type_string(decl.type)
+				if type_str == "" && i < len(decl.values) {
+					type_str = infer_expr_type(&ctx.inference_context, decl.values[i])
+				}
+				if type_str != "" {
+					ctx.variable_types[ident.name] = type_str
 				}
 			}
 			// Track if this is assigned from &x
@@ -1049,9 +1061,12 @@ analyze_assign_stmt :: proc(stmt: ^ast.Assign_Stmt, ctx: ^ExtractProcContext) {
 			usage.name = ident.name
 			if is_declaration {
 				usage.is_declared = true
-				// Set type string from RHS if declaring
-				if usage.type_str == "" && i < len(stmt.rhs) {
-					usage.type_str = infer_type_from_expr(stmt.rhs[i], ctx)
+				// Set type string from RHS if declaring and not already known
+				if ident.name not_in ctx.variable_types && i < len(stmt.rhs) {
+					type_str := infer_expr_type(&ctx.inference_context, stmt.rhs[i])
+					if type_str != "" {
+						ctx.variable_types[ident.name] = type_str
+					}
 				}
 				// Track if this is assigned from &x
 				if i < len(stmt.rhs) {
@@ -1503,9 +1518,10 @@ build_parameter_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ParamInfo {
 			continue
 		}
 
+		type_str := ctx.variable_types[name] or_else "untyped"
 		param := ParamInfo {
 			name     = name,
-			type_str = usage.type_str != "" ? usage.type_str : "untyped",
+			type_str = type_str,
 		}
 
 		if usage.is_modified && !usage.is_pointer {
@@ -1539,9 +1555,10 @@ build_return_list :: proc(ctx: ^ExtractProcContext) -> [dynamic]ReturnInfo {
 
 	for name, usage in ctx.variables {
 		if usage.is_declared && usage.is_used_after {
+			type_str := ctx.variable_types[name] or_else "untyped"
 			ret := ReturnInfo {
 				name     = name,
-				type_str = usage.type_str != "" ? usage.type_str : "untyped",
+				type_str = type_str,
 			}
 			append(&returns, ret)
 		}
@@ -2806,468 +2823,4 @@ build_call_text :: proc(
 	strings.write_string(&sb, ")")
 
 	return strings.to_string(sb)
-}
-get_type_string :: proc(type_expr: ^ast.Expr) -> string {
-	if type_expr == nil {
-		return ""
-	}
-	return node_to_string(type_expr)
-}
-
-infer_type_from_expr :: proc(expr: ^ast.Expr, ctx: ^ExtractProcContext) -> string {
-	if expr == nil {
-		return ""
-	}
-
-	#partial switch n in expr.derived {
-	case ^ast.Basic_Lit:
-		// Infer type from literal
-		#partial switch n.tok.kind {
-		case .Integer:
-			return "int"
-		case .Float:
-			return "f64"
-		case .String:
-			return "string"
-		case .Rune:
-			return "rune"
-		case:
-			return ""
-		}
-	case ^ast.Ident:
-		// Look up the variable's type
-		if usage, ok := ctx.variables[n.name]; ok {
-			return usage.type_str
-		}
-		// Check if it's a type name used as a cast (e.g., f32(x))
-		return ""
-	case ^ast.Binary_Expr:
-		// Check if this is a comparison operator - these always return bool
-		#partial switch n.op.kind {
-		case .Cmp_Eq, .Not_Eq, .Lt, .Lt_Eq, .Gt, .Gt_Eq, .Cmp_And, .Cmp_Or:
-			return "bool"
-		}
-		// Binary expressions - try to infer from operands
-		left_type := infer_type_from_expr(n.left, ctx)
-		if left_type != "" {
-			return left_type
-		}
-		return infer_type_from_expr(n.right, ctx)
-	case ^ast.Unary_Expr:
-		if n.op.kind == .And {
-			// Address-of operator
-			inner := infer_type_from_expr(n.expr, ctx)
-			if inner != "" {
-				return strings.concatenate({"^", inner}, context.temp_allocator)
-			}
-		}
-		return infer_type_from_expr(n.expr, ctx)
-	case ^ast.Paren_Expr:
-		return infer_type_from_expr(n.expr, ctx)
-	case ^ast.Call_Expr:
-		// Handle builtin functions and type casts
-		return infer_call_expr_type(n, ctx)
-	case ^ast.Comp_Lit:
-		// Compound literal - get type from the type part
-		return get_type_string(n.type)
-	case ^ast.Selector_Expr:
-		// Field access - would need full type analysis
-		return ""
-	case ^ast.Index_Expr:
-		// Array/slice/map index - try to get element/value type from container type
-		container_type := infer_type_from_expr(n.expr, ctx)
-		if container_type != "" {
-			return extract_element_type(container_type)
-		}
-		return ""
-	case ^ast.Slice_Expr:
-		// Slicing an array/slice returns a slice
-		inner_type := infer_type_from_expr(n.expr, ctx)
-		if inner_type != "" {
-			// If it's an array type like [3]int, return []int
-			if strings.has_prefix(inner_type, "[") {
-				// Find the closing bracket
-				if idx := strings.index(inner_type, "]"); idx >= 0 {
-					return strings.concatenate({"[]", inner_type[idx + 1:]}, context.temp_allocator)
-				}
-			}
-			return inner_type
-		}
-		return ""
-	case ^ast.Ternary_If_Expr:
-		// Try to infer from then branch
-		return infer_type_from_expr(n.x, ctx)
-	case ^ast.Or_Else_Expr:
-		// or_else expression - type is the type of the fallback value (y)
-		return infer_type_from_expr(n.y, ctx)
-	case ^ast.Or_Return_Expr:
-		// or_return expression - type is the type of the inner expression
-		return infer_type_from_expr(n.expr, ctx)
-	}
-
-	return ""
-}
-
-// Infer type from a call expression (handles builtins and type casts)
-infer_call_expr_type :: proc(call: ^ast.Call_Expr, ctx: ^ExtractProcContext) -> string {
-	if call.expr == nil {
-		return ""
-	}
-
-	// Check if it's a builtin or type cast
-	if ident, ok := call.expr.derived.(^ast.Ident); ok {
-		name := ident.name
-
-		// Builtins that return int
-		switch name {
-		case "len", "cap", "size_of", "align_of", "offset_of":
-			return "int"
-		case "min", "max", "abs", "clamp":
-			// These return the same type as their arguments
-			if len(call.args) > 0 {
-				return infer_type_from_expr(call.args[0], ctx)
-			}
-			return ""
-		case "make":
-			// make returns the type specified as first argument
-			if len(call.args) > 0 {
-				return get_type_string(call.args[0])
-			}
-			return ""
-		case "new", "new_clone":
-			// new returns a pointer to the type
-			if len(call.args) > 0 {
-				inner := get_type_string(call.args[0])
-				if inner != "" {
-					return strings.concatenate({"^", inner}, context.temp_allocator)
-				}
-			}
-			return ""
-		case "type_of":
-			return "typeid"
-		case "transmute", "cast", "auto_cast":
-			// These need the type argument
-			return ""
-		}
-
-		// Check if it's a type cast (e.g., f32(x), int(y))
-		if is_type_name(name) {
-			return name
-		}
-
-		// Try to look up user-defined procedure return type
-		return_type := find_proc_return_type(ctx, name)
-		if return_type != "" {
-			return return_type
-		}
-	}
-
-	return ""
-}
-
-// Check if a name is a built-in type name
-is_type_name :: proc(name: string) -> bool {
-	switch name {
-	case "int",
-	     "uint",
-	     "i8",
-	     "i16",
-	     "i32",
-	     "i64",
-	     "i128",
-	     "u8",
-	     "u16",
-	     "u32",
-	     "u64",
-	     "u128",
-	     "uintptr",
-	     "f16",
-	     "f32",
-	     "f64",
-	     "complex32",
-	     "complex64",
-	     "complex128",
-	     "quaternion64",
-	     "quaternion128",
-	     "quaternion256",
-	     "bool",
-	     "b8",
-	     "b16",
-	     "b32",
-	     "b64",
-	     "string",
-	     "cstring",
-	     "rune",
-	     "rawptr",
-	     "typeid",
-	     "any":
-		return true
-	}
-	return false
-}
-
-// Check if a type string represents a fixed-size array (e.g., "[3]int", "[10]f32")
-// Dynamic arrays "[dynamic]int", slices "[]int" don't count as fixed arrays
-is_fixed_array_type :: proc(type_str: string) -> bool {
-	if len(type_str) < 3 {
-		return false
-	}
-
-	// Must start with [
-	if type_str[0] != '[' {
-		return false
-	}
-
-	// Find closing bracket
-	close_idx := strings.index(type_str, "]")
-	if close_idx < 0 {
-		return false
-	}
-
-	// Content between brackets - if empty, it's a slice
-	inner := type_str[1:close_idx]
-	if len(inner) == 0 {
-		return false
-	}
-
-	// "[dynamic]" is a dynamic array, not a fixed array
-	if inner == "dynamic" {
-		return false
-	}
-
-	// "[^]" is a multi-pointer, not a fixed array
-	if inner == "^" {
-		return false
-	}
-
-	// Check if inner starts with a digit - that's a fixed array size
-	// Fixed arrays have something like [3], [10], etc.
-	// or could be a constant like [N] - but we'll be conservative and only match numbers
-	if len(inner) > 0 && inner[0] >= '0' && inner[0] <= '9' {
-		return true
-	}
-
-	// Could also be a compile-time constant, which we can't easily distinguish
-	// For safety, assume anything else (like identifiers) might be a fixed size
-	// but check it's not a keyword
-	if inner == "?" {
-		// Inferred size, still a fixed array
-		return true
-	}
-
-	// Assume other identifiers could be compile-time constants for array size
-	return true
-}
-// Extract element type from array, slice, or map types
-// e.g., "[3]int" -> "int", "[]string" -> "string", "map[string]int" -> "int"
-extract_element_type :: proc(type_str: string) -> string {
-	if type_str == "" {
-		return ""
-	}
-
-	// Handle map type: map[key_type]value_type
-	if strings.has_prefix(type_str, "map[") {
-		// Find the matching ] for the key type
-		bracket_count := 0
-		for i := 4; i < len(type_str); i += 1 {
-			if type_str[i] == '[' {
-				bracket_count += 1
-			} else if type_str[i] == ']' {
-				if bracket_count == 0 {
-					// Found the end of key type, value type follows
-					return type_str[i + 1:]
-				}
-				bracket_count -= 1
-			}
-		}
-		return ""
-	}
-
-	// Handle array/slice type: [N]type or []type
-	if strings.has_prefix(type_str, "[") {
-		// Find the closing bracket
-		if idx := strings.index(type_str, "]"); idx >= 0 {
-			return type_str[idx + 1:]
-		}
-	}
-
-	return ""
-}
-
-// Extract the key type from a map type string like "map[string]int" -> "string"
-extract_map_key_type :: proc(type_str: string) -> string {
-	if type_str == "" || !strings.has_prefix(type_str, "map[") {
-		return ""
-	}
-
-	// Find the matching ] for the key type
-	bracket_count := 0
-	for i := 4; i < len(type_str); i += 1 {
-		if type_str[i] == '[' {
-			bracket_count += 1
-		} else if type_str[i] == ']' {
-			if bracket_count == 0 {
-				// Found the end of key type
-				return type_str[4:i]
-			}
-			bracket_count -= 1
-		}
-	}
-	return ""
-}
-
-// Find the return type of a user-defined procedure by name
-find_proc_return_type :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	if ctx.ast_context == nil {
-		return ""
-	}
-
-	// Try each lookup method in order
-	if return_type := try_find_proc_in_locals(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	if return_type := try_find_proc_in_globals(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	if return_type := try_find_proc_in_package_index(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	if return_type := try_find_proc_in_builtin(ctx, proc_name); return_type != "" {
-		return return_type
-	}
-
-	return ""
-}
-
-// Try to find procedure in local variables
-try_find_proc_in_locals :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	fake_ident := make_identifier_for_lookup(ctx, proc_name)
-
-	if local, ok := get_local(ctx.ast_context^, fake_ident); ok {
-		if local.rhs != nil {
-			if proc_lit, ok := local.rhs.derived.(^ast.Proc_Lit); ok {
-				return get_proc_return_type(proc_lit)
-			}
-		}
-		if local.value_expr != nil {
-			if proc_lit, ok := local.value_expr.derived.(^ast.Proc_Lit); ok {
-				return get_proc_return_type(proc_lit)
-			}
-		}
-	}
-
-	return ""
-}
-
-// Try to find procedure in file-level globals
-try_find_proc_in_globals :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	if global, ok := ctx.ast_context.globals[proc_name]; ok {
-		if proc_lit, ok := global.expr.derived.(^ast.Proc_Lit); ok {
-			return get_proc_return_type(proc_lit)
-		}
-	}
-	return ""
-}
-
-// Try to find procedure in the package index (cross-file lookup)
-try_find_proc_in_package_index :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	fake_ident := make_identifier_for_lookup(ctx, proc_name)
-	pkg := get_package_from_node(fake_ident)
-
-	if symbol, ok := lookup(proc_name, pkg, fake_ident.pos.file); ok {
-		return extract_return_type_from_symbol(symbol)
-	}
-
-	return ""
-}
-
-// Try to find procedure in builtin package
-try_find_proc_in_builtin :: proc(ctx: ^ExtractProcContext, proc_name: string) -> string {
-	fake_ident := make_identifier_for_lookup(ctx, proc_name)
-
-	if symbol, ok := lookup(proc_name, "$builtin", fake_ident.pos.file); ok {
-		return extract_return_type_from_symbol(symbol)
-	}
-
-	return ""
-}
-
-// Create a temporary identifier for symbol lookup
-make_identifier_for_lookup :: proc(ctx: ^ExtractProcContext, name: string) -> ast.Ident {
-	default_pos: tokenizer.Pos
-	if len(ctx.document.ast.decls) > 0 {
-		default_pos = ctx.document.ast.decls[0].pos
-	}
-	return ast.Ident{name = name, pos = default_pos}
-}
-
-// Extract return type string from a resolved symbol
-extract_return_type_from_symbol :: proc(symbol: Symbol) -> string {
-	proc_value, ok := symbol.value.(SymbolProcedureValue)
-	if !ok {
-		return ""
-	}
-
-	if len(proc_value.return_types) == 0 {
-		return ""
-	}
-
-	if len(proc_value.return_types) == 1 {
-		return get_type_string(proc_value.return_types[0].type)
-	}
-
-	// Multiple returns - format as tuple
-	return format_return_types_as_tuple(proc_value.return_types)
-}
-
-// Format multiple return types as a tuple string
-format_return_types_as_tuple :: proc(return_types: []^ast.Field) -> string {
-	sb := strings.builder_make(context.temp_allocator)
-	strings.write_string(&sb, "(")
-	for ret, i in return_types {
-		if i > 0 {
-			strings.write_string(&sb, ", ")
-		}
-		strings.write_string(&sb, get_type_string(ret.type))
-	}
-	strings.write_string(&sb, ")")
-	return strings.to_string(sb)
-}
-
-// Get the return type string from a procedure literal
-get_proc_return_type :: proc(proc_lit: ^ast.Proc_Lit) -> string {
-	if proc_lit == nil || proc_lit.type == nil {
-		return ""
-	}
-
-	if proc_type, ok := proc_lit.type.derived.(^ast.Proc_Type); ok {
-		if proc_type.results == nil {
-			return ""
-		}
-
-		// Handle single return type
-		if len(proc_type.results.list) == 1 {
-			field := proc_type.results.list[0]
-			return get_type_string(field.type)
-		}
-
-		// Handle multiple return types (tuple)
-		if len(proc_type.results.list) > 1 {
-			sb := strings.builder_make(context.temp_allocator)
-			strings.write_string(&sb, "(")
-			for field, i in proc_type.results.list {
-				if i > 0 {
-					strings.write_string(&sb, ", ")
-				}
-				strings.write_string(&sb, get_type_string(field.type))
-			}
-			strings.write_string(&sb, ")")
-			return strings.to_string(sb)
-		}
-	}
-
-	return ""
 }
