@@ -1,3 +1,4 @@
+#+feature using-stmt
 package odin_printer
 
 import "core:fmt"
@@ -1007,10 +1008,10 @@ visit_stmt :: proc(
 		}
 
 		//Special case for when the if statement ends with a call expression
-		/* 
+		/*
 		  if my_function(
-		 	
-		  ) {	 	
+
+		  ) {
 		  }
 		*/
 		if v.init != nil && is_value_decl_statement_ending_with_call(v.init) ||
@@ -2081,11 +2082,11 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		}
 
 		name_options := List_Options{.Add_Comma}
-		
+
 		if (.Enforce_Newline in options)  {
 			if p.config.align_struct_fields {
 				alignment := get_possible_field_alignment(list.list)
-	
+
 				if alignment > 0 {
 					length := 0
 					for name in field.names {

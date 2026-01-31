@@ -1,4 +1,5 @@
 #+feature dynamic-literals
+#+feature using-stmt
 package server
 
 import "core:fmt"
