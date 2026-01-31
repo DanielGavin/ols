@@ -1,3 +1,4 @@
+#+feature using-stmt
 package server
 
 import "core:log"
