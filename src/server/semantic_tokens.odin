@@ -5,6 +5,7 @@ https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/spe
 
 */
 
+#+feature using-stmt
 package server
 
 import "core:fmt"
@@ -494,7 +495,7 @@ visit_bit_field_fields :: proc(node: ast.Bit_Field_Type, builder: ^SemanticToken
 visit_import_decl :: proc(decl: ^ast.Import_Decl, builder: ^SemanticTokenBuilder) {
 	/*
 	hightlight the namespace in the import declaration
-	
+
 	import "pkg"
 	        ^^^
 	import "core:fmt"
