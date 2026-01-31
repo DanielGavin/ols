@@ -239,6 +239,7 @@ get_switch_cases_info :: proc(
 						break
 					}
 				} else {
+					reset_ast_context(ast_context)
 					if ty, ok := resolve_type_expression(ast_context, name); ok {
 						//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 						//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
@@ -254,14 +255,23 @@ get_switch_cases_info :: proc(
 	}
 	if is_enum {
 		enum_value, was_super_enum, unwrap_ok := unwrap_enum(ast_context, position_context.switch_stmt.cond)
-		if !unwrap_ok {return nil, nil, true, false}
+		if !unwrap_ok {
+			return nil, nil, true, false
+		}
 		return existing_cases, enum_value.names, !was_super_enum, true
 	} else {
 		st := position_context.switch_type_stmt
+		if st == nil {
+			return nil, nil, false, false
+		}
+		reset_ast_context(ast_context)
 		union_value, unwrap_ok := unwrap_union(ast_context, st.tag.derived.(^ast.Assign_Stmt).rhs[0])
-		if !unwrap_ok {return nil, nil, false, false}
+		if !unwrap_ok {
+			return nil, nil, false, false
+		}
 		case_names := make([]string, len(union_value.types), context.temp_allocator)
 		for t, i in union_value.types {
+			reset_ast_context(ast_context)
 			if ty, ok := resolve_type_expression(ast_context, t); ok {
 				//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 				//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
