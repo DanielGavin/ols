@@ -469,7 +469,7 @@ get_proc_group_member_name :: proc(expr: ^ast.Expr) -> (name: string, ok: bool) 
 @(private = "file")
 get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -> ^SymbolPackage {
 	pkg := &collection.packages[pkg_name]
-	if pkg.symbols == nil {
+	if pkg == nil || pkg.symbols == nil {
 		collection.packages[pkg_name] = {}
 		pkg = &collection.packages[pkg_name]
 		pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
