@@ -193,6 +193,7 @@ add_missing_imports :: proc(
 	return
 }
 
+@(private = "file")
 get_block_original_text :: proc(block: []^ast.Stmt, document_text: []u8) -> string {
 	if len(block) == 0 {
 		return ""
@@ -202,6 +203,7 @@ get_block_original_text :: proc(block: []^ast.Stmt, document_text: []u8) -> stri
 	return string(document_text[start.offset:end.offset])
 }
 
+@(private = "file")
 get_switch_cases_info :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -284,6 +286,7 @@ get_switch_cases_info :: proc(
 	}
 }
 
+@(private = "file")
 create_populate_switch_cases_edit :: proc(
 	position_context: ^DocumentPositionContext,
 	existing_cases: map[string]string,
