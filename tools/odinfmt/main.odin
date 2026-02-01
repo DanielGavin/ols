@@ -18,6 +18,7 @@ Args :: struct {
 	write: bool `args:"name=w" usage:"write the new format to file"`,
 	stdin: bool `usage:"formats code from standard input"`,
 	path:  string `args:"pos=0" usage:"set the file or directory to format"`,
+    config: string `usage:"path to a config file"`
 }
 
 format_file :: proc(filepath: string, config: printer.Config, allocator := context.allocator) -> (string, bool) {
@@ -73,7 +74,12 @@ main :: proc() {
 
 	watermark : uint = 0
 
-	config := format.find_config_file_or_default(args.path)
+    config: printer.Config
+    if args.config == "" {
+	    config = format.find_config_file_or_default(args.path)
+    } else {
+        config = format.read_config_file_from_path_or_default(args.config)
+    }
 
 	if args.stdin {
 		data := make([dynamic]byte, arena_allocator)
