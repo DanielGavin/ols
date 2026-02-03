@@ -160,7 +160,7 @@ create_populate_switch_cases_edit :: proc(
 		if name in existing_cases_map {continue} 	//covered by prev loop
 		fmt.sbprintln(b, indent_for_new_cases, "case ", dot, name, ":", sep = "")
 	}
-	fmt.sbprint(b, indent_for_new_cases, "}")
+	fmt.sbprint(b, indent_for_new_cases, "}", sep = "")
 	return TextEdit{range = range, newText = strings.to_string(replacement_builder)}, true
 }
 @(private = "package")
