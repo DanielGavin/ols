@@ -36,6 +36,8 @@ cd ols
 ./odinfmt.sh
 ```
 
+In order for `ols` to find symbols for builtin types and procedures, the `builtin` folder in the repo needs to be located next to the `ols` binary.
+
 ### Configuration
 
 In order for the language server to index your files, it must know about your collections.
