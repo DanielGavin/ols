@@ -4,7 +4,6 @@ package server
 
 import "core:fmt"
 import "core:odin/ast"
-import "core:slice"
 import "core:strings"
 
 import "src:common"
@@ -29,7 +28,6 @@ get_block_original_text :: proc(block: []^ast.Stmt, document_text: string) -> st
 
 SwitchCaseInfo :: struct {
 	name:             string,
-	case_indentation: string,
 	body_indentation: string,
 	body:             string,
 }
@@ -40,12 +38,13 @@ get_switch_cases_info :: proc(
 ) -> (
 	existing_cases: []SwitchCaseInfo,
 	all_case_names: []string,
+	switch_indentation: string,
 	is_enum: bool,
 	ok: bool,
 ) {
 	if (position_context.switch_stmt == nil && position_context.switch_type_stmt == nil) ||
 	   (position_context.switch_stmt != nil && position_context.switch_stmt.cond == nil) {
-		return nil, nil, false, false
+		return nil, nil, "", false, false
 	}
 	switch_block: ^ast.Block_Stmt
 	found_switch_block: bool
@@ -57,12 +56,12 @@ get_switch_cases_info :: proc(
 		switch_block, found_switch_block = position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt)
 	}
 	if !found_switch_block {
-		return nil, nil, false, false
+		return nil, nil, "", false, false
 	}
+	switch_indentation = get_line_indentation(string(document.text), switch_block.pos.offset)
 	existing_cases_in_order := make([dynamic]SwitchCaseInfo, context.temp_allocator)
 	for stmt in switch_block.stmts {
 		if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
-			case_indent := get_line_indentation(string(document.text), case_clause.pos.offset)
 			case_name := ""
 			for name in case_clause.list {
 				if is_enum {
@@ -82,9 +81,8 @@ get_switch_cases_info :: proc(
 			}
 			if case_name != "" {
 				case_info := SwitchCaseInfo {
-					name             = case_name,
-					case_indentation = get_line_indentation(string(document.text), case_clause.pos.offset),
-					body             = get_block_original_text(case_clause.body, string(document.text)),
+					name = case_name,
+					body = get_block_original_text(case_clause.body, string(document.text)),
 				}
 				append(&existing_cases_in_order, case_info)
 			}
@@ -93,18 +91,18 @@ get_switch_cases_info :: proc(
 	if is_enum {
 		enum_value, was_super_enum, unwrap_ok := unwrap_enum(ast_context, position_context.switch_stmt.cond)
 		if !unwrap_ok {
-			return nil, nil, true, false
+			return nil, nil, "", true, false
 		}
-		return existing_cases_in_order[:], enum_value.names, !was_super_enum, true
+		return existing_cases_in_order[:], enum_value.names, switch_indentation, !was_super_enum, true
 	} else {
 		st := position_context.switch_type_stmt
 		if st == nil {
-			return nil, nil, false, false
+			return nil, nil, "", false, false
 		}
 		reset_ast_context(ast_context)
 		union_value, unwrap_ok := unwrap_union(ast_context, st.tag.derived.(^ast.Assign_Stmt).rhs[0])
 		if !unwrap_ok {
-			return nil, nil, false, false
+			return nil, nil, "", false, false
 		}
 		case_names := make([]string, len(union_value.types), context.temp_allocator)
 		for t, i in union_value.types {
@@ -117,13 +115,14 @@ get_switch_cases_info :: proc(
 				case_names[i] = "invalid type expression"
 			}
 		}
-		return existing_cases_in_order[:], case_names, false, true
+		return existing_cases_in_order[:], case_names, switch_indentation, false, true
 	}
 }
 
 create_populate_switch_cases_edit :: proc(
 	position_context: ^DocumentPositionContext,
 	existing_cases: []SwitchCaseInfo,
+	switch_indentation: string,
 	all_case_names: []string,
 	is_enum: bool,
 ) -> (
@@ -145,22 +144,20 @@ create_populate_switch_cases_edit :: proc(
 	dot := is_enum ? "." : ""
 	b := &replacement_builder
 	fmt.sbprintln(b, "{")
-	existing_cases_map := map[string]struct{}{}
-	indent_for_new_cases := ""
+	existing_case_names := map[string]struct{}{}
 	for case_info in existing_cases {
-		if indent_for_new_cases == "" {indent_for_new_cases = case_info.case_indentation}
-		existing_cases_map[case_info.name] = {}
-		fmt.sbprintln(b, case_info.case_indentation, "case ", dot, case_info.name, ":", sep = "")
+		existing_case_names[case_info.name] = {}
+		fmt.sbprintln(b, switch_indentation, "case ", dot, case_info.name, ":", sep = "")
 		case_body := case_info.body
 		if case_body != "" {
 			fmt.sbprintln(b, case_info.body)
 		}
 	}
 	for name in all_case_names {
-		if name in existing_cases_map {continue} 	//covered by prev loop
-		fmt.sbprintln(b, indent_for_new_cases, "case ", dot, name, ":", sep = "")
+		if name in existing_case_names {continue} 	//covered by prev loop
+		fmt.sbprintln(b, switch_indentation, "case ", dot, name, ":", sep = "")
 	}
-	fmt.sbprint(b, indent_for_new_cases, "}", sep = "")
+	fmt.sbprint(b, switch_indentation, "}", sep = "")
 	return TextEdit{range = range, newText = strings.to_string(replacement_builder)}, true
 }
 @(private = "package")
@@ -171,22 +168,32 @@ add_populate_switch_cases_action :: proc(
 	uri: string,
 	actions: ^[dynamic]CodeAction,
 ) {
-	existing_cases, all_case_names, is_enum, ok := get_switch_cases_info(document, ast_context, position_context)
+	existing_cases, all_case_names, switch_indentation, is_enum, ok := get_switch_cases_info(
+		document,
+		ast_context,
+		position_context,
+	)
 	if !ok {return}
 	all_cases_covered := true
 	{
-		existing_cases_map := map[string]struct{}{}
+		existing_case_names := map[string]struct{}{}
 		for case_info in existing_cases {
-			existing_cases_map[case_info.name] = {}
+			existing_case_names[case_info.name] = {}
 		}
 		for name in all_case_names {
-			if name not_in existing_cases_map {
+			if name not_in existing_case_names {
 				all_cases_covered = false
 			}
 		}
 	}
 	if all_cases_covered {return} 	//action not needed
-	edit, edit_ok := create_populate_switch_cases_edit(position_context, existing_cases, all_case_names, is_enum)
+	edit, edit_ok := create_populate_switch_cases_edit(
+		position_context,
+		existing_cases,
+		switch_indentation,
+		all_case_names,
+		is_enum,
+	)
 	if !edit_ok {return}
 	textEdits := make([dynamic]TextEdit, context.temp_allocator)
 	append(&textEdits, edit)
