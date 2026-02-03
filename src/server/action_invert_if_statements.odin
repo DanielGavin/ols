@@ -19,7 +19,7 @@ import "src:common"
  * So for now, we only support only one level of if statements without else-if chains.
  */
 
-@(private = "package")
+@(private="package")
 add_invert_if_action :: proc(
 	document: ^Document,
 	position: common.AbsolutePosition,
@@ -45,7 +45,15 @@ add_invert_if_action :: proc(
 	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
 	workspaceEdit.changes[uri] = textEdits[:]
 
-	append(actions, CodeAction{kind = "refactor.more", isPreferred = false, title = "Invert if", edit = workspaceEdit})
+	append(
+		actions,
+		CodeAction {
+			kind = "refactor.more",
+			isPreferred = false,
+			title = "Invert if",
+			edit = workspaceEdit,
+		},
+	)
 }
 
 // Find the innermost if statement that contains the given position
@@ -63,11 +71,7 @@ find_if_stmt_at_position :: proc(stmts: []^ast.Stmt, position: common.AbsolutePo
 	return nil
 }
 
-find_if_stmt_in_node :: proc(
-	node: ^ast.Node,
-	position: common.AbsolutePosition,
-	in_else_clause: bool,
-) -> ^ast.If_Stmt {
+find_if_stmt_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition, in_else_clause: bool) -> ^ast.If_Stmt {
 	if node == nil {
 		return nil
 	}
@@ -234,7 +238,7 @@ generate_inverted_if :: proc(document: ^Document, if_stmt: ^ast.If_Stmt) -> (str
 }
 
 // Get the indentation (leading whitespace) of the line containing the given offset
-@(private = "package")
+@(private="package")
 get_line_indentation :: proc(src: string, offset: int) -> string {
 	line_start := offset
 	for line_start > 0 && src[line_start - 1] != '\n' {
