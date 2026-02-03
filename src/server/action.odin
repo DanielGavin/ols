@@ -210,13 +210,14 @@ get_switch_cases_info :: proc(
 	position_context: ^DocumentPositionContext,
 ) -> (
 	existing_cases: map[string]string,
+	existing_case_order: []string,
 	all_case_names: []string,
 	is_enum: bool,
 	ok: bool,
 ) {
 	if (position_context.switch_stmt == nil && position_context.switch_type_stmt == nil) ||
 	   (position_context.switch_stmt != nil && position_context.switch_stmt.cond == nil) {
-		return nil, nil, false, false
+		return nil, nil, nil, false, false
 	}
 	switch_block: ^ast.Block_Stmt
 	found_switch_block: bool
@@ -228,9 +229,10 @@ get_switch_cases_info :: proc(
 		switch_block, found_switch_block = position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt)
 	}
 	if !found_switch_block {
-		return nil, nil, false, false
+		return nil, nil, nil, false, false
 	}
 	existing_cases = make(map[string]string, 5, context.temp_allocator)
+	existing_cases_in_order := make([dynamic]string, context.temp_allocator)
 	for stmt in switch_block.stmts {
 		if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 			case_name := ""
@@ -252,24 +254,25 @@ get_switch_cases_info :: proc(
 			}
 			if case_name != "" {
 				existing_cases[case_name] = get_block_original_text(case_clause.body, document.text)
+				append(&existing_cases_in_order, case_name)
 			}
 		}
 	}
 	if is_enum {
 		enum_value, was_super_enum, unwrap_ok := unwrap_enum(ast_context, position_context.switch_stmt.cond)
 		if !unwrap_ok {
-			return nil, nil, true, false
+			return nil, nil, nil, true, false
 		}
-		return existing_cases, enum_value.names, !was_super_enum, true
+		return existing_cases, existing_cases_in_order[:], enum_value.names, !was_super_enum, true
 	} else {
 		st := position_context.switch_type_stmt
 		if st == nil {
-			return nil, nil, false, false
+			return nil, nil, nil, false, false
 		}
 		reset_ast_context(ast_context)
 		union_value, unwrap_ok := unwrap_union(ast_context, st.tag.derived.(^ast.Assign_Stmt).rhs[0])
 		if !unwrap_ok {
-			return nil, nil, false, false
+			return nil, nil, nil, false, false
 		}
 		case_names := make([]string, len(union_value.types), context.temp_allocator)
 		for t, i in union_value.types {
@@ -282,7 +285,7 @@ get_switch_cases_info :: proc(
 				case_names[i] = "invalid type expression"
 			}
 		}
-		return existing_cases, case_names, false, true
+		return existing_cases, existing_cases_in_order[:], case_names, false, true
 	}
 }
 
@@ -290,6 +293,7 @@ get_switch_cases_info :: proc(
 create_populate_switch_cases_edit :: proc(
 	position_context: ^DocumentPositionContext,
 	existing_cases: map[string]string,
+	existing_case_order: []string,
 	all_case_names: []string,
 	is_enum: bool,
 ) -> (
@@ -311,25 +315,16 @@ create_populate_switch_cases_edit :: proc(
 	dot := is_enum ? "." : ""
 	b := &replacement_builder
 	fmt.sbprintln(b, "{")
-	for name in all_case_names {
+	for name in existing_case_order {
 		fmt.sbprintln(b, "case ", dot, name, ":", sep = "")
-		if name in existing_cases {
-			case_block := existing_cases[name]
-			if case_block != "" {
-				fmt.sbprintln(b, existing_cases[name])
-			}
+		case_block, case_exists := existing_cases[name]
+		if case_exists && case_block != "" {
+			fmt.sbprintln(b, existing_cases[name])
 		}
 	}
-	for name in existing_cases {
-		if !slice.contains(all_case_names, name) {
-			//this case probably should be deleted by the user since it's not one of the legal enum names,
-			//but we shouldn't preemptively delete the user's code inside the block
-			fmt.sbprintln(b, "case ", dot, name, ":", sep = "")
-			case_block := existing_cases[name]
-			if case_block != "" {
-				fmt.sbprintln(b, existing_cases[name])
-			}
-		}
+	for name in all_case_names {
+		if name in existing_cases {continue} 	//covered by prev loop
+		fmt.sbprintln(b, "case ", dot, name, ":", sep = "")
 	}
 	fmt.sbprint(b, "}")
 	return TextEdit{range = range, newText = strings.to_string(replacement_builder)}, true
@@ -341,7 +336,11 @@ add_populate_switch_cases_action :: proc(
 	uri: string,
 	actions: ^[dynamic]CodeAction,
 ) {
-	existing_cases, all_case_names, is_enum, ok := get_switch_cases_info(document, ast_context, position_context)
+	existing_cases, existing_case_order, all_case_names, is_enum, ok := get_switch_cases_info(
+		document,
+		ast_context,
+		position_context,
+	)
 	if !ok {return}
 	all_cases_covered := true
 	for name in all_case_names {
@@ -350,7 +349,13 @@ add_populate_switch_cases_action :: proc(
 		}
 	}
 	if all_cases_covered {return} 	//action not needed
-	edit, edit_ok := create_populate_switch_cases_edit(position_context, existing_cases, all_case_names, is_enum)
+	edit, edit_ok := create_populate_switch_cases_edit(
+		position_context,
+		existing_cases,
+		existing_case_order,
+		all_case_names,
+		is_enum,
+	)
 	if !edit_ok {return}
 	textEdits := make([dynamic]TextEdit, context.temp_allocator)
 	append(&textEdits, edit)
