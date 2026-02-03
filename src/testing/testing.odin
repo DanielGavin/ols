@@ -68,6 +68,9 @@ setup :: proc(src: ^Source) {
 
 	server.setup_index()
 
+	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
+	server.indexer.index.collection.config = &src.config
+
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil)
@@ -318,6 +321,50 @@ expect_completion_insert_text :: proc(
 	}
 }
 
+expect_completion_edit_text :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	label: string,
+	expected_text: string,
+) {
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	found := false
+	for completion in completion_list.items {
+		if completion.label == label {
+			found = true
+			if text_edit, has_edit := completion.textEdit.(server.TextEdit); has_edit {
+				if text_edit.newText != expected_text {
+					log.errorf(
+						"Completion '%v' expected textEdit.newText %q, but received %q",
+						label,
+						expected_text,
+						text_edit.newText,
+					)
+				}
+			} else {
+				log.errorf("Completion '%v' has no textEdit", label)
+			}
+			break
+		}
+	}
+	if !found {
+		log.errorf("Expected completion label '%v' not found in %v", label, completion_list.items)
+	}
+}
+
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src)
 	defer teardown(src)
@@ -346,7 +393,7 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_definition_location(src.document, src.position)
+	locations, ok := server.get_definition_location(src.document, src.position, &src.config)
 
 	if !ok {
 		log.error("Failed get_definition_location")
@@ -504,6 +551,44 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 			log.errorf("Expected action %v, but received %v", expect_action_names[i], actions)
 		}
 	}
+}
+
+expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range {
+		start = src.position,
+		end   = src.position,
+	}
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title == action_name {
+			// Get the text edit for the document
+			if edits, found := action.edit.changes[src.document.uri.uri]; found {
+				if len(edits) > 0 {
+					actual_text := edits[0].newText
+					testing.expectf(
+						t,
+						actual_text == expected_new_text,
+						"\nExpected edit text:\n%s\n\nGot:\n%s",
+						expected_new_text,
+						actual_text,
+					)
+					return
+				}
+			}
+			log.errorf("Action '%s' found but has no edits", action_name)
+			return
+		}
+	}
+
+	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
 }
 
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {

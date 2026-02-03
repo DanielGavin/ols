@@ -42,7 +42,7 @@ get_all_package_file_locations :: proc(
 	return true
 }
 
-get_definition_location :: proc(document: ^Document, position: common.Position) -> ([]common.Location, bool) {
+get_definition_location :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> ([]common.Location, bool) {
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	location: common.Location
@@ -100,6 +100,14 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 		}
 
 		if resolved, ok := resolve_location_selector(&ast_context, position_context.selector_expr); ok {
+			if config.enable_overload_resolution {
+				resolved = try_resolve_proc_group_overload(
+					&ast_context,
+					&position_context,
+					resolved,
+					position_context.selector_expr,
+				)
+			}
 			location.range = resolved.range
 			uri = resolved.uri
 		} else {
@@ -139,12 +147,12 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 			&ast_context,
 			position_context.identifier.derived.(^ast.Ident)^,
 		); ok {
+			if config.enable_overload_resolution {
+				resolved = try_resolve_proc_group_overload(&ast_context, &position_context, resolved)
+			}
 			if v, ok := resolved.value.(SymbolAggregateValue); ok {
 				for symbol in v.symbols {
-					append(&locations, common.Location {
-						range = symbol.range,
-						uri = symbol.uri,
-					})
+					append(&locations, common.Location{range = symbol.range, uri = symbol.uri})
 				}
 			}
 			location.range = resolved.range
@@ -166,4 +174,115 @@ get_definition_location :: proc(document: ^Document, position: common.Position) 
 	append(&locations, location)
 
 	return locations[:], true
+}
+
+
+try_resolve_proc_group_overload :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+	selector_expr: ^ast.Node = nil,
+) -> Symbol {
+	if position_context.call == nil {
+		return symbol
+	}
+
+	call, is_call := position_context.call.derived.(^ast.Call_Expr)
+	if !is_call {
+		return symbol
+	}
+
+	if position_in_exprs(call.args, position_context.position) {
+		return symbol
+	}
+
+	// For selector expressions, we need to look up the full symbol to check if it's a proc group
+	full_symbol := symbol
+	if result, ok := get_full_symbol_from_selector(ast_context, selector_expr, symbol); ok {
+		full_symbol = result
+	} else if result, ok := get_full_symbol_from_identifier(ast_context, position_context, symbol); ok {
+		full_symbol = result
+	}
+
+	proc_group_value, is_proc_group := full_symbol.value.(SymbolProcedureGroupValue)
+	if !is_proc_group {
+		return symbol
+	}
+
+	old_call := ast_context.call
+	ast_context.call = call
+	defer {
+		ast_context.call = old_call
+	}
+
+	if resolved, ok := resolve_function_overload(ast_context, proc_group_value.group.derived.(^ast.Proc_Group)); ok {
+		if resolved.name != "" {
+			if global, ok := ast_context.globals[resolved.name]; ok {
+				resolved.range = common.get_token_range(global.name_expr, ast_context.file.src)
+				resolved.uri = common.create_uri(global.name_expr.pos.file, ast_context.allocator).uri
+			} else if indexed_symbol, ok := lookup(resolved.name, resolved.pkg, ast_context.fullpath); ok {
+				resolved.range = indexed_symbol.range
+				resolved.uri = indexed_symbol.uri
+			}
+		}
+		return resolved
+	}
+
+	return symbol
+}
+
+get_full_symbol_from_selector :: proc(
+	ast_context: ^AstContext,
+	selector_expr: ^ast.Node,
+	symbol: Symbol,
+) -> (
+	full_symbol: Symbol,
+	ok: bool,
+) {
+	if selector_expr == nil do return
+
+	selector := selector_expr.derived.(^ast.Selector_Expr) or_return
+
+	_, is_pkg := symbol.value.(SymbolPackageValue)
+	if !is_pkg && symbol.value != nil do return
+
+	if selector.field == nil do return
+
+	ident := selector.field.derived.(^ast.Ident) or_return
+
+	return lookup(ident.name, symbol.pkg, ast_context.fullpath);
+}
+
+get_full_symbol_from_identifier :: proc(
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+	symbol: Symbol,
+) -> (
+	full_symbol: Symbol,
+	ok: bool,
+) {
+	if position_context.identifier == nil || symbol.value != nil do return
+
+	// For identifiers (non-selector), the symbol from resolve_location_identifier may not have
+	// value set (e.g., for globals). We need to do a lookup to get the full symbol.
+	ident := position_context.identifier.derived.(^ast.Ident) or_return
+
+	pkg := symbol.pkg if symbol.pkg != "" else ast_context.document_package
+
+	if pkg_symbol, ok := lookup(ident.name, pkg, ast_context.fullpath); ok {
+		return pkg_symbol, true
+	}
+
+	// If lookup fails (e.g., in tests without full indexing), try checking if it's a proc group
+
+	global := ast_context.globals[ident.name] or_return
+	if proc_group, is_proc_group := global.expr.derived.(^ast.Proc_Group); is_proc_group {
+		full_symbol = symbol
+		full_symbol.value = SymbolProcedureGroupValue {
+			group = global.expr,
+		}
+		return full_symbol, true
+	}
+
+	return Symbol{}, false
 }

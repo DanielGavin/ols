@@ -376,6 +376,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
 	config.enable_comp_lit_signature_help =
 		ols_config.enable_comp_lit_signature_help.(bool) or_else config.enable_comp_lit_signature_help
+	config.enable_comp_lit_signature_help_use_docs =
+		ols_config.enable_comp_lit_signature_help_use_docs.(bool) or_else config.enable_comp_lit_signature_help_use_docs
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
@@ -452,6 +454,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
+	config.enable_overload_resolution =
+		ols_config.enable_overload_resolution.(bool) or_else config.enable_overload_resolution
 
 	// Delete overriding collections.
 	for it in ols_config.collections {
@@ -859,7 +863,7 @@ request_definition :: proc(
 		return .InternalError
 	}
 
-	locations, ok2 := get_definition_location(document, definition_params.position)
+	locations, ok2 := get_definition_location(document, definition_params.position, config)
 
 	if !ok2 {
 		log.warn("Failed to get definition location")

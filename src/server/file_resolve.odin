@@ -1,3 +1,4 @@
+#+feature using-stmt
 package server
 
 import "core:odin/ast"
@@ -58,7 +59,7 @@ resolve_ranged_file :: proc(
 		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
 			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, allocator)
 			clear(&ast_context.locals)
-		}	
+		}
 	}
 
 	return symbols
@@ -512,6 +513,9 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.struct_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
+		for clause in n.where_clauses {
+			resolve_node(clause, data)
+		}
 		resolve_node(n.fields, data)
 
 		if data.flag != .None {

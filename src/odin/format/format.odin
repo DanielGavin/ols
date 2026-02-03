@@ -49,6 +49,26 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 	return config
 }
 
+// Tries to read the config file from a given path instead
+// of searching for it up a directory tree of a path
+read_config_file_from_path_or_default :: proc(config_path: string) -> printer.Config {
+    path := config_path
+    ok: bool
+	if path, ok = filepath.abs(config_path); !ok {
+		return default_style
+	}
+    config := default_style
+    if (os.exists(path)) {
+        if data, ok := os.read_entire_file(path, context.temp_allocator); ok {
+            if json.unmarshal(data, &config) == nil {
+                return config
+            }
+        }
+    }
+
+    return default_style
+}
+
 format :: proc(
 	filepath: string,
 	source: string,

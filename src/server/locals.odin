@@ -1,3 +1,4 @@
+#+feature using-stmt
 package server
 
 import "core:log"
@@ -6,6 +7,7 @@ import "core:odin/ast"
 LocalFlag :: enum {
 	Mutable, // or constant
 	Variable, // or type
+	PolyType,
 }
 
 DocumentLocal :: struct {
@@ -1066,6 +1068,11 @@ get_locals_proc_param_and_results :: proc(
 	if proc_lit.type != nil && proc_lit.type.params != nil {
 		for arg in proc_lit.type.params.list {
 			for name in arg.names {
+				flags: bit_set[LocalFlag] = {.Mutable}
+				if _, ok := name.derived.(^ast.Poly_Type); ok {
+					flags |= {.PolyType}
+				}
+
 				if arg.type != nil {
 					str := get_ast_node_string(name, file.src)
 					store_local(
@@ -1076,7 +1083,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						{.Mutable},
+						flags,
 						"",
 						true,
 					)
@@ -1097,7 +1104,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						{.Mutable},
+						flags,
 						"",
 						true,
 					)

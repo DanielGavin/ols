@@ -1,3 +1,4 @@
+#+feature using-stmt
 package server
 
 import "core:log"
@@ -61,7 +62,7 @@ DocumentPositionContext :: struct {
 	import_stmt:            ^ast.Import_Decl,
 	type_cast:              ^ast.Type_Cast,
 	call_commas:            []int,
-	directive:				^ast.Basic_Directive,
+	directive:              ^ast.Basic_Directive,
 }
 
 
@@ -845,6 +846,11 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		position_context.struct_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
+		for clause in n.where_clauses {
+			if position_in_node(clause, position_context.position) {
+				get_document_position(clause, position_context)
+			}
+		}
 		get_document_position(n.fields, position_context)
 	case ^Union_Type:
 		position_context.union_type = n

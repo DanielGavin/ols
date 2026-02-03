@@ -36,6 +36,8 @@ cd ols
 ./odinfmt.sh
 ```
 
+In order for `ols` to find symbols for builtin types and procedures, the `builtin` folder in the repo needs to be located next to the `ols` binary.
+
 ### Configuration
 
 In order for the language server to index your files, it must know about your collections.
@@ -77,6 +79,8 @@ Options:
 
 - `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
 
+- `enable_overload_resolution`: Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.
+
 - `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
 - `enable_document_highlights`: Turns on highlighting of symbol references in file. _(Enabled by default)_
@@ -102,6 +106,8 @@ Options:
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
 - `enable_comp_lit_signature_help`: Provide signature help for comp lits such as when instantiating structs. Will not display correctly on some editors such as vscode.
+
+- `enable_comp_lit_signature_help_use_docs`: Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.
 
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 

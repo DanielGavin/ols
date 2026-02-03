@@ -1,5 +1,6 @@
 package server
 
+import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
@@ -30,7 +31,7 @@ SignatureHelp :: struct {
 
 SignatureInformation :: struct {
 	label:         string,
-	documentation: string,
+	documentation: MarkupContent,
 	parameters:    []ParameterInformation,
 }
 
@@ -105,14 +106,21 @@ get_signature_information :: proc(
 
 	if config.enable_comp_lit_signature_help {
 		if symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
-			build_documentation(&ast_context, &symbol, short_signature = false)
-			append(
-				&signature_information,
-				SignatureInformation {
-					label = get_signature(symbol),
-					documentation = construct_symbol_docs(symbol, markdown = false),
-				},
-			)
+			if config.enable_comp_lit_signature_help_use_docs {
+				build_documentation(&ast_context, &symbol, short_signature = true)
+				signature := get_signature(symbol)
+				build_documentation(&ast_context, &symbol, short_signature = false)
+				append(
+					&signature_information,
+					SignatureInformation{label = signature, documentation = write_hover_content(&ast_context, symbol)},
+				)
+			} else {
+				build_documentation(&ast_context, &symbol, short_signature = false)
+				append(
+					&signature_information,
+					SignatureInformation{label = get_signature(symbol), documentation = write_markdown_doc(symbol)},
+				)
+			}
 		}
 	}
 
@@ -176,7 +184,7 @@ add_proc_signature :: proc(
 
 		info := SignatureInformation {
 			label         = get_signature(call),
-			documentation = construct_symbol_docs(call, markdown = false),
+			documentation = write_markdown_doc(call),
 			parameters    = parameters,
 		}
 		append(signature_information, info)
@@ -204,7 +212,7 @@ add_proc_signature :: proc(
 
 				info := SignatureInformation {
 					label         = get_signature(symbol),
-					documentation = construct_symbol_docs(symbol, markdown = false),
+					documentation = write_markdown_doc(symbol),
 					parameters    = parameters,
 				}
 
@@ -213,4 +221,10 @@ add_proc_signature :: proc(
 		}
 	}
 	return active_parameter
+}
+
+@(private = "file")
+write_markdown_doc :: proc(symbol: Symbol) -> MarkupContent {
+	doc := construct_symbol_docs(symbol)
+	return MarkupContent{kind = "markdown", value = fmt.tprintf(DOC_FMT_ODIN, doc)}
 }

@@ -28,7 +28,7 @@ ast_simple_struct_completion :: proc(t: ^testing.T) {
 		t,
 		&source,
 		".",
-		{"My_Struct.one: int", "My_Struct.two: int\n// test comment", "My_Struct.three: int"},
+		{"My_Struct.one: int", "My_Struct.two: int\n---\ntest comment", "My_Struct.three: int"},
 	)
 }
 
@@ -3296,7 +3296,7 @@ ast_completion_struct_documentation :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, "", {"Foo.bazz: my_package.My_Struct\n// bazz"})
+	test.expect_completion_docs(t, &source, "", {"Foo.bazz: my_package.My_Struct\n---\nbazz"})
 }
 
 @(test)
@@ -3417,7 +3417,7 @@ ast_completion_poly_struct_another_package :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, "", {"Runner.state: test.State\n// state"})
+	test.expect_completion_docs(t, &source, "", {"Runner.state: test.State\n---\nstate"})
 }
 
 @(test)
@@ -5298,4 +5298,205 @@ ast_completion_struct_using_named_vector_types :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.bar: [3]f32", "r: f32", "x: f32"})
+}
+
+@(test)
+ast_completion_parapoly_struct_with_parapoly_child :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		SomeEnum :: enum {
+			enumVal1,
+			enumVal2
+		}
+
+		ChildStruct:: struct($enumGeneric: typeid){
+			Something : string,
+			GenericParam: enumGeneric
+		}
+
+		ParentStruct :: struct($enumGeneric: typeid){
+			ParentSomething: string,
+			Child: ChildStruct(enumGeneric)
+		}
+
+		TestGenericStructs :: proc(){
+			parent : ParentStruct(SomeEnum) = {};
+			parent.Child.{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"ChildStruct.GenericParam: test.SomeEnum", "ChildStruct.Something: string"})
+}
+
+@(test)
+ast_completion_fake_method_simple :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		double :: proc(x: int) -> int { return x * 2 }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'double' as a fake method for int
+	test.expect_completion_labels(t, &source, ".", {"double"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		add_int :: proc(a, b: int) -> int { return a + b }
+		add_something :: proc(a: int, b: string) {}
+		add_float :: proc(a, b: f32) -> f32 { return a + b }
+		add :: proc { add_float, add_int, add_something }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'add' (the proc group), not 'add_int' or 'add_something' (individual procs)
+	test.expect_completion_labels(t, &source, ".", {"add"}, {"add_int", "add_something"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group_only_shows_group :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			s: methods.My_Struct
+			s.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		My_Struct :: struct { x: int }
+
+		do_thing_int :: proc(s: My_Struct, v: int) {}
+		do_thing_str :: proc(s: My_Struct, v: string) {}
+		do_thing :: proc { do_thing_int, do_thing_str }
+
+		// standalone proc not in a group
+		standalone_method :: proc(s: My_Struct) {}
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Should show 'do_thing' (group) and 'standalone_method', but NOT 'do_thing_int' or 'do_thing_str'
+	test.expect_completion_labels(t, &source, ".", {"do_thing", "standalone_method"}, {"do_thing_int", "do_thing_str"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group_with_only_one_proc :: proc(t: ^testing.T) {
+	// This is to verify that even if a proc group has only one member,
+	// it still shows up as a group and does not show the individual proc.
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			s: methods.My_Struct
+			s.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		My_Struct :: struct { x: int }
+
+		do_thing_int :: proc(s: My_Struct, v: int) {}
+		do_thing :: proc { do_thing_int }
+
+		// standalone proc not in a group
+		standalone_method :: proc(s: My_Struct) {}
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	
+	test.expect_completion_labels(t, &source, ".", {"do_thing", "standalone_method"}, {"do_thing_int" })
+}
+
+@(test)
+ast_completion_fake_method_builtin_type_uses_builtin_pkg :: proc(t: ^testing.T) {
+	// This test verifies that fake methods for builtin types (int, f32, string, etc.)
+	// are correctly looked up using "$builtin" as the package, not the package where
+	// the variable is declared. Without this fix, the method lookup would fail because:
+	// - Storage: method stored with key {pkg = "$builtin", name = "int"}
+	// - Lookup (wrong): would use {pkg = "test", name = "int"} based on variable's declaring package
+	// - Lookup (correct): uses {pkg = "$builtin", name = "int"} for builtin types
+	source := test.Source {
+		main = `package test
+		import "math_utils"
+		main :: proc() {
+			x: f32
+			x.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "math_utils",
+				source = `package math_utils
+		square :: proc(v: f32) -> f32 { return v * v }
+		cube :: proc(v: f32) -> f32 { return v * v * v }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Both methods should appear as fake methods for f32, proving that
+	// the lookup correctly uses "$builtin" instead of "test" for the package
+	test.expect_completion_labels(t, &source, ".", {"square", "cube"})
+}
+
+@(test)
+ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			n: int
+			n.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+		// All members only take a single argument (the receiver)
+		negate_a :: proc(x: int) -> int { return -x }
+		negate_b :: proc(x: int) -> int { return 0 - x }
+		negate :: proc { negate_a, negate_b }
+		`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// The proc group 'negate' should have cursor AFTER parentheses since no additional args
+	test.expect_completion_edit_text(t, &source, ".", "negate", "methods.negate(n)$0")
 }
