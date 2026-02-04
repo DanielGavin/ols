@@ -9,7 +9,7 @@ import "core:strings"
 import "src:common"
 
 
-// Get the indentation (leading whitespace) of the line containing the given offset
+// Get the offset of the start of the line containing the given offset
 get_line_start_offset :: proc(src: string, offset: int) -> int {
 	line_start := offset
 	for line_start > 0 && src[line_start - 1] != '\n' {
@@ -63,18 +63,21 @@ get_switch_cases_info :: proc(
 	for stmt in switch_block.stmts {
 		if case_clause, ok := stmt.derived.(^ast.Case_Clause); ok {
 			case_name := ""
-			for name in case_clause.list {
+			for clause in case_clause.list {
 				if is_enum {
-					if implicit, ok := name.derived.(^ast.Implicit_Selector_Expr); ok {
-						case_name = implicit.field.name
+					if name, ok := get_used_switch_name(clause); ok {
+						case_name = name
 						break
 					}
 				} else {
 					reset_ast_context(ast_context)
-					if ty, ok := resolve_type_expression(ast_context, name); ok {
+					if symbol, ok := resolve_type_expression(ast_context, clause); ok {
+						case_name = get_qualified_union_case_name(&symbol, ast_context, position_context)
 						//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 						//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
-						case_name = ty.name != "" ? ty.name : get_signature(ast_context, ty)
+						if case_name == "" {
+							case_name = get_signature(ast_context, symbol)
+						}
 						break
 					}
 				}
@@ -107,10 +110,14 @@ get_switch_cases_info :: proc(
 		case_names := make([]string, len(union_value.types), context.temp_allocator)
 		for t, i in union_value.types {
 			reset_ast_context(ast_context)
-			if ty, ok := resolve_type_expression(ast_context, t); ok {
+			if symbol, ok := resolve_type_expression(ast_context, t); ok {
+				case_name := get_qualified_union_case_name(&symbol, ast_context, position_context)
 				//TODO: this is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 				//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
-				case_names[i] = ty.name != "" ? ty.name : get_signature(ast_context, ty)
+				if case_name == "" {
+					case_name = get_signature(ast_context, symbol)
+				}
+				case_names[i] = case_name
 			} else {
 				case_names[i] = "invalid type expression"
 			}
