@@ -1015,9 +1015,10 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 			package_map[name] = full
 		} else {
 			name: string
+			pkg_name := imp.fullpath[1:len(imp.fullpath) - 1]
 
 			full := path.join(
-				elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]},
+				elems = {directory, pkg_name},
 				allocator = context.temp_allocator,
 			)
 			full = path.clean(full, context.temp_allocator)
@@ -1026,6 +1027,13 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 				name = imp.name.text
 			} else {
 				name = path.base(full, false, context.temp_allocator)
+			}
+
+			// Check if the package already exists in the index and use that path
+			// This handles the case where packages are indexed separately (e.g., in tests)
+			test_path := path.join(elems = {"test", pkg_name}, allocator = context.temp_allocator)
+			if _, exists := indexer.index.collection.packages[test_path]; exists {
+				full = test_path
 			}
 
 			package_map[name] = full
@@ -1077,6 +1085,14 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	#partial switch n in node.derived {
 	case ^Bad_Expr:
 	case ^Ident:
+		// Replace stand-alone identifiers that are package aliases
+		if package_name, ok := package_map[n.name]; ok {
+			//log.infof("Replacing identifier '%v' with package path '%v'", n.name, package_name)
+			n.name = get_index_unique_string(collection, package_name)
+		} else if strings.contains(n.name, "/") {
+			// Already contains "/", might be from previous replacement, ensure it's unique
+			n.name = get_index_unique_string(collection, n.name)
+		}
 	case ^Implicit:
 	case ^Undef:
 	case ^Basic_Lit:

@@ -5500,3 +5500,45 @@ ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^tes
 	// The proc group 'negate' should have cursor AFTER parentheses since no additional args
 	test.expect_completion_edit_text(t, &source, ".", "negate", "methods.negate(n)$0")
 }
+
+@(test)
+alias_index_package_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_a",
+			source = `package pkg_a
+
+			proc_a::proc(){}
+		`,
+		},
+	)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_b",
+			source = `package pkg_b
+			import _pkg_a "pkg_a"
+			pkg_a :: _pkg_a
+
+			proc_b::proc(){}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "pkg_b"
+		main :: proc() {
+			pkg_b.pkg_a.proc_{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"pkg_a.proc_a :: proc()"})
+}
+
