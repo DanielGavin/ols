@@ -6024,6 +6024,16 @@ ast_hover_proc_poly_params_where_clause :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.$T: int")
 }
+
+@(test)
+ast_hover_constant_unary_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		F{*}OO :: ~u32(0)
+		`,
+	}
+	test.expect_hover(t, &source, "test.FOO :: ~u32(0)")
+}
 /*
 
 Waiting for odin fix
