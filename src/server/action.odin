@@ -73,7 +73,6 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 
 	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
 		add_populate_switch_cases_action(
-			document,
 			&ast_context,
 			&position_context,
 			strings.clone(document.uri.uri),
