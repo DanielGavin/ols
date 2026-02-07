@@ -1943,10 +1943,30 @@ get_used_switch_name :: proc(node: ^ast.Expr) -> (string, bool) {
 		return n.name, true
 	case ^ast.Selector_Expr:
 		return n.field.name, true
+	case ^ast.Implicit_Selector_Expr:
+		return n.field.name, true
 	case ^ast.Pointer_Type:
 		return get_used_switch_name(n.elem)
 	}
 	return "", false
+}
+
+//handles pointers / packages
+get_qualified_union_case_name :: proc(
+	symbol: ^Symbol,
+	ast_context: ^AstContext,
+	position_context: ^DocumentPositionContext,
+) -> string {
+	if symbol.pkg == ast_context.document_package {
+		return fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), symbol.name)
+	} else {
+		return fmt.aprintf(
+			"%v%v.%v",
+			repeat("^", symbol.pointers, context.temp_allocator),
+			get_symbol_pkg_name(ast_context, symbol),
+			symbol.name,
+		)
+	}
 }
 
 get_type_switch_completion :: proc(
@@ -1977,7 +1997,8 @@ get_type_switch_completion :: proc(
 		if union_value, ok := unwrap_union(ast_context, assign.rhs[0]); ok {
 			for type, i in union_value.types {
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
-
+					//TODO: using symbol.name is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
+					//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
 					name := symbol.name
 					if _, ok := used_unions[name]; ok {
 						continue
@@ -1986,19 +2007,8 @@ get_type_switch_completion :: proc(
 					item := CompletionItem {
 						kind = .EnumMember,
 					}
-
-					if symbol.pkg == ast_context.document_package {
-						item.label = fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), name)
-						item.detail = item.label
-					} else {
-						item.label = fmt.aprintf(
-							"%v%v.%v",
-							repeat("^", symbol.pointers, context.temp_allocator),
-							get_symbol_pkg_name(ast_context, &symbol),
-							name,
-						)
-						item.detail = item.label
-					}
+					item.label = get_qualified_union_case_name(&symbol, ast_context, position_context)
+					item.detail = item.label
 					if position_context.implicit_selector_expr != nil {
 						if remove_edit, ok := create_implicit_selector_remove_edit(position_context); ok {
 							item.additionalTextEdits = remove_edit

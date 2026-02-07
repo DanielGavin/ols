@@ -238,6 +238,7 @@ generate_inverted_if :: proc(document: ^Document, if_stmt: ^ast.If_Stmt) -> (str
 }
 
 // Get the indentation (leading whitespace) of the line containing the given offset
+@(private="package")
 get_line_indentation :: proc(src: string, offset: int) -> string {
 	line_start := offset
 	for line_start > 0 && src[line_start - 1] != '\n' {
