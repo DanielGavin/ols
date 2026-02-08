@@ -894,7 +894,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 			for arg, i in call_expr.args {
 				if ident, ok := arg.derived.(^ast.Ident); ok {
 					if expr, ok := poly_map[ident.name]; ok {
-						symbol_value.types[i] = expr
+						call_expr.args[i] = expr
 					}
 				}
 			}
