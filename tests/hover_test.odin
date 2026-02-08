@@ -6034,6 +6034,27 @@ ast_hover_constant_unary_expr :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.FOO :: ~u32(0)")
 }
+
+@(test)
+ast_hover_union_multiple_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct($T: typeid) {}
+		Bar :: struct{}
+
+		Bazz :: union($T: typeid) {
+			Foo(T),
+			Bar,
+		}
+
+		main :: proc() {
+			T :: distinct int
+			bazz: Ba{*}zz(T)
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Bazz :: union(T) {\n\tFoo(T),\n\tBar,\n}")
+}
 /*
 
 Waiting for odin fix
