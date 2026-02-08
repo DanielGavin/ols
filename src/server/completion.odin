@@ -1957,17 +1957,36 @@ get_qualified_union_case_name :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 ) -> string {
-	if symbol.pkg == ast_context.document_package {
-		return fmt.aprintf("%v%v", repeat("^", symbol.pointers, context.temp_allocator), symbol.name)
-	} else {
-		return fmt.aprintf(
-			"%v%v.%v",
-			repeat("^", symbol.pointers, context.temp_allocator),
-			get_symbol_pkg_name(ast_context, symbol),
-			symbol.name,
-		)
+	sb := strings.builder_make(context.temp_allocator)
+	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
+	strings.write_string(&sb, pointer_prefix)
+	if symbol.pkg != ast_context.document_package {
+		strings.write_string(&sb, get_symbol_pkg_name(ast_context, symbol))
+	}
+	strings.write_string(&sb, symbol.name)
+	#partial switch v in symbol.value {
+	case SymbolUnionValue:
+		write_poly_names(&sb, v.poly_names)
+	case SymbolStructValue:
+		write_poly_names(&sb, v.poly_names)
+	}
+
+	return strings.to_string(sb)
+}
+
+write_poly_names :: proc(sb: ^strings.Builder, poly_names: []string) {
+	if len(poly_names) > 0 {
+		strings.write_string(sb, "(")
+		for name, i in poly_names {
+			strings.write_string(sb, name)
+			if i != len(poly_names) - 1 {
+				strings.write_string(sb, ", ")
+			}
+		}
+		strings.write_string(sb, ")")
 	}
 }
+
 
 get_type_switch_completion :: proc(
 	ast_context: ^AstContext,
