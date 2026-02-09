@@ -1961,7 +1961,8 @@ get_qualified_union_case_name :: proc(
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
 	strings.write_string(&sb, pointer_prefix)
 	if symbol.pkg != ast_context.document_package {
-		strings.write_string(&sb, get_symbol_pkg_name(ast_context, symbol), ".")
+		strings.write_string(&sb, get_symbol_pkg_name(ast_context, symbol))
+		strings.write_string(&sb, ".")
 	}
 	strings.write_string(&sb, symbol.name)
 	#partial switch v in symbol.value {
