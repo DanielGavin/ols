@@ -1812,6 +1812,12 @@ get_identifier_completion :: proc(
 		symbol := Symbol {
 			name = pkg.base,
 			type = .Package,
+			pkg = pkg.name,
+			value = SymbolPackageValue{},
+		}
+		try_build_package(symbol.pkg)
+		if resolved, ok := resolve_symbol_return(ast_context, symbol); ok {
+			symbol = resolved
 		}
 
 		if score, ok := common.fuzzy_match(matcher, symbol.name); ok == 1 {
