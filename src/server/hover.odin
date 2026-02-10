@@ -59,6 +59,22 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		return {}, false, true
 	}
 
+	if document.ast.pkg_decl != nil && position_in_node(document.ast.pkg_decl, position_context.position) {
+		symbol := Symbol {
+			name  = document.ast.pkg_name,
+			type  = .Package,
+			pkg   = ast_context.document_package,
+			value = SymbolPackageValue{},
+		}
+		try_build_package(symbol.pkg)
+		if symbol, ok = resolve_symbol_return(&ast_context, symbol); ok {
+			hover.range = common.get_token_range(document.ast.pkg_decl, ast_context.file.src)
+			hover.contents = write_hover_content(&ast_context, symbol)
+			return hover, true, true
+		}
+
+	}
+
 	if position_context.type_cast != nil &&
 	   !position_in_node(position_context.type_cast.type, position_context.position) &&
 	   !position_in_node(position_context.type_cast.expr, position_context.position) { 	// check that we're actually on the 'cast' word
