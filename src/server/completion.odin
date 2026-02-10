@@ -966,9 +966,17 @@ get_selector_completion :: proc(
 	case SymbolPackageValue:
 		is_incomplete = true
 
-		pkg := selector.pkg
+		packages := make([dynamic]string, context.temp_allocator)
+		if is_builtin_pkg(selector.pkg) {
+			append(&packages, "$builtin")
+			for built in indexer.builtin_packages {
+				append(&packages, built)
+			}
+		} else {
+			append(&packages, selector.pkg)
+		}
 
-		if searched, ok := fuzzy_search(field, {pkg}, ast_context.fullpath); ok {
+		if searched, ok := fuzzy_search(field, packages[:], ast_context.fullpath); ok {
 			for search in searched {
 				symbol := search.symbol
 
