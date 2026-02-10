@@ -6075,6 +6075,36 @@ ast_hover_poly_proc_passthrough :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.value: int")
 }
+
+@(test)
+ast_hover_parapoly_overloaded_proc_with_bitfield :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Entry :: struct($T, $H: typeid) {
+			handle: H,
+		}
+
+		SmallHandle :: bit_field int {
+			valid:      bool | 1,
+			generation: int  | 7,
+			index:      int  | 24,
+		}
+
+		make :: proc {
+			makeEntry,
+		}
+
+		makeEntry :: proc($T: typeid/Entry($D, $H), handle: H) -> (entry: T) {
+			return
+		}
+
+		main :: proc() {
+			e{*}ntry := make(Entry(int, SmallHandle), SmallHandle{})
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.entry: test.Entry(int, SmallHandle)")
+}
 /*
 
 Waiting for odin fix

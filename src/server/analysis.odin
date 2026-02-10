@@ -438,7 +438,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 	case SymbolBasicValue:
 		b_value := b.value.(SymbolBasicValue)
 		return a_value.ident.name == b_value.ident.name && a.pkg == b.pkg
-	case SymbolStructValue, SymbolEnumValue, SymbolUnionValue, SymbolBitSetValue:
+	case SymbolStructValue, SymbolEnumValue, SymbolUnionValue, SymbolBitSetValue, SymbolBitFieldValue:
 		return a.name == b.name && a.pkg == b.pkg
 	case SymbolSliceValue:
 		b_value := b.value.(SymbolSliceValue)
