@@ -6055,6 +6055,26 @@ ast_hover_union_multiple_poly :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Bazz :: union(T) {\n\tFoo(T),\n\tBar,\n}")
 }
+
+@(test)
+ast_hover_poly_proc_passthrough :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		make :: proc() -> (int, bool) {
+			return 1, true
+		}
+
+		confirm_bool_one :: #force_inline proc(v: $T, ok: $B) -> (T, bool) {
+			return v, bool(ok)
+		}
+
+		main :: proc() {
+			v{*}alue, ok := confirm_bool_one(make())
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.value: int")
+}
 /*
 
 Waiting for odin fix

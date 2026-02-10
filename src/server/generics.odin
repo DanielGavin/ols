@@ -503,6 +503,18 @@ resolve_generic_function_ast :: proc(
 	return resolve_generic_function_symbol(ast_context, params, results, proc_lit.inlining, proc_symbol)
 }
 
+get_proc_return_value_count :: proc(fields: []^ast.Field) -> int {
+	total := 0
+	for field in fields {
+		if len(field.names) == 0 {
+			total += 1
+		} else {
+			total += len(field.names)
+		}
+	}
+
+	return total
+}
 
 resolve_generic_function_symbol :: proc(
 	ast_context: ^AstContext,
@@ -524,6 +536,8 @@ resolve_generic_function_symbol :: proc(
 
 	i := 0
 	count_required_params := 0
+	// Total number of args passed in the call when expanded to include functions that may return multiple values
+	call_arg_count := 0
 
 	for param in params {
 		if param.default_value == nil {
@@ -560,6 +574,7 @@ resolve_generic_function_symbol :: proc(
 
 				//If we have a function call, we should instead look at the return value: bar(foo(123))
 				if symbol_value, ok := symbol.value.(SymbolProcedureValue); ok && len(symbol_value.return_types) > 0 {
+					call_arg_count += get_proc_return_value_count(symbol_value.return_types)
 					if _, ok := call_expr.args[i].derived.(^ast.Call_Expr); ok {
 						if symbol_value.return_types[0].type != nil {
 							if symbol, ok = resolve_type_expression(ast_context, symbol_value.return_types[0].type);
@@ -575,6 +590,8 @@ resolve_generic_function_symbol :: proc(
 							}
 						}
 					}
+				} else {
+					call_arg_count += 1
 				}
 
 				// We set the offset so we can find it as a local if it's based on the type of a local var
@@ -600,7 +617,7 @@ resolve_generic_function_symbol :: proc(
 		find_and_replace_poly_type(v, &poly_map)
 	}
 
-	if count_required_params > len(call_expr.args) || count_required_params == 0 || len(call_expr.args) == 0 {
+	if count_required_params > call_arg_count || count_required_params == 0 || call_arg_count == 0 {
 		return {}, false
 	}
 
