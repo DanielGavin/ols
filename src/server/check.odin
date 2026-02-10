@@ -148,7 +148,7 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 				entry_point_opt,
 				config.checker_args,
 				"-json-errors",
-				ODIN_OS == .Linux || ODIN_OS == .Darwin ? "2>&1" : "",
+				ODIN_OS in runtime.Odin_OS_Types{.Linux, .Darwin, .FreeBSD, .OpenBSD, .NetBSD} ? "2>&1" : "",
 			),
 			&data,
 		); !ok {
