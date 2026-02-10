@@ -42,11 +42,38 @@ should_skip_private_symbol :: proc(symbol: Symbol, current_pkg, current_file: st
 	return false
 }
 
+is_builtin_pkg :: proc(pkg: string) -> bool {
+	return strings.equal_fold(pkg, "$builtin") || strings.has_suffix(pkg, "/builtin")
+}
+
+lookup_builtin_symbol :: proc(name: string, current_file: string) -> (Symbol, bool) {
+	if symbol, ok := lookup_symbol(name, "$builtin", current_file); ok {
+		return symbol, true
+	}
+
+	for built in indexer.builtin_packages {
+		if symbol, ok := lookup_symbol(name, built, current_file); ok {
+			return symbol, true
+		}
+	}
+
+	return {}, false
+}
+
 lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_location) -> (Symbol, bool) {
 	if name == "" {
 		return {}, false
 	}
 
+	if is_builtin_pkg(pkg) {
+		return lookup_builtin_symbol(name, current_file)
+	}
+
+	return lookup_symbol(name, pkg, current_file)
+}
+
+@(private = "file")
+lookup_symbol ::proc(name: string, pkg: string, current_file: string) -> (Symbol, bool) {
 	if symbol, ok := memory_index_lookup(&indexer.index, name, pkg); ok {
 		current_pkg := get_package_from_filepath(current_file)
 		if should_skip_private_symbol(symbol, current_pkg, current_file) {
