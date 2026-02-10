@@ -1812,7 +1812,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 			try_build_package(symbol.pkg)
 
-			return symbol, true
+			return resolve_symbol_return(ast_context, symbol)
 		}
 	}
 
@@ -1823,8 +1823,9 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			pkg   = indexer.runtime_package,
 			value = SymbolPackageValue{},
 		}
+		try_build_package(symbol.pkg)
 
-		return symbol, true
+		return resolve_symbol_return(ast_context, symbol)
 	}
 
 	if global, ok := ast_context.globals[node.name];
@@ -1853,7 +1854,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 		try_build_package(symbol.pkg)
 
-		return symbol, true
+		return resolve_symbol_return(ast_context, symbol)
 	}
 
 	is_runtime := strings.contains(ast_context.current_package, "base/runtime")
@@ -1896,7 +1897,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 					value = SymbolPackageValue{},
 				}
 
-				return symbol, true
+				return resolve_symbol_return(ast_context, symbol)
 			}
 		}
 	}
@@ -2639,6 +2640,16 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	}
 
 	#partial switch &v in symbol.value {
+	case SymbolPackageValue:
+		if pkg, ok := indexer.index.collection.packages[symbol.pkg]; ok {
+			if symbol.doc == "" {
+				symbol.doc = strings.to_string(pkg.doc)
+			}
+			if symbol.comment == "" {
+				symbol.comment = strings.to_string(pkg.comment)
+			}
+		}
+		return symbol, true
 	case SymbolProcedureGroupValue:
 		if s, ok := resolve_function_overload(ast_context, v.group.derived.(^ast.Proc_Group)); ok {
 			if s.doc == "" {

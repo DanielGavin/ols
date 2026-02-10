@@ -1,6 +1,7 @@
 #+feature using-stmt
 package server
 
+import "core:fmt"
 import "core:mem"
 import "core:odin/ast"
 import "core:path/filepath"
@@ -38,6 +39,8 @@ SymbolPackage :: struct {
 	methods:            map[Method][dynamic]Symbol,
 	imports:            [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
 	proc_group_members: map[string]bool, // Tracks procedure names that are part of proc groups (used by fake methods)
+	doc:                strings.Builder,
+	comment:            strings.Builder,
 }
 
 get_index_unique_string :: proc {
@@ -477,6 +480,8 @@ get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -
 		pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
 		pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
 		pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
+		pkg.doc = strings.builder_make(collection.allocator)
+		pkg.comment = strings.builder_make(collection.allocator)
 	}
 	return pkg
 }
@@ -662,12 +667,61 @@ collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory
 
 }
 
+@(private = "file")
+get_symbol_package_name :: proc(
+	collection: ^SymbolCollection,
+	directory: string,
+	uri: string,
+	treat_as_builtin := false,
+) -> string {
+	if treat_as_builtin || strings.contains(uri, "builtin.odin") {
+		return "$builtin"
+	}
+
+	if strings.contains(uri, "intrinsics.odin") {
+		intrinsics_path := filepath.join(
+			elems = {common.config.collections["base"], "/intrinsics"},
+			allocator = context.temp_allocator,
+		)
+		intrinsics_path, _ = filepath.to_slash(intrinsics_path, context.temp_allocator)
+		return get_index_unique_string(collection, intrinsics_path)
+	}
+
+	return get_index_unique_string(collection, directory)
+}
+
+@(private = "file")
+get_package_decl_doc_comment :: proc(file: ast.File, allocator := context.temp_allocator) -> (string, string) {
+	if file.pkg_decl != nil {
+		docs := get_comment(file.pkg_decl.docs, allocator = allocator)
+		comment := get_comment(file.pkg_decl.comment, allocator = allocator)
+		return docs, comment
+	}
+	return "", ""
+}
+
+@(private = "file")
+write_doc_string :: proc(sb: ^strings.Builder, doc: string) {
+	if doc != "" {
+		if strings.builder_len(sb^) > 0 {
+			fmt.sbprintf(sb, "\n%s", doc)
+		} else {
+			strings.write_string(sb, doc)
+		}
+	}
+}
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 	exprs := collect_globals(file)
+
+	file_pkg_name := get_symbol_package_name(collection, directory, uri)
+	file_pkg := get_or_create_package(collection, file_pkg_name)
+	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
+	write_doc_string(&file_pkg.doc, doc)
+	write_doc_string(&file_pkg.comment, comment)
 
 	for expr in exprs {
 		symbol: Symbol
@@ -694,18 +748,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		}
 
 		// Compute pkg early so it's available inside the switch
-		if expr.builtin || strings.contains(uri, "builtin.odin") {
-			symbol.pkg = "$builtin"
-		} else if strings.contains(uri, "intrinsics.odin") {
-			intrinsics_path := filepath.join(
-				elems = {common.config.collections["base"], "/intrinsics"},
-				allocator = context.temp_allocator,
-			)
-			intrinsics_path, _ = filepath.to_slash(intrinsics_path, context.temp_allocator)
-			symbol.pkg = get_index_unique_string(collection, intrinsics_path)
-		} else {
-			symbol.pkg = get_index_unique_string(collection, directory)
-		}
+		symbol.pkg = get_symbol_package_name(collection, directory, uri, expr.builtin)
 
 		#partial switch v in col_expr.derived {
 		case ^ast.Matrix_Type:
@@ -899,17 +942,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.Mutable}
 		}
 
-		pkg: ^SymbolPackage
-		ok: bool
-
-		if pkg, ok = &collection.packages[symbol.pkg]; !ok {
-			collection.packages[symbol.pkg] = {}
-			pkg = &collection.packages[symbol.pkg]
-			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
-			pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
-			pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
-			pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
-		}
+		pkg := get_or_create_package(collection, symbol.pkg)
 
 		if .ObjC in symbol.flags {
 			collect_objc(collection, expr.attributes, symbol)
@@ -942,19 +975,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 collect_fake_methods :: proc(collection: ^SymbolCollection, exprs: []GlobalExpr, directory: string, uri: string) {
 	for expr in exprs {
 		// Determine the package name (same logic as in collect_symbols)
-		pkg_name: string
-		if expr.builtin || strings.contains(uri, "builtin.odin") {
-			pkg_name = "$builtin"
-		} else if strings.contains(uri, "intrinsics.odin") {
-			intrinsics_path := filepath.join(
-				elems = {common.config.collections["base"], "/intrinsics"},
-				allocator = context.temp_allocator,
-			)
-			intrinsics_path, _ = filepath.to_slash(intrinsics_path, context.temp_allocator)
-			pkg_name = get_index_unique_string(collection, intrinsics_path)
-		} else {
-			pkg_name = get_index_unique_string(collection, directory)
-		}
+		pkg_name := get_symbol_package_name(collection, directory, uri, expr.builtin)
 
 		pkg, ok := &collection.packages[pkg_name]
 		if !ok {

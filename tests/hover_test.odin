@@ -6105,6 +6105,57 @@ ast_hover_parapoly_overloaded_proc_with_bitfield :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.entry: test.Entry(int, SmallHandle)")
 }
+
+@(test)
+ast_hover_package_docs :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `// Package docs
+		package my_package
+		Foo :: struct{}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+		main :: proc() {
+			foo := my_packa{*}ge.Foo{}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package: package\n---\nPackage docs")
+}
+
+@(test)
+ast_hover_import_path_package_docs :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `// Package docs
+		package my_package
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_packa{*}ge"
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "my_package: package\n---\nPackage docs")
+}
+
 /*
 
 Waiting for odin fix

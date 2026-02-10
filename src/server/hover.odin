@@ -55,8 +55,43 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	if position_context.import_stmt != nil {
+	if position_context.import_stmt != nil && position_in_node(position_context.import_stmt, position_context.position) {
+		for imp in document.imports {
+			if imp.original != position_context.import_stmt.fullpath {
+				continue
+			}
+
+			symbol := Symbol {
+				name  = imp.base,
+				type  = .Package,
+				pkg   = imp.name,
+				value = SymbolPackageValue{},
+			}
+			try_build_package(symbol.pkg)
+			if symbol, ok = resolve_symbol_return(&ast_context, symbol); ok {
+				hover.range = common.get_token_range(document.ast.pkg_decl, ast_context.file.src)
+				hover.contents = write_hover_content(&ast_context, symbol)
+				return hover, true, true
+			}
+		}
+
 		return {}, false, true
+	}
+
+	if document.ast.pkg_decl != nil && position_in_node(document.ast.pkg_decl, position_context.position) {
+		symbol := Symbol {
+			name  = document.ast.pkg_name,
+			type  = .Package,
+			pkg   = ast_context.document_package,
+			value = SymbolPackageValue{},
+		}
+		try_build_package(symbol.pkg)
+		if symbol, ok = resolve_symbol_return(&ast_context, symbol); ok {
+			hover.range = common.get_token_range(document.ast.pkg_decl, ast_context.file.src)
+			hover.contents = write_hover_content(&ast_context, symbol)
+			return hover, true, true
+		}
+
 	}
 
 	if position_context.type_cast != nil &&
