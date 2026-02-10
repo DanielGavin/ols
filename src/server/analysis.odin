@@ -961,8 +961,13 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
 	old_current_package := ast_context.current_package
 	ast_context.current_package = ast_context.document_package
+
+	old_use_locals := ast_context.use_locals
+	ast_context.use_locals = true
+
 	defer {
 		ast_context.current_package = old_current_package
+		ast_context.use_locals = old_use_locals
 	}
 
 	return resolve_type_expression(ast_context, node)
@@ -1125,6 +1130,12 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 }
 
 resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
+	if node != nil {
+		if _, ok := node.derived.(^ast.Bad_Expr); ok {
+			return {}, false
+		}
+	}
+
 	clear(&ast_context.recursion_map)
 	symbol := Symbol{}
 	ok := internal_resolve_type_expression(ast_context, node, &symbol)

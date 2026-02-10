@@ -54,10 +54,6 @@ resolve_poly :: proc(
 			call_node_id := reflect.union_variant_typeid(call_node.derived)
 			specialization_id := reflect.union_variant_typeid(specialization.derived)
 			if ast_context.position_hint == .TypeDefinition && call_node_id == specialization_id {
-				// TODO: Fix this so it doesn't need to be aware that we're in a type definition
-				// if the specialization type matches the type of the parameter passed to the proc
-				// we store that rather than the specialization so we can follow it correctly
-				// for things like `textDocument/typeDefinition`
 				save_poly_map(
 					ident,
 					make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
@@ -133,7 +129,6 @@ resolve_poly :: proc(
 				return false
 			}
 
-			//It's not enough for them to both arrays, they also have to share soa attributes
 			if p.tag != nil && call_array.tag != nil {
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
@@ -162,7 +157,6 @@ resolve_poly :: proc(
 				return false
 			}
 
-			//It's not enough for them to both arrays, they also have to share soa attributes
 			if p.tag != nil && call_array.tag != nil {
 				a, ok1 := p.tag.derived.(^ast.Basic_Directive)
 				b, ok2 := call_array.tag.derived.(^ast.Basic_Directive)
@@ -259,6 +253,28 @@ resolve_poly :: proc(
 	case ^ast.Pointer_Type:
 		if call_pointer, ok := call_node.derived.(^ast.Pointer_Type); ok {
 			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
+				if poly_type.specialization != nil {
+					if poly_dynamic, ok := poly_type.specialization.derived.(^ast.Dynamic_Array_Type); ok {
+						if call_dynamic, ok := call_pointer.elem.derived.(^ast.Dynamic_Array_Type); ok {
+							if poly_type.type != nil {
+								if ident, ok := unwrap_ident(poly_type.type); ok {
+									save_poly_map(ident, call_pointer.elem, poly_map)
+								}
+							}
+
+							if elem_poly, ok := poly_dynamic.elem.derived.(^ast.Poly_Type); ok {
+								if elem_ident, ok := unwrap_ident(elem_poly.type); ok {
+									save_poly_map(elem_ident, call_dynamic.elem, poly_map)
+								}
+							}
+
+							return true
+						}
+					}
+				}
+			}
+
+			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
 				if ident, ok := unwrap_ident(poly_type.type); ok {
 					save_poly_map(ident, call_pointer.elem, poly_map)
 				}
@@ -266,6 +282,7 @@ resolve_poly :: proc(
 				if poly_type.specialization != nil {
 					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
 				}
+
 				return true
 			}
 		}
@@ -804,6 +821,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 					}
 				} else if data.parent_proc == nil {
 					data.symbol_value_builder.types[data.i] = expr
+
 					data.poly_index += 1
 				}
 			}

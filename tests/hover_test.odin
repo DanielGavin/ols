@@ -4431,7 +4431,11 @@ ast_hover_parapoly_elem_overloaded_proc_multiple_options :: proc(t: ^testing.T) 
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.foo :: proc {\n\tfoo_int :: proc(i: int),\n\tfoo_string :: proc(s: string),\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.foo :: proc {\n\tfoo_int :: proc(i: int),\n\tfoo_string :: proc(s: string),\n}",
+	)
 }
 
 @(test)
@@ -4560,7 +4564,11 @@ ast_hover_parapoly_union_with_where_clause :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.Foo :: union($T: typeid) #no_nil where type_is_integer(T) {\n\tT,\n\tstring,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo :: union($T: typeid) #no_nil where type_is_integer(T) {\n\tT,\n\tstring,\n}",
+	)
 }
 
 @(test)
@@ -4851,7 +4859,7 @@ ast_hover_proc_param_tags :: proc(t: ^testing.T) {
 @(test)
 ast_hover_simd_array :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		f{*}oo := #simd[2]f32{}
 		`,
 	}
@@ -4861,7 +4869,7 @@ ast_hover_simd_array :: proc(t: ^testing.T) {
 @(test)
 ast_hover_simd_array_pointer :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test
+		main = `package test
 		f{*}oo := &#simd[4]f32{}
 		`,
 	}
@@ -4955,7 +4963,11 @@ ast_hover_const_complex_comp_lit :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.COLOURS :: Colours {\n\tblue = frgba{0.1, 0.1, 0.1, 0.1},\n\tgreen = frgba{0.1, 0.1, 0.1, 0.1},\n\tfoo = {\n\t\ta = 32,\n\t\tb = \"testing\",\n\t},\n\tbar = 1 + 2,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		"test.COLOURS :: Colours {\n\tblue = frgba{0.1, 0.1, 0.1, 0.1},\n\tgreen = frgba{0.1, 0.1, 0.1, 0.1},\n\tfoo = {\n\t\ta = 32,\n\t\tb = \"testing\",\n\t},\n\tbar = 1 + 2,\n}",
+	)
 }
 
 @(test)
@@ -5008,7 +5020,7 @@ ast_hover_proc_overload_basic_type_alias :: proc(t: ^testing.T) {
 		`})
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		foo_int :: proc(i: int) {}
@@ -5052,23 +5064,11 @@ ast_hover_proc_overload_nil_pointer :: proc(t: ^testing.T) {
 ast_hover_package_proc_naming_conflicting_with_another_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "my_package",
-			source = `package my_package
+	append(&packages, test.Package{pkg = "my_package", source = `package my_package
 			foo :: proc() {}
-		`,
-		},
-	)
-	append(
-		&packages,
-		test.Package {
-			pkg = "foo",
-			source = `package foo
-		`,
-		},
-	)
+		`})
+	append(&packages, test.Package{pkg = "foo", source = `package foo
+		`})
 
 	source := test.Source {
 		main     = `package test
@@ -5155,14 +5155,17 @@ ast_hover_generic_proc_with_inlining :: proc(t: ^testing.T) {
 ast_hover_using_import_statement_name_conflict :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+	append(
+		&packages,
+		test.Package{pkg = "my_package", source = `package my_package
 			Bar :: struct {
 				b: string,
 			}
-		`})
+		`},
+	)
 
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		Bar :: struct {
@@ -5352,12 +5355,18 @@ ast_hover_quaternion_literal :: proc(t: ^testing.T) {
 ast_hover_parapoly_other_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
 		// Docs!
 		bar :: proc(_: $T) {} // Comment!
-		`})
+		`,
+		},
+	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
@@ -5809,14 +5818,20 @@ ast_hover_nested_proc_docs_spaces :: proc(t: ^testing.T) {
 ast_hover_propagate_docs_alias_in_package :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
 		// Docs!
 		foo :: proc() {} // Comment!
 
 		bar :: foo
-		`})
+		`,
+		},
+	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
@@ -5832,15 +5847,21 @@ ast_hover_propagate_docs_alias_in_package :: proc(t: ^testing.T) {
 ast_hover_propagate_docs_alias_in_package_override :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(&packages, test.Package{pkg = "my_package", source = `package my_package
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
 		// Docs!
 		foo :: proc() {} // Comment!
 
 		// Overridden
 		bar :: foo
-		`})
+		`,
+		},
+	)
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		main :: proc() {
@@ -5884,7 +5905,7 @@ ast_hover_const_aliases_from_other_pkg :: proc(t: ^testing.T) {
 		Foo :: 3 + 4
 		`})
 	source := test.Source {
-		main = `package test
+		main     = `package test
 		import "my_package"
 
 		B{*}ar :: my_package.Foo
@@ -5958,7 +5979,11 @@ ast_hover_directives_config_info :: proc(t: ^testing.T) {
 		bar :: #c{*}onfig(TEST, false)
 		`,
 	}
-	test.expect_hover(t, &source, "#config(<identifier>, default)\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.")
+	test.expect_hover(
+		t,
+		&source,
+		"#config(<identifier>, default)\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.",
+	)
 }
 
 @(test)

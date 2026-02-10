@@ -2,6 +2,7 @@
 #+feature using-stmt
 package server
 
+import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:odin/ast"
@@ -1483,32 +1484,96 @@ construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, a
 	}
 }
 
+Comment_Index :: struct {
+	line_to_idx: map[int][dynamic]int,
+	allocator:   runtime.Allocator,
+}
+
+build_comment_index :: proc(file: ast.File, allocator := context.allocator) -> Comment_Index {
+	index := Comment_Index {
+		line_to_idx = make(map[int][dynamic]int, allocator),
+		allocator   = allocator,
+	}
+
+	for c, i in file.comments {
+		line := c.pos.line
+
+		if line not_in index.line_to_idx {
+			index.line_to_idx[line] = make([dynamic]int, 0, 1, allocator)
+		}
+
+		append(&index.line_to_idx[line], i)
+	}
+
+	return index
+}
+
+destroy_comment_index :: proc(index: ^Comment_Index) {
+	for _, &indices in index.line_to_idx {
+		delete(indices)
+	}
+
+	delete(index.line_to_idx)
+}
+
 // Retrives the comment group from the specified line of the file
 // Returns the index where the comment was found
 get_file_comment :: proc(
 	file: ast.File,
 	line: int,
 	start_index := 0,
+	index: ^Comment_Index = nil,
 	allocator := context.temp_allocator,
 ) -> (
 	^ast.Comment_Group,
 	int,
 ) {
-	// TODO: linear scan might be a bit slow for files with lots of comments?
+	if index != nil {
+		indices, ok := index.line_to_idx[line]
+
+		if !ok {
+			return nil, -1
+		}
+
+		for idx in indices {
+			if idx >= start_index {
+				c := file.comments[idx]
+
+				for item, j in c.list {
+					comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
+
+					if j == len(c.list) - 1 {
+						comment.list = c.list[j:]
+					} else {
+						comment.list = c.list[j:j + 1]
+					}
+
+					return comment, idx
+				}
+			}
+		}
+
+		return nil, -1
+	}
+
 	for i := start_index; i < len(file.comments); i += 1 {
 		c := file.comments[i]
+
 		if c.pos.line == line {
 			for item, j in c.list {
 				comment := new_type(ast.Comment_Group, item.pos, parser.end_pos(item), allocator)
+
 				if j == len(c.list) - 1 {
 					comment.list = c.list[j:]
 				} else {
 					comment.list = c.list[j:j + 1]
 				}
+
 				return comment, i
 			}
 		}
 	}
+
 	return nil, -1
 }
 
@@ -1554,6 +1619,9 @@ get_field_docs_and_comments :: proc(
 	[dynamic]^ast.Comment_Group,
 	[dynamic]^ast.Comment_Group,
 ) {
+	index := build_comment_index(file)
+	defer destroy_comment_index(&index)
+
 	docs := make([dynamic]^ast.Comment_Group, allocator)
 	comments := make([dynamic]^ast.Comment_Group, allocator)
 	prev_line := -1
@@ -1584,6 +1652,7 @@ get_field_docs_and_comments :: proc(
 				n.pos.line,
 				start_index = last_comment + 1,
 				allocator = allocator,
+				index = &index,
 			)
 		}
 
