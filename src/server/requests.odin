@@ -7,9 +7,6 @@ import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:log"
-import "core:mem"
-import "core:odin/ast"
-import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
@@ -17,7 +14,6 @@ import "core:slice"
 import "core:strconv"
 import "core:strings"
 import "core:sync"
-import "core:thread"
 import "core:time"
 
 import "src:common"
@@ -278,6 +274,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 			ordered_remove(&requests, delete_index)
 		}
 	}
+	clear(&deletings)
 
 	for request in requests {
 		append(&temp_requests, request)
