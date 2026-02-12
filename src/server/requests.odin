@@ -214,7 +214,12 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 	return value, true
 }
 
-call_map: map[string]proc(_: json.Value, _: RequestId, _: ^common.Config, _: ^Writer) -> common.Error = {
+call_map: map[string]proc(
+	_: json.Value,
+	_: RequestId,
+	_: ^common.Config,
+	_: ^Writer,
+) -> common.Error = {
 	"initialize"                        = request_initialize,
 	"initialized"                       = request_initialized,
 	"shutdown"                          = request_shutdown,
@@ -326,7 +331,10 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 
 	if !ok {
 		log.errorf("Failed to find method: %#v", root)
-		response := make_response_message_error(id = id, error = ResponseError{code = .MethodNotFound, message = ""})
+		response := make_response_message_error(
+			id = id,
+			error = ResponseError{code = .MethodNotFound, message = ""},
+		)
 		send_error(response, writer)
 		return
 	}
@@ -344,7 +352,10 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		} else {
 			err := fn(root["params"], id, config, writer)
 			if err != .None {
-				response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
+				response := make_response_message_error(
+					id = id,
+					error = ResponseError{code = err, message = ""},
+				)
 				send_error(response, writer)
 			}
 		}
@@ -353,13 +364,20 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
-read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
-	config.disable_parser_errors = ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+read_ols_initialize_options :: proc(
+	config: ^common.Config,
+	ols_config: OlsConfig,
+	uri: common.Uri,
+) {
+	config.disable_parser_errors =
+		ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
 	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count
-	config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_document_symbols =
+		ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
-	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
+	config.enable_semantic_tokens =
+		ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
 	config.enable_unused_imports_reporting =
 		ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
 	config.enable_procedure_context =
@@ -370,7 +388,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_document_highlights.(bool) or_else config.enable_document_highlights
 	config.enable_completion_matching =
 		ols_config.enable_completion_matching.(bool) or_else config.enable_completion_matching
-	config.enable_document_links = ols_config.enable_document_links.(bool) or_else config.enable_document_links
+	config.enable_document_links =
+		ols_config.enable_document_links.(bool) or_else config.enable_document_links
 	config.enable_comp_lit_signature_help =
 		ols_config.enable_comp_lit_signature_help.(bool) or_else config.enable_comp_lit_signature_help
 	config.enable_comp_lit_signature_help_use_docs =
@@ -381,7 +400,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_procedure_snippet =
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
 
-	config.enable_auto_import = ols_config.enable_auto_import.(bool) or_else config.enable_auto_import
+	config.enable_auto_import =
+		ols_config.enable_auto_import.(bool) or_else config.enable_auto_import
 
 	config.enable_checker_only_saved =
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
@@ -397,7 +417,10 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	}
 
 	if ols_config.odin_root_override != "" {
-		config.odin_root_override = strings.clone(ols_config.odin_root_override, context.temp_allocator)
+		config.odin_root_override = strings.clone(
+			ols_config.odin_root_override,
+			context.temp_allocator,
+		)
 
 		allocated: bool
 		config.odin_root_override, allocated = common.resolve_home_dir(config.odin_root_override)
@@ -450,7 +473,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_inlay_hints_implicit_return =
 		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 
-	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
+	config.enable_fake_method =
+		ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 	config.enable_overload_resolution =
 		ols_config.enable_overload_resolution.(bool) or_else config.enable_overload_resolution
 
@@ -480,16 +504,21 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 		when ODIN_OS == .Windows {
 			if filepath.is_abs(it.path) {
-				final_path, _ = filepath.to_slash(
+				final_path, _ = filepath.replace_path_separators(
 					common.get_case_sensitive_path(forward_path, context.temp_allocator),
+					'/',
 					context.temp_allocator,
 				)
 			} else {
-				final_path, _ = filepath.to_slash(
+				final_path, _ = filepath.replace_path_separators(
 					common.get_case_sensitive_path(
-						path.join(elems = {uri.path, forward_path}, allocator = context.temp_allocator),
+						path.join(
+							elems = {uri.path, forward_path},
+							allocator = context.temp_allocator,
+						),
 						context.temp_allocator,
 					),
+					'/',
 					context.temp_allocator,
 				)
 			}
@@ -508,7 +537,11 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			log.errorf("Failed to find absolute address of collection: %v", final_path, err)
 			config.collections[strings.clone(it.name)] = strings.clone(final_path)
 		} else {
-			slashed_path, _ := filepath.replace_path_separators(abs_final_path, '/', context.temp_allocator)
+			slashed_path, _ := filepath.replace_path_separators(
+				abs_final_path,
+				'/',
+				context.temp_allocator,
+			)
 
 			config.collections[strings.clone(it.name)] = strings.clone(slashed_path)
 		}
@@ -554,7 +587,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			}
 
 			if odin_core_env != "" {
-				if abs_core_env, err := filepath.abs(odin_core_env, context.temp_allocator); err == nil {
+				if abs_core_env, err := filepath.abs(odin_core_env, context.temp_allocator);
+				   err == nil {
 					odin_core_env = abs_core_env
 				}
 			}
@@ -565,7 +599,11 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	// Insert the default collections if they are not specified in the config.
 	if odin_core_env != "" {
-		forward_path, _ := filepath.replace_path_separators(odin_core_env, '/', context.temp_allocator)
+		forward_path, _ := filepath.replace_path_separators(
+			odin_core_env,
+			'/',
+			context.temp_allocator,
+		)
 
 		// base
 		if "base" not_in config.collections {
@@ -593,7 +631,10 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 		// shared
 		if "shared" not_in config.collections {
-			shared_path := path.join(elems = {forward_path, "shared"}, allocator = context.allocator)
+			shared_path := path.join(
+				elems = {forward_path, "shared"},
+				allocator = context.allocator,
+			)
 			if os.exists(shared_path) {
 				config.collections[strings.clone("shared")] = shared_path
 			} else {
@@ -698,7 +739,10 @@ request_initialize :: proc(
 		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 
 		// Apply ols.json config.
-		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
+		ols_config_path := path.join(
+			elems = {uri.path, "ols.json"},
+			allocator = context.temp_allocator,
+		)
 		read_ols_config(ols_config_path, config, uri)
 	} else {
 		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
@@ -719,7 +763,8 @@ request_initialize :: proc(
 	config.enable_label_details =
 		initialize_params.capabilities.textDocument.completion.completionItem.labelDetailsSupport
 
-	config.enable_snippets &= initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
+	config.enable_snippets &=
+		initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
 
 	config.signature_offset_support =
 		initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport
@@ -728,12 +773,17 @@ request_initialize :: proc(
 	signatureTriggerCharacters := []string{"(", ","}
 	signatureRetriggerCharacters := []string{","}
 
-	semantic_range_support := initialize_params.capabilities.textDocument.semanticTokens.requests.range
+	semantic_range_support :=
+		initialize_params.capabilities.textDocument.semanticTokens.requests.range
 
 	response := make_response_message(
 		params = ResponseInitializeParams {
 			capabilities = ServerCapabilities {
-				textDocumentSync = TextDocumentSyncOptions{openClose = true, change = 2, save = {includeText = true}},
+				textDocumentSync = TextDocumentSyncOptions {
+					openClose = true,
+					change = 2,
+					save = {includeText = true},
+				},
 				renameProvider = RenameOptions{prepareProvider = true},
 				workspaceSymbolProvider = true,
 				referencesProvider = config.enable_references,
@@ -764,7 +814,10 @@ request_initialize :: proc(
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
 				documentLinkProvider = {resolveProvider = false},
-				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite"}},
+				codeActionProvider = {
+					resolveProvider = false,
+					codeActionKinds = {"refactor.rewrite"},
+				},
 			},
 		},
 		id = id,
@@ -830,7 +883,12 @@ request_initialized :: proc(
 	return .None
 }
 
-request_shutdown :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_shutdown :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	response := make_response_message(params = nil, id = id)
 
 	send_response(response, writer)
@@ -945,7 +1003,12 @@ request_completion :: proc(
 	}
 
 	list: CompletionList
-	list, ok = get_completion_list(document, completition_params.position, completition_params.context_, config)
+	list, ok = get_completion_list(
+		document,
+		completition_params.position,
+		completition_params.context_,
+		config,
+	)
 
 	if !ok {
 		return .InternalError
@@ -1039,7 +1102,12 @@ request_format_document :: proc(
 	return .None
 }
 
-notification_exit :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+notification_exit :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	config.running = false
 	return .None
 }
@@ -1066,7 +1134,12 @@ notification_did_open :: proc(
 
 	defer delete(open_params.textDocument.uri)
 
-	if n := document_open(open_params.textDocument.uri, open_params.textDocument.text, config, writer); n != .None {
+	if n := document_open(
+		open_params.textDocument.uri,
+		open_params.textDocument.text,
+		config,
+		writer,
+	); n != .None {
 		return .InternalError
 	}
 
@@ -1165,7 +1238,7 @@ notification_did_save :: proc(
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
+		fullpath, _ = filepath.replace_path_separators(correct, '/', context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
@@ -1302,7 +1375,12 @@ request_document_symbols :: proc(
 	return .None
 }
 
-request_hover :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_hover :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	params_object, ok := params.(json.Object)
 
 	if !ok {
@@ -1450,7 +1528,12 @@ request_prepare_rename :: proc(
 	return .None
 }
 
-request_rename :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_rename :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	params_object, ok := params.(json.Object)
 
 	if !ok {
@@ -1700,6 +1783,11 @@ request_workspace_symbols :: proc(
 	return .None
 }
 
-request_noop :: proc(params: json.Value, id: RequestId, config: ^common.Config, writer: ^Writer) -> common.Error {
+request_noop :: proc(
+	params: json.Value,
+	id: RequestId,
+	config: ^common.Config,
+	writer: ^Writer,
+) -> common.Error {
 	return .None
 }

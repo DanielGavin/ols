@@ -263,7 +263,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	fullpath := uri.path
 
 	when ODIN_OS == .Windows {
-		fullpath, _ = filepath.to_slash(fullpath, context.temp_allocator)
+		fullpath, _ = filepath.replace_path_separators(fullpath, '/', context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
@@ -302,7 +302,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
+		fullpath, _ = filepath.replace_path_separators(correct, '/', context.temp_allocator)
 	}
 
 	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
