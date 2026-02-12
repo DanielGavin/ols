@@ -18,8 +18,8 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 	//go up the directory until we find odinfmt.json
 	path := path
 
-	ok: bool
-	if path, ok = filepath.abs(path); !ok {
+	err: os.Error
+	if path, err = filepath.abs(path, context.temp_allocator); err != nil {
 		return default_style
 	}
 
@@ -27,14 +27,14 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 	found := false
 	config := default_style
 
-	if (os.exists(name)) {
-		if data, ok := os.read_entire_file(name, context.temp_allocator); ok {
+	if os.exists(name) {
+		if data, err := os.read_entire_file(name, context.temp_allocator); err != nil {
 			if json.unmarshal(data, &config) == nil {
 				found = true
 			}
 		}
 	} else {
-		new_path := filepath.join(elems = {path, ".."}, allocator = context.temp_allocator)
+		new_path, _ := filepath.join(elems = {path, ".."}, allocator = context.temp_allocator)
 		//Currently the filepath implementation seems to stop at the root level, this might not be the best solution.
 		if new_path == path {
 			return default_style
@@ -53,13 +53,13 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 // of searching for it up a directory tree of a path
 read_config_file_from_path_or_default :: proc(config_path: string) -> printer.Config {
     path := config_path
-    ok: bool
-	if path, ok = filepath.abs(config_path); !ok {
+	err: os.Error
+	if path, err = filepath.abs(config_path, context.temp_allocator); err != nil {
 		return default_style
 	}
     config := default_style
-    if (os.exists(path)) {
-        if data, ok := os.read_entire_file(path, context.temp_allocator); ok {
+    if os.exists(path) {
+        if data, err := os.read_entire_file(path, context.temp_allocator); err != nil {
             if json.unmarshal(data, &config) == nil {
                 return config
             }

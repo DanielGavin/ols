@@ -36,24 +36,11 @@ Json_Errors :: struct {
 
 //If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
 fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
-	walk_proc :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Errno, skip_dir: bool) {
-		data := cast(^[dynamic]string)user_data
-
-		if !info.is_dir && filepath.ext(info.name) == ".odin" {
-			dir := filepath.dir(info.fullpath, context.temp_allocator)
-			if !slice.contains(data[:], dir) {
-				append(data, dir)
-			}
-		}
-
-		return in_err, false
-	}
-
 	data := make([dynamic]string, context.temp_allocator)
 
 	if len(config.workspace_folders) > 0 {
 		if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
-			filepath.walk(uri.path, walk_proc, &data)
+			append_packages(uri.path, &data, context.temp_allocator)
 		}
 	}
 

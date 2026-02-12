@@ -3409,7 +3409,7 @@ get_package_from_node :: proc(node: ast.Node) -> string {
 }
 
 get_package_from_filepath :: proc(file_path: string) -> string {
-	slashed, _ := filepath.to_slash(file_path, context.temp_allocator)
+	slashed, _ := filepath.replace_path_separators(file_path, '/', context.temp_allocator)
 	ret := path.dir(slashed, context.temp_allocator)
 	return ret
 }

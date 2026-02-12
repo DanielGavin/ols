@@ -5,14 +5,13 @@ import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
-import "core:testing"
 import "core:text/scanner"
 
 import "src:odin/format"
 import "src:odin/printer"
 
 format_file :: proc(filepath: string, allocator := context.allocator) -> (string, bool) {
-	if data, ok := os.read_entire_file(filepath, allocator); ok {
+	if data, err := os.read_entire_file(filepath, allocator); err == nil {
 		config := read_config_file_or_default(filepath)
 		return format.format(filepath, string(data), config, {.Optional_Semicolons}, allocator)
 	} else {
@@ -30,7 +29,7 @@ read_config_file_or_default :: proc(fullpath: string, allocator := context.alloc
 
 	if (os.exists(configpath)) {
 		json_config := default_style
-		if data, ok := os.read_entire_file(configpath, allocator); ok {
+		if data, err := os.read_entire_file(configpath, allocator); err == nil {
 			if json.unmarshal(data, &json_config) == nil {
 				return json_config
 			}
@@ -44,7 +43,7 @@ read_config_file_or_default :: proc(fullpath: string, allocator := context.alloc
 snapshot_directory :: proc(directory: string) -> bool {
 	matches, err := filepath.glob(fmt.tprintf("%v/*", directory))
 
-	if err != .None {
+	if err != nil {
 		fmt.eprintf("Error in globbing directory: %v", directory)
 	}
 
@@ -69,7 +68,7 @@ snapshot_file :: proc(path: string) -> bool {
 	fmt.printf("Testing snapshot %v", path)
 
 
-	snapshot_path := filepath.join(
+	snapshot_path, _ := filepath.join(
 		elems = {filepath.dir(path, context.temp_allocator), "/.snapshots", filepath.base(path)},
 		allocator = context.temp_allocator,
 	)
@@ -82,7 +81,7 @@ snapshot_file :: proc(path: string) -> bool {
 	}
 
 	if os.exists(snapshot_path) {
-		if snapshot_data, ok := os.read_entire_file(snapshot_path, context.temp_allocator); ok {
+		if snapshot_data, err := os.read_entire_file(snapshot_path, context.temp_allocator); err == nil {
 			snapshot_scanner := scanner.Scanner{}
 			scanner.init(&snapshot_scanner, string(snapshot_data))
 			formatted_scanner := scanner.Scanner{}
@@ -107,7 +106,7 @@ snapshot_file :: proc(path: string) -> bool {
 
 				if s_ch != f_ch {
 					fmt.eprintf("\nFormatted file was different from snapshot file: %v\n", snapshot_path)
-					os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
+					_ = os.write_entire_file(fmt.tprintf("%v_failed", snapshot_path), transmute([]u8)formatted)
 					return false
 				}
 			}
@@ -118,9 +117,8 @@ snapshot_file :: proc(path: string) -> bool {
 		}
 	} else {
 		os.make_directory(filepath.dir(snapshot_path, context.temp_allocator))
-		ok = os.write_entire_file(snapshot_path, transmute([]byte)formatted)
-		if !ok {
-			fmt.eprintf("Failed to write snapshot file %v", snapshot_path)
+		if err := os.write_entire_file(snapshot_path, transmute([]byte)formatted); err != nil {
+			fmt.eprintf("Failed to write snapshot file %v: %v", snapshot_path, err)
 			return false
 		}
 	}

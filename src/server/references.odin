@@ -16,10 +16,10 @@ import "src:common"
 
 fullpaths: [dynamic]string
 
-walk_directories :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
+walk_directories :: proc(info: os.File_Info, in_err: os.Error, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
 	document := cast(^Document)user_data
 
-	if info.is_dir {
+	if info.type == .Directory {
 		return nil, false
 	}
 
@@ -28,7 +28,7 @@ walk_directories :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr
 	}
 
 	if strings.contains(info.name, ".odin") {
-		slash_path, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
+		slash_path, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
 		if slash_path != document.fullpath {
 			append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
 		}
@@ -277,7 +277,23 @@ resolve_references :: proc(
 	when !ODIN_TEST {
 		for workspace in common.config.workspace_folders {
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			filepath.walk(uri.path, walk_directories, document)
+			w := os.walker_create(uri.path)
+			for info in os.walker_walk(&w) {
+				if info.type == .Directory {
+					continue
+				}
+
+				if info.fullpath == "" {
+					continue
+				}
+
+				if strings.contains(info.name, ".odin") {
+					slash_path, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
+					if slash_path != document.fullpath {
+						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
+					}
+				}
+			}
 		}
 	}
 
@@ -297,12 +313,12 @@ resolve_references :: proc(
 	for fullpath in fullpaths {
 		dir := filepath.dir(fullpath)
 		base := filepath.base(dir)
-		forward_dir, _ := filepath.to_slash(dir)
+		forward_dir, _ := filepath.replace_path_separators(dir, '/', context.allocator)
 
-		data, ok := os.read_entire_file(fullpath, context.allocator)
+		data, err := os.read_entire_file(fullpath, context.allocator)
 
-		if !ok {
-			log.errorf("failed to read entire file for indexing %v", fullpath)
+		if err != nil {
+			log.errorf("failed to read entire file for indexing %v: %v", fullpath, err)
 			continue
 		}
 
@@ -328,7 +344,7 @@ resolve_references :: proc(
 			pkg      = pkg,
 		}
 
-		ok = parser.parse_file(&p, &file)
+		ok := parser.parse_file(&p, &file)
 
 		if !ok {
 			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {

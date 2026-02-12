@@ -1,7 +1,5 @@
 package odin_printer
 
-import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
