@@ -1381,7 +1381,9 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 
 	switch directive.name {
 	case "config":
-		return resolve_type_expression(ast_context, call.args[1])
+		if len(call.args) > 1 {
+			return resolve_type_expression(ast_context, call.args[1])
+		}
 	case "load":
 		if len(call.args) == 1 {
 			ident := new_type(ast.Ident, call.pos, call.end, ast_context.allocator)
