@@ -2,6 +2,7 @@
 package server
 
 import "base:runtime"
+import "core:slice"
 
 import "core:fmt"
 import "core:log"
@@ -126,6 +127,24 @@ skip_file :: proc(filename: string) -> bool {
 	return false
 }
 
+// Finds all packages under the provided path by walking the file system
+// and appends them to the provided dynamic array
+append_packages :: proc(
+	path: string,
+	pkgs: ^[dynamic]string,
+	allocator := context.temp_allocator,
+) {
+	w := os.walker_create(path)
+	for info in os.walker_walk(&w) {
+		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
+			dir := filepath.dir(info.fullpath, allocator)
+			if !slice.contains(pkgs[:], dir) {
+				append(pkgs, dir)
+			}
+		}
+	}
+}
+
 should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
 	if file_tags.ignore {
 		return false
@@ -165,8 +184,8 @@ try_build_package :: proc(pkg_name: string) {
 
 	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
 
-	if err != .None {
-		log.errorf("Failed to glob %v for indexing package", pkg_name)
+	if err != nil && err != .Not_Exist {
+		log.errorf("Failed to glob %v for indexing package: %v", pkg_name, err)
 		return
 	}
 
@@ -182,10 +201,10 @@ try_build_package :: proc(pkg_name: string) {
 				continue
 			}
 
-			data, ok := os.read_entire_file(fullpath, context.allocator)
+			data, err := os.read_entire_file(fullpath, context.allocator)
 
-			if !ok {
-				log.errorf("failed to read entire file for indexing %v", fullpath)
+			if err != nil {
+				log.errorf("failed to read entire file for indexing %v: %v", fullpath, err)
 				continue
 			}
 
@@ -212,10 +231,11 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			ok = parser.parse_file(&p, &file)
+			ok := parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				if !strings.contains(fullpath, "builtin.odin") &&
+				   !strings.contains(fullpath, "intrinsics.odin") {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -229,9 +249,10 @@ try_build_package :: proc(pkg_name: string) {
 		}
 	}
 
-	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
-		timestamp = time.now(),
-	}
+	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] =
+		PackageCacheInfo {
+			timestamp = time.now(),
+		}
 }
 
 
@@ -273,10 +294,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	fullpath := uri.path
 
 	p := parser.Parser {
-		err   = log_error_handler,
-		warn  = log_warning_handler,
-		flags = {.Optional_Semicolons},
-	}
+			err   = log_error_handler,
+			warn  = log_warning_handler,
+			flags = {.Optional_Semicolons},
+		}
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
@@ -295,10 +316,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	}
 
 	file := ast.File {
-		fullpath = fullpath,
-		src      = text,
-		pkg      = pkg,
-	}
+			fullpath = fullpath,
+			src      = text,
+			pkg      = pkg,
+		}
 
 	{
 		allocator := context.allocator
@@ -308,7 +329,8 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !strings.contains(fullpath, "builtin.odin") &&
+			   !strings.contains(fullpath, "intrinsics.odin") {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 		}

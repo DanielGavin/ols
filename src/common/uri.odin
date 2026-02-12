@@ -45,7 +45,7 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
-	path_forward, _ := filepath.to_slash(path, context.temp_allocator)
+	path_forward, _ := filepath.replace_path_separators(path, '/', context.temp_allocator)
 
 	builder := strings.builder_make(allocator)
 

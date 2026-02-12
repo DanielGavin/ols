@@ -14,14 +14,14 @@ import "src:server"
 VERSION := #config(VERSION, "dev")
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr := cast(^os.Handle)handle
-	a, b := os.read(ptr^, data)
+	ptr := cast(^os.File)handle
+	a, b := os.read(ptr, data)
 	return a, cast(int)(b != nil)
 }
 
 os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr := cast(^os.Handle)handle
-	a, b := os.write(ptr^, data)
+	ptr := cast(^os.File)handle
+	a, b := os.write(ptr, data)
 	return a, cast(int)(b != nil)
 }
 
@@ -102,8 +102,8 @@ main :: proc() {
 		fmt.println("ols version", VERSION)
 		os.exit(0)
 	}
-	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
-	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
+	reader := server.make_reader(os_read, cast(rawptr)os.stdin)
+	writer := server.make_writer(os_write, cast(rawptr)os.stdout)
 
 	/*
 	fh, err := os.open("log.txt", os.O_RDWR|os.O_CREATE) 

@@ -472,7 +472,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	// Apply custom collections.
 	for it in ols_config.collections {
-		forward_path, _ := filepath.to_slash(it.path, context.temp_allocator)
+		forward_path, _ := filepath.replace_path_separators(it.path, '/', context.temp_allocator)
 
 		forward_path = common.resolve_home_dir(forward_path, context.temp_allocator)
 
@@ -503,13 +503,14 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			}
 		}
 
-		if abs_final_path, ok := filepath.abs(final_path); ok {
-			slashed_path, _ := filepath.to_slash(abs_final_path, context.temp_allocator)
+		abs_final_path, err := filepath.abs(final_path, context.temp_allocator)
+		if err != nil {
+			log.errorf("Failed to find absolute address of collection: %v", final_path, err)
+			config.collections[strings.clone(it.name)] = strings.clone(final_path)
+		} else {
+			slashed_path, _ := filepath.replace_path_separators(abs_final_path, '/', context.temp_allocator)
 
 			config.collections[strings.clone(it.name)] = strings.clone(slashed_path)
-		} else {
-			log.errorf("Failed to find absolute address of collection: %v", final_path)
-			config.collections[strings.clone(it.name)] = strings.clone(final_path)
 		}
 	}
 
@@ -553,7 +554,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			}
 
 			if odin_core_env != "" {
-				if abs_core_env, ok := filepath.abs(odin_core_env, context.temp_allocator); ok {
+				if abs_core_env, err := filepath.abs(odin_core_env, context.temp_allocator); err == nil {
 					odin_core_env = abs_core_env
 				}
 			}
@@ -564,7 +565,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	// Insert the default collections if they are not specified in the config.
 	if odin_core_env != "" {
-		forward_path, _ := filepath.to_slash(odin_core_env, context.temp_allocator)
+		forward_path, _ := filepath.replace_path_separators(odin_core_env, '/', context.temp_allocator)
 
 		// base
 		if "base" not_in config.collections {
@@ -662,17 +663,18 @@ request_initialize :: proc(
 	config.enable_auto_import = true
 
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
-		if data, ok := os.read_entire_file(file, context.temp_allocator); ok {
-			ols_config: OlsConfig
+		data, err := os.read_entire_file(file, context.temp_allocator)
+		if err != nil {
+			log.warnf("Failed to read/find %v: %v", file, err)
+			return
+		}
+		ols_config: OlsConfig
 
-			err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
-			if err == nil {
-				read_ols_initialize_options(config, ols_config, uri)
-			} else {
-				log.errorf("Failed to unmarshal %v: %v", file, err)
-			}
+		json_err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
+		if json_err == nil {
+			read_ols_initialize_options(config, ols_config, uri)
 		} else {
-			log.warnf("Failed to read/find %v", file)
+			log.errorf("Failed to unmarshal %v: %v", file, json_err)
 		}
 	}
 
@@ -1625,7 +1627,7 @@ notification_did_change_watched_files :: proc(
 			find_all_package_aliases()
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
-				if data, ok := os.read_entire_file(uri.path, context.temp_allocator); ok {
+				if data, err := os.read_entire_file(uri.path, context.temp_allocator); err == nil {
 					index_file(uri, cast(string)data)
 				}
 			}

@@ -5,9 +5,7 @@ import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
-import "core:os/os2"
 import "core:path/filepath"
-import "core:path/slashpath"
 import "core:strings"
 import "core:time"
 
@@ -19,15 +17,12 @@ when ODIN_OS == .Windows {
 	delimiter :: ":"
 }
 
-//TODO(daniel): This is temporary and should not be needed after os2
-File_Mode_User_Executable :: os.File_Mode(1 << 8)
-
 lookup_in_path :: proc(name: string) -> (string, bool) {
 	path := os.get_env("PATH", context.temp_allocator)
 
 	for directory in strings.split_iterator(&path, delimiter) {
 		when ODIN_OS == .Windows {
-			possibility := filepath.join(
+			possibility, _ := filepath.join(
 				elems = {directory, fmt.tprintf("%v.exe", name)},
 				allocator = context.temp_allocator,
 			)
@@ -35,11 +30,11 @@ lookup_in_path :: proc(name: string) -> (string, bool) {
 				return possibility, true
 			}
 		} else {
-			possibility := filepath.join(elems = {directory, name}, allocator = context.temp_allocator)
+			possibility, _ := filepath.join(elems = {directory, name}, allocator = context.temp_allocator)
 			possibility = resolve_home_dir(possibility, context.temp_allocator)
 			if os.exists(possibility) {
 				if info, err := os.stat(possibility, context.temp_allocator);
-				   err == os.ERROR_NONE && (File_Mode_User_Executable & info.mode) != 0 {
+				   err == os.ERROR_NONE && .Execute_User in info.mode {
 					return possibility, true
 				}
 			}
@@ -66,7 +61,8 @@ resolve_home_dir :: proc(
 				return path, false
 			}
 
-			return filepath.join({home, path[1:]}, allocator), true
+			path, _ := filepath.join({home, path[1:]}, allocator)
+			return path, true
 		} else if strings.has_prefix(path, "$HOME") {
 			home := os.get_env("HOME", context.temp_allocator)
 			if home == "" {
@@ -74,13 +70,14 @@ resolve_home_dir :: proc(
 				return path, false
 			}
 
-			return filepath.join({home, path[5:]}, allocator), true
+			path, _ := filepath.join({home, path[5:]}, allocator)
+			return path, true
 		}
 		return path, false
 	}
 }
 
-	FILE :: struct {}
+FILE :: struct {}
 when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS == .NetBSD {
 
 	run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) {
@@ -118,7 +115,7 @@ when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS =
 		return 0, true, stdout[0:index]
 	}
 
-	foreign libc 
+	foreign libc
 	{
 		popen :: proc(command: cstring, type: cstring) -> ^FILE ---
 		pclose :: proc(stream: ^FILE) -> i32 ---
@@ -127,7 +124,7 @@ when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS =
 }
 
 get_executable_path :: proc(allocator := context.temp_allocator) -> string {
-	exe_dir, err := os2.get_executable_directory(context.temp_allocator)
+	exe_dir, err := os.get_executable_directory(context.temp_allocator)
 
 	if err != nil {
 		log.error("Failed to resolve executable path: ", err)
@@ -136,4 +133,3 @@ get_executable_path :: proc(allocator := context.temp_allocator) -> string {
 
 	return exe_dir
 }
-

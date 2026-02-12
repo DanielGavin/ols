@@ -1878,7 +1878,7 @@ get_package_completion :: proc(
 		c := without_quotes[0:colon_index]
 
 		if colon_index + 1 < len(without_quotes) {
-			absolute_path = filepath.join(
+			absolute_path, _ = filepath.join(
 				elems = {
 					config.collections[c],
 					filepath.dir(without_quotes[colon_index + 1:], context.temp_allocator),
@@ -1891,7 +1891,7 @@ get_package_completion :: proc(
 	} else {
 		import_file_dir := filepath.dir(position_context.import_stmt.pos.file, context.temp_allocator)
 		import_dir := filepath.dir(without_quotes, context.temp_allocator)
-		absolute_path = filepath.join(elems = {import_file_dir, import_dir}, allocator = context.temp_allocator)
+		absolute_path, _ = filepath.join(elems = {import_file_dir, import_dir}, allocator = context.temp_allocator)
 	}
 
 	if !strings.contains(position_context.import_stmt.fullpath, "/") &&
@@ -1941,7 +1941,7 @@ search_for_packages :: proc(fullpath: string) -> []string {
 
 	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == 0 {
 		for file in files {
-			if file.is_dir {
+			if file.type == .Directory {
 				append(&packages, file.fullpath)
 			}
 		}

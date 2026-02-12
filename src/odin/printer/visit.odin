@@ -1,7 +1,6 @@
 #+feature using-stmt
 package odin_printer
 
-import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/parser"

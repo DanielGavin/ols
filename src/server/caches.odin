@@ -76,26 +76,13 @@ clear_all_package_aliases :: proc() {
 
 //Go through all the collections to find all the possible packages that exists
 find_all_package_aliases :: proc() {
-	walk_proc :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Errno, skip_dir: bool) {
-		data := cast(^[dynamic]string)user_data
-
-		if !info.is_dir && filepath.ext(info.name) == ".odin" {
-			dir := filepath.dir(info.fullpath, context.temp_allocator)
-			if !slice.contains(data[:], dir) {
-				append(data, dir)
-			}
-		}
-
-		return in_err, false
-	}
-
 	for k, v in common.config.collections {
 		pkgs := make([dynamic]string, context.temp_allocator)
-		filepath.walk(v, walk_proc, &pkgs)
+		append_packages(v, &pkgs, context.temp_allocator)
 
 		for pkg in pkgs {
 			if pkg, err := filepath.rel(v, pkg, context.temp_allocator); err == .None {
-				forward_pkg, _ := filepath.to_slash(pkg, context.temp_allocator)
+				forward_pkg, _ := filepath.replace_path_separators(pkg, '/', context.temp_allocator)
 				if k not_in build_cache.pkg_aliases {
 					build_cache.pkg_aliases[k] = make([dynamic]string)
 				}

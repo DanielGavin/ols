@@ -5,8 +5,6 @@ import "src:common"
 import "src:odin/format"
 import "src:odin/printer"
 
-import "core:log"
-
 FormattingOptions :: struct {
 	tabSize:                uint,
 	insertSpaces:           bool, //tabs or spaces
