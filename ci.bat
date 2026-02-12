@@ -11,18 +11,25 @@ if "%1" == "CI" (
     set "PATH=%cd%\Odin;!PATH!"
 
     odin test tests -collection:src=src -define:ODIN_TEST_THREADS=1
-    if %errorlevel% neq 0 exit /b 1
+    if errorlevel 1 exit /b 1
 
     odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000" -define:VERSION=%OLS_VERSION%
+    if errorlevel 1 exit /b 1
 
     pushd .
     call "tools/odinfmt/tests.bat"
-    if %errorlevel% neq 0 exit /b 1
+    if errorlevel 1 (
+        popd
+        exit /b 1
+    )
     popd
 
     odin build tools\odinfmt\main.odin -file -collection:src=src -out:odinfmt.exe -o:speed -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000"
+    if errorlevel 1 exit /b 1
 ) else (
     odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000" -define:VERSION=%OLS_VERSION%
+    if errorlevel 1 exit /b 1
 
     odin build tools\odinfmt\main.odin -file -collection:src=src -out:odinfmt.exe -o:speed -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000"
+    if errorlevel 1 exit /b 1
 )
