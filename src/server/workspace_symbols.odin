@@ -29,6 +29,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 			pkgs := make([dynamic]string, 0, context.temp_allocator)
 
 			w := os.walker_create(uri.path)
+			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
 					dir := filepath.dir(info.fullpath, context.temp_allocator)

@@ -278,6 +278,7 @@ resolve_references :: proc(
 		for workspace in common.config.workspace_folders {
 			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
 			w := os.walker_create(uri.path)
+			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
 					continue
