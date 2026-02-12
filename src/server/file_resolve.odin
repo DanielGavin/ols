@@ -51,10 +51,6 @@ resolve_ranged_file :: proc(
 	margin := 20
 
 	for decl in document.ast.decls {
-		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
-			continue
-		}
-
 		//Look for declarations that overlap with range
 		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
 			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, allocator)
@@ -88,10 +84,6 @@ resolve_entire_file :: proc(
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
-			continue
-		}
-
 		resolve_decl(&position_context, &ast_context, document, decl, &symbols, flag, allocator)
 		clear(&ast_context.locals)
 	}
