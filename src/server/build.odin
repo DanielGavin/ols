@@ -135,6 +135,7 @@ append_packages :: proc(
 	allocator := context.temp_allocator,
 ) {
 	w := os.walker_create(path)
+	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
 		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
 			dir := filepath.dir(info.fullpath, allocator)

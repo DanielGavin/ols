@@ -117,6 +117,7 @@ main :: proc() {
 	} else if os.is_dir(args.path) {
 		files: [dynamic]string
 		w := os.walker_create(args.path)
+		defer os.walker_destroy(&w)
 		for info in os.walker_walk(&w) {
 			if info.type == .Directory {
 				continue
