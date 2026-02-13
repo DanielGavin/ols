@@ -6156,6 +6156,28 @@ ast_hover_import_path_package_docs :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "my_package: package\n---\nPackage docs")
 }
 
+@(test)
+ast_hover_proc_overload_generic_array_pointer_types :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo_dynamic_array :: proc(array: $A/[dynamic]^$T) {}
+		foo_slice :: proc(array: $A/[]^$T) {}
+
+		foo :: proc{
+			foo_dynamic_array,
+			foo_slice,
+		}
+
+		main :: proc() {
+			array: [dynamic]^int
+			f{*}oo(array)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo :: proc(array: $A/[dynamic]^$T)")
+}
+
 /*
 
 Waiting for odin fix
