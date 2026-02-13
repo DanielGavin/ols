@@ -69,42 +69,37 @@ resolve_poly :: proc(
 		}
 	}
 
+	return resolve_poly_specialization(ast_context, call_node, call_symbol, specialization, poly_map)
+}
+
+resolve_poly_specialization :: proc(
+	ast_context: ^AstContext,
+	call_node: ^ast.Expr,
+	call_symbol: Symbol,
+	specialization: ^ast.Expr,
+	poly_map: ^map[string]^ast.Expr,
+) -> bool {
+	if call_node == nil || specialization == nil {
+		return false
+	}
+
 	#partial switch p in specialization.derived {
 	case ^ast.Matrix_Type:
 		if call_matrix, ok := call_node.derived.(^ast.Matrix_Type); ok {
 			found := false
-			if poly_type, ok := p.row_count.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_matrix.row_count, poly_map)
-				}
 
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_matrix.row_count, call_symbol, p.row_count, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.row_count) {
+				found |= resolve_poly_expression(ast_context, call_matrix.row_count, p.row_count, poly_map)
 			}
 
-			if poly_type, ok := p.column_count.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_matrix.column_count, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_matrix.column_count, call_symbol, p.column_count, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.column_count) {
+				found |= resolve_poly_expression(ast_context, call_matrix.column_count, p.column_count, poly_map)
 			}
 
-			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_matrix.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_matrix.elem, call_symbol, p.elem, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.elem) {
+				found |= resolve_poly_expression(ast_context, call_matrix.elem, p.elem, poly_map)
 			}
+
 			return found
 		}
 	case ^ast.Call_Expr:
@@ -143,15 +138,8 @@ resolve_poly :: proc(
 				}
 			}
 
-			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_array.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_array.elem, call_symbol, p.elem, poly_map)
-				}
-				return true
+			if expr_contains_poly(p.elem) {
+				return resolve_poly_expression(ast_context, call_array.elem, p.elem, poly_map)
 			}
 		}
 	case ^ast.Array_Type:
@@ -172,114 +160,54 @@ resolve_poly :: proc(
 				}
 			}
 
-			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_array.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_array.elem, call_symbol, p.elem, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.elem) {
+				found |= resolve_poly_expression(ast_context, call_array.elem, p.elem, poly_map)
 			}
-			if p.len != nil {
-				if poly_type, ok := p.len.derived.(^ast.Poly_Type); ok {
-					if ident, ok := unwrap_ident(poly_type.type); ok {
-						save_poly_map(ident, call_array.len, poly_map)
-					}
 
-					if poly_type.specialization != nil {
-						return resolve_poly(ast_context, call_array.len, call_symbol, p.len, poly_map)
-					}
-					found |= true
-				}
+			if p.len != nil && expr_contains_poly(p.len) {
+				found |= resolve_poly_expression(ast_context, call_array.len, p.len, poly_map)
 			}
 
 			return found
 		}
 	case ^ast.Ellipsis:
 		if call_array, ok := call_node.derived.(^ast.Array_Type); ok {
-			found := false
-
 			if array_is_soa(call_array^) {
 				return false
 			}
 
-			if poly_type, ok := p.expr.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_array.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_array.elem, call_symbol, p.expr, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.expr) {
+				return resolve_poly_expression(ast_context, call_array.elem, p.expr, poly_map)
 			}
-			return found
 		}
 	case ^ast.Map_Type:
 		if call_map, ok := call_node.derived.(^ast.Map_Type); ok {
 			found := false
-			if poly_type, ok := p.key.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_map.key, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_map.key, call_symbol, p.key, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.key) {
+				found |= resolve_poly_expression(ast_context, call_map.key, p.key, poly_map)
 			}
 
-			if poly_type, ok := p.value.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_map.value, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_map.value, call_symbol, p.value, poly_map)
-				}
-				found |= true
+			if expr_contains_poly(p.value) {
+				found |= resolve_poly_expression(ast_context, call_map.value, p.value, poly_map)
 			}
 			return found
 		}
 	case ^ast.Multi_Pointer_Type:
 		if call_pointer, ok := call_node.derived.(^ast.Multi_Pointer_Type); ok {
-			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_pointer.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
-				}
-				return true
+			if expr_contains_poly(p.elem) {
+				return resolve_poly_expression(ast_context, call_pointer.elem, p.elem, poly_map)
 			}
 		}
 	case ^ast.Pointer_Type:
 		if call_pointer, ok := call_node.derived.(^ast.Pointer_Type); ok {
-			if poly_type, ok := p.elem.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, call_pointer.elem, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, call_pointer.elem, call_symbol, p.elem, poly_map)
-				}
-				return true
+			if expr_contains_poly(p.elem) {
+				return resolve_poly_expression(ast_context, call_pointer.elem, p.elem, poly_map)
 			}
 		}
 	case ^ast.Comp_Lit:
 		if comp_lit, ok := call_node.derived.(^ast.Comp_Lit); ok {
-			if poly_type, ok := p.type.derived.(^ast.Poly_Type); ok {
-				if ident, ok := unwrap_ident(poly_type.type); ok {
-					save_poly_map(ident, comp_lit.type, poly_map)
-				}
-
-				if poly_type.specialization != nil {
-					return resolve_poly(ast_context, comp_lit.type, call_symbol, p.type, poly_map)
-				}
-				return true
+			if expr_contains_poly(p.type) {
+				return resolve_poly_expression(ast_context, comp_lit.type, p.type, poly_map)
 			}
 		}
 	case ^ast.Struct_Type, ^ast.Proc_Type:
@@ -290,6 +218,27 @@ resolve_poly :: proc(
 	}
 
 	return false
+}
+
+resolve_poly_expression :: proc(
+	ast_context: ^AstContext,
+	call_node: ^ast.Expr,
+	poly_node: ^ast.Expr,
+	poly_map: ^map[string]^ast.Expr,
+) -> bool {
+	if poly_type, ok := poly_node.derived.(^ast.Poly_Type); ok {
+		if ident, ok := unwrap_ident(poly_type.type); ok {
+			save_poly_map(ident, call_node, poly_map)
+		}
+
+		if poly_type.specialization == nil {
+			return true
+		}
+	}
+
+	call_symbol := Symbol{}
+	internal_resolve_type_expression(ast_context, call_node, &call_symbol)
+	return resolve_poly(ast_context, call_node, call_symbol, poly_node, poly_map)
 }
 
 is_generic_type_recursive :: proc(expr: ^ast.Expr, name: string) -> bool {
