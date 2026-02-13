@@ -28,7 +28,7 @@ find_config_file_or_default :: proc(path: string) -> printer.Config {
 	config := default_style
 
 	if os.exists(name) {
-		if data, err := os.read_entire_file(name, context.temp_allocator); err != nil {
+		if data, err := os.read_entire_file(name, context.temp_allocator); err == nil {
 			if json.unmarshal(data, &config) == nil {
 				found = true
 			}
@@ -59,7 +59,7 @@ read_config_file_from_path_or_default :: proc(config_path: string) -> printer.Co
 	}
     config := default_style
     if os.exists(path) {
-        if data, err := os.read_entire_file(path, context.temp_allocator); err != nil {
+        if data, err := os.read_entire_file(path, context.temp_allocator); err == nil {
             if json.unmarshal(data, &config) == nil {
                 return config
             }
