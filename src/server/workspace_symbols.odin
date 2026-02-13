@@ -11,8 +11,8 @@ import "src:common"
 dir_blacklist :: []string{"node_modules", ".git"}
 
 WorkspaceCache :: struct {
-	time:      time.Time,
-	pkgs:      [dynamic]string,
+	time: time.Time,
+	pkgs: [dynamic]string,
 }
 
 @(thread_local, private = "file")
@@ -32,12 +32,13 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
-					dir := filepath.dir(info.fullpath, context.temp_allocator)
+					dir := strings.clone(info.fullpath, context.temp_allocator)
 					dir_name := filepath.base(dir)
 					found := false
 					for blacklist in dir_blacklist {
 						if blacklist == dir_name {
 							found = true
+							os.walker_skip_dir(&w)
 							break
 						}
 					}
