@@ -1688,9 +1688,109 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			try_build_package(ast_context.current_package)
 
 			if node.field != nil {
-				return resolve_symbol_return(ast_context, lookup(node.field.name, selector.pkg, node.pos.file))
+				field_symbol, ok := lookup(node.field.name, selector.pkg, node.pos.file)
+				if ok {
+					// Check if the field is a package alias (constant/variable pointing to a package)
+					#partial switch v in field_symbol.value {
+					case SymbolBasicValue:
+						if v.ident != nil {
+							// Check if the identifier name contains "/" (indicating it's been replaced with a full package path)
+							if strings.contains(v.ident.name, "/") {
+								pkg_symbol := Symbol {
+									type = .Package,
+									pkg = v.ident.name,
+									value = SymbolPackageValue{},
+								}
+								return pkg_symbol, true
+							}
+							// Try to resolve the identifier to see if it's a package
+							current_package := ast_context.current_package
+							defer { ast_context.current_package = current_package }
+							ast_context.current_package = selector.pkg
+							if ident_pkg, ident_ok := internal_resolve_type_identifier(ast_context, v.ident^); ident_ok {
+								if ident_pkg.type == .Package {
+									return ident_pkg, true
+								}
+							}
+						}
+					case SymbolGenericValue:
+						if v.expr != nil {
+							if ident, ident_ok := v.expr.derived.(^ast.Ident); ident_ok {
+								// Check if the identifier name contains "/" (indicating it's been replaced with a full package path)
+								if strings.contains(ident.name, "/") {
+									pkg_symbol := Symbol {
+										type = .Package,
+										pkg = ident.name,
+										value = SymbolPackageValue{},
+									}
+									return pkg_symbol, true
+								}
+								// Try to resolve the identifier to see if it's a package
+								current_package := ast_context.current_package
+								defer { ast_context.current_package = current_package }
+								ast_context.current_package = selector.pkg
+								if ident_pkg, ident_pkg_ok := internal_resolve_type_identifier(ast_context, ident^); ident_pkg_ok {
+									if ident_pkg.type == .Package {
+										return ident_pkg, true
+									}
+								}
+							}
+						}
+					}
+					return resolve_symbol_return(ast_context, field_symbol)
+				}
+				return {}, false
 			} else {
 				return Symbol{}, false
+			}
+		case SymbolBasicValue:
+			// Handle package aliases, e.g., pkg_a :: _pkg_a where _pkg_a is an imported package
+			if s.ident != nil {
+				pkg_ident := s.ident
+				// Check if this identifier refers to an imported package
+				for imp in ast_context.imports {
+					if strings.compare(imp.base, pkg_ident.name) == 0 {
+						// This is a reference to a package, treat it like SymbolPackageValue
+						try_build_package(ast_context.current_package)
+						if node.field != nil {
+							return resolve_symbol_return(ast_context, lookup(node.field.name, imp.name, node.pos.file))
+						}
+					}
+				}
+				// Also check if the identifier itself resolves to a package
+				if pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, pkg_ident^); pkg_ok {
+					if pkg_resolved, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
+						try_build_package(ast_context.current_package)
+						if node.field != nil {
+							return resolve_symbol_return(ast_context, lookup(node.field.name, pkg_symbol.pkg, node.pos.file))
+						}
+					}
+				}
+			}
+		case SymbolGenericValue:
+			// Handle package aliases defined as constants
+			if s.expr != nil {
+				if ident, ok := s.expr.derived.(^ast.Ident); ok {
+					// Check if this identifier refers to an imported package
+					for imp in ast_context.imports {
+						if strings.compare(imp.base, ident.name) == 0 {
+							// This is a reference to a package, treat it like SymbolPackageValue
+							try_build_package(ast_context.current_package)
+							if node.field != nil {
+								return resolve_symbol_return(ast_context, lookup(node.field.name, imp.name, node.pos.file))
+							}
+						}
+					}
+					// Also check if the identifier itself resolves to a package
+					if pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, ident^); pkg_ok {
+						if pkg_resolved, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
+							try_build_package(ast_context.current_package)
+							if node.field != nil {
+								return resolve_symbol_return(ast_context, lookup(node.field.name, pkg_symbol.pkg, node.pos.file))
+							}
+						}
+					}
+				}
 			}
 		case SymbolEnumValue:
 			// enum members probably require own symbol value
