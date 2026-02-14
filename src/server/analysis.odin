@@ -1819,6 +1819,7 @@ resolve_field_access_through_imported_alias :: proc(ast_context: ^AstContext, id
 	return {}, false
 }
 
+// returns the symbol of the first return type of a proc
 resolve_symbol_proc_first_return_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> (Symbol, bool) {
 	if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		if len(v.return_types) > 0 {
