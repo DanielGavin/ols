@@ -1690,52 +1690,8 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			if node.field != nil {
 				field_symbol, ok := lookup(node.field.name, selector.pkg, node.pos.file)
 				if ok {
-					// Check if the field is a package alias (constant/variable pointing to a package)
-					#partial switch v in field_symbol.value {
-					case SymbolBasicValue:
-						if v.ident != nil {
-							// Check if the identifier name contains "/" (indicating it's been replaced with a full package path)
-							if strings.contains(v.ident.name, "/") {
-								pkg_symbol := Symbol {
-									type = .Package,
-									pkg = v.ident.name,
-									value = SymbolPackageValue{},
-								}
-								return pkg_symbol, true
-							}
-							// Try to resolve the identifier to see if it's a package
-							current_package := ast_context.current_package
-							defer { ast_context.current_package = current_package }
-							ast_context.current_package = selector.pkg
-							if ident_pkg, ident_ok := internal_resolve_type_identifier(ast_context, v.ident^); ident_ok {
-								if ident_pkg.type == .Package {
-									return ident_pkg, true
-								}
-							}
-						}
-					case SymbolGenericValue:
-						if v.expr != nil {
-							if ident, ident_ok := v.expr.derived.(^ast.Ident); ident_ok {
-								// Check if the identifier name contains "/" (indicating it's been replaced with a full package path)
-								if strings.contains(ident.name, "/") {
-									pkg_symbol := Symbol {
-										type = .Package,
-										pkg = ident.name,
-										value = SymbolPackageValue{},
-									}
-									return pkg_symbol, true
-								}
-								// Try to resolve the identifier to see if it's a package
-								current_package := ast_context.current_package
-								defer { ast_context.current_package = current_package }
-								ast_context.current_package = selector.pkg
-								if ident_pkg, ident_pkg_ok := internal_resolve_type_identifier(ast_context, ident^); ident_pkg_ok {
-									if ident_pkg.type == .Package {
-										return ident_pkg, true
-									}
-								}
-							}
-						}
+					if pkg_alias_symbol, ok := resolve_field_through_package_alias(ast_context, field_symbol, selector.pkg); ok {
+						return pkg_alias_symbol, true
 					}
 					return resolve_symbol_return(ast_context, field_symbol)
 				}
@@ -1744,51 +1700,16 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 				return Symbol{}, false
 			}
 		case SymbolBasicValue:
-			// Handle package aliases, e.g., pkg_a :: _pkg_a where _pkg_a is an imported package
-			if s.ident != nil {
-				pkg_ident := s.ident
-				// Check if this identifier refers to an imported package
-				for imp in ast_context.imports {
-					if strings.compare(imp.base, pkg_ident.name) == 0 {
-						// This is a reference to a package, treat it like SymbolPackageValue
-						try_build_package(ast_context.current_package)
-						if node.field != nil {
-							return resolve_symbol_return(ast_context, lookup(node.field.name, imp.name, node.pos.file))
-						}
-					}
-				}
-				// Also check if the identifier itself resolves to a package
-				if pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, pkg_ident^); pkg_ok {
-					if pkg_resolved, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
-						try_build_package(ast_context.current_package)
-						if node.field != nil {
-							return resolve_symbol_return(ast_context, lookup(node.field.name, pkg_symbol.pkg, node.pos.file))
-						}
-					}
+			if s.ident != nil && node.field != nil {
+				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
+					return symbol, true
 				}
 			}
 		case SymbolGenericValue:
-			// Handle package aliases defined as constants
 			if s.expr != nil {
-				if ident, ok := s.expr.derived.(^ast.Ident); ok {
-					// Check if this identifier refers to an imported package
-					for imp in ast_context.imports {
-						if strings.compare(imp.base, ident.name) == 0 {
-							// This is a reference to a package, treat it like SymbolPackageValue
-							try_build_package(ast_context.current_package)
-							if node.field != nil {
-								return resolve_symbol_return(ast_context, lookup(node.field.name, imp.name, node.pos.file))
-							}
-						}
-					}
-					// Also check if the identifier itself resolves to a package
-					if pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, ident^); pkg_ok {
-						if pkg_resolved, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
-							try_build_package(ast_context.current_package)
-							if node.field != nil {
-								return resolve_symbol_return(ast_context, lookup(node.field.name, pkg_symbol.pkg, node.pos.file))
-							}
-						}
+				if ident, ok := s.expr.derived.(^ast.Ident); ok && node.field != nil {
+					if symbol, ok := resolve_field_access_through_imported_alias(ast_context, ident, node); ok {
+						return symbol, true
 					}
 				}
 			}
@@ -1813,7 +1734,91 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 	return {}, false
 }
 
-// returns the symbol of the first return type of a proc
+is_path_package_name :: #force_inline proc(name: string) -> bool {
+	return strings.contains(name, "/")
+}
+
+get_package_ident_from_symbol :: proc(symbol: Symbol) -> (ident: ^ast.Ident, ok: bool) {
+	#partial switch v in symbol.value {
+	case SymbolBasicValue:
+		if v.ident != nil {
+			return v.ident, true
+		}
+	case SymbolGenericValue:
+		if v.expr != nil {
+			if ident, ok := v.expr.derived.(^ast.Ident); ok {
+				return ident, true
+			}
+		}
+	}
+	return nil, false
+}
+
+resolve_ident_as_package :: proc(ast_context: ^AstContext, ident: ^ast.Ident, context_pkg: string) -> (Symbol, bool) {
+	ident_pkg, pkg_ok := internal_resolve_type_identifier(ast_context, ident^)
+	if pkg_ok && ident_pkg.type == .Package {
+		return ident_pkg, true
+	}
+	return {}, false
+}
+
+resolve_field_through_package_alias :: proc(ast_context: ^AstContext, field_symbol: Symbol, context_pkg: string) -> (Symbol, bool) {
+	ident, ok := get_package_ident_from_symbol(field_symbol)
+	if !ok {
+		return {}, false
+	}
+
+	if is_path_package_name(ident.name) {
+		return Symbol{
+			type = .Package,
+			pkg = ident.name,
+			value = SymbolPackageValue{},
+		}, true
+	}
+
+	current_package := ast_context.current_package
+	defer {
+		ast_context.current_package = current_package
+	}
+	ast_context.current_package = context_pkg
+
+	pkg_symbol, pkg_ok := resolve_ident_as_package(ast_context, ident, context_pkg)
+	if pkg_ok && pkg_symbol.type == .Package {
+		return pkg_symbol, true
+	}
+
+	return {}, false
+}
+
+resolve_field_access_through_imported_alias :: proc(ast_context: ^AstContext, ident: ^ast.Ident, node: ^ast.Selector_Expr) -> (Symbol, bool) {
+	for imp in ast_context.imports {
+		if strings.compare(imp.base, ident.name) == 0 {
+			try_build_package(ast_context.current_package)
+			if node.field != nil {
+				symbol, ok := lookup(node.field.name, imp.name, node.pos.file)
+				if ok {
+					return resolve_symbol_return(ast_context, symbol)
+				}
+			}
+		}
+	}
+
+	pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, ident^)
+	if pkg_ok {
+		if _, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
+			try_build_package(ast_context.current_package)
+			if node.field != nil {
+				symbol, ok := lookup(node.field.name, pkg_symbol.pkg, node.pos.file)
+				if ok {
+					return resolve_symbol_return(ast_context, symbol)
+				}
+			}
+		}
+	}
+
+	return {}, false
+}
+
 resolve_symbol_proc_first_return_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> (Symbol, bool) {
 	if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		if len(v.return_types) > 0 {
