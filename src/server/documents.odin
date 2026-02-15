@@ -168,10 +168,10 @@ document_setup :: proc(document: ^Document) {
 		if forward == "" {
 			document.package_name = package_name
 		} else {
-			document.package_name = strings.clone(forward)
+			document.package_name = strings.clone(forward, context.allocator)
 		}
 	} else {
-		document.package_name = path.dir(document.uri.path)
+		document.package_name = path.dir(document.uri.path, context.allocator)
 	}
 
 	when ODIN_OS == .Windows {
@@ -179,9 +179,9 @@ document_setup :: proc(document: ^Document) {
 		fullpath: string
 		if correct == "" {
 			//This is basically here to handle the tests where the physical file doesn't actual exist.
-			document.fullpath, _ = filepath.replace_path_separators(document.uri.path, '/', context.temp_allocator)
+			document.fullpath, _ = filepath.replace_path_separators(document.uri.path, '/', context.allocator)
 		} else {
-			document.fullpath, _ = filepath.replace_path_separators(correct, '/', context.temp_allocator)
+			document.fullpath, _ = filepath.replace_path_separators(correct, '/', context.allocator)
 		}
 	} else {
 		document.fullpath = document.uri.path
