@@ -107,6 +107,11 @@
 			"description": "Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.",
 			"default": false
 		},
+		"enable_code_action_invert_if": {
+			"type": "boolean",
+			"description": "Enables a code action to invert if statements.",
+			"default": false
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",

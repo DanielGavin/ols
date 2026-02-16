@@ -3,10 +3,8 @@
 package server
 
 import "core:fmt"
-import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
-import path "core:path/slashpath"
 import "core:strings"
 
 import "src:common"
