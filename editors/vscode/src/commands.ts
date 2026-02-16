@@ -20,6 +20,7 @@ export function runDebugTest(ctx: Ctx): Cmd {
         args.push(".");
         args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
         args.push("-debug");
+        args.push("-keep-executable");
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
