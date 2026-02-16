@@ -820,7 +820,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 
 
 						if p, ok := call_symbol.value.(SymbolProcedureValue); ok {
-							if len(p.return_types) != 1 {
+							if len(p.return_types) == 0 {
 								break next_fn
 							}
 							if s, ok := resolve_call_arg_type_expression(ast_context, p.return_types[0].type); ok {

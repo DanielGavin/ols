@@ -39,6 +39,8 @@ resolve_poly :: proc(
 			if ident, ok := unwrap_ident(type); ok {
 				if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
+				} else if .Anonymous in call_symbol.flags {
+					save_poly_map(ident, call_node, poly_map)
 				} else {
 					save_poly_map(
 						ident,
@@ -515,6 +517,7 @@ resolve_generic_function_symbol :: proc(
 				if file == "" {
 					file = call_expr.args[i].pos.file
 				}
+
 				symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
 
 				if symbol_expr == nil {
@@ -525,17 +528,13 @@ resolve_generic_function_symbol :: proc(
 				if symbol_value, ok := symbol.value.(SymbolProcedureValue); ok && len(symbol_value.return_types) > 0 {
 					call_arg_count += get_proc_return_value_count(symbol_value.return_types)
 					if _, ok := call_expr.args[i].derived.(^ast.Call_Expr); ok {
-						if symbol_value.return_types[0].type != nil {
-							if symbol, ok = resolve_type_expression(ast_context, symbol_value.return_types[0].type);
-							   ok {
-								symbol_expr = symbol_to_expr(
-									symbol,
-									call_expr.args[i].pos.file,
-									context.temp_allocator,
-								)
-								if symbol_expr == nil {
-									return {}, false
-								}
+						ret_type := symbol_value.return_types[0].type
+						if ret_type == nil {
+							ret_type = symbol_value.return_types[0].default_value
+						}
+						if ret_type != nil {
+							if symbol, ok = resolve_type_expression(ast_context, ret_type); ok {
+								symbol_expr = ret_type
 							}
 						}
 					}

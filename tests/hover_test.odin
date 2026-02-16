@@ -6178,6 +6178,46 @@ ast_hover_proc_overload_generic_array_pointer_types :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.foo :: proc(array: $A/[dynamic]^$T)")
 }
 
+@(test)
+ast_hover_generic_empty_struct_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		bar :: proc(searchPaths: []string, allocator := context.allocator) -> (session: struct{}, ok := true) {
+			return
+		}
+
+		main :: proc() {
+			b{*}azz, _ := foo(bar({"test"}))
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: struct{}")
+}
+
+@(test)
+ast_hover_overloaded_generic_proc_nested_proc_calls :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc {
+			foo_bool,
+		}
+
+		foo_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		bar :: proc() -> (int, ok) {}
+
+		main :: proc() {
+			b{*}azz, _ := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
+
 /*
 
 Waiting for odin fix
