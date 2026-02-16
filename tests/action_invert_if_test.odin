@@ -19,6 +19,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	test.expect_action(t, &source, {INVERT_IF_ACTION})
@@ -27,7 +28,7 @@ main :: proc() {
 @(test)
 action_invert_if_simple_edit :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := 5
@@ -37,6 +38,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x < 0 {
@@ -50,7 +52,7 @@ main :: proc() {
 @(test)
 action_invert_if_with_else :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := 5
@@ -62,6 +64,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	test.expect_action(t, &source, {INVERT_IF_ACTION})
@@ -70,7 +73,7 @@ main :: proc() {
 @(test)
 action_invert_if_with_else_edit :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := 5
@@ -82,6 +85,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x != 0 {
@@ -96,7 +100,7 @@ main :: proc() {
 @(test)
 action_invert_if_with_init :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} := foo(); x < 0 {
@@ -105,6 +109,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	test.expect_action(t, &source, {INVERT_IF_ACTION})
@@ -113,7 +118,7 @@ main :: proc() {
 @(test)
 action_invert_if_with_init_edit :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} := foo(); x < 0 {
@@ -122,6 +127,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x := foo(); x >= 0 {
@@ -135,13 +141,14 @@ main :: proc() {
 @(test)
 action_invert_if_not_on_if :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x :={*} 5
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	// Should not have the invert action when not on an if statement
@@ -152,7 +159,7 @@ main :: proc() {
 @(test)
 action_invert_if_inside_of_statement :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x != 0 {
@@ -161,6 +168,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	test.expect_action(t, &source, {})
@@ -169,7 +177,7 @@ main :: proc() {
 @(test)
 action_invert_if_not_eq :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} != 0 {
@@ -178,6 +186,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x == 0 {
@@ -191,7 +200,7 @@ main :: proc() {
 @(test)
 action_invert_if_lt :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} < 5 {
@@ -200,6 +209,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x >= 5 {
@@ -213,7 +223,7 @@ main :: proc() {
 @(test)
 action_invert_if_gt :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} > 5 {
@@ -222,6 +232,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x <= 5 {
@@ -235,7 +246,7 @@ main :: proc() {
 @(test)
 action_invert_if_le :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} <= 5 {
@@ -244,6 +255,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x > 5 {
@@ -257,7 +269,7 @@ main :: proc() {
 @(test)
 action_invert_if_negated :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if !x{*} {
@@ -266,6 +278,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x {
@@ -279,7 +292,7 @@ main :: proc() {
 @(test)
 action_invert_if_boolean :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	if x{*} {
@@ -288,6 +301,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if !x {
@@ -301,7 +315,7 @@ main :: proc() {
 @(test)
 action_invert_if_else_if_chain :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := something()
@@ -315,6 +329,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	expected := `if x <= 0 {
@@ -333,7 +348,7 @@ main :: proc() {
 @(test)
 action_invert_if_not_on_else_if :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := something()
@@ -347,6 +362,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	// Should not have the invert action when on an else-if statement
@@ -356,7 +372,7 @@ main :: proc() {
 @(test)
 action_invert_if_not_on_else :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := something()
@@ -368,6 +384,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	// Should not have the invert action when in the else block (not on an if)
@@ -377,7 +394,7 @@ main :: proc() {
 @(test)
 action_invert_if_nested_in_else_if_body :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 main :: proc() {
 	x := something()
@@ -393,6 +410,7 @@ main :: proc() {
 }
 `,
 		packages = {},
+		config = {enable_code_action_invert_if = true},
 	}
 
 	// Should have the invert action for an if statement nested inside an else-if body

@@ -79,7 +79,10 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 			&actions,
 		)
 	}
-	add_invert_if_action(document, position_context.position, strings.clone(document.uri.uri), &actions)
+
+	if config.enable_code_action_invert_if {
+		add_invert_if_action(document, position_context.position, strings.clone(document.uri.uri), &actions)
+	}
 
 	return actions[:], true
 }
