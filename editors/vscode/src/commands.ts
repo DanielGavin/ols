@@ -14,7 +14,7 @@ export function runDebugTest(ctx: Ctx): Cmd {
         const pkg = path.basename(cwd);
         const importPkg = debugConfig.pkg;
 
-        var args = [];
+        const args : string[] = [];
 
         args.push("test");
         args.push(".");
