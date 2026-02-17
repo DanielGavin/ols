@@ -6207,10 +6207,35 @@ ast_hover_overloaded_generic_proc_nested_proc_calls :: proc(t: ^testing.T) {
 
 		foo_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
 
-		bar :: proc() -> (int, ok) {}
+		bar :: proc() -> (int, bool) {}
 
 		main :: proc() {
 			b{*}azz, _ := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
+
+@(test)
+ast_hover_generic_overload_multiple_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc {
+			foo_bool,
+			foo_value_bool,
+		}
+
+		foo_bool :: proc(ok: $B) {}
+
+		foo_value_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		bar :: proc() -> (int, bool) {}
+
+
+		main :: proc() {
+			b{*}azz := foo(bar())
 		}
 		`,
 	}
