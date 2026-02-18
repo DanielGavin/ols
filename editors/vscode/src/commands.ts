@@ -16,11 +16,11 @@ export function runDebugTest(ctx: Ctx): Cmd {
 
         const args : string[] = [];
 
-        args.push("test");
+        args.push("build");
         args.push(".");
+        args.push("-build-mode:test")
         args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
         args.push("-debug");
-        args.push("-keep-executable");
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
