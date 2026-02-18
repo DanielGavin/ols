@@ -715,7 +715,12 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 	}
 
 	used_named := false
-	append_arg :: proc(ast_context: ^AstContext, arg: ^ast.Expr, results: ^[dynamic]CallArg, used_named: ^bool) -> bool {
+	append_arg :: proc(
+		ast_context: ^AstContext,
+		arg: ^ast.Expr,
+		results: ^[dynamic]CallArg,
+		used_named: ^bool,
+	) -> bool {
 		ast_context.use_locals = true
 
 		call_arg := CallArg{}
@@ -746,7 +751,7 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 			call_arg.is_nil = true
 			append(results, call_arg)
 			return true
-		} else if implicit, is_implicit_selector := value_expr.derived.(^ast.Implicit_Selector_Expr); is_implicit_selector {
+		} else if implicit, ok := value_expr.derived.(^ast.Implicit_Selector_Expr); ok {
 			call_arg.implicit_selector = implicit
 			append(results, call_arg)
 			return true
@@ -860,10 +865,12 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 				for proc_arg in procedure.arg_types {
 					for name in proc_arg.names {
 						if i >= len(call_args) {
+							i += 1
 							continue
 						}
 
 						call_arg := call_args[i]
+						i += 1
 
 						ast_context.use_locals = true
 
@@ -899,7 +906,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 
 						// TODO: check intrinsics for parapoly types?
 						if _, is_poly := arg_symbol.value.(SymbolPolyTypeValue); is_poly {
-							i += 1
 							continue
 						}
 
@@ -964,8 +970,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 								break next_fn
 							}
 						}
-
-						i += 1
 					}
 				}
 

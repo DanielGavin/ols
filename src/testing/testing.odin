@@ -464,11 +464,12 @@ expect_reference_locations :: proc(
 	src: ^Source,
 	expect_locations: []common.Location,
 	expect_excluded: []common.Location = nil,
+	include_declaration := true,
 ) {
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, src.position)
+	locations, ok := server.get_references(src.document, src.position, include_declaration = include_declaration)
 
 	for expect_location in expect_locations {
 		match := false

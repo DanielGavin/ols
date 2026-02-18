@@ -1501,7 +1501,13 @@ request_references :: proc(
 
 	reference_param: ReferenceParams
 
-	if unmarshal(params, reference_param, context.temp_allocator) != nil {
+	// Due to the field named `context`, we need to use json tags and this is the easiest way to handle that right now.
+	data, err := json.marshal(params_object)
+	if err != nil {
+		return .ParseError
+	}
+
+	if err := json.unmarshal(data, &reference_param, allocator = context.temp_allocator); err != nil {
 		return .ParseError
 	}
 
@@ -1512,7 +1518,11 @@ request_references :: proc(
 	}
 
 	locations: []common.Location
-	locations, ok = get_references(document, reference_param.position)
+	locations, ok = get_references(
+		document,
+		reference_param.position,
+		include_declaration = reference_param.ctx.includeDeclaration,
+	)
 
 	if !ok {
 		return .InternalError
