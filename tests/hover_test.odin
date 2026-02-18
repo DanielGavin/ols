@@ -6243,6 +6243,33 @@ ast_hover_generic_overload_multiple_params :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.bazz: int")
 }
 
+@(test)
+ast_hover_generic_overload_parapoly_with_exact_match :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {}
+
+		foo :: proc {
+			foo_bool,
+			foo_foo,
+		}
+
+		foo_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		foo_foo :: proc(value: $T, result: Foo) -> (T, Foo) {}
+
+		bar :: proc() -> (object: u64, result: Foo) {
+			return
+		}
+
+		main :: proc() {
+			object, r{*}esult := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.result: test.Foo")
+}
 /*
 
 Waiting for odin fix
