@@ -906,6 +906,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 
 						// TODO: check intrinsics for parapoly types?
 						if _, is_poly := arg_symbol.value.(SymbolPolyTypeValue); is_poly {
+							candidate.score += 1
 							continue
 						}
 
