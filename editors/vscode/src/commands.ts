@@ -5,22 +5,29 @@ import { execFile } from 'child_process';
 import path = require('path');
 import { promises as fs } from "fs";
 import { getDebugConfiguration } from './debug';
+import { getExt } from './extension';
 
 export function runDebugTest(ctx: Ctx): Cmd {
     return async(debugConfig: any) => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+
+        if(workspaceFolder === undefined) {
+            return;
+        }
 
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
         const pkg = path.basename(cwd);
-        const importPkg = debugConfig.pkg;
 
         const args : string[] = [];
 
         args.push("build");
-        args.push(".");
+        args.push(cwd);
         args.push("-build-mode:test")
-        args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
+        args.push(`-define:ODIN_TEST_NAMES=${pkg}.${fn}`);
         args.push("-debug");
+        const testExectuablePath = path.join(cwd, `${pkg}${getExt()}`);
+        args.push(`-out:${testExectuablePath}`)
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
@@ -30,46 +37,32 @@ export function runDebugTest(ctx: Ctx): Cmd {
             }
             args.push(`-collection:${name}=${path}`);
         }
+     
+        const odinBuildTestPromise = new Promise((resolve, reject) => {
+            execFile("odin", args, {cwd : workspaceFolder}, (err, stdout, stderr) => {
+                if (err) {
+                    console.error(stderr);
+                    reject(err)
+                }
 
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+                return resolve({ stdout });
+            });
+        });
 
-        if(workspaceFolder === undefined) {
-            return;
+        await odinBuildTestPromise;
+
+        const execExists = await new Promise<boolean>((resolve) => {
+            fs.stat(testExectuablePath).then((stats) => {
+                resolve(true);
+            }).catch(() => resolve(false));
+        });
+
+        if (!execExists) {
+            throw Error("Expect test executable to be present: " + testExectuablePath);
         }
 
-        const odinExecution = execFile("odin", args, {cwd : workspaceFolder}, (err, stdout, stderr) => {
-        });
- 
-        odinExecution.on("exit", (code) => {
-            const possibleExecutables = [
-                path.join(workspaceFolder, pkg),
-                path.join(workspaceFolder, pkg) + '.exe'
-            ];
-
-            let promises : Promise<string | null>[] = [];
-            possibleExecutables.forEach((executable) => {
-                promises.push(new Promise<string | null>((resolve) => {
-                    fs.stat(executable).then((stats) => {
-                        resolve(executable);
-                    }).catch((error) => {
-                        resolve(null);
-                    });
-                }));
-            });
-
-            Promise.all(promises).then(results => {
-                let found = false;
-                results.forEach((r) => {
-                    if (r !== null && !found) {
-                        found = true;
-                        vscode.debug.startDebugging(cwd, getDebugConfiguration(ctx.config, r)).then(r => console.log("Result", r));
-                    }
-                });
-                if (!found) {
-                    throw Error("Not possible to find executable, candidates are: " + possibleExecutables);
-                }
-            });
-        });
+        vscode.debug
+            .startDebugging(cwd, getDebugConfiguration(ctx.config, testExectuablePath)).then(r => console.log("Result", r));
     };
 }
 
@@ -78,13 +71,13 @@ export function runTest(ctx: Ctx): Cmd {
     return async(debugConfig: any) => {
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
-        const importPkg = debugConfig.pkg;
+        const pkg = path.basename(cwd);
 
         var args = [];
 
         args.push("test");
         args.push(cwd);
-        args.push(`-define:ODIN_TEST_NAMES=${importPkg}.${fn}`);
+        args.push(`-define:ODIN_TEST_NAMES=${pkg}.${fn}`);
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
