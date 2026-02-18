@@ -562,9 +562,14 @@ PrepareRenameParams :: struct {
 	position:     common.Position,
 }
 
+ReferenceContext :: struct {
+	includeDeclaration: bool,
+}
+
 ReferenceParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
+	ctx:          ReferenceContext `json:"context"`,
 }
 
 HighlightParams :: struct {

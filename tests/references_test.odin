@@ -1538,3 +1538,43 @@ ast_references_deferred_attributes :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_should_include_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		main :: proc() {
+			foo: Fo{*}o
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+		{range = {start = {line = 4, character = 8}, end = {line = 4, character = 11}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:], include_declaration = true)
+}
+
+@(test)
+ast_references_should_skip_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct{}
+
+		main :: proc() {
+			foo: Fo{*}o
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 4, character = 8}, end = {line = 4, character = 11}}},
+	}
+	exclude := []common.Location{
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations, exclude, include_declaration = false)
+}
