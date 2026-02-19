@@ -51,6 +51,7 @@ Config :: struct {
 	checker_targets:                         []string,
 	client_name:                             string,
 	profile:                                 ConfigProfile,
+	builtin_path:                            string,
 }
 
 config: Config

@@ -169,6 +169,10 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 				path = common.get_case_sensitive_path(path, context.temp_allocator)
 			}
 
+			folder := filepath.dir(path, context.temp_allocator)
+			if strings.equal_fold(folder, config.builtin_path) {
+				continue
+			}
 			uri := common.create_uri(path, context.temp_allocator)
 
 			add_diagnostics(

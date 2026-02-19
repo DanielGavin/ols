@@ -400,6 +400,11 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	parse_imports(document, config)
 
+	folder := filepath.dir(document.fullpath, context.temp_allocator)
+	if strings.equal_fold(folder, config.builtin_path) {
+		return nil, true
+	}
+
 	return current_errors[:], true
 }
 
