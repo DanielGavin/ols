@@ -365,21 +365,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 }
 
 
-setup_index :: proc() {
+setup_index :: proc(builtin_path: string) {
 	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
 	symbol_collection := make_symbol_collection(context.allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
-
-	dir_exe := common.get_executable_path(context.temp_allocator)
-	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
-
-	if !os.exists(builtin_path) {
-		log.errorf(
-			"Failed to find the builtin folder at `%v`.\nPlease ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins",
-			builtin_path,
-		)
-		return
-	}
 
 	try_build_package(builtin_path)
 }

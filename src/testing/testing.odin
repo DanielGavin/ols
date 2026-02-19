@@ -66,7 +66,7 @@ setup :: proc(src: ^Source) {
 		last = current
 	}
 
-	server.setup_index()
+	server.setup_index(server.get_builtin_path())
 
 	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
 	server.indexer.index.collection.config = &src.config
