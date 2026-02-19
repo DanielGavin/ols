@@ -108,6 +108,8 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 
 	errors := make(map[string][dynamic]Diagnostic, 0, context.temp_allocator)
 
+	clear_diagnostics(.Check)
+
 	for path in paths {
 		command: string
 
@@ -138,7 +140,6 @@ check :: proc(paths: []string, uri: common.Uri, config: ^common.Config) {
 			return
 		}
 
-		clear_diagnostics(.Check)
 
 		if len(buffer) == 0 {
 			continue
