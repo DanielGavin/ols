@@ -325,8 +325,6 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Syntax, uri.uri)
-	remove_diagnostics(.Check, uri.uri)
-
 	check_unused_imports(document, config)
 
 	if writer != nil && !config.disable_parser_errors {
