@@ -787,12 +787,10 @@ request_initialize :: proc(
 
 	file_resolve_cache.files = make(map[string]FileResolve, 200)
 
-	builtin_path := get_builtin_path()
-	config.builtin_path = builtin_path
-
-	if builtin_path != "" {
-		setup_index(builtin_path)
-	}
+	path := get_builtin_path(context.allocator)
+	config.builtin_path = path
+	// we still need to ensure the index is setup even if the builtin folder was not found
+	setup_index(path)
 
 	for pkg in indexer.builtin_packages {
 		try_build_package(pkg)
@@ -807,17 +805,34 @@ request_initialize :: proc(
 	return .None
 }
 
-// TODO: make this look for common locations rather than just next to the exe
-get_builtin_path :: proc() -> string {
+get_builtin_path :: proc(allocator := context.allocator) -> string {
 	dir_exe := common.get_executable_path(context.temp_allocator)
-	builtin_path := path.join({dir_exe, "builtin"})
-	if !os.exists(builtin_path) {
-		log.errorf(
-			"Failed to find the builtin folder at `%v`.\nPlease ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins",
-			builtin_path,
-		)
-		return ""
+	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
+
+	search_paths := make([dynamic]string, context.temp_allocator)
+	append(&search_paths, builtin_path)
+	when ODIN_OS == .Linux || ODIN_OS == .FreeBSD || ODIN_OS == .NetBSD {
+		append(&search_paths, "/usr/share/ols/builtin")
+	} else when ODIN_OS == .Darwin {
+		append(&search_paths, "/Library/Application Support/ols/builtin")
 	}
+	env_var_name :: "OLS_BUILTIN_FOLDER"
+	if env := os.get_env(env_var_name, context.temp_allocator); env != "" {
+		env = common.resolve_home_dir(env, context.temp_allocator)
+		append(&search_paths, env)
+	}
+	for path in search_paths {
+		if os.exists(path) {
+			return strings.clone(path, allocator)
+		}
+	}
+	log.errorf(
+		"Failed to find the builtin folder at `%v`\n" +
+		"Please ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins.\n" +
+		"Alternatively you can specify this path using the `%v` environment variable.",
+		builtin_path,
+		env_var_name,
+	)
 	return builtin_path
 }
 
