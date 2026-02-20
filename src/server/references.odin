@@ -306,11 +306,12 @@ resolve_references :: proc(
 		}
 
 		p := parser.Parser {
-			err   = log_error_handler,
-			warn  = log_warning_handler,
 			flags = {.Optional_Semicolons},
 		}
-
+		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			p.err = log_error_handler
+			p.warn = log_warning_handler
+		}
 
 		pkg := new(ast.Package)
 		pkg.kind = .Normal

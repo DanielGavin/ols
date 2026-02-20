@@ -787,10 +787,10 @@ request_initialize :: proc(
 
 	file_resolve_cache.files = make(map[string]FileResolve, 200)
 
-	path := get_builtin_path(context.allocator)
-	config.builtin_path = path
+	builtin_path := get_builtin_path(context.allocator)
+	config.builtin_path = builtin_path
 	// we still need to ensure the index is setup even if the builtin folder was not found
-	setup_index(path)
+	setup_index(builtin_path)
 
 	for pkg in indexer.builtin_packages {
 		try_build_package(pkg)
