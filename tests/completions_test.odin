@@ -5530,7 +5530,7 @@ ast_completion_package_docs :: proc(t: ^testing.T) {
 }
 
 @(test)
-alias_index_package_completion :: proc(t: ^testing.T) {
+ast_completion_alias_index_package_completion :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
@@ -5572,7 +5572,7 @@ alias_index_package_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
-forward_index_package_completion :: proc(t: ^testing.T) {
+ast_completion_forward_index_package_completion :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
 	append(
@@ -5611,4 +5611,14 @@ forward_index_package_completion :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, ".", {"pkg_a.proc_a :: proc()"})
+}
+
+@(test)
+ast_completion_untyped_string_foreign_import :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foreign import foo {".{*}"}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {}, {"len"})
 }

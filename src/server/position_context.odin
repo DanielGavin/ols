@@ -811,6 +811,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.body, position_context)
 	case ^Foreign_Import_Decl:
 		get_document_position(n.name, position_context)
+		get_document_position(n.fullpaths, position_context)
 	case ^Proc_Group:
 		get_document_position(n.args, position_context)
 	case ^Attribute:
