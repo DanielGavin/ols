@@ -1012,7 +1012,7 @@ keywords_docs: map[string]string = {
 
 directive_docs : map[string]string = {
 	// Record validation
-	"all_or_none" = "```odin\nall_or_none\n```\n\nThis tag can be applied to a `struct`. Prevents partial initialization of the struct, so either all or none of the fields must be filled.",
+	"all_or_none" = "```odin\n#all_or_none\n```\n\nThis tag can be applied to a `struct`. Prevents partial initialization of the struct, so either all or none of the fields must be filled.",
 	// Record memory layout
 	"packed" = "```odin\n#packed\n```\n\nThis tag can be applied to a `struct`. Removes padding between fields that’s normally inserted to ensure all fields meet their type’s alignment requirements. Fields remain in source order.\n\nThis is useful where the structure is unlikely to be correctly aligned (the insertion rules for padding assume it is), or if the space-savings are more important or useful than the access speed of the fields.\n\nAccessing a field in a packed struct may require copying the field out of the struct into a temporary location, or using a machine instruction that doesn’t assume the pointer address is correctly aligned, in order to be performant or avoid crashing on some systems. (See `intrinsics.unaligned_load`.)",
 	"raw_union" = "```odin\n#raw_union\n```\n\nThis tag can be applied to a `struct`. Struct’s fields will share the same memory space which serves the same functionality as `union`s in C language. Useful when writing bindings especially.",
