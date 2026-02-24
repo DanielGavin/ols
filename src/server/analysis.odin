@@ -2051,20 +2051,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (Symbol, bool) {
 	is_distinct := false
 
-	if local.parameter {
-		for imp in ast_context.imports {
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type  = .Package,
-					pkg   = imp.name,
-					value = SymbolPackageValue{},
-				}
-
-				return resolve_symbol_return(ast_context, symbol)
-			}
-		}
-	}
-
 	if local.pkg != "" {
 		ast_context.current_package = local.pkg
 	}
