@@ -311,8 +311,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .ParseError
 	}
 
-	if strings.contains(document.uri.uri, "base/builtin/builtin.odin") ||
-	   strings.contains(document.uri.uri, "base/intrinsics/intrinsics.odin") {
+	if is_ols_builtin_file(document.uri.uri) {
 		return .None
 	}
 
@@ -496,4 +495,8 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 	text_len := len(imp.relpath.text)
 	end.character += text_len
 	return {start = start, end = end}
+}
+
+is_ols_builtin_file :: proc(path: string) -> bool {
+	return strings.has_suffix(path, "/builtin/builtin.odin") || strings.has_suffix(path, "/builtin/intrinsics.odin")
 }

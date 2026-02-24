@@ -208,7 +208,7 @@ try_build_package :: proc(pkg_name: string) {
 			p := parser.Parser {
 				flags = {.Optional_Semicolons},
 			}
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				p.err = log_error_handler
 				p.warn = log_warning_handler
 			}
@@ -233,7 +233,7 @@ try_build_package :: proc(pkg_name: string) {
 			ok := parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				if !is_ols_builtin_file(fullpath) {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -293,7 +293,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	p := parser.Parser {
 		flags = {.Optional_Semicolons},
 	}
-	if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+	if !is_ols_builtin_file(fullpath) {
 		p.err = log_error_handler
 		p.warn = log_warning_handler
 	}
@@ -328,7 +328,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 		}

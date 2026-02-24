@@ -865,6 +865,9 @@ request_initialized :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
+
 	return .None
 }
 
@@ -1208,7 +1211,7 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, config)
+	check(.Saved, corrected_uri, config)
 
 	document := document_get(save_params.textDocument.uri)
 	if document != nil {
@@ -1686,6 +1689,9 @@ notification_did_change_watched_files :: proc(
 		}
 	}
 
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
+
 	return .None
 }
 
@@ -1712,6 +1718,9 @@ notification_workspace_did_change_configuration :: proc(
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
 	}
+
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
 
 	return .None
 }
