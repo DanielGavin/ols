@@ -308,7 +308,7 @@ resolve_references :: proc(
 		p := parser.Parser {
 			flags = {.Optional_Semicolons},
 		}
-		if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+		if !is_ols_builtin_file(fullpath) {
 			p.err = log_error_handler
 			p.warn = log_warning_handler
 		}
@@ -331,7 +331,7 @@ resolve_references :: proc(
 		ok := parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 			continue

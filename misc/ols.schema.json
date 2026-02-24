@@ -130,6 +130,13 @@
 			"type": "string",
 			"description": "Pass custom arguments to `odin check`."
 		},
+		"checker_skip_packages": {
+			"type": "array",
+			"items": {
+				"type": "string",
+			},
+			"description": "Paths to packages that should not be checked by `odin check`"
+		},
 		"profile": {
 			"type": "string",
 			"description": "What profile to currently use."

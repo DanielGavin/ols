@@ -78,7 +78,7 @@ clear_all_package_aliases :: proc() {
 find_all_package_aliases :: proc() {
 	for k, v in common.config.collections {
 		pkgs := make([dynamic]string, context.temp_allocator)
-		append_packages(v, &pkgs, context.temp_allocator)
+		append_packages(v, &pkgs, {}, context.temp_allocator)
 
 		for pkg in pkgs {
 			if pkg, err := filepath.rel(v, pkg, context.temp_allocator); err == .None {

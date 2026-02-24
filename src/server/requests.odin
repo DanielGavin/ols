@@ -411,6 +411,14 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	if ols_config.checker_args != "" {
 		config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 	}
+	if len(ols_config.checker_skip_packages) > 0 {
+		packages := make(map[string]struct{}, context.allocator)
+		for path in ols_config.checker_skip_packages {
+			full_path, _ := os.get_absolute_path(path, context.allocator)
+			packages[full_path] = {}
+		}
+		config.checker_skip_packages = packages
+	}
 
 	for profile in ols_config.profiles {
 		if ols_config.profile == profile.name {
@@ -865,6 +873,9 @@ request_initialized :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
+
 	return .None
 }
 
@@ -1208,7 +1219,7 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, config)
+	check(.Saved, corrected_uri, config)
 
 	document := document_get(save_params.textDocument.uri)
 	if document != nil {
@@ -1686,6 +1697,9 @@ notification_did_change_watched_files :: proc(
 		}
 	}
 
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
+
 	return .None
 }
 
@@ -1712,6 +1726,9 @@ notification_workspace_did_change_configuration :: proc(
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
 	}
+
+	check(.Workspace, {}, config)
+	push_diagnostics(writer)
 
 	return .None
 }

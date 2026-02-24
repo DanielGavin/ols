@@ -129,12 +129,16 @@ skip_file :: proc(filename: string) -> bool {
 
 // Finds all packages under the provided path by walking the file system
 // and appends them to the provided dynamic array
-append_packages :: proc(path: string, pkgs: ^[dynamic]string, allocator := context.temp_allocator) {
+append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]struct{}, allocator := context.temp_allocator) {
 	w := os.walker_create(path)
 	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
 		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
 			dir := filepath.dir(info.fullpath, allocator)
+			if dir in skip {
+				os.walker_skip_dir(&w)
+				continue
+			}
 			if !slice.contains(pkgs[:], dir) {
 				append(pkgs, dir)
 			}
@@ -208,7 +212,7 @@ try_build_package :: proc(pkg_name: string) {
 			p := parser.Parser {
 				flags = {.Optional_Semicolons},
 			}
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				p.err = log_error_handler
 				p.warn = log_warning_handler
 			}
@@ -233,7 +237,7 @@ try_build_package :: proc(pkg_name: string) {
 			ok := parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				if !is_ols_builtin_file(fullpath) {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -293,7 +297,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	p := parser.Parser {
 		flags = {.Optional_Semicolons},
 	}
-	if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+	if !is_ols_builtin_file(fullpath) {
 		p.err = log_error_handler
 		p.warn = log_warning_handler
 	}
@@ -328,7 +332,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 		}

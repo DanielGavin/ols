@@ -49,6 +49,7 @@ Config :: struct {
 	odin_root_override:                      string,
 	checker_args:                            string,
 	checker_targets:                         []string,
+	checker_skip_packages:                   map[string]struct{},
 	client_name:                             string,
 	profile:                                 ConfigProfile,
 	builtin_path:                            string,
