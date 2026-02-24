@@ -43,7 +43,8 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 
 	for workspace in config.workspace_folders {
 		if uri, ok := common.parse_uri(workspace.uri, context.temp_allocator); ok {
-			append_packages(uri.path, &data, context.temp_allocator)
+			log.error(config.checker_skip_packages)
+			append_packages(uri.path, &data, config.checker_skip_packages, context.temp_allocator)
 		}
 	}
 
@@ -129,7 +130,10 @@ resolve_check_paths :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.C
 
 	if mode == .Saved && config.enable_checker_only_saved && uri.path != "" {
 		paths := make([dynamic]string, context.temp_allocator)
-		append(&paths, path.dir(uri.path, context.temp_allocator))
+		dir := path.dir(uri.path, context.temp_allocator)
+		if dir not_in config.checker_skip_packages {
+			append(&paths, dir)
+		}
 		return paths[:], false
 	}
 
@@ -222,7 +226,7 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 
 			when ODIN_OS == .Windows {
 				path = common.get_case_sensitive_path(path, context.temp_allocator)
-				path = filepath.replace_path_separators(path, '/', context.temp_allocator)
+				path, _ = filepath.replace_path_separators(path, '/', context.temp_allocator)
 			}
 
 			if is_ols_builtin_file(path) {

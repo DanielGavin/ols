@@ -444,6 +444,7 @@ OlsConfig :: struct {
 	odin_root_override:                      string,
 	checker_args:                            string,
 	checker_targets:                         []string,
+	checker_skip_packages:                   []string,
 	profiles:                                [dynamic]common.ConfigProfile,
 	profile:                                 string,
 }

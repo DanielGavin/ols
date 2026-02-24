@@ -117,6 +117,8 @@ Options:
 
 - `checker_args`: Pass custom arguments to `odin check`.
 
+- `checker_skip_packages`: Paths to packages that should not be checked by `odin check`.
+
 - `verbose`: Logs warnings instead of just errors.
 
 - `profile`: What profile to currently use.
