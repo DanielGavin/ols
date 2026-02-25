@@ -698,22 +698,20 @@ request_initialize :: proc(
 		project_uri = initialize_params.rootUri
 	}
 
-	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		// Apply the global ols config.
-		global_ols_config_path := path.join(
-			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
-			allocator = context.temp_allocator,
-		)
-		read_ols_config(global_ols_config_path, config, uri)
+	// Get the global ols config path.
+	global_ols_config_path := path.join(
+		elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
+		allocator = context.temp_allocator,
+	)
 
-		// Apply the requested ols config.
-		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		read_ols_config(global_ols_config_path, config, uri)
 
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
 		read_ols_config(ols_config_path, config, uri)
 	} else {
-		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
+		read_ols_config(global_ols_config_path, config, {})
 	}
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
