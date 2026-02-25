@@ -293,6 +293,60 @@ local M = {
 return M
 ```
 
+#### LazyVim
+
+~/.config/nvim/lua/plugins/lsp.lua based on https://github.com/neovim/nvim-lspconfig/blob/master/lsp/ols.lua
+
+```lua
+return {
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      setup = {
+        require('lspconfig').ols.setup {
+          -- needs to be full path, :LspLog shows ols cannot find builtin folder otherwise.
+          cmd = { vim.fn.exepath("ols") },
+          filetypes = { "odin" },
+          root_dir = require("lspconfig.util").root_pattern('ols.json', '.git', '*.odin'),
+          -- disable lsp completion if bug happens in ols
+          -- on_attach = function(client) client.server_capabilities.completionProvider = nil end,
+        }
+      },
+    },
+  },
+}
+```
+
+~/.config/nvim/lua/plugins/treesitter.lua
+
+```lua
+return {
+  {
+    "nvim-treesitter/nvim-treesitter",
+    opts = {
+      ensure_installed = {
+        "odin",
+      },
+    },
+  },
+}
+```
+
+You may need conform.nvim if autoformat with sole ols of odin files is behaving strange
+
+~/.config/nvim/lua/plugins/conform.lua
+
+```lua
+return {
+  "stevearc/conform.nvim",
+  opts = {
+    formatters_by_ft = {
+      odin = { "odinfmt" },
+    },
+  },
+}
+```
+
 ### Emacs
 
 For Emacs, there are two packages available for LSP; lsp-mode and eglot.
