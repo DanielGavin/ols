@@ -43,7 +43,6 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 
 	for workspace in config.workspace_folders {
 		if uri, ok := common.parse_uri(workspace.uri, context.temp_allocator); ok {
-			log.error(config.checker_skip_packages)
 			append_packages(uri.path, &data, config.checker_skip_packages, context.temp_allocator)
 		}
 	}
