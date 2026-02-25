@@ -873,8 +873,10 @@ request_initialized :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
-	check(.Workspace, {}, config)
-	push_diagnostics(writer)
+	if !config.enable_checker_only_saved {
+		check(.Workspace, {}, config)
+		push_diagnostics(writer)
+	}
 
 	return .None
 }
@@ -1677,6 +1679,8 @@ notification_did_change_watched_files :: proc(
 		return .ParseError
 	}
 
+	uris := make([dynamic]common.Uri, context.temp_allocator)
+
 	for change in did_change_watched_files_params.changes {
 		if change.type == cast(int)FileChangeType.Deleted {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
@@ -1686,6 +1690,7 @@ notification_did_change_watched_files :: proc(
 			find_all_package_aliases()
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
+				append(&uris, uri)
 				if data, err := os.read_entire_file(uri.path, context.temp_allocator); err == nil {
 					index_file(uri, cast(string)data)
 				}
@@ -1697,7 +1702,13 @@ notification_did_change_watched_files :: proc(
 		}
 	}
 
-	check(.Workspace, {}, config)
+	if config.enable_checker_only_saved {
+		for uri in uris {
+			check(.Saved, uri, config)
+		}
+	} else {
+		check(.Workspace, {}, config)
+	}
 	push_diagnostics(writer)
 
 	return .None
@@ -1725,10 +1736,13 @@ notification_workspace_did_change_configuration :: proc(
 
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
-	}
+		if config.enable_checker_only_saved {
+			check(.Saved, uri, config)
+		} else {
+			check(.Workspace, {}, config)
+		}
+		push_diagnostics(writer) }
 
-	check(.Workspace, {}, config)
-	push_diagnostics(writer)
 
 	return .None
 }
