@@ -261,7 +261,6 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 			if state.exited {
 				finished += 1
 				buf: [1024]u8
-
 				clear(&buffer)
 
 				for {
@@ -274,13 +273,15 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 					}
 				}
 
-				json_errors: Json_Errors
-				if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
-				   res != nil {
-					log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
-					continue
+				if len(buffer) > 0 {
+					json_errors: Json_Errors
+					if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
+					res != nil {
+						log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
+						continue
+					}
+					append(&errors, json_errors)
 				}
-				append(&errors, json_errors)
 			}
 		}
 		time.sleep(1 * time.Millisecond)
