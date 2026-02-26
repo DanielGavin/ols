@@ -164,7 +164,11 @@ document_setup :: proc(document: ^Document) {
 	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
 		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.replace_path_separators(common.get_case_sensitive_path(package_name), '/', context.temp_allocator)
+		forward, _ := filepath.replace_path_separators(
+			common.get_case_sensitive_path(package_name),
+			'/',
+			context.temp_allocator,
+		)
 		if forward == "" {
 			document.package_name = package_name
 		} else {
@@ -498,5 +502,9 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 }
 
 is_ols_builtin_file :: proc(path: string) -> bool {
-	return strings.has_suffix(path, "/builtin/builtin.odin") || strings.has_suffix(path, "/builtin/intrinsics.odin")
+	return(
+		strings.has_suffix(path, "/builtin/builtin.odin") ||
+		strings.has_suffix(path, "/builtin/intrinsics.odin") ||
+		strings.has_suffix(path, "/intrinsics/intrinsics.odin") \
+	)
 }
