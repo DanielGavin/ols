@@ -706,7 +706,7 @@ request_initialize :: proc(
 		allocator = context.temp_allocator,
 	)
 
-	config_loaded
+	config_loaded: bool
 	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
 		global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
 
