@@ -1,17 +1,17 @@
 package server
 
 import "base:runtime"
-import "core:sync/chan"
-import "core:thread"
-
 import "core:encoding/json"
 import "core:fmt"
 import "core:log"
 import "core:mem"
+import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:slice"
 import "core:strings"
+import "core:sync/chan"
+import "core:thread"
+import "core:time"
 
 import "src:common"
 
@@ -64,12 +64,18 @@ create_and_start_check_worker :: proc() {
 	check_chan, _ := chan.create(chan.Chan(Check_Request), 8, context.allocator)
 	check_send = chan.as_send(check_chan)
 	check_recv := chan.as_recv(check_chan)
-	thread.create_and_start_with_poly_data(check_recv, run_check_consumer)
+	thread.create_and_start_with_poly_data(Consumer{logger = context.logger, ch = check_recv}, run_check_consumer)
 }
 
-run_check_consumer :: proc(ch: chan.Chan(Check_Request, .Recv)) {
+Consumer :: struct {
+	logger: log.Logger,
+	ch:     chan.Chan(Check_Request, .Recv),
+}
+
+run_check_consumer :: proc(c: Consumer) {
+	context.logger = c.logger
 	for {
-		request, ok := chan.recv(ch)
+		request, ok := chan.recv(c.ch)
 		if !ok {
 			break
 		}
@@ -178,22 +184,22 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 		return
 	}
 
-	data := make([]byte, mem.Kilobyte * 200, context.temp_allocator)
-
-	buffer: []byte
-	code: u32
-	ok: bool
-
-	collection_builder := strings.builder_make(context.temp_allocator)
+	collections := make([dynamic]string, context.temp_allocator)
 
 	for k, v in common.config.collections {
 		if k == "" || k == "core" || k == "vendor" || k == "base" {
 			continue
 		}
-		strings.write_string(&collection_builder, fmt.aprintf("-collection:%v=\"%v\" ", k, v))
+		append(&collections, fmt.aprintf("-collection:%v=%v", k, v))
 	}
 
-	builtin_path := config.builtin_path
+
+	CheckProcess :: struct {
+		process: os.Process,
+		reader:       ^os.File,
+	}
+	processes := make([dynamic]CheckProcess, 0, len(paths))
+
 	for check_path in paths {
 		command: string
 
@@ -204,39 +210,96 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 		}
 
 		entry_point_opt := filepath.ext(check_path) == ".odin" ? "-file" : "-no-entry-point"
+		cmd := make([dynamic]string, context.temp_allocator)
+		append(&cmd, command, "check", check_path)
+		for c in collections {
+			append(&cmd, c)
+		}
+		append(&cmd, entry_point_opt, "-json-errors")
+		args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
+		for arg in args {
+			append(&cmd, arg)
+		}
 
-		slice.zero(data)
+		r, w, err := os.pipe()
+		if err != nil {
+			log.errorf("failed to create pipe for `odin check`: %v\n", err)
+			continue
+		}
+		defer os.close(w)
 
-		if code, ok, buffer = common.run_executable(
-			fmt.tprintf(
-				"%v check \"%s\" %s %s %s %s %s",
-				command,
-				check_path,
-				strings.to_string(collection_builder),
-				entry_point_opt,
-				config.checker_args,
-				"-json-errors",
-				ODIN_OS in runtime.Odin_OS_Types{.Linux, .Darwin, .FreeBSD, .OpenBSD, .NetBSD} ? "2>&1" : "",
-			),
-			&data,
-		); !ok {
-			log.errorf("Odin check failed with code %v for file %v", code, check_path)
+		desc := os.Process_Desc {
+			command = cmd[:],
+			stdout  = w,
+			stderr  = w,
+		}
+
+		p, perr := os.process_start(desc)
+		if perr != nil {
+			log.errorf("failed to start process for `odin check`: %v\n", err)
 			continue
 		}
 
-		if len(buffer) == 0 {
-			continue
+		append(&processes, CheckProcess{process = p, reader = r})
+	}
+
+	buffer := make([dynamic]u8, mem.Kilobyte * 200, context.temp_allocator)
+	errors := make([dynamic]Json_Errors, 0, len(processes), context.temp_allocator)
+
+	start := time.now()
+	finished := 0
+	for finished < len(processes) {
+		if time.since(start) > 20 * time.Second {
+			log.error("`odin check` timed out")
+			break
 		}
+		for p in processes {
+			state, err := os.process_wait(p.process, 0)
+			if err != nil {
+				continue
+			}
+			if state.exited {
+				finished += 1
+				buf: [1024]u8
 
-		json_errors: Json_Errors
+				clear(&buffer)
 
-		if res := json.unmarshal(buffer, &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
-		   res != nil {
-			log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer))
-			continue
+				for {
+					n, read_err := os.read(p.reader, buf[:])
+					if n > 0 {
+						_, _ = append(&buffer, ..buf[:n])
+					}
+					if read_err != nil {
+						break
+					}
+				}
+
+				json_errors: Json_Errors
+				if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
+				   res != nil {
+					log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
+					continue
+				}
+				append(&errors, json_errors)
+			}
 		}
+		time.sleep(1 * time.Millisecond)
+	}
 
-		for error in json_errors.errors {
+	for p in processes {
+		os.close(p.reader)
+	}
+
+	DiagnosticKey :: struct {
+		path:    string,
+		message: string,
+		line:    int,
+		column:  int,
+	}
+
+	diagnostics := make(map[DiagnosticKey]struct{}, context.temp_allocator)
+	for e in errors {
+		for error in e.errors {
 			if len(error.msgs) == 0 {
 				continue
 			}
@@ -253,6 +316,18 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 				path = common.get_case_sensitive_path(path, context.temp_allocator)
 				path, _ = filepath.replace_path_separators(path, '/', context.temp_allocator)
 			}
+
+			key := DiagnosticKey {
+				path    = path,
+				message = message,
+				line    = error.pos.line,
+				column  = error.pos.column,
+			}
+			if key in diagnostics {
+				continue
+			}
+
+			diagnostics[key] = {}
 
 			if is_ols_builtin_file(path) {
 				continue
@@ -275,7 +350,9 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 				},
 			)
 		}
+
 	}
+
 }
 
 @(private = "file")
