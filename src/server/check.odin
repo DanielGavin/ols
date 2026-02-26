@@ -1,6 +1,8 @@
 package server
 
 import "base:runtime"
+import "core:sync/chan"
+import "core:thread"
 
 import "core:encoding/json"
 import "core:fmt"
@@ -35,6 +37,46 @@ Json_Errors :: struct {
 Check_Mode :: enum {
 	Saved,
 	Workspace,
+}
+
+Check_Request :: struct {
+	check_mode: Check_Mode,
+	uri:        common.Uri,
+	config:     ^common.Config,
+	writer:     ^Writer,
+}
+
+@(private = "file")
+check_send: chan.Chan(Check_Request, .Send)
+
+queue_check_request :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config, writer: ^Writer) {
+	ok := chan.send(check_send, Check_Request{check_mode = mode, uri = uri, config = config, writer = writer})
+	if !ok {
+		log.errorf("Failed to queue check request for uri %q", uri.uri)
+	}
+}
+
+stop_check_worker :: proc() {
+	chan.close(check_send)
+}
+
+create_and_start_check_worker :: proc() {
+	check_chan, _ := chan.create(chan.Chan(Check_Request), 8, context.allocator)
+	check_send = chan.as_send(check_chan)
+	check_recv := chan.as_recv(check_chan)
+	thread.create_and_start_with_poly_data(check_recv, run_check_consumer)
+}
+
+run_check_consumer :: proc(ch: chan.Chan(Check_Request, .Recv)) {
+	for {
+		request, ok := chan.recv(ch)
+		if !ok {
+			break
+		}
+		check(request.check_mode, request.uri, request.config)
+		push_diagnostics(request.writer)
+		free_all(context.temp_allocator)
+	}
 }
 
 //If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
@@ -72,22 +114,6 @@ path_matches_checker_scope :: proc(file_path: string, checker_path: string) -> b
 	}
 
 	return path_has_prefix(file_path, checker_path)
-}
-
-clear_check_diagnostics_for_paths :: proc(paths: []string) {
-	for uri, _ in diagnostics[.Check] {
-		parsed_uri, ok := common.parse_uri(uri, context.temp_allocator)
-		if !ok {
-			continue
-		}
-
-		for checker_path in paths {
-			if path_matches_checker_scope(parsed_uri.path, checker_path) {
-		remove_diagnostics(.Check, uri)
-				break
-			}
-		}
-	}
 }
 
 check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
@@ -260,4 +286,3 @@ map_diagnostic_severity :: proc(type: string) -> DiagnosticSeverity {
 
 	return .Error
 }
-
