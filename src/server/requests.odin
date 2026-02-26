@@ -674,7 +674,7 @@ request_initialize :: proc(
 	config.enable_checker_only_saved = true
 	config.enable_auto_import = true
 
-	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
+	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) -> (ok: bool) {
 		data, err := os.read_entire_file(file, context.temp_allocator)
 		if err != nil {
 			log.warnf("Failed to read/find %v: %v", file, err)
@@ -685,9 +685,11 @@ request_initialize :: proc(
 		json_err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
 		if json_err == nil {
 			read_ols_initialize_options(config, ols_config, uri)
+			ok = true
 		} else {
 			log.errorf("Failed to unmarshal %v: %v", file, json_err)
 		}
+		return
 	}
 
 	project_uri := ""
@@ -698,21 +700,27 @@ request_initialize :: proc(
 		project_uri = initialize_params.rootUri
 	}
 
-	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		// Apply the global ols config.
-		global_ols_config_path := path.join(
-			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
-			allocator = context.temp_allocator,
-		)
-		read_ols_config(global_ols_config_path, config, uri)
+	// Get the global ols config path.
+	global_ols_config_path := path.join(
+		elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
+		allocator = context.temp_allocator,
+	)
 
-		// Apply the requested ols config.
-		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+	config_loaded: bool
+	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
 
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
-		read_ols_config(ols_config_path, config, uri)
+		local_config_loaded := read_ols_config(ols_config_path, config, uri)
+
+		config_loaded = local_config_loaded || global_config_loaded
 	} else {
+		config_loaded = read_ols_config(global_ols_config_path, config, {})
+	}
+
+	// Config options should be initialized even if we failed to load the config, as this sets the default collections, ODIN_OS etc
+	if !config_loaded {
 		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
 	}
 
