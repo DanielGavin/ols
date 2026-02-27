@@ -133,7 +133,7 @@
 		"checker_skip_packages": {
 			"type": "array",
 			"items": {
-				"type": "string",
+				"type": "string"
 			},
 			"description": "Paths to packages that should not be checked by `odin check`"
 		},
