@@ -171,6 +171,12 @@ resolve_check_paths :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.C
 	return fallback_find_odin_directories(config), true
 }
 
+CheckProcess :: struct {
+	process:  os.Process,
+	reader:   ^os.File,
+	finished: bool,
+}
+
 check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 	paths, clear_all := resolve_check_paths(mode, uri, config)
 
@@ -193,98 +199,79 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 		append(&collections, fmt.aprintf("-collection:%v=%v", k, v))
 	}
 
-
-	CheckProcess :: struct {
-		process: os.Process,
-		reader:       ^os.File,
-	}
+	max_concurrent_checks := max(1, os.get_processor_core_count())
 	processes := make([dynamic]CheckProcess, 0, len(paths))
 
-	for check_path in paths {
-		command: string
-
-		if config.odin_command != "" {
-			command = config.odin_command
-		} else {
-			command = "odin"
-		}
-
-		entry_point_opt := filepath.ext(check_path) == ".odin" ? "-file" : "-no-entry-point"
-		cmd := make([dynamic]string, context.temp_allocator)
-		append(&cmd, command, "check", check_path)
-		for c in collections {
-			append(&cmd, c)
-		}
-		append(&cmd, entry_point_opt, "-json-errors")
-		args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
-		for arg in args {
-			append(&cmd, arg)
-		}
-
-		r, w, err := os.pipe()
-		if err != nil {
-			log.errorf("failed to create pipe for `odin check`: %v\n", err)
-			continue
-		}
-		defer os.close(w)
-
-		desc := os.Process_Desc {
-			command = cmd[:],
-			stdout  = w,
-			stderr  = w,
-		}
-
-		p, perr := os.process_start(desc)
-		if perr != nil {
-			log.errorf("failed to start process for `odin check`: %v\n", err)
-			continue
-		}
-
-		append(&processes, CheckProcess{process = p, reader = r})
-	}
-
 	buffer := make([dynamic]u8, mem.Kilobyte * 200, context.temp_allocator)
-	errors := make([dynamic]Json_Errors, 0, len(processes), context.temp_allocator)
+	errors := make([dynamic]Json_Errors, 0, len(paths), context.temp_allocator)
 
+	next_index := 0
+	running_processes := 0
 	start := time.now()
-	finished := 0
-	for finished < len(processes) {
+
+	for running_processes > 0 || next_index < len(paths) {
+		for running_processes < max_concurrent_checks && next_index < len(paths) {
+			p, ok := start_check_process(paths[next_index], collections[:], config)
+			next_index += 1
+			if !ok {
+				continue
+			}
+			append(&processes, p)
+			running_processes += 1
+		}
+
 		if time.since(start) > 20 * time.Second {
 			log.error("`odin check` timed out")
 			break
 		}
-		for p in processes {
+
+		for &p in processes {
+			if p.finished {
+				continue
+			}
+
 			state, err := os.process_wait(p.process, 0)
 			if err != nil {
 				continue
 			}
-			if state.exited {
-				finished += 1
-				buf: [1024]u8
-				clear(&buffer)
 
-				for {
-					n, read_err := os.read(p.reader, buf[:])
-					if n > 0 {
-						_, _ = append(&buffer, ..buf[:n])
-					}
-					if read_err != nil {
-						break
-					}
+			if !state.exited {
+				continue
+			}
+
+			p.finished = true
+			running_processes -= 1
+
+			buf: [1024]u8
+			clear(&buffer)
+
+			for {
+				n, read_err := os.read(p.reader, buf[:])
+				if n > 0 {
+					_, _ = append(&buffer, ..buf[:n])
 				}
-
-				if len(buffer) > 0 {
-					json_errors: Json_Errors
-					if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
-					res != nil {
-						log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
-						continue
-					}
-					append(&errors, json_errors)
+				if read_err != nil {
+					break
 				}
 			}
+
+			os.close(p.reader)
+			p.reader = nil
+
+			if len(buffer) > 0 {
+				json_errors: Json_Errors
+				if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
+				   res != nil {
+					log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
+					continue
+				}
+				append(&errors, json_errors)
+			}
 		}
-		time.sleep(1 * time.Millisecond)
+
+		if running_processes > 0 || next_index < len(paths) {
+			time.sleep(1 * time.Millisecond)
+		}
 	}
 
 	for p in processes {
@@ -354,6 +341,57 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 
 	}
 
+}
+@(private = "file")
+start_check_process :: proc(
+	check_path: string,
+	collections: []string,
+	config: ^common.Config,
+) -> (
+	CheckProcess,
+	bool,
+) {
+	command: string
+
+	if config.odin_command != "" {
+		command = config.odin_command
+	} else {
+		command = "odin"
+	}
+
+	entry_point_opt := filepath.ext(check_path) == ".odin" ? "-file" : "-no-entry-point"
+	cmd := make([dynamic]string, context.temp_allocator)
+	append(&cmd, command, "check", check_path)
+	for c in collections {
+		append(&cmd, c)
+	}
+	append(&cmd, entry_point_opt, "-json-errors")
+	args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
+	for arg in args {
+		append(&cmd, arg)
+	}
+
+	r, w, err := os.pipe()
+	if err != nil {
+		log.errorf("failed to create pipe for `odin check`: %v\n", err)
+		return CheckProcess{}, false
+	}
+	defer os.close(w)
+
+	desc := os.Process_Desc {
+		command = cmd[:],
+		stdout  = w,
+		stderr  = w,
+	}
+
+	p, perr := os.process_start(desc)
+	if perr != nil {
+		os.close(r)
+		log.errorf("failed to start process for `odin check`: %v\n", perr)
+		return CheckProcess{}, false
+	}
+
+	return CheckProcess{process = p, reader = r}, true
 }
 
 @(private = "file")
