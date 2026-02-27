@@ -6285,6 +6285,27 @@ ast_hover_parameter_package_same_name :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.foo: int")
 }
+
+@(test)
+ast_hover_iter_by_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			foos: [dynamic]int
+
+			for &foo in foos {
+				fo{*}o
+			}
+
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: ^int")
+}
+
+
 /*
 
 Waiting for odin fix
