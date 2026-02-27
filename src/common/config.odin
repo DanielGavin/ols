@@ -36,6 +36,7 @@ Config :: struct {
 	enable_overload_resolution:              bool,
 	enable_procedure_snippet:                bool,
 	enable_checker_only_saved:               bool,
+	enable_checker_diagnostics_on_start:     bool,
 	enable_auto_import:                      bool,
 	enable_completion_matching:              bool,
 	enable_document_links:                   bool,

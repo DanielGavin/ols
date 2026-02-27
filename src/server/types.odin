@@ -435,6 +435,7 @@ OlsConfig :: struct {
 	enable_snippets:                         Maybe(bool),
 	enable_procedure_snippet:                Maybe(bool),
 	enable_checker_only_saved:               Maybe(bool),
+	enable_checker_diagnostics_on_start:     Maybe(bool),
 	enable_auto_import:                      Maybe(bool),
 	enable_code_action_invert_if:            Maybe(bool),
 	disable_parser_errors:                   Maybe(bool),
