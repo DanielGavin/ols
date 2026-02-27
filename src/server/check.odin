@@ -206,22 +206,30 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 	errors := make([dynamic]Json_Errors, 0, len(paths), context.temp_allocator)
 
 	next_index := 0
-	running_processes := 0
+	running_count := 0
 	start := time.now()
 
-	for running_processes > 0 || next_index < len(paths) {
-		for running_processes < max_concurrent_checks && next_index < len(paths) {
+
+	for running_count > 0 || next_index < len(paths) {
+		for running_count < max_concurrent_checks && next_index < len(paths) {
 			p, ok := start_check_process(paths[next_index], collections[:], config)
 			next_index += 1
 			if !ok {
 				continue
 			}
 			append(&processes, p)
-			running_processes += 1
+			running_count += 1
 		}
 
 		if time.since(start) > 20 * time.Second {
 			log.error("`odin check` timed out")
+			for &p in processes {
+				if !p.finished {
+					if err := os.process_kill(p.process); err != nil {
+						log.error("Failed to kill `odin check` process: %v", err)
+					}
+				}
+			}
 			break
 		}
 
@@ -240,7 +248,7 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 			}
 
 			p.finished = true
-			running_processes -= 1
+			running_count -= 1
 
 			buf: [1024]u8
 			clear(&buffer)
@@ -269,7 +277,7 @@ check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
 			}
 		}
 
-		if running_processes > 0 || next_index < len(paths) {
+		if running_count > 0 || next_index < len(paths) {
 			time.sleep(1 * time.Millisecond)
 		}
 	}
