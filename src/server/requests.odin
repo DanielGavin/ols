@@ -388,6 +388,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_checker_only_saved =
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
 
+	config.enable_checker_diagnostics_on_start =
+		ols_config.enable_checker_diagnostics_on_start.(bool) or_else config.enable_checker_diagnostics_on_start
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(ols_config.odin_command, context.temp_allocator)
 
@@ -672,6 +675,7 @@ request_initialize :: proc(
 	config.enable_fake_method = false
 	config.enable_procedure_snippet = true
 	config.enable_checker_only_saved = true
+	config.enable_checker_diagnostics_on_start = false
 	config.enable_auto_import = true
 
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) -> (ok: bool) {
@@ -881,7 +885,9 @@ request_initialized :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
-	queue_check_request(.Workspace, {}, config, writer)
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
+	}
 	return .None
 }
 
@@ -1703,7 +1709,9 @@ notification_did_change_watched_files :: proc(
 		}
 	}
 
-	queue_check_request(.Workspace, {}, config, writer)
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
+	}
 
 	return .None
 }
@@ -1731,7 +1739,9 @@ notification_workspace_did_change_configuration :: proc(
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
 	}
-	queue_check_request(.Workspace, {}, config, writer)
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
+	}
 
 	return .None
 }

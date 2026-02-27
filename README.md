@@ -101,7 +101,9 @@ Options:
 
 - `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
 
-- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
+- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
+
+- `enable_checker_diagnostics_on_start`: Turns on running all workspace diagnostics using odin check when starting ols (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
