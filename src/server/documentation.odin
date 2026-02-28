@@ -6,9 +6,9 @@ import "core:odin/ast"
 import path "core:path/slashpath"
 import "core:strings"
 
-DOC_SECTION_DELIMITER :: "\n---\n"                                   // The string separating each section of documentation
-DOC_FMT_ODIN          :: "```odin\n%v\n```"                          // The format for wrapping odin code in a markdown codeblock
-DOC_FMT_MARKDOWN      :: DOC_FMT_ODIN + DOC_SECTION_DELIMITER + "%v" // The format for presenting documentation on hover
+DOC_SECTION_DELIMITER :: "\n---\n" // The string separating each section of documentation
+DOC_FMT_ODIN :: "```odin\n%v\n```" // The format for wrapping odin code in a markdown codeblock
+DOC_FMT_MARKDOWN :: DOC_FMT_ODIN + DOC_SECTION_DELIMITER + "%v" // The format for presenting documentation on hover
 
 // Adds signature and docs information to the provided symbol
 // This should only be used for a symbol created with the temp allocator
@@ -24,17 +24,37 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 	}
 }
 
-construct_symbol_docs :: proc(symbol: Symbol, allocator := context.temp_allocator) -> string {
-	sb := strings.builder_make(allocator = allocator)
-	if symbol.doc != "" {
-		strings.write_string(&sb, symbol.doc)
+build_markup_content :: proc(symbol_info: string, doc: string) -> MarkupContent {
+	content: MarkupContent
+	if symbol_info != "" {
+		content.kind = "markdown"
+		if doc != "" {
+			content.value = fmt.tprintf(DOC_FMT_MARKDOWN, symbol_info, doc)
+		} else {
+			content.value = fmt.tprintf(DOC_FMT_ODIN, symbol_info)
+		}
+	} else {
+		content.kind = "plaintext"
 	}
 
-	if symbol.comment != "" {
-		if symbol.doc != "" {
+	return content
+}
+
+construct_symbol_docs :: proc(symbol: Symbol, allocator := context.temp_allocator) -> string {
+	return construct_docs(symbol.doc, symbol.comment, allocator)
+}
+
+construct_docs :: proc(doc, comment: string, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator = allocator)
+	if doc != "" {
+		strings.write_string(&sb, doc)
+	}
+
+	if comment != "" {
+		if doc != "" {
 			strings.write_string(&sb, DOC_SECTION_DELIMITER)
 		}
-		strings.write_string(&sb, symbol.comment)
+		strings.write_string(&sb, comment)
 	}
 
 	return strings.to_string(sb)
@@ -361,9 +381,17 @@ write_indent :: proc(sb: ^strings.Builder, level: int) {
 	}
 }
 
-get_enum_field_signature :: proc(value: SymbolEnumValue, index: int, allocator := context.temp_allocator) -> string {
+get_enum_field_signature :: proc(
+	value: SymbolEnumValue,
+	index: int,
+	add_leading_dot_docs := true,
+	allocator := context.temp_allocator,
+) -> string {
 	sb := strings.builder_make(allocator)
-	fmt.sbprintf(&sb, ".%s", value.names[index])
+	if add_leading_dot_docs {
+		strings.write_string(&sb, ".")
+	}
+	strings.write_string(&sb, value.names[index])
 	if index < len(value.values) && value.values[index] != nil {
 		strings.write_string(&sb, " = ")
 		build_string_node(value.values[index], &sb, false)
@@ -717,13 +745,13 @@ write_node :: proc(
 				if field, ok := elem.derived.(^ast.Field_Value); ok {
 					build_string(field.field, sb, false)
 					strings.write_string(sb, " = ")
-					write_node(sb, ast_context, field.value, "", depth+1, false)
+					write_node(sb, ast_context, field.value, "", depth + 1, false)
 				} else {
 					build_string(elem, sb, false)
 				}
 				strings.write_string(sb, ",\n")
 			}
-			write_indent(sb, depth-1)
+			write_indent(sb, depth - 1)
 			strings.write_string(sb, "}")
 		}
 		return
@@ -1014,49 +1042,49 @@ keywords_docs: map[string]string = {
 	"where"         = "",
 }
 
-directive_docs : map[string]string = {
+directive_docs: map[string]string = {
 	// Record validation
-	"all_or_none" = "```odin\n#all_or_none\n```\n\nThis tag can be applied to a `struct`. Prevents partial initialization of the struct, so either all or none of the fields must be filled.",
+	"all_or_none"              = "```odin\n#all_or_none\n```\n\nThis tag can be applied to a `struct`. Prevents partial initialization of the struct, so either all or none of the fields must be filled.",
 	// Record memory layout
-	"packed" = "```odin\n#packed\n```\n\nThis tag can be applied to a `struct`. Removes padding between fields that’s normally inserted to ensure all fields meet their type’s alignment requirements. Fields remain in source order.\n\nThis is useful where the structure is unlikely to be correctly aligned (the insertion rules for padding assume it is), or if the space-savings are more important or useful than the access speed of the fields.\n\nAccessing a field in a packed struct may require copying the field out of the struct into a temporary location, or using a machine instruction that doesn’t assume the pointer address is correctly aligned, in order to be performant or avoid crashing on some systems. (See `intrinsics.unaligned_load`.)",
-	"raw_union" = "```odin\n#raw_union\n```\n\nThis tag can be applied to a `struct`. Struct’s fields will share the same memory space which serves the same functionality as `union`s in C language. Useful when writing bindings especially.",
-	"align" = "```odin\n#align\n```\n\nThis tag can be applied to a `struct` or `union`. When `#align` is passed an integer `N` (as in `#align N`), it specifies that the `struct` will be aligned to `N` bytes. The `struct`’s fields will remain in source-order.",
-	"no_nil" = "```odin\n#align\n```\n\nThis tag can be applied to a union to not allow `nil` values.",
+	"packed"                   = "```odin\n#packed\n```\n\nThis tag can be applied to a `struct`. Removes padding between fields that’s normally inserted to ensure all fields meet their type’s alignment requirements. Fields remain in source order.\n\nThis is useful where the structure is unlikely to be correctly aligned (the insertion rules for padding assume it is), or if the space-savings are more important or useful than the access speed of the fields.\n\nAccessing a field in a packed struct may require copying the field out of the struct into a temporary location, or using a machine instruction that doesn’t assume the pointer address is correctly aligned, in order to be performant or avoid crashing on some systems. (See `intrinsics.unaligned_load`.)",
+	"raw_union"                = "```odin\n#raw_union\n```\n\nThis tag can be applied to a `struct`. Struct’s fields will share the same memory space which serves the same functionality as `union`s in C language. Useful when writing bindings especially.",
+	"align"                    = "```odin\n#align\n```\n\nThis tag can be applied to a `struct` or `union`. When `#align` is passed an integer `N` (as in `#align N`), it specifies that the `struct` will be aligned to `N` bytes. The `struct`’s fields will remain in source-order.",
+	"no_nil"                   = "```odin\n#align\n```\n\nThis tag can be applied to a union to not allow `nil` values.",
 	// Control statements
-	"partial" = "```odin\n#partial\n```\n\nBy default all `case`s of an `enum` or `union` have to be covered in a `switch` statement. The reason for this requirement is because it makes accidental bugs less likely. However, the `#partial` tag allows you to not have to write out cases that you don’t need to handle.\n\nThe `#partial` directive can also be used to initialize an enumerated array.",
+	"partial"                  = "```odin\n#partial\n```\n\nBy default all `case`s of an `enum` or `union` have to be covered in a `switch` statement. The reason for this requirement is because it makes accidental bugs less likely. However, the `#partial` tag allows you to not have to write out cases that you don’t need to handle.\n\nThe `#partial` directive can also be used to initialize an enumerated array.",
 	// Procedure parameters
-	"no_alias" = "```odin\n#no_alias\n```\n\nThis tag can be applied to a procedure parameter that is a pointer. This is a hint to the compiler that this parameter will not alias other parameters. This is equivalent to C’s `__restrict`.",
-	"any_int" = "```odin\n#any_int\n```\n\n`#any_int` enables implicit casts to a procedure’s integer type at the call site. A parameter with `#any_int` must be an integer.",
-	"caller_location" = "```odin\n#caller_location\n```\n\n`#caller_location` sets a parameter’s default value to the location of the code calling the procedure. The location value has the type `runtime.Source_Code_Location`. `#caller_location` may only be used as a default value for procedure parameters.",
-	"caller_expression" = "```odin\n#caller_expression\n// or\n#caller_expression(<count>)\n```\n\n`#caller_expression` gives a procedure the entire call expression or the expression used to create a parameter. `#caller_expression` may only be used as a default value for procedure parameters.",
-	"c_vararg" = "```odin\n#c_vararg\n```\n\nUsed to interface with vararg functions in foreign procedures.",
-	"by_ptr" = "```odin\n#by_ptr\n```\n\nUsed to interface with const reference parameters in foreign procedures. The parameter is passed by pointer internally.",
-	"optional_ok" = "```odin\n#optional_ok\n```\n\nAllows skipping the last return parameter, which needs to be a `bool`.",
+	"no_alias"                 = "```odin\n#no_alias\n```\n\nThis tag can be applied to a procedure parameter that is a pointer. This is a hint to the compiler that this parameter will not alias other parameters. This is equivalent to C’s `__restrict`.",
+	"any_int"                  = "```odin\n#any_int\n```\n\n`#any_int` enables implicit casts to a procedure’s integer type at the call site. A parameter with `#any_int` must be an integer.",
+	"caller_location"          = "```odin\n#caller_location\n```\n\n`#caller_location` sets a parameter’s default value to the location of the code calling the procedure. The location value has the type `runtime.Source_Code_Location`. `#caller_location` may only be used as a default value for procedure parameters.",
+	"caller_expression"        = "```odin\n#caller_expression\n// or\n#caller_expression(<count>)\n```\n\n`#caller_expression` gives a procedure the entire call expression or the expression used to create a parameter. `#caller_expression` may only be used as a default value for procedure parameters.",
+	"c_vararg"                 = "```odin\n#c_vararg\n```\n\nUsed to interface with vararg functions in foreign procedures.",
+	"by_ptr"                   = "```odin\n#by_ptr\n```\n\nUsed to interface with const reference parameters in foreign procedures. The parameter is passed by pointer internally.",
+	"optional_ok"              = "```odin\n#optional_ok\n```\n\nAllows skipping the last return parameter, which needs to be a `bool`.",
 	"optional_allocator_error" = "```odin\n#optional_allocator_error\n```\n\nAllows skipping the last return parameter, which needs to be a runtime.Allocator_Error",
 	// Expressions
-	"type" = "```odin\n#type\n```\n\nThis tag doesn’t serve a functional purpose in the compiler, this is for telling someone reading the code that the expression is a type. The main case is for showing that a procedure signature without a body is a type and not just missing its body.",
-	"sparse" = "```odin\n#sparse\n```\n\nThis directive may be used to create a sparse enumerated array. This is necessary when the enumerated values are not contiguous.",
-	"force_inline" = "```odin\n#force_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
-	"force_no_inline" = "```odin\n#force_no_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
+	"type"                     = "```odin\n#type\n```\n\nThis tag doesn’t serve a functional purpose in the compiler, this is for telling someone reading the code that the expression is a type. The main case is for showing that a procedure signature without a body is a type and not just missing its body.",
+	"sparse"                   = "```odin\n#sparse\n```\n\nThis directive may be used to create a sparse enumerated array. This is necessary when the enumerated values are not contiguous.",
+	"force_inline"             = "```odin\n#force_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
+	"force_no_inline"          = "```odin\n#force_no_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
 	// Statements
-	"bounds_check" = "```odin\n#bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
-	"no_bounds_check" = "```odin\n#no_bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
-	"type_assert" = "```odin\n#type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
-	"no_type_assert" = "```odin\n#no_type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
+	"bounds_check"             = "```odin\n#bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
+	"no_bounds_check"          = "```odin\n#no_bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
+	"type_assert"              = "```odin\n#type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
+	"no_type_assert"           = "```odin\n#no_type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
 	// Built-in
-	"assert" = "```odin\n#assert\n```\n\nUnlike `assert`, `#assert` runs at compile-time. `#assert` breaks compilation if the given bool expression is false, and thus #assert is useful for catching bugs before they ever even reach run-time. It also has no run-time cost.",
-	"panic" = "```odin\n#panic(<string>)\n```\n\nPanic runs at compile-time. It is functionally equivalent to an `#assert` with a `false` condition, but `#panic` has an error message string parameter.",
-	"config" = "```odin\n#config(<identifier>, default)\n```\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.",
-	"defined" = "```odin\n#defined\n```\n\nChecks if an identifier is defined. This may only be used within a procedure’s body.",
-	"file" = "```odin\n#file\n```\n\nReturn the current file path.",
-	"directory" = "```odin\n#directory\n```\n\nReturn the current directory.",
-	"line" = "```odin\n#line\n```\n\nReturn the current line number.",
-	"procedure" = "```odin\n#procedure\n```\n\nReturn the current procedure name.",
-	"exists" = "```odin\n#exists(<string-path>)\n```\n\nReturns `true` or `false` if the file at the given path exists. If the path is relative, it is accessed relative to the Odin source file that references it.",
-	"branch_location" = "```odin\n#branch_location\n```\n\nWhen used within a `defer` statement, this directive returns a `runtime.Source_Code_Location` of the point at which the control flow triggered execution of the `defer`. This may be a `return` statement or the end of a scope.",
-	"location" = "```odin\n#location()\n// or\n#location(<entity>)\n```\n\nReturns a `runtime.Source_Code_Location`. Can be called with no parameters for current location, or with a parameter for the location of the variable/proc declaration.",
-	"load" = "```odin\n#load(<string-path>)\n//or\n#load(<string-path>, <type>)\n```\n\nReturns a `[]u8` of the file contents at compile time. This means that the loaded data is baked into your program. Optionally, you can provide a type name as second argument; interpreting the data as being of that type.\n\n`#load` also works with `or_else` to provide default content when the file wasn’t found",
-	"hash" = "```odin\n#hash(<string-text>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a string literal at compile time.\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
-	"load_hash" = "```odin\n#load_hash(<string-path>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a file’s contents at compile time..\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
-	"load_directory" = "```odin\n#load_directory(<string-path>)\n```\n\nLoads all files within a directory, at compile time. All the data of those files will be baked into your program. Returns `[]runtime.Load_Directory_File`.",
+	"assert"                   = "```odin\n#assert\n```\n\nUnlike `assert`, `#assert` runs at compile-time. `#assert` breaks compilation if the given bool expression is false, and thus #assert is useful for catching bugs before they ever even reach run-time. It also has no run-time cost.",
+	"panic"                    = "```odin\n#panic(<string>)\n```\n\nPanic runs at compile-time. It is functionally equivalent to an `#assert` with a `false` condition, but `#panic` has an error message string parameter.",
+	"config"                   = "```odin\n#config(<identifier>, default)\n```\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.",
+	"defined"                  = "```odin\n#defined\n```\n\nChecks if an identifier is defined. This may only be used within a procedure’s body.",
+	"file"                     = "```odin\n#file\n```\n\nReturn the current file path.",
+	"directory"                = "```odin\n#directory\n```\n\nReturn the current directory.",
+	"line"                     = "```odin\n#line\n```\n\nReturn the current line number.",
+	"procedure"                = "```odin\n#procedure\n```\n\nReturn the current procedure name.",
+	"exists"                   = "```odin\n#exists(<string-path>)\n```\n\nReturns `true` or `false` if the file at the given path exists. If the path is relative, it is accessed relative to the Odin source file that references it.",
+	"branch_location"          = "```odin\n#branch_location\n```\n\nWhen used within a `defer` statement, this directive returns a `runtime.Source_Code_Location` of the point at which the control flow triggered execution of the `defer`. This may be a `return` statement or the end of a scope.",
+	"location"                 = "```odin\n#location()\n// or\n#location(<entity>)\n```\n\nReturns a `runtime.Source_Code_Location`. Can be called with no parameters for current location, or with a parameter for the location of the variable/proc declaration.",
+	"load"                     = "```odin\n#load(<string-path>)\n//or\n#load(<string-path>, <type>)\n```\n\nReturns a `[]u8` of the file contents at compile time. This means that the loaded data is baked into your program. Optionally, you can provide a type name as second argument; interpreting the data as being of that type.\n\n`#load` also works with `or_else` to provide default content when the file wasn’t found",
+	"hash"                     = "```odin\n#hash(<string-text>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a string literal at compile time.\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
+	"load_hash"                = "```odin\n#load_hash(<string-path>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a file’s contents at compile time..\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
+	"load_directory"           = "```odin\n#load_directory(<string-path>)\n```\n\nLoads all files within a directory, at compile time. All the data of those files will be baked into your program. Returns `[]runtime.Load_Directory_File`.",
 }

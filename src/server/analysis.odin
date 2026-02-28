@@ -1760,7 +1760,11 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			if node.field != nil {
 				field_symbol, ok := lookup(node.field.name, selector.pkg, node.pos.file)
 				if ok {
-					if pkg_alias_symbol, ok := resolve_field_through_package_alias(ast_context, field_symbol, selector.pkg); ok {
+					if pkg_alias_symbol, ok := resolve_field_through_package_alias(
+						ast_context,
+						field_symbol,
+						selector.pkg,
+					); ok {
 						return pkg_alias_symbol, true
 					}
 					return resolve_symbol_return(ast_context, field_symbol)
@@ -1832,18 +1836,21 @@ resolve_ident_as_package :: proc(ast_context: ^AstContext, ident: ^ast.Ident, co
 	return {}, false
 }
 
-resolve_field_through_package_alias :: proc(ast_context: ^AstContext, field_symbol: Symbol, context_pkg: string) -> (Symbol, bool) {
+resolve_field_through_package_alias :: proc(
+	ast_context: ^AstContext,
+	field_symbol: Symbol,
+	context_pkg: string,
+) -> (
+	Symbol,
+	bool,
+) {
 	ident, ok := get_package_ident_from_symbol(field_symbol)
 	if !ok {
 		return {}, false
 	}
 
 	if is_path_package_name(ident.name) {
-		return Symbol{
-			type = .Package,
-			pkg = ident.name,
-			value = SymbolPackageValue{},
-		}, true
+		return Symbol{type = .Package, pkg = ident.name, value = SymbolPackageValue{}}, true
 	}
 
 	current_package := ast_context.current_package
@@ -1860,7 +1867,14 @@ resolve_field_through_package_alias :: proc(ast_context: ^AstContext, field_symb
 	return {}, false
 }
 
-resolve_field_access_through_imported_alias :: proc(ast_context: ^AstContext, ident: ^ast.Ident, node: ^ast.Selector_Expr) -> (Symbol, bool) {
+resolve_field_access_through_imported_alias :: proc(
+	ast_context: ^AstContext,
+	ident: ^ast.Ident,
+	node: ^ast.Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
 	for imp in ast_context.imports {
 		if strings.compare(imp.base, ident.name) == 0 {
 			try_build_package(ast_context.current_package)
@@ -4169,6 +4183,8 @@ unwrap_super_enum :: proc(
 ) {
 	names := make([dynamic]string, 0, 20, ast_context.allocator)
 	ranges := make([dynamic]common.Range, 0, 20, ast_context.allocator)
+	docs := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
+	comments := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
 
 	for type in symbol_union.types {
 		symbol := resolve_type_expression(ast_context, type) or_return
@@ -4184,12 +4200,16 @@ unwrap_super_enum :: proc(
 					append(&names, fmt.aprintf("%s.%s", symbol.name, name, allocator = ast_context.allocator))
 				}
 			}
+			append(&docs, ..value.docs)
+			append(&comments, ..value.comments)
 			append(&ranges, ..value.ranges)
 		}
 	}
 
 	ret_value.names = names[:]
 	ret_value.ranges = ranges[:]
+	ret_value.docs = docs[:]
+	ret_value.comments = comments[:]
 
 	return ret_value, true
 }
