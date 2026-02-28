@@ -6326,6 +6326,23 @@ ast_hover_parapoly_enum_implicit_selector :: proc(t: ^testing.T) {
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
+@(test)
+ast_hover_parapoly_enum_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		B{*}ar :: struct($F: Foo = Foo.A) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Bar :: struct($F: Foo = Foo.A){}")
+}
+
 /*
 
 Waiting for odin fix

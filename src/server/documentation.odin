@@ -633,6 +633,10 @@ write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names:
 			if write_type {
 				strings.write_string(sb, ": ")
 				build_string_node(field.type, sb, false)
+				if field.default_value != nil {
+					strings.write_string(sb, " = ")
+					build_string_node(field.default_value, sb, false)
+				}
 			}
 			if i != len(poly.list) - 1 {
 				strings.write_string(sb, ", ")
