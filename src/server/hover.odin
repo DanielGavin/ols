@@ -10,22 +10,9 @@ import "core:strings"
 import "src:common"
 
 write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
-	content: MarkupContent
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
-
-	if cat != "" {
-		content.kind = "markdown"
-		if doc != "" {
-			content.value = fmt.tprintf(DOC_FMT_MARKDOWN, cat, doc)
-		} else {
-			content.value = fmt.tprintf(DOC_FMT_ODIN, cat)
-		}
-	} else {
-		content.kind = "plaintext"
-	}
-
-	return content
+	return build_markup_content(cat, doc)
 }
 
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {

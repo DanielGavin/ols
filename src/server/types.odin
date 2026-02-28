@@ -435,6 +435,7 @@ OlsConfig :: struct {
 	enable_snippets:                         Maybe(bool),
 	enable_procedure_snippet:                Maybe(bool),
 	enable_checker_only_saved:               Maybe(bool),
+	enable_checker_diagnostics_on_start:     Maybe(bool),
 	enable_auto_import:                      Maybe(bool),
 	enable_code_action_invert_if:            Maybe(bool),
 	disable_parser_errors:                   Maybe(bool),
@@ -444,6 +445,7 @@ OlsConfig :: struct {
 	odin_root_override:                      string,
 	checker_args:                            string,
 	checker_targets:                         []string,
+	checker_skip_packages:                   []string,
 	profiles:                                [dynamic]common.ConfigProfile,
 	profile:                                 string,
 }
@@ -562,9 +564,14 @@ PrepareRenameParams :: struct {
 	position:     common.Position,
 }
 
+ReferenceContext :: struct {
+	includeDeclaration: bool,
+}
+
 ReferenceParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
+	ctx:          ReferenceContext `json:"context"`,
 }
 
 HighlightParams :: struct {

@@ -62,6 +62,11 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		log.error("Starting Odin Language Server", VERSION)
 	}
 
+	context.logger = logger^
+	server.create_and_start_check_worker()
+	defer server.stop_check_worker()
+
+
 	for common.config.running {
 		if common.config.verbose {
 			//Currently letting verbose use error, since some ast prints causes crashes - most likely a bug in core:fmt.

@@ -388,6 +388,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_checker_only_saved =
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved
 
+	config.enable_checker_diagnostics_on_start =
+		ols_config.enable_checker_diagnostics_on_start.(bool) or_else config.enable_checker_diagnostics_on_start
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(ols_config.odin_command, context.temp_allocator)
 
@@ -410,6 +413,14 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	if ols_config.checker_args != "" {
 		config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
+	}
+	if len(ols_config.checker_skip_packages) > 0 {
+		packages := make(map[string]struct{}, context.allocator)
+		for path in ols_config.checker_skip_packages {
+			full_path, _ := os.get_absolute_path(path, context.allocator)
+			packages[full_path] = {}
+		}
+		config.checker_skip_packages = packages
 	}
 
 	for profile in ols_config.profiles {
@@ -664,9 +675,10 @@ request_initialize :: proc(
 	config.enable_fake_method = false
 	config.enable_procedure_snippet = true
 	config.enable_checker_only_saved = true
+	config.enable_checker_diagnostics_on_start = false
 	config.enable_auto_import = true
 
-	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) {
+	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) -> (ok: bool) {
 		data, err := os.read_entire_file(file, context.temp_allocator)
 		if err != nil {
 			log.warnf("Failed to read/find %v: %v", file, err)
@@ -677,9 +689,11 @@ request_initialize :: proc(
 		json_err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
 		if json_err == nil {
 			read_ols_initialize_options(config, ols_config, uri)
+			ok = true
 		} else {
 			log.errorf("Failed to unmarshal %v: %v", file, json_err)
 		}
+		return
 	}
 
 	project_uri := ""
@@ -690,21 +704,27 @@ request_initialize :: proc(
 		project_uri = initialize_params.rootUri
 	}
 
-	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		// Apply the global ols config.
-		global_ols_config_path := path.join(
-			elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
-			allocator = context.temp_allocator,
-		)
-		read_ols_config(global_ols_config_path, config, uri)
+	// Get the global ols config path.
+	global_ols_config_path := path.join(
+		elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
+		allocator = context.temp_allocator,
+	)
 
-		// Apply the requested ols config.
-		read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+	config_loaded: bool
+	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
+		global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
 
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
-		read_ols_config(ols_config_path, config, uri)
+		local_config_loaded := read_ols_config(ols_config_path, config, uri)
+
+		config_loaded = local_config_loaded || global_config_loaded
 	} else {
+		config_loaded = read_ols_config(global_ols_config_path, config, {})
+	}
+
+	// Config options should be initialized even if we failed to load the config, as this sets the default collections, ODIN_OS etc
+	if !config_loaded {
 		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
 	}
 
@@ -787,7 +807,10 @@ request_initialize :: proc(
 
 	file_resolve_cache.files = make(map[string]FileResolve, 200)
 
-	setup_index()
+	builtin_path := get_builtin_path(context.allocator)
+	config.builtin_path = builtin_path
+	// we still need to ensure the index is setup even if the builtin folder was not found
+	setup_index(builtin_path)
 
 	for pkg in indexer.builtin_packages {
 		try_build_package(pkg)
@@ -800,6 +823,37 @@ request_initialize :: proc(
 	find_all_package_aliases()
 
 	return .None
+}
+
+get_builtin_path :: proc(allocator := context.allocator) -> string {
+	dir_exe := common.get_executable_path(context.temp_allocator)
+	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
+
+	search_paths := make([dynamic]string, context.temp_allocator)
+	append(&search_paths, builtin_path)
+	when ODIN_OS == .Linux || ODIN_OS == .FreeBSD || ODIN_OS == .NetBSD {
+		append(&search_paths, "/usr/share/ols/builtin")
+	} else when ODIN_OS == .Darwin {
+		append(&search_paths, "/Library/Application Support/ols/builtin")
+	}
+	env_var_name :: "OLS_BUILTIN_FOLDER"
+	if env := os.get_env(env_var_name, context.temp_allocator); env != "" {
+		env = common.resolve_home_dir(env, context.temp_allocator)
+		append(&search_paths, env)
+	}
+	for path in search_paths {
+		if os.exists(path) {
+			return strings.clone(path, allocator)
+		}
+	}
+	log.errorf(
+		"Failed to find the builtin folder at `%v`\n" +
+		"Please ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins.\n" +
+		"Alternatively you can specify this path using the `%v` environment variable.",
+		builtin_path,
+		env_var_name,
+	)
+	return builtin_path
 }
 
 register_dynamic_capabilities :: proc(writer: ^Writer) {
@@ -831,6 +885,9 @@ request_initialized :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
+	}
 	return .None
 }
 
@@ -1174,14 +1231,14 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
-	check(config.profile.checker_path[:], corrected_uri, config)
-
 	document := document_get(save_params.textDocument.uri)
 	if document != nil {
 		check_unused_imports(document, config)
 	}
 
 	push_diagnostics(writer)
+
+	queue_check_request(.Saved, corrected_uri, config, writer)
 
 	return .None
 }
@@ -1501,7 +1558,13 @@ request_references :: proc(
 
 	reference_param: ReferenceParams
 
-	if unmarshal(params, reference_param, context.temp_allocator) != nil {
+	// Due to the field named `context`, we need to use json tags and this is the easiest way to handle that right now.
+	data, err := json.marshal(params_object)
+	if err != nil {
+		return .ParseError
+	}
+
+	if err := json.unmarshal(data, &reference_param, allocator = context.temp_allocator); err != nil {
 		return .ParseError
 	}
 
@@ -1512,7 +1575,11 @@ request_references :: proc(
 	}
 
 	locations: []common.Location
-	locations, ok = get_references(document, reference_param.position)
+	locations, ok = get_references(
+		document,
+		reference_param.position,
+		include_declaration = reference_param.ctx.includeDeclaration,
+	)
 
 	if !ok {
 		return .InternalError
@@ -1642,6 +1709,10 @@ notification_did_change_watched_files :: proc(
 		}
 	}
 
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
+	}
+
 	return .None
 }
 
@@ -1667,6 +1738,9 @@ notification_workspace_did_change_configuration :: proc(
 
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
+	}
+	if config.enable_checker_diagnostics_on_start {
+		queue_check_request(.Workspace, {}, config, writer)
 	}
 
 	return .None

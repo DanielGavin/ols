@@ -1131,18 +1131,11 @@ get_implicit_completion :: proc(
 	//value decl infer a : My_Enum = .*
 	if position_context.value_decl != nil && position_context.value_decl.type != nil {
 		if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, position_context.value_decl.type); ok {
-			for name in enum_value.names {
+			for name, i in enum_value.names {
 				if position_context.comp_lit != nil && field_exists_in_comp_lit(position_context.comp_lit, name) {
 					continue
 				}
-				item := CompletionItem {
-					label  = name,
-					kind   = .EnumMember,
-					detail = name,
-				}
-				if unwrapped_super_enum {
-					add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-				}
+				item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 				append(results, CompletionResult{completion_item = item})
 			}
 
@@ -1159,12 +1152,7 @@ get_implicit_completion :: proc(
 									continue
 								}
 
-								item := CompletionItem {
-									label         = name,
-									detail        = name,
-									documentation = symbol.doc,
-								}
-
+								item := create_enum_completion_item(position_context, v, i, false)
 								append(results, CompletionResult{completion_item = item})
 							}
 							return is_incomplete
@@ -1175,16 +1163,12 @@ get_implicit_completion :: proc(
 						if symbol, ok := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol);
 						   ok {
 							if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-								for name in enum_value.names {
+								for name, i in enum_value.names {
 									if position_context.comp_lit != nil &&
 									   field_exists_in_comp_lit(position_context.comp_lit, name) {
 										continue
 									}
-									item := CompletionItem {
-										label  = name,
-										kind   = .EnumMember,
-										detail = name,
-									}
+									item := create_enum_completion_item(position_context, enum_value, i, false)
 									append(results, CompletionResult{completion_item = item})
 								}
 
@@ -1216,20 +1200,12 @@ get_implicit_completion :: proc(
 		}
 
 		if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, position_context.switch_stmt.cond); ok {
-			for name in enum_value.names {
+			for name, i in enum_value.names {
 				if name in used_enums {
 					continue
 				}
 
-				item := CompletionItem {
-					label  = name,
-					kind   = .EnumMember,
-					detail = name,
-				}
-				if unwrapped_super_enum {
-					add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-				}
-
+				item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 				append(results, CompletionResult{completion_item = item})
 			}
 
@@ -1244,13 +1220,8 @@ get_implicit_completion :: proc(
 		if symbol, ok := resolve_first_symbol_from_binary_expression(ast_context, position_context.parent_binary); ok {
 			set_ast_package_set_scoped(ast_context, symbol.pkg)
 			if value, ok := unwrap_bitset(ast_context, symbol); ok {
-				for name in value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-
+				for name, i in value.names {
+					item := create_enum_completion_item(position_context, value, i, false)
 					append(results, CompletionResult{completion_item = item})
 				}
 
@@ -1266,28 +1237,18 @@ get_implicit_completion :: proc(
 		if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 			if comp_symbol, ok := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol); ok {
 				if enum_value, ok := comp_symbol.value.(SymbolEnumValue); ok {
-					for enum_name in enum_value.names {
-						item := CompletionItem {
-							label  = enum_name,
-							kind   = .EnumMember,
-							detail = enum_name,
-						}
-
+					for i in 0 ..< len(enum_value.names) {
+						item := create_enum_completion_item(position_context, enum_value, i, false)
 						append(results, CompletionResult{completion_item = item})
 					}
 
 					return is_incomplete
 				} else if s, ok := unwrap_bitset(ast_context, comp_symbol); ok {
-					for enum_name in s.names {
+					for enum_name, i in s.names {
 						if field_exists_in_comp_lit(position_context.comp_lit, enum_name) {
 							continue
 						}
-						item := CompletionItem {
-							label  = enum_name,
-							kind   = .EnumMember,
-							detail = enum_name,
-						}
-
+						item := create_enum_completion_item(position_context, s, i, false)
 						append(results, CompletionResult{completion_item = item})
 					}
 
@@ -1313,16 +1274,8 @@ get_implicit_completion :: proc(
 
 			if context_node != nil && enum_node != nil {
 				if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, enum_node); ok {
-					for name in enum_value.names {
-						item := CompletionItem {
-							label  = name,
-							kind   = .EnumMember,
-							detail = name,
-						}
-						if unwrapped_super_enum {
-							add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-						}
-
+					for name, i in enum_value.names {
+						item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 						append(results, CompletionResult{completion_item = item})
 					}
 
@@ -1361,16 +1314,8 @@ get_implicit_completion :: proc(
 				ast_context,
 				position_context.function.type.results.list[return_index].type,
 			); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
+				for i in 0 ..< len(enum_value.names) {
+					item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 					append(results, CompletionResult{completion_item = item})
 				}
 
@@ -1396,16 +1341,8 @@ get_implicit_completion :: proc(
 		#partial switch v in symbol.value {
 		case SymbolFixedArrayValue:
 			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.len); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
+				for i in 0 ..< len(enum_value.names) {
+					item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 					append(results, CompletionResult{completion_item = item})
 				}
 
@@ -1413,16 +1350,8 @@ get_implicit_completion :: proc(
 			}
 		case SymbolMapValue:
 			if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, v.key); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
+				for name, i in enum_value.names {
+					item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 					append(results, CompletionResult{completion_item = item})
 				}
 
@@ -1451,8 +1380,9 @@ get_implicit_completion :: proc(
 					}
 				}
 
-				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					arg_type, arg_type_ok := get_proc_arg_type_from_index(proc_value, parameter_index)
+				#partial switch v in symbol.value {
+				case SymbolProcedureValue:
+					arg_type, arg_type_ok := get_proc_arg_type_from_index(v, parameter_index)
 					if !arg_type_ok {
 						return is_incomplete
 					}
@@ -1460,8 +1390,8 @@ get_implicit_completion :: proc(
 						// we are using a named param so we want to ensure we use that type and not the
 						// type at the index
 						if name, ok := position_context.field_value.field.derived.(^ast.Ident); ok {
-							if i, ok := get_field_list_name_index(name.name, proc_value.arg_types); ok {
-								arg_type = proc_value.arg_types[i]
+							if i, ok := get_field_list_name_index(name.name, v.arg_types); ok {
+								arg_type = v.arg_types[i]
 							}
 						}
 					}
@@ -1477,35 +1407,42 @@ get_implicit_completion :: proc(
 					}
 
 					if enum_value, unwrapped_super_enum, ok := unwrap_enum(ast_context, type); ok {
-						for name in enum_value.names {
+						for name, i in enum_value.names {
 							if position_context.comp_lit != nil &&
 							   field_exists_in_comp_lit(position_context.comp_lit, name) {
 								continue
 							}
-							item := CompletionItem {
-								label  = name,
-								kind   = .EnumMember,
-								detail = name,
-							}
-							if unwrapped_super_enum {
-								add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-							}
-
+							item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 							append(results, CompletionResult{completion_item = item})
 						}
 						return is_incomplete
 					}
-				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					for name in enum_value.names {
-						item := CompletionItem {
-							label  = name,
-							kind   = .EnumMember,
-							detail = name,
-						}
-
+				case SymbolEnumValue:
+					for i in 0 ..< len(v.names) {
+						item := create_enum_completion_item(position_context, v, i, false)
 						append(results, CompletionResult{completion_item = item})
 					}
 
+					return is_incomplete
+				case SymbolStructValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						if value, unwrapped_super_enum, ok := unwrap_enum(ast_context, type); ok {
+							for i in 0 ..< len(value.names) {
+								item := create_enum_completion_item(position_context, value, i, unwrapped_super_enum)
+								append(results, CompletionResult{completion_item = item})
+							}
+						}
+					}
+					return is_incomplete
+				case SymbolUnionValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						if value, unwrapped_super_enum, ok := unwrap_enum(ast_context, type); ok {
+							for i in 0 ..< len(value.names) {
+								item := create_enum_completion_item(position_context, value, i, unwrapped_super_enum)
+								append(results, CompletionResult{completion_item = item})
+							}
+						}
+					}
 					return is_incomplete
 				}
 			}
@@ -1570,16 +1507,8 @@ get_implicit_completion :: proc(
 				ast_context,
 				position_context.assign.lhs[rhs_index],
 			); ok {
-				for name in enum_value.names {
-					item := CompletionItem {
-						label  = name,
-						kind   = .EnumMember,
-						detail = name,
-					}
-					if unwrapped_super_enum {
-						add_implicit_selector_remove_edit(position_context, &item, name, enum_value.names)
-					}
-
+				for name, i in enum_value.names {
+					item := create_enum_completion_item(position_context, enum_value, i, false)
 					append(results, CompletionResult{completion_item = item})
 				}
 
@@ -1810,9 +1739,9 @@ get_identifier_completion :: proc(
 		}
 
 		symbol := Symbol {
-			name = pkg.base,
-			type = .Package,
-			pkg = pkg.name,
+			name  = pkg.base,
+			type  = .Package,
+			pkg   = pkg.name,
 			value = SymbolPackageValue{},
 		}
 		try_build_package(symbol.pkg)
@@ -2145,6 +2074,31 @@ append_non_imported_packages :: proc(
 			}
 		}
 	}
+}
+
+create_enum_completion_item :: proc(
+	position_context: ^DocumentPositionContext,
+	value: SymbolEnumValue,
+	index: int,
+	unwrapped_super_enum: bool,
+) -> CompletionItem {
+	name := value.names[index]
+	doc := get_comment(value.docs[index], context.temp_allocator)
+	comment := get_comment(value.comments[index], context.temp_allocator)
+	documentation := build_markup_content(
+		get_enum_field_signature(value, index, !unwrapped_super_enum),
+		construct_docs(doc, comment),
+	)
+	item := CompletionItem {
+		label         = name,
+		kind          = .EnumMember,
+		documentation = documentation,
+	}
+	if unwrapped_super_enum {
+		add_implicit_selector_remove_edit(position_context, &item, name, value.names)
+	}
+
+	return item
 }
 
 append_magic_map_completion :: proc(

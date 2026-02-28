@@ -36,6 +36,7 @@ Config :: struct {
 	enable_overload_resolution:              bool,
 	enable_procedure_snippet:                bool,
 	enable_checker_only_saved:               bool,
+	enable_checker_diagnostics_on_start:     bool,
 	enable_auto_import:                      bool,
 	enable_completion_matching:              bool,
 	enable_document_links:                   bool,
@@ -49,8 +50,10 @@ Config :: struct {
 	odin_root_override:                      string,
 	checker_args:                            string,
 	checker_targets:                         []string,
+	checker_skip_packages:                   map[string]struct{},
 	client_name:                             string,
 	profile:                                 ConfigProfile,
+	builtin_path:                            string,
 }
 
 config: Config

@@ -129,16 +129,16 @@ skip_file :: proc(filename: string) -> bool {
 
 // Finds all packages under the provided path by walking the file system
 // and appends them to the provided dynamic array
-append_packages :: proc(
-	path: string,
-	pkgs: ^[dynamic]string,
-	allocator := context.temp_allocator,
-) {
+append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]struct{}, allocator := context.temp_allocator) {
 	w := os.walker_create(path)
 	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
 		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
 			dir := filepath.dir(info.fullpath, allocator)
+			if dir in skip {
+				os.walker_skip_dir(&w)
+				continue
+			}
 			if !slice.contains(pkgs[:], dir) {
 				append(pkgs, dir)
 			}
@@ -210,9 +210,11 @@ try_build_package :: proc(pkg_name: string) {
 			}
 
 			p := parser.Parser {
-				err   = log_error_handler,
-				warn  = log_warning_handler,
 				flags = {.Optional_Semicolons},
+			}
+			if !is_ols_builtin_file(fullpath) {
+				p.err = log_error_handler
+				p.warn = log_warning_handler
 			}
 
 			dir := filepath.base(filepath.dir(fullpath, context.allocator))
@@ -235,8 +237,7 @@ try_build_package :: proc(pkg_name: string) {
 			ok := parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") &&
-				   !strings.contains(fullpath, "intrinsics.odin") {
+				if !is_ols_builtin_file(fullpath) {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -250,10 +251,9 @@ try_build_package :: proc(pkg_name: string) {
 		}
 	}
 
-	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] =
-		PackageCacheInfo {
-			timestamp = time.now(),
-		}
+	build_cache.loaded_pkgs[strings.clone(pkg_name, indexer.index.collection.allocator)] = PackageCacheInfo {
+		timestamp = time.now(),
+	}
 }
 
 
@@ -295,10 +295,12 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	fullpath := uri.path
 
 	p := parser.Parser {
-			err   = log_error_handler,
-			warn  = log_warning_handler,
-			flags = {.Optional_Semicolons},
-		}
+		flags = {.Optional_Semicolons},
+	}
+	if !is_ols_builtin_file(fullpath) {
+		p.err = log_error_handler
+		p.warn = log_warning_handler
+	}
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
@@ -317,10 +319,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	}
 
 	file := ast.File {
-			fullpath = fullpath,
-			src      = text,
-			pkg      = pkg,
-		}
+		fullpath = fullpath,
+		src      = text,
+		pkg      = pkg,
+	}
 
 	{
 		allocator := context.allocator
@@ -330,8 +332,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") &&
-			   !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 		}
@@ -365,21 +366,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 }
 
 
-setup_index :: proc() {
+setup_index :: proc(builtin_path: string) {
 	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
 	symbol_collection := make_symbol_collection(context.allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
-
-	dir_exe := common.get_executable_path(context.temp_allocator)
-	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
-
-	if !os.exists(builtin_path) {
-		log.errorf(
-			"Failed to find the builtin folder at `%v`.\nPlease ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins",
-			builtin_path,
-		)
-		return
-	}
 
 	try_build_package(builtin_path)
 }

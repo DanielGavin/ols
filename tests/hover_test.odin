@@ -6207,7 +6207,7 @@ ast_hover_overloaded_generic_proc_nested_proc_calls :: proc(t: ^testing.T) {
 
 		foo_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
 
-		bar :: proc() -> (int, ok) {}
+		bar :: proc() -> (int, bool) {}
 
 		main :: proc() {
 			b{*}azz, _ := foo(bar())
@@ -6216,6 +6216,148 @@ ast_hover_overloaded_generic_proc_nested_proc_calls :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.bazz: int")
+}
+
+@(test)
+ast_hover_generic_overload_multiple_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc {
+			foo_bool,
+			foo_value_bool,
+		}
+
+		foo_bool :: proc(ok: $B) {}
+
+		foo_value_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		bar :: proc() -> (int, bool) {}
+
+
+		main :: proc() {
+			b{*}azz := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
+
+@(test)
+ast_hover_generic_overload_parapoly_with_exact_match :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {}
+
+		foo :: proc {
+			foo_bool,
+			foo_foo,
+		}
+
+		foo_bool :: proc(value: $T, ok: $B) -> (T, bool) {}
+
+		foo_foo :: proc(value: $T, result: Foo) -> (T, Foo) {}
+
+		bar :: proc() -> (object: u64, result: Foo) {
+			return
+		}
+
+		main :: proc() {
+			object, r{*}esult := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.result: test.Foo")
+}
+
+@(test)
+ast_hover_parameter_package_same_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		import "foo"
+
+		bar :: proc(foo: int) {
+			bazz := f{*}oo + 1
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: int")
+}
+
+@(test)
+ast_hover_iter_by_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		main :: proc() {
+			foos: [dynamic]int
+
+			for &foo in foos {
+				fo{*}o
+			}
+
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo: ^int")
+}
+
+@(test)
+ast_hover_parapoly_enum_implicit_selector :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		Bar :: struct($F: Foo = Foo.A) {}
+
+		main :: proc() {
+			bar: Bar(.A{*})
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
+
+@(test)
+ast_hover_parapoly_enum_default_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		B{*}ar :: struct($F: Foo = Foo.A) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Bar :: struct($F: Foo = Foo.A){}")
+}
+
+@(test)
+ast_hover_parapoly_enum_implicit_selector_on_poly_declaration :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A,
+			B,
+			C,
+		}
+
+		Bar :: struct($F: Foo = .A{*}) {}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
 /*

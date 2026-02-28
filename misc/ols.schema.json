@@ -17,7 +17,11 @@
 		"thread_pool_count": { "type": "integer" },
 		"enable_checker_only_saved": {
 			"type": "boolean",
-			"description": "Turns on only calling the checker on the package being saved"
+			"description": "Turns on only calling the checker on the package being saved."
+		},
+		"enable_checker_diagnostics_on_start": {
+			"type": "boolean",
+			"description": "Turns on running all workspace diagnostics using odin check when starting ols (experimental)."
 		},
 		"enable_semantic_tokens": {
 			"type": "boolean",
@@ -129,6 +133,13 @@
 		"checker_args": {
 			"type": "string",
 			"description": "Pass custom arguments to `odin check`."
+		},
+		"checker_skip_packages": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Paths to packages that should not be checked by `odin check`"
 		},
 		"profile": {
 			"type": "string",

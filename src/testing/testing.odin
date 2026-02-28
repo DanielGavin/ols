@@ -66,7 +66,7 @@ setup :: proc(src: ^Source) {
 		last = current
 	}
 
-	server.setup_index()
+	server.setup_index(server.get_builtin_path())
 
 	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
 	server.indexer.index.collection.config = &src.config
@@ -464,11 +464,12 @@ expect_reference_locations :: proc(
 	src: ^Source,
 	expect_locations: []common.Location,
 	expect_excluded: []common.Location = nil,
+	include_declaration := true,
 ) {
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, src.position)
+	locations, ok := server.get_references(src.document, src.position, include_declaration = include_declaration)
 
 	for expect_location in expect_locations {
 		match := false

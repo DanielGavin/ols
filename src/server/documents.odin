@@ -164,7 +164,11 @@ document_setup :: proc(document: ^Document) {
 	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
 		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.replace_path_separators(common.get_case_sensitive_path(package_name), '/', context.temp_allocator)
+		forward, _ := filepath.replace_path_separators(
+			common.get_case_sensitive_path(package_name),
+			'/',
+			context.temp_allocator,
+		)
 		if forward == "" {
 			document.package_name = package_name
 		} else {
@@ -311,8 +315,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 		return .ParseError
 	}
 
-	if strings.contains(document.uri.uri, "base/builtin/builtin.odin") ||
-	   strings.contains(document.uri.uri, "base/intrinsics/intrinsics.odin") {
+	if is_ols_builtin_file(document.uri.uri) {
 		return .None
 	}
 
@@ -325,8 +328,6 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Syntax, uri.uri)
-	remove_diagnostics(.Check, uri.uri)
-
 	check_unused_imports(document, config)
 
 	if writer != nil && !config.disable_parser_errors {
@@ -401,6 +402,11 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 	parser.parse_file(&p, &document.ast)
 
 	parse_imports(document, config)
+
+	folder := filepath.dir(document.fullpath, context.temp_allocator)
+	if strings.equal_fold(folder, config.builtin_path) {
+		return nil, true
+	}
 
 	return current_errors[:], true
 }
@@ -493,4 +499,12 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 	text_len := len(imp.relpath.text)
 	end.character += text_len
 	return {start = start, end = end}
+}
+
+is_ols_builtin_file :: proc(path: string) -> bool {
+	return(
+		strings.has_suffix(path, "/builtin/builtin.odin") ||
+		strings.has_suffix(path, "/builtin/intrinsics.odin") ||
+		strings.has_suffix(path, "/intrinsics/intrinsics.odin") \
+	)
 }

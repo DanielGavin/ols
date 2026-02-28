@@ -1309,7 +1309,7 @@ ast_implicit_named_comp_lit_bitset :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, ".", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -1331,7 +1331,7 @@ ast_implicit_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, ".", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -1353,7 +1353,7 @@ ast_implicit_unnamed_comp_lit_enum :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, ".", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -1378,7 +1378,7 @@ ast_implicit_mixed_named_and_unnamed_comp_lit_bitset :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, ".", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -1716,7 +1716,7 @@ ast_implicit_completion_in_enum_array_comp_lit :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"two"})
+	test.expect_completion_docs(t, &source, ".", {".two"})
 }
 
 @(test)
@@ -1814,7 +1814,7 @@ ast_comp_lit_with_all_symbols_indexed_enum_implicit :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"TWO", "ONE"})
+	test.expect_completion_docs(t, &source, ".", {".TWO", ".ONE"})
 }
 
 @(test)
@@ -1880,7 +1880,7 @@ ast_index_enum_infer :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"ONE", "TWO"})
+	test.expect_completion_docs(t, &source, ".", {".ONE", ".TWO"})
 }
 
 @(test)
@@ -1913,7 +1913,7 @@ ast_index_enum_infer_call_expr :: proc(t: ^testing.T) {
 		packages = packages[:],
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"ONE", "TWO"})
+	test.expect_completion_docs(t, &source, ".", {".ONE", ".TWO"})
 }
 
 
@@ -1928,7 +1928,7 @@ ast_index_builtin_ODIN_OS :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"Darwin"})
+	test.expect_completion_docs(t, &source, ".", {".Darwin"})
 }
 
 @(test)
@@ -2038,7 +2038,7 @@ ast_switch_completion_for_maybe_enum :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_completion_docs(t, &source, ".", {"One", "Two"})
+	test.expect_completion_docs(t, &source, ".", {".One", ".Two"})
 }
 
 @(test)
@@ -3511,7 +3511,7 @@ ast_completion_enum_slice :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -3528,7 +3528,7 @@ ast_completion_enum_bitset :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"B"}, {"A", "C"})
+	test.expect_completion_docs(t, &source, "", {".B"}, {".A", ".C"})
 }
 
 @(test)
@@ -3546,7 +3546,7 @@ ast_completion_enum_map_key :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -3567,7 +3567,7 @@ ast_completion_enum_bitset_with_adding_values :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"B"}, {"A"})
+	test.expect_completion_docs(t, &source, "", {".B"}, {".A"})
 }
 
 @(test)
@@ -3586,7 +3586,7 @@ ast_completion_enumerated_array :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"Foo1", "Foo2"})
+	test.expect_completion_docs(t, &source, "", {".Foo1", ".Foo2"})
 }
 
 @(test)
@@ -3607,7 +3607,7 @@ ast_completion_enumerated_array_should_exclude_already_added :: proc(t: ^testing
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"Foo2"}, {"Foo1"})
+	test.expect_completion_docs(t, &source, "", {".Foo2"}, {".Foo1"})
 }
 
 @(test)
@@ -3679,7 +3679,7 @@ ast_completion_enumerated_array_implicit :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"Foo1"}, {"Foo2"})
+	test.expect_completion_docs(t, &source, "", {".Foo1"}, {".Foo2"})
 }
 
 @(test)
@@ -3784,7 +3784,7 @@ ast_completion_struct_field_value_when_not_specifying_type_at_use_implicit :: pr
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -3827,7 +3827,7 @@ ast_completion_proc_enum_param :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -3905,7 +3905,7 @@ ast_completion_bitset_if_statement_in :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"AAA", "AAB"})
+	test.expect_completion_docs(t, &source, "", {".AAA", ".AAB"})
 }
 
 @(test)
@@ -3927,7 +3927,7 @@ ast_completion_bitset_named_proc_arg :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -3949,7 +3949,7 @@ ast_completion_bitset_named_proc_arg_should_remove_already_used :: proc(t: ^test
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"B"}, {"A"})
+	test.expect_completion_docs(t, &source, "", {".B"}, {".A"})
 }
 
 @(test)
@@ -3973,7 +3973,7 @@ ast_completion_return_comp_lit_enum :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -4003,7 +4003,7 @@ ast_completion_return_nested_comp_lit_enum :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -4028,7 +4028,7 @@ ast_completion_enum_global_array :: proc(t: ^testing.T) {
 	`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -4049,7 +4049,7 @@ ast_completion_enum_array_in_proc_param :: proc(t: ^testing.T) {
 	`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -4180,7 +4180,7 @@ ast_completion_nested_struct_with_enum_fields_unnamed :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"C", "D"}, {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".C", ".D"}, {".A", ".B"})
 }
 
 @(test)
@@ -4228,7 +4228,7 @@ ast_completion_enum_variadiac_args :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -4279,7 +4279,7 @@ ast_completion_enum_map_key_global :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -4294,7 +4294,7 @@ ast_completion_enum_map_key_global_with_value :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -4310,7 +4310,7 @@ ast_completion_enum_map_value_global :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -4545,7 +4545,7 @@ ast_completion_proc_bit_set_comp_lit_default_param_with_no_type :: proc(t: ^test
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -4844,7 +4844,7 @@ ast_completion_fixed_array_enum :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -4864,7 +4864,7 @@ ast_completion_proc_enum_default_value :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B", "C"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
 
 @(test)
@@ -5084,7 +5084,7 @@ ast_completion_implicit_selector_enumerated_array_value :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"B1", "B2"})
+	test.expect_completion_docs(t, &source, "", {".B1", ".B2"})
 }
 
 @(test)
@@ -5111,7 +5111,7 @@ ast_completion_implicit_selector_enumerated_array_in_proc_call_arg :: proc(t: ^t
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A1", "A2"})
+	test.expect_completion_docs(t, &source, "", {".A1", ".A2"})
 }
 
 @(test)
@@ -5128,7 +5128,7 @@ ast_completion_implicit_selector_binary_expr :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -5235,7 +5235,7 @@ ast_completion_proc_arg_default_enum_alias :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -5261,7 +5261,7 @@ ast_completion_proc_group_bitset :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_completion_docs(t, &source, "", {"A", "B"})
+	test.expect_completion_docs(t, &source, "", {".A", ".B"})
 }
 
 @(test)
@@ -5527,4 +5527,119 @@ ast_completion_package_docs :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, "", {"my_package: package\n---\nPackage docs"})
+}
+
+@(test)
+ast_completion_alias_index_package_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_a",
+			source = `package pkg_a
+
+			proc_a::proc(){}
+		`,
+		},
+	)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_b",
+			source = `package pkg_b
+			import _pkg_a "pkg_a"
+
+			pkg_a :: _pkg_a
+
+			proc_b::proc(){}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "pkg_b"
+		main :: proc() {
+			pkg_b.pkg_a.proc_{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"pkg_a.proc_a :: proc()"})
+}
+
+@(test)
+ast_completion_forward_index_package_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_a",
+			source = `package pkg_a
+
+			proc_a::proc(){}
+		`,
+		},
+	)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg_b",
+			source = `package pkg_b
+			import "pkg_a"
+
+			pkg_a :: pkg_a
+
+			proc_b::proc(){}
+		`,
+		},
+	)
+
+	source := test.Source {
+		main     = `package test
+		import "pkg_b"
+		main :: proc() {
+			pkg_b.pkg_a.proc_{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"pkg_a.proc_a :: proc()"})
+}
+
+@(test)
+ast_completion_untyped_string_foreign_import :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		foreign import foo {".{*}"}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {}, {"len"})
+}
+
+@(test)
+ast_completion_enum_parapoly_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			// a doc
+			A,
+			B,
+			C, // c comment
+		}
+
+		Bar :: struct($F: Foo = Foo.A) {}
+
+		main :: proc() {
+			bar: Bar(.{*})
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {".A\n---\na doc", ".B", ".C\n---\nc comment"})
 }

@@ -654,6 +654,21 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 	return 0, false
 }
 
+get_field_list_type_at_index :: proc(fields: []^ast.Field, index: int) -> (^ast.Expr, bool) {
+	count := 0
+	for field in fields {
+		count += len(field.names)
+		if index < count {
+			if field.type == nil {
+				return field.default_value, true
+			}
+			return field.type, true
+		}
+	}
+
+	return nil, false
+}
+
 get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	total := 0
 	for arg in args {
@@ -697,6 +712,108 @@ should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext,
 	return ast_context.position_hint == .Completion || ast_context.position_hint == .SignatureHelp || call_expr == nil
 }
 
+CallArg :: struct {
+	symbol:            Symbol,
+	implicit_selector: ^ast.Implicit_Selector_Expr,
+	name:              string,
+	named:             bool,
+	is_nil:            bool,
+	bad_expr:          bool,
+	has_symbol:        bool,
+	is_poly_type:      bool,
+}
+
+expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]CallArg, bool) {
+	results := make([dynamic]CallArg, context.temp_allocator)
+	if call == nil {
+		return results[:], true
+	}
+
+	used_named := false
+	append_arg :: proc(
+		ast_context: ^AstContext,
+		arg: ^ast.Expr,
+		results: ^[dynamic]CallArg,
+		used_named: ^bool,
+	) -> bool {
+		ast_context.use_locals = true
+
+		call_arg := CallArg{}
+
+		if _, ok := arg.derived.(^ast.Bad_Expr); ok {
+			call_arg.bad_expr = true
+			append(results, call_arg)
+			return true
+		}
+
+		value_expr := arg
+
+		//named parameter
+		if field, ok := arg.derived.(^ast.Field_Value); ok {
+			call_arg.named = true
+			value_expr = field.value
+			used_named^ = true
+
+			if ident, ok := field.field.derived.(^ast.Ident); ok {
+				call_arg.name = ident.name
+			}
+		} else if used_named^ {
+			log.error("Expected name parameter after starting named parmeter phase")
+			return false
+		}
+
+		if ident, ok := value_expr.derived.(^ast.Ident); ok && ident.name == "nil" {
+			call_arg.is_nil = true
+			append(results, call_arg)
+			return true
+		} else if implicit, ok := value_expr.derived.(^ast.Implicit_Selector_Expr); ok {
+			call_arg.implicit_selector = implicit
+			append(results, call_arg)
+			return true
+		}
+
+		if symbol, ok := resolve_call_arg_type_expression(ast_context, value_expr); ok {
+			call_arg.symbol = symbol
+			call_arg.has_symbol = true
+			if _, ok := symbol.value.(SymbolPolyTypeValue); ok {
+				call_arg.is_poly_type = true
+				append(results, call_arg)
+				return true
+			} else if v, ok := symbol.value.(SymbolProcedureValue); ok {
+				if len(v.return_types) == 0 {
+					return false
+				}
+				for arg in v.return_types {
+					expr := arg.type
+					if expr == nil {
+						expr = arg.default_value
+					}
+
+					if !append_arg(ast_context, expr, results, used_named) {
+						return false
+					}
+				}
+				return true
+			} else {
+				append(results, call_arg)
+				return true
+			}
+		} else {
+			return false
+		}
+
+		return true
+	}
+
+	for arg in call.args {
+		if !append_arg(ast_context, arg, &results, &used_named) {
+			return {}, false
+		}
+	}
+
+	return results[:], true
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -721,12 +838,21 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 	}
 
 	resolve_all_possibilities := should_resolve_all_proc_overload_possibilities(ast_context, call_expr)
-	call_unnamed_arg_count := 0
-	if call_expr != nil {
-		call_unnamed_arg_count = get_unnamed_arg_count(call_expr.args)
-	}
 
 	candidates := make([dynamic]Candidate, context.temp_allocator)
+	call_args, ok := expand_call_args(ast_context, call_expr)
+	if !ok {
+		return {}, false
+	}
+
+	if !resolve_all_possibilities {
+		for arg in call_args {
+			if arg.is_poly_type {
+				resolve_all_possibilities = true
+				break
+			}
+		}
+	}
 
 	for arg_expr in group.args {
 		f := Symbol{}
@@ -735,110 +861,52 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 				symbol = f,
 				score  = 1,
 			}
-			if call_expr == nil || (resolve_all_possibilities && len(call_expr.args) == 0) {
+			if call_expr == nil || (resolve_all_possibilities && len(call_args) == 0) {
 				append(&candidates, candidate)
 				break next_fn
 			}
 			if procedure, ok := f.value.(SymbolProcedureValue); ok {
 				i := 0
-				named := false
 
 				if !resolve_all_possibilities {
 					arg_count := get_proc_arg_count(procedure)
-					if call_expr != nil && arg_count < len(call_expr.args) {
+					if call_expr != nil && arg_count < len(call_args) {
 						break next_fn
 					}
-					if arg_count == len(call_expr.args) {
+					if arg_count == len(call_args) {
 						candidate.score /= 2
 					}
 				}
 				for proc_arg in procedure.arg_types {
 					for name in proc_arg.names {
-						if i >= len(call_expr.args) {
+						if i >= len(call_args) {
+							i += 1
 							continue
 						}
 
-						call_arg := call_expr.args[i]
+						call_arg := call_args[i]
+						i += 1
 
 						ast_context.use_locals = true
 
-						call_symbol: Symbol
 						arg_symbol: Symbol
 						ok: bool
-						is_call_arg_nil: bool
-						implicit_selector: ^ast.Implicit_Selector_Expr
 
-						if _, ok = call_arg.derived.(^ast.Bad_Expr); ok {
+						if call_arg.bad_expr {
 							continue
 						}
 
-						//named parameter
-						if field, is_field := call_arg.derived.(^ast.Field_Value); is_field {
-							named = true
-							if ident, is_ident := field.value.derived.(^ast.Ident); is_ident && ident.name == "nil" {
-								is_call_arg_nil = true
-								ok = true
-							} else if implicit, is_implicit := field.value.derived.(^ast.Implicit_Selector_Expr);
-							   is_implicit {
-								implicit_selector = implicit
-								ok = true
-							} else {
-								call_symbol, ok = resolve_call_arg_type_expression(ast_context, field.value)
-								if !ok {
-									break next_fn
-								}
-							}
-
-							if ident, is_ident := field.field.derived.(^ast.Ident); is_ident {
-								i, ok = get_field_list_name_index(
-									field.field.derived.(^ast.Ident).name,
-									procedure.arg_types,
-								)
-							} else {
-								break next_fn
-							}
-						} else {
-							if named {
-								log.error("Expected name parameter after starting named parmeter phase")
-								return {}, false
-							}
-							if ident, is_ident := call_arg.derived.(^ast.Ident); is_ident && ident.name == "nil" {
-								is_call_arg_nil = true
-								ok = true
-							} else if implicit, is_implicit_selector := call_arg.derived.(^ast.Implicit_Selector_Expr);
-							   is_implicit_selector {
-								implicit_selector = implicit
-								ok = true
-							} else {
-								call_symbol, ok = resolve_call_arg_type_expression(ast_context, call_arg)
-							}
-						}
-
-						if !ok {
-							break next_fn
-						}
-
-
-						if p, ok := call_symbol.value.(SymbolProcedureValue); ok {
-							if len(p.return_types) == 0 {
-								break next_fn
-							}
-							if s, ok := resolve_call_arg_type_expression(ast_context, p.return_types[0].type); ok {
-								call_symbol = s
-							}
-						}
-
-						// If an arg is a parapoly type, we assume it can match any symbol and return all possible
-						// matches
-						if _, ok := call_symbol.value.(SymbolPolyTypeValue); ok {
-							resolve_all_possibilities = true
+						if call_arg.is_poly_type {
 							continue
 						}
 
 						proc_arg := proc_arg
 
-						if named {
-							proc_arg = procedure.arg_types[i]
+						if call_arg.named {
+							proc_arg, ok = get_proc_arg_type_from_name(procedure, call_arg.name)
+							if !ok {
+								break next_fn
+							}
 						}
 
 						if proc_arg.type != nil {
@@ -851,11 +919,17 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							break next_fn
 						}
 
-						if implicit_selector != nil {
+						// TODO: check intrinsics for parapoly types?
+						if _, is_poly := arg_symbol.value.(SymbolPolyTypeValue); is_poly {
+							candidate.score += 1
+							continue
+						}
+
+						if call_arg.implicit_selector != nil {
 							if value, ok := arg_symbol.value.(SymbolEnumValue); ok {
 								found: bool
 								for name in value.names {
-									if implicit_selector.field.name == name {
+									if call_arg.implicit_selector.field.name == name {
 										found = true
 										break
 									}
@@ -863,27 +937,25 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 								if found {
 									continue
 								}
-
 							}
 							break next_fn
 						}
 
-						if is_call_arg_nil {
+						if call_arg.is_nil {
 							if is_valid_nil_symbol(arg_symbol) {
 								continue
 							} else {
 								break next_fn
 							}
-
 						}
 
-						if !is_symbol_same_typed(ast_context, call_symbol, arg_symbol, proc_arg.flags) {
+						if !is_symbol_same_typed(ast_context, call_arg.symbol, arg_symbol, proc_arg.flags) {
 							found := false
 							// Are we a union variant
 							if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
 								for variant in value.types {
 									if symbol, ok := resolve_type_expression(ast_context, variant); ok {
-										if is_symbol_same_typed(ast_context, call_symbol, symbol, proc_arg.flags) {
+										if is_symbol_same_typed(ast_context, call_arg.symbol, symbol, proc_arg.flags) {
 											// matching union types are a low priority
 											candidate.score = 1000000
 											found = true
@@ -894,11 +966,11 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							}
 
 							// Do we contain a using that matches
-							if value, ok := call_symbol.value.(SymbolStructValue); ok {
+							if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
 								using_score := 1000000
 								for k in value.usings {
 									if symbol, ok := resolve_type_expression(ast_context, value.types[k]); ok {
-										symbol.pointers = call_symbol.pointers
+										symbol.pointers = call_arg.symbol.pointers
 										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
 											if k < using_score {
 												using_score = k
@@ -914,8 +986,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 								break next_fn
 							}
 						}
-
-						i += 1
 					}
 				}
 
@@ -948,14 +1018,14 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 		return {}, false
 	}
 
-	symbol, ok := get_candidate_symbol(candidates[:], resolve_all_possibilities)
+	symbol, ok_canidate := get_candidate_symbol(candidates[:], resolve_all_possibilities)
 	if call_expr != nil {
 		ast_context.call_expr_recursion_cache[cast(rawptr)call_expr] = SymbolResult {
 			symbol = symbol,
-			ok     = ok,
+			ok     = ok_canidate,
 		}
 	}
-	return symbol, ok
+	return symbol, ok_canidate
 }
 
 resolve_call_arg_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (Symbol, bool) {
@@ -1441,20 +1511,20 @@ resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr
 	#partial switch v in indexed.value {
 	case SymbolDynamicArrayValue:
 		if .Soa in indexed.flags {
-			indexed.flags |= { .SoaPointer }
+			indexed.flags |= {.SoaPointer}
 			return indexed, true
 		}
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 	case SymbolSliceValue:
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 		if .Soa in indexed.flags {
-			indexed.flags |= { .SoaPointer }
+			indexed.flags |= {.SoaPointer}
 			return indexed, true
 		}
 	case SymbolFixedArrayValue:
 		ok = internal_resolve_type_expression(ast_context, v.expr, &symbol)
 		if .Soa in indexed.flags {
-			indexed.flags |= { .SoaPointer }
+			indexed.flags |= {.SoaPointer}
 			return indexed, true
 		}
 	case SymbolMapValue:
@@ -1688,9 +1758,34 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			try_build_package(ast_context.current_package)
 
 			if node.field != nil {
-				return resolve_symbol_return(ast_context, lookup(node.field.name, selector.pkg, node.pos.file))
+				field_symbol, ok := lookup(node.field.name, selector.pkg, node.pos.file)
+				if ok {
+					if pkg_alias_symbol, ok := resolve_field_through_package_alias(
+						ast_context,
+						field_symbol,
+						selector.pkg,
+					); ok {
+						return pkg_alias_symbol, true
+					}
+					return resolve_symbol_return(ast_context, field_symbol)
+				}
+				return {}, false
 			} else {
 				return Symbol{}, false
+			}
+		case SymbolBasicValue:
+			if s.ident != nil && node.field != nil {
+				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
+					return symbol, true
+				}
+			}
+		case SymbolGenericValue:
+			if s.expr != nil {
+				if ident, ok := s.expr.derived.(^ast.Ident); ok && node.field != nil {
+					if symbol, ok := resolve_field_access_through_imported_alias(ast_context, ident, node); ok {
+						return symbol, true
+					}
+				}
 			}
 		case SymbolEnumValue:
 			// enum members probably require own symbol value
@@ -1706,6 +1801,101 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		case SymbolMapValue:
 			if node.field.name == "allocator" {
 				return resolve_container_allocator(ast_context, "Raw_Map")
+			}
+		}
+	}
+
+	return {}, false
+}
+
+is_path_package_name :: #force_inline proc(name: string) -> bool {
+	return strings.contains(name, "/")
+}
+
+get_package_ident_from_symbol :: proc(symbol: Symbol) -> (ident: ^ast.Ident, ok: bool) {
+	#partial switch v in symbol.value {
+	case SymbolBasicValue:
+		if v.ident != nil {
+			return v.ident, true
+		}
+	case SymbolGenericValue:
+		if v.expr != nil {
+			if ident, ok := v.expr.derived.(^ast.Ident); ok {
+				return ident, true
+			}
+		}
+	}
+	return nil, false
+}
+
+resolve_ident_as_package :: proc(ast_context: ^AstContext, ident: ^ast.Ident, context_pkg: string) -> (Symbol, bool) {
+	ident_pkg, pkg_ok := internal_resolve_type_identifier(ast_context, ident^)
+	if pkg_ok && ident_pkg.type == .Package {
+		return ident_pkg, true
+	}
+	return {}, false
+}
+
+resolve_field_through_package_alias :: proc(
+	ast_context: ^AstContext,
+	field_symbol: Symbol,
+	context_pkg: string,
+) -> (
+	Symbol,
+	bool,
+) {
+	ident, ok := get_package_ident_from_symbol(field_symbol)
+	if !ok {
+		return {}, false
+	}
+
+	if is_path_package_name(ident.name) {
+		return Symbol{type = .Package, pkg = ident.name, value = SymbolPackageValue{}}, true
+	}
+
+	current_package := ast_context.current_package
+	defer {
+		ast_context.current_package = current_package
+	}
+	ast_context.current_package = context_pkg
+
+	pkg_symbol, pkg_ok := resolve_ident_as_package(ast_context, ident, context_pkg)
+	if pkg_ok && pkg_symbol.type == .Package {
+		return pkg_symbol, true
+	}
+
+	return {}, false
+}
+
+resolve_field_access_through_imported_alias :: proc(
+	ast_context: ^AstContext,
+	ident: ^ast.Ident,
+	node: ^ast.Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
+	for imp in ast_context.imports {
+		if strings.compare(imp.base, ident.name) == 0 {
+			try_build_package(ast_context.current_package)
+			if node.field != nil {
+				symbol, ok := lookup(node.field.name, imp.name, node.pos.file)
+				if ok {
+					return resolve_symbol_return(ast_context, symbol)
+				}
+			}
+		}
+	}
+
+	pkg_symbol, pkg_ok := internal_resolve_type_identifier(ast_context, ident^)
+	if pkg_ok {
+		if _, ok2 := pkg_symbol.value.(SymbolPackageValue); ok2 {
+			try_build_package(ast_context.current_package)
+			if node.field != nil {
+				symbol, ok := lookup(node.field.name, pkg_symbol.pkg, node.pos.file)
+				if ok {
+					return resolve_symbol_return(ast_context, symbol)
+				}
 			}
 		}
 	}
@@ -1889,20 +2079,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (Symbol, bool) {
 	is_distinct := false
-
-	if local.parameter {
-		for imp in ast_context.imports {
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type  = .Package,
-					pkg   = imp.name,
-					value = SymbolPackageValue{},
-				}
-
-				return resolve_symbol_return(ast_context, symbol)
-			}
-		}
-	}
 
 	if local.pkg != "" {
 		ast_context.current_package = local.pkg
@@ -2490,20 +2666,51 @@ resolve_implicit_selector :: proc(
 				ast_context.resolve_specific_overload = old
 			}
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
-				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(proc_value.arg_types) <= parameter_index {
+				#partial switch v in symbol.value {
+				case SymbolProcedureValue:
+					if len(v.arg_types) <= parameter_index {
 						return {}, false
 					}
 
-					arg := proc_value.arg_types[parameter_index]
+					arg := v.arg_types[parameter_index]
 					type := arg.type
 					if type == nil {
 						type = arg.default_value
 					}
 
 					return resolve_type_expression(ast_context, type)
-				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					return symbol, ok
+				case SymbolEnumValue:
+					return symbol, true
+				case SymbolStructValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
+				case SymbolUnionValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
+				}
+			}
+		}
+	}
+
+	if position_context.struct_type != nil {
+		st := position_context.struct_type
+		if position_in_node(st, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, st.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(st.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
+				}
+			}
+		}
+	}
+
+	if position_context.union_type != nil {
+		ut := position_context.union_type
+		if position_in_node(ut, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, ut.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(ut.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
 				}
 			}
 		}
@@ -3335,6 +3542,24 @@ find_position_in_call_param :: proc(position_context: ^DocumentPositionContext, 
 	return len(call.args) - 1, true
 }
 
+find_position_in_field_list :: proc(position_context: ^DocumentPositionContext, field_list: ^ast.Field_List) -> (int, bool) {
+	index := 0
+	for field in field_list.list {
+		if position_in_node(field.type, position_context.position) {
+			return index, true
+		} else if position_in_node(field.default_value, position_context.position) {
+			return index, true
+		}
+		for name in field.names {
+			if position_in_node(name, position_context.position) {
+				return index, true
+			}
+			index += 1
+		}
+	}
+	return 0, false
+}
+
 get_call_argument_type :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -3998,6 +4223,8 @@ unwrap_super_enum :: proc(
 ) {
 	names := make([dynamic]string, 0, 20, ast_context.allocator)
 	ranges := make([dynamic]common.Range, 0, 20, ast_context.allocator)
+	docs := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
+	comments := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
 
 	for type in symbol_union.types {
 		symbol := resolve_type_expression(ast_context, type) or_return
@@ -4013,12 +4240,16 @@ unwrap_super_enum :: proc(
 					append(&names, fmt.aprintf("%s.%s", symbol.name, name, allocator = ast_context.allocator))
 				}
 			}
+			append(&docs, ..value.docs)
+			append(&comments, ..value.comments)
 			append(&ranges, ..value.ranges)
 		}
 	}
 
 	ret_value.names = names[:]
 	ret_value.ranges = ranges[:]
+	ret_value.docs = docs[:]
+	ret_value.comments = comments[:]
 
 	return ret_value, true
 }

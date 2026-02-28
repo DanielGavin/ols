@@ -36,7 +36,7 @@ cd ols
 ./odinfmt.sh
 ```
 
-In order for `ols` to find symbols for builtin types and procedures, the `builtin` folder in the repo needs to be located next to the `ols` binary.
+In order for `ols` to find symbols for builtin types and procedures, the `builtin` folder in the repo needs to be located next to the `ols` binary. Alternatively you can specify the path to this folder using the `OLS_BUILTIN_FOLDER` environment variable.
 
 ### Configuration
 
@@ -101,7 +101,9 @@ Options:
 
 - `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
 
-- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
+- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
+
+- `enable_checker_diagnostics_on_start`: Turns on running all workspace diagnostics using odin check when starting ols (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
@@ -116,6 +118,8 @@ Options:
 - `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.
 
 - `checker_args`: Pass custom arguments to `odin check`.
+
+- `checker_skip_packages`: Paths to packages that should not be checked by `odin check`.
 
 - `verbose`: Logs warnings instead of just errors.
 
