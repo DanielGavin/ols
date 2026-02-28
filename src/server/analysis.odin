@@ -2694,6 +2694,28 @@ resolve_implicit_selector :: proc(
 		}
 	}
 
+	if position_context.struct_type != nil {
+		st := position_context.struct_type
+		if position_in_node(st, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, st.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(st.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
+				}
+			}
+		}
+	}
+
+	if position_context.union_type != nil {
+		ut := position_context.union_type
+		if position_in_node(ut, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, ut.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(ut.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
+				}
+			}
+		}
+	}
+
 	if position_context.assign != nil && len(position_context.assign.lhs) == len(position_context.assign.rhs) {
 		for _, i in position_context.assign.lhs {
 			if position_in_node(position_context.assign.rhs[i], position_context.position) {
@@ -3518,6 +3540,24 @@ find_position_in_call_param :: proc(position_context: ^DocumentPositionContext, 
 	}
 
 	return len(call.args) - 1, true
+}
+
+find_position_in_field_list :: proc(position_context: ^DocumentPositionContext, field_list: ^ast.Field_List) -> (int, bool) {
+	index := 0
+	for field in field_list.list {
+		if position_in_node(field.type, position_context.position) {
+			return index, true
+		} else if position_in_node(field.default_value, position_context.position) {
+			return index, true
+		}
+		for name in field.names {
+			if position_in_node(name, position_context.position) {
+				return index, true
+			}
+			index += 1
+		}
+	}
+	return 0, false
 }
 
 get_call_argument_type :: proc(
