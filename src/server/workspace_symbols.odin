@@ -32,7 +32,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
-					dir := strings.clone(info.fullpath, context.temp_allocator)
+					dir, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
 					dir_name := filepath.base(dir)
 					found := false
 					for blacklist in dir_blacklist {
