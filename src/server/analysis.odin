@@ -654,6 +654,21 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 	return 0, false
 }
 
+get_field_list_type_at_index :: proc(fields: []^ast.Field, index: int) -> (^ast.Expr, bool) {
+	count := 0
+	for field in fields {
+		count += len(field.names)
+		if index < count {
+			if field.type == nil {
+				return field.default_value, true
+			}
+			return field.type, true
+		}
+	}
+
+	return nil, false
+}
+
 get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	total := 0
 	for arg in args {
@@ -2637,20 +2652,29 @@ resolve_implicit_selector :: proc(
 				ast_context.resolve_specific_overload = old
 			}
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
-				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(proc_value.arg_types) <= parameter_index {
+				#partial switch v in symbol.value {
+				case SymbolProcedureValue:
+					if len(v.arg_types) <= parameter_index {
 						return {}, false
 					}
 
-					arg := proc_value.arg_types[parameter_index]
+					arg := v.arg_types[parameter_index]
 					type := arg.type
 					if type == nil {
 						type = arg.default_value
 					}
 
 					return resolve_type_expression(ast_context, type)
-				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					return symbol, ok
+				case SymbolEnumValue:
+					return symbol, true
+				case SymbolStructValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
+				case SymbolUnionValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
 				}
 			}
 		}
