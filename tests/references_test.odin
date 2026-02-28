@@ -1578,3 +1578,28 @@ ast_references_should_skip_declaration :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations, exclude, include_declaration = false)
 }
+
+@(test)
+ast_references_struct_poly_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			A,
+			B,
+		}
+
+		Bar :: struct($F: Foo = .A) {}
+
+		main :: proc() {
+			bar: Bar(.A{*})
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
+		{range = {start = {line = 6, character = 27}, end = {line = 6, character = 28}}},
+		{range = {start = {line = 9, character = 13}, end = {line = 9, character = 14}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations)
+}

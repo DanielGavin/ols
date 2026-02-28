@@ -654,6 +654,21 @@ get_field_list_name_index :: proc(name: string, field_list: []^ast.Field) -> (in
 	return 0, false
 }
 
+get_field_list_type_at_index :: proc(fields: []^ast.Field, index: int) -> (^ast.Expr, bool) {
+	count := 0
+	for field in fields {
+		count += len(field.names)
+		if index < count {
+			if field.type == nil {
+				return field.default_value, true
+			}
+			return field.type, true
+		}
+	}
+
+	return nil, false
+}
+
 get_unnamed_arg_count :: proc(args: []^ast.Expr) -> int {
 	total := 0
 	for arg in args {
@@ -1745,7 +1760,11 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			if node.field != nil {
 				field_symbol, ok := lookup(node.field.name, selector.pkg, node.pos.file)
 				if ok {
-					if pkg_alias_symbol, ok := resolve_field_through_package_alias(ast_context, field_symbol, selector.pkg); ok {
+					if pkg_alias_symbol, ok := resolve_field_through_package_alias(
+						ast_context,
+						field_symbol,
+						selector.pkg,
+					); ok {
 						return pkg_alias_symbol, true
 					}
 					return resolve_symbol_return(ast_context, field_symbol)
@@ -1817,18 +1836,21 @@ resolve_ident_as_package :: proc(ast_context: ^AstContext, ident: ^ast.Ident, co
 	return {}, false
 }
 
-resolve_field_through_package_alias :: proc(ast_context: ^AstContext, field_symbol: Symbol, context_pkg: string) -> (Symbol, bool) {
+resolve_field_through_package_alias :: proc(
+	ast_context: ^AstContext,
+	field_symbol: Symbol,
+	context_pkg: string,
+) -> (
+	Symbol,
+	bool,
+) {
 	ident, ok := get_package_ident_from_symbol(field_symbol)
 	if !ok {
 		return {}, false
 	}
 
 	if is_path_package_name(ident.name) {
-		return Symbol{
-			type = .Package,
-			pkg = ident.name,
-			value = SymbolPackageValue{},
-		}, true
+		return Symbol{type = .Package, pkg = ident.name, value = SymbolPackageValue{}}, true
 	}
 
 	current_package := ast_context.current_package
@@ -1845,7 +1867,14 @@ resolve_field_through_package_alias :: proc(ast_context: ^AstContext, field_symb
 	return {}, false
 }
 
-resolve_field_access_through_imported_alias :: proc(ast_context: ^AstContext, ident: ^ast.Ident, node: ^ast.Selector_Expr) -> (Symbol, bool) {
+resolve_field_access_through_imported_alias :: proc(
+	ast_context: ^AstContext,
+	ident: ^ast.Ident,
+	node: ^ast.Selector_Expr,
+) -> (
+	Symbol,
+	bool,
+) {
 	for imp in ast_context.imports {
 		if strings.compare(imp.base, ident.name) == 0 {
 			try_build_package(ast_context.current_package)
@@ -2637,20 +2666,51 @@ resolve_implicit_selector :: proc(
 				ast_context.resolve_specific_overload = old
 			}
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
-				if proc_value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(proc_value.arg_types) <= parameter_index {
+				#partial switch v in symbol.value {
+				case SymbolProcedureValue:
+					if len(v.arg_types) <= parameter_index {
 						return {}, false
 					}
 
-					arg := proc_value.arg_types[parameter_index]
+					arg := v.arg_types[parameter_index]
 					type := arg.type
 					if type == nil {
 						type = arg.default_value
 					}
 
 					return resolve_type_expression(ast_context, type)
-				} else if enum_value, ok := symbol.value.(SymbolEnumValue); ok {
-					return symbol, ok
+				case SymbolEnumValue:
+					return symbol, true
+				case SymbolStructValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
+				case SymbolUnionValue:
+					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+						return resolve_type_expression(ast_context, type)
+					}
+				}
+			}
+		}
+	}
+
+	if position_context.struct_type != nil {
+		st := position_context.struct_type
+		if position_in_node(st, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, st.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(st.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
+				}
+			}
+		}
+	}
+
+	if position_context.union_type != nil {
+		ut := position_context.union_type
+		if position_in_node(ut, position_context.position) {
+			if index, ok := find_position_in_field_list(position_context, ut.poly_params); ok {
+				if type, ok := get_field_list_type_at_index(ut.poly_params.list, index); ok {
+					return resolve_type_expression(ast_context, type)
 				}
 			}
 		}
@@ -3482,6 +3542,24 @@ find_position_in_call_param :: proc(position_context: ^DocumentPositionContext, 
 	return len(call.args) - 1, true
 }
 
+find_position_in_field_list :: proc(position_context: ^DocumentPositionContext, field_list: ^ast.Field_List) -> (int, bool) {
+	index := 0
+	for field in field_list.list {
+		if position_in_node(field.type, position_context.position) {
+			return index, true
+		} else if position_in_node(field.default_value, position_context.position) {
+			return index, true
+		}
+		for name in field.names {
+			if position_in_node(name, position_context.position) {
+				return index, true
+			}
+			index += 1
+		}
+	}
+	return 0, false
+}
+
 get_call_argument_type :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -4145,6 +4223,8 @@ unwrap_super_enum :: proc(
 ) {
 	names := make([dynamic]string, 0, 20, ast_context.allocator)
 	ranges := make([dynamic]common.Range, 0, 20, ast_context.allocator)
+	docs := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
+	comments := make([dynamic]^ast.Comment_Group, 0, 20, ast_context.allocator)
 
 	for type in symbol_union.types {
 		symbol := resolve_type_expression(ast_context, type) or_return
@@ -4160,12 +4240,16 @@ unwrap_super_enum :: proc(
 					append(&names, fmt.aprintf("%s.%s", symbol.name, name, allocator = ast_context.allocator))
 				}
 			}
+			append(&docs, ..value.docs)
+			append(&comments, ..value.comments)
 			append(&ranges, ..value.ranges)
 		}
 	}
 
 	ret_value.names = names[:]
 	ret_value.ranges = ranges[:]
+	ret_value.docs = docs[:]
+	ret_value.comments = comments[:]
 
 	return ret_value, true
 }
