@@ -528,7 +528,7 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 		start = src.position,
 		end   = src.position,
 	}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 	}
