@@ -661,6 +661,35 @@ is_procedure_generic :: proc(proc_type: ^ast.Proc_Type) -> bool {
 	return false
 }
 
+get_poly_param_name :: proc(expr: ^ast.Expr) -> (string, bool) {
+	if expr == nil {
+		return "", false
+	}
+
+	if ident, ok := expr.derived.(^ast.Ident); ok {
+		return ident.name, true
+	}
+
+	if poly, ok := expr.derived.(^ast.Poly_Type); ok && poly.type != nil {
+		return poly.type.name, true
+	}
+
+	return "", false
+}
+
+expr_matches_poly_name :: proc(expr: ^ast.Expr, poly_name: string) -> bool {
+	if expr == nil {
+		return false
+	}
+
+	ident, ok := expr.derived.(^ast.Ident)
+	if !ok {
+		return false
+	}
+
+	return ident.name == poly_name
+}
+
 resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder, poly_params: ^ast.Field_List) {
 	if ast_context.call == nil {
 		return
@@ -682,19 +711,9 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				continue
 			}
 
-			if ident, ok := param.type.derived.(^ast.Ident); ok {
-				poly_map[ident.name] = ast_context.call.args[i]
+			if poly_name, ok := get_poly_param_name(name); ok {
+				poly_map[poly_name] = ast_context.call.args[i]
 				b.poly_names[i] = node_to_string(ast_context.call.args[i])
-			} else if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
-				if ident, ok := name.derived.(^ast.Ident); ok {
-					poly_map[ident.name] = ast_context.call.args[i]
-					b.poly_names[i] = node_to_string(ast_context.call.args[i])
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
-					if poly.type != nil {
-						b.poly_names[i] = node_to_string(ast_context.call.args[i])
-						poly_map[poly.type.name] = ast_context.call.args[i]
-					}
-				}
 			}
 
 			append(&b.args, ast_context.call.args[i])
@@ -730,21 +749,15 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 							if type == nil {
 								type = param.default_value
 							}
-							if type != nil {
-								if param_ident, ok := type.derived.(^ast.Ident); ok {
-									if param_ident.name == ident.name {
-										param.type = expr
-									}
-								}
+							if expr_matches_poly_name(type, ident.name) {
+								param.type = expr
 							}
 						}
 					}
 					if data.parent_proc.results != nil {
 						for &return_value in data.parent_proc.results.list {
-							if return_ident, ok := return_value.type.derived.(^ast.Ident); ok {
-								if return_ident.name == ident.name {
-									return_value.type = expr
-								}
+							if expr_matches_poly_name(return_value.type, ident.name) {
+								return_value.type = expr
 							}
 						}
 					}
@@ -753,29 +766,46 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				if data.parent != nil {
 					#partial switch &v in data.parent.derived {
 					case ^ast.Array_Type:
-						v.elem = expr
+						if expr_matches_poly_name(v.len, ident.name) {
+							v.len = expr
+						}
+						if expr_matches_poly_name(v.elem, ident.name) {
+							v.elem = expr
+						}
 					case ^ast.Dynamic_Array_Type:
-						v.elem = expr
+						if expr_matches_poly_name(v.elem, ident.name) {
+							v.elem = expr
+						}
 					case ^ast.Pointer_Type:
-						v.elem = expr
+						if expr_matches_poly_name(v.elem, ident.name) {
+							v.elem = expr
+						}
+					case ^ast.Map_Type:
+						if expr_matches_poly_name(v.key, ident.name) {
+							v.key = expr
+						}
+						if expr_matches_poly_name(v.value, ident.name) {
+							v.value = expr
+						}
+
 					case ^ast.Call_Expr:
 						for arg, i in v.args {
-							if call_ident, ok := arg.derived.(^ast.Ident); ok {
-								if ident.name == call_ident.name {
-									v.args[i] = expr
-								}
+							if expr_matches_poly_name(arg, ident.name) {
+								v.args[i] = expr
 							}
 						}
 					}
 				} else if data.parent_proc == nil {
-					data.symbol_value_builder.types[data.i] = expr
-					data.poly_index += 1
+					if expr_matches_poly_name(data.symbol_value_builder.types[data.i], ident.name) {
+						data.symbol_value_builder.types[data.i] = expr
+						data.poly_index += 1
+					}
 				}
 			}
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type:
+		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type, ^ast.Map_Type:
 			data.parent = node
 		case ^ast.Proc_Type:
 			data.parent_proc = v

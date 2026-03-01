@@ -6360,41 +6360,18 @@ ast_hover_parapoly_enum_implicit_selector_on_poly_declaration :: proc(t: ^testin
 	test.expect_hover(t, &source, "test.Foo: .A")
 }
 
-/*
-
-Waiting for odin fix
-
 @(test)
-ast_hover_consecutive_non_mutable :: proc(t: ^testing.T) {
+ast_hover_constants_generics :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
-a :: int
-{*}b :: int
+		Small_Array :: struct($N: int, $T: typeid) where N >= 0 {
+			data: [N]T,
+			len:  int,
+		}
+
+		foo: Smal{*}l_Array(4, int)
 		`,
-		packages = {},
 	}
 
-	test.expect_hover(t, &source, "test.a: boffol")
+	test.expect_hover(t, &source, "test.Small_Array :: struct(4, int) where N >= 0 {\n\tdata: [4]int,\n\tlen:  int,\n}")
 }
-*/
-
-/*
-TODO: Allow for testing multiple files
-*/
-// @(test)
-// ast_hover_array_type_multiple_files_hover :: proc(t: ^testing.T) {
-// 	source := test.Source {
-// 		main     = \
-// 		`package test
-
-// 		Vec :: [2]f32
-// 		`,
-// 		another_file = \
-// 		`package test
-
-// 		v: Ve{*}c
-// 		`
-// 	}
-
-// 	test.expect_hover(t, &source, "test.Vec: [2]f32")
-// }
