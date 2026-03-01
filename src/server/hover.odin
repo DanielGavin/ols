@@ -1,7 +1,6 @@
 #+feature dynamic-literals
 package server
 
-import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"

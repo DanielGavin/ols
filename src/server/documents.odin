@@ -1,6 +1,7 @@
 package server
 
 import "base:intrinsics"
+import "core:os"
 
 import "core:fmt"
 import "core:log"
@@ -502,9 +503,13 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 }
 
 is_ols_builtin_file :: proc(path: string) -> bool {
+	p := path
+	when ODIN_OS == .Windows {
+		p, _ = os.replace_path_separators(p, '/', context.temp_allocator)
+	}
 	return(
-		strings.has_suffix(path, "/builtin/builtin.odin") ||
-		strings.has_suffix(path, "/builtin/intrinsics.odin") ||
-		strings.has_suffix(path, "/intrinsics/intrinsics.odin") \
+		strings.has_suffix(p, "/builtin/builtin.odin") ||
+		strings.has_suffix(p, "/builtin/intrinsics.odin") ||
+		strings.has_suffix(p, "/intrinsics/intrinsics.odin") \
 	)
 }
