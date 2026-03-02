@@ -536,6 +536,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	odin_core_env: string
 	if config.odin_root_override != "" {
 		odin_core_env = config.odin_root_override
+		if !filepath.is_abs(odin_core_env) {
+			odin_core_env = path.join({uri.path, odin_core_env})
+		}
 	} else {
 		odin_bin := "odin" if config.odin_command == "" else config.odin_command
 
