@@ -416,8 +416,11 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	}
 	if len(ols_config.checker_skip_packages) > 0 {
 		packages := make(map[string]struct{}, context.allocator)
-		for path in ols_config.checker_skip_packages {
-			full_path, _ := os.get_absolute_path(path, context.allocator)
+		for pkg in ols_config.checker_skip_packages {
+			full_path := pkg
+			if !filepath.is_abs(full_path) {
+				full_path = path.join(elems = {uri.path, pkg})
+			}
 			packages[full_path] = {}
 		}
 		config.checker_skip_packages = packages
