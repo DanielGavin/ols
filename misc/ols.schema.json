@@ -19,9 +19,9 @@
 			"type": "boolean",
 			"description": "Turns on only calling the checker on the package being saved."
 		},
-		"enable_checker_diagnostics_on_start": {
+		"enable_checker_workspace_diagnostics": {
 			"type": "boolean",
-			"description": "Turns on running all workspace diagnostics using odin check when starting ols (experimental)."
+			"description": "Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental)."
 		},
 		"enable_semantic_tokens": {
 			"type": "boolean",
@@ -139,7 +139,7 @@
 			"items": {
 				"type": "string"
 			},
-			"description": "Paths to packages that should not be checked by `odin check`"
+			"description": "Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`."
 		},
 		"profile": {
 			"type": "string",

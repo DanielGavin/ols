@@ -41,35 +41,49 @@ Check_Mode :: enum {
 
 Check_Request :: struct {
 	check_mode: Check_Mode,
-	uri:        common.Uri,
+	path:       string,
 	config:     ^common.Config,
-	writer:     ^Writer,
+}
+
+Checker :: struct {
+	allocator: mem.Allocator,
+	send:      chan.Chan(Check_Request, .Send),
 }
 
 @(private = "file")
-check_send: chan.Chan(Check_Request, .Send)
+checker: Checker
 
-queue_check_request :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config, writer: ^Writer) {
-	ok := chan.send(check_send, Check_Request{check_mode = mode, uri = uri, config = config, writer = writer})
+queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
+	path := strings.clone(path, checker.allocator)
+	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config})
 	if !ok {
-		log.errorf("Failed to queue check request for uri %q", uri.uri)
+		log.errorf("Failed to queue check request for path %q", path)
 	}
 }
 
 stop_check_worker :: proc() {
-	chan.close(check_send)
+	chan.close(checker.send)
 }
 
-create_and_start_check_worker :: proc() {
+create_and_start_check_worker :: proc(writer: ^Writer) {
+	allocator := runtime.heap_allocator()
 	check_chan, _ := chan.create(chan.Chan(Check_Request), 8, context.allocator)
-	check_send = chan.as_send(check_chan)
+	check_send := chan.as_send(check_chan)
+	checker = Checker {
+		allocator = runtime.heap_allocator(),
+		send      = check_send,
+	}
 	check_recv := chan.as_recv(check_chan)
-	thread.create_and_start_with_poly_data(Consumer{logger = context.logger, ch = check_recv}, run_check_consumer)
+	thread.create_and_start_with_poly_data(
+		Consumer{logger = context.logger, ch = check_recv, w = writer},
+		run_check_consumer,
+	)
 }
 
 Consumer :: struct {
 	logger: log.Logger,
 	ch:     chan.Chan(Check_Request, .Recv),
+	w:      ^Writer,
 }
 
 run_check_consumer :: proc(c: Consumer) {
@@ -79,10 +93,19 @@ run_check_consumer :: proc(c: Consumer) {
 		if !ok {
 			break
 		}
-		check(request.check_mode, request.uri, request.config)
-		push_diagnostics(request.writer)
+		paths := make([dynamic]string, allocator = context.temp_allocator)
+		append(&paths, request.path)
+		for request in chan.try_recv(c.ch) {
+			append(&paths, request.path)
+		}
+		check(request.check_mode, paths[:], request.config)
+		push_diagnostics(c.w)
 		free_all(context.temp_allocator)
+		for path in paths {
+			delete(path, checker.allocator)
+		}
 	}
+	free_all(context.temp_allocator)
 }
 
 //If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
@@ -96,30 +119,6 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	}
 
 	return data[:]
-}
-
-path_has_prefix :: proc(path: string, prefix: string) -> bool {
-	if len(prefix) == 0 || len(path) < len(prefix) {
-		return false
-	}
-
-	if !strings.equal_fold(path[:len(prefix)], prefix) {
-		return false
-	}
-
-	if len(path) == len(prefix) {
-		return true
-	}
-
-	return path[len(prefix)] == '/' || prefix[len(prefix) - 1] == '/'
-}
-
-path_matches_checker_scope :: proc(file_path: string, checker_path: string) -> bool {
-	if filepath.ext(checker_path) == ".odin" {
-		return strings.equal_fold(file_path, checker_path)
-	}
-
-	return path_has_prefix(file_path, checker_path)
 }
 
 check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
@@ -154,21 +153,30 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 	}
 }
 
-resolve_check_paths :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) -> ([]string, bool) {
+resolve_check_paths :: proc(mode: Check_Mode, paths: []string, config: ^common.Config) -> []string {
 	if len(config.profile.checker_path) > 0 {
-		return config.profile.checker_path[:], true
+		return config.profile.checker_path[:]
 	}
 
-	if mode == .Saved && config.enable_checker_only_saved && uri.path != "" {
-		paths := make([dynamic]string, context.temp_allocator)
-		dir := path.dir(uri.path, context.temp_allocator)
-		if dir not_in config.checker_skip_packages {
-			append(&paths, dir)
+	if mode == .Saved || config.enable_checker_only_saved {
+		results := make([dynamic]string, context.temp_allocator)
+		for p in paths {
+			if p == "" {
+				continue
+			}
+			dir := path.dir(p, context.temp_allocator)
+			if dir not_in config.checker_skip_packages {
+				append(&results, dir)
+			}
 		}
-		return paths[:], false
+		return results[:]
 	}
 
-	return fallback_find_odin_directories(config), true
+	if mode == .Workspace && config.enable_checker_workspace_diagnostics {
+		return fallback_find_odin_directories(config)
+	}
+
+	return {}
 }
 
 CheckProcess :: struct {
@@ -177,18 +185,14 @@ CheckProcess :: struct {
 	finished: bool,
 }
 
-check :: proc(mode: Check_Mode, uri: common.Uri, config: ^common.Config) {
-	paths, clear_all := resolve_check_paths(mode, uri, config)
-
-	if clear_all {
-		clear_diagnostics(.Check)
-	} else {
-		clear_check_diagnostics_for_paths(paths)
-	}
+check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
+	paths := resolve_check_paths(mode, check_paths, config)
 
 	if len(paths) == 0 {
 		return
 	}
+
+	clear_diagnostics(.Check)
 
 	collections := make([dynamic]string, context.temp_allocator)
 

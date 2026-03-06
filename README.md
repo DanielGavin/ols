@@ -103,7 +103,7 @@ Options:
 
 - `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
 
-- `enable_checker_diagnostics_on_start`: Turns on running all workspace diagnostics using odin check when starting ols (experimental).
+- `enable_checker_workspace_diagnostics`: Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
@@ -119,7 +119,7 @@ Options:
 
 - `checker_args`: Pass custom arguments to `odin check`.
 
-- `checker_skip_packages`: Paths to packages that should not be checked by `odin check`.
+- `checker_skip_packages`: Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`.
 
 - `verbose`: Logs warnings instead of just errors.
 

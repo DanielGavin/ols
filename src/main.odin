@@ -63,7 +63,7 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	}
 
 	context.logger = logger^
-	server.create_and_start_check_worker()
+	server.create_and_start_check_worker(writer)
 	defer server.stop_check_worker()
 
 
