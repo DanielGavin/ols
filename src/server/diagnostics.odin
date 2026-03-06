@@ -91,25 +91,6 @@ clear_diagnostics :: proc(type: DiagnosticType) {
 	}
 }
 
-clear_check_diagnostics_for_paths :: proc(paths: []string) {
-	sync.lock(&diagnostic_mutex)
-	defer sync.unlock(&diagnostic_mutex)
-
-	for uri, _ in diagnostics[.Check] {
-		parsed_uri, ok := common.parse_uri(uri, context.temp_allocator)
-		if !ok {
-			continue
-		}
-
-		for checker_path in paths {
-			if path_matches_checker_scope(parsed_uri.path, checker_path) {
-				remove_diagnostics_locked(.Check, uri)
-				break
-			}
-		}
-	}
-}
-
 get_merged_diagnostics :: proc() -> map[string][dynamic]Diagnostic {
 	sync.lock(&diagnostic_mutex)
 	defer sync.unlock(&diagnostic_mutex)
