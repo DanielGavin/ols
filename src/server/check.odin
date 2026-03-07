@@ -183,6 +183,7 @@ CheckProcess :: struct {
 	process:  os.Process,
 	reader:   ^os.File,
 	finished: bool,
+	buffer:   [dynamic]u8,
 }
 
 check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
@@ -206,13 +207,11 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 	max_concurrent_checks := max(1, os.get_processor_core_count())
 	processes := make([dynamic]CheckProcess, 0, len(paths))
 
-	buffer := make([dynamic]u8, mem.Kilobyte * 200, context.temp_allocator)
 	errors := make([dynamic]Json_Errors, 0, len(paths), context.temp_allocator)
 
 	next_index := 0
 	running_count := 0
 	start := time.now()
-
 
 	for running_count > 0 || next_index < len(paths) {
 		for running_count < max_concurrent_checks && next_index < len(paths) {
@@ -242,6 +241,12 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 				continue
 			}
 
+			buf: [1024]u8
+			n, _ := os.read(p.reader, buf[:])
+			if n > 0 {
+				_, _ = append(&p.buffer, ..buf[:n])
+			}
+
 			state, err := os.process_wait(p.process, 0)
 			if err != nil {
 				continue
@@ -254,13 +259,10 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 			p.finished = true
 			running_count -= 1
 
-			buf: [1024]u8
-			clear(&buffer)
-
 			for {
 				n, read_err := os.read(p.reader, buf[:])
 				if n > 0 {
-					_, _ = append(&buffer, ..buf[:n])
+					_, _ = append(&p.buffer, ..buf[:n])
 				}
 				if read_err != nil {
 					break
@@ -270,11 +272,15 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 			os.close(p.reader)
 			p.reader = nil
 
-			if len(buffer) > 0 {
+			if len(p.buffer) > 0 {
 				json_errors: Json_Errors
-				if res := json.unmarshal(buffer[:], &json_errors, json.DEFAULT_SPECIFICATION, context.temp_allocator);
-				   res != nil {
-					log.errorf("Failed to unmarshal check results: %v, %v", res, string(buffer[:]))
+				if res := json.unmarshal(
+					p.buffer[:],
+					&json_errors,
+					json.DEFAULT_SPECIFICATION,
+					context.temp_allocator,
+				); res != nil {
+					log.errorf("Failed to unmarshal check results: %v, %v", res, string(p.buffer[:]))
 					continue
 				}
 				append(&errors, json_errors)
@@ -380,7 +386,9 @@ start_check_process :: proc(
 	append(&cmd, entry_point_opt, "-json-errors")
 	args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
 	for arg in args {
-		append(&cmd, arg)
+		if arg != "" {
+			append(&cmd, arg)
+		}
 	}
 
 	r, w, err := os.pipe()
@@ -403,7 +411,8 @@ start_check_process :: proc(
 		return CheckProcess{}, false
 	}
 
-	return CheckProcess{process = p, reader = r}, true
+	buffer := make([dynamic]u8, 0, mem.Kilobyte * 200, context.temp_allocator)
+	return CheckProcess{process = p, reader = r, buffer = buffer}, true
 }
 
 @(private = "file")
