@@ -294,6 +294,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^Range_Stmt:
 		local_scope(data, n)
 		resolve_node(n.label, data)
+		resolve_node(n.init, data)
 		resolve_nodes(n.vals, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)

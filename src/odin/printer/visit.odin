@@ -1197,6 +1197,10 @@ visit_stmt :: proc(
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
+		if v.init != nil {
+        	document = cons(document, visit_stmt(p, v.init), text(";"), break_with_space())
+    	}
+
 		if v.reverse {
 			document = cons(document, text("#reverse"), break_with_no_newline())
 		}
