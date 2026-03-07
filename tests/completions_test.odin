@@ -5643,3 +5643,89 @@ ast_completion_enum_parapoly_value :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {".A\n---\na doc", ".B", ".C\n---\nc comment"})
 }
+
+@(test)
+ast_for_range_init_var_decl_visible_in_body :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		My_Struct :: struct {
+			one: int,
+		}
+
+		make_iter :: proc() -> int { return 0 }
+
+		main :: proc() {
+			my_array: []My_Struct
+
+			for i := make_iter(); value in my_array {
+				i{*}
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.i: int"})
+}
+
+@(test)
+ast_for_range_init_not_visible_outside_loop :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		make_iter :: proc() -> int { return 0 }
+
+		main :: proc() {
+			my_array: []int
+
+			for i := make_iter(); value in my_array {
+			}
+
+			{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_labels(t, &source, "", {"make_iter", "my_array"}, {"i"})
+}
+
+@(test)
+ast_for_range_init_custom_iterator :: proc(t: ^testing.T) {
+    source := test.Source {
+        main = `package test
+
+        My_Item :: struct {
+            value: int,
+        }
+
+        Iterator :: struct {
+            items: []My_Item,
+            index: int,
+        }
+
+        make_iterator :: proc(items: []My_Item) -> Iterator {
+            return Iterator{items = items}
+        }
+
+        iterate :: proc(iter: ^Iterator) -> (item: My_Item, ok: bool) {
+            if iter.index >= len(iter.items) { return {}, false }
+            item = iter.items[iter.index]
+            iter.index += 1
+            return item, true
+        }
+
+        main :: proc() {
+            items: []My_Item
+
+            for iter := make_iterator(items); item in iterate(&iter) {
+                item.{*}
+            }
+        }
+        `,
+        packages = {},
+    }
+
+    test.expect_completion_docs(t, &source, ".", {"My_Item.value: int"})
+}

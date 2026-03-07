@@ -652,6 +652,10 @@ get_locals_for_range_stmt :: proc(
 		return
 	}
 
+	if stmt.init != nil {
+        get_locals_stmt(file, stmt.init, ast_context, document_position)
+    }
+
 	results := make([dynamic]^Expr, context.temp_allocator)
 
 	if stmt.expr == nil {
