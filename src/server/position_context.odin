@@ -760,6 +760,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.body, position_context)
 	case ^Range_Stmt:
 		get_document_position_label(n.label, position_context)
+		get_document_position(n.init, position_context)
 		get_document_position(n.vals, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
