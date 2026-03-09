@@ -548,7 +548,7 @@ get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> 
 	case SymbolAggregateValue:
 		return ""
 	}
-	sb := strings.builder_make()
+	sb := strings.builder_make(ast_context.allocator)
 	if write_symbol_type_information(&sb, ast_context, symbol) {
 		return strings.to_string(sb)
 	}
@@ -797,13 +797,13 @@ get_selector_completion :: proc(
 				   base == "$builtin" ||
 				   is_selector ||
 				   is_using_package(ast_context, symbol.pkg) {
-					item.label = fmt.aprintf(
+					item.label = fmt.tprintf(
 						"(%v%v)",
 						repeat("^", symbol.pointers, context.temp_allocator),
 						node_to_string(type, true),
 					)
 				} else {
-					item.label = fmt.aprintf(
+					item.label = fmt.tprintf(
 						"(%v%v.%v)",
 						repeat("^", symbol.pointers, context.temp_allocator),
 						get_symbol_pkg_name(ast_context, &symbol),
@@ -1529,7 +1529,7 @@ add_implicit_selector_remove_edit :: proc(
 	valid_names: []string,
 ) {
 	get_name :: proc(full_name: string) -> string {
-		split_name := strings.split(full_name, ".")
+		split_name := strings.split(full_name, ".", context.temp_allocator)
 		return split_name[len(split_name) - 1]
 	}
 

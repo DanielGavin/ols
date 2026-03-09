@@ -41,6 +41,7 @@ resolve_ranged_file :: proc(
 	)
 
 	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
 
 	get_globals(document.ast, &ast_context)
 
@@ -76,6 +77,7 @@ resolve_entire_file :: proc(
 	)
 
 	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
 
 	get_globals(document.ast, &ast_context)
 

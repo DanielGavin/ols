@@ -61,27 +61,43 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
 
-	actions := make([dynamic]CodeAction, 0, context.allocator)
+	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
 
 	if position_context.selector_expr != nil {
 		if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
-			add_missing_imports(&ast_context, selector, strings.clone(document.uri.uri), config, &actions)
+			add_missing_imports(
+				&ast_context,
+				selector,
+				strings.clone(document.uri.uri, context.temp_allocator),
+				config,
+				&actions,
+			)
 		}
 	} else if position_context.import_stmt != nil {
-		remove_unused_imports(document, strings.clone(document.uri.uri), config, &actions)
+		remove_unused_imports(
+			document,
+			strings.clone(document.uri.uri, context.temp_allocator),
+			config,
+			&actions,
+		)
 	}
 
 	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
 		add_populate_switch_cases_action(
 			&ast_context,
 			&position_context,
-			strings.clone(document.uri.uri),
+			strings.clone(document.uri.uri, context.temp_allocator),
 			&actions,
 		)
 	}
 
 	if config.enable_code_action_invert_if {
-		add_invert_if_action(document, position_context.position, strings.clone(document.uri.uri), &actions)
+		add_invert_if_action(
+			document,
+			position_context.position,
+			strings.clone(document.uri.uri, context.temp_allocator),
+			&actions,
+		)
 	}
 
 	return actions[:], true
