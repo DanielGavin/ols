@@ -653,8 +653,8 @@ get_locals_for_range_stmt :: proc(
 	}
 
 	if stmt.init != nil {
-        get_locals_stmt(file, stmt.init, ast_context, document_position)
-    }
+		get_locals_stmt(file, stmt.init, ast_context, document_position)
+	}
 
 	results := make([dynamic]^Expr, context.temp_allocator)
 
@@ -1044,9 +1044,13 @@ get_locals_type_switch_stmt :: proc(
 	get_locals_stmt(file, stmt.tag, ast_context, document_position, true)
 
 	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
-		for block_stmt in block.stmts {
+		for block_stmt, i in block.stmts {
+			upper_bound := stmt.end.offset
+			if i < len(block.stmts) - 1 {
+				upper_bound = block.stmts[i + 1].pos.offset
+			}
 			if cause, ok := block_stmt.derived.(^Case_Clause);
-			   ok && cause.pos.offset <= document_position.position && document_position.position <= cause.end.offset {
+			   ok && cause.pos.offset <= document_position.position && document_position.position <= upper_bound {
 				tag := stmt.tag.derived.(^Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
