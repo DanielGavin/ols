@@ -546,6 +546,10 @@ resolve_generic_function_symbol :: proc(
 
 			ast_context.current_package = ast_context.document_package
 
+			if comp_lit, ok := call_expr.args[i].derived.(^ast.Comp_Lit); ok && comp_lit.type == nil {
+				comp_lit.type = param.type
+			}
+
 			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
 				if ident, ok := call_expr.args[i].derived.(^ast.Ident); ok && symbol.name == "" {
 					symbol.name = ident.name

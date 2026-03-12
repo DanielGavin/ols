@@ -6406,3 +6406,19 @@ ast_hover_generic_proc_with_proc_arg :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.bazz: int")
 }
+
+@(test)
+ast_hover_generic_proc_with_proc_arg_with_type_id_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(has: []typeid, bar: proc(a: $T) -> bool) -> (T, bool) {}
+		foo1 :: proc(a: int) -> bool {}
+
+		main :: proc() {
+			b{*}azz := foo({int}, foo1)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
