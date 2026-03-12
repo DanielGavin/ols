@@ -212,7 +212,45 @@ resolve_poly_specialization :: proc(
 				return resolve_poly_expression(ast_context, comp_lit.type, p.type, poly_map)
 			}
 		}
-	case ^ast.Struct_Type, ^ast.Proc_Type:
+	case ^ast.Proc_Type:
+		if call_proc, ok := call_node.derived.(^ast.Proc_Type); ok {
+			found := false
+
+			if p.params != nil && call_proc.params != nil {
+				for param, i in p.params.list {
+					if i >= len(call_proc.params.list) {
+						break
+					}
+					if param.type != nil && expr_contains_poly(param.type) {
+						found |= resolve_poly_expression(
+							ast_context,
+							call_proc.params.list[i].type,
+							param.type,
+							poly_map,
+						)
+					}
+				}
+			}
+
+			if p.results != nil && call_proc.results != nil {
+				for result, i in p.results.list {
+					if i >= len(call_proc.results.list) {
+						break
+					}
+					if result.type != nil && expr_contains_poly(result.type) {
+						found |= resolve_poly_expression(
+							ast_context,
+							call_proc.results.list[i].type,
+							result.type,
+							poly_map,
+						)
+					}
+				}
+			}
+
+			return found
+		}
+	case ^ast.Struct_Type:
 	case ^ast.Ident:
 		return true
 	case:

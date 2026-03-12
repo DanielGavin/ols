@@ -1353,11 +1353,19 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		out^, ok = resolve_type_assertion_expr(ast_context, v)
 		return ok
 	case ^Proc_Lit:
-		if v.type.results != nil {
-			if len(v.type.results.list) > 0 {
-				return internal_resolve_type_expression(ast_context, v.type.results.list[0].type, out)
-			}
-		}
+		out^, ok =
+			make_symbol_procedure_from_ast(
+				ast_context,
+				node,
+				v.type^,
+				ast_context.field_name.name,
+				{},
+				true,
+				.None,
+				nil,
+			),
+			true
+		return ok
 	case ^Pointer_Type:
 		ok := internal_resolve_type_expression(ast_context, v.elem, out)
 		out.pointers += 1
@@ -3542,7 +3550,13 @@ find_position_in_call_param :: proc(position_context: ^DocumentPositionContext, 
 	return len(call.args) - 1, true
 }
 
-find_position_in_field_list :: proc(position_context: ^DocumentPositionContext, field_list: ^ast.Field_List) -> (int, bool) {
+find_position_in_field_list :: proc(
+	position_context: ^DocumentPositionContext,
+	field_list: ^ast.Field_List,
+) -> (
+	int,
+	bool,
+) {
 	index := 0
 	for field in field_list.list {
 		if position_in_node(field.type, position_context.position) {

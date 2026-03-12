@@ -6375,3 +6375,34 @@ ast_hover_constants_generics :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Small_Array :: struct(4, int) where N >= 0 {\n\tdata: [4]int,\n\tlen:  int,\n}")
 }
+
+@(test)
+ast_hover_generic_proc_with_proc_arg_inline :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(bar: proc(a: $T) -> bool) -> (T, bool) {}
+
+		main :: proc() {
+			b{*}azz := foo(proc(a: int) -> bool {})
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
+
+@(test)
+ast_hover_generic_proc_with_proc_arg :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(bar: proc(a: $T) -> bool) -> (T, bool) {}
+		foo1 :: proc(a: int) -> bool {}
+
+		main :: proc() {
+			b{*}azz := foo(foo1)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bazz: int")
+}
