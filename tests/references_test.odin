@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import "src:common"
@@ -1599,6 +1598,36 @@ ast_references_struct_poly_field :: proc(t: ^testing.T) {
 		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 4}}},
 		{range = {start = {line = 6, character = 27}, end = {line = 6, character = 28}}},
 		{range = {start = {line = 9, character = 13}, end = {line = 9, character = 14}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations)
+}
+
+@(test)
+ast_reference_iterator_index_union_switch_case :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: union {
+		    int,
+			[]string,
+		}
+
+		main :: proc() {
+			foo: Foo
+			#partial switch v in foo {
+			case []string:
+				for s, i{*} in v {
+					if i == 0 {
+					}
+				}
+			}
+		}
+
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 10, character = 11}, end = {line = 10, character = 12}}},
+		{range = {start = {line = 11, character = 8}, end = {line = 11, character = 9}}},
 	}
 
 	test.expect_reference_locations(t, &source, locations)
