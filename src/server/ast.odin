@@ -1404,6 +1404,9 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 // Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
 // using the provided allocator, so `v` should have the same lifetime as the allocator.
 construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
+	if v.fields == nil {
+		return
+	}
 	for field, i in v.fields.list {
 		// There is currently a bug in the odin parser where it adds line comments for a field to the
 		// docs of the following field, we address this problem here.

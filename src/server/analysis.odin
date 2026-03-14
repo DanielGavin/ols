@@ -780,20 +780,26 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 				append(results, call_arg)
 				return true
 			} else if v, ok := symbol.value.(SymbolProcedureValue); ok {
-				if len(v.return_types) == 0 {
-					return false
-				}
-				for arg in v.return_types {
-					expr := arg.type
-					if expr == nil {
-						expr = arg.default_value
-					}
-
-					if !append_arg(ast_context, expr, results, used_named) {
+				if _, ok := value_expr.derived.(^ast.Call_Expr); ok {
+					if len(v.return_types) == 0 {
 						return false
 					}
+					for arg in v.return_types {
+						expr := arg.type
+						if expr == nil {
+							expr = arg.default_value
+						}
+
+						if !append_arg(ast_context, expr, results, used_named) {
+							return false
+						}
+					}
+					return true
+
+				} else {
+					append(results, call_arg)
+					return true
 				}
-				return true
 			} else {
 				append(results, call_arg)
 				return true
@@ -806,6 +812,8 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 	}
 
 	for arg in call.args {
+		reset_ast_context(ast_context)
+		ast_context.current_package = ast_context.document_package
 		if !append_arg(ast_context, arg, &results, &used_named) {
 			return {}, false
 		}
@@ -877,8 +885,18 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 						candidate.score /= 2
 					}
 				}
-				for proc_arg in procedure.arg_types {
+				for proc_arg, arg_index in procedure.arg_types {
 					for name in proc_arg.names {
+						// Since poly args are usually replaced, we give them a slightly worse score here
+						// That way if an overload has an exact type match, it'll do better
+						// We add 1 point per named arg that is poly
+						orig_arg := procedure.orig_arg_types[arg_index].type
+						if orig_arg == nil {
+							orig_arg = procedure.orig_arg_types[arg_index].default_value
+						}
+						if _, ok := orig_arg.derived.(^ast.Poly_Type); ok {
+							candidate.score += 1
+						}
 						if i >= len(call_args) {
 							i += 1
 							continue

@@ -524,19 +524,35 @@ resolve_generic_function_symbol :: proc(
 	call_expr := ast_context.call
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-
 	i := 0
-	count_required_params := 0
-	// Total number of args passed in the call when expanded to include functions that may return multiple values
-	call_arg_count := 0
 
+	for param in params {
+		for name in param.names {
+			defer i += 1
+			if i >= len(call_expr.args) {
+				break
+			}
+			if comp_lit, ok := call_expr.args[i].derived.(^ast.Comp_Lit); ok && comp_lit.type == nil {
+				comp_lit.type = param.type
+			}
+		}
+	}
+	call_args, ok := expand_call_args(ast_context, call_expr)
+	if !ok {
+		return {}, false
+	}
+
+	i = 0
+	count_required_params := 0
 	for param in params {
 		if param.default_value == nil {
 			count_required_params += 1
 		}
 
 		for name in param.names {
-			if len(call_expr.args) <= i {
+			defer i += 1
+
+			if len(call_args) <= i {
 				break
 			}
 
@@ -548,68 +564,35 @@ resolve_generic_function_symbol :: proc(
 
 			ast_context.current_package = ast_context.document_package
 
-			if comp_lit, ok := call_expr.args[i].derived.(^ast.Comp_Lit); ok && comp_lit.type == nil {
-				comp_lit.type = param.type
+			symbol := call_args[i].symbol
+			file := strings.trim_prefix(symbol.uri, "file://")
+
+			symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
+
+			if symbol_expr == nil {
+				return {}, false
 			}
 
-			if symbol, ok := resolve_type_expression(ast_context, call_expr.args[i]); ok {
-				if ident, ok := call_expr.args[i].derived.(^ast.Ident); ok && symbol.name == "" {
-					symbol.name = ident.name
-				}
-				file := strings.trim_prefix(symbol.uri, "file://")
+			// We set the offset so we can find it as a local if it's based on the type of a local var
+			symbol_expr.pos.offset = call_expr.pos.offset
+			symbol_expr.end.offset = call_expr.end.offset
 
-				if file == "" {
-					file = call_expr.args[i].pos.file
-				}
+			symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
+			param_type := clone_expr(param.type, ast_context.allocator, nil)
 
-				symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
-
-				if symbol_expr == nil {
-					return {}, false
-				}
-
-				//If we have a function call, we should instead look at the return value: bar(foo(123))
-				if symbol_value, ok := symbol.value.(SymbolProcedureValue); ok && len(symbol_value.return_types) > 0 {
-					call_arg_count += get_proc_return_value_count(symbol_value.return_types)
-					if _, ok := call_expr.args[i].derived.(^ast.Call_Expr); ok {
-						ret_type := symbol_value.return_types[0].type
-						if ret_type == nil {
-							ret_type = symbol_value.return_types[0].default_value
-						}
-						if ret_type != nil {
-							if symbol, ok = resolve_type_expression(ast_context, ret_type); ok {
-								symbol_expr = ret_type
-							}
-						}
-					}
-				} else {
-					call_arg_count += 1
-				}
-
-				// We set the offset so we can find it as a local if it's based on the type of a local var
-				symbol_expr.pos.offset = call_expr.pos.offset
-				symbol_expr.end.offset = call_expr.end.offset
-
-				symbol_expr = clone_expr(symbol_expr, ast_context.allocator, nil)
-				param_type := clone_expr(param.type, ast_context.allocator, nil)
-
-				if resolve_poly(ast_context, symbol_expr, symbol, param_type, &poly_map) {
-					if poly, ok := name.derived.(^ast.Poly_Type); ok {
-						poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
-					}
+			if resolve_poly(ast_context, symbol_expr, symbol, param_type, &poly_map) {
+				if poly, ok := name.derived.(^ast.Poly_Type); ok {
+					poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
 				}
 			}
-
-			i += 1
 		}
 	}
-
 
 	for k, v in poly_map {
 		find_and_replace_poly_type(v, &poly_map)
 	}
 
-	if count_required_params > call_arg_count || count_required_params == 0 || call_arg_count == 0 {
+	if count_required_params > len(call_args) || count_required_params == 0 || len(call_args) == 0 {
 		return {}, false
 	}
 

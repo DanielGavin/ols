@@ -875,6 +875,7 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 		return type
 	case SymbolStructValue:
 		type := new_type(ast.Struct_Type, pos, end, allocator)
+		type.fields = new_type(ast.Field_List, pos, end, allocator)
 		return type
 	case SymbolEnumValue:
 		type := new_type(ast.Enum_Type, pos, end, allocator)

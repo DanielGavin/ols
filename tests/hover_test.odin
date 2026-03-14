@@ -6438,3 +6438,19 @@ ast_hover_generic_proc_with_proc_arg_with_slice_return :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.a: []int")
 }
+
+@(test)
+ast_hover_generic_proc_with_proc_arg_with_multiple_returns :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(a: $A, b: $B) -> (A, B) {}
+		bar :: proc() -> (int, string) {}
+
+		main :: proc() {
+			a, b{*} := foo(bar())
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.b: string")
+}
