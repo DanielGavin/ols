@@ -137,7 +137,7 @@ check_builtin_proc_return_type :: proc(
 
 @(private = "file")
 get_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr, is_mutable: bool) -> ^ast.Expr {
-if v, ok := expr.derived.(^ast.Field_Value); ok {
+	if v, ok := expr.derived.(^ast.Field_Value); ok {
 		return get_return_expr(ast_context, v.value, is_mutable)
 	}
 	if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -146,7 +146,7 @@ if v, ok := expr.derived.(^ast.Field_Value); ok {
 			if v, ok := symbol.value.(SymbolBasicValue); ok {
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
-				lit := ast.new(ast.Basic_Lit, expr.pos, expr.end)
+				lit := new_type(ast.Basic_Lit, expr.pos, expr.end, context.temp_allocator)
 				lit.tok = v.tok
 				return convert_candidate(lit, is_mutable)
 			}
@@ -158,7 +158,7 @@ if v, ok := expr.derived.(^ast.Field_Value); ok {
 @(private = "file")
 convert_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
-		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
+		ident := new_type(ast.Ident, candidate.pos, candidate.end, context.temp_allocator)
 		if candidate.tok.kind == .Integer {
 			ident.name = "int"
 		} else {
@@ -182,7 +182,7 @@ get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^a
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
 				// There isn't a token for `Complex` so we just set it to `f64` instead
-				ident := ast.new(ast.Ident, expr.pos, expr.end)
+				ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
 				ident.name = "f64"
 				return ident
 			}
@@ -194,7 +194,7 @@ get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^a
 @(private = "file")
 convert_complex_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
-		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
+		ident := new_type(ast.Ident, candidate.pos, candidate.end, context.temp_allocator)
 		ident.name = "complex128"
 		return ident
 	}
@@ -214,7 +214,7 @@ get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) ->
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
 				// There isn't a token for `Quaternion` so we just set it to `quaternion256` instead
-				ident := ast.new(ast.Ident, expr.pos, expr.end)
+				ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
 				ident.name = "f64"
 				return ident
 			}
@@ -226,7 +226,7 @@ get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) ->
 @(private = "file")
 convert_quaternion_candidate :: proc(candidate: ^ast.Basic_Lit, is_mutable: bool) -> ^ast.Expr {
 	if is_mutable {
-		ident := ast.new(ast.Ident, candidate.pos, candidate.end)
+		ident := new_type(ast.Ident, candidate.pos, candidate.end, context.temp_allocator)
 		ident.name = "quaternion256"
 		return ident
 	}

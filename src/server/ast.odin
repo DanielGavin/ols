@@ -361,7 +361,7 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 				}
 				if _, ok := attr_names[name_to_check]; !ok {
 					new_attr := new_type(ast.Attribute, attr.pos, attr.end, context.temp_allocator)
-					elems := make([dynamic]^ast.Expr)
+					elems := make([dynamic]^ast.Expr, context.temp_allocator)
 					append(&elems, elem)
 					new_attr.elems = elems[:]
 					append(&new_attrs, new_attr)

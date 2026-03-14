@@ -1567,7 +1567,7 @@ resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr
 	case SymbolUntypedValue:
 		if v.type == .String {
 			value := SymbolBasicValue {
-				ident = ast.new(ast.Ident, v.tok.pos, v.tok.pos),
+				ident = new_type(ast.Ident, v.tok.pos, v.tok.pos, ast_context.allocator),
 			}
 			value.ident.name = "u8"
 			indexed.name = "u8"

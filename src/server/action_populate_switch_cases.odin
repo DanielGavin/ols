@@ -170,7 +170,7 @@ create_populate_switch_cases_edit :: proc(
 		end   = position,
 	}
 
-	replacement_builder := strings.builder_make()
+	replacement_builder := strings.builder_make(context.temp_allocator)
 	dot := info.is_enum ? "." : ""
 	b := &replacement_builder
 	for name in info.names {
