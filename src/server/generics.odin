@@ -41,12 +41,14 @@ resolve_poly :: proc(
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if .Anonymous in call_symbol.flags {
 					save_poly_map(ident, call_node, poly_map)
-				} else {
+				} else if call_symbol.name != "" {
 					save_poly_map(
 						ident,
 						make_ident_ast(ast_context, call_node.pos, call_node.end, call_symbol.name),
 						poly_map,
 					)
+				} else {
+					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				}
 			}
 		}
