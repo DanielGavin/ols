@@ -765,7 +765,7 @@ write_node :: proc(
 		return
 	}
 
-	build_string_node(node, sb, false)
+	build_string_node(node, sb, false, ast_context.current_package)
 }
 
 

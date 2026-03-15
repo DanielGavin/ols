@@ -1458,7 +1458,7 @@ ast_hover_struct_documentation_using_package :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Foo :: struct {\n\tusing outer: my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner: Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:    InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield:       int,\n}",
+		"test.Foo :: struct {\n\tusing outer: my_package.Outer,\n\n\t// from `using outer: my_package.Outer`\n\t// Inner doc\n\tusing inner: my_package.Inner,\n\n\t// from `using inner: Inner`\n\tusing ii:    my_package.InnerInner, // InnerInner comment\n\n\t// from `using ii: InnerInner`\n\tfield:       int,\n}",
 	)
 }
 
@@ -6453,4 +6453,32 @@ ast_hover_generic_proc_with_proc_arg_with_multiple_returns :: proc(t: ^testing.T
 	}
 
 	test.expect_hover(t, &source, "test.b: string")
+}
+
+@(test)
+ast_hover_slice_type_from_another_package :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Bar :: struct{}
+			bars: []Bar
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		main :: proc() {
+			b{*} := my_package.bars
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.b: []my_package.Bar")
 }

@@ -1156,7 +1156,7 @@ build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder
 	}
 }
 
-build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool) {
+build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool, current_pkg := "") {
 	using ast
 
 	if node == nil {
@@ -1169,6 +1169,15 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		if strings.contains(n.name, "/") {
 			strings.write_string(builder, path.base(n.name, false, context.temp_allocator))
 		} else {
+			pkg_path := get_package_from_node(n)
+			if current_pkg != pkg_path && current_pkg != "" {
+				pkg_name := path.base(pkg_path, false, context.temp_allocator)
+				if pkg_name != "" && pkg_name != "$builtin" {
+					if _, ok := keywords_docs[n.name]; !ok {
+						fmt.sbprintf(builder, "%v.", pkg_name)
+					}
+				}
+			}
 			strings.write_string(builder, n.name)
 		}
 	case ^Implicit:
