@@ -6,3 +6,11 @@ a :: proc() {
 			fmt.println(x)
 		}
 }
+
+for_with_init :: proc () {
+	foos : []string
+
+	for x := 0 ;    foo in foos {
+		x += len(foo)
+	}   
+}

@@ -1197,15 +1197,15 @@ visit_stmt :: proc(
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
 
-		if v.init != nil {
-        	document = cons(document, visit_stmt(p, v.init), text(";"), break_with_space())
-    	}
-
 		if v.reverse {
 			document = cons(document, text("#reverse"), break_with_no_newline())
 		}
 
 		document = cons(document, text("for"))
+
+		if v.init != nil {
+			document = cons(document, break_with_space(), visit_stmt(p, v.init), text(";"))
+		}
 
 		if len(v.vals) >= 1 {
 			document = cons_with_opl(document, visit_expr(p, v.vals[0]))
@@ -1917,12 +1917,7 @@ visit_expr :: proc(
 		document = cons(document, text("]"))
 		document = cons(group(document), visit_expr(p, v.elem))
 	case ^ast.Tag_Expr:
-		document = cons(
-			text(v.op.text),
-			text(v.name),
-			break_with_no_newline(),
-			visit_expr(p, v.expr),
-		)
+		document = cons(text(v.op.text), text(v.name), break_with_no_newline(), visit_expr(p, v.expr))
 	case ^Matrix_Index_Expr:
 		document = cons(visit_expr(p, v.expr), text("["), visit_expr(p, v.row_index), text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_index))
@@ -2086,7 +2081,7 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 
 		name_options := List_Options{.Add_Comma}
 
-		if (.Enforce_Newline in options)  {
+		if (.Enforce_Newline in options) {
 			if p.config.align_struct_fields {
 				alignment := get_possible_field_alignment(list.list)
 
