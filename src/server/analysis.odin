@@ -2708,12 +2708,16 @@ resolve_implicit_selector :: proc(
 				case SymbolEnumValue:
 					return symbol, true
 				case SymbolStructValue:
-					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
-						return resolve_type_expression(ast_context, type)
+					if v.poly != nil {
+						if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+							return resolve_type_expression(ast_context, type)
+						}
 					}
 				case SymbolUnionValue:
-					if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
-						return resolve_type_expression(ast_context, type)
+					if v.poly != nil {
+						if type, ok := get_field_list_type_at_index(v.poly.list, parameter_index); ok {
+							return resolve_type_expression(ast_context, type)
+						}
 					}
 				}
 			}
