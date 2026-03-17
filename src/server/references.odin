@@ -272,7 +272,7 @@ resolve_references :: proc(
 
 				if strings.contains(info.name, ".odin") {
 					slash_path, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
-					if slash_path != document.fullpath {
+					if !strings.equal_fold(slash_path, document.fullpath) {
 						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
 					}
 				}
