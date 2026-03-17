@@ -1,5 +1,4 @@
 #+feature dynamic-literals
-#+feature using-stmt
 package server
 
 import "core:fmt"
@@ -675,222 +674,220 @@ free_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator)
 }
 
 free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	if node.derived != nil do #partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
-	case ^Implicit:
-	case ^Undef:
-	case ^Basic_Directive:
-	case ^Basic_Lit:
-	case ^Ellipsis:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
+	case ^ast.Implicit:
+	case ^ast.Undef:
+	case ^ast.Basic_Directive:
+	case ^ast.Basic_Lit:
+	case ^ast.Ellipsis:
 		free_ast(n.expr, allocator)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		free_ast(n.type, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		free_ast(n.type, allocator)
 		free_ast(n.elems, allocator)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		free_ast(n.expr, allocator)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		free_ast(n.expr, allocator)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		free_ast(n.left, allocator)
 		free_ast(n.right, allocator)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		free_ast(n.expr, allocator)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.args, allocator)
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.field, allocator)
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.call, allocator)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		free_ast(n.field, allocator)
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.index, allocator)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		free_ast(n.expr, allocator)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.low, allocator)
 		free_ast(n.high, allocator)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		free_ast(n.field, allocator)
 		free_ast(n.value, allocator)
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.y, allocator)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.y, allocator)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		free_ast(n.expr, allocator)
 		free_ast(n.type, allocator)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		free_ast(n.type, allocator)
 		free_ast(n.expr, allocator)
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		free_ast(n.expr, allocator)
-	case ^Bad_Stmt:
-	case ^Empty_Stmt:
-	case ^Expr_Stmt:
+	case ^ast.Bad_Stmt:
+	case ^ast.Empty_Stmt:
+	case ^ast.Expr_Stmt:
 		free_ast(n.expr, allocator)
-	case ^Tag_Stmt:
-		r := cast(^Expr_Stmt)node
+	case ^ast.Tag_Stmt:
+		r := cast(^ast.Expr_Stmt)node
 		free_ast(r.expr, allocator)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		free_ast(n.lhs, allocator)
 		free_ast(n.rhs, allocator)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.stmts, allocator)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.else_stmt, allocator)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.else_stmt, allocator)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		free_ast(n.results, allocator)
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		free_ast(n.stmt, allocator)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.post, allocator)
 		free_ast(n.body, allocator)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.vals, allocator)
 		free_ast(n.expr, allocator)
 		free_ast(n.body, allocator)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		free_ast(n.list, allocator)
 		free_ast(n.body, allocator)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.tag, allocator)
 		free_ast(n.expr, allocator)
 		free_ast(n.body, allocator)
-	case ^Branch_Stmt:
+	case ^ast.Branch_Stmt:
 		free_ast(n.label, allocator)
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		free_ast(n.list, allocator)
-	case ^Bad_Decl:
-	case ^Value_Decl:
+	case ^ast.Bad_Decl:
+	case ^ast.Value_Decl:
 		free_ast(n.attributes, allocator)
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.values, allocator)
-	case ^Package_Decl:
-	case ^Import_Decl:
-	case ^Foreign_Block_Decl:
+	case ^ast.Package_Decl:
+	case ^ast.Import_Decl:
+	case ^ast.Foreign_Block_Decl:
 		free_ast(n.attributes, allocator)
 		free_ast(n.foreign_library, allocator)
 		free_ast(n.body, allocator)
-	case ^Foreign_Import_Decl:
+	case ^ast.Foreign_Import_Decl:
 		free_ast(n.name, allocator)
 		free_ast(n.attributes, allocator)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		free_ast(n.args, allocator)
-	case ^Attribute:
+	case ^ast.Attribute:
 		free_ast(n.elems, allocator)
-	case ^Field:
+	case ^ast.Field:
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.default_value, allocator)
 		free_ast_comment(n.docs, allocator)
 		free_ast_comment(n.comment, allocator)
-	case ^Field_List:
+	case ^ast.Field_List:
 		free_ast(n.list, allocator)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		free_ast(n.specialization, allocator)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		free_ast(n.type, allocator)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		free_ast(n.type, allocator)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		free_ast(n.type, allocator)
 		free_ast(n.specialization, allocator)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		free_ast(n.params, allocator)
 		free_ast(n.results, allocator)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		free_ast(n.elem, allocator)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		free_ast(n.len, allocator)
 		free_ast(n.elem, allocator)
 		free_ast(n.tag, allocator)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		free_ast(n.elem, allocator)
 		free_ast(n.tag, allocator)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
 		free_ast(n.fields, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
 		free_ast(n.variants, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		free_ast(n.base_type, allocator)
 		free_ast(n.fields, allocator)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		free_ast(n.elem, allocator)
 		free_ast(n.underlying, allocator)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		free_ast(n.key, allocator)
 		free_ast(n.value, allocator)
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		free_ast(n.elem, allocator)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		free_ast(n.elem, allocator)
-	case ^Relative_Type:
+	case ^ast.Relative_Type:
 		free_ast(n.tag, allocator)
 		free_ast(n.type, allocator)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		free_ast(n.backing_type, allocator)
 		for field in n.fields do free_ast(field, allocator)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		free_ast(n.name, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.bit_size, allocator)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.y, allocator)
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		free_ast(n.expr, allocator)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.label, allocator)
-	case ^Matrix_Index_Expr:
+	case ^ast.Matrix_Index_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.row_index, allocator)
 		free_ast(n.column_index, allocator)
@@ -952,158 +949,156 @@ node_equal_dynamic_array :: proc(a, b: $A/[dynamic]^$T) -> bool {
 }
 
 node_equal_node :: proc(a, b: ^ast.Node) -> bool {
-	using ast
-
 	if a == nil || b == nil {
 		return false
 	}
 
 	#partial switch m in b.derived {
-	case ^Bad_Expr:
-		if n, ok := a.derived.(^Bad_Expr); ok {
+	case ^ast.Bad_Expr:
+		if n, ok := a.derived.(^ast.Bad_Expr); ok {
 			return true
 		}
-	case ^Ident:
-		if n, ok := a.derived.(^Ident); ok {
+	case ^ast.Ident:
+		if n, ok := a.derived.(^ast.Ident); ok {
 			return true
 			//return n.name == m.name;
 		}
-	case ^Implicit:
-		if n, ok := a.derived.(^Implicit); ok {
+	case ^ast.Implicit:
+		if n, ok := a.derived.(^ast.Implicit); ok {
 			return true
 		}
-	case ^Undef:
-		if n, ok := a.derived.(^Undef); ok {
+	case ^ast.Undef:
+		if n, ok := a.derived.(^ast.Undef); ok {
 			return true
 		}
-	case ^Basic_Lit:
-		if n, ok := a.derived.(^Basic_Lit); ok {
+	case ^ast.Basic_Lit:
+		if n, ok := a.derived.(^ast.Basic_Lit); ok {
 			return true
 		}
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		return true
-	case ^Ellipsis:
-		if n, ok := a.derived.(^Ellipsis); ok {
+	case ^ast.Ellipsis:
+		if n, ok := a.derived.(^ast.Ellipsis); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Tag_Expr:
-		if n, ok := a.derived.(^Tag_Expr); ok {
+	case ^ast.Tag_Expr:
+		if n, ok := a.derived.(^ast.Tag_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Unary_Expr:
-		if n, ok := a.derived.(^Unary_Expr); ok {
+	case ^ast.Unary_Expr:
+		if n, ok := a.derived.(^ast.Unary_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Binary_Expr:
-		if n, ok := a.derived.(^Binary_Expr); ok {
+	case ^ast.Binary_Expr:
+		if n, ok := a.derived.(^ast.Binary_Expr); ok {
 			ret := node_equal(n.left, m.left)
 			ret &= node_equal(n.right, m.right)
 			return ret
 		}
-	case ^Paren_Expr:
-		if n, ok := a.derived.(^Paren_Expr); ok {
+	case ^ast.Paren_Expr:
+		if n, ok := a.derived.(^ast.Paren_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Selector_Expr:
-		if n, ok := a.derived.(^Selector_Expr); ok {
+	case ^ast.Selector_Expr:
+		if n, ok := a.derived.(^ast.Selector_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.field, m.field)
 			return ret
 		}
-	case ^Slice_Expr:
-		if n, ok := a.derived.(^Slice_Expr); ok {
+	case ^ast.Slice_Expr:
+		if n, ok := a.derived.(^ast.Slice_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.low, m.low)
 			ret &= node_equal(n.high, m.high)
 			return ret
 		}
-	case ^Distinct_Type:
-		if n, ok := a.derived.(^Distinct_Type); ok {
+	case ^ast.Distinct_Type:
+		if n, ok := a.derived.(^ast.Distinct_Type); ok {
 			return node_equal(n.type, m.type)
 		}
-	case ^Proc_Type:
-		if n, ok := a.derived.(^Proc_Type); ok {
+	case ^ast.Proc_Type:
+		if n, ok := a.derived.(^ast.Proc_Type); ok {
 			ret := node_equal(n.params, m.params)
 			ret &= node_equal(n.results, m.results)
 			return ret
 		}
-	case ^Pointer_Type:
-		if n, ok := a.derived.(^Pointer_Type); ok {
+	case ^ast.Pointer_Type:
+		if n, ok := a.derived.(^ast.Pointer_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
-	case ^Array_Type:
-		if n, ok := a.derived.(^Array_Type); ok {
+	case ^ast.Array_Type:
+		if n, ok := a.derived.(^ast.Array_Type); ok {
 			ret := node_equal(n.elem, m.elem)
 			if n.len != nil && m.len != nil {
 				ret &= node_equal(n.len, m.len)
 			}
 			return ret
 		}
-	case ^Dynamic_Array_Type:
-		if n, ok := a.derived.(^Dynamic_Array_Type); ok {
+	case ^ast.Dynamic_Array_Type:
+		if n, ok := a.derived.(^ast.Dynamic_Array_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
 	case ^ast.Multi_Pointer_Type:
-		if n, ok := a.derived.(^Multi_Pointer_Type); ok {
+		if n, ok := a.derived.(^ast.Multi_Pointer_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
-	case ^Struct_Type:
-		if n, ok := a.derived.(^Struct_Type); ok {
+	case ^ast.Struct_Type:
+		if n, ok := a.derived.(^ast.Struct_Type); ok {
 			ret := node_equal(n.poly_params, m.poly_params)
 			ret &= node_equal(n.align, m.align)
 			ret &= node_equal(n.fields, m.fields)
 			return ret
 		}
-	case ^Field:
-		if n, ok := a.derived.(^Field); ok {
+	case ^ast.Field:
+		if n, ok := a.derived.(^ast.Field); ok {
 			ret := node_equal(n.names, m.names)
 			ret &= node_equal(n.type, m.type)
 			ret &= node_equal(n.default_value, m.default_value)
 			return ret
 		}
-	case ^Field_List:
-		if n, ok := a.derived.(^Field_List); ok {
+	case ^ast.Field_List:
+		if n, ok := a.derived.(^ast.Field_List); ok {
 			return node_equal(n.list, m.list)
 		}
-	case ^Field_Value:
-		if n, ok := a.derived.(^Field_Value); ok {
+	case ^ast.Field_Value:
+		if n, ok := a.derived.(^ast.Field_Value); ok {
 			ret := node_equal(n.field, m.field)
 			ret &= node_equal(n.value, m.value)
 			return ret
 		}
-	case ^Union_Type:
-		if n, ok := a.derived.(^Union_Type); ok {
+	case ^ast.Union_Type:
+		if n, ok := a.derived.(^ast.Union_Type); ok {
 			ret := node_equal(n.poly_params, m.poly_params)
 			ret &= node_equal(n.align, m.align)
 			ret &= node_equal(n.variants, m.variants)
 			return ret
 		}
-	case ^Enum_Type:
-		if n, ok := a.derived.(^Enum_Type); ok {
+	case ^ast.Enum_Type:
+		if n, ok := a.derived.(^ast.Enum_Type); ok {
 			ret := node_equal(n.base_type, m.base_type)
 			ret &= node_equal(n.fields, m.fields)
 			return ret
 		}
-	case ^Bit_Set_Type:
-		if n, ok := a.derived.(^Bit_Set_Type); ok {
+	case ^ast.Bit_Set_Type:
+		if n, ok := a.derived.(^ast.Bit_Set_Type); ok {
 			ret := node_equal(n.elem, m.elem)
 			ret &= node_equal(n.underlying, m.underlying)
 			return ret
 		}
-	case ^Map_Type:
-		if n, ok := a.derived.(^Map_Type); ok {
+	case ^ast.Map_Type:
+		if n, ok := a.derived.(^ast.Map_Type); ok {
 			ret := node_equal(n.key, m.key)
 			ret &= node_equal(n.value, m.value)
 			return ret
 		}
-	case ^Call_Expr:
-		if n, ok := a.derived.(^Call_Expr); ok {
+	case ^ast.Call_Expr:
+		if n, ok := a.derived.(^ast.Call_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.args, m.args)
 			return ret
 		}
-	case ^Bit_Field_Type:
-		if n, ok := a.derived.(^Bit_Field_Type); ok {
+	case ^ast.Bit_Field_Type:
+		if n, ok := a.derived.(^ast.Bit_Field_Type); ok {
 			if len(n.fields) != len(m.fields) do return false
 			ret := node_equal(n.backing_type, m.backing_type)
 			for i in 0 ..< len(n.fields) {
@@ -1111,14 +1106,14 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 			}
 			return ret
 		}
-	case ^Bit_Field_Field:
-		if n, ok := a.derived.(^Bit_Field_Field); ok {
+	case ^ast.Bit_Field_Field:
+		if n, ok := a.derived.(^ast.Bit_Field_Field); ok {
 			ret := node_equal(n.name, m.name)
 			ret &= node_equal(n.type, m.type)
 			ret &= node_equal(n.bit_size, m.bit_size)
 			return ret
 		}
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		return true
 	case:
 	}
@@ -1157,15 +1152,13 @@ build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder
 }
 
 build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool, current_pkg := "") {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
 		if strings.contains(n.name, "/") {
 			strings.write_string(builder, path.base(n.name, false, context.temp_allocator))
 		} else {
@@ -1180,24 +1173,24 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			}
 			strings.write_string(builder, n.name)
 		}
-	case ^Implicit:
+	case ^ast.Implicit:
 		strings.write_string(builder, n.tok.text)
-	case ^Undef:
-	case ^Basic_Lit:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
 		strings.write_string(builder, n.tok.text)
-	case ^Basic_Directive:
+	case ^ast.Basic_Directive:
 		strings.write_string(builder, "#")
 		strings.write_string(builder, n.name)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		strings.write_string(builder, ".")
 		build_string(n.field, builder, remove_pointers)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		strings.write_string(builder, "..")
 		build_string(n.expr, builder, remove_pointers)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		build_string(n.type, builder, remove_pointers)
 		build_string(n.body, builder, remove_pointers)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		build_string(n.type, builder, remove_pointers)
 		strings.write_string(builder, "{")
 		for elem, i in n.elems {
@@ -1207,22 +1200,22 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			}
 		}
 		strings.write_string(builder, "}")
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		build_string(n.expr, builder, remove_pointers)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		strings.write_string(builder, n.op.text)
 		build_string(n.expr, builder, remove_pointers)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		build_string(n.left, builder, remove_pointers)
 		strings.write_string(builder, " ")
 		strings.write_string(builder, n.op.text)
 		strings.write_string(builder, " ")
 		build_string(n.right, builder, remove_pointers)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		strings.write_string(builder, "(")
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, ")")
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, "(")
 		for arg, i in n.args {
@@ -1232,33 +1225,33 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			}
 		}
 		strings.write_string(builder, ")")
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, ".")
 		build_string(n.field, builder, remove_pointers)
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.index, builder, remove_pointers)
 		strings.write_string(builder, "]")
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		build_string(n.expr, builder, remove_pointers)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		build_string(n.low, builder, remove_pointers)
 		build_string(n.high, builder, remove_pointers)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		build_string(n.field, builder, remove_pointers)
 		strings.write_string(builder, ": ")
 		build_string(n.value, builder, remove_pointers)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		build_string(n.type, builder, remove_pointers)
 		build_string(n.expr, builder, remove_pointers)
-	case ^Bad_Stmt:
-	case ^Bad_Decl:
-	case ^Attribute:
+	case ^ast.Bad_Stmt:
+	case ^ast.Bad_Decl:
+	case ^ast.Attribute:
 		build_string(n.elems, builder, remove_pointers)
-	case ^Field:
+	case ^ast.Field:
 		for name, i in n.names {
 			build_string(name, builder, remove_pointers)
 			if len(n.names) - 1 != i {
@@ -1281,24 +1274,24 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		}
 
 		build_string(n.default_value, builder, remove_pointers)
-	case ^Field_List:
+	case ^ast.Field_List:
 		for field, i in n.list {
 			build_string(field, builder, remove_pointers)
 			if len(n.list) - 1 != i {
 				strings.write_string(builder, ", ")
 			}
 		}
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		strings.write_string(builder, "typeid")
 		if n.specialization != nil {
 			strings.write_string(builder, "/")
 			build_string(n.specialization, builder, remove_pointers)
 		}
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		build_string(n.type, builder, remove_pointers)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		build_string(n.type, builder, remove_pointers)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		strings.write_string(builder, "$")
 
 		build_string(n.type, builder, remove_pointers)
@@ -1307,7 +1300,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			strings.write_string(builder, "/")
 			build_string(n.specialization, builder, remove_pointers)
 		}
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		strings.write_string(builder, "proc(")
 		build_string(n.params, builder, remove_pointers)
 		strings.write_string(builder, ")")
@@ -1315,29 +1308,29 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			strings.write_string(builder, " -> ")
 			build_string(n.results, builder, remove_pointers)
 		}
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		build_string(n.tag, builder, remove_pointers)
 		if !remove_pointers {
 			strings.write_string(builder, "^")
 		}
 		build_string(n.elem, builder, remove_pointers)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.len, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.elem, builder, remove_pointers)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[dynamic]")
 		build_string(n.elem, builder, remove_pointers)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		strings.write_string(builder, "struct{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
 		build_string(n.fields, builder, remove_pointers)
 		strings.write_string(builder, "}")
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		strings.write_string(builder, "union{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
@@ -1348,7 +1341,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			build_string(variant, builder, remove_pointers)
 		}
 		strings.write_string(builder, "}")
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		strings.write_string(builder, "enum")
 		build_string(n.base_type, builder, remove_pointers)
 		strings.write_string(builder, "{")
@@ -1359,7 +1352,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			build_string(field, builder, remove_pointers)
 		}
 		strings.write_string(builder, "}")
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		strings.write_string(builder, "bit_set")
 		strings.write_string(builder, "[")
 		build_string(n.elem, builder, remove_pointers)
@@ -1368,13 +1361,13 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			build_string(n.underlying, builder, remove_pointers)
 		}
 		strings.write_string(builder, "]")
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		strings.write_string(builder, "map")
 		strings.write_string(builder, "[")
 		build_string(n.key, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.value, builder, remove_pointers)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		strings.write_string(builder, "matrix")
 		strings.write_string(builder, "[")
 		build_string(n.row_count, builder, remove_pointers)

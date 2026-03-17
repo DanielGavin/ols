@@ -1,5 +1,4 @@
 #+feature dynamic-literals
-#+feature using-stmt
 package server
 
 import "core:fmt"
@@ -1238,7 +1237,6 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return false
 	}
 
-	using ast
 	ok := false
 
 	#partial switch v in node.derived {
@@ -1253,65 +1251,65 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		} else if len(v.values) > 0 {
 			return internal_resolve_type_expression(ast_context, v.values[0], out)
 		}
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		out^, ok = make_symbol_union_from_ast(ast_context, v^, ast_context.field_name.name, true), true
 		return ok
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		out^, ok = make_symbol_enum_from_ast(ast_context, v^, ast_context.field_name.name, true), true
 		return ok
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		out^, ok = make_symbol_struct_from_ast(ast_context, v, ast_context.field_name.name, {}, true), true
 		return ok
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		out^, ok = make_symbol_bitset_from_ast(ast_context, v^, ast_context.field_name, true), true
 		return ok
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		out^, ok = make_symbol_array_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		out^, ok = make_symbol_matrix_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		out^, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		out^, ok = make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		out^, ok = make_symbol_map_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		out^, ok =
 			make_symbol_procedure_from_ast(ast_context, node, v^, ast_context.field_name.name, {}, true, .None, nil),
 			true
 		return ok
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		out^, ok = make_symbol_bit_field_from_ast(ast_context, v, ast_context.field_name.name, true), true
 		return ok
-	case ^Basic_Directive:
+	case ^ast.Basic_Directive:
 		out^, ok = resolve_basic_directive(ast_context, v^)
 		return ok
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		out^, ok = resolve_binary_expression(ast_context, v)
 		return ok
-	case ^Ident:
+	case ^ast.Ident:
 		delete_key(&ast_context.recursion_map, v)
 		out^, ok = internal_resolve_type_identifier(ast_context, v^)
 		return ok
-	case ^Basic_Lit:
+	case ^ast.Basic_Lit:
 		out^, ok = resolve_basic_lit(ast_context, v^)
 		return ok
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		ok = internal_resolve_type_expression(ast_context, v.type, out)
 		out.type = .Variable
 		return ok
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		ok = internal_resolve_type_expression(ast_context, v.expr, out)
 		out.type = .Variable
 		return ok
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		return internal_resolve_type_expression(ast_context, v.type, out)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		if v.op.kind == .And {
 			out.pointers += 1
@@ -1328,11 +1326,11 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			}
 		}
 		return ok
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		out.pointers -= 1
 		return ok
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		ok = internal_resolve_type_expression(ast_context, v.expr, out)
 		if value, ok := out.value.(SymbolProcedureValue); ok {
 			if len(value.return_types) > 0 {
@@ -1345,14 +1343,14 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			}
 		}
 		return ok
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		out^, ok = resolve_slice_expression(ast_context, v, v.expr)
 		return ok
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		return internal_resolve_type_expression(ast_context, v.expr, out)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		return internal_resolve_type_expression(ast_context, v.type, out)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		out.range = common.get_token_range(v.node, ast_context.file.src)
 		out.type = .Type
 		out.pkg = get_package_from_node(v.node)
@@ -1362,15 +1360,15 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			expr = v.expr,
 		}
 		return true
-	case ^Implicit:
-		ident := new_type(Ident, v.node.pos, v.node.end, ast_context.allocator)
+	case ^ast.Implicit:
+		ident := new_type(ast.Ident, v.node.pos, v.node.end, ast_context.allocator)
 		ident.name = v.tok.text
 		out^, ok = internal_resolve_type_identifier(ast_context, ident^)
 		return ok
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		out^, ok = resolve_type_assertion_expr(ast_context, v)
 		return ok
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		out^, ok =
 			make_symbol_procedure_from_ast(
 				ast_context,
@@ -1384,35 +1382,35 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			),
 			true
 		return ok
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		ok := internal_resolve_type_expression(ast_context, v.elem, out)
 		out.pointers += 1
 		if pointer_is_soa(v^) {
 			out.flags += {.SoaPointer}
 		}
 		return ok
-	case ^Matrix_Index_Expr:
+	case ^ast.Matrix_Index_Expr:
 		if ok := internal_resolve_type_expression(ast_context, v.expr, out); ok {
 			if mat, ok := out.value.(SymbolMatrixValue); ok {
 				return internal_resolve_type_expression(ast_context, mat.expr, out)
 			}
 		}
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		out^, ok = resolve_index_expr(ast_context, v, v.expr)
 		return ok
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		old_call := ast_context.call
-		ast_context.call = cast(^Call_Expr)node
+		ast_context.call = cast(^ast.Call_Expr)node
 
 		defer {
 			ast_context.call = old_call
 		}
 		out^, ok = resolve_call_expr(ast_context, v)
 		return ok
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		out^, ok = resolve_selector_call_expr(ast_context, v)
 		return ok
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		out^, ok = resolve_selector_expression(ast_context, v)
 		return ok
 	case ^ast.Poly_Type:
@@ -1955,8 +1953,6 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 }
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
-	using ast
-
 	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
 		return {}, false
 	}
@@ -1970,7 +1966,7 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords
-		ident := new_type(Ident, node.pos, node.end, ast_context.allocator)
+		ident := new_type(ast.Ident, node.pos, node.end, ast_context.allocator)
 		ident.name = node.name
 
 		switch ident.name {

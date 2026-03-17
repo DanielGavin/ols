@@ -1,4 +1,3 @@
-#+feature using-stmt
 package server
 
 import "core:log"
@@ -145,18 +144,16 @@ get_generic_assignment :: proc(
 	flags: GetGenericAssignmentFlags,
 	is_mutable: bool,
 ) {
-	using ast
-
 	reset_ast_context(ast_context)
 
 	#partial switch v in value.derived {
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
 
@@ -170,7 +167,7 @@ get_generic_assignment :: proc(
 				//Handle the old way of type casting
 				if v, ok := keyword_map[ident.name]; ok {
 					//keywords
-					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+					type_ident := new_type(ast.Ident, ident.pos, ident.end, ast_context.allocator)
 					type_ident.name = ident.name
 					append(results, type_ident)
 					break
@@ -180,12 +177,12 @@ get_generic_assignment :: proc(
 
 		// If we have a call expr followed immediately by another call expr, we want to return value
 		// of the second call. Eg a := foo()()
-		if _, ok := v.expr.derived.(^Call_Expr); ok {
+		if _, ok := v.expr.derived.(^ast.Call_Expr); ok {
 			symbol := Symbol{}
 			if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
 				if value, ok := symbol.value.(SymbolProcedureValue); ok {
 					if len(value.return_types) == 1 {
-						if proc_type, ok := value.return_types[0].type.derived.(^Proc_Type); ok {
+						if proc_type, ok := value.return_types[0].type.derived.(^ast.Proc_Type); ok {
 							for return_item in proc_type.results.list {
 								get_generic_assignment(
 									file,
@@ -218,7 +215,7 @@ get_generic_assignment :: proc(
 					}
 				}
 			}
-		} else if directive, ok := v.expr.derived.(^Basic_Directive); ok {
+		} else if directive, ok := v.expr.derived.(^ast.Basic_Directive); ok {
 			append(results, v)
 		}
 
@@ -246,27 +243,27 @@ get_generic_assignment :: proc(
 			case:
 				if ident, ok := v.expr.derived.(^ast.Ident); ok {
 					//TODO: Simple assumption that you are casting it the type.
-					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+					type_ident := new_type(ast.Ident, ident.pos, ident.end, ast_context.allocator)
 					type_ident.name = ident.name
 					append(results, type_ident)
 				}
 			}
 		}
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		if v.type != nil {
 			append(results, v.type)
 		}
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		if v.expr != nil {
 			append(results, value)
 		}
@@ -277,7 +274,7 @@ get_generic_assignment :: proc(
 			b := make_bool_ast(ast_context, v.expr.pos, v.expr.end)
 			append(results, b)
 		}
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		if v.type != nil {
 			if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.kind == .Question {
 				append(results, cast(^ast.Expr)&v.node)
@@ -289,15 +286,15 @@ get_generic_assignment :: proc(
 
 			append(results, b)
 		}
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		append(results, value)
-		if n, ok := v.expr.derived.(^Type_Assertion); ok {
+		if n, ok := v.expr.derived.(^ast.Type_Assertion); ok {
 			b := make_bool_ast(ast_context, n.type.pos, n.type.end)
 			append(results, b)
 		}
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
 	case:
 		append(results, value)
@@ -305,8 +302,6 @@ get_generic_assignment :: proc(
 }
 
 get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
-	using ast
-
 	if len(value_decl.names) <= 0 {
 		return
 	}
@@ -360,7 +355,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		return
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 	calls := make(map[int]struct{}, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
 
 	flags: GetGenericAssignmentFlags
@@ -424,8 +419,6 @@ get_locals_stmt :: proc(
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	using ast
-
 	if stmt == nil {
 		return
 	}
@@ -435,35 +428,35 @@ get_locals_stmt :: proc(
 	}
 
 	#partial switch v in stmt.derived {
-	case ^Value_Decl:
+	case ^ast.Value_Decl:
 		get_locals_value_decl(file, v^, ast_context)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		get_locals_type_switch_stmt(file, v^, ast_context, document_position)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		get_locals_switch_stmt(file, v^, ast_context, document_position)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		get_locals_for_stmt(file, v^, ast_context, document_position)
-	case ^Inline_Range_Stmt:
+	case ^ast.Inline_Range_Stmt:
 		get_locals_stmt(file, v.body, ast_context, document_position)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		get_locals_for_range_stmt(file, v^, ast_context, document_position)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		get_locals_if_stmt(file, v^, ast_context, document_position)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		get_locals_block_stmt(file, v^, ast_context, document_position)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		get_locals_stmt(file, v.body, ast_context, document_position)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		if save_assign {
 			get_locals_assign_stmt(file, v^, ast_context)
 		}
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		get_locals_using_stmt(v^, ast_context)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		if stmt, ok := get_when_block_stmt(v); ok {
 			get_locals_block_stmt(file, stmt^, ast_context, document_position, true)
 		}
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		get_locals_case_clause(file, v, ast_context, document_position)
 	case ^ast.Defer_Stmt:
 		get_locals_stmt(file, v.stmt, ast_context, document_position)
@@ -590,13 +583,11 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 }
 
 get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
-	using ast
-
 	if stmt.lhs == nil || stmt.rhs == nil {
 		return
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 	calls := make(map[int]struct{}, 0, context.temp_allocator)
 
 	for rhs in stmt.rhs {
@@ -646,8 +637,6 @@ get_locals_for_range_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	using ast
-
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -656,7 +645,7 @@ get_locals_for_range_stmt :: proc(
 		get_locals_stmt(file, stmt.init, ast_context, document_position)
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 
 	if stmt.expr == nil {
 		return
@@ -1031,8 +1020,6 @@ get_locals_type_switch_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	using ast
-
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -1043,15 +1030,15 @@ get_locals_type_switch_stmt :: proc(
 
 	get_locals_stmt(file, stmt.tag, ast_context, document_position, true)
 
-	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
+	if block, ok := stmt.body.derived.(^ast.Block_Stmt); ok {
 		for block_stmt, i in block.stmts {
 			upper_bound := stmt.end.offset
 			if i < len(block.stmts) - 1 {
 				upper_bound = block.stmts[i + 1].pos.offset
 			}
-			if cause, ok := block_stmt.derived.(^Case_Clause);
+			if cause, ok := block_stmt.derived.(^ast.Case_Clause);
 			   ok && cause.pos.offset <= document_position.position && document_position.position <= upper_bound {
-				tag := stmt.tag.derived.(^Assign_Stmt)
+				tag := stmt.tag.derived.(^ast.Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
 					ident, _ := unwrap_ident(tag.lhs[0])

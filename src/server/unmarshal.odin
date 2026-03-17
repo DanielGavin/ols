@@ -1,4 +1,3 @@
-#+feature using-stmt
 package server
 
 import "base:runtime"
@@ -11,9 +10,6 @@ import "core:strings"
 */
 
 unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> json.Marshal_Error {
-
-	using runtime
-
 	if v == nil {
 		return nil
 	}
@@ -22,12 +18,12 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		return nil
 	}
 
-	type_info := type_info_base(type_info_of(v.id))
+	type_info := runtime.type_info_base(type_info_of(v.id))
 
 	#partial switch j in json_value {
 	case json.Object:
 		#partial switch variant in type_info.variant {
-		case Type_Info_Struct:
+		case runtime.Type_Info_Struct:
 			for field, i in variant.names[0:variant.field_count] {
 				a := any{rawptr(uintptr(v.data) + uintptr(variant.offsets[i])), variant.types[i].id}
 
@@ -45,7 +41,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 
 			}
 
-		case Type_Info_Union:
+		case runtime.Type_Info_Union:
 			tag_ptr := uintptr(v.data) + variant.tag_offset
 			tag_any := any{rawptr(tag_ptr), variant.tag_type.id}
 
@@ -59,7 +55,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		}
 	case json.Array:
 		#partial switch variant in type_info.variant {
-		case Type_Info_Slice:
+		case runtime.Type_Info_Slice:
 			array := (^mem.Raw_Slice)(v.data)
 			data :=  mem.alloc(variant.elem.size * int(len(j)), variant.elem.align, allocator) or_else panic("OOM")
 			array.data = data
@@ -72,7 +68,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 					return ret
 				}
 			}
-		case Type_Info_Dynamic_Array:
+		case runtime.Type_Info_Dynamic_Array:
 			array := (^mem.Raw_Dynamic_Array)(v.data)
 			if array.data == nil {
 				array.data = mem.alloc(len(j) * variant.elem_size, variant.elem.align, allocator) or_else panic("OOM")
@@ -96,11 +92,11 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		}
 	case json.String:
 		#partial switch variant in type_info.variant {
-		case Type_Info_String:
+		case runtime.Type_Info_String:
 			str := (^string)(v.data)
 			str^ = strings.clone(j, allocator)
 
-		case Type_Info_Enum:
+		case runtime.Type_Info_Enum:
 			for name, i in variant.names {
 
 				lower_name := strings.to_lower(name, allocator)
@@ -116,7 +112,7 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 		}
 	case json.Integer:
 		#partial switch variant in &type_info.variant {
-		case Type_Info_Integer:
+		case runtime.Type_Info_Integer:
 			switch type_info.size {
 			case 8:
 				tmp := i64(j)
@@ -136,11 +132,11 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 			case:
 				return .Unsupported_Type
 			}
-		case Type_Info_Union:
+		case runtime.Type_Info_Union:
 			tag_ptr := uintptr(v.data) + variant.tag_offset
 		}
 	case json.Float:
-		if _, ok := type_info.variant.(Type_Info_Float); ok {
+		if _, ok := type_info.variant.(runtime.Type_Info_Float); ok {
 			switch type_info.size {
 			case 8:
 				tmp := f64(j)
@@ -155,10 +151,10 @@ unmarshal :: proc(json_value: json.Value, v: any, allocator: mem.Allocator) -> j
 	case json.Null:
 	case json.Boolean:
 		#partial switch variant in &type_info.variant {
-		case Type_Info_Boolean:
+		case runtime.Type_Info_Boolean:
 			tmp := bool(j)
 			mem.copy(v.data, &tmp, type_info.size)
-		case Type_Info_Union:
+		case runtime.Type_Info_Union:
 			tag_ptr := uintptr(v.data) + variant.tag_offset
 			tag_any := any{rawptr(tag_ptr), variant.tag_type.id}
 

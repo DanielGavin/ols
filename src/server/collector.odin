@@ -1,4 +1,3 @@
-#+feature using-stmt
 package server
 
 import "core:fmt"
@@ -1095,39 +1094,37 @@ replace_package_alias_expr :: proc(node: ^ast.Expr, package_map: map[string]stri
 }
 
 replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]string, collection: ^SymbolCollection) {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
 		// Replace stand-alone identifiers that are package aliases
 		if package_name, ok := package_map[n.name]; ok {
 			n.name = get_index_unique_string(collection, package_name)
 		} else if strings.contains(n.name, "/") {
 			n.name = get_index_unique_string(collection, n.name)
 		}
-	case ^Implicit:
-	case ^Undef:
-	case ^Basic_Lit:
-	case ^Basic_Directive:
-	case ^Ellipsis:
+	case ^ast.Implicit:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
+	case ^ast.Basic_Directive:
+	case ^ast.Ellipsis:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		replace_package_alias(n.left, package_map, collection)
 		replace_package_alias(n.right, package_map, collection)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Selector_Expr:
-		if _, ok := n.expr.derived.(^Ident); ok {
-			ident := n.expr.derived.(^Ident)
+	case ^ast.Selector_Expr:
+		if _, ok := n.expr.derived.(^ast.Ident); ok {
+			ident := n.expr.derived.(^ast.Ident)
 
 			if package_name, ok := package_map[ident.name]; ok {
 				ident.name = get_index_unique_string(collection, package_name)
@@ -1136,74 +1133,74 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 			replace_package_alias(n.expr, package_map, collection)
 			replace_package_alias(n.field, package_map, collection)
 		}
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		replace_package_alias(n.field, package_map, collection)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 		replace_package_alias(n.low, package_map, collection)
 		replace_package_alias(n.high, package_map, collection)
-	case ^Attribute:
+	case ^ast.Attribute:
 		replace_package_alias(n.elems, package_map, collection)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		replace_package_alias(n.type, package_map, collection)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		replace_package_alias(n.params, package_map, collection)
 		replace_package_alias(n.results, package_map, collection)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		replace_package_alias(n.len, package_map, collection)
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
 		replace_package_alias(n.align, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Field:
+	case ^ast.Field:
 		replace_package_alias(n.names, package_map, collection)
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.default_value, package_map, collection)
-	case ^Field_List:
+	case ^ast.Field_List:
 		replace_package_alias(n.list, package_map, collection)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		replace_package_alias(n.field, package_map, collection)
 		replace_package_alias(n.value, package_map, collection)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
 		replace_package_alias(n.align, package_map, collection)
 		replace_package_alias(n.variants, package_map, collection)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		replace_package_alias(n.base_type, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		replace_package_alias(n.elem, package_map, collection)
 		replace_package_alias(n.underlying, package_map, collection)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		replace_package_alias(n.key, package_map, collection)
 		replace_package_alias(n.value, package_map, collection)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 		replace_package_alias(n.args, package_map, collection)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		replace_package_alias(n.specialization, package_map, collection)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.specialization, package_map, collection)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		replace_package_alias(n.args, package_map, collection)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.elems, package_map, collection)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		replace_package_alias(n.type, package_map, collection)
-	case ^Proc_Lit:
-	case ^Multi_Pointer_Type:
+	case ^ast.Proc_Lit:
+	case ^ast.Multi_Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		replace_package_alias(n.backing_type, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		replace_package_alias(n.name, package_map, collection)
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.bit_size, package_map, collection)
