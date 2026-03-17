@@ -4,12 +4,8 @@ LSP Reference:
 https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
 
 */
-
-#+feature using-stmt
 package server
 
-import "core:fmt"
-import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:unicode/utf8"
@@ -212,55 +208,53 @@ visit_nodes :: proc(array: []$T/^ast.Node, builder: ^SemanticTokenBuilder) {
 }
 
 visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	#partial switch n in node.derived {
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		visit_node(n.expr, builder)
-	case ^Ident:
+	case ^ast.Ident:
 		visit_ident(n, n, {}, builder)
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		visit_node(n.expr, builder)
 		visit_ident(n.field, n, {}, builder)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		visit_node(n.cond, builder)
 		visit_node(n.body, builder)
 		visit_node(n.else_stmt, builder)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		visit_node(n.elem, builder)
-	case ^Value_Decl:
+	case ^ast.Value_Decl:
 		visit_value_decl(n^, builder)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		visit_nodes(n.stmts, builder)
-	case ^Foreign_Block_Decl:
+	case ^ast.Foreign_Block_Decl:
 		visit_node(n.body, builder)
-	case ^Expr_Stmt:
+	case ^ast.Expr_Stmt:
 		visit_node(n.expr, builder)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		visit_node(n.row_count, builder)
 		visit_node(n.column_count, builder)
 		visit_node(n.elem, builder)
-	case ^Matrix_Index_Expr:
+	case ^ast.Matrix_Index_Expr:
 		visit_node(n.expr, builder)
 		visit_node(n.row_index, builder)
 		visit_node(n.column_index, builder)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		visit_node(n.type, builder)
 		visit_node(n.specialization, builder)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		for val in n.vals {
-			if ident, ok := val.derived.(^Ident); ok {
+			if ident, ok := val.derived.(^ast.Ident); ok {
 				write_semantic_node(builder, val, .Variable)
 			}
 		}
 
 		visit_node(n.expr, builder)
 		visit_node(n.body, builder)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		visit_node(n.init, builder)
 		visit_node(n.cond, builder)
 		visit_node(n.body, builder)
@@ -268,100 +262,100 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		if n.else_stmt != nil {
 			visit_node(n.else_stmt, builder)
 		}
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		visit_node(n.init, builder)
 		visit_node(n.cond, builder)
 		visit_node(n.post, builder)
 		visit_node(n.body, builder)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		visit_node(n.init, builder)
 		visit_node(n.cond, builder)
 		visit_node(n.body, builder)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		visit_node(n.tag, builder)
 		visit_node(n.expr, builder)
 		visit_node(n.body, builder)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		for l in n.lhs {
-			if ident, ok := l.derived.(^Ident); ok {
+			if ident, ok := l.derived.(^ast.Ident); ok {
 				write_semantic_node(builder, l, .Variable)
 			} else {
 				visit_node(l, builder)
 			}
 		}
 		visit_nodes(n.rhs, builder)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		visit_nodes(n.list, builder)
 		visit_nodes(n.body, builder)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		visit_node(n.expr, builder)
 		visit_nodes(n.args, builder)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		write_semantic_node(builder, n.field, .EnumMember)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		visit_node(n.len, builder)
 		visit_node(n.elem, builder)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		visit_node(n.left, builder)
 		visit_node(n.right, builder)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		visit_node(n.type, builder)
 		visit_nodes(n.elems, builder)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		visit_struct_fields(n^, builder)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		visit_node(n.expr, builder)
 		visit_node(n.type, builder)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		visit_node(n.type, builder)
 		visit_node(n.expr, builder)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		visit_node(n.expr, builder)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		visit_node(n.expr, builder)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		visit_nodes(n.results, builder)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		visit_node(n.elem, builder)
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		visit_node(n.elem, builder)
-	case ^Field_Value:
-		if ident, ok := n.field.derived.(^Ident); ok {
+	case ^ast.Field_Value:
+		if ident, ok := n.field.derived.(^ast.Ident); ok {
 			write_semantic_node(builder, n.field, .Property)
 		} else {
 			visit_node(n.field, builder)
 		}
 
 		visit_node(n.value, builder)
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		visit_node(n.expr, builder)
 		visit_node(n.index, builder)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		visit_node(n.expr, builder)
-	case ^Implicit:
-	case ^Slice_Expr:
+	case ^ast.Implicit:
+	case ^ast.Slice_Expr:
 		visit_node(n.expr, builder)
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		visit_nodes(n.list, builder)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		visit_node(n.key, builder)
 		visit_node(n.value, builder)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		visit_node(n.elem, builder)
 		visit_node(n.underlying, builder)
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		visit_node(n.stmt, builder)
-	case ^Import_Decl:
+	case ^ast.Import_Decl:
 		visit_import_decl(n, builder)
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		visit_node(n.expr, builder)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		visit_node(n.x, builder)
 		visit_node(n.y, builder)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		visit_node(n.expr, builder)
 		visit_node(n.label, builder)
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		if n.op1.text == "if" {
 			visit_node(n.x, builder)
 			visit_node(n.cond, builder)
@@ -371,25 +365,25 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 			visit_node(n.x, builder)
 			visit_node(n.y, builder)
 		}
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		visit_node(n.x, builder)
 		visit_node(n.cond, builder)
 		visit_node(n.y, builder)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		visit_nodes(n.variants, builder)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		visit_enum_fields(n^, builder)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		visit_proc_type(n, builder)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		visit_proc_type(n.type, builder)
 		visit_node(n.body, builder)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		for arg in n.args {
-			ident := arg.derived.(^Ident) or_continue
+			ident := arg.derived.(^ast.Ident) or_continue
 			write_semantic_node(builder, arg, .Function)
 		}
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		visit_bit_field_fields(n^, builder)
 	case ^ast.Helper_Type:
 		visit_node(n.type, builder)
@@ -398,12 +392,10 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 }
 
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
-	using ast
-
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
 
 	for name in value_decl.names {
-		ident := name.derived.(^Ident) or_continue
+		ident := name.derived.(^ast.Ident) or_continue
 		visit_ident(ident, ident, modifiers, builder)
 	}
 
@@ -415,8 +407,6 @@ visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuil
 }
 
 visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
-	using ast
-
 	if node == nil {
 		return
 	}
@@ -424,7 +414,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 	if node.params != nil {
 		for param in node.params.list {
 			for name in param.names {
-				if ident, ok := name.derived.(^Ident); ok {
+				if ident, ok := name.derived.(^ast.Ident); ok {
 					write_semantic_node(builder, name, .Parameter)
 				}
 			}
@@ -443,17 +433,15 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 }
 
 visit_enum_fields :: proc(node: ast.Enum_Type, builder: ^SemanticTokenBuilder) {
-	using ast
-
 	if node.fields == nil {
 		return
 	}
 
 	for field in node.fields {
-		if ident, ok := field.derived.(^Ident); ok {
+		if ident, ok := field.derived.(^ast.Ident); ok {
 			write_semantic_node(builder, field, .EnumMember)
-		} else if f, ok := field.derived.(^Field_Value); ok {
-			if _, ok := f.field.derived.(^Ident); ok {
+		} else if f, ok := field.derived.(^ast.Field_Value); ok {
+			if _, ok := f.field.derived.(^ast.Ident); ok {
 				write_semantic_node(builder, f.field, .EnumMember)
 			}
 			visit_node(f.value, builder)
@@ -538,8 +526,6 @@ visit_ident :: proc(
 	modifiers: SemanticTokenModifiers,
 	builder: ^SemanticTokenBuilder,
 ) {
-	using ast
-
 	symbol_and_node, in_symbols := builder.symbols[cast(uintptr)symbol_ptr]
 	if !in_symbols {
 		return

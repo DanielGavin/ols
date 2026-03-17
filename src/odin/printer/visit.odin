@@ -1,4 +1,3 @@
-#+feature using-stmt
 package odin_printer
 
 import "core:log"
@@ -209,8 +208,6 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 
 @(private)
 visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Document {
-	using ast
-
 	if decl == nil {
 		return empty()
 	}
@@ -224,14 +221,14 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 	}
 
 	#partial switch v in decl.derived {
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		return visit_stmt(p, v)
-	case ^Expr_Stmt:
+	case ^ast.Expr_Stmt:
 		document := move_line(p, decl.pos)
 		return cons(document, visit_expr(p, v.expr))
-	case ^When_Stmt:
-		return visit_stmt(p, cast(^Stmt)decl)
-	case ^Foreign_Import_Decl:
+	case ^ast.When_Stmt:
+		return visit_stmt(p, cast(^ast.Stmt)decl)
+	case ^ast.Foreign_Import_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
 			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
@@ -264,7 +261,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		}
 
 		return document
-	case ^Foreign_Block_Decl:
+	case ^ast.Foreign_Block_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
 			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
@@ -282,7 +279,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		}
 
 		return document
-	case ^Import_Decl:
+	case ^ast.Import_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
 			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
@@ -303,7 +300,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 			document = cons(document, text_token(p, v.import_tok), break_with_space(), text(v.fullpath))
 		}
 		return document
-	case ^Value_Decl:
+	case ^ast.Value_Decl:
 		document := empty()
 		if len(v.attributes) > 0 {
 			document = cons(document, visit_attributes(p, &v.attributes, v.pos))
@@ -916,8 +913,6 @@ visit_stmt :: proc(
 	empty_block := false,
 	block_stmt := false,
 ) -> ^Document {
-	using ast
-
 	if stmt == nil {
 		return empty()
 	}
@@ -927,14 +922,14 @@ visit_stmt :: proc(
 	}
 
 	#partial switch v in stmt.derived {
-	case ^Import_Decl:
-		return visit_decl(p, cast(^Decl)stmt, true)
-	case ^Value_Decl:
-		return visit_decl(p, cast(^Decl)stmt, true)
-	case ^Foreign_Import_Decl:
-		return visit_decl(p, cast(^Decl)stmt, true)
-	case ^Foreign_Block_Decl:
-		return visit_decl(p, cast(^Decl)stmt, true)
+	case ^ast.Import_Decl:
+		return visit_decl(p, cast(^ast.Decl)stmt, true)
+	case ^ast.Value_Decl:
+		return visit_decl(p, cast(^ast.Decl)stmt, true)
+	case ^ast.Foreign_Import_Decl:
+		return visit_decl(p, cast(^ast.Decl)stmt, true)
+	case ^ast.Foreign_Block_Decl:
+		return visit_decl(p, cast(^ast.Decl)stmt, true)
 	}
 
 	document := visit_state_flags(p, stmt.state_flags)
@@ -946,9 +941,9 @@ visit_stmt :: proc(
 		v.end = v.stmt.end
 
 		document = cons(document, text(v.op.text), text(v.name), break_with_no_newline(), visit_stmt(p, v.stmt))
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		uses_do := v.uses_do
 		is_single_line := v.open.line == v.end.line
 
@@ -985,7 +980,7 @@ visit_stmt :: proc(
 			}
 			document = cons(document, visit_end_brace(p, v.end))
 		}
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
@@ -1047,7 +1042,7 @@ visit_stmt :: proc(
 
 		}
 		document = enforce_fit_if_do(v.body, document)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		if v.partial {
 			document = cons(document, text("#partial"), break_with_no_newline())
 		}
@@ -1067,7 +1062,7 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
 		set_source_position(p, v.body.end)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		document = cons(document, text("case"))
 
 
@@ -1091,7 +1086,7 @@ visit_stmt :: proc(
 				document = cons(document, nest(cons(newline(1), visit_block_stmts(p, v.body))))
 			}
 		}
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		if v.partial {
 			document = cons(document, text("#partial"), break_with_no_newline())
 		}
@@ -1103,7 +1098,7 @@ visit_stmt :: proc(
 		document = cons(document, text("switch"))
 		document = cons_with_nopl(document, visit_stmt(p, v.tag, .Switch_Stmt))
 		document = cons_with_nopl(document, visit_stmt(p, v.body, .Switch_Stmt))
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		assign_document: ^Document
 
 		//If the switch contains `switch in v`
@@ -1129,9 +1124,9 @@ visit_stmt :: proc(
 		} else {
 			document = group(cons_with_nopl(assign_document, group(rhs)))
 		}
-	case ^Expr_Stmt:
+	case ^ast.Expr_Stmt:
 		document = cons(document, visit_expr(p, v.expr))
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
@@ -1169,7 +1164,7 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		document = enforce_fit_if_do(v.body, document)
-	case ^Inline_Range_Stmt:
+	case ^ast.Inline_Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
@@ -1192,7 +1187,7 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		document = enforce_fit_if_do(v.body, document)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
@@ -1226,7 +1221,7 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		document = enforce_fit_if_do(v.body, document)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		if v.results == nil {
 			document = cons(document, text("return"))
 			break
@@ -1258,10 +1253,10 @@ visit_stmt :: proc(
 				document = cons_with_nopl(document, visit_exprs(p, v.results, {.Add_Comma}))
 			}
 		}
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		document = cons(document, text("defer"))
 		document = cons_with_nopl(document, visit_stmt(p, v.stmt))
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		document = cons(document, cons_with_nopl(text("when"), visit_expr(p, v.cond)))
 
 		set_source_position(p, v.body.pos)
@@ -1277,7 +1272,7 @@ visit_stmt :: proc(
 
 			document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 		}
-	case ^Branch_Stmt:
+	case ^ast.Branch_Stmt:
 		document = cons(document, text(v.tok.text))
 
 		if v.label != nil {
@@ -1412,8 +1407,6 @@ visit_expr :: proc(
 	called_from: Expr_Called_Type = .Generic,
 	options := List_Options{},
 ) -> ^Document {
-	using ast
-
 	if expr == nil {
 		return empty()
 	}
@@ -1428,7 +1421,7 @@ visit_expr :: proc(
 	document := empty()
 
 	#partial switch v in expr.derived {
-	case ^Inline_Asm_Expr:
+	case ^ast.Inline_Asm_Expr:
 		document = cons(text_token(p, v.tok), text("("), visit_exprs(p, v.param_types, {.Add_Comma}), text(")"))
 		document = cons_with_opl(document, cons(text("-"), text(">")))
 		document = cons_with_opl(document, visit_expr(p, v.return_type))
@@ -1441,11 +1434,11 @@ visit_expr :: proc(
 			visit_expr(p, v.constraints_string),
 			text("}"),
 		)
-	case ^Undef:
+	case ^ast.Undef:
 		document = text("---")
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		document = cons_with_nopl(text_token(p, v.op), visit_expr(p, v.expr))
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		if v.op1.text == "if" {
 			document = cons(
 				group(visit_expr(p, v.x)),
@@ -1477,29 +1470,29 @@ visit_expr :: proc(
 		}
 		//Temp enforce fit until we figure out whether the issue is with Odin's parser.
 		document = enforce_fit(group(document))
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.op1))
 		document = cons_with_nopl(document, visit_expr(p, v.cond))
 		document = cons_with_nopl(document, text_token(p, v.op2))
 		document = cons_with_nopl(document, visit_expr(p, v.y))
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		document = visit_expr(p, v.x)
 		document = cons_with_nopl(document, text_token(p, v.token))
 		document = cons_with_nopl(document, visit_expr(p, v.y))
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons_with_nopl(document, text_token(p, v.token))
 		document = cons_with_nopl(document, visit_expr(p, v.label))
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		document = cons_with_nopl(visit_expr(p, v.expr), text_token(p, v.token))
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		document = visit_expr(p, v.call)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		document = cons(text(".."), visit_expr(p, v.expr))
-	case ^Relative_Type:
+	case ^ast.Relative_Type:
 		document = cons_with_opl(visit_expr(p, v.tag), visit_expr(p, v.type))
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		document = visit_expr(p, v.expr)
 		document = cons(visit_expr(p, v.expr), text("["), visit_expr(p, v.low), text(v.interval.text))
 
@@ -1507,19 +1500,19 @@ visit_expr :: proc(
 			document = cons(document, visit_expr(p, v.high))
 		}
 		document = cons(document, text("]"))
-	case ^Ident:
+	case ^ast.Ident:
 		document = text_position(p, v.name, v.pos)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		document = cons(visit_expr(p, v.expr), text_token(p, v.op))
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		document = cons(text_token(p, v.tok), text("("), visit_expr(p, v.type), text(")"), visit_expr(p, v.expr))
-	case ^Basic_Directive:
+	case ^ast.Basic_Directive:
 		document = cons(text_token(p, v.tok), text_position(p, v.name, v.pos))
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		document = cons_with_opl(text_position(p, "distinct", v.pos), visit_expr(p, v.type))
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		document = cons(visit_expr(p, v.tag), document, text("["), text("dynamic"), text("]"), visit_expr(p, v.elem))
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		document = cons(text_position(p, "bit_set", v.pos), document, text("["), visit_expr(p, v.elem))
 
 		if v.underlying != nil {
@@ -1527,7 +1520,7 @@ visit_expr :: proc(
 		}
 
 		document = cons(document, text("]"))
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		document = cons(text_position(p, "union", v.pos), visit_poly_params(p, v.poly_params))
 
 		#partial switch v.kind {
@@ -1563,7 +1556,7 @@ visit_expr :: proc(
 
 			document = cons(document, newline(1), text_position(p, "}", v.end))
 		}
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		document = text_position(p, "enum", v.pos)
 
 		if v.base_type != nil {
@@ -1591,7 +1584,7 @@ visit_expr :: proc(
 		}
 
 		set_source_position(p, v.end)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		document = text_position(p, "struct", v.pos)
 
 		if v.poly_params != nil {
@@ -1671,7 +1664,7 @@ visit_expr :: proc(
 		}
 
 		set_source_position(p, v.end)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		document = text_position(p, "bit_field", v.pos)
 
 		document = cons_with_nopl(document, visit_expr(p, v.backing_type))
@@ -1697,7 +1690,7 @@ visit_expr :: proc(
 		}
 
 		set_source_position(p, v.end)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		switch v.inlining {
 		case .None:
 		case .Inline:
@@ -1720,15 +1713,15 @@ visit_expr :: proc(
 		} else {
 			document = cons_with_nopl(document, text("---"))
 		}
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		document = group(visit_proc_type(p, v^, false, false))
-	case ^Basic_Lit:
+	case ^ast.Basic_Lit:
 		document = text_token(p, v.tok)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		document = visit_binary_expr(p, v^)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		document = cons(text("."), text_position(p, v.field.name, v.field.pos))
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		switch v.inlining {
 		case .None:
 		case .Inline:
@@ -1767,17 +1760,17 @@ visit_expr :: proc(
 		} else {
 			document = group(document, Document_Group_Options{id = "call_expr"})
 		}
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		document = text("typeid")
 
 		if v.specialization != nil {
 			document = cons(document, text("/"), visit_expr(p, v.specialization))
 		}
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		document = enforce_fit(cons(visit_expr(p, v.expr), text_token(p, v.op), visit_expr(p, v.field)))
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		document = group(cons(text("("), nest(visit_expr(p, v.expr)), text(")")))
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		//Switch back to enforce fit, it just doesn't look good when breaking.
 		document = enforce_fit(
 			cons(
@@ -1788,7 +1781,7 @@ visit_expr :: proc(
 				text("]"),
 			),
 		)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		document = text_token(p, v.tok)
 
 		if len(v.args) != 0 {
@@ -1807,7 +1800,7 @@ visit_expr :: proc(
 		} else {
 			document = cons(document, text("{"), visit_exprs(p, v.args, {.Add_Comma}), text("}"))
 		}
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		if v.tag != nil {
 			document = cons_with_nopl(document, visit_expr(p, v.tag))
 		}
@@ -1875,50 +1868,50 @@ visit_expr :: proc(
 			}
 			document = group(document)
 		}
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		document = cons(text_token(p, v.op), visit_expr(p, v.expr))
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		document = cons_with_nopl(
 			visit_expr(p, v.field),
 			cons_with_nopl(text_position(p, "=", v.sep), visit_expr(p, v.value)),
 		)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		document = visit_expr(p, v.expr)
 
-		if unary, ok := v.type.derived.(^Unary_Expr); ok && unary.op.text == "?" {
+		if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.text == "?" {
 			document = cons(document, text("."), visit_expr(p, v.type))
 		} else {
 			document = cons(document, text("."), text("("), visit_expr(p, v.type), text(")"))
 		}
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		document = cons(visit_expr(p, v.tag), text("^"), visit_expr(p, v.elem))
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		document = cons(text("[^]"), visit_expr(p, v.elem))
-	case ^Implicit:
+	case ^ast.Implicit:
 		document = text_token(p, v.tok)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		document = cons(text("$"), visit_expr(p, v.type))
 
 		if v.specialization != nil {
 			document = cons(document, text("/"), visit_expr(p, v.specialization))
 		}
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		document = cons(visit_expr(p, v.tag), text("["), visit_expr(p, v.len), text("]"), visit_expr(p, v.elem))
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		document = cons(text("map"), text("["), visit_expr(p, v.key), text("]"), visit_expr(p, v.value))
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		if v.tok == .Hash {
 			document = cons(document, text("#type"))
 		}
 		document = cons_with_nopl(document, visit_expr(p, v.type))
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		document = cons(text_position(p, "matrix", v.pos), text("["), visit_expr(p, v.row_count), text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_count))
 		document = cons(document, text("]"))
 		document = cons(group(document), visit_expr(p, v.elem))
 	case ^ast.Tag_Expr:
 		document = cons(text(v.op.text), text(v.name), break_with_no_newline(), visit_expr(p, v.expr))
-	case ^Matrix_Index_Expr:
+	case ^ast.Matrix_Index_Expr:
 		document = cons(visit_expr(p, v.expr), text("["), visit_expr(p, v.row_index), text(","))
 		document = cons_with_opl(document, visit_expr(p, v.column_index))
 		document = cons(document, text("]"))

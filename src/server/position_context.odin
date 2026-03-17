@@ -1,4 +1,3 @@
-#+feature using-stmt
 package server
 
 import "core:log"
@@ -581,8 +580,6 @@ get_document_position_label :: proc(label: ^ast.Expr, position_context: ^Documen
 }
 
 get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentPositionContext) {
-	using ast
-
 	if node == nil {
 		return
 	}
@@ -592,67 +589,67 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	}
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
 		position_context.identifier = node
-	case ^Implicit:
+	case ^ast.Implicit:
 		if n.tok.text == "context" {
 			position_context.implicit_context = n
 		}
-	case ^Undef:
-	case ^Basic_Lit:
-		position_context.basic_lit = cast(^Basic_Lit)node
-	case ^Matrix_Index_Expr:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
+		position_context.basic_lit = cast(^ast.Basic_Lit)node
+	case ^ast.Matrix_Index_Expr:
 		get_document_position(n.expr, position_context)
 		get_document_position(n.row_index, position_context)
 		get_document_position(n.column_index, position_context)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		get_document_position(n.row_count, position_context)
 		get_document_position(n.column_count, position_context)
 		get_document_position(n.elem, position_context)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		get_document_position(n.expr, position_context)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		if position_in_node(n.body, position_context.position) {
 			get_document_position(n.type, position_context)
-			position_context.function = cast(^Proc_Lit)node
+			position_context.function = cast(^ast.Proc_Lit)node
 			append(&position_context.functions, position_context.function)
 			get_document_position(n.body, position_context)
 		} else if position_in_node(n.type, position_context.position) {
-			position_context.function = cast(^Proc_Lit)node
+			position_context.function = cast(^ast.Proc_Lit)node
 			get_document_position(n.type, position_context)
 		} else {
 			for clause in n.where_clauses {
 				if position_in_node(clause, position_context.position) {
-					position_context.function = cast(^Proc_Lit)node
+					position_context.function = cast(^ast.Proc_Lit)node
 					get_document_position(clause, position_context)
 				}
 			}
 		}
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		//only set this for the parent comp literal, since we will need to walk through it to infer types.
 		if position_context.parent_comp_lit == nil {
-			position_context.parent_comp_lit = cast(^Comp_Lit)node
+			position_context.parent_comp_lit = cast(^ast.Comp_Lit)node
 		}
 
-		position_context.comp_lit = cast(^Comp_Lit)node
+		position_context.comp_lit = cast(^ast.Comp_Lit)node
 
 		get_document_position(n.type, position_context)
 		get_document_position(n.elems, position_context)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		get_document_position(n.expr, position_context)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		get_document_position(n.expr, position_context)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		if position_context.parent_binary == nil {
 			position_context.parent_binary = n
 		}
 		position_context.binary = n
 		get_document_position(n.left, position_context)
 		get_document_position(n.right, position_context)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		get_document_position(n.expr, position_context)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		position_context.call = n
 		get_document_position(n.expr, position_context)
 		for arg in n.args {
@@ -661,7 +658,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 			}
 		}
 		get_document_position(n.args, position_context)
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		position_context.selector = n.expr
 		position_context.field = n.call
 		position_context.selector_expr = node
@@ -676,7 +673,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		if position_context.hint == .SignatureHelp {
 			position_context.arrow = true
 		}
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		if (position_context.hint == .Definition ||
 			   position_context.hint == .Hover ||
 			   position_context.hint == .TypeDefinition ||
@@ -691,108 +688,108 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 			get_document_position(n.expr, position_context)
 			get_document_position(n.field, position_context)
 		}
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		position_context.previous_index = position_context.index
 		position_context.index = n
 		get_document_position(n.expr, position_context)
 		get_document_position(n.index, position_context)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		get_document_position(n.expr, position_context)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		get_document_position(n.expr, position_context)
 		get_document_position(n.low, position_context)
 		get_document_position(n.high, position_context)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		position_context.field_value = n
 		get_document_position(n.field, position_context)
 		get_document_position(n.value, position_context)
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		get_document_position(n.x, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.y, position_context)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		get_document_position(n.x, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.y, position_context)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		get_document_position(n.expr, position_context)
 		get_document_position(n.type, position_context)
-	case ^Type_Cast:
-		position_context.type_cast = cast(^Type_Cast)node
+	case ^ast.Type_Cast:
+		position_context.type_cast = cast(^ast.Type_Cast)node
 		get_document_position(n.type, position_context)
 		get_document_position(n.expr, position_context)
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		get_document_position(n.expr, position_context)
-	case ^Bad_Stmt:
-	case ^Empty_Stmt:
-	case ^Expr_Stmt:
+	case ^ast.Bad_Stmt:
+	case ^ast.Empty_Stmt:
+	case ^ast.Expr_Stmt:
 		get_document_position(n.expr, position_context)
-	case ^Tag_Stmt:
+	case ^ast.Tag_Stmt:
 		r := n
 		get_document_position(r.stmt, position_context)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		position_context.assign = n
 		get_document_position(n.lhs, position_context)
 		get_document_position(n.rhs, position_context)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.stmts, position_context)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
 		get_document_position(n.else_stmt, position_context)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
 		get_document_position(n.else_stmt, position_context)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		position_context.returns = n
 		get_document_position(n.results, position_context)
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		get_document_position(n.stmt, position_context)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.post, position_context)
 		get_document_position(n.body, position_context)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.vals, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		for elem in n.list {
 			if position_in_node(elem, position_context.position) {
-				position_context.case_clause = cast(^Case_Clause)node
+				position_context.case_clause = cast(^ast.Case_Clause)node
 				break
 			}
 		}
 
 		get_document_position(n.list, position_context)
 		get_document_position(n.body, position_context)
-	case ^Switch_Stmt:
-		position_context.switch_stmt = cast(^Switch_Stmt)node
+	case ^ast.Switch_Stmt:
+		position_context.switch_stmt = cast(^ast.Switch_Stmt)node
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
 		get_document_position(n.cond, position_context)
 		get_document_position(n.body, position_context)
-	case ^Type_Switch_Stmt:
-		position_context.switch_type_stmt = cast(^Type_Switch_Stmt)node
+	case ^ast.Type_Switch_Stmt:
+		position_context.switch_type_stmt = cast(^ast.Type_Switch_Stmt)node
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.tag, position_context)
 		get_document_position(n.expr, position_context)
 		get_document_position(n.body, position_context)
-	case ^Branch_Stmt:
+	case ^ast.Branch_Stmt:
 		get_document_position_label(n.label, position_context)
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		get_document_position(n.list, position_context)
-	case ^Bad_Decl:
-	case ^Value_Decl:
-		position_context.value_decl = cast(^Value_Decl)node
+	case ^ast.Bad_Decl:
+	case ^ast.Value_Decl:
+		position_context.value_decl = cast(^ast.Value_Decl)node
 		get_document_position(n.attributes, position_context)
 
 		for name in n.names {
@@ -804,47 +801,47 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.names, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.values, position_context)
-	case ^Package_Decl:
-	case ^Import_Decl:
-	case ^Foreign_Block_Decl:
+	case ^ast.Package_Decl:
+	case ^ast.Import_Decl:
+	case ^ast.Foreign_Block_Decl:
 		get_document_position(n.attributes, position_context)
 		get_document_position(n.foreign_library, position_context)
 		get_document_position(n.body, position_context)
-	case ^Foreign_Import_Decl:
+	case ^ast.Foreign_Import_Decl:
 		get_document_position(n.name, position_context)
 		get_document_position(n.fullpaths, position_context)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		get_document_position(n.args, position_context)
-	case ^Attribute:
+	case ^ast.Attribute:
 		get_document_position(n.elems, position_context)
-	case ^Field:
+	case ^ast.Field:
 		get_document_position(n.names, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.default_value, position_context)
-	case ^Field_List:
+	case ^ast.Field_List:
 		get_document_position(n.list, position_context)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		get_document_position(n.specialization, position_context)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		get_document_position(n.type, position_context)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		get_document_position(n.type, position_context)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		get_document_position(n.type, position_context)
 		get_document_position(n.specialization, position_context)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		get_document_position(n.params, position_context)
 		get_document_position(n.results, position_context)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		get_document_position(n.elem, position_context)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		get_document_position(n.len, position_context)
 		get_document_position(n.elem, position_context)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		get_document_position(n.elem, position_context)
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		position_context.struct_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
@@ -854,43 +851,43 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 			}
 		}
 		get_document_position(n.fields, position_context)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		position_context.union_type = n
 		get_document_position(n.poly_params, position_context)
 		get_document_position(n.align, position_context)
 		get_document_position(n.variants, position_context)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		position_context.enum_type = n
 		get_document_position(n.base_type, position_context)
 		get_document_position(n.fields, position_context)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		position_context.bitset_type = n
 		get_document_position(n.elem, position_context)
 		get_document_position(n.underlying, position_context)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		get_document_position(n.key, position_context)
 		get_document_position(n.value, position_context)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		position_context.implicit = true
 		position_context.implicit_selector_expr = n
 		get_document_position(n.field, position_context)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		get_document_position(n.x, position_context)
 		get_document_position(n.y, position_context)
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		get_document_position(n.expr, position_context)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.expr, position_context)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		position_context.bit_field_type = n
 		get_document_position(n.backing_type, position_context)
 		get_document_position(n.fields, position_context)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		get_document_position(n.name, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.bit_size, position_context)
-	case ^Basic_Directive:
+	case ^ast.Basic_Directive:
 		position_context.directive = n
 	case:
 	}
