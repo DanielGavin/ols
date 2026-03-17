@@ -173,10 +173,6 @@ get_document_position_context :: proc(
 		fallback_position_context_signature(document, position, &position_context)
 	}
 
-	if hint == .SignatureHelp {
-		get_call_commas(&position_context, document)
-	}
-
 	return position_context, true
 }
 

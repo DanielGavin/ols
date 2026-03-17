@@ -687,6 +687,69 @@ signature_comp_lit_proc_field_after_comma :: proc(t: ^testing.T) {
 		{},
 	)
 }
+
+@(test)
+signature_string_param_with_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i: int) {}
+
+		main :: proc() {
+			foo("test, {*}")
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int)"},
+		expected_active_parameter = 0,
+	)
+}
+
+@(test)
+signature_empty_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i: int) {}
+
+		main :: proc() {
+			foo(, f{*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int)"},
+		expected_active_parameter = 1,
+	)
+}
+
+@(test)
+signature_multiple_empty_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i, j, k, l: int) {}
+
+		main :: proc() {
+			foo("hello, world", , , , f{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int, j: int, k: int, l: int)"},
+		expected_active_parameter = 4,
+	)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {
