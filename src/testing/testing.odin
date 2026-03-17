@@ -125,7 +125,12 @@ teardown :: proc(src: ^Source) {
 	virtual.arena_destroy(src.document.allocator)
 }
 
-expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {
+expect_signature_labels :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expect_labels: []string,
+	expected_active_parameter := -1,
+) {
 	setup(src)
 	defer teardown(src)
 
@@ -155,6 +160,11 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 		}
 	}
 
+	if expected_active_parameter != -1 {
+		if expected_active_parameter != help.activeParameter {
+			log.errorf("Expected active parameter %v, but reveived %v", expected_active_parameter, help.activeParameter)
+		}
+	}
 }
 
 expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {

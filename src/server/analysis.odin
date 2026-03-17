@@ -4405,49 +4405,6 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 	return false
 }
 
-/*
-	Parser gives ranges of expression, but not actually where the commas are placed.
-*/
-get_call_commas :: proc(position_context: ^DocumentPositionContext, document: ^Document) {
-	if position_context.call == nil {
-		return
-	}
-
-	commas := make([dynamic]int, 0, 10, context.temp_allocator)
-
-	paren_count := 0
-	bracket_count := 0
-	brace_count := 0
-
-	if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
-		if document.text[call.open.offset] == '(' {
-			paren_count -= 1
-		}
-		for i := call.open.offset; i < call.close.offset; i += 1 {
-			switch document.text[i] {
-			case '[':
-				paren_count += 1
-			case ']':
-				paren_count -= 1
-			case '{':
-				brace_count += 1
-			case '}':
-				brace_count -= 1
-			case '(':
-				paren_count += 1
-			case ')':
-				paren_count -= 1
-			case ',':
-				if paren_count == 0 && brace_count == 0 && bracket_count == 0 {
-					append(&commas, i)
-				}
-			}
-		}
-	}
-
-	position_context.call_commas = commas[:]
-}
-
 type_to_string :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> string {
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		if .Anonymous in symbol.flags {

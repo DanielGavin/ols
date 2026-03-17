@@ -1,10 +1,8 @@
 package common
 
-import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
-import "core:strings"
 import "core:unicode/utf8"
 
 /*

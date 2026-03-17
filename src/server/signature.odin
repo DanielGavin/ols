@@ -146,16 +146,35 @@ add_proc_signature :: proc(
 ) -> (
 	active_parameter: int,
 ) {
-	for comma, i in position_context.call_commas {
-		if position_context.position > comma {
-			active_parameter = i + 1
-		} else if position_context.position == comma {
-			active_parameter = i
-		}
-	}
-
 	if position_context.arrow {
 		active_parameter = 1
+	}
+
+	if call_expr, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+		prev_offset := call_expr.open.offset
+
+		for arg, i in call_expr.args {
+			bad_expr, is_bad_expr := arg.derived.(^ast.Bad_Expr)
+			if is_bad_expr{
+				if prev_offset < position_context.position {
+					text := ast_context.file.src[prev_offset:position_context.position]
+					active_parameter += strings.count(text, ",")
+					if i != 0 {
+						// ensure we remove the trailing comma from the previous arg expr
+						active_parameter -= 1
+					}
+				}
+			}
+
+			if position_in_node(arg, position_context.position) {
+				break
+			}
+
+			if !is_bad_expr {
+				prev_offset = arg.end.offset
+				active_parameter += 1
+			}
+		}
 	}
 
 	call, ok := resolve_type_expression(ast_context, position_context.call)
