@@ -6482,3 +6482,28 @@ ast_hover_slice_type_from_another_package :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.b: []my_package.Bar")
 }
+
+@(test)
+ast_hover_generic_specialization_with_generic_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($A: typeid, $B: typeid){}
+
+		Iter :: struct($D: typeid) {
+			m:     ^D,
+			index: int,
+		}
+
+		iter_make :: proc (m: ^$D/Foo($A, $B)) -> Iter(D) {}
+		iterate :: proc(it: ^$C/Iter($D/Foo($A, $B))) -> (val: ^A, h: B, ok: bool) {}
+
+		main :: proc() {
+			foo: Foo(int, string)
+			it := iter_make(&foo)
+			a{*}, b, c := iterate(&it)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.a: ^int")
+}
