@@ -107,9 +107,8 @@ resolve_poly_specialization :: proc(
 			return found
 		}
 	case ^ast.Call_Expr:
-		if call_struct, ok := call_node.derived.(^ast.Struct_Type); ok {
+		if struct_value, ok := call_symbol.value.(SymbolStructValue); ok {
 			arg_index := 0
-			struct_value := call_symbol.value.(SymbolStructValue)
 			found := false
 			for arg in p.args {
 				if poly_type, ok := arg.derived.(^ast.Poly_Type); ok {
@@ -118,6 +117,14 @@ resolve_poly_specialization :: proc(
 					}
 
 					save_poly_map(poly_type.type, struct_value.args[arg_index], poly_map)
+					if poly_type.specialization != nil {
+						resolve_poly_expression(
+							ast_context,
+							struct_value.args[arg_index],
+							poly_type.specialization,
+							poly_map,
+						)
+					}
 
 					arg_index += 1
 					found |= true
