@@ -604,8 +604,6 @@ get_comp_lit_completion :: proc(
 	config: ^common.Config,
 ) -> bool {
 
-	current_package := ast_context.current_package
-
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
 		case SymbolStructValue:
