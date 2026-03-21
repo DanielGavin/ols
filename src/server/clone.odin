@@ -201,6 +201,10 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	case ^ast.Dynamic_Array_Type:
 		r.elem = clone_type(r.elem, allocator, unique_strings)
 		r.tag = clone_type(r.tag, allocator, unique_strings)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		r.elem = clone_type(r.elem, allocator, unique_strings)
+		r.tag = clone_type(r.tag, allocator, unique_strings)
+		r.capacity = clone_type(r.capacity, allocator, unique_strings)
 	case ^ast.Struct_Type:
 		r.poly_params = auto_cast clone_type(r.poly_params, allocator, unique_strings)
 		r.align = clone_type(r.align, allocator, unique_strings)
