@@ -357,6 +357,20 @@ collect_dynamic_array :: proc(
 	return SymbolDynamicArrayValue{expr = elem}
 }
 
+collect_fixed_cap_dynamic_array :: proc(
+	collection: ^SymbolCollection,
+	array: ast.Fixed_Capacity_Dynamic_Array_Type,
+	package_map: map[string]string,
+) -> SymbolDynamicArrayValue {
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+	cap := clone_type(array.capacity, collection.allocator, &collection.unique_strings)
+
+	replace_package_alias(elem, package_map, collection)
+	replace_package_alias(cap, package_map, collection)
+
+	return SymbolDynamicArrayValue{expr = elem, cap = cap}
+}
+
 collect_matrix :: proc(
 	collection: ^SymbolCollection,
 	mat: ast.Matrix_Type,
@@ -848,6 +862,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = v^
 			token_type = .Type
 			symbol.value = collect_dynamic_array(collection, v^, package_map)
+		case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+			token = v^
+			token_type = .Type
+			symbol.value = collect_fixed_cap_dynamic_array(collection, v^, package_map)
 		case ^ast.Multi_Pointer_Type:
 			token = v^
 			token_type = .Type
@@ -1036,10 +1054,7 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 		} else {
 			name: string
 			pkg_name := imp.fullpath[1:len(imp.fullpath) - 1]
-			full := path.join(
-				elems = {directory, pkg_name},
-				allocator = context.temp_allocator,
-			)
+			full := path.join(elems = {directory, pkg_name}, allocator = context.temp_allocator)
 			full = path.clean(full, context.temp_allocator)
 
 			if imp.name.text != "" {

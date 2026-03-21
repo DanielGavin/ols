@@ -113,6 +113,7 @@ SymbolUnionValue :: struct {
 
 SymbolDynamicArrayValue :: struct {
 	expr: ^ast.Expr,
+	cap:  ^ast.Expr, // Possibly nil; non nil if it's a Fixed_Capacity_Dynamic_Array_Type
 }
 
 SymbolMultiPointerValue :: struct {

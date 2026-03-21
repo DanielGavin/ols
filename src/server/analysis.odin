@@ -290,7 +290,6 @@ resolve_type_comp_literal :: proc(
 				if symbol, ok := resolve_type_expression(ast_context, s.expr); ok {
 					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
 				}
-
 			case SymbolDynamicArrayValue:
 				if symbol, ok := resolve_type_expression(ast_context, s.expr); ok {
 					return resolve_type_comp_literal(ast_context, position_context, symbol, comp_value)
@@ -543,7 +542,38 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 		a_is_soa := .Soa in a_symbol.flags
 		b_is_soa := .Soa in a_symbol.flags
 
-		return is_symbol_same_typed(ast_context, a_symbol, b_symbol) && a_is_soa == b_is_soa
+		if a_is_soa != b_is_soa {
+			return false
+		}
+
+		a_is_fix_cap := a_value.cap != nil
+		b_is_fix_cap := b_value.cap != nil
+
+		if a_is_fix_cap != b_is_fix_cap {
+			return false
+		}
+
+		if !a_is_fix_cap {
+			return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
+		}
+
+		a_cap_symbol: Symbol
+		b_cap_symbol: Symbol
+
+		a_cap_symbol, ok = resolve_type_expression(ast_context, a_value.cap)
+		if !ok {
+			return false
+		}
+		b_cap_symbol, ok = resolve_type_expression(ast_context, b_value.cap)
+		if !ok {
+			return false
+		}
+
+		return(
+			is_symbol_same_typed(ast_context, a_symbol, b_symbol) &&
+			is_symbol_same_typed(ast_context, a_cap_symbol, b_cap_symbol) \
+		)
+
 	case SymbolMapValue:
 		b_value := b.value.(SymbolMapValue)
 
@@ -1271,6 +1301,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return ok
 	case ^ast.Dynamic_Array_Type:
 		out^, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
+		return ok
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		out^, ok = make_symbol_fixed_cap_dynamic_array_from_ast(ast_context, v^, ast_context.field_name), true
 		return ok
 	case ^ast.Multi_Pointer_Type:
 		out^, ok = make_symbol_multi_pointer_from_ast(ast_context, v^, ast_context.field_name), true
@@ -2149,6 +2182,8 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 		return_symbol, ok = make_symbol_multi_pointer_from_ast(ast_context, v^, node), true
 	case ^ast.Dynamic_Array_Type:
 		return_symbol, ok = make_symbol_dynamic_array_from_ast(ast_context, v^, node), true
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		return_symbol, ok = make_symbol_fixed_cap_dynamic_array_from_ast(ast_context, v^, node), true
 	case ^ast.Matrix_Type:
 		return_symbol, ok = make_symbol_matrix_from_ast(ast_context, v^, node), true
 	case ^ast.Map_Type:
@@ -3851,6 +3886,31 @@ make_symbol_dynamic_array_from_ast :: proc(
 		symbol.flags |= {.Soa}
 	}
 
+	return symbol
+}
+
+make_symbol_fixed_cap_dynamic_array_from_ast :: proc(
+	ast_context: ^AstContext,
+	v: ast.Fixed_Capacity_Dynamic_Array_Type,
+	name: ast.Ident,
+) -> Symbol {
+	symbol := Symbol {
+		range = common.get_token_range(v.node, ast_context.file.src),
+		type  = .Type,
+		pkg   = get_package_from_node(v.node),
+		name  = name.name,
+		uri   = common.create_uri(v.pos.file, ast_context.allocator).uri,
+	}
+
+	symbol.value = SymbolDynamicArrayValue {
+		expr = v.elem,
+		cap  = v.capacity,
+	}
+
+
+	if fixed_cap_dynamic_array_is_soa(v) {
+		symbol.flags |= {.Soa}
+	}
 
 	return symbol
 }

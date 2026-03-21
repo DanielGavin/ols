@@ -288,6 +288,15 @@ dynamic_array_is_soa :: proc(array: ast.Dynamic_Array_Type) -> bool {
 	return false
 }
 
+fixed_cap_dynamic_array_is_soa :: proc(array: ast.Fixed_Capacity_Dynamic_Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
 expr_contains_poly :: proc(expr: ^ast.Expr) -> bool {
 	if expr == nil {
 		return false
