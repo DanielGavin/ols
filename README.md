@@ -113,6 +113,8 @@ Options:
 
 - `enable_code_action_invert_if`: Enables a code action to invert if statements.
 
+- `enable_private_struct_fields_underscore`: Hides struct fields that start with _ when accessing it from another package.
+
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
 - `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.

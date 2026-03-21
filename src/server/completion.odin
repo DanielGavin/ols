@@ -603,6 +603,9 @@ get_comp_lit_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	config: ^common.Config,
 ) -> bool {
+
+	current_package := ast_context.current_package
+
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
 		case SymbolStructValue:
@@ -890,6 +893,12 @@ get_selector_completion :: proc(
 					}
 				}
 				continue
+			}
+
+			if config.enable_private_struct_fields_underscore {
+				if strings.starts_with(name, "_") && ast_context.document_package != selector.pkg {
+					continue
+				}
 			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
