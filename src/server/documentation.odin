@@ -306,7 +306,12 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")
 		}
-		strings.write_string(sb, "[dynamic]")
+		strings.write_string(sb, "[dynamic")
+		if v.cap != nil {
+			strings.write_string(sb, "; ")
+			write_node(sb, ast_context, v.cap, "", short_signature = true)
+		}
+		strings.write_string(sb, "]")
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolSliceValue:
