@@ -846,6 +846,10 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^ast.Dynamic_Array_Type:
 		free_ast(n.elem, allocator)
 		free_ast(n.tag, allocator)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		free_ast(n.elem, allocator)
+		free_ast(n.tag, allocator)
+		free_ast(n.capacity, allocator)
 	case ^ast.Struct_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
@@ -1037,6 +1041,12 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 	case ^ast.Dynamic_Array_Type:
 		if n, ok := a.derived.(^ast.Dynamic_Array_Type); ok {
 			return node_equal(n.elem, m.elem)
+		}
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		if n, ok := a.derived.(^ast.Fixed_Capacity_Dynamic_Array_Type); ok {
+			ret := node_equal(n.elem, m.elem)
+			ret &= node_equal(n.capacity, m.capacity)
+			return ret
 		}
 	case ^ast.Multi_Pointer_Type:
 		if n, ok := a.derived.(^ast.Multi_Pointer_Type); ok {
@@ -1323,6 +1333,12 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 	case ^ast.Dynamic_Array_Type:
 		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[dynamic]")
+		build_string(n.elem, builder, remove_pointers)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		build_string(n.tag, builder, remove_pointers)
+		strings.write_string(builder, "[dynamic; ")
+		build_string(n.capacity, builder, remove_pointers)
+		strings.write_string(builder, "]")
 		build_string(n.elem, builder, remove_pointers)
 	case ^ast.Struct_Type:
 		strings.write_string(builder, "struct{")
