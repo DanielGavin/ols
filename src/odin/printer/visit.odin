@@ -1512,6 +1512,10 @@ visit_expr :: proc(
 		document = cons_with_opl(text_position(p, "distinct", v.pos), visit_expr(p, v.type))
 	case ^ast.Dynamic_Array_Type:
 		document = cons(visit_expr(p, v.tag), document, text("["), text("dynamic"), text("]"), visit_expr(p, v.elem))
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		document = cons(visit_expr(p, v.tag), document, text("["), text("dynamic"), text(";"))
+		document = cons_with_opl(document, visit_expr(p, v.capacity))
+		document = cons(document, text("]"), visit_expr(p, v.elem))
 	case ^ast.Bit_Set_Type:
 		document = cons(text_position(p, "bit_set", v.pos), document, text("["), visit_expr(p, v.elem))
 
