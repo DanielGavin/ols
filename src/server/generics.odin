@@ -533,21 +533,7 @@ resolve_generic_function_symbol :: proc(
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
 	i := 0
 
-	for param in params {
-		for name in param.names {
-			defer i += 1
-			if i >= len(call_expr.args) {
-				break
-			}
-			if comp_lit, ok := call_expr.args[i].derived.(^ast.Comp_Lit); ok && comp_lit.type == nil {
-				comp_lit.type = param.type
-			}
-		}
-	}
-	call_args, ok := expand_call_args(ast_context, call_expr)
-	if !ok {
-		return {}, false
-	}
+	call_args, _ := expand_call_args(ast_context, call_expr)
 
 	i = 0
 	count_required_params := 0
@@ -563,7 +549,7 @@ resolve_generic_function_symbol :: proc(
 				break
 			}
 
-			if param.type == nil {
+			if param.type == nil || !call_args[i].has_symbol {
 				continue
 			}
 
