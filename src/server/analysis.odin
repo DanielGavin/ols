@@ -752,6 +752,7 @@ CallArg :: struct {
 	is_poly_type:      bool,
 }
 
+// Returns false if any of the arguments fail to resolve
 expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]CallArg, bool) {
 	results := make([dynamic]CallArg, context.temp_allocator)
 	if call == nil {
@@ -840,15 +841,17 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 		return true
 	}
 
+	all_valid := true
 	for arg in call.args {
 		reset_ast_context(ast_context)
 		ast_context.current_package = ast_context.document_package
 		if !append_arg(ast_context, arg, &results, &used_named) {
-			return {}, false
+			all_valid = false
+			append(&results, CallArg{})
 		}
 	}
 
-	return results[:], true
+	return results[:], all_valid
 }
 
 /*
