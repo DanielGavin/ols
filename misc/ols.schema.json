@@ -116,6 +116,11 @@
 			"description": "Enables a code action to invert if statements.",
 			"default": false
 		},
+		"enable_private_struct_fields_underscore": {
+			"type": "boolean",
+			"description": "Hides struct fields that start with _ when accessing it from another package.",
+			"default": false
+		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
 			"type": "boolean",
