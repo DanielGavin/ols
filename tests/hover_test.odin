@@ -6507,3 +6507,18 @@ ast_hover_generic_specialization_with_generic_type :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.a: ^int")
 }
+
+@(test)
+ast_hover_iterator_many_variables :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc() -> (int, int, int, int, bool) {}
+
+		main :: proc() {
+			for a, b, c{*}, d in foo() {}
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.c: int")
+}
