@@ -208,6 +208,28 @@ prepare_references :: proc(
 	return symbol, resolve_flag, true
 }
 
+get_target_name :: proc(position_context: ^DocumentPositionContext, resolve_flag: ResolveReferenceFlag) -> string {
+	if resolve_flag == .Field {
+		if position_context.field != nil {
+			if ident, ok := position_context.field.derived.(^ast.Ident); ok {
+				return ident.name
+			}
+		}
+
+		if position_context.implicit_selector_expr != nil {
+			return position_context.implicit_selector_expr.field.name
+		}
+	}
+
+	if position_context.identifier != nil {
+		if ident, ok := position_context.identifier.derived.(^ast.Ident); ok {
+			return ident.name
+		}
+	}
+
+	return ""
+}
+
 resolve_references :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -222,11 +244,12 @@ resolve_references :: proc(
 	fullpaths := make([dynamic]string, 0, ast_context.allocator)
 
 	symbol, resolve_flag, ok := prepare_references(document, ast_context, position_context)
-
 	if !ok {
 		return {}, true
 	}
-	symbols_and_nodes := resolve_entire_file(document, resolve_flag, ast_context.allocator)
+
+	target_name := get_target_name(position_context, resolve_flag)
+	symbols_and_nodes := resolve_entire_file(document, resolve_flag, ast_context.allocator, target_name)
 
 	for k, v in symbols_and_nodes {
 		if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
@@ -270,7 +293,7 @@ resolve_references :: proc(
 					continue
 				}
 
-				if strings.contains(info.name, ".odin") {
+				if strings.has_suffix(info.name, ".odin") {
 					slash_path, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
 					if !strings.equal_fold(slash_path, document.fullpath) {
 						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
@@ -294,6 +317,8 @@ resolve_references :: proc(
 	paths := slice.unique(fullpaths[:])
 
 	for fullpath in paths {
+		defer free_all(context.allocator)
+
 		dir := filepath.dir(fullpath)
 		base := filepath.base(dir)
 		forward_dir, _ := filepath.replace_path_separators(dir, '/', context.allocator)
@@ -302,6 +327,10 @@ resolve_references :: proc(
 
 		if err != nil {
 			log.errorf("failed to read entire file for indexing %v: %v", fullpath, err)
+			continue
+		}
+
+		if target_name != "" && !strings.contains(string(data), target_name) {
 			continue
 		}
 
@@ -361,7 +390,7 @@ resolve_references :: proc(
 		}
 
 		if in_pkg || symbol.pkg == document.package_name {
-			symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator)
+			symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator, target_name)
 			for k, v in symbols_and_nodes {
 				if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
 					node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
@@ -385,8 +414,6 @@ resolve_references :: proc(
 				}
 			}
 		}
-
-		free_all(context.allocator)
 	}
 
 	return locations[:], true
