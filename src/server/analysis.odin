@@ -3613,6 +3613,10 @@ find_position_in_field_list :: proc(
 	int,
 	bool,
 ) {
+	if field_list == nil {
+		return 0, false
+	}
+
 	index := 0
 	for field in field_list.list {
 		if position_in_node(field.type, position_context.position) {
