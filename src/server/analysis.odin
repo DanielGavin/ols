@@ -744,6 +744,7 @@ should_resolve_all_proc_overload_possibilities :: proc(ast_context: ^AstContext,
 CallArg :: struct {
 	symbol:            Symbol,
 	implicit_selector: ^ast.Implicit_Selector_Expr,
+	value_expr:        ^ast.Expr,
 	name:              string,
 	named:             bool,
 	is_nil:            bool,
@@ -768,7 +769,9 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 	) -> bool {
 		ast_context.use_locals = true
 
-		call_arg := CallArg{}
+		call_arg := CallArg{
+			value_expr = arg,
+		}
 
 		if _, ok := arg.derived.(^ast.Bad_Expr); ok {
 			call_arg.bad_expr = true
@@ -776,12 +779,11 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 			return true
 		}
 
-		value_expr := arg
 
 		//named parameter
 		if field, ok := arg.derived.(^ast.Field_Value); ok {
 			call_arg.named = true
-			value_expr = field.value
+			call_arg.value_expr = field.value
 			used_named^ = true
 
 			if ident, ok := field.field.derived.(^ast.Ident); ok {
@@ -792,17 +794,17 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 			return false
 		}
 
-		if ident, ok := value_expr.derived.(^ast.Ident); ok && ident.name == "nil" {
+		if ident, ok := call_arg.value_expr.derived.(^ast.Ident); ok && ident.name == "nil" {
 			call_arg.is_nil = true
 			append(results, call_arg)
 			return true
-		} else if implicit, ok := value_expr.derived.(^ast.Implicit_Selector_Expr); ok {
+		} else if implicit, ok := call_arg.value_expr.derived.(^ast.Implicit_Selector_Expr); ok {
 			call_arg.implicit_selector = implicit
 			append(results, call_arg)
 			return true
 		}
 
-		if symbol, ok := resolve_call_arg_type_expression(ast_context, value_expr); ok {
+		if symbol, ok := resolve_call_arg_type_expression(ast_context, call_arg.value_expr); ok {
 			call_arg.symbol = symbol
 			call_arg.has_symbol = true
 			if _, ok := symbol.value.(SymbolPolyTypeValue); ok {
@@ -810,7 +812,7 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 				append(results, call_arg)
 				return true
 			} else if v, ok := symbol.value.(SymbolProcedureValue); ok {
-				if _, ok := value_expr.derived.(^ast.Call_Expr); ok {
+				if _, ok := call_arg.value_expr.derived.(^ast.Call_Expr); ok {
 					if len(v.return_types) == 0 {
 						return false
 					}
