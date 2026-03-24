@@ -575,7 +575,7 @@ resolve_generic_function_symbol :: proc(
 
 			if resolve_poly(ast_context, symbol_expr, symbol, param_type, &poly_map) {
 				if poly, ok := name.derived.(^ast.Poly_Type); ok {
-					poly_map[poly.type.name] = clone_expr(call_expr.args[i], ast_context.allocator, nil)
+					poly_map[poly.type.name] = clone_expr(call_args[i].value_expr, ast_context.allocator, nil)
 				}
 			}
 		}
