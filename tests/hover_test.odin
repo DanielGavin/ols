@@ -6554,3 +6554,33 @@ ast_hover_generic_proc_arg_proc_from_another_package :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.a: my_package.Foo")
 }
+
+@(test)
+ast_hover_generic_proc_slice_from_another_package_from_variable :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			bar :: proc() -> []int {}
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "my_package"
+
+		foo :: proc(a: $A) -> A {}
+
+		main :: proc() {
+			a := my_package.bar()
+			b{*} := foo(a)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.b: []int")
+}

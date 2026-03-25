@@ -38,6 +38,8 @@ resolve_poly :: proc(
 			if ident, ok := unwrap_ident(type); ok {
 				if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
+				} else if is_compound_symbol_value(call_symbol.value) {
+					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if .Anonymous in call_symbol.flags {
 					save_poly_map(ident, call_node, poly_map)
 				} else if call_symbol.name != "" {
@@ -73,6 +75,19 @@ resolve_poly :: proc(
 	}
 
 	return resolve_poly_specialization(ast_context, call_node, call_symbol, specialization, poly_map)
+}
+
+is_compound_symbol_value :: proc(value: SymbolValue) -> bool {
+	#partial switch v in value {
+	case SymbolSliceValue,
+	     SymbolFixedArrayValue,
+	     SymbolDynamicArrayValue,
+	     SymbolMapValue,
+	     SymbolMultiPointerValue,
+	     SymbolMatrixValue:
+		return true
+	}
+	return false
 }
 
 resolve_poly_specialization :: proc(
