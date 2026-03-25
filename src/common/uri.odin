@@ -67,6 +67,19 @@ create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 	return uri
 }
 
+uri_to_path :: proc(uri: string, allocator: mem.Allocator) -> string {
+	path := strings.trim_prefix(uri, "file://")
+	decoded, ok := decode_percent(path, allocator)
+	if ok {
+		path = decoded
+	}
+	when ODIN_OS == .Windows {
+		// file:///C:/foo -> /C:/foo after trim, strip leading /
+		path = strings.trim_prefix(path, "/")
+	}
+	return path
+}
+
 delete_uri :: proc(uri: Uri) {
 	if uri.uri != "" {
 		delete(uri.uri)

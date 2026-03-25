@@ -3,7 +3,6 @@ package server
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
-import "core:strings"
 
 import "src:common"
 
@@ -558,7 +557,7 @@ resolve_generic_function_symbol :: proc(
 			ast_context.current_package = ast_context.document_package
 
 			symbol := call_args[i].symbol
-			file := strings.trim_prefix(symbol.uri, "file://")
+			file := common.uri_to_path(symbol.uri, context.temp_allocator)
 
 			symbol_expr := symbol_to_expr(symbol, file, context.temp_allocator)
 
