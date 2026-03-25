@@ -319,9 +319,13 @@ resolve_references :: proc(
 	for fullpath in paths {
 		defer free_all(context.allocator)
 
+		fullpath := fullpath
+		when ODIN_OS == .Windows {
+			path := common.get_case_sensitive_path(fullpath, context.temp_allocator)
+			fullpath, _ = filepath.replace_path_separators(path, '/', context.allocator)
+		}
 		dir := filepath.dir(fullpath)
 		base := filepath.base(dir)
-		forward_dir, _ := filepath.replace_path_separators(dir, '/', context.allocator)
 
 		data, err := os.read_entire_file(fullpath, context.allocator)
 
