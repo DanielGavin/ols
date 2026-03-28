@@ -331,6 +331,18 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	remove_diagnostics(.Syntax, uri.uri)
 	check_unused_imports(document, config)
 
+	// Plugin analysis integration
+	if plugin_manager.initialized {
+		plugin_diagnostics := analyze_with_plugins(&plugin_manager, document, &document.ast)
+		for diag in plugin_diagnostics {
+			add_diagnostics(
+				.Syntax,
+				uri.uri,
+				diag,
+			)
+		}
+	}
+
 	if writer != nil && !config.disable_parser_errors {
 		document.diagnosed_errors = true
 

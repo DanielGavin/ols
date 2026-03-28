@@ -53,6 +53,9 @@ Checker :: struct {
 @(private = "file")
 checker: Checker
 
+// Global plugin manager instance
+plugin_manager: PluginManager
+
 queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
 	path := strings.clone(path, checker.allocator)
 	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config})
@@ -74,6 +77,10 @@ create_and_start_check_worker :: proc(writer: ^Writer) {
 		send      = check_send,
 	}
 	check_recv := chan.as_recv(check_chan)
+	
+	// Initialize plugin system
+	plugin_manager = create_plugin_manager(context.allocator)
+	
 	thread.create_and_start_with_poly_data(
 		Consumer{logger = context.logger, ch = check_recv, w = writer},
 		run_check_consumer,

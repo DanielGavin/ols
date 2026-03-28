@@ -63,6 +63,9 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	}
 
 	context.logger = logger^
+	
+	// Initialize plugin system
+	// Note: Plugin system is initialized in server package
 	server.create_and_start_check_worker(writer)
 	defer server.stop_check_worker()
 

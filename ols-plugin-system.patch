@@ -1,0 +1,62 @@
+diff --git a/src/main.odin b/src/main.odin
+index 7880655..f6cc893 100644
+--- a/src/main.odin
++++ b/src/main.odin
+@@ -63,6 +63,9 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
+ 	}
+ 
+ 	context.logger = logger^
++	
++	// Initialize plugin system
++	// Note: Plugin system is initialized in server package
+ 	server.create_and_start_check_worker(writer)
+ 	defer server.stop_check_worker()
+ 
+diff --git a/src/server/check.odin b/src/server/check.odin
+index 68f0948..ccc0dba 100644
+--- a/src/server/check.odin
++++ b/src/server/check.odin
+@@ -53,6 +53,9 @@ Checker :: struct {
+ @(private = "file")
+ checker: Checker
+ 
++// Global plugin manager instance
++plugin_manager: PluginManager
++
+ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
+ 	path := strings.clone(path, checker.allocator)
+ 	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config})
+@@ -74,6 +77,10 @@ create_and_start_check_worker :: proc(writer: ^Writer) {
+ 		send      = check_send,
+ 	}
+ 	check_recv := chan.as_recv(check_chan)
++	
++	// Initialize plugin system
++	plugin_manager = create_plugin_manager(context.allocator)
++	
+ 	thread.create_and_start_with_poly_data(
+ 		Consumer{logger = context.logger, ch = check_recv, w = writer},
+ 		run_check_consumer,
+diff --git a/src/server/documents.odin b/src/server/documents.odin
+index 2865892..58b21c5 100644
+--- a/src/server/documents.odin
++++ b/src/server/documents.odin
+@@ -331,6 +331,18 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
+ 	remove_diagnostics(.Syntax, uri.uri)
+ 	check_unused_imports(document, config)
+ 
++	// Plugin analysis integration
++	if plugin_manager.initialized {
++		plugin_diagnostics := analyze_with_plugins(&plugin_manager, document, &document.ast)
++		for diag in plugin_diagnostics {
++			add_diagnostics(
++				.Syntax,
++				uri.uri,
++				diag,
++			)
++		}
++	}
++
+ 	if writer != nil && !config.disable_parser_errors {
+ 		document.diagnosed_errors = true
+ 
