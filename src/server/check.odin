@@ -383,6 +383,9 @@ start_check_process :: proc(
 	for c in collections {
 		append(&cmd, c)
 	}
+	for k, v in config.profile.defines {
+		append(&cmd, fmt.tprintf("-define:%s=%s", k, v))
+	}
 	append(&cmd, entry_point_opt, "-json-errors")
 	args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
 	for arg in args {
