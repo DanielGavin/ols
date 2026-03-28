@@ -612,6 +612,8 @@ get_comp_lit_completion :: proc(
 					continue
 				}
 
+				if is_struct_field_hidden(name, symbol, ast_context, config) do continue
+				
 				set_ast_package_set_scoped(ast_context, symbol.pkg)
 
 				if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
@@ -893,9 +895,17 @@ get_selector_completion :: proc(
 				continue
 			}
 
-			if config.enable_private_struct_fields_underscore {
-				if strings.starts_with(name, "_") && ast_context.document_package != selector.pkg {
-					continue
+			if is_struct_field_hidden(name, selector, ast_context, config) do continue
+
+			if strings.starts_with(name, "_") {
+				switch config.struct_fields_underscore_visibility {
+					case .None: {}
+					case .Private_Package: {
+						if ast_context.document_package != selector.pkg do continue
+					}
+					case .Private_File: {
+						if ast_context.uri != selector.uri do continue
+					}
 				}
 			}
 
@@ -1175,6 +1185,7 @@ get_implicit_completion :: proc(
 									   field_exists_in_comp_lit(position_context.comp_lit, name) {
 										continue
 									}
+
 									item := create_enum_completion_item(position_context, enum_value, i, false)
 									append(results, CompletionResult{completion_item = item})
 								}
@@ -2463,7 +2474,19 @@ append_magic_union_completion :: proc(
 
 		append(items, CompletionResult{completion_item = item})
 	}
+}
 
+is_struct_field_hidden :: proc(name: string, selector: Symbol, ast_context: ^AstContext, config: ^common.Config) -> bool {
+	if strings.starts_with(name, "_") {
+		switch config.struct_fields_underscore_visibility {
+			case .None: {}
+			case .Private_Package: if ast_context.document_package != selector.pkg do return true
+			case .Private_File: if ast_context.uri != selector.uri do return true
+			
+		}
+	}
+
+	return false
 }
 
 bitset_operators: map[string]struct{} = {
