@@ -201,7 +201,7 @@ Install the package https://github.com/sublimelsp/LSP
 
 Configuration of the LSP:
 
-```json
+```jsonc
 {
 	"clients": {
 		"odin": {
@@ -405,7 +405,7 @@ Configure the plugin in micro's settings.json:
 First, make sure you have the LSP plugin enabled. Then, you can find LSP settings for Kate in Settings -> Configure Kate -> LSP Client -> User Server Settings.
 
 You may have to set the folders for your Odin home path directly, like in the following example:
-```json
+```jsonc
 {
     "servers": {
         "odin": {
