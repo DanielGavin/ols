@@ -70,7 +70,7 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 	for common.config.running {
 		if common.config.verbose {
 			//Currently letting verbose use error, since some ast prints causes crashes - most likely a bug in core:fmt.
-			logger^ = server.create_lsp_logger(writer, log.Level.Error)
+			logger^ = server.create_lsp_logger(writer, log.Level.Info)
 		} else {
 			logger^ = server.create_lsp_logger(writer, log.Level.Error)
 		}
