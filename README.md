@@ -113,7 +113,10 @@ Options:
 
 - `enable_code_action_invert_if`: Enables a code action to invert if statements.
 
-- `enable_private_struct_fields_underscore`: Hides struct fields that start with _ when accessing it from another package.
+- `struct_fields_underscore_visibility`: Controls visibility of struct fields starting with `_`:
+  - `""` (default): no hiding, all fields are visible
+  - `"file"`: hide fields when accessed from outside the declaring file 
+  - `"package"`: hide fields when accessed from outside the declaring package
 
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 

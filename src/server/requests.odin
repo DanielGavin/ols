@@ -377,8 +377,6 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_comp_lit_signature_help_use_docs.(bool) or_else config.enable_comp_lit_signature_help_use_docs
 	config.enable_code_action_invert_if =
 		ols_config.enable_code_action_invert_if.(bool) or_else config.enable_code_action_invert_if
-	config.enable_private_struct_fields_underscore =
-		ols_config.enable_private_struct_fields_underscore.(bool) or_else config.enable_private_struct_fields_underscore
 	config.verbose = ols_config.verbose.(bool) or_else config.verbose
 	config.file_log = ols_config.file_log.(bool) or_else config.file_log
 
@@ -426,6 +424,12 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			packages[full_path] = {}
 		}
 		config.checker_skip_packages = packages
+	}
+
+	if ols_config.struct_fields_underscore_visibility == "file" {
+		config.struct_fields_underscore_visibility = .Private_File
+	} else if ols_config.struct_fields_underscore_visibility == "package" {
+		config.struct_fields_underscore_visibility = .Private_Package
 	}
 
 	for profile in ols_config.profiles {

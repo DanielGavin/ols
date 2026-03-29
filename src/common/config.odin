@@ -9,6 +9,12 @@ ConfigProfile :: struct {
 	exclude_path: [dynamic]string,
 }
 
+StructFieldUnderscoreMeaning :: enum {
+	None,
+	Private_File,
+	Private_Package
+}
+
 Config :: struct {
 	workspace_folders:                       [dynamic]WorkspaceFolder,
 	completion_support_md:                   bool,
@@ -43,7 +49,7 @@ Config :: struct {
 	enable_comp_lit_signature_help:          bool,
 	enable_comp_lit_signature_help_use_docs: bool,
 	enable_code_action_invert_if:            bool,
-	enable_private_struct_fields_underscore: bool,
+	struct_fields_underscore_visibility:	 StructFieldUnderscoreMeaning,
 	disable_parser_errors:                   bool,
 	thread_count:                            int,
 	file_log:                                bool,
