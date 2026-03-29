@@ -897,18 +897,6 @@ get_selector_completion :: proc(
 
 			if is_struct_field_hidden(name, selector, ast_context, config) do continue
 
-			if strings.starts_with(name, "_") {
-				switch config.struct_fields_underscore_visibility {
-					case .None: {}
-					case .Private_Package: {
-						if ast_context.document_package != selector.pkg do continue
-					}
-					case .Private_File: {
-						if ast_context.uri != selector.uri do continue
-					}
-				}
-			}
-
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
 				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
 					if expr.op.kind == .Arrow_Right {
