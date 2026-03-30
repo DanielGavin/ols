@@ -1,9 +1,7 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
-import "src:server"
 import test "src:testing"
 
 @(test)
@@ -164,5 +162,40 @@ semantic_tokens_enum_member_default_param :: proc(t: ^testing.T) {
 		{0, 12, 3, .Parameter,  {}},          // [4]  foo
 		{0, 5,  3, .Enum,       {.ReadOnly}}, // [5]  Foo
 		{0, 7,  1, .EnumMember, {}},          // [6]  A
+	})
+}
+
+@(test)
+semantic_tokens_type_parameter :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: struct($A: typeid) {
+			bar: A,
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Struct,        {.ReadOnly}}, // [0]  Foo
+		{0, 15, 1, .TypeParameter, {}},          // [1]  A
+		{1, 3,  3, .Property,      {}},          // [2]  bar
+	})
+}
+
+@(test)
+semantic_tokens_poly_proc :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		foo :: proc(a: $A) -> A {
+			return a
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Function,      {.ReadOnly}}, // [0]  foo
+		{0, 12, 1, .Parameter,     {}},          // [1]  a
+		{0, 4,  1, .TypeParameter, {}},          // [2]  A
+		{1, 10, 1, .Parameter,     {}},          // [3]  a
 	})
 }
