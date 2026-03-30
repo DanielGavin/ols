@@ -153,6 +153,27 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 	get_locals_stmt(data.ast_context.file, stmt, data.ast_context, data.position_context)
 }
 
+@(deferred_in = local_scope_poly_deferred)
+@(private = "file")
+local_scope_poly :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List) {
+	if poly_params == nil {
+		return
+	}
+
+	add_local_group(data.ast_context)
+
+	get_locals_poly(data.ast_context.file, poly_params, data.ast_context)
+}
+
+@(private = "file")
+local_scope_poly_deferred :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List) {
+	if poly_params == nil {
+		return
+	}
+
+	pop_local_group(data.ast_context)
+}
+
 @(private = "file")
 resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
@@ -518,6 +539,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		for clause in n.where_clauses {
 			resolve_node(clause, data)
 		}
+		local_scope_poly(data, n.poly_params)
 		resolve_node(n.fields, data)
 
 		if data.flag != .None {
@@ -540,6 +562,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		data.position_context.union_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
+		local_scope_poly(data, n.poly_params)
 		resolve_nodes(n.variants, data)
 	case ^ast.Enum_Type:
 		data.position_context.enum_type = n

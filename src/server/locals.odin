@@ -1160,6 +1160,29 @@ get_locals_proc_param_and_results :: proc(
 	}
 }
 
+get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^AstContext) {
+	for param in params.list {
+		for name in param.names {
+			if poly, ok := name.derived.(^ast.Poly_Type); ok {
+				str := get_ast_node_string(poly.type, file.src)
+				store_local(
+					ast_context,
+					name,
+					param.type,
+					name.pos.offset,
+					str,
+					false,
+					false,
+					{.PolyType},
+					"",
+					false,
+				)
+			}
+		}
+	}
+}
+
+
 get_locals :: proc(
 	file: ast.File,
 	function: ^ast.Node,

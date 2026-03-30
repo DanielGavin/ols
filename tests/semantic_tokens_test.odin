@@ -179,6 +179,7 @@ semantic_tokens_type_parameter :: proc(t: ^testing.T) {
 		{1, 2,  3, .Struct,        {.ReadOnly}}, // [0]  Foo
 		{0, 15, 1, .TypeParameter, {}},          // [1]  A
 		{1, 3,  3, .Property,      {}},          // [2]  bar
+		{0, 5,  1, .TypeParameter, {.ReadOnly}}, // [3]  A
 	})
 }
 

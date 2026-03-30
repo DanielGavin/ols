@@ -561,6 +561,11 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
+	if .PolyType in symbol.flags {
+		write_semantic_node(builder, ident, .TypeParameter, modifiers)
+		return
+	}
+
 	if .Variable in symbol.flags {
 		write_semantic_node(builder, ident, .Variable, modifiers)
 		return
