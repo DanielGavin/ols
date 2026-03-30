@@ -30,6 +30,7 @@ SemanticTokenTypes :: enum u32 {
 	Operator,
 	Property,
 	Method,
+	TypeParameter,
 }
 // Need to be in the same order as SemanticTokenTypes
 semantic_token_type_names: []string = {
@@ -50,6 +51,7 @@ semantic_token_type_names: []string = {
 	"operator",
 	"property",
 	"method",
+	"typeParameter",
 }
 
 SemanticTokenModifier :: enum u8 {
@@ -243,7 +245,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.row_index, builder)
 		visit_node(n.column_index, builder)
 	case ^ast.Poly_Type:
-		visit_node(n.type, builder)
+		write_semantic_node(builder, n.type, .TypeParameter)
 		visit_node(n.specialization, builder)
 	case ^ast.Range_Stmt:
 		for val in n.vals {
@@ -302,6 +304,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.type, builder)
 		visit_nodes(n.elems, builder)
 	case ^ast.Struct_Type:
+		visit_poly_params(n.poly_params, builder)
 		visit_struct_fields(n^, builder)
 	case ^ast.Type_Assertion:
 		visit_node(n.expr, builder)
@@ -370,6 +373,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.cond, builder)
 		visit_node(n.y, builder)
 	case ^ast.Union_Type:
+		visit_poly_params(n.poly_params, builder)
 		visit_nodes(n.variants, builder)
 	case ^ast.Enum_Type:
 		visit_enum_fields(n^, builder)
@@ -465,6 +469,21 @@ visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilde
 	}
 }
 
+visit_poly_params :: proc(params: ^ast.Field_List, builder: ^SemanticTokenBuilder) {
+	if params == nil {
+		return
+	}
+
+	for param in params.list {
+		for name in param.names {
+			if poly, ok := name.derived.(^ast.Poly_Type); ok {
+				write_semantic_node(builder, poly.type, .TypeParameter)
+			}
+		}
+		visit_node(param.type, builder)
+	}
+}
+
 visit_bit_field_fields :: proc(node: ast.Bit_Field_Type, builder: ^SemanticTokenBuilder) {
 	if node.fields == nil {
 		return
@@ -542,6 +561,11 @@ visit_ident :: proc(
 		modifiers += {.ReadOnly}
 	}
 
+	if .PolyType in symbol.flags {
+		write_semantic_node(builder, ident, .TypeParameter, modifiers)
+		return
+	}
+
 	if .Variable in symbol.flags {
 		write_semantic_node(builder, ident, .Variable, modifiers)
 		return
@@ -573,6 +597,8 @@ visit_ident :: proc(
 			write_semantic_node(builder, ident, .Struct, modifiers)
 		case SymbolEnumValue, SymbolUnionValue:
 			write_semantic_node(builder, ident, .Enum, modifiers)
+		case SymbolPolyTypeValue:
+			write_semantic_node(builder, ident, .TypeParameter, modifiers)
 		case SymbolProcedureValue,
 		     SymbolMatrixValue,
 		     SymbolBitSetValue,
@@ -581,8 +607,7 @@ visit_ident :: proc(
 		     SymbolSliceValue,
 		     SymbolMapValue,
 		     SymbolMultiPointerValue,
-		     SymbolBasicValue,
-		     SymbolPolyTypeValue:
+		     SymbolBasicValue:
 			write_semantic_node(builder, ident, .Type, modifiers)
 		case SymbolUntypedValue:
 		// handled by static syntax highlighting
