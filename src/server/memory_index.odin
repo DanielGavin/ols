@@ -69,14 +69,15 @@ memory_index_fuzzy_search :: proc(
 	for field in fields {
 		append(&matchers, common.make_fuzzy_matcher(field))
 	}
+	current_pkg := get_package_from_filepath(current_file)
+	current_file_uri := common.create_uri(current_file, context.temp_allocator).uri
 
 	top := 100
-	current_pkg := get_package_from_filepath(current_file)
 
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg.symbols {
-				if should_skip_private_symbol(symbol, current_pkg, current_file) {
+				if should_skip_private_symbol(symbol, current_pkg, current_file_uri) {
 					continue
 				}
 				if resolve_fields {

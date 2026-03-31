@@ -125,7 +125,7 @@ collect_methods :: proc(
 		}
 
 		for &symbol in symbols {
-			if should_skip_private_symbol(symbol, ast_context.current_package, ast_context.fullpath) {
+			if should_skip_private_symbol(symbol, ast_context.current_package, ast_context.uri) {
 				continue
 			}
 			resolve_unresolved_symbol(ast_context, &symbol)
