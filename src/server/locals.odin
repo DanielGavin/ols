@@ -1126,6 +1126,9 @@ get_locals_proc_param_and_results :: proc(
 	if proc_lit.type != nil && proc_lit.type.results != nil {
 		for result in proc_lit.type.results.list {
 			for name in result.names {
+				if ident, ok := name.derived.(^ast.Ident); ok && ident.name == "_" {
+					continue
+				}
 				if result.type != nil {
 					str := get_ast_node_string(name, file.src)
 					store_local(
