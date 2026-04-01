@@ -6584,3 +6584,18 @@ ast_hover_generic_proc_slice_from_another_package_from_variable :: proc(t: ^test
 
 	test.expect_hover(t, &source, "test.b: []int")
 }
+
+@(test)
+ast_hover_proc_return_field_shadowing :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		b: int
+
+		foo :: proc() -> (bool){
+			b{*}
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.b: int")
+}
