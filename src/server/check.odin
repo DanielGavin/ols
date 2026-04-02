@@ -100,10 +100,10 @@ run_check_consumer :: proc(c: Consumer) {
 		}
 		check(request.check_mode, paths[:], request.config)
 		push_diagnostics(c.w)
-		free_all(context.temp_allocator)
 		for path in paths {
 			delete(path, checker.allocator)
 		}
+		free_all(context.temp_allocator)
 	}
 	free_all(context.temp_allocator)
 }
