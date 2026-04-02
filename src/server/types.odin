@@ -287,7 +287,7 @@ Diagnostic :: struct {
 	severity: DiagnosticSeverity,
 	code:     string,
 	message:  string,
-	tags:     [1]DiagnosticTag,
+	tags:     []DiagnosticTag,
 }
 
 DidOpenTextDocumentParams :: struct {
