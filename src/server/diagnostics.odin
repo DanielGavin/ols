@@ -4,7 +4,6 @@ import "core:log"
 import "core:slice"
 import "core:strings"
 import "core:sync"
-import "src:common"
 
 DiagnosticType :: enum {
 	Syntax,
@@ -116,22 +115,19 @@ push_diagnostics :: proc(writer: ^Writer) {
 	merged_diagnostics := get_merged_diagnostics()
 
 	for k, v in merged_diagnostics {
-		//Find the unique diagnostics, since some poor profile settings make the checker check the same file multiple times
-		unique := slice.unique(v[:])
-
 		params := NotificationPublishDiagnosticsParams {
 			uri         = k,
-			diagnostics = unique,
+			diagnostics = v[:],
 		}
 
-		notifaction := Notification {
+		notification := Notification {
 			jsonrpc = "2.0",
 			method  = "textDocument/publishDiagnostics",
 			params  = params,
 		}
 
 		if writer != nil {
-			send_notification(notifaction, writer)
+			send_notification(notification, writer)
 		}
 	}
 
