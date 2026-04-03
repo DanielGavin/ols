@@ -32,6 +32,9 @@ remove_diagnostics_locked :: proc(type: DiagnosticType, uri: string) {
 	for diagnostic in diagnostic_array {
 		delete(diagnostic.message)
 		delete(diagnostic.code)
+		if diagnostic.tags != nil {
+			delete(diagnostic.tags)
+		}
 	}
 
 	clear(diagnostic_array)
@@ -59,6 +62,9 @@ add_diagnostics :: proc(type: DiagnosticType, uri: string, diagnostic: Diagnosti
 
 	diagnostic.message = strings.clone(diagnostic.message)
 	diagnostic.code = strings.clone(diagnostic.code)
+	if diagnostic.tags != nil {
+		diagnostic.tags = slice.clone(diagnostic.tags)
+	}
 
 	append(diagnostic_array, diagnostic)
 }
