@@ -2928,10 +2928,10 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 	case SymbolPackageValue:
 		if pkg, ok := indexer.index.collection.packages[symbol.pkg]; ok {
 			if symbol.doc == "" {
-				symbol.doc = strings.to_string(pkg.doc)
+				symbol.doc = construct_package_docs(pkg.doc, context.temp_allocator)
 			}
 			if symbol.comment == "" {
-				symbol.comment = strings.to_string(pkg.comment)
+				symbol.comment = construct_package_docs(pkg.comment, context.temp_allocator)
 			}
 		}
 		return symbol, true

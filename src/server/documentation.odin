@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "core:slice"
 import "core:fmt"
 import "core:odin/ast"
 import path "core:path/slashpath"
@@ -938,6 +939,30 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 		write_poly_list(sb, v.poly, v.poly_names)
 	}
 	return true
+}
+
+construct_package_docs :: proc(pkg_docs: map[string]string, allocator := context.temp_allocator) -> string {
+	// Just to ensure the docs order is consistent
+	files := make([dynamic]string, 0, len(pkg_docs), context.temp_allocator)
+	for k in pkg_docs {
+		append(&files, k)
+	}
+	slice.sort(files[:])
+
+	sb := strings.builder_make(allocator)
+	for k in files {
+		doc := pkg_docs[k]
+		if doc == "" {
+			continue
+		}
+		if strings.builder_len(sb) > 0 {
+			fmt.sbprintf(&sb, "\n%s", doc)
+		} else {
+			strings.write_string(&sb, doc)
+		}
+	}
+
+	return strings.to_string(sb)
 }
 
 // Docs taken from https://pkg.odin-lang.org/base/builtin
