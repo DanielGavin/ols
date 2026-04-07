@@ -944,7 +944,7 @@ visit_stmt :: proc(
 	case ^ast.Using_Stmt:
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^ast.Block_Stmt:
-		uses_do := v.uses_do
+		uses_do := v.uses_do && !p.config.convert_do
 		is_single_line := v.open.line == v.end.line
 
 		if v.label != nil {
@@ -1027,13 +1027,15 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-			if p.config.brace_style == .Allman || p.config.brace_style == .Stroustrup || block_uses_do(v.body) {
+			if p.config.brace_style == .Allman ||
+			   p.config.brace_style == .Stroustrup ||
+			   (!p.config.convert_do && block_uses_do(v.body)) {
 				document = cons(document, newline(1))
 			}
 
 			set_source_position(p, v.else_stmt.pos)
 
-			if block_uses_do(v.body) {
+			if !p.config.convert_do && block_uses_do(v.body) {
 				document = cons(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			} else {
 				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
@@ -1041,7 +1043,9 @@ visit_stmt :: proc(
 
 
 		}
-		document = enforce_fit_if_do(v.body, document)
+		if !p.config.convert_do {
+			document = enforce_fit_if_do(v.body, document)
+		}
 	case ^ast.Switch_Stmt:
 		if v.partial {
 			document = cons(document, text("#partial"), break_with_no_newline())
@@ -1163,7 +1167,9 @@ visit_stmt :: proc(
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		document = enforce_fit_if_do(v.body, document)
+		if !p.config.convert_do {
+			document = enforce_fit_if_do(v.body, document)
+		}
 	case ^ast.Inline_Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
@@ -1186,7 +1192,9 @@ visit_stmt :: proc(
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		document = enforce_fit_if_do(v.body, document)
+		if !p.config.convert_do {
+			document = enforce_fit_if_do(v.body, document)
+		}
 	case ^ast.Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
@@ -1220,7 +1228,9 @@ visit_stmt :: proc(
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
 		set_source_position(p, v.body.end)
 
-		document = enforce_fit_if_do(v.body, document)
+		if !p.config.convert_do {
+			document = enforce_fit_if_do(v.body, document)
+		}
 	case ^ast.Return_Stmt:
 		if v.results == nil {
 			document = cons(document, text("return"))
@@ -1739,8 +1749,10 @@ visit_expr :: proc(
 		contains_comments := contains_comments_in_range(p, v.open, v.close)
 		contains_do := false
 
-		for arg in v.args {
-			contains_do |= contains_do_in_expression(p, arg)
+		if !p.config.convert_do {
+			for arg in v.args {
+				contains_do |= contains_do_in_expression(p, arg)
+			}
 		}
 
 		if is_call_expr_nestable(v.args) {
