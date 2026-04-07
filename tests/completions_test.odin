@@ -5729,3 +5729,27 @@ ast_for_range_init_custom_iterator :: proc(t: ^testing.T) {
 
     test.expect_completion_docs(t, &source, ".", {"My_Item.value: int"})
 }
+
+@(test)
+ast_completion_overload_proc_enum :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum { A, B, C }
+
+		bar1 :: proc(a: int) {}
+		bar2 :: proc(a: int, foo: Foo) {}
+
+		bar :: proc {
+			bar1,
+			bar2,
+		}
+
+		main :: proc() {
+			bar(1, .{*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
+}
