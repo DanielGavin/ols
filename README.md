@@ -274,6 +274,8 @@ require'lspconfig'.ols.setup {
 }
 ```
 
+* use an explicit `cmd` for `ols` when using a custom build
+
 Neovim can run Odinfmt on save using the [conform](https://github.com/stevearc/conform.nvim) plugin. Here is a sample configuration using the [lazy.nvim](https://github.com/folke/lazy.nvim) package manager:
 
 ```lua
@@ -300,6 +302,33 @@ local M = {
 return M
 ```
 
+#### LazyVim + Mason
+
+If you use LazyVim with Mason, `cmd = { "ols" }` may resolve to Mason's shim instead of your custom `ols` binary. OLS already documents editor-provided configuration and `odin_command`, so when using a custom OLS build it is safer to disable Mason only for OLS and set explicit paths.
+
+```lua
+return {
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
+        ols = {
+          mason = false,
+          cmd = { "/path/to/ols" },
+          settings = {
+            odin_command = "/path/to/odin",
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+Notes:
+
+* put `ols` inside `opts.servers`
+* keep Mason enabled for other language servers if you want
 ### Emacs
 
 For Emacs, there are two packages available for LSP; lsp-mode and eglot.
