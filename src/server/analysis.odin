@@ -802,6 +802,9 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 			call_arg.implicit_selector = implicit
 			append(results, call_arg)
 			return true
+		} else if comp_lit, ok := call_arg.value_expr.derived.(^ast.Comp_Lit); ok && comp_lit.type == nil {
+			append(results, call_arg)
+			return true
 		}
 
 		if symbol, ok := resolve_call_arg_type_expression(ast_context, call_arg.value_expr); ok {
@@ -952,6 +955,10 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							continue
 						}
 
+						if !call_arg.has_symbol && call_arg.implicit_selector == nil && !call_arg.is_nil {
+							continue
+						}
+
 						proc_arg := proc_arg
 
 						if call_arg.named {
@@ -978,6 +985,9 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 						}
 
 						if call_arg.implicit_selector != nil {
+							if call_arg.implicit_selector.field.name == "_" {
+								continue
+							}
 							if value, ok := arg_symbol.value.(SymbolEnumValue); ok {
 								found: bool
 								for name in value.names {

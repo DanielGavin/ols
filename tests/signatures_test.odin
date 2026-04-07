@@ -750,6 +750,34 @@ signature_multiple_empty_params :: proc(t: ^testing.T) {
 		expected_active_parameter = 4,
 	)
 }
+
+@(test)
+signature_proc_overload :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum { A, B, C }
+
+		bar1 :: proc(i: int) {}
+		bar2 :: proc(i: int, foo: Foo) {}
+		bar :: proc {
+			bar1,
+			bar2,
+		}
+
+		main :: proc() {
+			bar(1, .{*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.bar2 :: proc(i: int, foo: Foo)"},
+		expected_active_parameter = 1,
+	)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {

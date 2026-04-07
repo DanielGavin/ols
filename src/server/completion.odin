@@ -1371,8 +1371,11 @@ get_implicit_completion :: proc(
 			parameter_index, parameter_ok := find_position_in_call_param(position_context, call^)
 			old := ast_context.resolve_specific_overload
 			ast_context.resolve_specific_overload = true
+			old_call := ast_context.call
+			ast_context.call = call
 			defer {
 				ast_context.resolve_specific_overload = old
+				ast_context.call = old_call
 			}
 			if symbol, ok := resolve_type_expression(ast_context, call.expr); ok && parameter_ok {
 				set_ast_package_set_scoped(ast_context, symbol.pkg)
@@ -1422,6 +1425,19 @@ get_implicit_completion :: proc(
 							append(results, CompletionResult{completion_item = item})
 						}
 						return is_incomplete
+					}
+					if bitset_symbol, ok := resolve_type_expression(ast_context, type); ok {
+						if value, ok := unwrap_bitset(ast_context, bitset_symbol); ok {
+							for name, i in value.names {
+								if position_context.comp_lit != nil &&
+								   field_exists_in_comp_lit(position_context.comp_lit, name) {
+									continue
+								}
+								item := create_enum_completion_item(position_context, value, i, false)
+								append(results, CompletionResult{completion_item = item})
+							}
+							return is_incomplete
+						}
 					}
 				case SymbolEnumValue:
 					for i in 0 ..< len(v.names) {
