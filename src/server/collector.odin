@@ -1,6 +1,5 @@
 package server
 
-import "core:fmt"
 import "core:mem"
 import "core:odin/ast"
 import "core:path/filepath"
@@ -38,8 +37,8 @@ SymbolPackage :: struct {
 	methods:            map[Method][dynamic]Symbol,
 	imports:            [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
 	proc_group_members: map[string]bool, // Tracks procedure names that are part of proc groups (used by fake methods)
-	doc:                strings.Builder,
-	comment:            strings.Builder,
+	doc:                map[string]string, // Tracks package doc strings in the file, indexed by the file uri
+	comment:            map[string]string, // Tracks package comments in the file, indexed by file uri
 }
 
 get_index_unique_string :: proc {
@@ -493,8 +492,8 @@ get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -
 		pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
 		pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
 		pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
-		pkg.doc = strings.builder_make(collection.allocator)
-		pkg.comment = strings.builder_make(collection.allocator)
+		pkg.doc = make(map[string]string, collection.allocator)
+		pkg.comment = make(map[string]string, collection.allocator)
 	}
 	return pkg
 }
@@ -713,17 +712,6 @@ get_package_decl_doc_comment :: proc(file: ast.File, allocator := context.temp_a
 	return "", ""
 }
 
-@(private = "file")
-write_doc_string :: proc(sb: ^strings.Builder, doc: string) {
-	if doc != "" {
-		if strings.builder_len(sb^) > 0 {
-			fmt.sbprintf(sb, "\n%s", doc)
-		} else {
-			strings.write_string(sb, doc)
-		}
-	}
-}
-
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
 	forward, _ := filepath.replace_path_separators(file.fullpath, '/', context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
@@ -733,8 +721,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	file_pkg_name := get_symbol_package_name(collection, directory, uri)
 	file_pkg := get_or_create_package(collection, file_pkg_name)
 	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
-	write_doc_string(&file_pkg.doc, doc)
-	write_doc_string(&file_pkg.comment, comment)
+	
+	u := strings.clone(uri, collection.allocator)
+	file_pkg.doc[u] = doc
+	file_pkg.comment[u] = comment
 
 	for expr in exprs {
 		symbol: Symbol

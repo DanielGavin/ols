@@ -284,6 +284,8 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 				}
 			}
 		}
+		delete_key(&v.doc, corrected_uri.uri)
+		delete_key(&v.comment, corrected_uri.uri)
 	}
 
 	return .None
