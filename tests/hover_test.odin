@@ -6599,3 +6599,40 @@ ast_hover_proc_return_field_shadowing :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.b: int")
 }
+
+@(test)
+ast_hover_generic_proc_type_propagated_through_packages :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg1",
+			source = `package pkg1
+			Foo :: struct{}
+		`,
+		},
+		test.Package {
+			pkg = "pkg2",
+			source = `package pkg2
+			import "pkg1"
+			Bar :: pkg1.Foo
+			`,
+		}
+	)
+	source := test.Source {
+		main     = `package test
+		import "pkg2"
+
+		foo :: proc(a: $A) -> A {}
+
+		main :: proc() {
+			bar: pkg2.Bar
+			x{*} := foo(bar)
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "test.x: pkg2.Bar")
+}
