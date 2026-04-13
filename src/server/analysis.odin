@@ -3035,7 +3035,6 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 			symbol.type = ret.type
 			symbol.signature = ret.signature
 			symbol.value = ret.value
-			symbol.pkg = ret.pkg
 			symbol.flags |= ret.flags
 			if symbol.doc == "" {
 				symbol.doc = ret.doc

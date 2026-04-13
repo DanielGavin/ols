@@ -864,7 +864,9 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 		type.value = v.value
 		return type
 	case SymbolBasicValue:
-		return v.ident
+		ident := new_type(ast.Ident, pos, end, allocator)
+		ident.name = v.ident.name
+		return ident
 	case SymbolSliceValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
