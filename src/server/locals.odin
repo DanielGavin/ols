@@ -288,8 +288,13 @@ get_generic_assignment :: proc(
 		}
 	case ^ast.Unary_Expr:
 		append(results, value)
-		if n, ok := v.expr.derived.(^ast.Type_Assertion); ok {
+
+		#partial switch n in v.expr.derived {
+		case ^ast.Type_Assertion:
 			b := make_bool_ast(ast_context, n.type.pos, n.type.end)
+			append(results, b)
+		case ^ast.Index_Expr:
+			b := make_bool_ast(ast_context, n.expr.pos, n.expr.end)
 			append(results, b)
 		}
 	case ^ast.Ternary_If_Expr:
@@ -1168,18 +1173,7 @@ get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^A
 		for name in param.names {
 			if poly, ok := name.derived.(^ast.Poly_Type); ok {
 				str := get_ast_node_string(poly.type, file.src)
-				store_local(
-					ast_context,
-					name,
-					param.type,
-					name.pos.offset,
-					str,
-					false,
-					false,
-					{.PolyType},
-					"",
-					false,
-				)
+				store_local(ast_context, name, param.type, name.pos.offset, str, false, false, {.PolyType}, "", false)
 			}
 		}
 	}
