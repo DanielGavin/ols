@@ -1660,7 +1660,7 @@ visit_expr :: proc(
 				document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
 			}
 		} else if v.fields != nil {
-			document = cons(document, break_with_space(), visit_begin_brace(p, v.pos, .Generic))
+			document = cons(document, break_with_no_newline(), visit_begin_brace(p, v.pos, .Generic))
 
 			set_source_position(p, v.fields.pos)
 			document = cons(
