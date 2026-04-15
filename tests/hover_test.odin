@@ -6636,3 +6636,17 @@ ast_hover_generic_proc_type_propagated_through_packages :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.x: pkg2.Bar")
 }
+
+@(test)
+ast_hover_map_value_by_reference_ok :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			foo: map[string]int
+			_, o{*}k := &foo["test"]
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.ok: bool")
+}
