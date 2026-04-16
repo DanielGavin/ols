@@ -2236,7 +2236,7 @@ visit_proc_type :: proc(
 			document = cons_with_nopl(document, text("("))
 			document = cons(
 				document,
-				nest(cons(break_with(""), visit_signature_list(p, proc_type.results, contains_body, true))),
+				nest(cons(break_with(""), visit_signature_list(p, proc_type.results, true, true))),
 			)
 			document = cons(document, break_with(""), text(")"))
 		} else {
