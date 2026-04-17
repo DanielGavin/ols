@@ -165,7 +165,7 @@ document_setup :: proc(document: ^Document) {
 	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
 		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.replace_path_separators(
+		forward, _ := filepath.replace_separators(
 			common.get_case_sensitive_path(package_name),
 			'/',
 			context.temp_allocator,
@@ -184,9 +184,9 @@ document_setup :: proc(document: ^Document) {
 		fullpath: string
 		if correct == "" {
 			//This is basically here to handle the tests where the physical file doesn't actual exist.
-			document.fullpath, _ = filepath.replace_path_separators(document.uri.path, '/', context.allocator)
+			document.fullpath, _ = filepath.replace_separators(document.uri.path, '/', context.allocator)
 		} else {
-			document.fullpath, _ = filepath.replace_path_separators(correct, '/', context.allocator)
+			document.fullpath, _ = filepath.replace_separators(correct, '/', context.allocator)
 		}
 	} else {
 		document.fullpath = document.uri.path
@@ -404,7 +404,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	parse_imports(document, config)
 
-	folder := filepath.dir(document.fullpath, context.temp_allocator)
+	folder := filepath.dir(document.fullpath)
 	if strings.equal_fold(folder, config.builtin_path) {
 		return nil, true
 	}
