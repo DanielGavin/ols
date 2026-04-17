@@ -32,7 +32,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
-					dir, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
+					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
 					dir_name := filepath.base(dir)
 					found := false
 					for blacklist in dir_blacklist {
@@ -56,7 +56,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 				}
 
 				for exclude_path in common.config.profile.exclude_path {
-					exclude_forward, _ := filepath.replace_path_separators(exclude_path, '/', context.temp_allocator)
+					exclude_forward, _ := filepath.replace_separators(exclude_path, '/', context.temp_allocator)
 
 					if exclude_forward[len(exclude_forward) - 2:] == "**" {
 						lower_pkg := strings.to_lower(pkg)

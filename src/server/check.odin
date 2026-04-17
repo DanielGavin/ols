@@ -320,7 +320,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 
 			when ODIN_OS == .Windows {
 				path = common.get_case_sensitive_path(path, context.temp_allocator)
-				path, _ = filepath.replace_path_separators(path, '/', context.temp_allocator)
+				path, _ = filepath.replace_separators(path, '/', context.temp_allocator)
 			}
 
 			key := DiagnosticKey {

@@ -88,7 +88,7 @@ setup :: proc(src: ^Source) {
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
+		dir := filepath.base(filepath.dir(fullpath))
 
 		pkg := new(ast.Package, context.temp_allocator)
 		pkg.kind = .Normal

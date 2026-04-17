@@ -27,7 +27,7 @@ get_complete_format :: proc(document: ^Document, config: ^common.Config) -> ([]T
 		return {}, true
 	}
 
-	style := format.find_config_file_or_default(filepath.dir(document.fullpath, context.temp_allocator))
+	style := format.find_config_file_or_default(filepath.dir(document.fullpath))
 	prnt := printer.make_printer(style, context.temp_allocator)
 
 	src := printer.print(&prnt, &document.ast)

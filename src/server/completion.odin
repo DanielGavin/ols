@@ -1832,7 +1832,7 @@ get_package_completion :: proc(
 			absolute_path, _ = filepath.join(
 				elems = {
 					config.collections[c],
-					filepath.dir(without_quotes[colon_index + 1:], context.temp_allocator),
+					filepath.dir(without_quotes[colon_index + 1:]),
 				},
 				allocator = context.temp_allocator,
 			)
@@ -1840,8 +1840,8 @@ get_package_completion :: proc(
 			absolute_path = config.collections[c]
 		}
 	} else {
-		import_file_dir := filepath.dir(position_context.import_stmt.pos.file, context.temp_allocator)
-		import_dir := filepath.dir(without_quotes, context.temp_allocator)
+		import_file_dir := filepath.dir(position_context.import_stmt.pos.file)
+		import_dir := filepath.dir(without_quotes)
 		absolute_path, _ = filepath.join(elems = {import_file_dir, import_dir}, allocator = context.temp_allocator)
 	}
 

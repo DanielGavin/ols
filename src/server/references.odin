@@ -294,7 +294,7 @@ resolve_references :: proc(
 				}
 
 				if strings.has_suffix(info.name, ".odin") {
-					slash_path, _ := filepath.replace_path_separators(info.fullpath, '/', context.temp_allocator)
+					slash_path, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
 					if !strings.equal_fold(slash_path, document.fullpath) {
 						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
 					}
@@ -322,7 +322,7 @@ resolve_references :: proc(
 		fullpath := fullpath
 		when ODIN_OS == .Windows {
 			path := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-			fullpath, _ = filepath.replace_path_separators(path, '/', context.allocator)
+			fullpath, _ = filepath.replace_separators(path, '/', context.allocator)
 		}
 		dir := filepath.dir(fullpath)
 		base := filepath.base(dir)

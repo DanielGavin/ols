@@ -24,7 +24,7 @@ read_config_file_or_default :: proc(fullpath: string, allocator := context.alloc
 	default_style.character_width = 80
 	default_style.newline_style = .LF //We want to make sure it works on linux and windows.
 
-	dirpath := filepath.dir(fullpath, allocator)
+	dirpath := filepath.dir(fullpath)
 	configpath := fmt.tprintf("%v/odinfmt.json", dirpath)
 
 	if (os.exists(configpath)) {
@@ -69,7 +69,7 @@ snapshot_file :: proc(path: string) -> bool {
 
 
 	snapshot_path, _ := filepath.join(
-		elems = {filepath.dir(path, context.temp_allocator), "/.snapshots", filepath.base(path)},
+		elems = {filepath.dir(path), "/.snapshots", filepath.base(path)},
 		allocator = context.temp_allocator,
 	)
 
@@ -116,7 +116,7 @@ snapshot_file :: proc(path: string) -> bool {
 			return false
 		}
 	} else {
-		os.make_directory(filepath.dir(snapshot_path, context.temp_allocator))
+		os.make_directory(filepath.dir(snapshot_path))
 		if err := os.write_entire_file(snapshot_path, transmute([]byte)formatted); err != nil {
 			fmt.eprintf("Failed to write snapshot file %v: %v", snapshot_path, err)
 			return false

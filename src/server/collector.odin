@@ -695,7 +695,7 @@ get_symbol_package_name :: proc(
 			elems = {common.config.collections["base"], "/intrinsics"},
 			allocator = context.temp_allocator,
 		)
-		intrinsics_path, _ = filepath.replace_path_separators(intrinsics_path, '/', context.temp_allocator)
+		intrinsics_path, _ = filepath.replace_separators(intrinsics_path, '/', context.temp_allocator)
 		return get_index_unique_string(collection, intrinsics_path)
 	}
 
@@ -713,7 +713,7 @@ get_package_decl_doc_comment :: proc(file: ast.File, allocator := context.temp_a
 }
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
-	forward, _ := filepath.replace_path_separators(file.fullpath, '/', context.temp_allocator)
+	forward, _ := filepath.replace_separators(file.fullpath, '/', context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 	exprs := collect_globals(file)

@@ -134,7 +134,7 @@ append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]s
 	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
 		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
-			dir := filepath.dir(info.fullpath, allocator)
+			dir := filepath.dir(info.fullpath)
 			if dir in skip {
 				os.walker_skip_dir(&w)
 				continue
@@ -217,7 +217,7 @@ try_build_package :: proc(pkg_name: string) {
 				p.warn = log_warning_handler
 			}
 
-			dir := filepath.base(filepath.dir(fullpath, context.allocator))
+			dir := filepath.base(filepath.dir(fullpath))
 
 			pkg := new(ast.Package)
 			pkg.kind = .Normal
@@ -263,7 +263,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	fullpath := uri.path
 
 	when ODIN_OS == .Windows {
-		fullpath, _ = filepath.replace_path_separators(fullpath, '/', context.temp_allocator)
+		fullpath, _ = filepath.replace_separators(fullpath, '/', context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
@@ -306,10 +306,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-		fullpath, _ = filepath.replace_path_separators(correct, '/', context.temp_allocator)
+		fullpath, _ = filepath.replace_separators(correct, '/', context.temp_allocator)
 	}
 
-	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
+	dir := filepath.base(filepath.dir(fullpath))
 
 	pkg := new(ast.Package)
 	pkg.kind = .Normal

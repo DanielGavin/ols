@@ -494,7 +494,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	// Apply custom collections.
 	for it in ols_config.collections {
-		forward_path, _ := filepath.replace_path_separators(it.path, '/', context.temp_allocator)
+		forward_path, _ := filepath.replace_separators(it.path, '/', context.temp_allocator)
 
 		forward_path = common.resolve_home_dir(forward_path, context.temp_allocator)
 
@@ -502,13 +502,13 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 		when ODIN_OS == .Windows {
 			if filepath.is_abs(it.path) {
-				final_path, _ = filepath.replace_path_separators(
+				final_path, _ = filepath.replace_separators(
 					common.get_case_sensitive_path(forward_path, context.temp_allocator),
 					'/',
 					context.temp_allocator,
 				)
 			} else {
-				final_path, _ = filepath.replace_path_separators(
+				final_path, _ = filepath.replace_separators(
 					common.get_case_sensitive_path(
 						path.join(elems = {uri.path, forward_path}, allocator = context.temp_allocator),
 						context.temp_allocator,
@@ -532,7 +532,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			log.errorf("Failed to find absolute address of collection: %v", final_path, err)
 			config.collections[strings.clone(it.name)] = strings.clone(final_path)
 		} else {
-			slashed_path, _ := filepath.replace_path_separators(abs_final_path, '/', context.temp_allocator)
+			slashed_path, _ := filepath.replace_separators(abs_final_path, '/', context.temp_allocator)
 
 			config.collections[strings.clone(it.name)] = strings.clone(slashed_path)
 		}
@@ -574,9 +574,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			odin_core_env = os.get_env("ODIN_ROOT", context.temp_allocator)
 			if odin_core_env == "" {
 				if os.exists(odin_bin) {
-					odin_core_env = filepath.dir(odin_bin, context.temp_allocator)
+					odin_core_env = filepath.dir(odin_bin)
 				} else if exe_path, ok := common.lookup_in_path(odin_bin); ok {
-					odin_core_env = filepath.dir(exe_path, context.temp_allocator)
+					odin_core_env = filepath.dir(exe_path)
 				}
 			}
 
@@ -592,7 +592,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	// Insert the default collections if they are not specified in the config.
 	if odin_core_env != "" {
-		forward_path, _ := filepath.replace_path_separators(odin_core_env, '/', context.temp_allocator)
+		forward_path, _ := filepath.replace_separators(odin_core_env, '/', context.temp_allocator)
 
 		// base
 		if "base" not_in config.collections {
@@ -718,7 +718,7 @@ request_initialize :: proc(
 
 	// Get the global ols config path.
 	global_ols_config_path := path.join(
-		elems = {filepath.dir(os.args[0], context.temp_allocator), "ols.json"},
+		elems = {filepath.dir(os.args[0]), "ols.json"},
 		allocator = context.temp_allocator,
 	)
 
@@ -1238,7 +1238,7 @@ notification_did_save :: proc(
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-		fullpath, _ = filepath.replace_path_separators(correct, '/', context.temp_allocator)
+		fullpath, _ = filepath.replace_separators(correct, '/', context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
