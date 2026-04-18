@@ -1628,6 +1628,10 @@ visit_expr :: proc(
 			document = cons_with_nopl(document, text("#all_or_none"))
 		}
 
+		if v.is_simple {
+			document = cons_with_nopl(document, text("#simple"))
+		}
+
 		if v.align != nil {
 			document = cons_with_nopl(document, text("#align"))
 			document = cons_with_nopl(document, visit_expr(p, v.align))
