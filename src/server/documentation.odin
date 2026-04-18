@@ -565,6 +565,10 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 			wrote_tag = true
 			strings.write_string(sb, " #all_or_none")
 		}
+		case .Is_Simple:
+			wrote_tag = true
+			strings.write_string(sb, " #simple")
+		}
 	}
 
 	if len(v.where_clauses) > 0 {
