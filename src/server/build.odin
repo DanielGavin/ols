@@ -140,7 +140,7 @@ append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]s
 				continue
 			}
 			if !slice.contains(pkgs[:], dir) {
-				append(pkgs, dir)
+				append(pkgs, strings.clone(dir, allocator))
 			}
 		}
 	}
