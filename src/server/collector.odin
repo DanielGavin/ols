@@ -181,6 +181,9 @@ collect_struct_fields :: proc(
 	if struct_type.is_raw_union {
 		b.tags |= {.Is_Raw_Union}
 	}
+	if struct_type.is_simple {
+		b.tags |= {.Is_Simple}
+	}
 
 	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 	for clause in struct_type.where_clauses {
