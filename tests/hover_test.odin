@@ -3972,11 +3972,11 @@ ast_hover_struct_tags :: proc(t: ^testing.T) {
 ast_hover_struct_tags_packed :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
-		Fo{*}o :: struct($T: typeid) #packed #all_or_none {
+		Fo{*}o :: struct($T: typeid) #packed #all_or_none #simple {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "test.Foo :: struct($T: typeid) #packed #all_or_none {}")
+	test.expect_hover(t, &source, "test.Foo :: struct($T: typeid) #packed #all_or_none #simple {}")
 }
 
 @(test)
