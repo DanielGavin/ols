@@ -564,6 +564,9 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 		case .Is_All_Or_None:
 			wrote_tag = true
 			strings.write_string(sb, " #all_or_none")
+		case .Is_Simple:
+			wrote_tag = true
+			strings.write_string(sb, " #simple")
 		}
 	}
 
@@ -1080,6 +1083,7 @@ directive_docs: map[string]string = {
 	"raw_union"                = "```odin\n#raw_union\n```\n\nThis tag can be applied to a `struct`. Struct’s fields will share the same memory space which serves the same functionality as `union`s in C language. Useful when writing bindings especially.",
 	"align"                    = "```odin\n#align\n```\n\nThis tag can be applied to a `struct` or `union`. When `#align` is passed an integer `N` (as in `#align N`), it specifies that the `struct` will be aligned to `N` bytes. The `struct`’s fields will remain in source-order.",
 	"no_nil"                   = "```odin\n#no_nil\n```\n\nThis tag can be applied to a union to not allow `nil` values.",
+	"simple"                   = "```odin\n#simple\n```\n\nThis tag can be applied to a `struct`. Forces a struct to use simple comparison if all of the fields are 'nearly simply comparable'",
 	// Control statements
 	"partial"                  = "```odin\n#partial\n```\n\nBy default all `case`s of an `enum` or `union` have to be covered in a `switch` statement. The reason for this requirement is because it makes accidental bugs less likely. However, the `#partial` tag allows you to not have to write out cases that you don’t need to handle.\n\nThe `#partial` directive can also be used to initialize an enumerated array.",
 	// Procedure parameters
