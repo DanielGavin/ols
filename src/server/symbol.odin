@@ -17,6 +17,7 @@ SymbolStructTag :: enum {
 	Is_Raw_Union,
 	Is_No_Copy,
 	Is_All_Or_None,
+	Is_Simple,
 }
 
 SymbolStructTags :: bit_set[SymbolStructTag]
@@ -443,6 +444,9 @@ write_struct_type :: proc(
 		}
 		if v.is_raw_union {
 			b.tags |= {.Is_Raw_Union}
+		}
+		if v.is_simple {
+			b.tags |= {.Is_Simple}
 		}
 		for clause in v.where_clauses {
 			append(&b.where_clauses, clause)
