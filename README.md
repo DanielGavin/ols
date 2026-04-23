@@ -353,6 +353,16 @@ The `use-package` statements below assume you're using a package manager like St
   :mode ("\\.odin\\'" . odin-ts-mode))
 ```
 
+If you are using Emacs 29 or above you can use `package-vc-install`.
+
+```elisp
+(package-vc-install
+ '(odin-mode :url "https://github.com/mattt-b/odin-mode.git"))
+
+(package-vc-install
+ '(odin-ts-mode :url "https://github.com/Sampie159/odin-ts-mode.git"))
+```
+
 And then choose either the built-in `eglot` or `lsp-mode` packages below. Both should work very similarly.
 
 #### lsp-mode
