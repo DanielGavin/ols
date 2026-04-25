@@ -320,6 +320,9 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_nodes(n.results, builder)
 	case ^ast.Dynamic_Array_Type:
 		visit_node(n.elem, builder)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		visit_node(n.elem, builder)
+		visit_node(n.capacity, builder)
 	case ^ast.Multi_Pointer_Type:
 		visit_node(n.elem, builder)
 	case ^ast.Field_Value:
@@ -376,6 +379,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_poly_params(n.poly_params, builder)
 		visit_nodes(n.variants, builder)
 	case ^ast.Enum_Type:
+		visit_node(n.base_type, builder)
 		visit_enum_fields(n^, builder)
 	case ^ast.Proc_Type:
 		visit_proc_type(n, builder)
