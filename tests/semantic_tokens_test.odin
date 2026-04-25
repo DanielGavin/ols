@@ -200,3 +200,17 @@ semantic_tokens_poly_proc :: proc(t: ^testing.T) {
 		{1, 10, 1, .Parameter,     {}},          // [3]  a
 	})
 }
+
+@(test)
+semantic_tokens_fixed_capacity_dynamic_array :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		foo: [dynamic; 5]int
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Variable, {}},          // [0]  foo
+		{0, 17, 3, .Type,     {.ReadOnly}}, // [1]  int
+	})
+}

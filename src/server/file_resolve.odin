@@ -530,6 +530,9 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.elem, data)
 	case ^ast.Dynamic_Array_Type:
 		resolve_node(n.elem, data)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		resolve_node(n.elem, data)
+		resolve_node(n.capacity, data)
 	case ^ast.Multi_Pointer_Type:
 		resolve_node(n.elem, data)
 	case ^ast.Struct_Type:
