@@ -21,7 +21,6 @@ convert_os_string: map[string]string = {
 	"windows"      = "Windows",
 	"darwin"       = "Darwin",
 	"linux"        = "Linux",
-	"essence"      = "Essence",
 	"freebsd"      = "FreeBSD",
 	"wasi"         = "WASI",
 	"js"           = "JS",
