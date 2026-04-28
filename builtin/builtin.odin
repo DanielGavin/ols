@@ -244,7 +244,6 @@ Odin_OS_Type :: enum int {
 	Windows,
 	Darwin,
 	Linux,
-	Essence,
 	FreeBSD,
 	OpenBSD,
 	NetBSD,
