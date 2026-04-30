@@ -50,7 +50,7 @@ Checker :: struct {
 	send:      chan.Chan(Check_Request, .Send),
 }
 
-@(private = "file")
+@(thread_local, private = "file")
 checker: Checker
 
 queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
