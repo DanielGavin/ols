@@ -34,7 +34,7 @@ platform_os: map[string]struct{} = {
 }
 
 
-os_enum_to_string: [runtime.Odin_OS_Type]string = {
+os_enum_to_string := #partial [runtime.Odin_OS_Type]string {
 	.Windows      = "windows",
 	.Darwin       = "darwin",
 	.Linux        = "linux",
