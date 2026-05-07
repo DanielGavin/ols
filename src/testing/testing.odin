@@ -260,7 +260,7 @@ expect_completion_docs :: proc(
 	}
 
 	if len(expect_details) == 0 && len(completion_list.items) > 0 {
-		log.errorf("Expected empty completion label, but received %v", completion_list.items)
+		log.errorf("Expected empty completion docs, but received %v", completion_list.items)
 	}
 
 	flags := make([]int, len(expect_details), context.temp_allocator)
@@ -275,7 +275,7 @@ expect_completion_docs :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			log.errorf("Expected completion label %v, but received %v", expect_details[i], completion_list.items)
+			log.errorf("Expected completion docs %v, but received %v", expect_details[i], completion_list.items)
 		}
 	}
 
