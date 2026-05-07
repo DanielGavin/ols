@@ -776,3 +776,19 @@ ast_goto_proc_group_overload_identifier :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_fixed_cap_dyn_array_capacity :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: 5
+
+		Bar :: [dynamic; Fo{*}o]int
+	`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 1, character = 2}, end = {line = 1, character = 5}}},
+	}
+
+	test.expect_definition_locations(t, &source, locations[:])
+}
