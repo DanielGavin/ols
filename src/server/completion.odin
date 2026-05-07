@@ -1530,7 +1530,7 @@ get_implicit_completion :: proc(
 				position_context.assign.lhs[rhs_index],
 			); ok {
 				for name, i in enum_value.names {
-					item := create_enum_completion_item(position_context, enum_value, i, false)
+					item := create_enum_completion_item(position_context, enum_value, i, unwrapped_super_enum)
 					append(results, CompletionResult{completion_item = item})
 				}
 

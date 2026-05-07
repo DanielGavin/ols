@@ -5753,3 +5753,28 @@ ast_completion_overload_proc_enum :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
+
+@(test)
+ast_completion_super_enum_assignment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			Foo1 :: enum {
+				A, B,
+			}
+			Foo2 :: enum {
+				C, D,
+			}
+
+			Foo :: union {
+				Foo1, Foo2,
+			}
+
+			main :: proc() {
+				foo: Foo
+				foo = .{*}
+			}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"Foo1.A", "Foo1.B", "Foo2.C", "Foo2.D"})
+}
