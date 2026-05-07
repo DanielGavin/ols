@@ -374,6 +374,33 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 	return true
 }
 
+// Fully resolve a symbol to it's base.
+// Used for comparing that two symbols are the same when checking overloads
+resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> Symbol {
+	if .Distinct in symbol.flags {
+		return symbol
+	}
+
+	expr := symbol.type_expr
+	if expr == nil {
+		expr = symbol.value_expr
+	}
+	if expr == nil {
+		return symbol
+	}
+
+	set_ast_package_from_node_scoped(ast_context, expr^)
+
+	resolved, ok := resolve_type_expression(ast_context, expr)
+	if !ok {
+		return symbol
+	}
+	if resolved.name == symbol.name && resolved.pkg == symbol.pkg && resolved.type == symbol.type {
+		return symbol
+	}
+	return resolve_base_symbol(ast_context, resolved)
+}
+
 is_valid_nil_symbol :: proc(symbol: Symbol) -> bool {
 	if symbol.pointers > 0 {
 		return true
@@ -1011,6 +1038,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							}
 						}
 
+
 						if !is_symbol_same_typed(ast_context, call_arg.symbol, arg_symbol, proc_arg.flags) {
 							found := false
 							// Are we a union variant
@@ -1045,7 +1073,17 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							}
 
 							if !found {
-								break next_fn
+								// If still not found, resolve to the base type and see if it matches
+								resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol)
+								resolved_expected_arg := resolve_base_symbol(ast_context, arg_symbol)
+								if !is_symbol_same_typed(
+									ast_context,
+									resolved_call_arg,
+									resolved_expected_arg,
+									proc_arg.flags,
+								) {
+									break next_fn
+								}
 							}
 						}
 					}
@@ -1876,7 +1914,6 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			}
 		}
 	}
-
 	return {}, false
 }
 
