@@ -247,7 +247,6 @@ Odin_OS_Type :: enum int {
 	FreeBSD,
 	OpenBSD,
 	NetBSD,
-	Haiku,
 	WASI,
 	JS,
 	Orca,

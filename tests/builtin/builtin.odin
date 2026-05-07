@@ -42,7 +42,6 @@ Odin_OS_Type :: enum int {
 	Darwin,
 	Linux,
 	FreeBSD,
-	Haiku,
 	OpenBSD,
 	WASI,
 	JS,

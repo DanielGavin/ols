@@ -25,7 +25,6 @@ convert_os_string: map[string]string = {
 	"wasi"         = "WASI",
 	"js"           = "JS",
 	"freestanding" = "Freestanding",
-	"haiku"        = "Haiku",
 	"openbsd"      = "OpenBSD",
 	"netbsd"       = "NetBSD",
 	"orca"         = "Orca",
