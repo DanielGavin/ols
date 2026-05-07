@@ -835,6 +835,9 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.elem, position_context)
 	case ^ast.Dynamic_Array_Type:
 		get_document_position(n.elem, position_context)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		get_document_position(n.elem, position_context)
+		get_document_position(n.capacity, position_context)
 	case ^ast.Multi_Pointer_Type:
 		get_document_position(n.elem, position_context)
 	case ^ast.Struct_Type:
