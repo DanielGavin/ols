@@ -6680,3 +6680,23 @@ ast_hover_proc_bit_set_underlying_type :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.Bar :: bit_set[Foo; u64]")
 }
+
+@(test)
+ast_hover_generic_proc_with_maybe :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test'
+		Maybe :: struct($T: typeid) {
+			inner: T,
+		}
+
+		foo :: proc(a: $T) -> T {}
+
+		main :: proc() {
+			a: Maybe(int)
+			b{*} := foo(a)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.b: test.Maybe(int)")
+}

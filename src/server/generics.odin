@@ -36,7 +36,9 @@ resolve_poly :: proc(
 	if specialization == nil {
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
-				if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
+				if call_symbol.type_expr != nil {
+					save_poly_map(ident, call_symbol.type_expr, poly_map)
+				} else if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if is_compound_symbol_value(call_symbol.value) {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
