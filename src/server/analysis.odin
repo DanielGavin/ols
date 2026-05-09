@@ -2115,18 +2115,6 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		}
 	}
 
-	//This could also be the runtime package, which is not required to be imported, but itself is used with selector expression in runtime functions: `my_runtime_proc :proc(a: runtime.*)`
-	if node.name == "runtime" {
-		symbol := Symbol {
-			type  = .Package,
-			pkg   = indexer.runtime_package,
-			value = SymbolPackageValue{},
-		}
-		try_build_package(symbol.pkg)
-
-		return resolve_symbol_return(ast_context, symbol)
-	}
-
 	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
 		return resolve_global_identifier(ast_context, node, &global)
