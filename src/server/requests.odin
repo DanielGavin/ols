@@ -1,7 +1,7 @@
 #+feature dynamic-literals
 package server
 
-import "base:intrinsics"
+import "core:unicode/utf8"
 import "base:runtime"
 
 import "core:encoding/json"
@@ -192,6 +192,22 @@ read_and_parse_header :: proc(reader: ^Reader) -> (Header, bool) {
 	return header, found_content_length
 }
 
+// Odins json parser will assert when encountering invalid utf8.
+// This ensures the input is valid utf8.
+ensure_valid_utf8 :: proc(s: string, allocator := context.temp_allocator) -> string {
+	if !utf8.valid_string(s) {
+		sb := strings.builder_make_len_cap(0, len(s), allocator)
+		for r in s {
+			// On invalid utf8, r will be utf8.RUNE_ERROR, which is a valid utf8 symbol so we just use that
+			strings.write_rune(&sb, r)
+		}
+		s2 := strings.to_string(sb)
+		log.error(s2)
+		return s2
+	}
+	return s
+}
+
 read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, bool) {
 	value: json.Value
 
@@ -203,11 +219,11 @@ read_and_parse_body :: proc(reader: ^Reader, header: Header) -> (json.Value, boo
 	}
 
 	err: json.Error
-
-	value, err = json.parse(data = data, allocator = context.allocator, parse_integers = true)
+	s := ensure_valid_utf8(string(data), context.temp_allocator)
+	value, err = json.parse_string(data = s, allocator = context.allocator, parse_integers = true)
 
 	if (err != json.Error.None) {
-		log.error("Failed to parse body")
+		log.error("Failed to parse body", err)
 		return value, false
 	}
 
