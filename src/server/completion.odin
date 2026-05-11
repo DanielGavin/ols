@@ -2422,7 +2422,7 @@ append_magic_array_like_completion :: proc(
 	for name in dynamic_array_builtins {
 		item := CompletionItem {
 			label = name,
-			kind = .Snippet,
+			kind = .Function,
 			detail = name,
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
