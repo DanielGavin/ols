@@ -586,22 +586,7 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 			return is_symbol_same_typed(ast_context, a_symbol, b_symbol)
 		}
 
-		a_cap_symbol: Symbol
-		b_cap_symbol: Symbol
-
-		a_cap_symbol, ok = resolve_type_expression(ast_context, a_value.cap)
-		if !ok {
-			return false
-		}
-		b_cap_symbol, ok = resolve_type_expression(ast_context, b_value.cap)
-		if !ok {
-			return false
-		}
-
-		return(
-			is_symbol_same_typed(ast_context, a_symbol, b_symbol) &&
-			is_symbol_same_typed(ast_context, a_cap_symbol, b_cap_symbol) \
-		)
+		return are_same_size(ast_context, a_value.cap, b_value.cap)
 
 	case SymbolMapValue:
 		b_value := b.value.(SymbolMapValue)
@@ -688,6 +673,12 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 are_same_size :: proc(ast_context: ^AstContext, a, b: ^ast.Expr) -> bool {
 	if a_symbol, ok := resolve_type_expression(ast_context, a); ok {
 		if b_symbol, ok := resolve_type_expression(ast_context, b); ok {
+			if _, ok := a_symbol.value.(SymbolPolyTypeValue); ok {
+				return true
+			}
+			if _, ok := b_symbol.value.(SymbolPolyTypeValue); ok {
+				return true
+			}
 			if a_len, ok := a_symbol.value.(SymbolUntypedValue); ok && a_len.type == .Integer {
 				if b_len, ok := b_symbol.value.(SymbolUntypedValue); ok && b_len.type == .Integer {
 					return a_len.tok.text == b_len.tok.text
