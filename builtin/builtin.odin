@@ -142,7 +142,6 @@ ODIN_ENDIAN_STRING: string
 
 @builtin
 Odin_Endian_Type :: enum int {
-	Unknown,
 	Little,
 	Big,
 }
@@ -354,10 +353,17 @@ ODIN_VERSION_HASH: string
 @builtin
 Odin_Windows_Subsystem_Type :: enum int {
 	Unknown,
+	Boot_Application,
 	Console,
+	EFI_Application,
+	EFI_Boot_Service_Driver,
+	EFI_Rom,
+	EFI_Runtime_Driver,
+	Native,
+	Posix,
 	Windows,
+	Windows_CE,
 }
-
 /*
 	An `enum` set by the `-subsystem` flag, specifying which Windows subsystem the PE file was created for.
 	Possible values are:
