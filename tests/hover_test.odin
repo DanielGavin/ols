@@ -6700,3 +6700,24 @@ ast_hover_generic_proc_with_maybe :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.b: test.Maybe(int)")
 }
+
+@(test)
+ast_hover_overload_with_fcda :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test'
+		foo_fcda :: proc(f: [dynamic; $N]int) {}
+		foo_da :: proc(f: [dynamic]int) {}
+		foo :: proc {
+			foo_fcda,
+			foo_da,
+		}
+
+		main :: proc() {
+			fcda: [dynamic; 10]int
+			fo{*}o(fcda)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.foo :: proc(f: [dynamic; $N]int)")
+}
