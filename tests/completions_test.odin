@@ -1083,8 +1083,17 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_file_tag_private_completion :: proc(t: ^testing.T) {
-	comments := []string{"// +private", "//+private file", "// +build  ignore"}
+ast_file_tag_private_package_completion :: proc(t: ^testing.T) {
+
+	comments := []string{
+		"//+private",
+		"//+private file",
+		"//+build ignore",
+		"//+ignore",
+		// "#+ ignore",
+		// "#+ private",
+		// "#+ private file",
+	}
 
 	for comment in comments {
 
@@ -1093,9 +1102,18 @@ ast_file_tag_private_completion :: proc(t: ^testing.T) {
 		strings.write_string(&b, comment)
 		strings.write_string(&b, `
 			package my_package
-
-			my_proc :: proc() -> bool {}
+			ignored_proc :: proc() {}
 		`)
+
+		pkg := test.Package{
+			pkg = "my_package",
+			files = {
+				{"ignored.odin", strings.to_string(b)},
+				{"normal.odin", `package my_package
+					normal_proc :: proc() {}
+				`},
+			},
+		}
 
 		source := test.Source {
 			main     = `package main
@@ -1104,10 +1122,52 @@ ast_file_tag_private_completion :: proc(t: ^testing.T) {
 				my_package.{*}
 			}
 			`,
-			packages = {{pkg = "my_package", source = strings.to_string(b)}},
+			packages = {pkg},
 		}
 
-		test.expect_completion_docs(t, &source, ".", {})
+		test.expect_completion_docs(t, &source, ".",
+			{"my_package.normal_proc :: proc()"},
+			{"my_package.ignored_proc :: proc()"},
+		)
+	}
+}
+
+@(test)
+ast_file_tag_private_files_completion :: proc(t: ^testing.T) {
+
+	comments := []string{
+		"//+private file",
+		"//+build ignore",
+		"//+ignore",
+		// "#+ ignore",
+		// "#+ private file",
+	}
+
+	for comment in comments {
+
+		b := strings.builder_make(context.temp_allocator)
+
+		strings.write_string(&b, comment)
+		strings.write_string(&b, `
+			package main
+			ignored_proc :: proc() {}
+		`)
+
+		source := test.Source {
+			files = {
+				{"main.odin", `package main
+					main :: proc() {
+						ignored_{*}
+					}
+				`},
+				{"ignored.odin", strings.to_string(b)},
+			}
+		}
+
+		test.expect_completion_docs(t, &source, ".",
+			{},
+			{"my_package.ignored_proc :: proc()"},
+		)
 	}
 }
 
@@ -5753,3 +5813,4 @@ ast_completion_overload_proc_enum :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {".A", ".B", ".C"})
 }
+
