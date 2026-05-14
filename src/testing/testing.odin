@@ -5,20 +5,26 @@ import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
-import "core:path/filepath"
 import "core:strings"
 import "core:testing"
 
 import "src:common"
 import "src:server"
 
-Package :: struct {
-	pkg:    string,
+File :: struct {
+	name:   string,
 	source: string,
 }
 
+Package :: struct {
+	pkg:    string,
+	source: string, // backwards compatable–for single-file packages
+	files:  []File,
+}
+
 Source :: struct {
-	main:        string,
+	main:        string, // backwards compatable–for single-file packages
+	files:       []File,
 	packages:    []Package,
 	document:    ^server.Document,
 	collections: map[string]string,
@@ -28,18 +34,92 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
-	src.main = strings.clone(src.main, context.temp_allocator)
 	src.document = new(server.Document, context.temp_allocator)
-	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator)
 	src.document.client_owned = true
-	src.document.text = transmute([]u8)src.main
-	src.document.used_text = len(src.document.text)
 	src.document.allocator = new(virtual.Arena, context.temp_allocator)
-	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
-	//no unicode in tests currently
+	if len(src.files) > 0 {
+		setup_multi_file_prepare(src)
+	} else {
+		setup_single_file(src)
+	}
+
+	server.setup_index(server.get_builtin_path())
+
+	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
+	server.indexer.index.collection.config = &src.config
+
+	server.document_setup(src.document)
+
+	server.document_refresh(src.document, &src.config, nil)
+
+	if len(src.files) > 0 {
+		setup_multi_file_collect(src)
+	}
+
+	for src_pkg in src.packages {
+		context.allocator = virtual.arena_allocator(src.document.allocator)
+
+		dir := src_pkg.pkg
+
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.kind = .Normal
+		pkg.name = dir
+
+		if dir == "runtime" {
+			pkg.kind = .Runtime
+		}
+
+		process_file :: proc(fullpath: string, source: string, pkg: ^ast.Package) {
+			p := parser.Parser {
+				err   = parser.default_error_handler,
+				warn  = parser.default_error_handler,
+				flags = {.Optional_Semicolons},
+			}
+
+			file := ast.File {
+				fullpath = fullpath,
+				src      = source,
+				pkg      = pkg,
+			}
+
+			ok := parser.parse_file(&p, &file)
+
+			if !ok || file.syntax_error_count > 0 {
+				panic("Parser error in test package source")
+			}
+
+			uri := common.create_uri(fullpath, context.temp_allocator)
+
+			if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
+				return
+			}
+		}
+
+		if len(src_pkg.files) > 0 {
+			for f in src_pkg.files {
+				fullpath := fmt.aprintf("test/%v/%v", dir, f.name)
+				pkg.fullpath = fullpath
+				process_file(fullpath, f.source, pkg)
+			}
+		} else {
+			fullpath := fmt.aprintf("test/%v/package.odin", dir)
+			pkg.fullpath = fullpath
+			process_file(fullpath, src_pkg.source, pkg)
+		}
+	}
+}
+
+@(private)
+setup_single_file :: proc(src: ^Source) {
+	src.main = strings.clone(src.main, context.temp_allocator)
+	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator)
+	src.document.text = transmute([]u8)src.main
+	src.document.used_text = len(src.document.text)
+	src.document.package_name = "test"
+
 	current, last: u8
 	current_line, current_character: int
 
@@ -65,22 +145,53 @@ setup :: proc(src: ^Source) {
 
 		last = current
 	}
+}
 
-	server.setup_index(server.get_builtin_path())
+@(private)
+setup_multi_file_prepare :: proc(src: ^Source) {
+	src.document.package_name = "test"
 
-	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
-	server.indexer.index.collection.config = &src.config
+	for i in 0 ..< len(src.files) {
+		f := &src.files[i]
+		source := strings.clone(f.source, context.temp_allocator)
+		f.source = source
 
-	server.document_setup(src.document)
+		fullpath := fmt.aprintf("test/%v", f.name)
 
-	server.document_refresh(src.document, &src.config, nil)
+		if pos := strings.index(source, "{*}"); pos >= 0 {
+			last: u8
+			cursor_line, cursor_char: int
+			for j := 0; j < pos; j += 1 {
+				ch := source[j]
+				if last == '\r' {
+					cursor_line += 1
+					cursor_char = 0
+				} else if ch == '\n' {
+					cursor_line += 1
+					cursor_char = 0
+				} else {
+					cursor_char += 1
+				}
+				last = ch
+			}
 
-	for src_pkg in src.packages {
-		context.allocator = virtual.arena_allocator(src.document.allocator)
+			dst_slice := transmute([]u8)source[pos:]
+			src_slice := transmute([]u8)source[pos + 3:]
+			copy(dst_slice, src_slice)
 
-		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator)
+			src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+			src.document.text = transmute([]u8)source
+			src.document.used_text = len(source)
+			src.position.line = cursor_line
+			src.position.character = cursor_char
+		}
+	}
+}
 
-		fullpath := uri.path
+@(private)
+setup_multi_file_collect :: proc(src: ^Source) {
+	for f in src.files {
+		fullpath := fmt.aprintf("test/%v", f.name)
 
 		p := parser.Parser {
 			err   = parser.default_error_handler,
@@ -88,29 +199,24 @@ setup :: proc(src: ^Source) {
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath))
-
 		pkg := new(ast.Package, context.temp_allocator)
 		pkg.kind = .Normal
+		pkg.name = "test"
 		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" {
-			pkg.kind = .Runtime
-		}
 
 		file := ast.File {
 			fullpath = fullpath,
-			src      = src_pkg.source,
+			src      = f.source,
 			pkg      = pkg,
 		}
 
 		ok := parser.parse_file(&p, &file)
 
-
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source")
 		}
+
+		uri := common.create_uri(fullpath, context.temp_allocator)
 
 		if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
 			return
