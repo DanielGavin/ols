@@ -216,7 +216,7 @@ try_build_package :: proc(pkg_name: string) {
 			pkg.fullpath = fullpath
 			pkg.name = dir
 
-			if dir == "runtime" {
+			if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
 				pkg.kind = .Runtime
 			}
 
@@ -308,7 +308,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	pkg.fullpath = fullpath
 	pkg.name = dir
 
-	if dir == "runtime" {
+	if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
 		pkg.kind = .Runtime
 	}
 
