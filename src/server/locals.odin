@@ -362,6 +362,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 	results := make([dynamic]^ast.Expr, context.temp_allocator)
 	calls := make(map[int]struct{}, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
+	result_starts := make([dynamic]int, context.temp_allocator) // Track the start of each individual values so we can easily skip things like #optional_ok
 
 	flags: GetGenericAssignmentFlags
 
@@ -370,6 +371,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for value in value_decl.values {
+		append(&result_starts, len(results))
 		get_generic_assignment(file, value, ast_context, &results, &calls, flags, value_decl.is_mutable)
 	}
 
@@ -379,6 +381,9 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 
 	for name, i in value_decl.names {
 		result_i := min(len(results) - 1, i)
+		if .SameLhsRhsCount in flags && len(result_starts) > i {
+			result_i = min(len(results) - 1, result_starts[i])
+		}
 		str := get_ast_node_string(name, file.src)
 		flags: bit_set[LocalFlag]
 
@@ -1219,7 +1224,6 @@ get_locals :: proc(
 	for stmt in block.stmts {
 		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
-
 }
 
 clear_locals :: proc(ast_context: ^AstContext) {

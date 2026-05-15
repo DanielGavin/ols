@@ -6654,7 +6654,7 @@ ast_hover_map_value_by_reference_ok :: proc(t: ^testing.T) {
 @(test)
 ast_hover_proc_with_generic_return_type_with_default :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		Foo :: struct($T: typeid) {}
 
 		foo :: proc(f: Foo($T)) -> (a: T, b := false) {}
@@ -6672,7 +6672,7 @@ ast_hover_proc_with_generic_return_type_with_default :: proc(t: ^testing.T) {
 @(test)
 ast_hover_proc_bit_set_underlying_type :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		Foo :: enum {}
 		Ba{*}r :: bit_set[Foo; u64]
 		`,
@@ -6684,7 +6684,7 @@ ast_hover_proc_bit_set_underlying_type :: proc(t: ^testing.T) {
 @(test)
 ast_hover_generic_proc_with_maybe :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		Maybe :: struct($T: typeid) {
 			inner: T,
 		}
@@ -6704,7 +6704,7 @@ ast_hover_generic_proc_with_maybe :: proc(t: ^testing.T) {
 @(test)
 ast_hover_overload_with_fcda :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		foo_fcda :: proc(f: [dynamic; $N]int) {}
 		foo_da :: proc(f: [dynamic]int) {}
 		foo :: proc {
@@ -6725,7 +6725,7 @@ ast_hover_overload_with_fcda :: proc(t: ^testing.T) {
 @(test)
 ast_hover_binary_expr_func_call :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		Foo :: struct {
 			a: int,
 			b: int,
@@ -6744,7 +6744,7 @@ ast_hover_binary_expr_func_call :: proc(t: ^testing.T) {
 @(test)
 ast_hover_delete_distinct_map :: proc(t: ^testing.T) {
 	source := test.Source {
-		main     = `package test'
+		main     = `package test
 		Foo :: distinct map[int]string
 		delete_map :: proc(m: $T/map[$K]$V){}
 		delete :: proc {
@@ -6759,4 +6759,18 @@ ast_hover_delete_distinct_map :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.delete :: proc(m: $T/map[$K]$V)")
+}
+
+@(test)
+ast_hover_multiple_assignments :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc() -> (int, bool) #optional_ok {}
+
+		main :: proc() {
+			a, b{*} := foo(), foo()
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.b: int")
 }

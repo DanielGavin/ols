@@ -12,7 +12,6 @@ import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:strings"
 import "core:time"
 
