@@ -6759,6 +6759,26 @@ ast_hover_delete_distinct_map :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.delete :: proc(m: $T/map[$K]$V)")
+
+}
+@(test)
+ast_hover_delete_distinct_map_ptr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: distinct map[int]string
+		clear_map :: proc(m: ^$T/map[$K]$V){}
+		clear :: proc {
+			clear_map,
+		}
+
+		main :: proc() {
+			foo: Foo
+			cl{*}ear(&foo)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.clear :: proc(m: ^$T/map[$K]$V)")
 }
 
 @(test)
