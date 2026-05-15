@@ -378,11 +378,10 @@ are_symbol_basic_same_keywords :: proc(a, b: Symbol) -> bool {
 
 // Fully resolve a symbol to it's base.
 // Used for comparing that two symbols are the same when checking overloads
-resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> Symbol {
-	if .Distinct in symbol.flags {
+resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol, bypass_distinct := false) -> Symbol {
+	if !bypass_distinct && .Distinct in symbol.flags {
 		return symbol
 	}
-
 	expr := symbol.type_expr
 	if expr == nil {
 		expr = symbol.value_expr
@@ -390,17 +389,23 @@ resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol) -> Symbol 
 	if expr == nil {
 		return symbol
 	}
+	if bypass_distinct {
+		if dist, ok := expr.derived.(^ast.Distinct_Type); ok {
+			expr = dist.type
+		}
+	}
 
 	set_ast_package_from_node_scoped(ast_context, expr^)
 
-	resolved, ok := resolve_type_expression(ast_context, expr)
+	resolved: Symbol
+	ok := internal_resolve_type_expression(ast_context, expr, &resolved)
 	if !ok {
 		return symbol
 	}
 	if resolved.name == symbol.name && resolved.pkg == symbol.pkg && resolved.type == symbol.type {
 		return symbol
 	}
-	return resolve_base_symbol(ast_context, resolved)
+	return resolve_base_symbol(ast_context, resolved, bypass_distinct)
 }
 
 is_valid_nil_symbol :: proc(symbol: Symbol) -> bool {
@@ -1067,7 +1072,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 
 							if !found {
 								// If still not found, resolve to the base type and see if it matches
-								resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol)
+								_, bypass_distinct := orig_arg.derived.(^ast.Poly_Type)
+								resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol, bypass_distinct)
 								resolved_expected_arg := resolve_base_symbol(ast_context, arg_symbol)
 								if !is_symbol_same_typed(
 									ast_context,
@@ -1077,6 +1083,8 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 								) {
 									break next_fn
 								}
+
+								candidate.score += 1
 							}
 						}
 					}

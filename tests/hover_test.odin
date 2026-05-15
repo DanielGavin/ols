@@ -6740,3 +6740,23 @@ ast_hover_binary_expr_func_call :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.bar: test.Foo")
 }
+
+@(test)
+ast_hover_delete_distinct_map :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test'
+		Foo :: distinct map[int]string
+		delete_map :: proc(m: $T/map[$K]$V){}
+		delete :: proc {
+			delete_map,
+		}
+
+		main :: proc() {
+			foo: Foo
+			de{*}lete(foo)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.delete :: proc(m: $T/map[$K]$V)")
+}
