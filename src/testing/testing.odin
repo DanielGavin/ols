@@ -40,11 +40,15 @@ setup :: proc(src: ^Source) {
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
-	if len(src.files) > 0 {
-		setup_multi_file_prepare(src)
-	} else {
-		setup_single_file(src)
+	if len(src.main) > 0 {
+		files := make([dynamic]File, 0, len(src.files)+1, context.temp_allocator)
+		append(&files, File{"main.odin", src.main})
+		append(&files, ..src.files)
+		src.files = files[:]
+		src.main = ""
 	}
+
+	setup_multi_file_prepare(src)
 
 	server.setup_index(server.get_builtin_path())
 
@@ -55,9 +59,7 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
-	if len(src.files) > 0 {
-		setup_multi_file_collect(src)
-	}
+	setup_multi_file_collect(src)
 
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
@@ -100,12 +102,12 @@ setup :: proc(src: ^Source) {
 
 		if len(src_pkg.files) > 0 {
 			for f in src_pkg.files {
-				fullpath := fmt.aprintf("test/%v/%v", dir, f.name)
+				fullpath := strings.join({"test", dir, f.name}, "/", context.temp_allocator)
 				pkg.fullpath = fullpath
 				process_file(fullpath, f.source, pkg)
 			}
 		} else {
-			fullpath := fmt.aprintf("test/%v/package.odin", dir)
+			fullpath := strings.join({"test", dir, "package.odin"}, "/", context.temp_allocator)
 			pkg.fullpath = fullpath
 			process_file(fullpath, src_pkg.source, pkg)
 		}
@@ -113,85 +115,63 @@ setup :: proc(src: ^Source) {
 }
 
 @(private)
-setup_single_file :: proc(src: ^Source) {
-	src.main = strings.clone(src.main, context.temp_allocator)
-	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator)
-	src.document.text = transmute([]u8)src.main
-	src.document.used_text = len(src.document.text)
-	src.document.package_name = "test"
-
-	current, last: u8
-	current_line, current_character: int
-
-	for current_index := 0; current_index < len(src.main); current_index += 1 {
-		current = src.main[current_index]
-
-		if last == '\r' {
-			current_line += 1
-			current_character = 0
-		} else if current == '\n' {
-			current_line += 1
-			current_character = 0
-		} else if len(src.main) > current_index + 3 && src.main[current_index:current_index + 3] == "{*}" {
-			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 3:]
-			copy(dst_slice, src_slice)
-			src.position.character = current_character
-			src.position.line = current_line
-			break
-		} else {
-			current_character += 1
-		}
-
-		last = current
-	}
-}
-
-@(private)
 setup_multi_file_prepare :: proc(src: ^Source) {
 	src.document.package_name = "test"
 
-	for i in 0 ..< len(src.files) {
-		f := &src.files[i]
-		source := strings.clone(f.source, context.temp_allocator)
-		f.source = source
+	for &f, i in src.files {
 
-		fullpath := fmt.aprintf("test/%v", f.name)
+		marker_pos := strings.index(f.source, "{*}")
+		if marker_pos < 0 do continue
 
-		if pos := strings.index(source, "{*}"); pos >= 0 {
-			last: u8
-			cursor_line, cursor_char: int
-			for j := 0; j < pos; j += 1 {
-				ch := source[j]
-				if last == '\r' {
-					cursor_line += 1
-					cursor_char = 0
-				} else if ch == '\n' {
-					cursor_line += 1
-					cursor_char = 0
-				} else {
-					cursor_char += 1
-				}
-				last = ch
+		// remove `{*}`
+		source := make([]u8, len(f.source)-3, context.temp_allocator)
+		copy(source[:marker_pos], transmute([]u8)f.source[:marker_pos])
+		copy(source[marker_pos:], transmute([]u8)f.source[marker_pos+3:])
+		f.source = string(source)
+
+		last: u8
+		cursor_line, cursor_char: int
+		for j := 0; j < marker_pos; j += 1 {
+			ch := source[j]
+			if last == '\r' {
+				cursor_line += 1
+				cursor_char = 0
+			} else if ch == '\n' {
+				cursor_line += 1
+				cursor_char = 0
+			} else {
+				cursor_char += 1
 			}
-
-			dst_slice := transmute([]u8)source[pos:]
-			src_slice := transmute([]u8)source[pos + 3:]
-			copy(dst_slice, src_slice)
-
-			src.document.uri = common.create_uri(fullpath, context.temp_allocator)
-			src.document.text = transmute([]u8)source
-			src.document.used_text = len(source)
-			src.position.line = cursor_line
-			src.position.character = cursor_char
+			last = ch
 		}
+
+		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+		src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+		src.document.text = source
+		src.document.used_text = len(source)
+		src.position.line = cursor_line
+		src.position.character = cursor_char
+	}
+
+	// If no file had {*}, default document to first file
+	if len(src.document.text) == 0 && len(src.files) > 0 {
+		f := &src.files[0]
+		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+		src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+		src.document.text = transmute([]u8)f.source
+		src.document.used_text = len(f.source)
 	}
 }
 
 @(private)
 setup_multi_file_collect :: proc(src: ^Source) {
 	for f in src.files {
-		fullpath := fmt.aprintf("test/%v", f.name)
+		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+
+		// Skip the document file - it may have incomplete syntax after {*} stripping
+		if fullpath == src.document.uri.path {
+			continue
+		}
 
 		p := parser.Parser {
 			err   = parser.default_error_handler,
