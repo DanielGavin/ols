@@ -6759,8 +6759,32 @@ ast_hover_delete_distinct_map :: proc(t: ^testing.T) {
 	}
 
 	test.expect_hover(t, &source, "test.delete :: proc(m: $T/map[$K]$V)")
-
 }
+
+@(test)
+ast_hover_delete_distinct_da_from_make :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: distinct [dynamic]int
+		delete_da :: proc(a: $T/[dynamic]$E){}
+		delete :: proc {
+			delete_da,
+		}
+		make_da :: proc($T: typeid/[dynamic]$E) -> T {}
+		make :: proc {
+			make_da,
+		}
+
+		main :: proc() {
+			foo := make(Foo)
+			de{*}lete(foo)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.delete :: proc(a: $T/[dynamic]$E)")
+}
+
 @(test)
 ast_hover_delete_distinct_map_ptr :: proc(t: ^testing.T) {
 	source := test.Source {
