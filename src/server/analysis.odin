@@ -3535,17 +3535,6 @@ resolve_binary_expression :: proc(ast_context: ^AstContext, binary: ^ast.Binary_
 		symbol_b, ok_b = resolve_type_expression(ast_context, binary.right)
 	}
 
-	if !ok_a || !ok_b {
-		// we return the type that was correctly resolved, if one of them was
-		if ok_a {
-			return symbol_a, true
-		}
-		if ok_b {
-			return symbol_b, true
-		}
-		return {}, false
-	}
-
 	if symbol, ok := symbol_a.value.(SymbolProcedureValue); ok && len(symbol.return_types) > 0 {
 		symbol_a, ok_a = resolve_type_expression(
 			ast_context,
