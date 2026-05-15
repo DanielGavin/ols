@@ -1090,9 +1090,10 @@ ast_file_tag_private_package_completion :: proc(t: ^testing.T) {
 		"//+private file",
 		"//+build ignore",
 		"//+ignore",
-		// "#+ ignore",
-		// "#+ private",
-		// "#+ private file",
+		"#+ignore",
+		"#+build ignore",
+		"#+private",
+		"#+private file",
 	}
 
 	for comment in comments {
@@ -1141,8 +1142,9 @@ ast_file_tag_private_files_completion :: proc(t: ^testing.T) {
 		"//+private file",
 		"//+build ignore",
 		"//+ignore",
-		// "#+ ignore",
-		// "#+ private file",
+		"#+ignore",
+		"#+build ignore",
+		"#+private file",
 	}
 
 	for comment in comments {
