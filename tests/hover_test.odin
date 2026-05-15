@@ -6721,3 +6721,22 @@ ast_hover_overload_with_fcda :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.foo :: proc(f: [dynamic; $N]int)")
 }
+
+@(test)
+ast_hover_binary_expr_func_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test'
+		Foo :: struct {
+			a: int,
+			b: int,
+		}
+		foo :: proc() -> Foo {}
+
+		main :: proc() {
+			bar{*} := foo() + {a = 1, b = 2}
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.bar: test.Foo")
+}
