@@ -956,7 +956,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 						if orig_arg == nil {
 							orig_arg = procedure.orig_arg_types[arg_index].default_value
 						}
-						if _, ok := orig_arg.derived.(^ast.Poly_Type); ok {
+						if expr_contains_poly(orig_arg) {
 							candidate.score += 1
 						}
 						if i >= len(call_args) {
@@ -1072,9 +1072,11 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 
 							if !found {
 								// If still not found, resolve to the base type and see if it matches
-								_, bypass_distinct := orig_arg.derived.(^ast.Poly_Type)
+								bypass_distinct := expr_contains_poly(orig_arg)
 								resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol, bypass_distinct)
 								resolved_expected_arg := resolve_base_symbol(ast_context, arg_symbol)
+								resolved_call_arg.pointers = call_arg.symbol.pointers
+								resolved_expected_arg.pointers = arg_symbol.pointers
 								if !is_symbol_same_typed(
 									ast_context,
 									resolved_call_arg,
