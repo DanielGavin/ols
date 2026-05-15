@@ -387,6 +387,10 @@ resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol, bypass_dis
 		expr = symbol.value_expr
 	}
 	if expr == nil {
+		file := common.uri_to_path(symbol.uri, context.temp_allocator)
+		expr = symbol_to_expr(symbol, file, context.temp_allocator)
+	}
+	if expr == nil {
 		return symbol
 	}
 	if bypass_distinct {
