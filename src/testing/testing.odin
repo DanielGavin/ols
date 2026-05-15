@@ -95,7 +95,7 @@ setup :: proc(src: ^Source) {
 		pkg.fullpath = fullpath
 		pkg.name = dir
 
-		if dir == "runtime" {
+		if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
 			pkg.kind = .Runtime
 		}
 

@@ -386,11 +386,13 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	context.allocator = virtual.arena_allocator(document.allocator)
 
+	dir := filepath.base(filepath.dir(document.fullpath))
 	pkg := new(ast.Package)
 	pkg.kind = .Normal
 	pkg.fullpath = document.fullpath
+	pkg.name = dir
 
-	if strings.contains(document.fullpath, "base/runtime") {
+	if dir == "runtime" || strings.contains(document.fullpath, "base/runtime") {
 		pkg.kind = .Runtime
 	}
 
