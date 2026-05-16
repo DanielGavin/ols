@@ -1,19 +1,10 @@
 package server
 
-import "core:fmt"
 import "core:log"
+import "core:fmt"
 import "core:mem"
 import "core:odin/ast"
-import "core:odin/parser"
-import "core:odin/tokenizer"
-import "core:os"
-import "core:path/filepath"
 import path "core:path/slashpath"
-import "core:slice"
-import "core:sort"
-import "core:strconv"
-import "core:strings"
-
 
 import "src:common"
 
@@ -59,7 +50,7 @@ append_method_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	receiver: string,
 ) {
-	if selector_symbol.type != .Variable && selector_symbol.type != .Struct {
+	if selector_symbol.type != .Variable && selector_symbol.type != .Struct && selector_symbol.type != .Field {
 		return
 	}
 
