@@ -6818,3 +6818,18 @@ ast_hover_multiple_assignments :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.b: int")
 }
+
+@(test)
+ast_hover_struct_multiple_fields_one_line :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			// a and b
+			a,b: int,
+			// c
+			c{*}: f32,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Foo.c: f32\n---\nc")
+}
