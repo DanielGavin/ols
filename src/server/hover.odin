@@ -156,8 +156,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if position_context.struct_type != nil {
+			index := 0
 			for field, field_index in position_context.struct_type.fields.list {
 				for name, name_index in field.names {
+					defer index += 1
 					if position_in_node(name, position_context.position) {
 						if identifier, ok := name.derived.(^ast.Ident); ok && field.type != nil {
 							if symbol, ok := resolve_type_expression(&ast_context, field.type); ok {
@@ -175,7 +177,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 												&symbol,
 												name,
 												value,
-												field_index + name_index,
+												index,
 											)
 											build_documentation(&ast_context, &symbol, true)
 											hover.range = symbol.range
