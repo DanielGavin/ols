@@ -1,8 +1,8 @@
 #+feature dynamic-literals
 package server
 
-import "core:unicode/utf8"
 import "base:runtime"
+import "core:unicode/utf8"
 
 import "core:encoding/json"
 import "core:fmt"
@@ -738,22 +738,14 @@ request_initialize :: proc(
 		allocator = context.temp_allocator,
 	)
 
-	config_loaded: bool
-	if uri, ok := common.parse_uri(project_uri, context.temp_allocator); ok {
-		global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
+	uri, uri_ok := common.parse_uri(project_uri, context.temp_allocator)
 
+	global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
+	read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
+	if uri_ok {
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
-		local_config_loaded := read_ols_config(ols_config_path, config, uri)
-
-		config_loaded = local_config_loaded || global_config_loaded
-	} else {
-		config_loaded = read_ols_config(global_ols_config_path, config, {})
-	}
-
-	// Config options should be initialized even if we failed to load the config, as this sets the default collections, ODIN_OS etc
-	if !config_loaded {
-		read_ols_initialize_options(config, initialize_params.initializationOptions, {})
+		read_ols_config(ols_config_path, config, uri)
 	}
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
