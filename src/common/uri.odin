@@ -19,7 +19,7 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
 	start_index := len(starts)
 	if !starts_with(value, starts) {
-		return uri, false
+		return {}, false
 	}
 
 	when ODIN_OS != .Windows {
