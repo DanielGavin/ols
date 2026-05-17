@@ -2215,6 +2215,7 @@ visit_proc_type :: proc(
 		document = cons(document, text(">"))
 
 		use_parens := false
+		can_multiline_single := false
 
 		if len(proc_type.results.list) > 1 {
 			use_parens = true
@@ -2226,28 +2227,31 @@ visit_proc_type :: proc(
 					}
 				}
 			}
-		}
-
-		if contains_where_clauses {
-			if len(proc_type.results.list) == 1 {
-				if _, ok := proc_type.results.list[0].type.derived.(^ast.Proc_Type); ok {
+			if _, ok := proc_type.results.list[0].type.derived.(^ast.Proc_Type); ok {
+				if contains_where_clauses {
 					use_parens = true
+				} else {
+					can_multiline_single = true
 				}
 			}
 		}
 
+		results_parens := text("(")
+		results_parens = cons(
+			results_parens,
+			nest(cons(break_with(""), visit_signature_list(p, proc_type.results, true, true))),
+		)
+		results_parens = cons(results_parens, break_with(""), text(")"))
+
 		if use_parens {
-			document = cons_with_nopl(document, text("("))
-			document = cons(
-				document,
-				nest(cons(break_with(""), visit_signature_list(p, proc_type.results, true, true))),
-			)
-			document = cons(document, break_with(""), text(")"))
+			document = cons_with_nopl(document, results_parens)
 		} else {
-			document = cons_with_nopl(
-				document,
-				nest(group(visit_signature_list(p, proc_type.results, contains_body, true))),
-			)
+			results_no_parens := nest(group(visit_signature_list(p, proc_type.results, contains_body, true)))
+			if can_multiline_single {
+				document = cons_with_nopl(document, if_break_or_document(results_parens, results_no_parens))
+			} else {
+				document = cons_with_nopl(document, results_no_parens)
+			}
 		}
 	} else if proc_type.diverging {
 		document = cons_with_nopl(document, text("-"))
