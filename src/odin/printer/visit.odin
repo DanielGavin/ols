@@ -2227,11 +2227,13 @@ visit_proc_type :: proc(
 					}
 				}
 			}
-			if _, ok := proc_type.results.list[0].type.derived.(^ast.Proc_Type); ok {
-				if contains_where_clauses {
-					use_parens = true
-				} else {
-					can_multiline_single = true
+			if proc_type.results.list[0].type != nil {
+				if _, ok := proc_type.results.list[0].type.derived.(^ast.Proc_Type); ok {
+					if contains_where_clauses {
+						use_parens = true
+					} else {
+						can_multiline_single = true
+					}
 				}
 			}
 		}
