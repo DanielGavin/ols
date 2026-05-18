@@ -6833,3 +6833,22 @@ ast_hover_struct_multiple_fields_one_line :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "Foo.c: f32\n---\nc")
 }
+
+@(test)
+ast_hover_enum_case_with_range :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum {
+			A, B, C
+		}
+
+		main :: proc() {
+			foo: Foo
+			switch foo {
+			case .A{*} ..= .B:
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .A")
+}
