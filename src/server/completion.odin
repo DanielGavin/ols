@@ -371,7 +371,8 @@ convert_completion_results :: proc(
 		}
 
 		item.kind = symbol_type_to_completion_kind(result.symbol.type)
-		if result.symbol.type == .Function && config.enable_snippets && config.enable_procedure_snippet {
+
+		if should_add_parens_snippet(position_context, config, result.symbol.type) {
 			item.insertText = fmt.tprintf("%v($0)", item.label)
 			item.insertTextFormat = .Snippet
 			item.deprecated = .Deprecated in result.symbol.flags
@@ -388,6 +389,26 @@ convert_completion_results :: proc(
 	}
 
 	return items[:]
+}
+
+should_add_parens_snippet :: proc(position_context: ^DocumentPositionContext, config: ^common.Config, result_type: SymbolType) -> bool{
+	if result_type != .Function {
+		return false
+	}
+
+	if !config.enable_procedure_snippet || !config.enable_snippets {
+		return false
+	}
+
+	if position_context.call == nil {
+		return true
+	}
+
+	if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
+		return !position_in_node(call.expr, position_context.position)
+	}
+
+	return true
 }
 
 score_completion_item :: proc(item: ^CompletionResult, curr_pkg: string) {
