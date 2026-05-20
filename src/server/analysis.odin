@@ -3439,6 +3439,9 @@ resolve_symbol_selector :: proc(
 	case SymbolStructValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
+				if v.from_usings[i] != -1 {
+					symbol.uri = common.create_uri(v.types[i].pos.file, context.temp_allocator).uri
+				}
 				symbol.range = v.ranges[i]
 				symbol.type = .Field
 			}
