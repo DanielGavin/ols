@@ -712,7 +712,7 @@ get_locals_for_range_stmt :: proc(
 							ast_context.non_mutable_only,
 							false,
 							{.Mutable},
-							symbol.pkg,
+							get_package_from_node(results[result_i]^), // TODO: this may need to be used everywhere
 							false,
 						)
 					}
