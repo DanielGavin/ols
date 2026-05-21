@@ -15,6 +15,9 @@ import "src:server"
 Package :: struct {
 	pkg:    string,
 	source: string,
+	// Allows you to directly specify the file path. 
+	// If it's 'test/<file>.odin', it will share the same package as the main file.
+	file:   string,
 }
 
 Source :: struct {
@@ -78,7 +81,11 @@ setup :: proc(src: ^Source) {
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
 
-		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator)
+		path := src_pkg.file
+		if path == "" {
+			path = fmt.aprintf("test/%v/package.odin", src_pkg.pkg)
+		}
+		uri := common.create_uri(path, context.temp_allocator)
 
 		fullpath := uri.path
 
@@ -162,7 +169,11 @@ expect_signature_labels :: proc(
 
 	if expected_active_parameter != -1 {
 		if expected_active_parameter != help.activeParameter {
-			log.errorf("Expected active parameter %v, but reveived %v", expected_active_parameter, help.activeParameter)
+			log.errorf(
+				"Expected active parameter %v, but reveived %v",
+				expected_active_parameter,
+				help.activeParameter,
+			)
 		}
 	}
 }
