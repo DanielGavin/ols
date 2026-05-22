@@ -6877,3 +6877,43 @@ ast_hover_test_with_mulitple_files :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Bar :: struct{}")
 }
+
+@(test)
+ast_hover_overload_resolve_aliased_arguments :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package {
+			pkg = "pkg1",
+			source = `package pkg1
+			Foo :: struct{}
+			Bar :: proc(table: Foo) {}
+		`,
+		},
+		test.Package {
+			pkg = "pkg2",
+			source = `package pkg2
+			import "pkg1"
+			Foo :: pkg1.Foo
+		`,
+		},
+	)
+	source := test.Source {
+		main     = `package test
+		import "pkg1"
+		import "pkg2"
+
+		Bar :: proc {
+			pkg1.Bar,
+		}
+
+		main :: proc() {
+			Ba{*}r(pkg2.Foo{})
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_hover(t, &source, "pkg1.Bar :: proc(table: Foo)")
+}

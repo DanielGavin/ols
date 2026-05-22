@@ -406,8 +406,13 @@ resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol, bypass_dis
 	if !ok {
 		return symbol
 	}
-	if resolved.name == symbol.name && resolved.pkg == symbol.pkg && resolved.type == symbol.type {
-		return symbol
+	if resolved.type == symbol.type {
+		if resolved.name == symbol.name && resolved.pkg == symbol.pkg {
+			return symbol
+		}
+		// NOTE: This path causes alias of struct, unions, bit_sets etc.
+		// to resolve to anonymous symbols (e.g. struct{})
+		reset_ast_context(ast_context)
 	}
 	return resolve_base_symbol(ast_context, resolved, bypass_distinct)
 }
