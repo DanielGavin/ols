@@ -251,7 +251,7 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 			}
 			document = cons(document, text("}"))
 		} else if len(v.fullpaths) == 1 {
-			if _, ok := v.fullpaths[0].derived_expr.(^ast.Basic_Lit); ok {
+			if _, ok := v.fullpaths[0].derived.(^ast.Basic_Lit); ok {
 				document = cons_with_nopl(document, visit_expr(p, v.fullpaths[0]))
 			} else {
 				document = cons_with_nopl(document, text("{"))
