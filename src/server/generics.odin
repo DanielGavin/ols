@@ -53,6 +53,11 @@ resolve_poly :: proc(
 				} else {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				}
+				if call_symbol.pointers > 0 {
+					if expr, expr_ok := get_poly_map(ident, poly_map); expr_ok {
+						save_poly_map(ident, wrap_pointer(expr, call_symbol.pointers), poly_map)
+					}
+				}
 			}
 		}
 		return true
@@ -300,6 +305,15 @@ resolve_poly_expression :: proc(
 			return true
 		}
 	}
+
+	call_node := call_node
+	poly_node := poly_node
+	
+	// The expression for the specialization already contains the pointers
+	// so we don't need to represent it in the next poly
+	// Note: this function is only ever called by `resolve_poly_specialization`
+	call_node, _, _ = unwrap_pointer_expr(call_node)
+	poly_node, _, _ = unwrap_pointer_expr(poly_node)
 
 	call_symbol := Symbol{}
 	internal_resolve_type_expression(ast_context, call_node, &call_symbol)

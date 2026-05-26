@@ -6917,3 +6917,29 @@ ast_hover_overload_resolve_aliased_arguments :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "pkg1.Bar :: proc(table: Foo)")
 }
+
+@(test)
+ast_hover_overload_pointer_arg_from_return :: proc(t: ^testing.T) {
+	source: = test.Source {
+		main = `package test
+
+		foo :: proc() -> ^int {
+			return {}
+		}
+
+		bar :: proc {
+			bar_pass,
+		}
+
+		bar_pass :: proc(value: $T) -> T {
+			return T{}
+		}
+
+		main :: proc() {
+			bar{*}(foo())
+		}
+		`
+	}
+
+	test.expect_hover(t, &source, "test.bar :: proc(value: $T) -> T")
+}

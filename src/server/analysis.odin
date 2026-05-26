@@ -3759,18 +3759,16 @@ get_package_from_filepath :: proc(file_path: string) -> string {
 	return ret
 }
 
-wrap_pointer :: proc(expr: ^ast.Expr, times: int) -> ^ast.Expr {
-	n := 0
+wrap_pointer :: proc(expr: ^ast.Expr, times: int, allocator := context.temp_allocator) -> ^ast.Expr {
 	expr := expr
 
 	for i in 0 ..< times {
-		new_pointer := new_type(ast.Pointer_Type, expr.pos, expr.end, context.temp_allocator)
+		new_pointer := new_type(ast.Pointer_Type, expr.pos, expr.end, allocator)
 
 		new_pointer.elem = expr
 
 		expr = new_pointer
 	}
-
 
 	return expr
 }
