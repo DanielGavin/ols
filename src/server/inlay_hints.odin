@@ -370,8 +370,14 @@ get_inlay_hints :: proc(
 			return
 		}
 
-		if len(lhs) >= len(proc_symbol.return_types) do return // handled all results
+		// check if all results are handled
+		results_len: int
+		for field in proc_symbol.return_types {
+			results_len += len(field.names)
+		}
+		if len(lhs) >= results_len do return
 
+		// a, b[[, _]] := foo()
 		last := lhs[len(lhs)-1]
 		range := common.get_token_range(last^, string(data.document.text))
 		append(&data.hints, InlayHint{range.end, .Parameter, ", _"})

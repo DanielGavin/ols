@@ -236,8 +236,13 @@ ast_inlay_hints_optional_result :: proc(t: ^testing.T) {
 		foo :: proc () -> (res: int, ok: bool) #optional_ok {
 			return
 		}
+		bar :: proc () -> (a, b: int, ok: bool) #optional_ok {
+			return
+		}
 		main :: proc () {
 			res[[, _]] := foo()
+			res[[, _]] = foo()
+			a, b[[, _]] := bar()
 		}
 		`,
 		packages = {},
