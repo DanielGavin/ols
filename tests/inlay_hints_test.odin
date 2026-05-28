@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import test "src:testing"
@@ -228,3 +227,25 @@ ast_inlay_hints_implicit_return_values :: proc(t: ^testing.T) {
 
 	test.expect_inlay_hints(t, &source)
 }
+
+@(test)
+ast_inlay_hints_optional_result :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (res: int, ok: bool) #optional_ok {
+			return
+		}
+		main :: proc () {
+			res[[, _]] := foo()
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_optional_result = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+

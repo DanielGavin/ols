@@ -61,6 +61,11 @@
 			"description": "Turn on inlay hints for implicit return values.",
 			"default": false
 		},
+		"enable_inlay_hints_optional_result": {
+			"type": "boolean",
+			"description": "Adds inlay hints for unhandled optional result value. (#optional_ok and #optional_allocator_error)",
+			"default": false
+		},
 		"enable_procedure_snippet": {
 			"type": "boolean",
 			"description": "Use snippets when completing procedures—adds parenthesis after the name.",
