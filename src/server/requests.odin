@@ -487,6 +487,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_inlay_hints_default_params.(bool) or_else config.enable_inlay_hints_default_params
 	config.enable_inlay_hints_implicit_return =
 		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
+	config.enable_inlay_hints_optional_result =
+		ols_config.enable_inlay_hints_optional_result.(bool) or_else config.enable_inlay_hints_optional_result
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 	config.enable_overload_resolution =
@@ -801,9 +803,12 @@ request_initialize :: proc(
 						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
-				inlayHintProvider = (config.enable_inlay_hints_params ||
+				inlayHintProvider = (
+					config.enable_inlay_hints_params ||
 					config.enable_inlay_hints_default_params ||
-					config.enable_inlay_hints_implicit_return),
+					config.enable_inlay_hints_implicit_return ||
+					config.enable_inlay_hints_optional_result
+				),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,

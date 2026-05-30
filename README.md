@@ -95,6 +95,8 @@ Options:
 
 - `enable_inlay_hints_implicit_return`: Turn on inlay hints for implicit return values.
 
+- `enable_inlay_hints_optional_result`: Adds inlay hints for unhandled optional result value. (#optional_ok and #optional_allocator_error)
+
 - `enable_semantic_tokens`: Turns on syntax highlighting.
 
 - `enable_snippets`: Turns on builtin snippets
