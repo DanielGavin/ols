@@ -43,6 +43,7 @@ os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.OpenBSD      = "openbsd",
 	.NetBSD       = "netbsd",
 	.Orca         = "orca",
+	.Haiku        = "haiku",
 	.Unknown      = "unknown",
 }
 
@@ -74,6 +75,8 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"NetBSD"       = .NetBSD,
 	"Orca"         = .Orca,
 	"orca"         = .Orca,
+	"Haiku"        = .Haiku,
+	"haiku"        = .Haiku,
 	"Unknown"      = .Unknown,
 	"unknown"      = .Unknown,
 }
