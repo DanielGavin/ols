@@ -796,14 +796,10 @@ get_locals_for_range_stmt :: proc(
 		case SymbolDynamicArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
-					value := v.expr
-					if unary, ok := stmt.vals[0].derived.(^ast.Unary_Expr); ok {
-						value = make_pointer_ast(ast_context, v.expr)
-					}
 					store_local(
 						ast_context,
 						ident,
-						value,
+						v.expr,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,
@@ -833,14 +829,10 @@ get_locals_for_range_stmt :: proc(
 		case SymbolFixedArrayValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
-					value := v.expr
-					if unary, ok := stmt.vals[0].derived.(^ast.Unary_Expr); ok {
-						value = make_pointer_ast(ast_context, v.expr)
-					}
 					store_local(
 						ast_context,
 						ident,
-						value,
+						v.expr,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,
@@ -889,14 +881,10 @@ get_locals_for_range_stmt :: proc(
 		case SymbolSliceValue:
 			if len(stmt.vals) >= 1 {
 				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
-					value := v.expr
-					if unary, ok := stmt.vals[0].derived.(^ast.Unary_Expr); ok {
-						value = make_pointer_ast(ast_context, v.expr)
-					}
 					store_local(
 						ast_context,
 						ident,
-						value,
+						v.expr,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,

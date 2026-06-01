@@ -6302,7 +6302,8 @@ ast_hover_iter_by_reference :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_hover(t, &source, "test.foo: ^int")
+	// This is actually an `int` not `^int`
+	test.expect_hover(t, &source, "test.foo: int")
 }
 
 @(test)
