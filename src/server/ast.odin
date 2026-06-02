@@ -1264,7 +1264,9 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		strings.write_string(builder, ": ")
 		build_string(n.value, builder, remove_pointers)
 	case ^ast.Type_Cast:
+		strings.write_string(builder, "cast(")
 		build_string(n.type, builder, remove_pointers)
+		strings.write_string(builder, ")")
 		build_string(n.expr, builder, remove_pointers)
 	case ^ast.Bad_Stmt:
 	case ^ast.Bad_Decl:

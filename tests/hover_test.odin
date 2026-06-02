@@ -6944,3 +6944,15 @@ ast_hover_overload_pointer_arg_from_return :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.bar :: proc(value: $T) -> T")
 }
+
+@(test)
+ast_hover_const_with_cast :: proc(t: ^testing.T) {
+	source: = test.Source {
+		main = `package test
+
+		F{*}OO :: cast(u8)10
+		`
+	}
+
+	test.expect_hover(t, &source, "test.FOO :: cast(u8)10")
+}
