@@ -307,6 +307,31 @@ semantic_tokens_const_alias_type_cast :: proc(t: ^testing.T) {
 }
 
 @(test)
+semantic_tokens_const_array :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Vec   :: [2]f32
+		G_VEC :: Vec{1, 2}
+		main :: proc() {
+			VEC :: Vec{1, 2}
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		// Global scope
+		{1, 2,  3, .Type,     {.ReadOnly}}, // [0]  Vec
+		{0, 12, 3, .Type,     {.ReadOnly}}, // [1]  f32
+		{1, 2,  5, .Variable, {.ReadOnly}}, // [2]  G_VEC
+		{0, 9,  3, .Type,     {.ReadOnly}}, // [3]  Vec
+		{1, 2,  4, .Function, {.ReadOnly}}, // [4]  main
+		// Local scope
+		{1, 3,  3, .Variable, {.ReadOnly}}, // [5]  VEC
+		{0, 7,  3, .Type,     {.ReadOnly}}, // [6]  Vec
+	})
+}
+
+@(test)
 semantic_tokens_global_binary_expr :: proc(t: ^testing.T) {
 	src := test.Source {
 		main = `package test

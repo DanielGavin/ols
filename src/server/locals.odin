@@ -382,6 +382,8 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			if len(value_decl.values) > i {
 				value_expr = value_decl.values[i]
 			}
+		} else if len(value_decl.values) > i && is_variable_declaration(value_decl.values[i]) {
+			flags |= {.Variable}
 		}
 
 		if value_decl.is_mutable {
