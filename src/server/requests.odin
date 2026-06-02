@@ -338,8 +338,11 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 
 	if !ok {
 		log.errorf("Failed to find method: %#v", root)
-		response := make_response_message_error(id = id, error = ResponseError{code = .MethodNotFound, message = ""})
-		send_error(response, writer)
+		// nil id == notification - do not respond
+		if id != nil  {
+			response := make_response_message_error(id = id, error = ResponseError{code = .MethodNotFound, message = ""})
+			send_error(response, writer)
+		}
 		return
 	}
 
