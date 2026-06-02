@@ -154,68 +154,37 @@ get_generic_assignment :: proc(
 	case ^ast.Or_Branch_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
 	case ^ast.Call_Expr:
+
 		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
-
-		defer {
-			ast_context.call = old_call
-		}
-
-		//Check for basic type casts
-		if len(v.args) == 1 {
-			if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				//Handle the old way of type casting
-				if v, ok := keyword_map[ident.name]; ok {
-					//keywords
-					type_ident := new_type(ast.Ident, ident.pos, ident.end, ast_context.allocator)
-					type_ident.name = ident.name
-					append(results, type_ident)
-					break
-				}
-			}
-		}
+		defer ast_context.call = old_call
 
 		// If we have a call expr followed immediately by another call expr, we want to return value
 		// of the second call. Eg a := foo()()
-		if _, ok := v.expr.derived.(^ast.Call_Expr); ok {
-			symbol := Symbol{}
-			if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
-				if value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(value.return_types) == 1 {
-						if proc_type, ok := value.return_types[0].type.derived.(^ast.Proc_Type); ok {
-							for return_item in proc_type.results.list {
-								get_generic_assignment(
-									file,
-									return_item.type,
-									ast_context,
-									results,
-									calls,
-									flags,
-									is_mutable,
-								)
-							}
-							return
-						} else if ident, ok := value.return_types[0].type.derived.(^ast.Ident); ok {
-							if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
-								if value, ok := symbol.value.(SymbolProcedureValue); ok {
-									for return_item in value.return_types {
-										get_generic_assignment(
-											file,
-											return_item.type,
-											ast_context,
-											results,
-											calls,
-											flags,
-											is_mutable,
-										)
-									}
-								}
-							}
-						}
-					}
+		#partial switch _ in v.expr.derived {
+		case ^ast.Call_Expr:
+			symbol: Symbol
+
+			internal_resolve_type_expression(ast_context, v.expr, &symbol) or_break
+
+			value := symbol.value.(SymbolProcedureValue) or_break
+
+			if len(value.return_types) != 1 do break
+
+			#partial switch type in value.return_types[0].type.derived {
+			case ^ast.Proc_Type:
+				for return_item in type.results.list {
+					get_generic_assignment(file, return_item.type, ast_context, results, calls, flags, is_mutable)
+				}
+				return
+			case ^ast.Ident:
+				internal_resolve_type_expression(ast_context, type, &symbol) or_break
+				value := symbol.value.(SymbolProcedureValue) or_break
+				for return_item in value.return_types {
+					get_generic_assignment(file, return_item.type, ast_context, results, calls, flags, is_mutable)
 				}
 			}
-		} else if directive, ok := v.expr.derived.(^ast.Basic_Directive); ok {
+		case ^ast.Basic_Directive:
 			append(results, v)
 		}
 
@@ -223,23 +192,40 @@ get_generic_assignment :: proc(
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			#partial switch symbol_value in symbol.value {
 			case SymbolProcedureValue:
-				return_types := get_proc_return_types(ast_context, symbol, v, is_mutable)
-				for ret in return_types {
-					calls[len(results)] = {}
-					append(results, ret)
+				//For builtin procs (max, min, abs, etc.), preserve the original Call_Expr
+				if symbol.pkg == "$builtin" {
+					append(results, value)
+				} else {
+					for ret in get_proc_return_types(ast_context, symbol, v, is_mutable) {
+						calls[len(results)] = {}
+						append(results, ret)
+					}
 				}
 			case SymbolAggregateValue:
 				//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
 				append(results, value)
 
 			case SymbolStructValue:
-				// Parametrized struct
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Parametrized struct or type cast like My_Struct(123)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case SymbolUnionValue:
-				// Parametrized union
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Parametrized union or type cast like My_Union(123)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case SymbolBasicValue:
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Type alias like Bool :: bool; Bool(true)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case:
 				if ident, ok := v.expr.derived.(^ast.Ident); ok {
 					//TODO: Simple assumption that you are casting it the type.
@@ -380,21 +366,24 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for name, i in value_decl.names {
+		str := get_ast_node_string(name, file.src)
+
 		result_i := min(len(results) - 1, i)
 		if .SameLhsRhsCount in flags && len(result_starts) > i {
 			result_i = min(len(results) - 1, result_starts[i])
 		}
-		str := get_ast_node_string(name, file.src)
-		flags: bit_set[LocalFlag]
-
 		expr := results[result_i]
+
+		flags: bit_set[LocalFlag]
 		value_expr: ^ast.Expr
+
 		if is_variable_declaration(expr) {
 			flags |= {.Variable}
 			if len(value_decl.values) > i {
 				value_expr = value_decl.values[i]
 			}
 		}
+
 		if value_decl.is_mutable {
 			flags |= {.Mutable}
 		}
@@ -408,7 +397,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			ast_context.non_mutable_only,
 			false, // calls[result_i] or_else false, // TODO: find a good way to handle this
 			flags,
-			get_package_from_node(results[result_i]^),
+			get_package_from_node(expr^),
 			false,
 			value_decl.type,
 			value_expr,

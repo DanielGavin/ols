@@ -2876,6 +2876,28 @@ ast_hover_proc_force_no_inline :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_builtin_const_type_cast_local :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			fo{*}o :: u32(123)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.foo :: u32(123)")
+}
+
+@(test)
+ast_hover_builtin_const_type_cast_global :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		fo{*}o :: u32(123)
+	`,
+	}
+	test.expect_hover(t, &source, "test.foo :: u32(123)")
+}
+
+@(test)
 ast_hover_builtin_max_with_type_local :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -2884,7 +2906,7 @@ ast_hover_builtin_max_with_type_local :: proc(t: ^testing.T) {
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.max_u32 :: u32")
+	test.expect_hover(t, &source, "test.max_u32 :: max(u32)")
 }
 
 @(test)
