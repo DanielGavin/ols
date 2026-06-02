@@ -48,9 +48,9 @@ RequestThreadData :: struct {
 }
 
 Request :: struct {
-	id:              RequestId,
-	value:           json.Value,
-	is_notification: bool,
+	// Nil id means it's a notification - do not respond
+	id:    RequestId,
+	value: json.Value,
 }
 
 
@@ -88,11 +88,10 @@ thread_request_main :: proc(data: rawptr) {
 			return
 		}
 
-		id: RequestId
-		id_value: json.Value
-		id_value, ok = root["id"]
+		id: RequestId = nil
+		id_value, id_ok := root["id"]
 
-		if ok {
+		if id_ok {
 			#partial switch v in id_value {
 			case json.String:
 				id = v
@@ -115,9 +114,6 @@ thread_request_main :: proc(data: rawptr) {
 		if method == "$/cancelRequest" {
 			append(&deletings, Request{id = id})
 			json.destroy_value(root)
-		} else if method in notification_map {
-			append(&requests, Request{value = root, is_notification = true})
-			sync.sema_post(&requests_semaphore)
 		} else {
 			append(&requests, Request{id = id, value = root})
 			sync.sema_post(&requests_semaphore)
@@ -359,7 +355,8 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 			send_error(response, writer)
 		} else {
 			err := fn(root["params"], id, config, writer)
-			if err != .None {
+			// nil id == notification - do not respond
+			if err != .None && id != nil {
 				response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
 				send_error(response, writer)
 			}
@@ -803,12 +800,10 @@ request_initialize :: proc(
 						tokenModifiers = semantic_token_modifier_names,
 					},
 				},
-				inlayHintProvider = (
-					config.enable_inlay_hints_params ||
+				inlayHintProvider = (config.enable_inlay_hints_params ||
 					config.enable_inlay_hints_default_params ||
 					config.enable_inlay_hints_implicit_return ||
-					config.enable_inlay_hints_optional_result
-				),
+					config.enable_inlay_hints_optional_result),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
