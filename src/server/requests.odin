@@ -351,11 +351,14 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		time.SCOPED_TICK_DURATION(&diff)
 
 		if fn, ok := call_map[method]; !ok {
+            // nil id == notification - do not respond
+            if id != nil {
 			response := make_response_message_error(
 				id = id,
 				error = ResponseError{code = .MethodNotFound, message = ""},
 			)
 			send_error(response, writer)
+            }
 		} else {
 			err := fn(root["params"], id, config, writer)
 			// nil id == notification - do not respond
