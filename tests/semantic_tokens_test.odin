@@ -246,3 +246,105 @@ semantic_tokens_fixed_capacity_dynamic_array :: proc(t: ^testing.T) {
 		{0, 17, 3, .Type,     {.ReadOnly}}, // [1]  int
 	})
 }
+
+@(test)
+semantic_tokens_const_type_cast :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		GLOBAL_TRUE :: bool(true)
+		GLOBAL_A    :: int(42)
+		GLOBAL_B    :: cstring("hello")
+		main :: proc() {
+			TRUE :: bool(true)
+			A    :: int(42)
+			A    :: cstring("hello")
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		// Global scope
+		{1, 2, 11, .Variable, {.ReadOnly}}, // [0]  GLOBAL_TRUE
+		{0, 15, 4, .Type,     {.ReadOnly}}, // [1]  bool
+		{1, 2,  8, .Variable, {.ReadOnly}}, // [2]  GLOBAL_A
+		{0, 15, 3, .Type,     {.ReadOnly}}, // [3]  int
+		{1, 2,  8, .Variable, {.ReadOnly}}, // [4]  GLOBAL_B
+		{0, 15, 7, .Type,     {.ReadOnly}}, // [5]  cstring
+		{1, 2,  4, .Function, {.ReadOnly}}, // [6]  main
+		// Local scope
+		{1, 3,  4, .Variable, {.ReadOnly}}, // [7]  TRUE
+		{0, 8,  4, .Type,     {.ReadOnly}}, // [8]  bool
+		{1, 3,  1, .Variable, {.ReadOnly}}, // [9]  A
+		{0, 8,  3, .Type,     {.ReadOnly}}, // [10] int
+		{1, 3,  1, .Variable, {.ReadOnly}}, // [11] B
+		{0, 8,  7, .Type,     {.ReadOnly}}, // [12] cstring
+	})
+}
+
+@(test)
+semantic_tokens_const_alias_type_cast :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Bool   :: bool
+		G_TRUE :: Bool(true)
+		main :: proc() {
+			TRUE :: Bool(true)
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		// Global scope
+		{1, 2,  4, .Type,     {.ReadOnly}}, // [0]  Bool
+		{0, 10, 4, .Type,     {.ReadOnly}}, // [1]  bool
+		{1, 2,  6, .Variable, {.ReadOnly}}, // [2]  G_TRUE
+		{0, 10, 4, .Type,     {.ReadOnly}}, // [3]  Bool
+		{1, 2,  4, .Function, {.ReadOnly}}, // [4]  main
+		// Local scope
+		{1, 3,  4, .Variable, {.ReadOnly}}, // [5]  TRUE
+		{0, 8,  4, .Type,     {.ReadOnly}}, // [6]  Bool
+	})
+}
+
+@(test)
+semantic_tokens_const_array :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Vec   :: [2]f32
+		G_VEC :: Vec{1, 2}
+		main :: proc() {
+			VEC :: Vec{1, 2}
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		// Global scope
+		{1, 2,  3, .Type,     {.ReadOnly}}, // [0]  Vec
+		{0, 12, 3, .Type,     {.ReadOnly}}, // [1]  f32
+		{1, 2,  5, .Variable, {.ReadOnly}}, // [2]  G_VEC
+		{0, 9,  3, .Type,     {.ReadOnly}}, // [3]  Vec
+		{1, 2,  4, .Function, {.ReadOnly}}, // [4]  main
+		// Local scope
+		{1, 3,  3, .Variable, {.ReadOnly}}, // [5]  VEC
+		{0, 7,  3, .Type,     {.ReadOnly}}, // [6]  Vec
+	})
+}
+
+@(test)
+semantic_tokens_global_binary_expr :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		FOO :: 3 + 4
+		BAR :: int(1) + int(2)
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2, 3, .Variable, {.ReadOnly}}, // [0]  FOO
+		{1, 2, 3, .Variable, {.ReadOnly}}, // [1]  BAR
+		{0, 7, 3, .Type,     {.ReadOnly}}, // [2]  int
+		{0, 9, 3, .Type,     {.ReadOnly}}, // [3]  int
+	})
+}
+
