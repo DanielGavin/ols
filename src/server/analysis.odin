@@ -2264,6 +2264,10 @@ resolve_identifier_expr :: proc(
 }
 
 resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (symbol: Symbol, ok: bool) {
+	if local.rhs == nil {
+		return {}, false
+	}
+
 	if local.pkg != "" {
 		ast_context.current_package = local.pkg
 	}
