@@ -348,3 +348,73 @@ semantic_tokens_global_binary_expr :: proc(t: ^testing.T) {
 	})
 }
 
+@(test)
+semantic_tokens_imported_symbols :: proc(t: ^testing.T) {
+
+	src := test.Source {
+		main = `package test
+		import "my_package"
+		main :: proc() {
+			_ = my_package.My_Struct{}
+			_ = my_package.MY_CONST
+			_ = my_package.my_var
+			my_package.my_proc()
+		}
+		`,
+		packages = {
+			test.Package {
+				pkg = "my_package",
+				source = `package my_package
+			My_Struct :: struct {}
+			MY_CONST :: 42
+			my_var: int
+			my_proc :: proc() {}
+			`,
+			},
+		},
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 10, 10, .Namespace, {}},          // [0]  my_package (import)
+		{1,  2,  4, .Function,  {.ReadOnly}}, // [1]  main
+		{1,  7, 10, .Namespace, {.ReadOnly}}, // [2]  my_package
+		{0, 11,  9, .Struct,    {.ReadOnly}}, // [3]  My_Struct
+		{1,  7, 10, .Namespace, {.ReadOnly}}, // [4]  my_package
+		{0, 11,  8, .Variable,  {.ReadOnly}}, // [5]  MY_CONST
+		{1,  7, 10, .Namespace, {.ReadOnly}}, // [6]  my_package
+		{0, 11,  6, .Variable,  {}},          // [7]  my_var
+		{1,  3, 10, .Namespace, {.ReadOnly}}, // [8]  my_package
+		{0, 11,  7, .Function,  {.ReadOnly}}, // [9]  my_proc
+	})
+}
+
+@(test)
+semantic_tokens_imported_comp_lit_const :: proc(t: ^testing.T) {
+
+	src := test.Source {
+		main = `package test
+		import "raylib"
+		main :: proc() {
+			c := raylib.RED
+		}
+		`,
+		packages = {
+			test.Package {
+				pkg = "raylib",
+				source = `package raylib
+				Color :: [4]u8
+				RED :: Color{230, 41, 55, 255}
+				`,
+			},
+		},
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 10,  6, .Namespace, {}},          // [0]  raylib (import)
+		{1,  2,  4, .Function,  {.ReadOnly}}, // [1]  main
+		{1,  3,  1, .Variable,  {}},          // [2]  c
+		{0,  5,  6, .Namespace, {.ReadOnly}}, // [3]  raylib
+		{0,  7,  3, .Variable,  {.ReadOnly}}, // [4]  RED
+	})
+}
+
