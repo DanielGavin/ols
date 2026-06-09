@@ -5502,6 +5502,66 @@ ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^tes
 }
 
 @(test)
+ast_completion_fake_method_proc_alias :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "methods"
+		main :: proc() {
+			thing: methods.Thing
+			thing.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "methods",
+				source = `package methods
+				Thing :: struct {a, b: int}
+				thing_foo :: proc(t: ^Thing) {}
+				thing_bar :: thing_foo
+				thing_baz :: thing_bar
+				`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// Both thing_foo, thing_bar and thing_baz should appear as fake methods for Thing
+	test.expect_completion_labels(t, &source, ".", {"thing_foo", "thing_bar", "thing_baz", "a", "b"})
+}
+
+@(test)
+ast_completion_fake_method_proc_alias_cross_package :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "core"
+		main :: proc() {
+			r: core.Rect
+			r.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "math",
+				source = `package math
+				Rect :: struct {width, height: f32}
+				rect_area :: proc(r: Rect) -> f32 { return r.width * r.height }
+				`,
+			},
+			{
+				pkg = "core",
+				source = `package core
+				import "math"
+				Rect :: math.Rect
+				rect_area :: math.rect_area
+				`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+	// rect_area alias from core package should show as fake method for Rect
+	test.expect_completion_labels(t, &source, ".", {"rect_area", "width", "height"})
+}
+
+@(test)
 ast_completion_package_docs :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 
