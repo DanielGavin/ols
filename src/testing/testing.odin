@@ -209,31 +209,52 @@ expect_completion_labels :: proc(
 		log.error("Failed get_completion_list")
 	}
 
-	if len(expect_labels) == 0 && len(completion_list.items) > 0 {
-		log.errorf("Expected empty completion label, but received %v", completion_list.items)
-	}
-
-	flags := make([]int, len(expect_labels), context.temp_allocator)
-
-	for expect_label, i in expect_labels {
+	missing_expected := make([dynamic]string, context.temp_allocator)
+	loop_expected: for label, i in expect_labels {
 		for completion, j in completion_list.items {
-			if expect_label == completion.label {
-				flags[i] += 1
+			if label == completion.label {
+				continue loop_expected
+			}
+		}
+		append(&missing_expected, label)
+	}
+
+	present_excluded := make([dynamic]string, context.temp_allocator)
+	loop_excluded: for label, i in expect_excluded {
+		for completion, j in completion_list.items {
+			if label == completion.label {
+				append(&present_excluded, label)
+				continue loop_excluded
 			}
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			log.errorf("Expected completion detail %v, but received %v", expect_labels[i], completion_list.items)
-		}
-	}
+	if len(missing_expected) > 0 ||
+	   len(present_excluded) > 0 ||
+	   (len(expect_labels) == 0 && len(completion_list.items) > 0)
+	{
+		sb := strings.builder_make(context.temp_allocator)
+		defer log.error(strings.to_string(sb))
 
-	for expect_exclude in expect_excluded {
-		for completion in completion_list.items {
-			if expect_exclude == completion.label {
-				log.errorf("Expected completion label %v to not be included", expect_exclude)
+		fmt.sbprintln(&sb, "Completion label mismatch.")
+
+		strings.write_string(&sb, "Actual:   [")
+		for completion, i in completion_list.items {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
 			}
+			fmt.sbprintf(&sb, "\"%s\"", completion.label)
+		}
+		strings.write_string(&sb, "]\n")
+
+		if len(missing_expected) > 0 {
+			fmt.sbprintfln(&sb, "Expected: %v", expect_labels)
+			fmt.sbprintfln(&sb, "Missing:  %v", missing_expected[:])
+		}
+
+		if len(present_excluded) > 0 {
+			fmt.sbprintfln(&sb, "Excluded: %v", expect_excluded)
+			fmt.sbprintfln(&sb, "Present:  %v", present_excluded[:])
 		}
 	}
 }

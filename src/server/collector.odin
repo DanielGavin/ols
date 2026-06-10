@@ -504,6 +504,45 @@ get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -
 }
 
 /*
+	Collects a fake method from an alias if references a proc.
+*/
+collect_alias_method :: proc(collection: ^SymbolCollection, symbol: Symbol, visited: ^map[^Symbol]struct {}) {
+
+	pkg := &collection.packages[symbol.pkg]
+	value := symbol.value.(SymbolGenericValue)
+
+	resolved: ^Symbol
+	#partial switch v in value.expr.derived {
+	case ^ast.Ident:
+		resolved = (&pkg.symbols[v.name]) or_break
+	case ^ast.Selector_Expr:
+		pkg_ident := v.expr.derived.(^ast.Ident) or_break
+		field_ident := v.field.derived.(^ast.Ident) or_break
+		alias_pkg := (&collection.packages[pkg_ident.name]) or_break
+		resolved = (&alias_pkg.symbols[field_ident.name]) or_break
+	}
+
+	if resolved == nil do return
+
+	// symbols can point to each other in a cycle
+	if resolved in visited do return
+	visited[resolved] = {}
+
+	alias_symbol := resolved^
+	alias_symbol.name = symbol.name
+	alias_symbol.pkg  = symbol.pkg
+
+	#partial switch _ in resolved.value {
+	case SymbolProcedureValue:
+		collect_method(collection, alias_symbol)
+	case SymbolProcedureGroupValue:
+		collect_proc_group_method(collection, alias_symbol)
+	case SymbolGenericValue:
+		collect_alias_method(collection, alias_symbol, visited)
+	}
+}
+
+/*
 	Collects a procedure as a fake method if it's not part of a proc group.
 */
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
@@ -989,21 +1028,17 @@ collect_fake_methods :: proc(collection: ^SymbolCollection, exprs: []GlobalExpr,
 		// Determine the package name (same logic as in collect_symbols)
 		pkg_name := get_symbol_package_name(collection, directory, uri, expr.builtin)
 
-		pkg, ok := &collection.packages[pkg_name]
-		if !ok {
-			continue
-		}
-
-		symbol, found := pkg.symbols[expr.name]
-		if !found {
-			continue
-		}
+		pkg := (&collection.packages[pkg_name]) or_continue
+		symbol := pkg.symbols[expr.name] or_continue
 
 		#partial switch _ in symbol.value {
 		case SymbolProcedureValue:
 			collect_method(collection, symbol)
 		case SymbolProcedureGroupValue:
 			collect_proc_group_method(collection, symbol)
+		case SymbolGenericValue:
+			visited := make(map[^Symbol]struct {}, context.temp_allocator)
+			collect_alias_method(collection, symbol, &visited)
 		}
 	}
 }
