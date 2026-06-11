@@ -28,9 +28,8 @@ platform_os: map[string]struct{} = {
 	"wasi"    = {},
 	"wasm"    = {},
 	"netbsd"  = {},
-	"freebsd" = {},
+	"haiku"   = {}, // 1. adding haiku
 }
-
 
 os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.Windows      = "windows",
@@ -43,6 +42,7 @@ os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.OpenBSD      = "openbsd",
 	.NetBSD       = "netbsd",
 	.Orca         = "orca",
+	.Haiku        = "haiku", // adding haiku
 	.Unknown      = "unknown",
 }
 
@@ -74,6 +74,8 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"NetBSD"       = .NetBSD,
 	"Orca"         = .Orca,
 	"orca"         = .Orca,
+	"Haiku"        = .Haiku, // adding string for haiku
+	"haiku"        = .Haiku,
 	"Unknown"      = .Unknown,
 	"unknown"      = .Unknown,
 }
@@ -120,7 +122,12 @@ skip_file :: proc(filename: string) -> bool {
 
 // Finds all packages under the provided path by walking the file system
 // and appends them to the provided dynamic array
-append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]struct{}, allocator := context.temp_allocator) {
+append_packages :: proc(
+	path: string,
+	pkgs: ^[dynamic]string,
+	skip: map[string]struct{},
+	allocator := context.temp_allocator,
+) {
 	w := os.walker_create(path)
 	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
