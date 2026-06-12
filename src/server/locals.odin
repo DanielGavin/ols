@@ -409,6 +409,32 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 }
 
+get_locals_enum_fields :: proc(enum_type: ^ast.Enum_Type, enum_name: ^ast.Ident, ast_context: ^AstContext) {
+	for field in enum_type.fields {
+		name := get_enum_field_name(field)
+		if name == nil {
+			continue
+		}
+
+		selector := new_type(ast.Selector_Expr, field.pos, field.end, ast_context.allocator)
+		selector.expr = enum_name
+		selector.field = name
+
+		store_local(
+			ast_context,
+			field,
+			selector,
+			field.pos.offset,
+			name.name,
+			false,
+			false,
+			{},
+			"",
+			false,
+		)
+	}
+}
+
 get_locals_stmt :: proc(
 	file: ast.File,
 	stmt: ^ast.Stmt,

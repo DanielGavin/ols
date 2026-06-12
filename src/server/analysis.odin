@@ -4126,6 +4126,20 @@ get_enum_field_name_range_value :: proc(n: ^ast.Expr, document_text: string) -> 
 	return "", {}, nil
 }
 
+get_enum_field_name :: proc(n: ^ast.Expr) -> ^ast.Ident {
+	if ident, ok := n.derived.(^ast.Ident); ok {
+		return ident
+	}
+	if field, ok := n.derived.(^ast.Field_Value); ok {
+		if ident, ok := field.field.derived.(^ast.Ident); ok {
+			return ident
+		} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
+			return binary.left.derived.(^ast.Ident)
+		}
+	}
+	return nil
+}
+
 make_symbol_bitset_from_ast :: proc(
 	ast_context: ^AstContext,
 	v: ast.Bit_Set_Type,
