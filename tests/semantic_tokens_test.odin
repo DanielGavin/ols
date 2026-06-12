@@ -418,3 +418,21 @@ semantic_tokens_imported_comp_lit_const :: proc(t: ^testing.T) {
 	})
 }
 
+@(test)
+semantic_tokens_enum_field_value :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: enum {
+			Bar,
+			Baz = Bar,
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2, 3, .Enum,       {.ReadOnly}}, // [0]  Foo
+		{1, 3, 3, .EnumMember, {}},			 // [1]  Bar
+		{1, 3, 3, .EnumMember, {}},			 // [2]  Baz
+		{0, 6, 3, .EnumMember, {.ReadOnly}}, // [3]  Bar
+	})
+}
