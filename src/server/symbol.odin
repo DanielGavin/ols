@@ -977,3 +977,19 @@ construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: string, document_pkg
 		symbol.type_pkg = ""
 	}
 }
+
+symbol_has_attributes :: proc(symbol: Symbol, attrs: map[string]struct{}) -> bool {
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		for attr in value.attributes {
+			for elem in attr.elems {
+				if ident, _, ok := unwrap_attr_elem(elem); ok {
+					if ident.name in attrs {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}

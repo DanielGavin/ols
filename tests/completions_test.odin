@@ -1,3 +1,4 @@
+#+feature dynamic-literals
 package tests
 
 import "core:strings"
@@ -5837,4 +5838,25 @@ ast_completion_super_enum_assignment :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, ".", {"Foo1.A", "Foo1.B", "Foo2.C", "Foo2.D"})
+}
+
+
+@(test)
+ast_completion_skip_test_procs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			@(test)
+			foo_test :: proc() {}
+			foo :: proc() {}
+
+			main :: proc() {
+				f{*}
+			}
+		`,
+		config = {
+			completion_exclude_attributes = {"test" = {}}
+		}
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.foo :: proc()"}, {"test.foo_test :: proc()"})
 }

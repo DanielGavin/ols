@@ -433,16 +433,27 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	if ols_config.checker_args != "" {
 		config.checker_args = strings.clone(ols_config.checker_args, context.allocator)
 	}
+
 	if len(ols_config.checker_skip_packages) > 0 {
-		packages := make(map[string]struct{}, context.allocator)
+		if config.checker_skip_packages == nil {
+			config.checker_skip_packages = make(map[string]struct{}, context.allocator)
+		}
 		for pkg in ols_config.checker_skip_packages {
 			full_path := pkg
 			if !filepath.is_abs(full_path) {
-				full_path = path.join(elems = {uri.path, pkg})
+				full_path = path.join({uri.path, pkg}, context.allocator)
 			}
-			packages[full_path] = {}
+			config.checker_skip_packages[full_path] = {}
 		}
-		config.checker_skip_packages = packages
+	}
+
+	if len(ols_config.completion_exclude_attributes) > 0 {
+		if config.completion_exclude_attributes == nil {
+			config.completion_exclude_attributes = make(map[string]struct{}, context.allocator)
+		}
+		for name in ols_config.completion_exclude_attributes {
+			config.completion_exclude_attributes[strings.clone(name, context.allocator)] = {}
+		}
 	}
 
 	if ols_config.struct_fields_underscore_visibility == "file" {
