@@ -448,6 +448,7 @@ OlsConfig :: struct {
 	checker_args:                            string,
 	checker_targets:                         []string,
 	checker_skip_packages:                   []string,
+	completion_exclude_attributes:           []string,
 	profiles:                                [dynamic]common.ConfigProfile,
 	profile:                                 string,
 }

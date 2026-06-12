@@ -128,6 +128,8 @@ Options:
 
 - `checker_skip_packages`: Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`.
 
+- `completion_exclude_attributes`: Filter procedures that include the provided attributes from completions. For example `@(test)`.
+
 - `verbose`: Logs warnings instead of just errors.
 
 - `profile`: What profile to currently use.

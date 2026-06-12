@@ -288,6 +288,12 @@ convert_completion_results :: proc(
 			continue
 		}
 
+		if len(config.completion_exclude_attributes) > 0 {
+			if symbol_has_attributes(result.symbol, config.completion_exclude_attributes) {
+				continue
+			}
+		}
+
 		//Skip procedures when the position is in proc decl
 		if position_in_proc_decl(position_context) &&
 		   result.symbol.type == .Function &&

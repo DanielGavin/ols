@@ -152,6 +152,13 @@
 			},
 			"description": "Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`."
 		},
+		"completion_exclude_attributes": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Filter procedures that include the provided attributes from completions. For example `@(test)`."
+		},
 		"profile": {
 			"type": "string",
 			"description": "What profile to currently use."
