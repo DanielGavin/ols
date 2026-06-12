@@ -27,6 +27,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 		for workspace in common.config.workspace_folders {
 			uri := common.parse_uri(workspace.uri, context.temp_allocator) or_return
 			pkgs := make([dynamic]string, 0, context.temp_allocator)
+			append(&pkgs, uri.path)
 
 			w := os.walker_create(uri.path)
 			defer os.walker_destroy(&w)
