@@ -792,3 +792,21 @@ ast_goto_fixed_cap_dyn_array_capacity :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_goto_enum_field_value_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Bar,
+			Baz = B{*}ar,
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {start = {line = 2, character = 3}, end = {line = 2, character = 6}},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
+}
