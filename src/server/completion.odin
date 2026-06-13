@@ -76,15 +76,11 @@ get_completion_list :: proc(
 		document.fullpath,
 	)
 	ast_context.position_hint = position_context.hint
-
-	get_globals(document.ast, &ast_context)
-
 	ast_context.current_package = ast_context.document_package
 	ast_context.value_decl = position_context.value_decl
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
+	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
 
 	completion_type: Completion_Type = .Identifier
 

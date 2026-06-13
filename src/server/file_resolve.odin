@@ -162,10 +162,6 @@ local_scope_poly_deferred :: proc(data: ^FileResolveData, poly_params: ^ast.Fiel
 @(deferred_in = local_scope_poly_deferred)
 local_scope_poly :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List) {
 	add_local_group(data.ast_context)
-	if poly_params == nil {
-		return
-	}
-
 	get_locals_poly(data.ast_context.file, poly_params, data.ast_context)
 }
 

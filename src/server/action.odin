@@ -52,17 +52,10 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 	}
 
 	ast_context.position_hint = position_context.hint
-
-	get_globals(document.ast, &ast_context)
-
 	ast_context.current_package = ast_context.document_package
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
-	if position_context.enum_type != nil {
-		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
-	}
+	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
 
 	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
 

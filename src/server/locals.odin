@@ -26,6 +26,22 @@ DocumentLocal :: struct {
 
 LocalGroup :: map[string][dynamic]DocumentLocal
 
+get_locals :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) {
+	if position_context.function != nil {
+		get_function_locals(ast_context.file, position_context.function, ast_context, position_context)
+	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, ast_context, position_context)
+	}
+	// TODO: add support and fix up the way poly types are handled
+	// if position_context.struct_type != nil {
+	// 	get_locals_poly(ast_context.file, position_context.struct_type.poly_params, ast_context)
+	// }
+	// if position_context.union_type != nil {
+	// 	get_locals_poly(ast_context.file, position_context.union_type.poly_params, ast_context)
+	// }
+}
+
 store_local :: proc(
 	ast_context: ^AstContext,
 	lhs: ^ast.Expr,
@@ -1189,6 +1205,9 @@ get_locals_proc_param_and_results :: proc(
 }
 
 get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^AstContext) {
+	if params == nil {
+		return
+	}
 	for param in params.list {
 		for name in param.names {
 			if poly, ok := name.derived.(^ast.Poly_Type); ok {
@@ -1199,8 +1218,7 @@ get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^A
 	}
 }
 
-
-get_locals :: proc(
+get_function_locals :: proc(
 	file: ast.File,
 	function: ^ast.Node,
 	ast_context: ^AstContext,

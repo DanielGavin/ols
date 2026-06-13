@@ -94,13 +94,8 @@ get_signature_information :: proc(
 	}
 
 	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
-	if position_context.enum_type != nil {
-		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
-	}
 	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
 
 	if position_context.call != nil {
