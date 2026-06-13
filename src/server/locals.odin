@@ -409,7 +409,17 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 }
 
-get_locals_enum_fields :: proc(enum_type: ^ast.Enum_Type, enum_name: ^ast.Ident, ast_context: ^AstContext) {
+get_locals_enum_fields :: proc(enum_type: ^ast.Enum_Type, ast_context: ^AstContext, position_context: ^DocumentPositionContext) {
+	if enum_type == nil ||
+	   position_context.value_decl == nil ||
+	   len(position_context.value_decl.names) == 0 {
+		return
+	}
+
+	enum_name, ok := position_context.value_decl.names[0].derived.(^ast.Ident)
+	if !ok {
+		return
+	}
 	for field in enum_type.fields {
 		name := get_enum_field_name(field)
 		if name == nil {

@@ -6978,3 +6978,16 @@ ast_hover_const_with_cast :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.FOO :: cast(u8)10")
 }
+
+@(test)
+ast_hover_enum_field_value_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Bar,
+			Baz = B{*}ar,
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.Foo: .Bar")
+}

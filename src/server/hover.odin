@@ -40,8 +40,12 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
+	}
 
-	if position_context.import_stmt != nil && position_in_node(position_context.import_stmt, position_context.position) {
+	if position_context.import_stmt != nil &&
+	   position_in_node(position_context.import_stmt, position_context.position) {
 		for imp in document.imports {
 			if imp.original != position_context.import_stmt.fullpath {
 				continue
@@ -173,12 +177,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									); ok {
 										name := get_field_parent_name(value_decl_symbol, struct_symbol)
 										if value, ok := struct_symbol.value.(SymbolStructValue); ok {
-											construct_struct_field_symbol(
-												&symbol,
-												name,
-												value,
-												index,
-											)
+											construct_struct_field_symbol(&symbol, name, value, index)
 											build_documentation(&ast_context, &symbol, true)
 											hover.range = symbol.range
 											hover.contents = write_hover_content(&ast_context, symbol)
@@ -411,41 +410,10 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
-		hover.range = common.get_token_range(implicit_selector, document.ast.src)
 		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context); ok {
-			#partial switch v in symbol.value {
-			case SymbolEnumValue:
-				for name, i in v.names {
-					if strings.compare(name, implicit_selector.field.name) == 0 {
-						construct_enum_field_symbol(&symbol, v, i)
-						hover.contents = write_hover_content(&ast_context, symbol)
-						return hover, true, true
-					}
-				}
-			case SymbolUnionValue:
-				for type in v.types {
-					enum_symbol := resolve_type_expression(&ast_context, type) or_continue
-					v := enum_symbol.value.(SymbolEnumValue) or_continue
-					for name, i in v.names {
-						if strings.compare(name, implicit_selector.field.name) == 0 {
-							construct_enum_field_symbol(&enum_symbol, v, i)
-							hover.contents = write_hover_content(&ast_context, enum_symbol)
-							return hover, true, true
-						}
-					}
-				}
-			case SymbolBitSetValue:
-				if enum_symbol, ok := resolve_type_expression(&ast_context, v.expr); ok {
-					if v, ok := enum_symbol.value.(SymbolEnumValue); ok {
-						for name, i in v.names {
-							if strings.compare(name, implicit_selector.field.name) == 0 {
-								construct_enum_field_symbol(&enum_symbol, v, i)
-								hover.contents = write_hover_content(&ast_context, enum_symbol)
-								return hover, true, true
-							}
-						}
-					}
-				}
+			if hover, ok := get_hover_enum_field(&ast_context, symbol, implicit_selector.field.name); ok {
+				hover.range = common.get_token_range(implicit_selector, document.ast.src)
+				return hover, true, true
 			}
 		}
 		return {}, false, true
@@ -472,6 +440,11 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		}
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
+			if position_context.enum_type != nil {
+				if hover, ok := get_hover_enum_field(&ast_context, resolved, ident.name); ok {
+					return hover, true, true
+				}
+			}
 			construct_ident_symbol_info(&resolved, ident.name, ast_context.document_package)
 
 			build_documentation(&ast_context, &resolved, false)
@@ -481,6 +454,47 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	}
 
 	return hover, false, true
+}
+
+get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_name: string) -> (Hover, bool) {
+	symbol := symbol
+	hover: Hover
+	#partial switch v in symbol.value {
+	case SymbolEnumValue:
+		for name, i in v.names {
+			if strings.compare(name, field_name) == 0 {
+				construct_enum_field_symbol(&symbol, v, i)
+				hover.contents = write_hover_content(ast_context, symbol)
+				return hover, true
+			}
+		}
+	case SymbolUnionValue:
+		for type in v.types {
+			enum_symbol := resolve_type_expression(ast_context, type) or_continue
+			v := enum_symbol.value.(SymbolEnumValue) or_continue
+			for name, i in v.names {
+				if strings.compare(name, field_name) == 0 {
+					construct_enum_field_symbol(&enum_symbol, v, i)
+					hover.contents = write_hover_content(ast_context, enum_symbol)
+					return hover, true
+				}
+			}
+		}
+	case SymbolBitSetValue:
+		if enum_symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
+			if v, ok := enum_symbol.value.(SymbolEnumValue); ok {
+				for name, i in v.names {
+					if strings.compare(name, field_name) == 0 {
+						construct_enum_field_symbol(&enum_symbol, v, i)
+						hover.contents = write_hover_content(ast_context, enum_symbol)
+						return hover, true
+					}
+				}
+			}
+		}
+	}
+
+	return {}, false
 }
 
 @(private = "file")
