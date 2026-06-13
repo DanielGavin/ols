@@ -45,13 +45,7 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 	ast_context.position_hint = position_context.hint
 
 	get_globals(document.ast, &ast_context)
-
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
-	if position_context.enum_type != nil {
-		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
-	}
+	get_locals(&ast_context, &position_context)
 
 	if position_context.import_stmt != nil {
 		return {}, false
