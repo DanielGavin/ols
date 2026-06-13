@@ -2265,7 +2265,7 @@ append_magic_map_completion :: proc(
 	for name in map_builtins_with_args {
 		item := CompletionItem {
 			label = name,
-			kind = .Snippet,
+			kind = .Function,
 			detail = name,
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
