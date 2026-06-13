@@ -8,7 +8,6 @@ import "core:odin/ast"
 import "core:odin/parser"
 import "core:os"
 import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:slice"
 import "core:strings"
 
@@ -455,6 +454,9 @@ get_references :: proc(
 
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
+	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
 	}
 
 	locations, ok2 := resolve_references(

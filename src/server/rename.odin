@@ -33,6 +33,9 @@ get_rename :: proc(document: ^Document, new_text: string, position: common.Posit
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
+	}
 
 	locations, ok2 := resolve_references(document, &ast_context, &position_context)
 
@@ -87,6 +90,9 @@ get_prepare_rename :: proc(document: ^Document, position: common.Position) -> (c
 
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
+	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
 	}
 
 	symbol, ok2 := prepare_rename(document, &ast_context, &position_context)

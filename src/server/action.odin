@@ -60,6 +60,9 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
+	}
 
 	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
 
