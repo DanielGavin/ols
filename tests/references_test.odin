@@ -1632,3 +1632,21 @@ ast_reference_iterator_index_union_switch_case :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations)
 }
+
+@(test)
+ast_reference_enum_field_value_reference  :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Bar,
+			Baz = B{*}ar,
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 2, character = 3}, end = {line = 2, character = 6}}},
+		{range = {start = {line = 3, character = 9}, end = {line = 3, character = 12}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations)
+}

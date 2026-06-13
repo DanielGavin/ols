@@ -64,6 +64,9 @@ get_definition_location :: proc(document: ^Document, position: common.Position, 
 	if position_context.function != nil {
 		get_locals(document.ast, position_context.function, &ast_context, &position_context)
 	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, &ast_context, &position_context)
+	}
 
 	if position_context.import_stmt != nil {
 		if get_all_package_file_locations(document, position_context.import_stmt, &locations) {
