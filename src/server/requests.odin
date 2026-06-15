@@ -779,7 +779,10 @@ request_initialize :: proc(
 	config.enable_label_details =
 		initialize_params.capabilities.textDocument.completion.completionItem.labelDetailsSupport
 
-	config.enable_snippets &= initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
+	client_snippet_supprot := initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
+	config.enable_snippets &= client_snippet_supprot
+	config.enable_fake_method &= client_snippet_supprot
+	config.enable_procedure_snippet &= client_snippet_supprot
 
 	config.signature_offset_support =
 		initialize_params.capabilities.textDocument.signatureHelp.signatureInformation.parameterInformation.labelOffsetSupport

@@ -77,7 +77,7 @@ Options:
 
 - `enable_document_symbols`: Turns on outline of all your global declarations in your document. _(Enabled by default)_
 
-- `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
+- `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental and requires client snippet support.
 
 - `enable_overload_resolution`: Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.
 
@@ -101,7 +101,7 @@ Options:
 
 - `enable_snippets`: Turns on builtin snippets
 
-- `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
+- `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. This requires client snippet support. _(Enabled by default)_
 
 - `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
 
