@@ -208,13 +208,17 @@ get_generic_assignment :: proc(
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			#partial switch symbol_value in symbol.value {
 			case SymbolProcedureValue:
-				//For builtin procs (max, min, abs, etc.), preserve the original Call_Expr
-				if symbol.pkg == "$builtin" {
+				if symbol.pkg == "$builtin" && !is_mutable {
 					append(results, value)
 				} else {
-					for ret in get_proc_return_types(ast_context, symbol, v, is_mutable) {
-						calls[len(results)] = {}
-						append(results, ret)
+					returns := get_proc_return_types(ast_context, symbol, v, is_mutable)
+					if len(returns) == 0 {
+						append(results, value)
+					} else {
+						for ret in returns {
+							calls[len(results)] = {}
+							append(results, ret)
+						}
 					}
 				}
 			case SymbolAggregateValue:
