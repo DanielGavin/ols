@@ -153,6 +153,10 @@ add_proc_signature :: proc(
 
 		for arg, i in call_expr.args {
 			bad_expr, is_bad_expr := arg.derived.(^ast.Bad_Expr)
+			if !is_bad_expr && arg.pos.offset > position_context.position {
+				break
+			}
+
 			if is_bad_expr{
 				if prev_offset < position_context.position {
 					text := ast_context.file.src[prev_offset:position_context.position]

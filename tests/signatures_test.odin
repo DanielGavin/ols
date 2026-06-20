@@ -778,6 +778,25 @@ signature_proc_overload :: proc(t: ^testing.T) {
 		expected_active_parameter = 1,
 	)
 }
+
+@(test)
+signature_expr_after_newlines :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(face: int, char_code: string, load_flags: int) {}
+
+		main :: proc() {
+			foo(face,{*}
+
+
+			bar := true
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_parameter_position(t, &source, 1)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {
