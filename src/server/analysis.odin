@@ -225,6 +225,12 @@ resolve_type_comp_literal :: proc(
 
 		if field_value, ok := elem.derived.(^ast.Field_Value); ok { 	//named
 			if comp_lit, ref_n, ok := unwrap_comp_literal(field_value.value); ok {
+				if comp_lit.type != nil {
+					if symbol, ok := resolve_type_expression(ast_context, comp_lit.type); ok {
+						return resolve_type_comp_literal(ast_context, position_context, symbol, comp_lit)
+					}
+				}
+
 				if s, ok := current_symbol.value.(SymbolStructValue); ok {
 					for name, i in s.names {
 						// TODO: may need to handle the other cases
