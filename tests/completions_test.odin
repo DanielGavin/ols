@@ -5860,3 +5860,32 @@ ast_completion_skip_test_procs :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"test.foo :: proc()"}, {"test.foo_test :: proc()"})
 }
+
+@(test)
+ast_completion_nested_comp_lit_with_union :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+	A :: struct {
+		some: int,
+	}
+
+	B :: union {
+		A,
+	}
+
+	C :: struct {
+		b: B,
+	}
+
+	main :: proc() {
+		c := C {
+			b = A {
+				so{*}
+			}
+		}
+	}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"A.some: int"})
+}
