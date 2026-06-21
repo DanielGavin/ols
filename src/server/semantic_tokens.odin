@@ -568,8 +568,22 @@ visit_ident :: proc(
 	}
 
 	if .Variable in symbol.flags {
-		write_semantic_node(builder, ident, .Variable, modifiers)
-		return
+		// Currently we mark all Call_Exprs as variables, we check here to see if it
+		// was actually a type alias. See `is_variable_declaration`
+		is_alias := false
+		if symbol.value_expr != nil {
+			if _, ok := symbol.value_expr.derived.(^ast.Call_Expr); ok {
+				#partial switch symbol.type {
+				case .Struct, .Union:
+					is_alias = true
+				}
+			}
+		}
+
+		if !is_alias {
+			write_semantic_node(builder, ident, .Variable, modifiers)
+			return
+		}
 	}
 
 	/* variable idents */
