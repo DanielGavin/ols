@@ -436,3 +436,21 @@ semantic_tokens_enum_field_value :: proc(t: ^testing.T) {
 		{0, 6, 3, .EnumMember, {.ReadOnly}}, // [3]  Bar
 	})
 }
+
+@(test)
+semantic_tokens_alias_from_poly_struct :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		Foo :: struct($A: typeid){}
+		Bar :: Foo(int)
+		`,
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  3, .Struct,        {.ReadOnly}}, // [0]  Foo
+		{0, 15, 1, .TypeParameter, {}},          // [1]  A
+		{1, 2,  3, .Struct,        {.ReadOnly}}, // [2]  Bar
+		{0, 7,  3, .Struct,        {.ReadOnly}}, // [3]  Foo
+		{0, 4,  3, .Type,          {.ReadOnly}}, // [4]  int
+	})
+}

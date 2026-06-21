@@ -382,6 +382,7 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 
 // TODO: it seems the global symbols don't distinguish between a type decl and
 // a const variable declaration, so we do a quick check here to distinguish the cases.
+// Note this will be incorrect for type aliases from poly types, eg `Foo :: Bar(int)`
 is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
 	#partial switch v in expr.derived {
 	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr, ^ast.Binary_Expr, ^ast.Unary_Expr:
