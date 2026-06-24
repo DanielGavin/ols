@@ -6878,26 +6878,22 @@ ast_hover_enum_case_with_range :: proc(t: ^testing.T) {
 
 @(test)
 ast_hover_test_with_mulitple_files :: proc(t: ^testing.T) {
-	packages := make([dynamic]test.Package, context.temp_allocator)
 
-	append(
-		&packages,
-		test.Package {
-			pkg = "test",
-			file = "test/test2.odin",
-			source = `package test
-			Bar :: struct{}
-			`,
-		}
-	)
-	source := test.Source {
-		main     = `package test
-		main :: proc() {
-			bar: B{*}ar
-		}
-		`,
-		packages = packages[:],
+	source := test.Source{
+		files = {
+			{"main.odin",
+				`package test
+				main :: proc() {
+					bar: B{*}ar
+				}
+			`},
+			{"bar.odin",
+				`package test
+				Bar :: struct {}
+			`},
+		},
 	}
+
 	test.expect_hover(t, &source, "test.Bar :: struct{}")
 }
 

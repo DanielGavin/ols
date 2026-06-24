@@ -1171,7 +1171,7 @@ ast_file_tag_private_files_completion :: proc(t: ^testing.T) {
 			files = {
 				{"ignored.odin", pkg_src_ignored},
 				{"noraml.odin", pkg_src_normal},
-			}
+			},
 		}
 
 		test.expect_completion_docs(t, &source, ".",

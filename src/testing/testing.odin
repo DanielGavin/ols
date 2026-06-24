@@ -7,6 +7,7 @@ import "core:odin/ast"
 import "core:odin/parser"
 import "core:strings"
 import "core:testing"
+import "core:path/filepath"
 
 import "src:common"
 import "src:server"
@@ -14,9 +15,6 @@ import "src:server"
 File :: struct {
 	name:   string,
 	source: string,
-	// Allows you to directly specify the file path. 
-	// If it's 'test/<file>.odin', it will share the same package as the main file.
-	file:   string,
 }
 
 Package :: struct {
@@ -181,6 +179,8 @@ setup_multi_file_collect :: proc(src: ^Source) {
 			warn  = parser.default_error_handler,
 			flags = {.Optional_Semicolons},
 		}
+
+		dir := filepath.base(filepath.dir(fullpath))
 
 		pkg := new(ast.Package, context.temp_allocator)
 		pkg.kind = .Normal
