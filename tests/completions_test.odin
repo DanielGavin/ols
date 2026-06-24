@@ -1099,14 +1099,14 @@ ast_file_tag_private_package_completion :: proc(t: ^testing.T) {
 
 	for comment in comments {
 
-		pkg_name :: "my_package"
-		pkg_decl :: "package "+pkg_name
-		symbol_ignored :: "symbol_ignored :: proc()"
-		symbol_normal :: "symbol_normal :: proc()"
-		symbol_ignored_decl :: symbol_ignored + " {}"
-		symbol_normal_decl :: symbol_normal + " {}"
+		pkg_name                  :: "my_package"
+		pkg_decl                  :: "package "+pkg_name
+		symbol_ignored            :: "symbol_ignored :: proc()"
+		symbol_normal             :: "symbol_normal :: proc()"
+		symbol_ignored_decl       :: symbol_ignored + " {}"
+		symbol_normal_decl        :: symbol_normal + " {}"
 		symbol_ignored_completion :: pkg_name+"."+symbol_ignored
-		symbol_normal_completion :: pkg_name+"."+symbol_normal
+		symbol_normal_completion  :: pkg_name+"."+symbol_normal
 
 		pkg_src_ignored := strings.join({comment, pkg_decl, symbol_ignored_decl}, "\n", context.temp_allocator)
 		pkg_src_normal  := strings.join({pkg_decl, symbol_normal_decl}, "\n", context.temp_allocator)
@@ -1150,14 +1150,14 @@ ast_file_tag_private_files_completion :: proc(t: ^testing.T) {
 
 	for comment in comments {
 
-		pkg_name :: "test"
-		pkg_decl :: "package "+pkg_name
-		symbol_ignored :: "symbol_ignored :: proc()"
-		symbol_normal :: "symbol_normal :: proc()"
-		symbol_ignored_decl :: symbol_ignored + " {}"
-		symbol_normal_decl :: symbol_normal + " {}"
+		pkg_name                  :: "test"
+		pkg_decl                  :: "package "+pkg_name
+		symbol_ignored            :: "symbol_ignored :: proc()"
+		symbol_normal             :: "symbol_normal :: proc()"
+		symbol_ignored_decl       :: symbol_ignored + " {}"
+		symbol_normal_decl        :: symbol_normal  + " {}"
 		symbol_ignored_completion :: pkg_name+"."+symbol_ignored
-		symbol_normal_completion :: pkg_name+"."+symbol_normal
+		symbol_normal_completion  :: pkg_name+"."+symbol_normal
 
 		pkg_src_ignored := strings.join({comment, pkg_decl, symbol_ignored_decl}, "\n", context.temp_allocator)
 		pkg_src_normal  := strings.join({pkg_decl, symbol_normal_decl}, "\n", context.temp_allocator)

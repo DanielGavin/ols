@@ -1,5 +1,6 @@
 package ols_testing
 
+import "core:slice"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
@@ -42,11 +43,8 @@ setup :: proc(src: ^Source) {
 	_ = virtual.arena_init_growing(src.document.allocator)
 
 	if len(src.main) > 0 {
-		files := make([dynamic]File, 0, len(src.files)+1, context.temp_allocator)
-		append(&files, File{"main.odin", src.main})
-		append(&files, ..src.files)
-		src.files = files[:]
-		src.main = ""
+		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
+		src.main  = ""
 	}
 
 	setup_multi_file_prepare(src)
@@ -117,17 +115,22 @@ setup :: proc(src: ^Source) {
 
 @(private)
 setup_multi_file_prepare :: proc(src: ^Source) {
+
 	src.document.package_name = "test"
 
-	for &f, i in src.files {
+	if len(src.files) < 1 do return
 
-		marker_pos := strings.index(f.source, "{*}")
-		if marker_pos < 0 do continue
+	f := &src.files[0]
+	source := transmute([]u8)f.source
 
+	if marker_pos := strings.index(f.source, "{*}"); marker_pos >= 0 {
 		// remove `{*}`
-		source := make([]u8, len(f.source)-3, context.temp_allocator)
-		copy(source[:marker_pos], transmute([]u8)f.source[:marker_pos])
-		copy(source[marker_pos:], transmute([]u8)f.source[marker_pos+3:])
+
+		new_source := make([]u8, len(source)-3, context.temp_allocator)
+		copy(new_source[:marker_pos], source[:marker_pos])
+		copy(new_source[marker_pos:], source[marker_pos+3:])
+
+		source = new_source
 		f.source = string(source)
 
 		last: u8
@@ -146,22 +149,14 @@ setup_multi_file_prepare :: proc(src: ^Source) {
 			last = ch
 		}
 
-		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-		src.document.uri = common.create_uri(fullpath, context.temp_allocator)
-		src.document.text = source
-		src.document.used_text = len(source)
 		src.position.line = cursor_line
 		src.position.character = cursor_char
 	}
 
-	// If no file had {*}, default document to first file
-	if len(src.document.text) == 0 && len(src.files) > 0 {
-		f := &src.files[0]
-		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-		src.document.uri = common.create_uri(fullpath, context.temp_allocator)
-		src.document.text = transmute([]u8)f.source
-		src.document.used_text = len(f.source)
-	}
+	fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+	src.document.text = source
+	src.document.used_text = len(source)
 }
 
 @(private)
