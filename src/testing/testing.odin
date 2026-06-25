@@ -71,54 +71,48 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
-	for f in src.files {
-		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-
-		// Skip the document file - it may have incomplete syntax after {*} stripping
-		if fullpath == src.document.uri.path {
-			continue
-		}
-
-		dir := filepath.base(filepath.dir(fullpath))
-
+	{
 		pkg := new(ast.Package, context.temp_allocator)
 		pkg.name = "test"
-		pkg.fullpath = fullpath
-		pkg.name = dir
+		pkg.fullpath = "test"
+		pkg.name = "test"
 
-		if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
-			pkg.kind = .Runtime
+		for f in src.files {
+			fullpath := strings.join({pkg.fullpath, f.name}, "/", context.temp_allocator)
+
+			// Skip the document file - it may have incomplete syntax after {*} stripping
+			if fullpath == src.document.uri.path {
+				continue
+			}
+
+			process_file(fullpath, f.source, pkg)
 		}
-
-		process_file(fullpath, f.source, pkg)
 	}
 
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
 
-		dir := src_pkg.pkg
-
 		pkg := new(ast.Package, context.temp_allocator)
-		pkg.name = dir
+		pkg.name = src_pkg.pkg
+		pkg.fullpath = strings.join({"test", pkg.name}, "/", context.temp_allocator)
 
-		if dir == "runtime" {
+		if pkg.name == "runtime" || strings.contains(pkg.fullpath, "base/runtime") {
 			pkg.kind = .Runtime
 		}
 
 		if len(src_pkg.files) > 0 {
 			for f in src_pkg.files {
-				fullpath := strings.join({"test", dir, f.name}, "/", context.temp_allocator)
-				pkg.fullpath = fullpath
+				fullpath := strings.join({pkg.fullpath, f.name}, "/", context.temp_allocator)
 				process_file(fullpath, f.source, pkg)
 			}
 		} else {
-			fullpath := strings.join({"test", dir, "package.odin"}, "/", context.temp_allocator)
-			pkg.fullpath = fullpath
+			fullpath := strings.join({pkg.fullpath, "package.odin"}, "/", context.temp_allocator)
 			process_file(fullpath, src_pkg.source, pkg)
 		}
 	}
 
 	process_file :: proc(fullpath: string, source: string, pkg: ^ast.Package) {
+
 		p := parser.Parser {
 			err   = parser.default_error_handler,
 			warn  = parser.default_error_handler,
