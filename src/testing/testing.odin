@@ -49,15 +49,18 @@ setup :: proc(src: ^Source) {
 		src.main  = ""
 	}
 
-	if len(src.files) > 0 {
-		f := &src.files[0]
-		source := transmute([]u8)f.source
-
-		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-		src.document.uri = common.create_uri(fullpath, context.temp_allocator)
-		src.document.text = source
-		src.document.used_text = len(source)
+	if len(src.files) <= 0 {
+		log.error("Expected at least one file")
+		return
 	}
+
+	f := &src.files[0]
+	source := transmute([]u8)f.source
+
+	fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+	src.document.text = source
+	src.document.used_text = len(source)
 
 	server.setup_index(server.get_builtin_path())
 
@@ -68,7 +71,27 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
-	setup_multi_file_collect(src)
+	for f in src.files {
+		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+
+		// Skip the document file - it may have incomplete syntax after {*} stripping
+		if fullpath == src.document.uri.path {
+			continue
+		}
+
+		dir := filepath.base(filepath.dir(fullpath))
+
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.name = "test"
+		pkg.fullpath = fullpath
+		pkg.name = dir
+
+		if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
+			pkg.kind = .Runtime
+		}
+
+		process_file(fullpath, f.source, pkg)
+	}
 
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
@@ -76,37 +99,10 @@ setup :: proc(src: ^Source) {
 		dir := src_pkg.pkg
 
 		pkg := new(ast.Package, context.temp_allocator)
-		pkg.kind = .Normal
 		pkg.name = dir
 
 		if dir == "runtime" {
 			pkg.kind = .Runtime
-		}
-
-		process_file :: proc(fullpath: string, source: string, pkg: ^ast.Package) {
-			p := parser.Parser {
-				err   = parser.default_error_handler,
-				warn  = parser.default_error_handler,
-				flags = {.Optional_Semicolons},
-			}
-
-			file := ast.File {
-				fullpath = fullpath,
-				src      = source,
-				pkg      = pkg,
-			}
-
-			ok := parser.parse_file(&p, &file)
-
-			if !ok || file.syntax_error_count > 0 {
-				panic("Parser error in test package source")
-			}
-
-			uri := common.create_uri(fullpath, context.temp_allocator)
-
-			if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
-				return
-			}
 		}
 
 		if len(src_pkg.files) > 0 {
@@ -121,55 +117,17 @@ setup :: proc(src: ^Source) {
 			process_file(fullpath, src_pkg.source, pkg)
 		}
 	}
-}
 
-@(private)
-setup_multi_file_prepare :: proc(src: ^Source) {
-
-	src.document.package_name = "test"
-
-	if len(src.files) < 1 do return
-
-	f := &src.files[0]
-	source := transmute([]u8)f.source
-
-	fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
-	src.document.text = source
-	src.document.used_text = len(source)
-}
-
-@(private)
-setup_multi_file_collect :: proc(src: ^Source) {
-	for f in src.files {
-		fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
-
-		// Skip the document file - it may have incomplete syntax after {*} stripping
-		if fullpath == src.document.uri.path {
-			continue
-		}
-
+	process_file :: proc(fullpath: string, source: string, pkg: ^ast.Package) {
 		p := parser.Parser {
 			err   = parser.default_error_handler,
 			warn  = parser.default_error_handler,
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath))
-
-		pkg := new(ast.Package, context.temp_allocator)
-		pkg.kind = .Normal
-		pkg.name = "test"
-		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
-			pkg.kind = .Runtime
-		}
-
 		file := ast.File {
 			fullpath = fullpath,
-			src      = f.source,
+			src      = source,
 			pkg      = pkg,
 		}
 
@@ -181,8 +139,9 @@ setup_multi_file_collect :: proc(src: ^Source) {
 
 		uri := common.create_uri(fullpath, context.temp_allocator)
 
-		if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
-			return
+		err := server.collect_symbols(&server.indexer.index.collection, file, uri.uri)
+		if err != .None {
+			log.errorf("Error (%v) while collecting symbols in file (%s) \"%s\"", err, fullpath, source)
 		}
 	}
 }
