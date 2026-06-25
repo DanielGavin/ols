@@ -38,9 +38,9 @@ setup :: proc(src: ^Source) {
 
 	src.document = new(server.Document, context.temp_allocator)
 
-	src.document.package_name = "test"
 	src.document.client_owned = true
 	src.document.allocator = new(virtual.Arena, context.temp_allocator)
+	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
@@ -81,11 +81,9 @@ setup :: proc(src: ^Source) {
 			fullpath := strings.join({pkg.fullpath, f.name}, "/", context.temp_allocator)
 
 			// Skip the document file - it may have incomplete syntax after {*} stripping
-			if fullpath == src.document.uri.path {
-				continue
+			if fullpath != src.document.uri.path {
+				process_file(fullpath, f.source, pkg)
 			}
-
-			process_file(fullpath, f.source, pkg)
 		}
 	}
 
