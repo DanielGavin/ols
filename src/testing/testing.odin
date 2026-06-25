@@ -6,7 +6,6 @@ import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
-import "core:path/filepath"
 import "core:strings"
 import "core:testing"
 
@@ -71,19 +70,14 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
-	{
+	if len(src.files) > 1 {
 		pkg := new(ast.Package, context.temp_allocator)
 		pkg.name = "test"
 		pkg.fullpath = "test"
 		pkg.name = "test"
 
-		for f in src.files {
-			fullpath := strings.join({pkg.fullpath, f.name}, "/", context.temp_allocator)
-
-			// Skip the document file - it may have incomplete syntax after {*} stripping
-			if fullpath != src.document.uri.path {
-				process_file(fullpath, f.source, pkg)
-			}
+		for f in src.files[1:] {
+			process_file(f.name, f.source, pkg)
 		}
 	}
 
@@ -98,18 +92,16 @@ setup :: proc(src: ^Source) {
 			pkg.kind = .Runtime
 		}
 
-		if len(src_pkg.files) > 0 {
-			for f in src_pkg.files {
-				fullpath := strings.join({pkg.fullpath, f.name}, "/", context.temp_allocator)
-				process_file(fullpath, f.source, pkg)
-			}
+		if len(src_pkg.files) > 0 do for f in src_pkg.files {
+			process_file(f.name, f.source, pkg)
 		} else {
-			fullpath := strings.join({pkg.fullpath, "package.odin"}, "/", context.temp_allocator)
-			process_file(fullpath, src_pkg.source, pkg)
+			process_file("package.odin", src_pkg.source, pkg)
 		}
 	}
 
-	process_file :: proc(fullpath: string, source: string, pkg: ^ast.Package) {
+	process_file :: proc(filename: string, source: string, pkg: ^ast.Package) {
+
+		fullpath := strings.join({pkg.fullpath, filename}, "/", context.temp_allocator)
 
 		p := parser.Parser {
 			err   = parser.default_error_handler,
