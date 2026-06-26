@@ -1084,19 +1084,40 @@ ast_file_private_completion :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_file_tag_private_completion :: proc(t: ^testing.T) {
-	comments := []string{"// +private", "//+private file", "// +build  ignore"}
+ast_file_tag_private_package_completion :: proc(t: ^testing.T) {
+
+	comments := []string{
+		"//+private",
+		"//+private file",
+		"//+build ignore",
+		"//+ignore",
+		"#+ignore",
+		"#+build ignore",
+		"#+private",
+		"#+private file",
+	}
 
 	for comment in comments {
 
-		b := strings.builder_make(context.temp_allocator)
+		pkg_name                  :: "my_package"
+		pkg_decl                  :: "package "+pkg_name
+		symbol_ignored            :: "symbol_ignored :: proc()"
+		symbol_normal             :: "symbol_normal :: proc()"
+		symbol_ignored_decl       :: symbol_ignored + " {}"
+		symbol_normal_decl        :: symbol_normal + " {}"
+		symbol_ignored_completion :: pkg_name+"."+symbol_ignored
+		symbol_normal_completion  :: pkg_name+"."+symbol_normal
 
-		strings.write_string(&b, comment)
-		strings.write_string(&b, `
-			package my_package
+		pkg_src_ignored := strings.join({comment, pkg_decl, symbol_ignored_decl}, "\n", context.temp_allocator)
+		pkg_src_normal  := strings.join({pkg_decl, symbol_normal_decl}, "\n", context.temp_allocator)
 
-			my_proc :: proc() -> bool {}
-		`)
+		pkg := test.Package{
+			pkg = pkg_name,
+			files = {
+				{"ignored.odin", pkg_src_ignored},
+				{"normal.odin", pkg_src_normal},
+			},
+		}
 
 		source := test.Source {
 			main     = `package main
@@ -1105,10 +1126,58 @@ ast_file_tag_private_completion :: proc(t: ^testing.T) {
 				my_package.{*}
 			}
 			`,
-			packages = {{pkg = "my_package", source = strings.to_string(b)}},
+			packages = {pkg},
 		}
 
-		test.expect_completion_docs(t, &source, ".", {})
+		test.expect_completion_docs(t, &source, ".",
+			{symbol_normal_completion},
+			{symbol_ignored_completion},
+		)
+	}
+}
+
+@(test)
+ast_file_tag_private_files_completion :: proc(t: ^testing.T) {
+
+	comments := []string{
+		"//+private file",
+		"//+build ignore",
+		"//+ignore",
+		"#+ignore",
+		"#+build ignore",
+		"#+private file",
+	}
+
+	for comment in comments {
+
+		pkg_name                  :: "test"
+		pkg_decl                  :: "package "+pkg_name
+		symbol_ignored            :: "symbol_ignored :: proc()"
+		symbol_normal             :: "symbol_normal :: proc()"
+		symbol_ignored_decl       :: symbol_ignored + " {}"
+		symbol_normal_decl        :: symbol_normal  + " {}"
+		symbol_ignored_completion :: pkg_name+"."+symbol_ignored
+		symbol_normal_completion  :: pkg_name+"."+symbol_normal
+
+		pkg_src_ignored := strings.join({comment, pkg_decl, symbol_ignored_decl}, "\n", context.temp_allocator)
+		pkg_src_normal  := strings.join({pkg_decl, symbol_normal_decl}, "\n", context.temp_allocator)
+
+		source := test.Source {
+			main = pkg_decl+`
+				main :: proc() {
+					symbol_{*}
+				}
+			`,
+			files = {
+				{"ignored.odin", pkg_src_ignored},
+				{"noraml.odin", pkg_src_normal},
+			},
+		}
+
+		test.expect_completion_docs(t, &source, ".",
+			{symbol_normal_completion},
+			{symbol_ignored_completion},
+		)
 	}
 }
 

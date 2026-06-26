@@ -1,73 +1,65 @@
 package ols_testing
 
+import "core:slice"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
-import "core:path/filepath"
 import "core:strings"
 import "core:testing"
 
 import "src:common"
 import "src:server"
 
+File :: struct {
+	name:   string,
+	source: string,
+}
+
 Package :: struct {
 	pkg:    string,
-	source: string,
-	// Allows you to directly specify the file path. 
-	// If it's 'test/<file>.odin', it will share the same package as the main file.
-	file:   string,
+	source: string, // backwards compatable–for single-file packages
+	files:  []File,
 }
 
 Source :: struct {
-	main:        string,
+	main:        string, // backwards compatable–for single-file packages
+	files:       []File,
 	packages:    []Package,
 	document:    ^server.Document,
 	collections: map[string]string,
 	config:      common.Config,
-	position:    common.Position,
 }
 
 @(private)
 setup :: proc(src: ^Source) {
-	src.main = strings.clone(src.main, context.temp_allocator)
+
 	src.document = new(server.Document, context.temp_allocator)
-	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator)
+
 	src.document.client_owned = true
-	src.document.text = transmute([]u8)src.main
-	src.document.used_text = len(src.document.text)
 	src.document.allocator = new(virtual.Arena, context.temp_allocator)
 	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
-	//no unicode in tests currently
-	current, last: u8
-	current_line, current_character: int
-
-	for current_index := 0; current_index < len(src.main); current_index += 1 {
-		current = src.main[current_index]
-
-		if last == '\r' {
-			current_line += 1
-			current_character = 0
-		} else if current == '\n' {
-			current_line += 1
-			current_character = 0
-		} else if len(src.main) > current_index + 3 && src.main[current_index:current_index + 3] == "{*}" {
-			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 3:]
-			copy(dst_slice, src_slice)
-			src.position.character = current_character
-			src.position.line = current_line
-			break
-		} else {
-			current_character += 1
-		}
-
-		last = current
+	if len(src.main) > 0 {
+		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
+		src.main  = ""
 	}
+
+	if len(src.files) <= 0 {
+		log.error("Expected at least one file")
+		return
+	}
+
+	f := &src.files[0]
+	source := transmute([]u8)f.source
+
+	fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+	src.document.text = source
+	src.document.used_text = len(source)
 
 	server.setup_index(server.get_builtin_path())
 
@@ -78,16 +70,38 @@ setup :: proc(src: ^Source) {
 
 	server.document_refresh(src.document, &src.config, nil)
 
+	if len(src.files) > 1 {
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.name = "test"
+		pkg.fullpath = "test"
+		pkg.name = "test"
+
+		for f in src.files[1:] {
+			process_file(f.name, f.source, pkg)
+		}
+	}
+
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
 
-		path := src_pkg.file
-		if path == "" {
-			path = fmt.aprintf("test/%v/package.odin", src_pkg.pkg)
-		}
-		uri := common.create_uri(path, context.temp_allocator)
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.name = src_pkg.pkg
+		pkg.fullpath = strings.join({"test", pkg.name}, "/", context.temp_allocator)
 
-		fullpath := uri.path
+		if pkg.name == "runtime" || strings.contains(pkg.fullpath, "base/runtime") {
+			pkg.kind = .Runtime
+		}
+
+		if len(src_pkg.files) > 0 do for f in src_pkg.files {
+			process_file(f.name, f.source, pkg)
+		} else {
+			process_file("package.odin", src_pkg.source, pkg)
+		}
+	}
+
+	process_file :: proc(filename: string, source: string, pkg: ^ast.Package) {
+
+		fullpath := strings.join({pkg.fullpath, filename}, "/", context.temp_allocator)
 
 		p := parser.Parser {
 			err   = parser.default_error_handler,
@@ -95,32 +109,23 @@ setup :: proc(src: ^Source) {
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath))
-
-		pkg := new(ast.Package, context.temp_allocator)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
-			pkg.kind = .Runtime
-		}
-
 		file := ast.File {
 			fullpath = fullpath,
-			src      = src_pkg.source,
+			src      = source,
 			pkg      = pkg,
 		}
 
 		ok := parser.parse_file(&p, &file)
 
-
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source")
 		}
 
-		if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
-			return
+		uri := common.create_uri(fullpath, context.temp_allocator)
+
+		err := server.collect_symbols(&server.indexer.index.collection, file, uri.uri)
+		if err != .None {
+			log.errorf("Error (%v) while collecting symbols in file (%s) \"%s\"", err, fullpath, source)
 		}
 	}
 }
@@ -132,16 +137,63 @@ teardown :: proc(src: ^Source) {
 	virtual.arena_destroy(src.document.allocator)
 }
 
+source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
+
+	source: ^string
+	if src.main != "" {
+		source = &src.main
+	} else if len(src.files) > 0{
+		source = &src.files[0].source
+	}
+
+	if source == nil || len(source) == 0 {
+		log.error("Cannot get cursor from an empty file")
+		return
+	}
+
+	CURSOR :: "{*}"
+
+	marker_pos := strings.index(source^, CURSOR)
+	if marker_pos < 0 {
+		log.errorf("Didn't find %s in `%s`", CURSOR, source^)
+		return
+	}
+
+	// remove cursor mark from source
+	new_source := make([]u8, len(source)-len(CURSOR), context.temp_allocator)
+	copy(new_source[:marker_pos], source[:marker_pos])
+	copy(new_source[marker_pos:], source[marker_pos+len(CURSOR):])
+	source ^= string(new_source)
+
+	// find cursor (line,col) position
+	last: u8
+	for j := 0; j < marker_pos; j += 1 {
+		ch := source[j]
+		defer last = ch
+
+		if last == '\r' || ch == '\n' {
+			cursor.line += 1
+			cursor.character = 0
+		} else {
+			cursor.character += 1
+		}
+	}
+
+	return
+}
+
 expect_signature_labels :: proc(
 	t: ^testing.T,
 	src: ^Source,
 	expect_labels: []string,
 	expected_active_parameter := -1,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &src.config)
 
 	if !ok {
 		log.error("Failed get_signature_information")
@@ -179,10 +231,12 @@ expect_signature_labels :: proc(
 }
 
 expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &src.config)
 
 	if help.activeParameter != position {
 		log.errorf("expected parameter position %v, but received %v", position, help.activeParameter)
@@ -196,6 +250,8 @@ expect_completion_labels :: proc(
 	expect_labels: []string,
 	expect_excluded: []string = nil,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -203,7 +259,7 @@ expect_completion_labels :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -266,6 +322,8 @@ expect_completion_docs :: proc(
 	expect_details: []string,
 	expect_excluded: []string = nil,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -285,7 +343,7 @@ expect_completion_docs :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -326,6 +384,8 @@ expect_completion_insert_text :: proc(
 	trigger_character: string,
 	expect_inserts: []string,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -333,7 +393,7 @@ expect_completion_insert_text :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -370,6 +430,8 @@ expect_completion_edit_text :: proc(
 	label: string,
 	expected_text: string,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -377,7 +439,7 @@ expect_completion_edit_text :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -408,10 +470,12 @@ expect_completion_edit_text :: proc(
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	hover, valid, ok := server.get_hover_information(src.document, src.position)
+	hover, valid, ok := server.get_hover_information(src.document, cursor)
 
 	if !ok {
 		log.error(t, "Failed get_hover_information")
@@ -432,10 +496,12 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_definition_location(src.document, src.position, &src.config)
+	locations, ok := server.get_definition_location(src.document, cursor, &src.config)
 
 	if !ok {
 		log.error("Failed get_definition_location")
@@ -463,10 +529,12 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 }
 
 expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_type_definition_locations(src.document, src.position)
+	locations, ok := server.get_type_definition_locations(src.document, cursor)
 
 	if !ok {
 		log.error("Failed get_definition_location")
@@ -508,10 +576,12 @@ expect_reference_locations :: proc(
 	expect_excluded: []common.Location = nil,
 	include_declaration := true,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, src.position, include_declaration = include_declaration)
+	locations, ok := server.get_references(src.document, cursor, include_declaration = include_declaration)
 
 	for expect_location in expect_locations {
 		match := false
@@ -543,10 +613,12 @@ expect_reference_locations :: proc(
 }
 
 expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	range, ok := server.get_prepare_rename(src.document, src.position)
+	range, ok := server.get_prepare_rename(src.document, cursor)
 	if !ok {
 		log.error("Failed to find range")
 	}
@@ -563,13 +635,12 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 
 
 expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range {
-		start = src.position,
-		end   = src.position,
-	}
+	input_range := common.Range{cursor, cursor}
 	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
@@ -597,13 +668,12 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 }
 
 expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range {
-		start = src.position,
-		end   = src.position,
-	}
+	input_range := common.Range{cursor, cursor}
 	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
