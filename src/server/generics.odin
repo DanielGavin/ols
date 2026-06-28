@@ -506,7 +506,7 @@ resolve_generic_function :: proc {
 
 resolve_generic_function_ast :: proc(
 	ast_context: ^AstContext,
-	proc_lit: ast.Proc_Lit,
+	proc_lit: ^ast.Proc_Lit,
 	proc_symbol: Symbol,
 ) -> (
 	Symbol,
@@ -515,6 +515,14 @@ resolve_generic_function_ast :: proc(
 	if ast_context.call == nil {
 		return Symbol{}, false
 	}
+
+	raw := cast(rawptr)proc_lit
+	if _, ok := ast_context.generic_recursion_map[raw]; ok {
+		return proc_symbol, true
+	}
+
+	ast_context.generic_recursion_map[raw] = {}
+	defer delete_key(&ast_context.generic_recursion_map, raw)
 
 	params: []^ast.Field
 	if proc_lit.type.params != nil {
