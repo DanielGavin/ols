@@ -25,6 +25,7 @@ AstContext :: struct {
 	locals:                    [dynamic]LocalGroup, //locals all the way to the document position
 	globals:                   map[string]GlobalExpr,
 	recursion_map:             map[rawptr]struct{},
+	generic_recursion_map:     map[rawptr]struct{},
 	usings:                    [dynamic]UsingStatement,
 	file:                      ast.File,
 	allocator:                 mem.Allocator,
@@ -71,6 +72,7 @@ make_ast_context :: proc(
 		globals                   = make(map[string]GlobalExpr, 0, allocator),
 		usings                    = make([dynamic]UsingStatement, allocator),
 		recursion_map             = make(map[rawptr]struct{}, 0, allocator),
+		generic_recursion_map     = make(map[rawptr]struct{}, 0, allocator),
 		call_expr_recursion_cache = make(map[rawptr]SymbolResult, 0, allocator),
 		file                      = file,
 		imports                   = imports,
@@ -2376,7 +2378,7 @@ resolve_proc_lit :: proc(
 	)
 
 	if is_procedure_generic(proc_lit.type) {
-		if generic_symbol, ok := resolve_generic_function(ast_context, proc_lit^, symbol); ok {
+		if generic_symbol, ok := resolve_generic_function(ast_context, proc_lit, symbol); ok {
 			return generic_symbol, ok
 		} else if ast_context.overloading {
 			return {}, false
