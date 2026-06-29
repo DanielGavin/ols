@@ -291,13 +291,8 @@ get_inlay_hints :: proc(
 
 		#partial switch v in node.derived {
 		case ^ast.Proc_Lit:
-			if v.type != nil && v.type.results != nil && len(v.type.results.list) > 0 {
-				// check if all return values are named
-				for res in v.type.results.list {
-					if len(res.names) == 0 do return
-				}
-				append(&data.procs, Proc_Data{data.depth, v.type.results.list})
-			}
+			results := v.type.results.list if v.type != nil && v.type.results != nil else {}
+			append(&data.procs, Proc_Data{data.depth, results})
 			return
 
 		case ^ast.Return_Stmt:
@@ -314,6 +309,12 @@ get_inlay_hints :: proc(
 		if len(data.procs) == 0 do return // not inside a proc
 
 		proc_data := &data.procs[len(data.procs)-1]
+
+		// only add hint if current proc has all-named returns
+		if len(proc_data.results) == 0 do return
+		for res in proc_data.results {
+			if len(res.names) == 0 do return
+		}
 
 		sb := strings.builder_make(context.temp_allocator)
 		strings.write_string(&sb, " ")
