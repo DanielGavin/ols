@@ -1762,6 +1762,10 @@ notification_workspace_did_change_configuration :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+	if config.workspace_folders == nil {
+		return .None
+	}
+
 	params_object, ok := params.(json.Object)
 
 	if !ok {
