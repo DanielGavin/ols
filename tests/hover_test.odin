@@ -7044,3 +7044,16 @@ ast_hover_enum_field_value_reference :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo: .Bar")
 }
+
+@(test)
+ast_hover_recursive_call_chain :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Recurse :: #type proc(i: int) -> Recurse
+
+		recurse :: proc (i: int) -> Recurse {}
+		a{*} := recurse(1)(2)(3)
+	`,
+	}
+	test.expect_hover(t, &source, "test.a: proc(i: int) -> Recurse")
+}

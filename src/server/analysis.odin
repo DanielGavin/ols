@@ -1290,6 +1290,7 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	if check_node_recursion(ast_context, node) {
 		return {}, false
 	}
+	defer delete_key(&ast_context.recursion_map, node)
 
 	// TODO: there is likely more of these that will need to be added
 	#partial switch n in node.derived {
@@ -1339,6 +1340,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	if check_node_recursion(ast_context, node) {
 		return false
 	}
+	defer delete_key(&ast_context.recursion_map, node)
 
 	ok := false
 
@@ -2058,9 +2060,11 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 }
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
-	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+	ident := node.derived.(^ast.Ident)
+	if check_node_recursion(ast_context, ident) {
 		return {}, false
 	}
+	defer delete_key(&ast_context.recursion_map, ident)
 
 	//Try to prevent stack overflows and prevent indexing out of bounds.
 	if ast_context.deferred_count >= DeferredDepth {
@@ -2388,9 +2392,11 @@ resolve_proc_lit :: proc(
 }
 
 struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (^ast.Struct_Type, bool) {
-	if check_node_recursion(ast_context, node.derived.(^ast.Ident)) {
+	ident := node.derived.(^ast.Ident)
+	if check_node_recursion(ast_context, ident) {
 		return {}, false
 	}
+	defer delete_key(&ast_context.recursion_map, ident)
 
 	//Try to prevent stack overflows and prevent indexing out of bounds.
 	if ast_context.deferred_count >= DeferredDepth {
