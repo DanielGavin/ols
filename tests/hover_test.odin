@@ -3089,6 +3089,63 @@ ast_hover_builtin_clamp_from_proc :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_builtin_compress_values_to_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			m{*}: [3]int = compress_values(1, 2, 3)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: [3]int")
+}
+
+@(test)
+ast_hover_builtin_compress_values_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			Foo :: struct {
+				a, b: int,
+			}
+
+			m{*}: Foo = compress_values(1, 2)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: test.Foo")
+}
+
+@(test)
+ast_hover_builtin_expand_values_to_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			arr := [2]int{1, 2}
+			m{*} := [3]int{expand_values(arr), 3}
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: [3]int")
+}
+
+@(test)
+ast_hover_builtin_expand_values_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			Foo :: struct {
+				a, b: int,
+			}
+
+			m{*} := Foo{expand_values(arr)}
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: test.Foo")
+}
+
+@(test)
 ast_hover_builtin_complex :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
