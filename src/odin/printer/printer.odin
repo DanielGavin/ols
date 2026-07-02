@@ -222,6 +222,14 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 
 	p.document = empty()
 
+	// A leading `#!` shebang is parsed as a comment on line 1, but the file tags
+	// below are printed at the very top of the file. Print any comments that sit
+	// before the first tag (like a shebang) first, so the shebang stays on line
+	// 1 and the file is still runnable as a script.
+	if len(file.tags) > 0 {
+		p.document = cons(p.document, move_line(p, file.tags[0].pos))
+	}
+
 	for tag in file.tags {
 		p.document = cons(p.document, text(strings.trim(tag.text, "\r\n")), newline(1))
 		pos := tag.pos
