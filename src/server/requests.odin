@@ -748,15 +748,7 @@ request_initialize :: proc(
 		project_uri = initialize_params.rootUri
 	}
 
-	// Get the global ols config path.
-	global_ols_config_path := path.join(
-		elems = {filepath.dir(os.args[0]), "ols.json"},
-		allocator = context.temp_allocator,
-	)
-
 	uri, uri_ok := common.parse_uri(project_uri, context.temp_allocator)
-
-	global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
 	read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 	if uri_ok {
 		// Apply ols.json config.
