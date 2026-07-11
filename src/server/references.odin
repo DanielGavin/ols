@@ -285,6 +285,11 @@ resolve_references :: proc(
 			defer os.walker_destroy(&w)
 			for info in os.walker_walk(&w) {
 				if info.type == .Directory {
+					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
+					dir_name := filepath.base(dir)
+					if slice.contains(dir_blacklist, dir_name) {
+						os.walker_skip_dir(&w)
+					}
 					continue
 				}
 
