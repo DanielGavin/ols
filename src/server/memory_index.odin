@@ -9,7 +9,7 @@ import "src:common"
 MemoryIndex :: struct {
 	collection:        SymbolCollection,
 	last_package_name: string,
-	last_package:      ^map[string]Symbol,
+	last_package:      map[string]Symbol,
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
@@ -26,8 +26,8 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 		return index.last_package[name]
 	}
 
-	if _pkg, ok := &index.collection.packages[pkg]; ok {
-		index.last_package = &_pkg.symbols
+	if _pkg, ok := index.collection.packages[pkg]; ok {
+		index.last_package = _pkg.symbols
 		index.last_package_name = pkg
 		return _pkg.symbols[name]
 	} else {

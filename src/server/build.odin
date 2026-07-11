@@ -173,6 +173,7 @@ try_build_package :: proc(pkg_name: string) {
 	if pkg, ok := build_cache.loaded_pkgs[pkg_name]; ok {
 		return
 	}
+	defer clear_index_cache()
 
 	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
 
@@ -250,6 +251,7 @@ try_build_package :: proc(pkg_name: string) {
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
+	defer clear_index_cache()
 
 	fullpath := uri.path
 
@@ -284,6 +286,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 
 index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	ok: bool
+	defer clear_index_cache()
 
 	fullpath := uri.path
 
