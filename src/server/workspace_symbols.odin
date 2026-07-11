@@ -1,5 +1,6 @@
 package server
 
+import "core:slice"
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
@@ -35,15 +36,9 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 				if info.type == .Directory {
 					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
 					dir_name := filepath.base(dir)
-					found := false
-					for blacklist in dir_blacklist {
-						if blacklist == dir_name {
-							found = true
-							os.walker_skip_dir(&w)
-							break
-						}
-					}
-					if !found {
+					if slice.contains(dir_blacklist, dir_name) {
+						os.walker_skip_dir(&w)
+					} else {
 						append(&pkgs, dir)
 					}
 				}
