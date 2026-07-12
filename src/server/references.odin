@@ -12,12 +12,7 @@ import "core:slice"
 import "core:strings"
 
 import "src:common"
-
-when ODIN_OS == .Windows {
-import win "core:sys/windows"
-import "core:fmt"
 import "core:time"
-}
 
 prepare_references :: proc(
 	document: ^Document,
@@ -287,41 +282,11 @@ resolve_references :: proc(
 	last_time := time.now()
 
 	when !ODIN_TEST {
-
-		for workspace in common.config.workspace_folders {
-
-
-			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			when ODIN_OS != .Windows {
-
-
-			w := os.walker_create(uri.path)
-			defer os.walker_destroy(&w)
-			for info in os.walker_walk(&w) {
-				if info.type == .Directory {
-					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
-					dir_name := filepath.base(dir)
-					if slice.contains(dir_blacklist, dir_name) {
-						os.walker_skip_dir(&w)
-					}
-					continue
-				}
-
-				if info.fullpath == "" {
-					continue
-				}
-
-				if strings.has_suffix(info.name, ".odin") {
-					slash_path, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
-					if !strings.equal_fold(slash_path, document.fullpath) {
-						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
-					}
-				}
-			}
-			} else { // if it's windows..
-				search_recursively_windows(uri.path, &fullpaths, document)
-			}
-		}}
+	for workspace in common.config.workspace_folders {
+		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+		common.search_for_odin_files(uri.path, document.fullpath, dir_blacklist, &fullpaths)
+	}
+	}
 
     dur := time.diff(last_time, time.now())
     dur_ms := time.duration_milliseconds(dur)
@@ -496,50 +461,4 @@ get_references :: proc(
 	}
 
 	return temp_locations[:], ok2
-}
-
-search_recursively_windows :: proc(base_path: string, odin_files: ^[dynamic]string, document: ^Document) {
-    search_pattern := fmt.tprintf("%s\\*", base_path)
-    wide_pattern := win.utf8_to_wstring(search_pattern)
-
-    find_data: win.WIN32_FIND_DATAW
-    hfind := win.FindFirstFileW(wide_pattern, &find_data)
-
-    if hfind == win.INVALID_HANDLE_VALUE {
-        return
-    }
-    defer win.FindClose(hfind)
-
-    for {
-        file_wstring : win.wstring = win.wstring(raw_data(find_data.cFileName[:]))
-        file_name, _ := win.wstring_to_utf8_alloc(file_wstring, -1, context.temp_allocator)
-
-        if file_name != "." && file_name != ".." {
-            full_path := fmt.tprintf("%s\\%s", base_path, file_name)
-            if (find_data.dwFileAttributes & win.FILE_ATTRIBUTE_DIRECTORY) != 0 {
-				// apply directory blacklist
-
-				dir, _ := filepath.replace_separators(full_path, '/', context.temp_allocator)
-				dir_name := filepath.base(dir)
-
-				if slice.contains(dir_blacklist, dir_name) {
-					log.errorf("skipped %v", dir)
-				} else {
-					search_recursively_windows(full_path, odin_files, document)
-				}
-            } else {
-                if strings.has_suffix(file_name, ".odin") {
-					// doing the thing the other branch does
-					slash_path, _ := filepath.replace_separators(full_path, '/', context.temp_allocator)
-					if !strings.equal_fold(slash_path, document.fullpath) {
-						append(odin_files, strings.clone(full_path, context.temp_allocator))
-					}
-                }
-            }
-        }
-
-        if !win.FindNextFileW(hfind, &find_data) {
-            break
-        }
-    }
 }
