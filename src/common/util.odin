@@ -8,6 +8,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
+import "core:slice"
 
 foreign import libc "system:c"
 
