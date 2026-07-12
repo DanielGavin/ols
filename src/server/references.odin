@@ -13,9 +13,11 @@ import "core:strings"
 
 import "src:common"
 
+when ODIN_OS == .Windows {
 import win "core:sys/windows"
 import "core:fmt"
 import "core:time"
+}
 
 prepare_references :: proc(
 	document: ^Document,
@@ -510,15 +512,21 @@ search_recursively_windows :: proc(base_path: string, odin_files: ^[dynamic]stri
 
     for {
         file_wstring : win.wstring = win.wstring(raw_data(find_data.cFileName[:]))
-        file_name, err := win.wstring_to_utf8_alloc(file_wstring, -1)
-        if err != .None {
-            panic("error to utf8")
-        }
-        
+        file_name, _ := win.wstring_to_utf8_alloc(file_wstring, -1, context.temp_allocator)
+
         if file_name != "." && file_name != ".." {
             full_path := fmt.tprintf("%s\\%s", base_path, file_name)
             if (find_data.dwFileAttributes & win.FILE_ATTRIBUTE_DIRECTORY) != 0 {
-                search_recursively_windows(full_path, odin_files, document)
+				// apply directory blacklist
+
+				dir, _ := filepath.replace_separators(full_path, '/', context.temp_allocator)
+				dir_name := filepath.base(dir)
+
+				if slice.contains(dir_blacklist, dir_name) {
+					log.errorf("skipped %v", dir)
+				} else {
+					search_recursively_windows(full_path, odin_files, document)
+				}
             } else {
                 if strings.has_suffix(file_name, ".odin") {
 					// doing the thing the other branch does
