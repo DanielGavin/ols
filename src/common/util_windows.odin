@@ -173,7 +173,6 @@ run_executable :: proc(command: string, stdout: ^[]byte) -> (u32, bool, []byte) 
 	return exit_code, true, stdout[0:index]
 }
 
-
 search_for_odin_files :: proc(base_path: string, exclude_file: string, dir_blacklist: []string, odin_files_out: ^[dynamic]string) {
     search_pattern := fmt.tprintf("%s\\*", base_path)
     wide_pattern := win32.utf8_to_wstring(search_pattern)
@@ -193,14 +192,12 @@ search_for_odin_files :: proc(base_path: string, exclude_file: string, dir_black
         if file_name != "." && file_name != ".." {
             full_path := fmt.tprintf("%s\\%s", base_path, file_name)
             if (find_data.dwFileAttributes & win32.FILE_ATTRIBUTE_DIRECTORY) != 0 {
-				// apply directory blacklist
 
+				// apply directory blacklist
 				dir, _ := filepath.replace_separators(full_path, '/', context.temp_allocator)
 				dir_name := filepath.base(dir)
 
-				if slice.contains(dir_blacklist, dir_name) {
-					log.errorf("skipped %v", dir)
-				} else {
+				if !slice.contains(dir_blacklist, dir_name) {
 					search_for_odin_files(full_path, exclude_file, dir_blacklist, odin_files_out)
 				}
             } else {

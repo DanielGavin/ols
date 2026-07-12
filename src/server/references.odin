@@ -12,7 +12,6 @@ import "core:slice"
 import "core:strings"
 
 import "src:common"
-import "core:time"
 
 prepare_references :: proc(
 	document: ^Document,
@@ -279,18 +278,12 @@ resolve_references :: proc(
 		return locations[:], true
 	}
 
-	last_time := time.now()
-
 	when !ODIN_TEST {
 	for workspace in common.config.workspace_folders {
 		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
 		common.search_for_odin_files(uri.path, document.fullpath, dir_blacklist, &fullpaths)
 	}
 	}
-
-    dur := time.diff(last_time, time.now())
-    dur_ms := time.duration_milliseconds(dur)
-	log.errorf("time to find odin files: %vms", dur_ms)
 
 	reset_ast_context(ast_context)
 
