@@ -908,6 +908,19 @@ get_locals_for_range_stmt :: proc(
 								len_symbol.pkg,
 								false,
 							)
+						} else {
+							store_local(
+								ast_context,
+								ident,
+								v.len,
+								ident.pos.offset,
+								ident.name,
+								ast_context.non_mutable_only,
+								false,
+								{.Mutable},
+								len_symbol.pkg,
+								false,
+							)
 						}
 					} else {
 						store_local(
