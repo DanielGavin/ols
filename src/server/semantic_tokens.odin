@@ -421,6 +421,8 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 			for name in param.names {
 				if ident, ok := name.derived.(^ast.Ident); ok {
 					write_semantic_node(builder, name, .Parameter)
+				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
+					write_semantic_node(builder, poly.type, .Parameter)
 				}
 			}
 
@@ -563,7 +565,11 @@ visit_ident :: proc(
 	}
 
 	if .PolyType in symbol.flags {
-		write_semantic_node(builder, ident, .TypeParameter, modifiers)
+		if is_type_parameter(symbol) {
+			write_semantic_node(builder, ident, .TypeParameter, modifiers)
+		} else {
+			write_semantic_node(builder, ident, .Parameter, modifiers)
+		}
 		return
 	}
 
@@ -631,4 +637,16 @@ visit_ident :: proc(
 		case:
 		}
 	}
+}
+
+is_type_parameter :: proc(symbol: Symbol) -> bool {
+	if basic, ok := symbol.value.(SymbolBasicValue); ok {
+		return basic.ident != nil && basic.ident.name == "typeid"
+	}
+
+	if _, ok := symbol.value.(SymbolPolyTypeValue); ok {
+		return true
+	}
+
+	return false
 }
