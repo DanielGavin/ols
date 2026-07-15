@@ -279,32 +279,10 @@ resolve_references :: proc(
 	}
 
 	when !ODIN_TEST {
-		for workspace in common.config.workspace_folders {
-			uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
-			w := os.walker_create(uri.path)
-			defer os.walker_destroy(&w)
-			for info in os.walker_walk(&w) {
-				if info.type == .Directory {
-					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
-					dir_name := filepath.base(dir)
-					if slice.contains(dir_blacklist, dir_name) {
-						os.walker_skip_dir(&w)
-					}
-					continue
-				}
-
-				if info.fullpath == "" {
-					continue
-				}
-
-				if strings.has_suffix(info.name, ".odin") {
-					slash_path, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
-					if !strings.equal_fold(slash_path, document.fullpath) {
-						append(&fullpaths, strings.clone(info.fullpath, context.temp_allocator))
-					}
-				}
-			}
-		}
+	for workspace in common.config.workspace_folders {
+		uri, _ := common.parse_uri(workspace.uri, context.temp_allocator)
+		common.search_for_odin_files(uri.path, document.fullpath, dir_blacklist, &fullpaths)
+	}
 	}
 
 	reset_ast_context(ast_context)

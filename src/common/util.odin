@@ -8,6 +8,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
+import "core:slice"
 
 foreign import libc "system:c"
 
@@ -113,6 +114,32 @@ when ODIN_OS == .Darwin || ODIN_OS == .FreeBSD || ODIN_OS == .Linux || ODIN_OS =
 
 
 		return 0, true, stdout[0:index]
+	}
+
+	search_for_odin_files :: proc(base_path: string, exclude_file: string, dir_blacklist: []string, odin_files_out: ^[dynamic]string) {
+		w := os.walker_create(base_path)
+		defer os.walker_destroy(&w)
+		for info in os.walker_walk(&w) {
+			if info.type == .Directory {
+				dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
+				dir_name := filepath.base(dir)
+				if slice.contains(dir_blacklist, dir_name) {
+					os.walker_skip_dir(&w)
+				}
+				continue
+			}
+
+			if info.fullpath == "" {
+				continue
+			}
+
+			if strings.has_suffix(info.name, ".odin") {
+				slash_path, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
+				if !strings.equal_fold(slash_path, exclude_file) {
+					append(odin_files_out, strings.clone(info.fullpath, context.temp_allocator))
+				}
+			}
+		}
 	}
 
 	foreign libc
