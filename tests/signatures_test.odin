@@ -818,6 +818,27 @@ signature_struct_poly :: proc(t: ^testing.T) {
 		expected_active_parameter = 1,
 	)
 }
+
+@(test)
+signature_struct_poly_split_fields :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T, $U: typeid) {}
+
+		main :: proc() {
+			foo := Foo(int, {*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct($T: typeid, $U: typeid)"},
+		expected_active_parameter = 1,
+	)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {

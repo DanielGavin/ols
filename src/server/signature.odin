@@ -39,29 +39,39 @@ ParameterInformation :: struct {
 	label: string,
 }
 
-seperate_proc_field_arguments :: proc(procedure: ^Symbol) {
-	if value, ok := &procedure.value.(SymbolProcedureValue); ok {
-		types := make([dynamic]^ast.Field, context.temp_allocator)
-
-		for arg, i in value.orig_arg_types {
-			if len(arg.names) == 1 {
-				append(&types, arg)
-				continue
-			}
-
-			for name in arg.names {
-				field: ^ast.Field = new_type(ast.Field, arg.pos, arg.end, context.temp_allocator)
-				field.names = make([]^ast.Expr, 1, context.temp_allocator)
-				field.names[0] = name
-				field.type = arg.type
-				append(&types, field)
-			}
+split_all_field_arguments :: proc(symbol: ^Symbol, allocator := context.temp_allocator) {
+	#partial switch &value in symbol.value {
+	case SymbolProcedureValue:
+		value.orig_arg_types = separate_fields(value.orig_arg_types, allocator)
+	case SymbolStructValue:
+		if value.poly != nil {
+			value.poly.list = separate_fields(value.poly.list, allocator)
 		}
-
-		value.orig_arg_types = types[:]
+	case SymbolUnionValue:
+		if value.poly != nil {
+			value.poly.list = separate_fields(value.poly.list, allocator)
+		}
 	}
 }
 
+separate_fields :: proc(list: []^ast.Field, allocator := context.allocator) -> []^ast.Field {
+	fields := make([dynamic]^ast.Field, allocator)
+	for arg, i in list {
+		if len(arg.names) == 1 {
+			append(&fields, arg)
+			continue
+		}
+
+		for name in arg.names {
+			field: ^ast.Field = new_type(ast.Field, arg.pos, arg.end, allocator)
+			field.names = make([]^ast.Expr, 1, allocator)
+			field.names[0] = name
+			field.type = arg.type
+			append(&fields, field)
+		}
+	}
+	return fields[:]
+}
 
 get_signature_information :: proc(
 	document: ^Document,
@@ -184,7 +194,7 @@ add_proc_signature :: proc(
 		return active_parameter
 	}
 
-	seperate_proc_field_arguments(&call)
+	split_all_field_arguments(&call)
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
 		add_signature_info(call, value.orig_arg_types, &active_parameter, signature_information)
@@ -225,7 +235,7 @@ add_signature_info :: proc(
 	}
 
 	sb := strings.builder_make(context.temp_allocator)
-	#partial switch value in call.value {
+	#partial switch &value in call.value {
 	case SymbolProcedureValue:
 		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
 	case SymbolStructValue:
