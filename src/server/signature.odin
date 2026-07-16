@@ -157,7 +157,7 @@ add_proc_signature :: proc(
 				break
 			}
 
-			if is_bad_expr{
+			if is_bad_expr {
 				if prev_offset < position_context.position {
 					text := ast_context.file.src[prev_offset:position_context.position]
 					active_parameter += strings.count(text, ",")
@@ -187,61 +187,62 @@ add_proc_signature :: proc(
 	seperate_proc_field_arguments(&call)
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
-		parameters := make([]ParameterInformation, len(value.orig_arg_types), context.temp_allocator)
-
-		for arg, i in value.orig_arg_types {
-			if arg.type != nil {
-				if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
-					active_parameter = min(i, active_parameter)
-				}
-			}
-
-			parameters[i].label = node_to_string(arg)
-		}
-
-		sb := strings.builder_make(context.temp_allocator)
-		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
-		call.signature = strings.to_string(sb)
-
-		info := SignatureInformation {
-			label         = get_signature(call),
-			documentation = write_markdown_doc(call),
-			parameters    = parameters,
-		}
-		append(signature_information, info)
+		add_signature_info(call, value.orig_arg_types, &active_parameter, signature_information)
+	} else if value, ok := call.value.(SymbolStructValue); ok && value.poly.list != nil {
+		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
+	} else if value, ok := call.value.(SymbolUnionValue); ok && value.poly.list != nil {
+		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
 	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
 		for symbol in value.symbols {
 			symbol := symbol
 
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
-				parameters := make([]ParameterInformation, len(value.orig_arg_types), context.temp_allocator)
-
-				for arg, i in value.orig_arg_types {
-					if arg.type != nil {
-						if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
-							active_parameter = min(i, active_parameter)
-						}
-					}
-
-					parameters[i].label = node_to_string(arg)
-				}
-
-				sb := strings.builder_make(context.temp_allocator)
-				write_procedure_symbol_signature(&sb, value, detailed_signature = false)
-				symbol.signature = strings.to_string(sb)
-
-				info := SignatureInformation {
-					label         = get_signature(symbol),
-					documentation = write_markdown_doc(symbol),
-					parameters    = parameters,
-				}
-
-				append(signature_information, info)
+				add_signature_info(symbol, value.orig_arg_types, &active_parameter, signature_information)
 			}
 		}
 	}
 	return active_parameter
+}
+
+add_signature_info :: proc(
+	call: Symbol,
+	args: []^ast.Field,
+	active_parameter: ^int,
+	signature_information: ^[dynamic]SignatureInformation,
+) {
+	parameters := make([]ParameterInformation, len(args), context.temp_allocator)
+	call := call
+
+	for arg, i in args {
+		if arg.type != nil {
+			if _, is_ellipsis := arg.type.derived.(^ast.Ellipsis); is_ellipsis {
+				active_parameter^ = min(i, active_parameter^)
+			}
+		}
+
+		parameters[i].label = node_to_string(arg)
+	}
+
+	sb := strings.builder_make(context.temp_allocator)
+	#partial switch value in call.value {
+	case SymbolProcedureValue:
+		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
+	case SymbolStructValue:
+		strings.write_string(&sb, "struct")
+		write_poly_list(&sb, value.poly, {})
+	case SymbolUnionValue:
+		strings.write_string(&sb, "union")
+		write_poly_list(&sb, value.poly, {})
+	}
+	call.signature = strings.to_string(sb)
+
+	info := SignatureInformation {
+		label         = get_signature(call),
+		documentation = write_markdown_doc(call),
+		parameters    = parameters,
+	}
+	append(signature_information, info)
 }
 
 @(private = "file")
