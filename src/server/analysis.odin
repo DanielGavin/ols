@@ -2520,6 +2520,10 @@ internal_resolve_comp_literal :: proc(
 			}
 		}
 
+		if position_context.function == nil {
+			return {}, false
+		}
+
 		if position_context.function.type == nil {
 			return {}, false
 		}
