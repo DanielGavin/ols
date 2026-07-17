@@ -83,7 +83,7 @@
 		},
 		"align_struct_declarations": {
 			"type": "boolean",
-			"default": true,
+			"default": false,
 			"description": "Align the struct declaration symbol in struct fields so they all start at the same column"
 		}
 	},
