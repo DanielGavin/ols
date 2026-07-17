@@ -620,22 +620,22 @@ union_type :: proc() {
 		// an example of this for a basic game Entity.
 
 		Entity :: struct {
-			id         : u64,
-			name       : string,
-			position   : Vector3,
+			id:          u64,
+			name:        string,
+			position:    Vector3,
 			orientation: Quaternion,
-			derived    : any,
+			derived:     any,
 		}
 
 		Frog :: struct {
 			using entity: Entity,
-			jump_height : f32,
+			jump_height:  f32,
 		}
 
 		Monster :: struct {
 			using entity: Entity,
-			is_robot    : bool,
-			is_zombie   : bool,
+			is_robot:     bool,
+			is_zombie:    bool,
 		}
 
 		// See `parametric_polymorphism` procedure for details
@@ -664,11 +664,11 @@ union_type :: proc() {
 		// basic game Entity but using an union.
 
 		Entity :: struct {
-			id         : u64,
-			name       : string,
-			position   : Vector3,
+			id:          u64,
+			name:        string,
+			position:    Vector3,
 			orientation: Quaternion,
-			derived    : union {
+			derived:     union {
 				Frog,
 				Monster,
 			},
@@ -676,13 +676,13 @@ union_type :: proc() {
 
 		Frog :: struct {
 			using entity: ^Entity,
-			jump_height : f32,
+			jump_height:  f32,
 		}
 
 		Monster :: struct {
 			using entity: ^Entity,
-			is_robot    : bool,
-			is_zombie   : bool,
+			is_robot:     bool,
+			is_zombie:    bool,
 		}
 
 		// See `parametric_polymorphism` procedure for details
@@ -755,7 +755,7 @@ using_statement :: proc() {
 	}
 	{
 		Entity :: struct {
-			position   : Vector3,
+			position:    Vector3,
 			orientation: quaternion128,
 		}
 
@@ -790,7 +790,7 @@ using_statement :: proc() {
 		// making all the fields of position appear as if they on Entity itself:
 		Entity :: struct {
 			using position: Vector3,
-			orientation   : quaternion128,
+			orientation:    quaternion128,
 		}
 		foo :: proc(entity: ^Entity) {
 			fmt.println(entity.x, entity.y, entity.z)
@@ -807,8 +807,8 @@ using_statement :: proc() {
 		}
 		Frog :: struct {
 			ribbit_volume: f32,
-			using entity : Entity,
-			colour       : Colour,
+			using entity:  Entity,
+			colour:        Colour,
 		}
 
 		frog: Frog
@@ -933,15 +933,15 @@ parametric_polymorphism :: proc() {
 	{ 	// Polymorphic Types and Type Specialization
 		Table_Slot :: struct($Key, $Value: typeid) {
 			occupied: bool,
-			hash    : u32,
-			key     : Key,
-			value   : Value,
+			hash:     u32,
+			key:      Key,
+			value:    Value,
 		}
 		TABLE_SIZE_MIN :: 32
 		Table :: struct($Key, $Value: typeid) {
-			count    : int,
+			count:     int,
 			allocator: mem.Allocator,
-			slots    : []Table_Slot(Key, Value),
+			slots:     []Table_Slot(Key, Value),
 		}
 
 		// Only allow types that are specializations of a (polymorphic) slice
@@ -1821,7 +1821,7 @@ range_statements_with_multiple_return_values :: proc() {
 	fmt.println("\n#range statements with multiple return values")
 	My_Iterator :: struct {
 		index: int,
-		data : []i32,
+		data:  []i32,
 	}
 	make_my_iterator :: proc(data: []i32) -> My_Iterator {
 		return My_Iterator{data = data}
@@ -2001,7 +2001,7 @@ constant_literal_expressions :: proc() {
 		x, y: f32,
 	}
 	Foo :: struct {
-		a, b   : int,
+		a, b:    int,
 		using c: Bar,
 	}
 
