@@ -1,0 +1,6 @@
+{
+	"align_struct_declarations": true,
+	"spaces_around_colons": true,
+	"character_width": 80,
+	"newline_style": "LF"
+}

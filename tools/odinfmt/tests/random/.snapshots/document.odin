@@ -28,19 +28,19 @@ Document_Text :: struct {
 
 Document_Nest :: struct {
 	indentation: int,
-	alignment:   int,
-	document:    ^Document,
+	alignment  : int,
+	document   : ^Document,
 }
 
 Document_Nest_If_Break :: struct {
 	indentation: int,
-	alignment:   int,
-	document:    ^Document,
-	group_id:    string,
+	alignment  : int,
+	document   : ^Document,
+	group_id   : string,
 }
 
 Document_Break :: struct {
-	value:   string,
+	value  : string,
 	newline: bool,
 }
 
@@ -50,8 +50,8 @@ Document_If_Break :: struct {
 
 Document_Group :: struct {
 	document: ^Document,
-	mode:     Document_Group_Mode,
-	options:  Document_Group_Options,
+	mode    : Document_Group_Mode,
+	options : Document_Group_Options,
 }
 
 Document_Cons :: struct {
@@ -260,9 +260,9 @@ cons_with_nopl :: proc(
 
 Tuple :: struct {
 	indentation: int,
-	alignment:   int,
-	mode:        Document_Group_Mode,
-	document:    ^Document,
+	alignment  : int,
+	mode       : Document_Group_Mode,
+	document   : ^Document,
 }
 
 fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {

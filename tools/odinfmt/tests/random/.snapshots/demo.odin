@@ -620,22 +620,22 @@ union_type :: proc() {
 		// an example of this for a basic game Entity.
 
 		Entity :: struct {
-			id:          u64,
-			name:        string,
-			position:    Vector3,
+			id         : u64,
+			name       : string,
+			position   : Vector3,
 			orientation: Quaternion,
-			derived:     any,
+			derived    : any,
 		}
 
 		Frog :: struct {
 			using entity: Entity,
-			jump_height:  f32,
+			jump_height : f32,
 		}
 
 		Monster :: struct {
 			using entity: Entity,
-			is_robot:     bool,
-			is_zombie:    bool,
+			is_robot    : bool,
+			is_zombie   : bool,
 		}
 
 		// See `parametric_polymorphism` procedure for details
@@ -664,11 +664,11 @@ union_type :: proc() {
 		// basic game Entity but using an union.
 
 		Entity :: struct {
-			id:          u64,
-			name:        string,
-			position:    Vector3,
+			id         : u64,
+			name       : string,
+			position   : Vector3,
 			orientation: Quaternion,
-			derived:     union {
+			derived    : union {
 				Frog,
 				Monster,
 			},
@@ -676,13 +676,13 @@ union_type :: proc() {
 
 		Frog :: struct {
 			using entity: ^Entity,
-			jump_height:  f32,
+			jump_height : f32,
 		}
 
 		Monster :: struct {
 			using entity: ^Entity,
-			is_robot:     bool,
-			is_zombie:    bool,
+			is_robot    : bool,
+			is_zombie   : bool,
 		}
 
 		// See `parametric_polymorphism` procedure for details
@@ -755,7 +755,7 @@ using_statement :: proc() {
 	}
 	{
 		Entity :: struct {
-			position:    Vector3,
+			position   : Vector3,
 			orientation: quaternion128,
 		}
 
@@ -790,7 +790,7 @@ using_statement :: proc() {
 		// making all the fields of position appear as if they on Entity itself:
 		Entity :: struct {
 			using position: Vector3,
-			orientation:    quaternion128,
+			orientation   : quaternion128,
 		}
 		foo :: proc(entity: ^Entity) {
 			fmt.println(entity.x, entity.y, entity.z)
@@ -807,8 +807,8 @@ using_statement :: proc() {
 		}
 		Frog :: struct {
 			ribbit_volume: f32,
-			using entity:  Entity,
-			colour:        Colour,
+			using entity : Entity,
+			colour       : Colour,
 		}
 
 		frog: Frog
@@ -933,15 +933,15 @@ parametric_polymorphism :: proc() {
 	{ 	// Polymorphic Types and Type Specialization
 		Table_Slot :: struct($Key, $Value: typeid) {
 			occupied: bool,
-			hash:     u32,
-			key:      Key,
-			value:    Value,
+			hash    : u32,
+			key     : Key,
+			value   : Value,
 		}
 		TABLE_SIZE_MIN :: 32
 		Table :: struct($Key, $Value: typeid) {
-			count:     int,
+			count    : int,
 			allocator: mem.Allocator,
-			slots:     []Table_Slot(Key, Value),
+			slots    : []Table_Slot(Key, Value),
 		}
 
 		// Only allow types that are specializations of a (polymorphic) slice
@@ -1231,7 +1231,7 @@ threading_example :: proc() {
 
 
 		for i in 0 ..< 30 {
-			// be mindful of the allocator used for tasks. The allocator needs to be thread safe, or be owned by the task for exclusive use 
+			// be mindful of the allocator used for tasks. The allocator needs to be thread safe, or be owned by the task for exclusive use
 			thread.pool_add_task(
 				pool = &pool,
 				procedure = task_proc,
@@ -1821,7 +1821,7 @@ range_statements_with_multiple_return_values :: proc() {
 	fmt.println("\n#range statements with multiple return values")
 	My_Iterator :: struct {
 		index: int,
-		data:  []i32,
+		data : []i32,
 	}
 	make_my_iterator :: proc(data: []i32) -> My_Iterator {
 		return My_Iterator{data = data}
@@ -2001,7 +2001,7 @@ constant_literal_expressions :: proc() {
 		x, y: f32,
 	}
 	Foo :: struct {
-		a, b:    int,
+		a, b   : int,
 		using c: Bar,
 	}
 
@@ -2463,7 +2463,7 @@ matrix_type :: proc() {
 		fmt.println("r", r)
 	}
 
-	{ 	// Component-wise operations 
+	{ 	// Component-wise operations
 		// if the element type supports it
 		// Not support for '/', '%', or '%%' operations
 
@@ -2500,10 +2500,10 @@ matrix_type :: proc() {
 
 	{ 	// Submatrix casting square matrices
 		// Casting a square matrix to another square matrix with same element type
-		// is supported. 
+		// is supported.
 		// If the cast is to a smaller matrix type, the top-left submatrix is taken.
 		// If the cast is to a larger matrix type, the matrix is extended with zeros
-		// everywhere and ones in the diagonal for the unfilled elements of the 
+		// everywhere and ones in the diagonal for the unfilled elements of the
 		// extended matrix.
 
 		mat2 :: distinct matrix[2, 2]f32
@@ -2524,7 +2524,7 @@ matrix_type :: proc() {
 	}
 
 	{ 	// Casting non-square matrices
-		// Casting a matrix to another matrix is allowed as long as they share 
+		// Casting a matrix to another matrix is allowed as long as they share
 		// the same element type and the number of elements (rows*columns).
 		// Matrices in Odin are stored in column-major order, which means
 		// the casts will preserve this element order.
@@ -2542,16 +2542,16 @@ matrix_type :: proc() {
 	// TECHNICAL INFORMATION: the internal representation of a matrix in Odin is stored
 	// in column-major format
 	// e.g. matrix[2, 3]f32 is internally [3][2]f32 (with different a alignment requirement)
-	// Column-major is used in order to utilize (SIMD) vector instructions effectively on 
+	// Column-major is used in order to utilize (SIMD) vector instructions effectively on
 	// modern hardware, if possible.
 	//
 	// Unlike normal arrays, matrices try to maximize alignment to allow for the (SIMD) vectorization
 	// properties whilst keeping zero padding (either between columns or at the end of the type).
-	// 
+	//
 	// Zero padding is a compromise for use with third-party libraries, instead of optimizing for performance.
-	// Padding between columns was not taken even if that would have allowed each column to be loaded 
-	// individually into a SIMD register with the correct alignment properties. 
-	// 
+	// Padding between columns was not taken even if that would have allowed each column to be loaded
+	// individually into a SIMD register with the correct alignment properties.
+	//
 	// Currently, matrices are limited to a maximum of 16 elements (rows*columns), and a minimum of 1 element.
 	// This is because matrices are stored as values (not a reference type), and thus operations on them will
 	// be stored on the stack. Restricting the maximum element count minimizing the possibility of stack overflows.
