@@ -106,7 +106,7 @@ when ODIN_OS == .Windows {
 		spaces_around_colons      = false,
 		align_struct_fields       = true,
 		align_struct_values       = true,
-		align_struct_declarations = true,
+		align_struct_declarations = false,
 	}
 } else {
 	default_style := Config {
@@ -123,7 +123,7 @@ when ODIN_OS == .Windows {
 		spaces_around_colons      = false,
 		align_struct_fields       = true,
 		align_struct_values       = true,
-		align_struct_declarations = true,
+		align_struct_declarations = false,
 	}
 }
 
