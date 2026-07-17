@@ -325,7 +325,7 @@ function getDestFolder(config: Config, releaseId: number | undefined): string {
 	return path.join(config.globalStorageUri.fsPath, (releaseId ?? 0).toString());
 }
 
-function getExt(): string {
+export function getExt(): string {
 	const platform = getPlatform()
 	const isWindows = platform.indexOf("-windows-") !== -1;
 	const ext = isWindows ? ".exe" : "";

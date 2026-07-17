@@ -4,6 +4,9 @@ package ols_builtin
 @builtin len :: proc(array: Array_Type) -> int ---
 @builtin cap :: proc(array: Array_Type) -> int ---
 
+@builtin expand_values   :: proc(value: Struct_Or_Array) -> (A, B, C, ...) ---
+@builtin compress_values :: proc(values: ...) -> Struct_Or_Array_Like_Type ---
+
 size_of      :: proc($T: typeid) -> int ---
 @builtin align_of     :: proc($T: typeid) -> int ---
 @builtin type_of      :: proc(x: expr) -> type ---
@@ -41,9 +44,7 @@ Odin_OS_Type :: enum int {
 	Windows,
 	Darwin,
 	Linux,
-	Essence,
 	FreeBSD,
-	Haiku,
 	OpenBSD,
 	WASI,
 	JS,

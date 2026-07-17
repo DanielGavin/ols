@@ -32,10 +32,13 @@ Method :: struct {
 }
 
 SymbolPackage :: struct {
-	symbols:      map[string]Symbol,
-	objc_structs: map[string]ObjcStruct, //mapping from struct name to function
-	methods:      map[Method][dynamic]Symbol,
-	imports:      [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
+	symbols:            map[string]Symbol,
+	objc_structs:       map[string]ObjcStruct, //mapping from struct name to function
+	methods:            map[Method][dynamic]Symbol,
+	imports:            [dynamic]string, //Used for references to figure whether the package is even able to reference the symbol
+	proc_group_members: map[string]bool, // Tracks procedure names that are part of proc groups (used by fake methods)
+	doc:                map[string]string, // Tracks package doc strings in the file, indexed by the file uri
+	comment:            map[string]string, // Tracks package comments in the file, indexed by file uri
 }
 
 get_index_unique_string :: proc {
@@ -178,6 +181,9 @@ collect_struct_fields :: proc(
 	if struct_type.is_raw_union {
 		b.tags |= {.Is_Raw_Union}
 	}
+	if struct_type.is_simple {
+		b.tags |= {.Is_Simple}
+	}
 
 	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
 	for clause in struct_type.where_clauses {
@@ -299,10 +305,12 @@ collect_bitset_field :: proc(
 	bitset_type: ast.Bit_Set_Type,
 	package_map: map[string]string,
 ) -> SymbolBitSetValue {
-	cloned := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings)
-	replace_package_alias(cloned, package_map, collection)
+	expr := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings)
+	underlying := clone_type(bitset_type.underlying, collection.allocator, &collection.unique_strings)
+	replace_package_alias(expr, package_map, collection)
+	replace_package_alias(underlying, package_map, collection)
 
-	return SymbolBitSetValue{expr = cloned}
+	return SymbolBitSetValue{expr = expr, underlying = underlying}
 }
 
 collect_slice :: proc(
@@ -351,6 +359,20 @@ collect_dynamic_array :: proc(
 	replace_package_alias(elem, package_map, collection)
 
 	return SymbolDynamicArrayValue{expr = elem}
+}
+
+collect_fixed_cap_dynamic_array :: proc(
+	collection: ^SymbolCollection,
+	array: ast.Fixed_Capacity_Dynamic_Array_Type,
+	package_map: map[string]string,
+) -> SymbolDynamicArrayValue {
+	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
+	cap := clone_type(array.capacity, collection.allocator, &collection.unique_strings)
+
+	replace_package_alias(elem, package_map, collection)
+	replace_package_alias(cap, package_map, collection)
+
+	return SymbolDynamicArrayValue{expr = elem, cap = cap}
 }
 
 collect_matrix :: proc(
@@ -437,46 +459,224 @@ add_comp_lit_fields :: proc(
 	generic.ranges = ranges[:]
 }
 
+/*
+	Records the names of procedures that are part of a proc group.
+	This is used by the fake methods feature to hide individual procs
+	when the proc group should be shown instead.
+*/
+record_proc_group_members :: proc(collection: ^SymbolCollection, group: ^ast.Proc_Group, pkg_name: string) {
+	pkg := get_or_create_package(collection, pkg_name)
+
+	for arg in group.args {
+		name := get_proc_group_member_name(arg) or_continue
+		pkg.proc_group_members[get_index_unique_string(collection, name)] = true
+	}
+}
+
+@(private = "file")
+get_proc_group_member_name :: proc(expr: ^ast.Expr) -> (name: string, ok: bool) {
+	#partial switch v in expr.derived {
+	case ^ast.Ident:
+		return v.name, true
+	case ^ast.Selector_Expr:
+		// For package.proc_name, we only care about the proc name
+		if field, is_ident := v.field.derived.(^ast.Ident); is_ident {
+			return field.name, true
+		}
+	}
+	return "", false
+}
+
+@(private = "file")
+get_or_create_package :: proc(collection: ^SymbolCollection, pkg_name: string) -> ^SymbolPackage {
+	pkg := &collection.packages[pkg_name]
+	if pkg == nil || pkg.symbols == nil {
+		collection.packages[pkg_name] = {}
+		pkg = &collection.packages[pkg_name]
+		pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
+		pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
+		pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
+		pkg.proc_group_members = make(map[string]bool, 10, collection.allocator)
+		pkg.doc = make(map[string]string, collection.allocator)
+		pkg.comment = make(map[string]string, collection.allocator)
+	}
+	return pkg
+}
+
+/*
+	Collects a fake method from an alias if references a proc.
+*/
+collect_alias_method :: proc(collection: ^SymbolCollection, symbol: Symbol, visited: ^map[^Symbol]struct {}) {
+
+	pkg := &collection.packages[symbol.pkg]
+	value := symbol.value.(SymbolGenericValue)
+
+	resolved: ^Symbol
+	#partial switch v in value.expr.derived {
+	case ^ast.Ident:
+		resolved = (&pkg.symbols[v.name]) or_break
+	case ^ast.Selector_Expr:
+		pkg_ident := v.expr.derived.(^ast.Ident) or_break
+		field_ident := v.field.derived.(^ast.Ident) or_break
+		alias_pkg := (&collection.packages[pkg_ident.name]) or_break
+		resolved = (&alias_pkg.symbols[field_ident.name]) or_break
+	}
+
+	if resolved == nil do return
+
+	// symbols can point to each other in a cycle
+	if resolved in visited do return
+	visited[resolved] = {}
+
+	alias_symbol := resolved^
+	alias_symbol.name = symbol.name
+	alias_symbol.pkg  = symbol.pkg
+
+	#partial switch _ in resolved.value {
+	case SymbolProcedureValue:
+		collect_method(collection, alias_symbol)
+	case SymbolProcedureGroupValue:
+		collect_proc_group_method(collection, alias_symbol)
+	case SymbolGenericValue:
+		collect_alias_method(collection, alias_symbol, visited)
+	}
+}
+
+/*
+	Collects a procedure as a fake method if it's not part of a proc group.
+*/
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 	pkg := &collection.packages[symbol.pkg]
 
-	if value, ok := symbol.value.(SymbolProcedureValue); ok {
-		if len(value.arg_types) == 0 {
-			return
-		}
-
-		expr, _, ok := unwrap_pointer_ident(value.arg_types[0].type)
-
-		if !ok {
-			return
-		}
-
-		method: Method
-
-		#partial switch v in expr.derived {
-		case ^ast.Selector_Expr:
-			if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				method.pkg = get_index_unique_string(collection, ident.name)
-				method.name = get_index_unique_string(collection, v.field.name)
-			} else {
-				return
-			}
-		case ^ast.Ident:
-			method.pkg = symbol.pkg
-			method.name = get_index_unique_string(collection, v.name)
-		case:
-			return
-		}
-
-		symbols := &pkg.methods[method]
-
-		if symbols == nil {
-			pkg.methods[method] = make([dynamic]Symbol, collection.allocator)
-			symbols = &pkg.methods[method]
-		}
-
-		append(symbols, symbol)
+	if symbol.name in pkg.proc_group_members {
+		return
 	}
+
+	value, ok := symbol.value.(SymbolProcedureValue)
+	if !ok {
+		return
+	}
+	if len(value.arg_types) == 0 {
+		return
+	}
+
+	method, method_ok := get_method_from_first_arg(collection, value.arg_types[0].type, symbol.pkg)
+	if !method_ok {
+		return
+	}
+	add_symbol_to_method(collection, pkg, method, symbol)
+}
+
+/*
+	Collects a proc group as a fake method based on its member procedures' first arguments.
+	The proc group is registered as a method for each distinct first-argument type
+	across all its members.
+*/
+collect_proc_group_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
+	pkg := &collection.packages[symbol.pkg]
+
+	group_value, ok := symbol.value.(SymbolProcedureGroupValue)
+	if !ok {
+		return
+	}
+
+	proc_group, is_proc_group := group_value.group.derived.(^ast.Proc_Group)
+	if !is_proc_group || len(proc_group.args) == 0 {
+		return
+	}
+
+	// Track which method keys we've already registered to avoid duplicates
+	registered_methods := make(map[Method]bool, len(proc_group.args), context.temp_allocator)
+
+	// Register the proc group as a method for each distinct first-argument type
+	for member_expr in proc_group.args {
+		member_name, name_ok := get_proc_group_member_name(member_expr)
+		if !name_ok {
+			continue
+		}
+
+		member_symbol, found := pkg.symbols[member_name]
+		if !found {
+			continue
+		}
+
+		member_proc, is_proc := member_symbol.value.(SymbolProcedureValue)
+		if !is_proc || len(member_proc.arg_types) == 0 {
+			continue
+		}
+
+		method, method_ok := get_method_from_first_arg(collection, member_proc.arg_types[0].type, symbol.pkg)
+		if !method_ok {
+			continue
+		}
+
+		if method not_in registered_methods {
+			registered_methods[method] = true
+			add_symbol_to_method(collection, pkg, method, symbol)
+		}
+	}
+}
+
+@(private = "file")
+get_method_from_first_arg :: proc(
+	collection: ^SymbolCollection,
+	first_arg_type: ^ast.Expr,
+	default_pkg: string,
+) -> (
+	method: Method,
+	ok: bool,
+) {
+	expr, _, unwrap_ok := unwrap_pointer_ident(first_arg_type)
+	if !unwrap_ok {
+		return {}, false
+	}
+
+	#partial switch v in expr.derived {
+	case ^ast.Selector_Expr:
+		ident, is_ident := v.expr.derived.(^ast.Ident)
+		if !is_ident {
+			return {}, false
+		}
+		method.pkg = get_index_unique_string(collection, ident.name)
+		method.name = get_index_unique_string(collection, v.field.name)
+	case ^ast.Ident:
+		if is_builtin_type_name(v.name) {
+			method.pkg = "$builtin"
+		} else {
+			method.pkg = default_pkg
+		}
+		method.name = get_index_unique_string(collection, v.name)
+	case:
+		return {}, false
+	}
+
+	return method, true
+}
+
+is_builtin_type_name :: proc(name: string) -> bool {
+	for names in untyped_map {
+		for builtin_name in names {
+			if name == builtin_name {
+				return true
+			}
+		}
+	}
+	// Also check some other builtin types not in untyped_map
+	switch name {
+	case "rawptr", "uintptr", "typeid", "any", "rune":
+		return true
+	}
+	return false
+}
+
+@(private = "file")
+add_symbol_to_method :: proc(collection: ^SymbolCollection, pkg: ^SymbolPackage, method: Method, symbol: Symbol) {
+	symbols := &pkg.methods[method]
+	if symbols == nil {
+		pkg.methods[method] = make([dynamic]Symbol, collection.allocator)
+		symbols = &pkg.methods[method]
+	}
+	append(symbols, symbol)
 }
 
 collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute, symbol: Symbol) {
@@ -523,12 +723,52 @@ collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory
 
 }
 
+@(private = "file")
+get_symbol_package_name :: proc(
+	collection: ^SymbolCollection,
+	directory: string,
+	uri: string,
+	treat_as_builtin := false,
+) -> string {
+	if treat_as_builtin || strings.contains(uri, "builtin.odin") {
+		return "$builtin"
+	}
+
+	if strings.contains(uri, "intrinsics.odin") {
+		intrinsics_path, _ := filepath.join(
+			elems = {common.config.collections["base"], "/intrinsics"},
+			allocator = context.temp_allocator,
+		)
+		intrinsics_path, _ = filepath.replace_separators(intrinsics_path, '/', context.temp_allocator)
+		return get_index_unique_string(collection, intrinsics_path)
+	}
+
+	return get_index_unique_string(collection, directory)
+}
+
+@(private = "file")
+get_package_decl_doc_comment :: proc(file: ast.File, allocator := context.temp_allocator) -> (string, string) {
+	if file.pkg_decl != nil {
+		docs := get_comment(file.pkg_decl.docs, allocator = allocator)
+		comment := get_comment(file.pkg_decl.comment, allocator = allocator)
+		return docs, comment
+	}
+	return "", ""
+}
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
-	forward, _ := filepath.to_slash(file.fullpath, context.temp_allocator)
+	forward, _ := filepath.replace_separators(file.fullpath, '/', context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)
 	exprs := collect_globals(file)
+
+	file_pkg_name := get_symbol_package_name(collection, directory, uri)
+	file_pkg := get_or_create_package(collection, file_pkg_name)
+	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
+	
+	u := strings.clone(uri, collection.allocator)
+	file_pkg.doc[u] = doc
+	file_pkg.comment[u] = comment
 
 	for expr in exprs {
 		symbol: Symbol
@@ -553,6 +793,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				is_distinct = true
 			}
 		}
+
+		// Compute pkg early so it's available inside the switch
+		symbol.pkg = get_symbol_package_name(collection, directory, uri, expr.builtin)
 
 		#partial switch v in col_expr.derived {
 		case ^ast.Matrix_Type:
@@ -600,6 +843,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token_type = .Function
 			symbol.value = SymbolProcedureGroupValue {
 				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
+			}
+			// Record proc group members for fake methods feature
+			if collection.config != nil && collection.config.enable_fake_method {
+				record_proc_group_members(collection, v, symbol.pkg)
 			}
 		case ^ast.Struct_Type:
 			token = v^
@@ -649,6 +896,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = v^
 			token_type = .Type
 			symbol.value = collect_dynamic_array(collection, v^, package_map)
+		case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+			token = v^
+			token_type = .Type
+			symbol.value = collect_fixed_cap_dynamic_array(collection, v^, package_map)
 		case ^ast.Multi_Pointer_Type:
 			token = v^
 			token_type = .Type
@@ -705,30 +956,21 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
 		symbol.type = token_type
-		symbol.doc = get_doc(expr.docs, collection.allocator)
+		symbol.doc = get_comment(expr.docs, collection.allocator)
 		symbol.uri = get_index_unique_string(collection, uri)
 		symbol.type_expr = clone_type(expr.type_expr, collection.allocator, &collection.unique_strings)
 		symbol.value_expr = clone_type(expr.value_expr, collection.allocator, &collection.unique_strings)
 		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
-		symbol.comment = strings.clone(get_comment(comment), collection.allocator)
+		symbol.comment = get_comment(comment, collection.allocator)
 
-		if expr.builtin || strings.contains(uri, "builtin.odin") {
-			symbol.pkg = "$builtin"
-		} else if strings.contains(uri, "intrinsics.odin") {
-			path := filepath.join(
-				elems = {common.config.collections["base"], "/intrinsics"},
-				allocator = context.temp_allocator,
-			)
-
-			path, _ = filepath.to_slash(path, context.temp_allocator)
-
-			symbol.pkg = get_index_unique_string(collection, path)
-		} else {
-			symbol.pkg = get_index_unique_string(collection, directory)
-		}
+		// symbol.pkg was already set earlier before the switch
 
 		if is_distinct {
 			symbol.flags |= {.Distinct}
+		}
+
+		if expr.builtin {
+			symbol.flags |= {.Builtin}
 		}
 
 		if expr.deprecated {
@@ -751,23 +993,10 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			symbol.flags |= {.Mutable}
 		}
 
-		pkg: ^SymbolPackage
-		ok: bool
-
-		if pkg, ok = &collection.packages[symbol.pkg]; !ok {
-			collection.packages[symbol.pkg] = {}
-			pkg = &collection.packages[symbol.pkg]
-			pkg.symbols = make(map[string]Symbol, 100, collection.allocator)
-			pkg.methods = make(map[Method][dynamic]Symbol, 100, collection.allocator)
-			pkg.objc_structs = make(map[string]ObjcStruct, 5, collection.allocator)
-		}
+		pkg := get_or_create_package(collection, symbol.pkg)
 
 		if .ObjC in symbol.flags {
 			collect_objc(collection, expr.attributes, symbol)
-		}
-
-		if symbol.type == .Function && common.config.enable_fake_method {
-			collect_method(collection, symbol)
 		}
 
 		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {
@@ -777,10 +1006,41 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		}
 	}
 
+	// Second pass: collect fake methods after all symbols and proc group members are recorded
+	if collection.config != nil && collection.config.enable_fake_method {
+		collect_fake_methods(collection, exprs, directory, uri)
+	}
+
 	collect_imports(collection, file, directory)
 
 
 	return .None
+}
+
+/*
+	Collects fake methods for all procedures and proc groups.
+	This is done as a second pass after all symbols are collected,
+	so that we know which procedures are part of proc groups.
+*/
+@(private = "file")
+collect_fake_methods :: proc(collection: ^SymbolCollection, exprs: []GlobalExpr, directory: string, uri: string) {
+	for expr in exprs {
+		// Determine the package name (same logic as in collect_symbols)
+		pkg_name := get_symbol_package_name(collection, directory, uri, expr.builtin)
+
+		pkg := (&collection.packages[pkg_name]) or_continue
+		symbol := pkg.symbols[expr.name] or_continue
+
+		#partial switch _ in symbol.value {
+		case SymbolProcedureValue:
+			collect_method(collection, symbol)
+		case SymbolProcedureGroupValue:
+			collect_proc_group_method(collection, symbol)
+		case SymbolGenericValue:
+			visited := make(map[^Symbol]struct {}, context.temp_allocator)
+			collect_alias_method(collection, symbol, &visited)
+		}
+	}
 }
 
 Reference :: struct {
@@ -823,17 +1083,20 @@ get_package_mapping :: proc(file: ast.File, config: ^common.Config, directory: s
 			package_map[name] = full
 		} else {
 			name: string
-
-			full := path.join(
-				elems = {directory, imp.fullpath[1:len(imp.fullpath) - 1]},
-				allocator = context.temp_allocator,
-			)
+			pkg_name := imp.fullpath[1:len(imp.fullpath) - 1]
+			full := path.join(elems = {directory, pkg_name}, allocator = context.temp_allocator)
 			full = path.clean(full, context.temp_allocator)
 
 			if imp.name.text != "" {
 				name = imp.name.text
 			} else {
 				name = path.base(full, false, context.temp_allocator)
+			}
+			// Check if the package already exists in the index and use that path
+			// This handles the case where packages are indexed separately (e.g., in tests)
+			test_path := path.join(elems = {"test", pkg_name}, allocator = context.temp_allocator)
+			if _, exists := indexer.index.collection.packages[test_path]; exists {
+				full = test_path
 			}
 
 			package_map[name] = full
@@ -876,33 +1139,37 @@ replace_package_alias_expr :: proc(node: ^ast.Expr, package_map: map[string]stri
 }
 
 replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]string, collection: ^SymbolCollection) {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
-	case ^Implicit:
-	case ^Undef:
-	case ^Basic_Lit:
-	case ^Basic_Directive:
-	case ^Ellipsis:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
+		// Replace stand-alone identifiers that are package aliases
+		if package_name, ok := package_map[n.name]; ok {
+			n.name = get_index_unique_string(collection, package_name)
+		} else if strings.contains(n.name, "/") {
+			n.name = get_index_unique_string(collection, n.name)
+		}
+	case ^ast.Implicit:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
+	case ^ast.Basic_Directive:
+	case ^ast.Ellipsis:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		replace_package_alias(n.left, package_map, collection)
 		replace_package_alias(n.right, package_map, collection)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		replace_package_alias(n.expr, package_map, collection)
-	case ^Selector_Expr:
-		if _, ok := n.expr.derived.(^Ident); ok {
-			ident := n.expr.derived.(^Ident)
+	case ^ast.Selector_Expr:
+		if _, ok := n.expr.derived.(^ast.Ident); ok {
+			ident := n.expr.derived.(^ast.Ident)
 
 			if package_name, ok := package_map[ident.name]; ok {
 				ident.name = get_index_unique_string(collection, package_name)
@@ -911,74 +1178,74 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 			replace_package_alias(n.expr, package_map, collection)
 			replace_package_alias(n.field, package_map, collection)
 		}
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		replace_package_alias(n.field, package_map, collection)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 		replace_package_alias(n.low, package_map, collection)
 		replace_package_alias(n.high, package_map, collection)
-	case ^Attribute:
+	case ^ast.Attribute:
 		replace_package_alias(n.elems, package_map, collection)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		replace_package_alias(n.type, package_map, collection)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		replace_package_alias(n.params, package_map, collection)
 		replace_package_alias(n.results, package_map, collection)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		replace_package_alias(n.len, package_map, collection)
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Struct_Type:
+	case ^ast.Struct_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
 		replace_package_alias(n.align, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Field:
+	case ^ast.Field:
 		replace_package_alias(n.names, package_map, collection)
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.default_value, package_map, collection)
-	case ^Field_List:
+	case ^ast.Field_List:
 		replace_package_alias(n.list, package_map, collection)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		replace_package_alias(n.field, package_map, collection)
 		replace_package_alias(n.value, package_map, collection)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
 		replace_package_alias(n.align, package_map, collection)
 		replace_package_alias(n.variants, package_map, collection)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		replace_package_alias(n.base_type, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		replace_package_alias(n.elem, package_map, collection)
 		replace_package_alias(n.underlying, package_map, collection)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		replace_package_alias(n.key, package_map, collection)
 		replace_package_alias(n.value, package_map, collection)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 		replace_package_alias(n.args, package_map, collection)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		replace_package_alias(n.specialization, package_map, collection)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.specialization, package_map, collection)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		replace_package_alias(n.args, package_map, collection)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.elems, package_map, collection)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		replace_package_alias(n.type, package_map, collection)
-	case ^Proc_Lit:
-	case ^Multi_Pointer_Type:
+	case ^ast.Proc_Lit:
+	case ^ast.Multi_Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		replace_package_alias(n.backing_type, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		replace_package_alias(n.name, package_map, collection)
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.bit_size, package_map, collection)

@@ -277,17 +277,17 @@ DiagnosticSeverity :: enum {
 	Hint        = 4,
 }
 
- DiagnosticTag :: enum int {
+DiagnosticTag :: enum int {
 	Unnecessary = 1,
 	Deprecated  = 2,
- }
+}
 
 Diagnostic :: struct {
 	range:    common.Range,
 	severity: DiagnosticSeverity,
 	code:     string,
 	message:  string,
-	tags:     [1]DiagnosticTag,
+	tags:     []DiagnosticTag,
 }
 
 DidOpenTextDocumentParams :: struct {
@@ -413,36 +413,44 @@ FileSystemWatcher :: struct {
 }
 
 OlsConfig :: struct {
-	collections:                       [dynamic]OlsConfigCollection,
-	thread_pool_count:                 Maybe(int),
-	enable_format:                     Maybe(bool),
-	enable_hover:                      Maybe(bool),
-	enable_document_symbols:           Maybe(bool),
-	enable_fake_methods:               Maybe(bool),
-	enable_references:                 Maybe(bool),
-	enable_document_highlights:        Maybe(bool),
-	enable_document_links:             Maybe(bool),
-	enable_comp_lit_signature_help:    Maybe(bool),
-	enable_completion_matching:        Maybe(bool),
-	enable_inlay_hints_params:         Maybe(bool),
-	enable_inlay_hints_default_params: Maybe(bool),
-	enable_inlay_hints_implicit_return: Maybe(bool),
-	enable_semantic_tokens:            Maybe(bool),
-	enable_unused_imports_reporting:   Maybe(bool),
-	enable_procedure_context:          Maybe(bool),
-	enable_snippets:                   Maybe(bool),
-	enable_procedure_snippet:          Maybe(bool),
-	enable_checker_only_saved:         Maybe(bool),
-	enable_auto_import:                Maybe(bool),
-	disable_parser_errors:             Maybe(bool),
-	verbose:                           Maybe(bool),
-	file_log:                          Maybe(bool),
-	odin_command:                      string,
-	odin_root_override:                string,
-	checker_args:                      string,
-	checker_targets:                   []string,
-	profiles:                          [dynamic]common.ConfigProfile,
-	profile:                           string,
+	collections:                             [dynamic]OlsConfigCollection,
+	thread_pool_count:                       Maybe(int),
+	enable_format:                           Maybe(bool),
+	enable_hover:                            Maybe(bool),
+	enable_document_symbols:                 Maybe(bool),
+	enable_fake_methods:                     Maybe(bool),
+	enable_overload_resolution:              Maybe(bool),
+	enable_references:                       Maybe(bool),
+	enable_document_highlights:              Maybe(bool),
+	enable_document_links:                   Maybe(bool),
+	enable_comp_lit_signature_help:          Maybe(bool),
+	enable_comp_lit_signature_help_use_docs: Maybe(bool),
+	enable_completion_matching:              Maybe(bool),
+	enable_inlay_hints_params:               Maybe(bool),
+	enable_inlay_hints_default_params:       Maybe(bool),
+	enable_inlay_hints_implicit_return:      Maybe(bool),
+	enable_inlay_hints_optional_result:      Maybe(bool),
+	enable_semantic_tokens:                  Maybe(bool),
+	enable_unused_imports_reporting:         Maybe(bool),
+	enable_procedure_context:                Maybe(bool),
+	enable_snippets:                         Maybe(bool),
+	enable_procedure_snippet:                Maybe(bool),
+	enable_checker_only_saved:               Maybe(bool),
+	enable_checker_workspace_diagnostics:    Maybe(bool),
+	enable_auto_import:                      Maybe(bool),
+	enable_code_action_invert_if:            Maybe(bool),
+	struct_fields_underscore_visibility: 	 string,
+	disable_parser_errors:                   Maybe(bool),
+	verbose:                                 Maybe(bool),
+	file_log:                                Maybe(bool),
+	odin_command:                            string,
+	odin_root_override:                      string,
+	checker_args:                            string,
+	checker_targets:                         []string,
+	checker_skip_packages:                   []string,
+	completion_exclude_attributes:           []string,
+	profiles:                                [dynamic]common.ConfigProfile,
+	profile:                                 string,
 }
 
 OlsConfigCollection :: struct {
@@ -559,9 +567,14 @@ PrepareRenameParams :: struct {
 	position:     common.Position,
 }
 
+ReferenceContext :: struct {
+	includeDeclaration: bool,
+}
+
 ReferenceParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	position:     common.Position,
+	ctx:          ReferenceContext `json:"context"`,
 }
 
 HighlightParams :: struct {

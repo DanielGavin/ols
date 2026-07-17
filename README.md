@@ -36,6 +36,8 @@ cd ols
 ./odinfmt.sh
 ```
 
+In order for `ols` to find symbols for builtin types and procedures, the `builtin` folder in the repo needs to be located next to the `ols` binary. Alternatively you can specify the path to this folder using the `OLS_BUILTIN_FOLDER` environment variable.
+
 ### Configuration
 
 In order for the language server to index your files, it must know about your collections.
@@ -75,7 +77,9 @@ Options:
 
 - `enable_document_symbols`: Turns on outline of all your global declarations in your document. _(Enabled by default)_
 
-- `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental.
+- `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental and requires client snippet support.
+
+- `enable_overload_resolution`: Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.
 
 - `enable_references`: Turns on finding references for a symbol. _(Enabled by default)_
 
@@ -91,23 +95,40 @@ Options:
 
 - `enable_inlay_hints_implicit_return`: Turn on inlay hints for implicit return values.
 
+- `enable_inlay_hints_optional_result`: Adds inlay hints for unhandled optional result value. (#optional_ok and #optional_allocator_error)
+
 - `enable_semantic_tokens`: Turns on syntax highlighting.
 
 - `enable_snippets`: Turns on builtin snippets
 
-- `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. _(Enabled by default)_
+- `enable_procedure_snippet`: Use snippets when completing procedures—adds parenthesis after the name. This requires client snippet support. _(Enabled by default)_
 
-- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved.
+- `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
+
+- `enable_checker_workspace_diagnostics`: Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
 - `enable_comp_lit_signature_help`: Provide signature help for comp lits such as when instantiating structs. Will not display correctly on some editors such as vscode.
+
+- `enable_comp_lit_signature_help_use_docs`: Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.
+
+- `enable_code_action_invert_if`: Enables a code action to invert if statements.
+
+- `struct_fields_underscore_visibility`: Controls visibility of struct fields starting with `_`:
+  - `""` (default): no hiding, all fields are visible
+  - `"file"`: hide fields when accessed from outside the declaring file 
+  - `"package"`: hide fields when accessed from outside the declaring package
 
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
 - `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.
 
 - `checker_args`: Pass custom arguments to `odin check`.
+
+- `checker_skip_packages`: Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`.
+
+- `completion_exclude_attributes`: Filter procedures that include the provided attributes from completions. For example `@(test)`.
 
 - `verbose`: Logs warnings instead of just errors.
 
@@ -158,6 +179,10 @@ Options:
 
 - `space_single_line_blocks`: Put spaces around braces of single-line blocks: `{return 0}` => `{ return 0 }`
 
+- `align_struct_fields`: Align the types of struct fields so they all start at the same column.
+
+- `align_struct_values`: Align the values of struct fields when assigning a struct value to a variable so they all start at the same column.
+
 ## Features
 
 Support Language server features:
@@ -183,7 +208,7 @@ Install the package https://github.com/sublimelsp/LSP
 
 Configuration of the LSP:
 
-```json
+```jsonc
 {
 	"clients": {
 		"odin": {
@@ -253,6 +278,8 @@ require'lspconfig'.ols.setup {
 }
 ```
 
+* use an explicit `cmd` for `ols` when using a custom build
+
 Neovim can run Odinfmt on save using the [conform](https://github.com/stevearc/conform.nvim) plugin. Here is a sample configuration using the [lazy.nvim](https://github.com/folke/lazy.nvim) package manager:
 
 ```lua
@@ -279,6 +306,33 @@ local M = {
 return M
 ```
 
+#### LazyVim + Mason
+
+If you use LazyVim with Mason, `cmd = { "ols" }` may resolve to Mason's shim instead of your custom `ols` binary. OLS already documents editor-provided configuration and `odin_command`, so when using a custom OLS build it is safer to disable Mason only for OLS and set explicit paths.
+
+```lua
+return {
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
+        ols = {
+          mason = false,
+          cmd = { "/path/to/ols" },
+          settings = {
+            odin_command = "/path/to/odin",
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+Notes:
+
+* put `ols` inside `opts.servers`
+* keep Mason enabled for other language servers if you want
 ### Emacs
 
 For Emacs, there are two packages available for LSP; lsp-mode and eglot.
@@ -301,6 +355,16 @@ The `use-package` statements below assume you're using a package manager like St
 (use-package odin-ts-mode
   :ensure (:host github :repo "Sampie159/odin-ts-mode")
   :mode ("\\.odin\\'" . odin-ts-mode))
+```
+
+If you are using Emacs 29 or above you can use `package-vc-install`.
+
+```elisp
+(package-vc-install
+ '(odin-mode :url "https://github.com/mattt-b/odin-mode.git"))
+
+(package-vc-install
+ '(odin-ts-mode :url "https://github.com/Sampie159/odin-ts-mode.git"))
 ```
 
 And then choose either the built-in `eglot` or `lsp-mode` packages below. Both should work very similarly.
@@ -387,7 +451,7 @@ Configure the plugin in micro's settings.json:
 First, make sure you have the LSP plugin enabled. Then, you can find LSP settings for Kate in Settings -> Configure Kate -> LSP Client -> User Server Settings.
 
 You may have to set the folders for your Odin home path directly, like in the following example:
-```json
+```jsonc
 {
     "servers": {
         "odin": {

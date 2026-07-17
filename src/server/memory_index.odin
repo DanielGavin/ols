@@ -9,7 +9,7 @@ import "src:common"
 MemoryIndex :: struct {
 	collection:        SymbolCollection,
 	last_package_name: string,
-	last_package:      ^map[string]Symbol,
+	last_package:      map[string]Symbol,
 }
 
 make_memory_index :: proc(collection: SymbolCollection) -> MemoryIndex {
@@ -26,8 +26,8 @@ memory_index_lookup :: proc(index: ^MemoryIndex, name: string, pkg: string) -> (
 		return index.last_package[name]
 	}
 
-	if _pkg, ok := &index.collection.packages[pkg]; ok {
-		index.last_package = &_pkg.symbols
+	if _pkg, ok := index.collection.packages[pkg]; ok {
+		index.last_package = _pkg.symbols
 		index.last_package_name = pkg
 		return _pkg.symbols[name]
 	} else {
@@ -69,14 +69,15 @@ memory_index_fuzzy_search :: proc(
 	for field in fields {
 		append(&matchers, common.make_fuzzy_matcher(field))
 	}
+	current_pkg := get_package_from_filepath(current_file)
+	current_file_uri := common.create_uri(current_file, context.temp_allocator).uri
 
 	top := 100
-	current_pkg := get_package_from_filepath(current_file)
 
 	for pkg in pkgs {
 		if pkg, ok := index.collection.packages[pkg]; ok {
 			for _, symbol in pkg.symbols {
-				if should_skip_private_symbol(symbol, current_pkg, current_file) {
+				if should_skip_private_symbol(symbol, current_pkg, current_file_uri) {
 					continue
 				}
 				if resolve_fields {

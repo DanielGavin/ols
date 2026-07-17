@@ -6,6 +6,7 @@ import "core:odin/ast"
 LocalFlag :: enum {
 	Mutable, // or constant
 	Variable, // or type
+	PolyType,
 }
 
 DocumentLocal :: struct {
@@ -24,6 +25,22 @@ DocumentLocal :: struct {
 }
 
 LocalGroup :: map[string][dynamic]DocumentLocal
+
+get_locals :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) {
+	if position_context.function != nil {
+		get_function_locals(ast_context.file, position_context.function, ast_context, position_context)
+	}
+	if position_context.enum_type != nil {
+		get_locals_enum_fields(position_context.enum_type, ast_context, position_context)
+	}
+	// TODO: add support and fix up the way poly types are handled
+	// if position_context.struct_type != nil {
+	// 	get_locals_poly(ast_context.file, position_context.struct_type.poly_params, ast_context)
+	// }
+	// if position_context.union_type != nil {
+	// 	get_locals_poly(ast_context.file, position_context.union_type.poly_params, ast_context)
+	// }
+}
 
 store_local :: proc(
 	ast_context: ^AstContext,
@@ -143,80 +160,47 @@ get_generic_assignment :: proc(
 	flags: GetGenericAssignmentFlags,
 	is_mutable: bool,
 ) {
-	using ast
-
 	reset_ast_context(ast_context)
 
 	#partial switch v in value.derived {
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
+
 		old_call := ast_context.call
 		ast_context.call = cast(^ast.Call_Expr)value
-
-		defer {
-			ast_context.call = old_call
-		}
-
-		//Check for basic type casts
-		if len(v.args) == 1 {
-			if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				//Handle the old way of type casting
-				if v, ok := keyword_map[ident.name]; ok {
-					//keywords
-					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
-					type_ident.name = ident.name
-					append(results, type_ident)
-					break
-				}
-			}
-		}
+		defer ast_context.call = old_call
 
 		// If we have a call expr followed immediately by another call expr, we want to return value
 		// of the second call. Eg a := foo()()
-		if _, ok := v.expr.derived.(^Call_Expr); ok {
-			symbol := Symbol{}
-			if ok := internal_resolve_type_expression(ast_context, v.expr, &symbol); ok {
-				if value, ok := symbol.value.(SymbolProcedureValue); ok {
-					if len(value.return_types) == 1 {
-						if proc_type, ok := value.return_types[0].type.derived.(^Proc_Type); ok {
-							for return_item in proc_type.results.list {
-								get_generic_assignment(
-									file,
-									return_item.type,
-									ast_context,
-									results,
-									calls,
-									flags,
-									is_mutable,
-								)
-							}
-							return
-						} else if ident, ok := value.return_types[0].type.derived.(^ast.Ident); ok {
-							if ok := internal_resolve_type_expression(ast_context, ident, &symbol); ok {
-								if value, ok := symbol.value.(SymbolProcedureValue); ok {
-									for return_item in value.return_types {
-										get_generic_assignment(
-											file,
-											return_item.type,
-											ast_context,
-											results,
-											calls,
-											flags,
-											is_mutable,
-										)
-									}
-								}
-							}
-						}
-					}
+		#partial switch _ in v.expr.derived {
+		case ^ast.Call_Expr:
+			symbol: Symbol
+
+			internal_resolve_type_expression(ast_context, v.expr, &symbol) or_break
+
+			value := symbol.value.(SymbolProcedureValue) or_break
+
+			if len(value.return_types) != 1 do break
+
+			#partial switch type in value.return_types[0].type.derived {
+			case ^ast.Proc_Type:
+				for return_item in type.results.list {
+					get_generic_assignment(file, return_item.type, ast_context, results, calls, flags, is_mutable)
+				}
+				return
+			case ^ast.Ident:
+				internal_resolve_type_expression(ast_context, type, &symbol) or_break
+				value := symbol.value.(SymbolProcedureValue) or_break
+				for return_item in value.return_types {
+					get_generic_assignment(file, return_item.type, ast_context, results, calls, flags, is_mutable)
 				}
 			}
-		} else if directive, ok := v.expr.derived.(^Basic_Directive); ok {
+		case ^ast.Basic_Directive:
 			append(results, v)
 		}
 
@@ -224,47 +208,68 @@ get_generic_assignment :: proc(
 		if symbol, ok := resolve_type_expression(ast_context, v.expr); ok {
 			#partial switch symbol_value in symbol.value {
 			case SymbolProcedureValue:
-				return_types := get_proc_return_types(ast_context, symbol, v, is_mutable)
-				for ret in return_types {
-					calls[len(results)] = {}
-					append(results, ret)
+				if symbol.pkg == "$builtin" && !is_mutable {
+					append(results, value)
+				} else {
+					returns := get_proc_return_types(ast_context, symbol, v, is_mutable)
+					if len(returns) == 0 {
+						append(results, value)
+					} else {
+						for ret in returns {
+							calls[len(results)] = {}
+							append(results, ret)
+						}
+					}
 				}
 			case SymbolAggregateValue:
 				//In case we can't resolve the proc group, just save it anyway, so it won't cause any issues further down the line.
 				append(results, value)
 
 			case SymbolStructValue:
-				// Parametrized struct
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Parametrized struct or type cast like My_Struct(123)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case SymbolUnionValue:
-				// Parametrized union
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Parametrized union or type cast like My_Union(123)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case SymbolBasicValue:
-				get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				// Type alias like Bool :: bool; Bool(true)
+				if symbol.type != .Function && symbol.type != .Type_Function && symbol.type != .Package {
+					append(results, value)
+				} else {
+					get_generic_assignment(file, v.expr, ast_context, results, calls, flags, is_mutable)
+				}
 			case:
 				if ident, ok := v.expr.derived.(^ast.Ident); ok {
 					//TODO: Simple assumption that you are casting it the type.
-					type_ident := new_type(Ident, ident.pos, ident.end, ast_context.allocator)
+					type_ident := new_type(ast.Ident, ident.pos, ident.end, ast_context.allocator)
 					type_ident.name = ident.name
 					append(results, type_ident)
 				}
 			}
 		}
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		if v.type != nil {
 			append(results, v.type)
 		}
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		append(results, v)
 		if v.elem != nil {
 			append(results, v.elem)
 		}
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		if v.expr != nil {
 			append(results, value)
 		}
@@ -275,7 +280,7 @@ get_generic_assignment :: proc(
 			b := make_bool_ast(ast_context, v.expr.pos, v.expr.end)
 			append(results, b)
 		}
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		if v.type != nil {
 			if unary, ok := v.type.derived.(^ast.Unary_Expr); ok && unary.op.kind == .Question {
 				append(results, cast(^ast.Expr)&v.node)
@@ -287,15 +292,20 @@ get_generic_assignment :: proc(
 
 			append(results, b)
 		}
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		append(results, value)
-		if n, ok := v.expr.derived.(^Type_Assertion); ok {
+
+		#partial switch n in v.expr.derived {
+		case ^ast.Type_Assertion:
 			b := make_bool_ast(ast_context, n.type.pos, n.type.end)
 			append(results, b)
+		case ^ast.Index_Expr:
+			b := make_bool_ast(ast_context, n.expr.pos, n.expr.end)
+			append(results, b)
 		}
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		get_generic_assignment(file, v.x, ast_context, results, calls, flags, is_mutable)
 	case:
 		append(results, value)
@@ -303,8 +313,6 @@ get_generic_assignment :: proc(
 }
 
 get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_context: ^AstContext) {
-	using ast
-
 	if len(value_decl.names) <= 0 {
 		return
 	}
@@ -358,8 +366,9 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		return
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 	calls := make(map[int]struct{}, 0, context.temp_allocator) //Have to track the calls, since they disallow use of variables afterwards
+	result_starts := make([dynamic]int, context.temp_allocator) // Track the start of each individual values so we can easily skip things like #optional_ok
 
 	flags: GetGenericAssignmentFlags
 
@@ -368,6 +377,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for value in value_decl.values {
+		append(&result_starts, len(results))
 		get_generic_assignment(file, value, ast_context, &results, &calls, flags, value_decl.is_mutable)
 	}
 
@@ -376,18 +386,26 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	for name, i in value_decl.names {
-		result_i := min(len(results) - 1, i)
 		str := get_ast_node_string(name, file.src)
-		flags: bit_set[LocalFlag]
 
+		result_i := min(len(results) - 1, i)
+		if .SameLhsRhsCount in flags && len(result_starts) > i {
+			result_i = min(len(results) - 1, result_starts[i])
+		}
 		expr := results[result_i]
+
+		flags: bit_set[LocalFlag]
 		value_expr: ^ast.Expr
+
 		if is_variable_declaration(expr) {
 			flags |= {.Variable}
 			if len(value_decl.values) > i {
 				value_expr = value_decl.values[i]
 			}
+		} else if len(value_decl.values) > i && is_variable_declaration(value_decl.values[i]) {
+			flags |= {.Variable}
 		}
+
 		if value_decl.is_mutable {
 			flags |= {.Mutable}
 		}
@@ -401,12 +419,48 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			ast_context.non_mutable_only,
 			false, // calls[result_i] or_else false, // TODO: find a good way to handle this
 			flags,
-			get_package_from_node(results[result_i]^),
+			get_package_from_node(expr^),
 			false,
 			value_decl.type,
 			value_expr,
 			value_decl.docs,
 			value_decl.comment,
+		)
+	}
+}
+
+get_locals_enum_fields :: proc(enum_type: ^ast.Enum_Type, ast_context: ^AstContext, position_context: ^DocumentPositionContext) {
+	if enum_type == nil ||
+	   position_context.value_decl == nil ||
+	   len(position_context.value_decl.names) == 0 {
+		return
+	}
+
+	enum_name, ok := position_context.value_decl.names[0].derived.(^ast.Ident)
+	if !ok {
+		return
+	}
+	for field in enum_type.fields {
+		name := get_enum_field_name(field)
+		if name == nil {
+			continue
+		}
+
+		selector := new_type(ast.Selector_Expr, field.pos, field.end, ast_context.allocator)
+		selector.expr = enum_name
+		selector.field = name
+
+		store_local(
+			ast_context,
+			field,
+			selector,
+			field.pos.offset,
+			name.name,
+			false,
+			false,
+			{},
+			"",
+			false,
 		)
 	}
 }
@@ -422,8 +476,6 @@ get_locals_stmt :: proc(
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	using ast
-
 	if stmt == nil {
 		return
 	}
@@ -433,35 +485,35 @@ get_locals_stmt :: proc(
 	}
 
 	#partial switch v in stmt.derived {
-	case ^Value_Decl:
+	case ^ast.Value_Decl:
 		get_locals_value_decl(file, v^, ast_context)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		get_locals_type_switch_stmt(file, v^, ast_context, document_position)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		get_locals_switch_stmt(file, v^, ast_context, document_position)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		get_locals_for_stmt(file, v^, ast_context, document_position)
-	case ^Inline_Range_Stmt:
+	case ^ast.Inline_Range_Stmt:
 		get_locals_stmt(file, v.body, ast_context, document_position)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		get_locals_for_range_stmt(file, v^, ast_context, document_position)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		get_locals_if_stmt(file, v^, ast_context, document_position)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		get_locals_block_stmt(file, v^, ast_context, document_position)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		get_locals_stmt(file, v.body, ast_context, document_position)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		if save_assign {
 			get_locals_assign_stmt(file, v^, ast_context)
 		}
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		get_locals_using_stmt(v^, ast_context)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		if stmt, ok := get_when_block_stmt(v); ok {
 			get_locals_block_stmt(file, stmt^, ast_context, document_position, true)
 		}
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		get_locals_case_clause(file, v, ast_context, document_position)
 	case ^ast.Defer_Stmt:
 		get_locals_stmt(file, v.stmt, ast_context, document_position)
@@ -588,13 +640,11 @@ get_locals_using_stmt :: proc(stmt: ast.Using_Stmt, ast_context: ^AstContext) {
 }
 
 get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_context: ^AstContext) {
-	using ast
-
 	if stmt.lhs == nil || stmt.rhs == nil {
 		return
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 	calls := make(map[int]struct{}, 0, context.temp_allocator)
 
 	for rhs in stmt.rhs {
@@ -644,13 +694,15 @@ get_locals_for_range_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	using ast
-
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
 
-	results := make([dynamic]^Expr, context.temp_allocator)
+	if stmt.init != nil {
+		get_locals_stmt(file, stmt.init, ast_context, document_position)
+	}
+
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
 
 	if stmt.expr == nil {
 		return
@@ -680,8 +732,7 @@ get_locals_for_range_stmt :: proc(
 	symbol, ok := resolve_type_expression(ast_context, stmt.expr)
 
 	if v, ok := symbol.value.(SymbolProcedureValue); ok {
-		//Not quite sure how the custom iterator is defined, but it seems that it's two or three arguments. So temporarily just assume three arguments are iterators.
-		if len(v.return_types) != 3 && len(v.return_types) != 2 && len(v.return_types) != 0 {
+		if len(v.return_types) == 1 {
 			if v.return_types[0].type != nil {
 				symbol, ok = resolve_type_expression(ast_context, v.return_types[0].type)
 			} else if v.return_types[0].default_value != nil {
@@ -708,7 +759,7 @@ get_locals_for_range_stmt :: proc(
 							ast_context.non_mutable_only,
 							false,
 							{.Mutable},
-							symbol.pkg,
+							get_package_from_node(results[result_i]^), // TODO: this may need to be used everywhere
 							false,
 						)
 					}
@@ -771,10 +822,14 @@ get_locals_for_range_stmt :: proc(
 			}
 			if len(stmt.vals) >= 2 {
 				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+					value := v.value
+					if unary, ok := stmt.vals[1].derived.(^ast.Unary_Expr); ok {
+						value = make_pointer_ast(ast_context, v.value)
+					}
 					store_local(
 						ast_context,
 						ident,
-						v.value,
+						value,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,
@@ -841,6 +896,19 @@ get_locals_for_range_stmt :: proc(
 					//Look for enumarated arrays
 					if len_symbol, ok := resolve_type_expression(ast_context, v.len); ok {
 						if _, is_enum := len_symbol.value.(SymbolEnumValue); is_enum {
+							store_local(
+								ast_context,
+								ident,
+								v.len,
+								ident.pos.offset,
+								ident.name,
+								ast_context.non_mutable_only,
+								false,
+								{.Mutable},
+								len_symbol.pkg,
+								false,
+							)
+						} else {
 							store_local(
 								ast_context,
 								ident,
@@ -1009,8 +1077,6 @@ get_locals_type_switch_stmt :: proc(
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
-	using ast
-
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -1021,11 +1087,15 @@ get_locals_type_switch_stmt :: proc(
 
 	get_locals_stmt(file, stmt.tag, ast_context, document_position, true)
 
-	if block, ok := stmt.body.derived.(^Block_Stmt); ok {
-		for block_stmt in block.stmts {
-			if cause, ok := block_stmt.derived.(^Case_Clause);
-			   ok && cause.pos.offset <= document_position.position && document_position.position <= cause.end.offset {
-				tag := stmt.tag.derived.(^Assign_Stmt)
+	if block, ok := stmt.body.derived.(^ast.Block_Stmt); ok {
+		for block_stmt, i in block.stmts {
+			upper_bound := stmt.end.offset
+			if i < len(block.stmts) - 1 {
+				upper_bound = block.stmts[i + 1].pos.offset
+			}
+			if cause, ok := block_stmt.derived.(^ast.Case_Clause);
+			   ok && cause.pos.offset <= document_position.position && document_position.position <= upper_bound {
+				tag := stmt.tag.derived.(^ast.Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
 					ident, _ := unwrap_ident(tag.lhs[0])
@@ -1066,6 +1136,11 @@ get_locals_proc_param_and_results :: proc(
 	if proc_lit.type != nil && proc_lit.type.params != nil {
 		for arg in proc_lit.type.params.list {
 			for name in arg.names {
+				flags: bit_set[LocalFlag] = {.Mutable}
+				if _, ok := name.derived.(^ast.Poly_Type); ok {
+					flags |= {.PolyType}
+				}
+
 				if arg.type != nil {
 					str := get_ast_node_string(name, file.src)
 					store_local(
@@ -1076,7 +1151,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						{.Mutable},
+						flags,
 						"",
 						true,
 					)
@@ -1097,7 +1172,7 @@ get_locals_proc_param_and_results :: proc(
 						str,
 						ast_context.non_mutable_only,
 						false,
-						{.Mutable},
+						flags,
 						"",
 						true,
 					)
@@ -1109,6 +1184,9 @@ get_locals_proc_param_and_results :: proc(
 	if proc_lit.type != nil && proc_lit.type.results != nil {
 		for result in proc_lit.type.results.list {
 			for name in result.names {
+				if ident, ok := name.derived.(^ast.Ident); ok && ident.name == "_" {
+					continue
+				}
 				if result.type != nil {
 					str := get_ast_node_string(name, file.src)
 					store_local(
@@ -1143,7 +1221,21 @@ get_locals_proc_param_and_results :: proc(
 	}
 }
 
-get_locals :: proc(
+get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^AstContext) {
+	if params == nil {
+		return
+	}
+	for param in params.list {
+		for name in param.names {
+			if poly, ok := name.derived.(^ast.Poly_Type); ok {
+				str := get_ast_node_string(poly.type, file.src)
+				store_local(ast_context, name, param.type, name.pos.offset, str, false, false, {.PolyType}, "", false)
+			}
+		}
+	}
+}
+
+get_function_locals :: proc(
 	file: ast.File,
 	function: ^ast.Node,
 	ast_context: ^AstContext,
@@ -1182,7 +1274,6 @@ get_locals :: proc(
 	for stmt in block.stmts {
 		get_locals_stmt(file, stmt, ast_context, document_position)
 	}
-
 }
 
 clear_locals :: proc(ast_context: ^AstContext) {

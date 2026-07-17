@@ -38,5 +38,8 @@ then
     export PATH=$PATH:$PWD/Odin
 fi
 
-
+echo "Building ols"
 odin build src/ -show-timings -collection:src=src -out:ols -no-bounds-check -o:speed -define:VERSION=$OLS_VERSION $@
+
+echo "Building odinfmt"
+odin build tools/odinfmt/main.odin -file -show-timings -collection:src=src -out:odinfmt -no-bounds-check -o:speed $@

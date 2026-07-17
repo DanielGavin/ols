@@ -63,7 +63,12 @@ get_code_actions :: proc(
 	for action in ctx.only {
 		//For some reason on vscode it returns "source", so check for both kinds
 		if action == "source" || action == "source.organizeImports" {
-			source_organize_imports(document, strings.clone(document.uri.uri, context.temp_allocator), config, &actions)
+			source_organize_imports(
+				document,
+				strings.clone(document.uri.uri, context.temp_allocator),
+				config,
+				&actions,
+			)
 			return actions[:], true
 		}
 	}
@@ -76,14 +81,12 @@ get_code_actions :: proc(
 	}
 
 	ast_context.position_hint = position_context.hint
-
-	get_globals(document.ast, &ast_context)
-
 	ast_context.current_package = ast_context.document_package
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
+	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
+
+	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
 
 	if position_context.selector_expr != nil {
 		if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
@@ -97,6 +100,24 @@ get_code_actions :: proc(
 		}
 	} else if position_context.import_stmt != nil {
 		remove_unused_imports(document, strings.clone(document.uri.uri, context.temp_allocator), config, &actions)
+	}
+
+	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
+		add_populate_switch_cases_action(
+			&ast_context,
+			&position_context,
+			strings.clone(document.uri.uri, context.temp_allocator),
+			&actions,
+		)
+	}
+
+	if config.enable_code_action_invert_if {
+		add_invert_if_action(
+			document,
+			position_context.position,
+			strings.clone(document.uri.uri, context.temp_allocator),
+			&actions,
+		)
 	}
 
 	return actions[:], true

@@ -17,7 +17,11 @@
 		"thread_pool_count": { "type": "integer" },
 		"enable_checker_only_saved": {
 			"type": "boolean",
-			"description": "Turns on only calling the checker on the package being saved"
+			"description": "Turns on only calling the checker on the package being saved."
+		},
+		"enable_checker_workspace_diagnostics": {
+			"type": "boolean",
+			"description": "Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental)."
 		},
 		"enable_semantic_tokens": {
 			"type": "boolean",
@@ -57,6 +61,11 @@
 			"description": "Turn on inlay hints for implicit return values.",
 			"default": false
 		},
+		"enable_inlay_hints_optional_result": {
+			"type": "boolean",
+			"description": "Adds inlay hints for unhandled optional result value. (#optional_ok and #optional_allocator_error)",
+			"default": false
+		},
 		"enable_procedure_snippet": {
 			"type": "boolean",
 			"description": "Use snippets when completing procedures—adds parenthesis after the name.",
@@ -87,6 +96,11 @@
 			"description": "Turn on fake methods completion.",
 			"default": false
 		},
+		"enable_overload_resolution": {
+			"type": "boolean",
+			"description": "Enable go-to-definition to resolve overloaded procedures from procedure groups based on call arguments.",
+			"default": false
+		},
 		"enable_document_links": {
 			"type": "boolean",
 			"description": "Follow links when opening documentation.",
@@ -96,6 +110,22 @@
 			"type": "boolean",
 			"description": "Provide signature help for comp lits such as when instantiating structs. Will not display correctly on some editors such as vscode.",
 			"default": false
+		},
+		"enable_comp_lit_signature_help_use_docs": {
+			"type": "boolean",
+			"description": "Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.",
+			"default": false
+		},
+		"enable_code_action_invert_if": {
+			"type": "boolean",
+			"description": "Enables a code action to invert if statements.",
+			"default": false
+		},
+		"struct_fields_underscore_visibility": {
+  			"type": "string",
+  			"description": "Controls visibility of struct fields starting with `_`:\n\n- \"\" (default): no hiding; all fields are visible\n- \"file\": hide fields when accessed from outside the declaring file\n- \"package\": hide fields when accessed from outside the declaring package",
+  			"enum": ["", "file", "package"],
+  			"default": ""
 		},
 		"disable_parser_errors": { "type": "boolean" },
 		"verbose": {
@@ -114,6 +144,20 @@
 		"checker_args": {
 			"type": "string",
 			"description": "Pass custom arguments to `odin check`."
+		},
+		"checker_skip_packages": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Paths to packages that should not be checked by `odin check` when using `enable_checker_workspace_diagnostics`."
+		},
+		"completion_exclude_attributes": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"description": "Filter procedures that include the provided attributes from completions. For example `@(test)`."
 		},
 		"profile": {
 			"type": "string",

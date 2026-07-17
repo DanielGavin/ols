@@ -40,6 +40,7 @@ resolve_ranged_file :: proc(
 	)
 
 	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
 
 	get_globals(document.ast, &ast_context)
 
@@ -50,15 +51,11 @@ resolve_ranged_file :: proc(
 	margin := 20
 
 	for decl in document.ast.decls {
-		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
-			continue
-		}
-
 		//Look for declarations that overlap with range
 		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
 			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, allocator)
 			clear(&ast_context.locals)
-		}	
+		}
 	}
 
 	return symbols
@@ -68,6 +65,7 @@ resolve_entire_file :: proc(
 	document: ^Document,
 	flag := ResolveReferenceFlag.None,
 	allocator := context.allocator,
+	target_name := "",
 ) -> map[uintptr]SymbolAndNode {
 	ast_context := make_ast_context(
 		document.ast,
@@ -79,6 +77,7 @@ resolve_entire_file :: proc(
 	)
 
 	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
 
 	get_globals(document.ast, &ast_context)
 
@@ -87,11 +86,7 @@ resolve_entire_file :: proc(
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		if _, is_value := decl.derived.(^ast.Value_Decl); !is_value {
-			continue
-		}
-
-		resolve_decl(&position_context, &ast_context, document, decl, &symbols, flag, allocator)
+		resolve_decl(&position_context, &ast_context, document, decl, &symbols, flag, allocator, target_name)
 		clear(&ast_context.locals)
 	}
 
@@ -105,6 +100,7 @@ FileResolveData :: struct {
 	document:         ^Document,
 	position_context: ^DocumentPositionContext,
 	flag:             ResolveReferenceFlag,
+	target_name:      string,
 }
 
 @(private = "file")
@@ -116,6 +112,7 @@ resolve_decl :: proc(
 	symbols: ^map[uintptr]SymbolAndNode,
 	flag: ResolveReferenceFlag,
 	allocator := context.allocator,
+	target_name := "",
 ) {
 	data := FileResolveData {
 		position_context = position_context,
@@ -123,6 +120,7 @@ resolve_decl :: proc(
 		symbols          = symbols,
 		document         = document,
 		flag             = flag,
+		target_name      = target_name,
 	}
 
 	resolve_node(decl, &data)
@@ -156,9 +154,31 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 }
 
 @(private = "file")
-resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
-	using ast
+local_scope_poly_deferred :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List, ) {
+	pop_local_group(data.ast_context)
+}
 
+@(private = "file")
+@(deferred_in = local_scope_poly_deferred)
+local_scope_poly :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List) {
+	add_local_group(data.ast_context)
+	get_locals_poly(data.ast_context.file, poly_params, data.ast_context)
+}
+
+@(private = "file")
+local_scope_enum_deferred :: proc(data: ^FileResolveData, enum_type: ^ast.Enum_Type) {
+	pop_local_group(data.ast_context)
+}
+
+@(private = "file")
+@(deferred_in = local_scope_enum_deferred)
+local_scope_enum :: proc(data: ^FileResolveData, enum_type: ^ast.Enum_Type) {
+	add_local_group(data.ast_context)
+	get_locals_enum_fields(enum_type, data.ast_context, data.position_context)
+}
+
+@(private = "file")
+resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
 		return
 	}
@@ -166,14 +186,16 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	reset_ast_context(data.ast_context)
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
 		data.position_context.identifier = node
 		if data.flag != .None {
-			if symbol, ok := resolve_location_identifier(data.ast_context, n^); ok {
-				data.symbols[cast(uintptr)node] = SymbolAndNode {
-					node   = n,
-					symbol = symbol,
+			if data.target_name == "" || n.name == data.target_name {
+				if symbol, ok := resolve_location_identifier(data.ast_context, n^); ok {
+					data.symbols[cast(uintptr)node] = SymbolAndNode {
+						node   = n,
+						symbol = symbol,
+					}
 				}
 			}
 		} else {
@@ -184,7 +206,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				}
 			}
 		}
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		data.position_context.selector = n.expr
 		data.position_context.field = n.call
 		data.position_context.selector_expr = node
@@ -195,32 +217,36 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		resolve_node(n.expr, data)
 		resolve_node(n.call, data)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		data.position_context.implicit = true
 		data.position_context.implicit_selector_expr = n
 		data.position_context.position = n.pos.offset
-		if symbol, ok := resolve_location_implicit_selector(data.ast_context, data.position_context, n); ok {
-			data.symbols[cast(uintptr)node] = SymbolAndNode {
-				node   = n,
-				symbol = symbol,
+		if data.target_name == "" || n.field.name == data.target_name {
+			if symbol, ok := resolve_location_implicit_selector(data.ast_context, data.position_context, n); ok {
+				data.symbols[cast(uintptr)node] = SymbolAndNode {
+					node   = n,
+					symbol = symbol,
+				}
 			}
 		}
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		data.position_context.selector = n.expr
 		data.position_context.field = n.field
 		data.position_context.selector_expr = node
 
 		if data.flag != .None {
-			if symbol, ok := resolve_location_selector(data.ast_context, n); ok {
-				if data.flag != .Base {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = n.field,
-						symbol = symbol,
-					}
-				} else {
-					data.symbols[cast(uintptr)node] = SymbolAndNode {
-						node   = n,
-						symbol = symbol,
+			if data.target_name == "" || (n.field != nil && n.field.name == data.target_name) {
+				if symbol, ok := resolve_location_selector(data.ast_context, n); ok {
+					if data.flag != .Base {
+						data.symbols[cast(uintptr)node] = SymbolAndNode {
+							node   = n.field,
+							symbol = symbol,
+						}
+					} else {
+						data.symbols[cast(uintptr)node] = SymbolAndNode {
+							node   = n,
+							symbol = symbol,
+						}
 					}
 				}
 			}
@@ -228,6 +254,9 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			#partial switch v in n.expr.derived {
 			// TODO: Should there be more here?
 			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident, ^ast.Paren_Expr, ^ast.Call_Expr:
+				old := data.ast_context.use_imports
+				data.ast_context.use_imports = false
+				defer data.ast_context.use_imports = old
 				resolve_node(n.expr, data)
 			}
 		} else {
@@ -239,11 +268,14 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			}
 
 			resolve_node(n.expr, data)
+			old := data.ast_context.use_imports
+			data.ast_context.use_imports = false
+			defer data.ast_context.use_imports = old
 			resolve_node(n.field, data)
 		}
 
 
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		data.position_context.field_value = n
 
 		if data.flag != .None && data.position_context.comp_lit != nil {
@@ -269,7 +301,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			resolve_node(n.field, data)
 			resolve_node(n.value, data)
 		}
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		local_scope(data, n.body)
 
 		get_locals_proc_param_and_results(data.ast_context.file, n^, data.ast_context, data.position_context)
@@ -280,7 +312,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			resolve_node(clause, data)
 		}
 
-		data.position_context.function = cast(^Proc_Lit)node
+		data.position_context.function = cast(^ast.Proc_Lit)node
 
 		append(&data.position_context.functions, data.position_context.function)
 
@@ -291,20 +323,21 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.val1, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		local_scope(data, n)
 		resolve_node(n.label, data)
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.post, data)
 		resolve_node(n.body, data)
-	case ^Range_Stmt:
+	case ^ast.Range_Stmt:
 		local_scope(data, n)
 		resolve_node(n.label, data)
+		resolve_node(n.init, data)
 		resolve_nodes(n.vals, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		old_switch := data.position_context.switch_stmt
 		defer {
 			data.position_context.switch_stmt = old_switch
@@ -315,40 +348,40 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		local_scope(data, n)
 		resolve_node(n.label, data)
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		local_scope(data, n)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
 		resolve_node(n.else_stmt, data)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		local_scope(data, n)
 		resolve_node(n.label, data)
 		resolve_nodes(n.stmts, data)
-	case ^Implicit:
+	case ^ast.Implicit:
 		if n.tok.text == "context" {
 			data.position_context.implicit_context = n
 		}
-	case ^Undef:
-	case ^Basic_Lit:
-		data.position_context.basic_lit = cast(^Basic_Lit)node
-	case ^Matrix_Index_Expr:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
+		data.position_context.basic_lit = cast(^ast.Basic_Lit)node
+	case ^ast.Matrix_Index_Expr:
 		resolve_node(n.expr, data)
 		resolve_node(n.row_index, data)
 		resolve_node(n.column_index, data)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		resolve_node(n.row_count, data)
 		resolve_node(n.column_count, data)
 		resolve_node(n.elem, data)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		resolve_node(n.expr, data)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		// We only want to resolve the values, not the types
 		resolve_node(n.type, data)
 
@@ -364,20 +397,20 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 
 		data.position_context.comp_lit = n
 		resolve_nodes(n.elems, data)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		resolve_node(n.expr, data)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		resolve_node(n.expr, data)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		if data.position_context.parent_binary == nil {
-			data.position_context.parent_binary = cast(^Binary_Expr)node
+			data.position_context.parent_binary = cast(^ast.Binary_Expr)node
 		}
 		data.position_context.binary = n
 		resolve_node(n.left, data)
 		resolve_node(n.right, data)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		resolve_node(n.expr, data)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		old_call := data.ast_context.call
 
 		data.position_context.call = n
@@ -395,50 +428,50 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			data.position_context.position = arg.pos.offset
 			resolve_node(arg, data)
 		}
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		data.position_context.previous_index = data.position_context.index
 		data.position_context.index = n
 		resolve_node(n.expr, data)
 		resolve_node(n.index, data)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		resolve_node(n.expr, data)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		resolve_node(n.expr, data)
 		resolve_node(n.low, data)
 		resolve_node(n.high, data)
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.y, data)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.y, data)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		resolve_node(n.expr, data)
 		resolve_node(n.type, data)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		resolve_node(n.type, data)
 		resolve_node(n.expr, data)
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		resolve_node(n.expr, data)
-	case ^Bad_Stmt:
-	case ^Empty_Stmt:
-	case ^Expr_Stmt:
+	case ^ast.Bad_Stmt:
+	case ^ast.Empty_Stmt:
+	case ^ast.Expr_Stmt:
 		resolve_node(n.expr, data)
-	case ^Tag_Stmt:
-		r := cast(^Tag_Stmt)node
+	case ^ast.Tag_Stmt:
+		r := cast(^ast.Tag_Stmt)node
 		resolve_node(r.stmt, data)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		data.position_context.returns = n
 		resolve_nodes(n.results, data)
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		resolve_node(n.stmt, data)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		local_scope(data, n)
 		resolve_nodes(n.list, data)
 		resolve_nodes(n.body, data)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		old_switch := data.position_context.switch_type_stmt
 		defer {
 			data.position_context.switch_type_stmt = old_switch
@@ -449,17 +482,17 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.tag, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
-	case ^Branch_Stmt:
+	case ^ast.Branch_Stmt:
 		resolve_node(n.label, data)
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		resolve_nodes(n.list, data)
-	case ^Bad_Decl:
-	case ^Assign_Stmt:
+	case ^ast.Bad_Decl:
+	case ^ast.Assign_Stmt:
 		data.position_context.assign = n
 		reset_position_context(data.position_context)
 		resolve_nodes(n.lhs, data)
 		resolve_nodes(n.rhs, data)
-	case ^Value_Decl:
+	case ^ast.Value_Decl:
 		data.position_context.value_decl = n
 
 		reset_position_context(data.position_context)
@@ -467,51 +500,58 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_nodes(n.values, data)
-	case ^Package_Decl:
-	case ^Import_Decl:
+	case ^ast.Package_Decl:
+	case ^ast.Import_Decl:
 		resolve_nodes(n.attributes[:], data)
-	case ^Foreign_Block_Decl:
+	case ^ast.Foreign_Block_Decl:
 		resolve_nodes(n.attributes[:], data)
 		resolve_node(n.foreign_library, data)
 		resolve_node(n.body, data)
-	case ^Foreign_Import_Decl:
+	case ^ast.Foreign_Import_Decl:
 		resolve_nodes(n.attributes[:], data)
 		resolve_node(n.name, data)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		resolve_nodes(n.args, data)
-	case ^Attribute:
+	case ^ast.Attribute:
 		resolve_nodes(n.elems, data)
-	case ^Field:
+	case ^ast.Field:
 		resolve_nodes(n.names, data)
 		resolve_node(n.type, data)
 		resolve_node(n.default_value, data)
-	case ^Field_List:
+	case ^ast.Field_List:
 		resolve_nodes(n.list, data)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		resolve_node(n.specialization, data)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		resolve_node(n.type, data)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		resolve_node(n.type, data)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		resolve_node(n.type, data)
 		resolve_node(n.specialization, data)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		resolve_node(n.params, data)
 		resolve_node(n.results, data)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		resolve_node(n.elem, data)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		resolve_node(n.len, data)
 		resolve_node(n.elem, data)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		resolve_node(n.elem, data)
-	case ^Multi_Pointer_Type:
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
 		resolve_node(n.elem, data)
-	case ^Struct_Type:
+		resolve_node(n.capacity, data)
+	case ^ast.Multi_Pointer_Type:
+		resolve_node(n.elem, data)
+	case ^ast.Struct_Type:
 		data.position_context.struct_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
+		for clause in n.where_clauses {
+			resolve_node(clause, data)
+		}
+		local_scope_poly(data, n.poly_params)
 		resolve_node(n.fields, data)
 
 		if data.flag != .None {
@@ -519,31 +559,39 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 				for name in field.names {
 					data.symbols[cast(uintptr)name] = SymbolAndNode {
 						node = name,
-						symbol = Symbol{
+						symbol = Symbol {
 							range = common.get_token_range(name, string(data.document.text)),
-							uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+							uri = strings.clone(
+								common.create_uri(field.pos.file, data.ast_context.allocator).uri,
+								data.ast_context.allocator,
+							),
 						},
 					}
 				}
 			}
 		}
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		data.position_context.union_type = n
 		resolve_node(n.poly_params, data)
 		resolve_node(n.align, data)
+		local_scope_poly(data, n.poly_params)
 		resolve_nodes(n.variants, data)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		data.position_context.enum_type = n
 		resolve_node(n.base_type, data)
+		local_scope_enum(data, n)
 		resolve_nodes(n.fields, data)
 
 		if data.flag != .None {
 			for field in n.fields {
 				data.symbols[cast(uintptr)field] = SymbolAndNode {
 					node = field,
-					symbol = Symbol{
+					symbol = Symbol {
 						range = common.get_token_range(field, string(data.document.text)),
-						uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+						uri = strings.clone(
+							common.create_uri(field.pos.file, data.ast_context.allocator).uri,
+							data.ast_context.allocator,
+						),
 					},
 				}
 				// In the case of a Field_Value, we explicitly add them so we can find the LHS correctly for things like renaming
@@ -551,54 +599,63 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 					if ident, ok := field.field.derived.(^ast.Ident); ok {
 						data.symbols[cast(uintptr)ident] = SymbolAndNode {
 							node = ident,
-							symbol = Symbol{
+							symbol = Symbol {
 								name = ident.name,
 								range = common.get_token_range(ident, string(data.document.text)),
-								uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+								uri = strings.clone(
+									common.create_uri(field.pos.file, data.ast_context.allocator).uri,
+									data.ast_context.allocator,
+								),
 							},
 						}
 					} else if binary, ok := field.field.derived.(^ast.Binary_Expr); ok {
 						data.symbols[cast(uintptr)binary] = SymbolAndNode {
 							node = binary,
-							symbol = Symbol{
+							symbol = Symbol {
 								name = "binary",
 								range = common.get_token_range(binary, string(data.document.text)),
-								uri = strings.clone(common.create_uri(field.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+								uri = strings.clone(
+									common.create_uri(field.pos.file, data.ast_context.allocator).uri,
+									data.ast_context.allocator,
+								),
 							},
 						}
 					}
 				}
 			}
 		}
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		data.position_context.bitset_type = n
 		resolve_node(n.elem, data)
 		resolve_node(n.underlying, data)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		resolve_node(n.key, data)
 		resolve_node(n.value, data)
-	case ^Or_Else_Expr:
+	case ^ast.Or_Else_Expr:
 		resolve_node(n.x, data)
 		resolve_node(n.y, data)
-	case ^Or_Return_Expr:
+	case ^ast.Or_Return_Expr:
 		resolve_node(n.expr, data)
-	case ^Or_Branch_Expr:
+	case ^ast.Or_Branch_Expr:
 		resolve_node(n.expr, data)
 		resolve_node(n.label, data)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		data.position_context.bit_field_type = n
 		resolve_node(n.backing_type, data)
 		resolve_nodes(n.fields, data)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		resolve_node(n.name, data)
 		resolve_node(n.type, data)
 		resolve_node(n.bit_size, data)
 		if data.flag != .None {
 			data.symbols[cast(uintptr)n.name] = SymbolAndNode {
 				node = n.name,
-				symbol = Symbol{
+				symbol = Symbol {
 					range = common.get_token_range(n.name, string(data.document.text)),
-					uri = strings.clone(common.create_uri(n.pos.file, data.ast_context.allocator).uri, data.ast_context.allocator),
+					uri = strings.clone(
+						common.create_uri(n.pos.file, data.ast_context.allocator).uri,
+						data.ast_context.allocator,
+					),
 				},
 			}
 		}

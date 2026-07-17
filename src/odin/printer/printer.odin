@@ -1,7 +1,5 @@
 package odin_printer
 
-import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/tokenizer"
@@ -54,6 +52,8 @@ Config :: struct {
 	inline_single_stmt_case:  bool,
 	spaces_around_colons:     bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
 	space_single_line_blocks: bool,
+	align_struct_fields:      bool,
+	align_struct_values:      bool,
 }
 
 Brace_Style :: enum {
@@ -90,7 +90,6 @@ Line_Suffix_Option :: enum {
 	Indent,
 }
 
-
 when ODIN_OS == .Windows {
 	default_style := Config {
 		spaces               = 4,
@@ -104,6 +103,8 @@ when ODIN_OS == .Windows {
 		character_width      = 100,
 		sort_imports         = true,
 		spaces_around_colons = false,
+		align_struct_fields  = true,
+		align_struct_values  = true,
 	}
 } else {
 	default_style := Config {
@@ -118,6 +119,8 @@ when ODIN_OS == .Windows {
 		character_width      = 100,
 		sort_imports         = true,
 		spaces_around_colons = false,
+		align_struct_fields  = true,
+		align_struct_values  = true,
 	}
 }
 
@@ -218,6 +221,14 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	p.source_position.column = 1
 
 	p.document = empty()
+
+	// A leading `#!` shebang is parsed as a comment on line 1, but the file tags
+	// below are printed at the very top of the file. Print any comments that sit
+	// before the first tag (like a shebang) first, so the shebang stays on line
+	// 1 and the file is still runnable as a script.
+	if len(file.tags) > 0 {
+		p.document = cons(p.document, move_line(p, file.tags[0].pos))
+	}
 
 	for tag in file.tags {
 		p.document = cons(p.document, text(strings.trim(tag.text, "\r\n")), newline(1))

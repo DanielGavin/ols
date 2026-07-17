@@ -70,6 +70,16 @@
 			"type": "boolean",
 			"default": false,
 			"description": "Put spaces around braces of single-line blocks: `{return 0}` => `{ return 0 }`"
+		},
+		"align_struct_fields": {
+			"type": "boolean",
+			"default": true,
+			"description": "Align the types of struct fields so they all start at the same column"
+		},
+		"align_struct_values": {
+			"type": "boolean",
+			"default": true,
+			"description": "Align the values of struct fields when assigning a struct value to a variable so they all start at the same column"
 		}
 	},
 	"required": []

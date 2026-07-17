@@ -2,6 +2,7 @@
 package server
 
 import "base:runtime"
+import "core:slice"
 
 import "core:fmt"
 import "core:log"
@@ -11,7 +12,6 @@ import "core:odin/parser"
 import "core:odin/tokenizer"
 import "core:os"
 import "core:path/filepath"
-import path "core:path/slashpath"
 import "core:strings"
 import "core:time"
 
@@ -20,7 +20,6 @@ import "src:common"
 platform_os: map[string]struct{} = {
 	"windows" = {},
 	"linux"   = {},
-	"essence" = {},
 	"js"      = {},
 	"freebsd" = {},
 	"darwin"  = {},
@@ -28,7 +27,6 @@ platform_os: map[string]struct{} = {
 	"openbsd" = {},
 	"wasi"    = {},
 	"wasm"    = {},
-	"haiku"   = {},
 	"netbsd"  = {},
 	"freebsd" = {},
 }
@@ -38,12 +36,10 @@ os_enum_to_string: [runtime.Odin_OS_Type]string = {
 	.Windows      = "windows",
 	.Darwin       = "darwin",
 	.Linux        = "linux",
-	.Essence      = "essence",
 	.FreeBSD      = "freebsd",
 	.WASI         = "wasi",
 	.JS           = "js",
 	.Freestanding = "freestanding",
-	.Haiku        = "haiku",
 	.OpenBSD      = "openbsd",
 	.NetBSD       = "netbsd",
 	.Orca         = "orca",
@@ -57,8 +53,6 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"darwin"       = .Darwin,
 	"Linux"        = .Linux,
 	"linux"        = .Linux,
-	"Essence"      = .Essence,
-	"essence"      = .Essence,
 	"Freebsd"      = .FreeBSD,
 	"freebsd"      = .FreeBSD,
 	"FreeBSD"      = .FreeBSD,
@@ -72,8 +66,6 @@ os_string_to_enum: map[string]runtime.Odin_OS_Type = {
 	"freestanding" = .Freestanding,
 	"Wasm"         = .JS,
 	"wasm"         = .JS,
-	"Haiku"        = .Haiku,
-	"haiku"        = .Haiku,
 	"Openbsd"      = .OpenBSD,
 	"openbsd"      = .OpenBSD,
 	"OpenBSD"      = .OpenBSD,
@@ -126,6 +118,25 @@ skip_file :: proc(filename: string) -> bool {
 	return false
 }
 
+// Finds all packages under the provided path by walking the file system
+// and appends them to the provided dynamic array
+append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]struct{}, allocator := context.temp_allocator) {
+	w := os.walker_create(path)
+	defer os.walker_destroy(&w)
+	for info in os.walker_walk(&w) {
+		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
+			dir := filepath.dir(info.fullpath)
+			if dir in skip {
+				os.walker_skip_dir(&w)
+				continue
+			}
+			if !slice.contains(pkgs[:], dir) {
+				append(pkgs, strings.clone(dir, allocator))
+			}
+		}
+	}
+}
+
 should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
 	if file_tags.ignore {
 		return false
@@ -162,11 +173,12 @@ try_build_package :: proc(pkg_name: string) {
 	if pkg, ok := build_cache.loaded_pkgs[pkg_name]; ok {
 		return
 	}
+	defer clear_index_cache()
 
 	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
 
-	if err != .None {
-		log.errorf("Failed to glob %v for indexing package", pkg_name)
+	if err != nil && err != .Not_Exist {
+		log.errorf("Failed to glob %v for indexing package: %v", pkg_name, err)
 		return
 	}
 
@@ -182,27 +194,29 @@ try_build_package :: proc(pkg_name: string) {
 				continue
 			}
 
-			data, ok := os.read_entire_file(fullpath, context.allocator)
+			data, err := os.read_entire_file(fullpath, context.allocator)
 
-			if !ok {
-				log.errorf("failed to read entire file for indexing %v", fullpath)
+			if err != nil {
+				log.errorf("failed to read entire file for indexing %v: %v", fullpath, err)
 				continue
 			}
 
 			p := parser.Parser {
-				err   = log_error_handler,
-				warn  = log_warning_handler,
 				flags = {.Optional_Semicolons},
 			}
+			if !is_ols_builtin_file(fullpath) {
+				p.err = log_error_handler
+				p.warn = log_warning_handler
+			}
 
-			dir := filepath.base(filepath.dir(fullpath, context.allocator))
+			dir := filepath.base(filepath.dir(fullpath))
 
 			pkg := new(ast.Package)
 			pkg.kind = .Normal
 			pkg.fullpath = fullpath
 			pkg.name = dir
 
-			if dir == "runtime" {
+			if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
 				pkg.kind = .Runtime
 			}
 
@@ -212,10 +226,10 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			ok = parser.parse_file(&p, &file)
+			ok := parser.parse_file(&p, &file)
 
 			if !ok {
-				if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+				if !is_ols_builtin_file(fullpath) {
 					log.errorf("error in parse file for indexing %v", fullpath)
 				}
 				continue
@@ -237,11 +251,12 @@ try_build_package :: proc(pkg_name: string) {
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
+	defer clear_index_cache()
 
 	fullpath := uri.path
 
 	when ODIN_OS == .Windows {
-		fullpath, _ = filepath.to_slash(fullpath, context.temp_allocator)
+		fullpath, _ = filepath.replace_separators(fullpath, '/', context.temp_allocator)
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
@@ -262,6 +277,8 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 				}
 			}
 		}
+		delete_key(&v.doc, corrected_uri.uri)
+		delete_key(&v.comment, corrected_uri.uri)
 	}
 
 	return .None
@@ -269,28 +286,31 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 
 index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	ok: bool
+	defer clear_index_cache()
 
 	fullpath := uri.path
 
 	p := parser.Parser {
-		err   = log_error_handler,
-		warn  = log_warning_handler,
 		flags = {.Optional_Semicolons},
+	}
+	if !is_ols_builtin_file(fullpath) {
+		p.err = log_error_handler
+		p.warn = log_warning_handler
 	}
 
 	when ODIN_OS == .Windows {
 		correct := common.get_case_sensitive_path(fullpath, context.temp_allocator)
-		fullpath, _ = filepath.to_slash(correct, context.temp_allocator)
+		fullpath, _ = filepath.replace_separators(correct, '/', context.temp_allocator)
 	}
 
-	dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
+	dir := filepath.base(filepath.dir(fullpath))
 
 	pkg := new(ast.Package)
 	pkg.kind = .Normal
 	pkg.fullpath = fullpath
 	pkg.name = dir
 
-	if dir == "runtime" {
+	if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
 		pkg.kind = .Runtime
 	}
 
@@ -308,7 +328,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		ok = parser.parse_file(&p, &file)
 
 		if !ok {
-			if !strings.contains(fullpath, "builtin.odin") && !strings.contains(fullpath, "intrinsics.odin") {
+			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
 		}
@@ -342,21 +362,10 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 }
 
 
-setup_index :: proc() {
+setup_index :: proc(builtin_path: string) {
 	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
 	symbol_collection := make_symbol_collection(context.allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
-
-	dir_exe := common.get_executable_path(context.temp_allocator)
-	builtin_path := path.join({dir_exe, "builtin"}, context.temp_allocator)
-
-	if !os.exists(builtin_path) {
-		log.errorf(
-			"Failed to find the builtin folder at `%v`.\nPlease ensure the `builtin` folder that ships with `ols` is located next to the `ols` binary as it is required for ols to work with builtins",
-			builtin_path,
-		)
-		return
-	}
 
 	try_build_package(builtin_path)
 }

@@ -649,6 +649,196 @@ signature_comp_lit_bit_set :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+signature_comp_lit_struct_field_after_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			A,{*}
+			B,
+		}
+		`,
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{},
+	)
+}
+
+@(test)
+signature_comp_lit_proc_field_after_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(a, b,{*}: int) {}
+		`,
+		config = {
+			enable_comp_lit_signature_help = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{},
+	)
+}
+
+@(test)
+signature_string_param_with_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i: int) {}
+
+		main :: proc() {
+			foo("test, {*}")
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int)"},
+		expected_active_parameter = 0,
+	)
+}
+
+@(test)
+signature_empty_param :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i: int) {}
+
+		main :: proc() {
+			foo(, f{*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int)"},
+		expected_active_parameter = 1,
+	)
+}
+
+@(test)
+signature_multiple_empty_params :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(s: string, i, j, k, l: int) {}
+
+		main :: proc() {
+			foo("hello, world", , , , f{*}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.foo :: proc(s: string, i: int, j: int, k: int, l: int)"},
+		expected_active_parameter = 4,
+	)
+}
+
+@(test)
+signature_proc_overload :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: enum { A, B, C }
+
+		bar1 :: proc(i: int) {}
+		bar2 :: proc(i: int, foo: Foo) {}
+		bar :: proc {
+			bar1,
+			bar2,
+		}
+
+		main :: proc() {
+			bar(1, .{*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.bar2 :: proc(i: int, foo: Foo)"},
+		expected_active_parameter = 1,
+	)
+}
+
+@(test)
+signature_expr_after_newlines :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(face: int, char_code: string, load_flags: int) {}
+
+		main :: proc() {
+			foo(face,{*}
+
+
+			bar := true
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_parameter_position(t, &source, 1)
+}
+
+@(test)
+signature_struct_poly :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid, $U: typeid) {}
+
+		main :: proc() {
+			foo := Foo(int, {*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct($T: typeid, $U: typeid)"},
+		expected_active_parameter = 1,
+	)
+}
+
+@(test)
+signature_struct_poly_split_fields :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T, $U: typeid) {}
+
+		main :: proc() {
+			foo := Foo(int, {*})
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct($T: typeid, $U: typeid)"},
+		expected_active_parameter = 1,
+	)
+}
 /*
 @(test)
 signature_function_inside_when :: proc(t: ^testing.T) {

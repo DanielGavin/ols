@@ -2,7 +2,6 @@ package server
 
 import "core:strings"
 import "core:fmt"
-import "core:log"
 import "core:odin/ast"
 
 import "src:common"
@@ -64,6 +63,7 @@ get_inlay_hints :: proc(
 
 			add_param_hints(node, data)
 			add_return_hints(node, data)
+			add_result_hints(node, data)
 
 			return visitor
 		},
@@ -291,13 +291,8 @@ get_inlay_hints :: proc(
 
 		#partial switch v in node.derived {
 		case ^ast.Proc_Lit:
-			if v.type != nil && v.type.results != nil && len(v.type.results.list) > 0 {
-				// check if all return values are named
-				for res in v.type.results.list {
-					if len(res.names) == 0 do return
-				}
-				append(&data.procs, Proc_Data{data.depth, v.type.results.list})
-			}
+			results := v.type.results.list if v.type != nil && v.type.results != nil else {}
+			append(&data.procs, Proc_Data{data.depth, results})
 			return
 
 		case ^ast.Return_Stmt:
@@ -314,6 +309,12 @@ get_inlay_hints :: proc(
 		if len(data.procs) == 0 do return // not inside a proc
 
 		proc_data := &data.procs[len(data.procs)-1]
+
+		// only add hint if current proc has all-named returns
+		if len(proc_data.results) == 0 do return
+		for res in proc_data.results {
+			if len(res.names) == 0 do return
+		}
 
 		sb := strings.builder_make(context.temp_allocator)
 		strings.write_string(&sb, " ")
@@ -334,6 +335,53 @@ get_inlay_hints :: proc(
 
 		range := common.get_token_range(return_node^, string(data.document.text))
 		append(&data.hints, InlayHint{range.end, .Parameter, strings.to_string(sb)})
+
+		return true
+	}
+
+	/*
+		Adds inlay hints for unhandled optional result value.
+		#optional_ok and #optional_allocator_error
+	*/
+	add_result_hints :: proc (
+		node: ^ast.Node,
+		data: ^Visitor_Data,
+	) -> (ok: bool) {
+
+		if !data.config.enable_inlay_hints_optional_result do return
+
+		// a = foo()  |  a := foo()
+		lhs, rhs: []^ast.Expr
+		#partial switch v in node.derived {
+		case ^ast.Assign_Stmt: lhs, rhs = v.lhs, v.rhs
+		case ^ast.Value_Decl:  lhs, rhs = v.names, v.values
+		case: return
+		}
+
+		// optional result can only be handled when there is a single rhs expr
+		if len(rhs) != 1 do return
+
+		call := rhs[0].derived.(^ast.Call_Expr) or_return
+
+		symbol_and_node := data.symbols[uintptr(call.expr)] or_return // could not resolve symbol
+		proc_symbol := symbol_and_node.symbol.value.(SymbolProcedureValue) or_return // not a procedure call, e.g. type cast
+
+		if .Optional_Ok not_in proc_symbol.tags &&
+		   .Optional_Allocator_Error not_in proc_symbol.tags {
+			return
+		}
+
+		// check if all results are handled
+		results_len: int
+		for field in proc_symbol.return_types {
+			results_len += len(field.names)
+		}
+		if len(lhs) >= results_len do return
+
+		// a, b[[, _]] := foo()
+		last := lhs[len(lhs)-1]
+		range := common.get_token_range(last^, string(data.document.text))
+		append(&data.hints, InlayHint{range.end, .Parameter, ", _"})
 
 		return true
 	}

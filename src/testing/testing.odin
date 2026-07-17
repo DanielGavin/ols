@@ -5,79 +5,104 @@ import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
-import "core:path/filepath"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
 import "src:common"
 import "src:server"
 
-Package :: struct {
-	pkg:    string,
+File :: struct {
+	name:   string,
 	source: string,
 }
 
+Package :: struct {
+	pkg:    string,
+	source: string, // backwards compatable–for single-file packages
+	files:  []File,
+}
+
 Source :: struct {
-	main:        string,
+	main:        string, // backwards compatable–for single-file packages
+	files:       []File,
 	packages:    []Package,
 	document:    ^server.Document,
 	collections: map[string]string,
 	config:      common.Config,
-	position:    common.Position,
 }
 
 @(private)
 setup :: proc(src: ^Source) {
-	src.main = strings.clone(src.main, context.temp_allocator)
+
 	src.document = new(server.Document, context.temp_allocator)
-	src.document.uri = common.create_uri("test/test.odin", context.temp_allocator)
+
 	src.document.client_owned = true
-	src.document.text = transmute([]u8)src.main
-	src.document.used_text = len(src.document.text)
 	src.document.allocator = new(virtual.Arena, context.temp_allocator)
 	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
 
-	//no unicode in tests currently
-	current, last: u8
-	current_line, current_character: int
-
-	for current_index := 0; current_index < len(src.main); current_index += 1 {
-		current = src.main[current_index]
-
-		if last == '\r' {
-			current_line += 1
-			current_character = 0
-		} else if current == '\n' {
-			current_line += 1
-			current_character = 0
-		} else if len(src.main) > current_index + 3 && src.main[current_index:current_index + 3] == "{*}" {
-			dst_slice := transmute([]u8)src.main[current_index:]
-			src_slice := transmute([]u8)src.main[current_index + 3:]
-			copy(dst_slice, src_slice)
-			src.position.character = current_character
-			src.position.line = current_line
-			break
-		} else {
-			current_character += 1
-		}
-
-		last = current
+	if len(src.main) > 0 {
+		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
+		src.main = ""
 	}
 
-	server.setup_index()
+	if len(src.files) <= 0 {
+		log.error("Expected at least one file")
+		return
+	}
+
+	f := &src.files[0]
+	source := transmute([]u8)f.source
+
+	fullpath := strings.join({"test", f.name}, "/", context.temp_allocator)
+	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
+	src.document.text = source
+	src.document.used_text = len(source)
+
+	server.setup_index(server.get_builtin_path())
+
+	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
+	server.indexer.index.collection.config = &src.config
 
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil)
 
+	if len(src.files) > 1 {
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.name = "test"
+		pkg.fullpath = "test"
+		pkg.name = "test"
+
+		for f in src.files[1:] {
+			process_file(f.name, f.source, pkg)
+		}
+	}
+
 	for src_pkg in src.packages {
 		context.allocator = virtual.arena_allocator(src.document.allocator)
 
-		uri := common.create_uri(fmt.aprintf("test/%v/package.odin", src_pkg.pkg), context.temp_allocator)
+		pkg := new(ast.Package, context.temp_allocator)
+		pkg.name = src_pkg.pkg
+		pkg.fullpath = strings.join({"test", pkg.name}, "/", context.temp_allocator)
 
-		fullpath := uri.path
+		if pkg.name == "runtime" || strings.contains(pkg.fullpath, "base/runtime") {
+			pkg.kind = .Runtime
+		}
+
+		if len(src_pkg.files) > 0 do for f in src_pkg.files {
+			process_file(f.name, f.source, pkg)
+		}
+		else {
+			process_file("package.odin", src_pkg.source, pkg)
+		}
+	}
+
+	process_file :: proc(filename: string, source: string, pkg: ^ast.Package) {
+
+		fullpath := strings.join({pkg.fullpath, filename}, "/", context.temp_allocator)
 
 		p := parser.Parser {
 			err   = parser.default_error_handler,
@@ -85,32 +110,23 @@ setup :: proc(src: ^Source) {
 			flags = {.Optional_Semicolons},
 		}
 
-		dir := filepath.base(filepath.dir(fullpath, context.temp_allocator))
-
-		pkg := new(ast.Package, context.temp_allocator)
-		pkg.kind = .Normal
-		pkg.fullpath = fullpath
-		pkg.name = dir
-
-		if dir == "runtime" {
-			pkg.kind = .Runtime
-		}
-
 		file := ast.File {
 			fullpath = fullpath,
-			src      = src_pkg.source,
+			src      = source,
 			pkg      = pkg,
 		}
 
 		ok := parser.parse_file(&p, &file)
 
-
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source")
 		}
 
-		if ret := server.collect_symbols(&server.indexer.index.collection, file, uri.uri); ret != .None {
-			return
+		uri := common.create_uri(fullpath, context.temp_allocator)
+
+		err := server.collect_symbols(&server.indexer.index.collection, file, uri.uri)
+		if err != .None {
+			log.errorf("Error (%v) while collecting symbols in file (%s) \"%s\"", err, fullpath, source)
 		}
 	}
 }
@@ -122,11 +138,63 @@ teardown :: proc(src: ^Source) {
 	virtual.arena_destroy(src.document.allocator)
 }
 
-expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []string) {
+source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
+
+	source: ^string
+	if src.main != "" {
+		source = &src.main
+	} else if len(src.files) > 0 {
+		source = &src.files[0].source
+	}
+
+	if source == nil || len(source) == 0 {
+		log.error("Cannot get cursor from an empty file")
+		return
+	}
+
+	CURSOR :: "{*}"
+
+	marker_pos := strings.index(source^, CURSOR)
+	if marker_pos < 0 {
+		log.errorf("Didn't find %s in `%s`", CURSOR, source^)
+		return
+	}
+
+	// remove cursor mark from source
+	new_source := make([]u8, len(source) - len(CURSOR), context.temp_allocator)
+	copy(new_source[:marker_pos], source[:marker_pos])
+	copy(new_source[marker_pos:], source[marker_pos + len(CURSOR):])
+	source^ = string(new_source)
+
+	// find cursor (line,col) position
+	last: u8
+	for j := 0; j < marker_pos; j += 1 {
+		ch := source[j]
+		defer last = ch
+
+		if last == '\r' || ch == '\n' {
+			cursor.line += 1
+			cursor.character = 0
+		} else {
+			cursor.character += 1
+		}
+	}
+
+	return
+}
+
+expect_signature_labels :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	expect_labels: []string,
+	expected_active_parameter := -1,
+) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &src.config)
 
 	if !ok {
 		log.error("Failed get_signature_information")
@@ -152,20 +220,39 @@ expect_signature_labels :: proc(t: ^testing.T, src: ^Source, expect_labels: []st
 		}
 	}
 
+	if expected_active_parameter != -1 {
+		if expected_active_parameter != help.activeParameter {
+			log.errorf(
+				"Expected active parameter %v, but reveived %v",
+				expected_active_parameter,
+				help.activeParameter,
+			)
+		}
+	}
 }
 
 expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, position: int) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, src.position, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &src.config)
 
 	if help.activeParameter != position {
 		log.errorf("expected parameter position %v, but received %v", position, help.activeParameter)
 	}
 }
 
-expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character: string, expect_labels: []string) {
+expect_completion_labels :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	expect_labels: []string,
+	expect_excluded: []string = nil,
+) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -173,29 +260,57 @@ expect_completion_labels :: proc(t: ^testing.T, src: ^Source, trigger_character:
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
 	}
 
-	if len(expect_labels) == 0 && len(completion_list.items) > 0 {
-		log.errorf("Expected empty completion label, but received %v", completion_list.items)
+	missing_expected := make([dynamic]string, context.temp_allocator)
+	loop_expected: for label, i in expect_labels {
+		for completion, j in completion_list.items {
+			if label == completion.label {
+				continue loop_expected
+			}
+		}
+		append(&missing_expected, label)
 	}
 
-	flags := make([]int, len(expect_labels), context.temp_allocator)
-
-	for expect_label, i in expect_labels {
+	present_excluded := make([dynamic]string, context.temp_allocator)
+	loop_excluded: for label, i in expect_excluded {
 		for completion, j in completion_list.items {
-			if expect_label == completion.label {
-				flags[i] += 1
+			if label == completion.label {
+				append(&present_excluded, label)
+				continue loop_excluded
 			}
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			log.errorf("Expected completion detail %v, but received %v", expect_labels[i], completion_list.items)
+	if len(missing_expected) > 0 ||
+	   len(present_excluded) > 0 ||
+	   (len(expect_labels) == 0 && len(completion_list.items) > 0) {
+		sb := strings.builder_make(context.temp_allocator)
+		defer log.error(strings.to_string(sb))
+
+		fmt.sbprintln(&sb, "Completion label mismatch.")
+
+		strings.write_string(&sb, "Actual:   [")
+		for completion, i in completion_list.items {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			fmt.sbprintf(&sb, "\"%s\"", completion.label)
+		}
+		strings.write_string(&sb, "]\n")
+
+		if len(missing_expected) > 0 {
+			fmt.sbprintfln(&sb, "Expected: %v", expect_labels)
+			fmt.sbprintfln(&sb, "Missing:  %v", missing_expected[:])
+		}
+
+		if len(present_excluded) > 0 {
+			fmt.sbprintfln(&sb, "Excluded: %v", expect_excluded)
+			fmt.sbprintfln(&sb, "Present:  %v", present_excluded[:])
 		}
 	}
 }
@@ -207,6 +322,8 @@ expect_completion_docs :: proc(
 	expect_details: []string,
 	expect_excluded: []string = nil,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -226,14 +343,14 @@ expect_completion_docs :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
 	}
 
 	if len(expect_details) == 0 && len(completion_list.items) > 0 {
-		log.errorf("Expected empty completion label, but received %v", completion_list.items)
+		log.errorf("Expected empty completion docs, but received %v", completion_list.items)
 	}
 
 	flags := make([]int, len(expect_details), context.temp_allocator)
@@ -248,7 +365,7 @@ expect_completion_docs :: proc(
 
 	for flag, i in flags {
 		if flag != 1 {
-			log.errorf("Expected completion label %v, but received %v", expect_details[i], completion_list.items)
+			log.errorf("Expected completion docs %v, but received %v", expect_details[i], completion_list.items)
 		}
 	}
 
@@ -267,6 +384,8 @@ expect_completion_insert_text :: proc(
 	trigger_character: string,
 	expect_inserts: []string,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
@@ -274,7 +393,7 @@ expect_completion_insert_text :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, src.position, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -304,11 +423,59 @@ expect_completion_insert_text :: proc(
 	}
 }
 
-expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
+expect_completion_edit_text :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	label: string,
+	expected_text: string,
+) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	hover, valid, ok := server.get_hover_information(src.document, src.position)
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	found := false
+	for completion in completion_list.items {
+		if completion.label == label {
+			found = true
+			if text_edit, has_edit := completion.textEdit.(server.TextEdit); has_edit {
+				if text_edit.newText != expected_text {
+					log.errorf(
+						"Completion '%v' expected textEdit.newText %q, but received %q",
+						label,
+						expected_text,
+						text_edit.newText,
+					)
+				}
+			} else {
+				log.errorf("Completion '%v' has no textEdit", label)
+			}
+			break
+		}
+	}
+	if !found {
+		log.errorf("Expected completion label '%v' not found in %v", label, completion_list.items)
+	}
+}
+
+expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	hover, valid, ok := server.get_hover_information(src.document, cursor)
 
 	if !ok {
 		log.error(t, "Failed get_hover_information")
@@ -329,10 +496,12 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_definition_location(src.document, src.position)
+	locations, ok := server.get_definition_location(src.document, cursor, &src.config)
 
 	if !ok {
 		log.error("Failed get_definition_location")
@@ -360,10 +529,12 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 }
 
 expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_type_definition_locations(src.document, src.position)
+	locations, ok := server.get_type_definition_locations(src.document, cursor)
 
 	if !ok {
 		log.error("Failed get_definition_location")
@@ -403,11 +574,14 @@ expect_reference_locations :: proc(
 	src: ^Source,
 	expect_locations: []common.Location,
 	expect_excluded: []common.Location = nil,
+	include_declaration := true,
 ) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, src.position)
+	locations, ok := server.get_references(src.document, cursor, include_declaration = include_declaration)
 
 	for expect_location in expect_locations {
 		match := false
@@ -439,10 +613,12 @@ expect_reference_locations :: proc(
 }
 
 expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	range, ok := server.get_prepare_rename(src.document, src.position)
+	range, ok := server.get_prepare_rename(src.document, cursor)
 	if !ok {
 		log.error("Failed to find range")
 	}
@@ -459,14 +635,13 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 
 
 expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+	cursor := source_remove_cursor(src)
+
 	setup(src)
 	defer teardown(src)
 
-	input_range := common.Range {
-		start = src.position,
-		end   = src.position,
-	}
-	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
+	input_range := common.Range{cursor, cursor}
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 	}
@@ -490,6 +665,43 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 			log.errorf("Expected action %v, but received %v", expect_action_names[i], actions)
 		}
 	}
+}
+
+expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range{cursor, cursor}
+	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title == action_name {
+			// Get the text edit for the document
+			if edits, found := action.edit.changes[src.document.uri.uri]; found {
+				if len(edits) > 0 {
+					actual_text := edits[0].newText
+					testing.expectf(
+						t,
+						actual_text == expected_new_text,
+						"\nExpected edit text:\n%s\n\nGot:\n%s",
+						expected_new_text,
+						actual_text,
+					)
+					return
+				}
+			}
+			log.errorf("Action '%s' found but has no edits", action_name)
+			return
+		}
+	}
+
+	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
 }
 
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {

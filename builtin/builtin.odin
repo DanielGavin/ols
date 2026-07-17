@@ -6,6 +6,9 @@ package ols_builtin
 @builtin len :: proc(array: Array_Type) -> int ---
 @builtin cap :: proc(array: Array_Type) -> int ---
 
+@builtin expand_values   :: proc(value: Struct_Or_Array) -> (A, B, C, ...) ---
+@builtin compress_values :: proc(values: ...) -> Struct_Or_Array_Like_Type ---
+
 @builtin size_of      :: proc($T: typeid) -> int ---
 @builtin align_of     :: proc($T: typeid) -> int ---
 @builtin type_of      :: proc(x: expr) -> type ---
@@ -142,7 +145,6 @@ ODIN_ENDIAN_STRING: string
 
 @builtin
 Odin_Endian_Type :: enum int {
-	Unknown,
 	Little,
 	Big,
 }
@@ -244,11 +246,9 @@ Odin_OS_Type :: enum int {
 	Windows,
 	Darwin,
 	Linux,
-	Essence,
 	FreeBSD,
 	OpenBSD,
 	NetBSD,
-	Haiku,
 	WASI,
 	JS,
 	Orca,
@@ -356,10 +356,17 @@ ODIN_VERSION_HASH: string
 @builtin
 Odin_Windows_Subsystem_Type :: enum int {
 	Unknown,
+	Boot_Application,
 	Console,
+	EFI_Application,
+	EFI_Boot_Service_Driver,
+	EFI_Rom,
+	EFI_Runtime_Driver,
+	Native,
+	Posix,
 	Windows,
+	Windows_CE,
 }
-
 /*
 	An `enum` set by the `-subsystem` flag, specifying which Windows subsystem the PE file was created for.
 	Possible values are:
