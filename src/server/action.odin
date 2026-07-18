@@ -152,13 +152,25 @@ source_organize_imports :: proc(
 	}
 
 	pkg_decl := document.ast.pkg_decl
+
+	// Anchor new imports at the end of the package declaration line. Inserting a
+	// leading newline here keeps the edit off any import line, so it never overlaps a
+	// removal edit for an unused import.
+
+	insert_line := pkg_decl.end.line
+	insert_col := 0
+
+	if col, ok := common.get_last_column(insert_line, document.text); ok {
+		insert_col = col
+	}
+
 	for imp in used_unimported {
 		import_edit := TextEdit {
 			range = {
-				start = {line = pkg_decl.end.line + 1, character = 0},
-				end   = {line = pkg_decl.end.line + 1, character = 0},
+				start = {line = insert_line, character = insert_col},
+				end = {line = insert_line, character = insert_col},
 			},
-			newText = fmt.tprintf("import \"%v\"\n", imp.original),
+			newText = fmt.tprintf("\nimport \"%v\"", imp.original),
 		}
 		append(&textEdits, import_edit)
 	}
