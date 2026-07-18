@@ -478,6 +478,7 @@ collect_when_stmt :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	when_decl: ^ast.When_Stmt,
+	when_expr_map: ^map[string]When_Expr,
 ) {
 	if when_decl.cond == nil {
 		return
@@ -486,13 +487,19 @@ collect_when_stmt :: proc(
 	if when_decl.body == nil {
 		return
 	}
-	if stmt, ok := get_when_block_stmt(when_decl); ok {
-		collect_when_body(exprs, file, file_tags, stmt)
+	if stmt, ok := get_when_block_stmt(when_decl, when_expr_map^); ok {
+		collect_when_body(exprs, file, file_tags, stmt, when_expr_map)
 	}
 }
 
-get_when_block_stmt :: proc(when_decl: ^ast.When_Stmt) -> (^ast.Block_Stmt, bool) {
-	if resolve_when_condition(when_decl.cond) {
+get_when_block_stmt :: proc(
+	when_decl: ^ast.When_Stmt,
+	when_expr_map: map[string]When_Expr,
+) -> (
+	^ast.Block_Stmt,
+	bool,
+) {
+	if resolve_when_condition(when_decl.cond, when_expr_map) {
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
 			return block, true
 		}
@@ -501,7 +508,7 @@ get_when_block_stmt :: proc(when_decl: ^ast.When_Stmt) -> (^ast.Block_Stmt, bool
 
 		for else_stmt != nil {
 			if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
-				if resolve_when_condition(else_when.cond) {
+				if resolve_when_condition(else_when.cond, when_expr_map) {
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
 						return block, true
 					}
@@ -523,20 +530,27 @@ collect_when_body :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	block: ^ast.Block_Stmt,
+	when_expr_map: ^map[string]When_Expr,
 ) {
 	for stmt in block.stmts {
 		if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(exprs, file, file_tags, when_stmt)
+			collect_when_stmt(exprs, file, file_tags, when_stmt, when_expr_map)
 		} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body != nil {
 				if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 					for foreign_stmt in foreign_block.stmts {
 						collect_value_decl(exprs, file, file_tags, foreign_stmt, foreign_decl.attributes[:])
+						if value_decl, ok := foreign_stmt.derived.(^ast.Value_Decl); ok {
+							register_when_consts_from_value_decl(when_expr_map, file, value_decl)
+						}
 					}
 				}
 			}
 		} else {
 			collect_value_decl(exprs, file, file_tags, stmt, {})
+			if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
+				register_when_consts_from_value_decl(when_expr_map, file, value_decl)
+			}
 		}
 	}
 }
@@ -549,11 +563,15 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
 
+	// Declaration-order const fold for when conditions (e.g. MAP_ENABLED :: !ODIN_BEDROCK).
+	when_expr_map := make_when_expr_map()
+
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
 			collect_value_decl(&exprs, file, file_tags, decl, {})
+			register_when_consts_from_value_decl(&when_expr_map, file, value_decl)
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(&exprs, file, file_tags, when_decl)
+			collect_when_stmt(&exprs, file, file_tags, when_decl, &when_expr_map)
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body == nil {
 				continue
@@ -562,6 +580,9 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
 					collect_value_decl(&exprs, file, file_tags, stmt, foreign_decl.attributes[:])
+					if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
+						register_when_consts_from_value_decl(&when_expr_map, file, value_decl)
+					}
 				}
 			}
 		}

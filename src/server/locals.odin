@@ -510,7 +510,9 @@ get_locals_stmt :: proc(
 	case ^ast.Using_Stmt:
 		get_locals_using_stmt(v^, ast_context)
 	case ^ast.When_Stmt:
-		if stmt, ok := get_when_block_stmt(v); ok {
+		when_expr_map := make_when_expr_map()
+		register_when_consts_from_globals(&when_expr_map, ast_context.globals)
+		if stmt, ok := get_when_block_stmt(v, when_expr_map); ok {
 			get_locals_block_stmt(file, stmt^, ast_context, document_position, true)
 		}
 	case ^ast.Case_Clause:
