@@ -493,8 +493,8 @@ get_locals_stmt :: proc(
 		get_locals_switch_stmt(file, v^, ast_context, document_position)
 	case ^ast.For_Stmt:
 		get_locals_for_stmt(file, v^, ast_context, document_position)
-	case ^ast.Inline_Range_Stmt:
-		get_locals_stmt(file, v.body, ast_context, document_position)
+	case ^ast.Unroll_Range_Stmt:
+		get_locals_unroll_range_stmt(file, v^, ast_context, document_position)
 	case ^ast.Range_Stmt:
 		get_locals_for_range_stmt(file, v^, ast_context, document_position)
 	case ^ast.If_Stmt:
@@ -702,16 +702,41 @@ get_locals_for_range_stmt :: proc(
 		get_locals_stmt(file, stmt.init, ast_context, document_position)
 	}
 
-	results := make([dynamic]^ast.Expr, context.temp_allocator)
+	get_locals_range_vals(file, stmt.vals, stmt.expr, stmt.body, ast_context, document_position)
+}
 
-	if stmt.expr == nil {
+get_locals_unroll_range_stmt :: proc(
+	file: ast.File,
+	stmt: ast.Unroll_Range_Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
 
-	if binary, ok := stmt.expr.derived.(^ast.Binary_Expr); ok {
+	vals: []^ast.Expr = {stmt.val0, stmt.val1} if stmt.val1 != nil else {stmt.val0}
+	get_locals_range_vals(file, vals, stmt.expr, stmt.body, ast_context, document_position)
+}
+
+get_locals_range_vals :: proc(
+	file: ast.File,
+	vals: []^ast.Expr,
+	expr: ^ast.Expr,
+	body: ^ast.Stmt,
+	ast_context: ^AstContext,
+	document_position: ^DocumentPositionContext,
+) {
+	results := make([dynamic]^ast.Expr, context.temp_allocator)
+
+	if expr == nil {
+		return
+	}
+
+	if binary, ok := expr.derived.(^ast.Binary_Expr); ok {
 		if binary.op.kind == .Range_Half || binary.op.kind == .Range_Full {
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -729,7 +754,7 @@ get_locals_for_range_stmt :: proc(
 		}
 	}
 
-	symbol, ok := resolve_type_expression(ast_context, stmt.expr)
+	symbol, ok := resolve_type_expression(ast_context, expr)
 
 	if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		if len(v.return_types) == 1 {
@@ -745,9 +770,9 @@ get_locals_for_range_stmt :: proc(
 		#partial switch v in symbol.value {
 		case SymbolProcedureValue:
 			calls := make(map[int]struct{}, context.temp_allocator)
-			get_generic_assignment(file, stmt.expr, ast_context, &results, &calls, {}, false)
+			get_generic_assignment(file, expr, ast_context, &results, &calls, {}, false)
 			if len(results) > 0 {
-				for val, i in stmt.vals {
+				for val, i in vals {
 					if ident, ok := unwrap_ident(val); ok {
 						result_i := min(len(results) - 1, i)
 						store_local(
@@ -766,8 +791,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolUntypedValue:
-			if len(stmt.vals) == 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) == 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					if v.type == .String {
 						store_local(
 							ast_context,
@@ -785,8 +810,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolBasicValue:
-			if len(stmt.vals) == 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) == 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					if v.ident.name == "string" {
 						store_local(
 							ast_context,
@@ -804,8 +829,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolMapValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -820,10 +845,10 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					value := v.value
-					if unary, ok := stmt.vals[1].derived.(^ast.Unary_Expr); ok {
+					if unary, ok := vals[1].derived.(^ast.Unary_Expr); ok {
 						value = make_pointer_ast(ast_context, v.value)
 					}
 					store_local(
@@ -841,8 +866,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolDynamicArrayValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -857,8 +882,8 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -874,8 +899,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolFixedArrayValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -891,8 +916,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					//Look for enumarated arrays
 					if len_symbol, ok := resolve_type_expression(ast_context, v.len); ok {
 						if _, is_enum := len_symbol.value.(SymbolEnumValue); is_enum {
@@ -939,8 +964,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolSliceValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -955,8 +980,8 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -972,8 +997,8 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolBitSetValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -988,8 +1013,8 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -1005,12 +1030,12 @@ get_locals_for_range_stmt :: proc(
 				}
 			}
 		case SymbolEnumValue:
-			if len(stmt.vals) >= 1 {
-				if ident, ok := unwrap_ident(stmt.vals[0]); ok {
+			if len(vals) >= 1 {
+				if ident, ok := unwrap_ident(vals[0]); ok {
 					store_local(
 						ast_context,
 						ident,
-						stmt.expr,
+						expr,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,
@@ -1021,8 +1046,8 @@ get_locals_for_range_stmt :: proc(
 					)
 				}
 			}
-			if len(stmt.vals) >= 2 {
-				if ident, ok := unwrap_ident(stmt.vals[1]); ok {
+			if len(vals) >= 2 {
+				if ident, ok := unwrap_ident(vals[1]); ok {
 					store_local(
 						ast_context,
 						ident,
@@ -1040,7 +1065,7 @@ get_locals_for_range_stmt :: proc(
 		}
 	}
 
-	get_locals_stmt(file, stmt.body, ast_context, document_position)
+	get_locals_stmt(file, body, ast_context, document_position)
 }
 
 get_locals_for_stmt :: proc(

@@ -269,6 +269,11 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.cond, builder)
 		visit_node(n.post, builder)
 		visit_node(n.body, builder)
+	case ^ast.Unroll_Range_Stmt:
+		visit_node(n.val0, builder)
+		visit_node(n.val1, builder)
+		visit_node(n.expr, builder)
+		visit_node(n.body, builder)
 	case ^ast.Switch_Stmt:
 		visit_node(n.init, builder)
 		visit_node(n.cond, builder)

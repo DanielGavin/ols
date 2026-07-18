@@ -7057,3 +7057,21 @@ ast_hover_recursive_call_chain :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.a: proc(i: int) -> Recurse")
 }
+
+@(test)
+ast_hover_in_unroll_for :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Foo :: struct {foo: int}
+		main :: proc() {
+			foos: [3]Foo
+			#unroll for foo in foos {
+				f{*}oo
+			}
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
