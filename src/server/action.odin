@@ -86,8 +86,6 @@ get_code_actions :: proc(
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
 
-	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
-
 	if position_context.selector_expr != nil {
 		if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
 			add_missing_imports(
@@ -130,10 +128,7 @@ source_organize_imports :: proc(
 	actions: ^[dynamic]CodeAction,
 ) {
 	unused_imports := find_unused_imports(document, context.temp_allocator)
-
-	if len(unused_imports) == 0 {
-		return
-	}
+	used_unimported := find_used_not_imported(document, config, context.temp_allocator)
 
 	textEdits := make([dynamic]TextEdit, context.temp_allocator)
 
@@ -153,6 +148,18 @@ source_organize_imports :: proc(
 
 		}
 
+		append(&textEdits, import_edit)
+	}
+
+	pkg_decl := document.ast.pkg_decl
+	for imp in used_unimported {
+		import_edit := TextEdit {
+			range = {
+				start = {line = pkg_decl.end.line + 1, character = 0},
+				end   = {line = pkg_decl.end.line + 1, character = 0},
+			},
+			newText = fmt.tprintf("import \"%v\"\n", imp.original),
+		}
 		append(&textEdits, import_edit)
 	}
 
