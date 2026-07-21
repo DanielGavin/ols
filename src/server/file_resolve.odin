@@ -317,7 +317,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		append(&data.position_context.functions, data.position_context.function)
 
 		resolve_node(n.body, data)
-	case ^ast.Inline_Range_Stmt:
+	case ^ast.Unroll_Range_Stmt:
 		local_scope(data, n)
 		resolve_node(n.val0, data)
 		resolve_node(n.val1, data)

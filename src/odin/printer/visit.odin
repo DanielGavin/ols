@@ -1170,7 +1170,7 @@ visit_stmt :: proc(
 		if !p.config.convert_do {
 			document = enforce_fit_if_do(v.body, document)
 		}
-	case ^ast.Inline_Range_Stmt:
+	case ^ast.Unroll_Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
