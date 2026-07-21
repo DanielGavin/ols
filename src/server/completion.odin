@@ -2063,6 +2063,23 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	return {}, false
 }
 
+find_most_bottom_line_number :: proc(ast_context: ^AstContext) -> int {
+	most_bottom_line := 0
+	for decl in ast_context.file.decls {
+		most_bottom_line = max(decl.end.line, most_bottom_line)
+	}
+
+	for import_node in ast_context.file.imports {
+		most_bottom_line = max(import_node.end.line, most_bottom_line)
+	}
+
+	for comment_node in ast_context.file.comments {
+		most_bottom_line = max(comment_node.end.line, most_bottom_line)
+	}
+
+	return most_bottom_line
+}
+
 append_non_imported_packages :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -2092,19 +2109,7 @@ append_non_imported_packages :: proc(
 				import_edit : TextEdit
 
 				if config.enable_add_import_to_bottom {
-					most_bottom_line := 0
-
-					for decl in ast_context.file.decls {
-						most_bottom_line = max(decl.end.line, most_bottom_line)
-					}
-
-					for import_node in ast_context.file.imports {
-						most_bottom_line = max(import_node.end.line, most_bottom_line)
-					}
-
-					for comment_node in ast_context.file.comments {
-						most_bottom_line = max(comment_node.end.line, most_bottom_line)
-					}
+					most_bottom_line := find_most_bottom_line_number(ast_context)
 
 					import_edit = TextEdit {
 						range = {

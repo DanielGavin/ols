@@ -177,14 +177,28 @@ add_missing_imports :: proc(
 				}
 
 				if pkg == name.name {
-					pkg_decl := ast_context.file.pkg_decl
-					import_edit := TextEdit {
-						range = {
-							start = {line = pkg_decl.end.line + 1, character = 0},
-							end = {line = pkg_decl.end.line + 1, character = 0},
-						},
-						newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+					import_edit : TextEdit
+					if config.enable_add_import_to_bottom {
+						most_bottom_line := find_most_bottom_line_number(ast_context)
+
+						import_edit = TextEdit {
+							range = {
+								start = {line = most_bottom_line + 1, character = 0},
+								end = {line = most_bottom_line + 1, character = 0},
+							},
+							newText = fmt.tprintf("\nimport \"%v:%v\"", collection, pkg),
+						}
+					} else {
+						pkg_decl := ast_context.file.pkg_decl
+						import_edit = TextEdit {
+							range = {
+								start = {line = pkg_decl.end.line + 1, character = 0},
+								end = {line = pkg_decl.end.line + 1, character = 0},
+							},
+							newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+						}
 					}
+
 					textEdits := make([dynamic]TextEdit, context.temp_allocator)
 					append(&textEdits, import_edit)
 
