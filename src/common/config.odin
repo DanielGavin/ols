@@ -45,6 +45,7 @@ Config :: struct {
 	enable_checker_only_saved:               bool,
 	enable_checker_workspace_diagnostics:    bool,
 	enable_auto_import:                      bool,
+	enable_add_import_to_bottom:             bool,
 	enable_completion_matching:              bool,
 	enable_document_links:                   bool,
 	enable_comp_lit_signature_help:          bool,

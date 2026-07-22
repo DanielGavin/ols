@@ -76,6 +76,11 @@
 			"description": "Automatically import packages that aren't in your import on completion",
 			"default": true
 		},
+		"enable_add_import_to_bottom": {
+			"type": "boolean",
+			"description": "Add automatically imported packages to bottom of file",
+			"default": false
+		},
 		"enable_references": {
 			"type": "boolean",
 			"description": "Turns on finding references for a symbol.",
