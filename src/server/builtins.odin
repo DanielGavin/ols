@@ -424,8 +424,9 @@ get_expr_return_value :: proc(
 		return get_expr_return_value(ast_context, i.expr, true, allocator)
 
 	case ^ast.Basic_Lit:
-		i.tok.text = token_kind_to_str(i.tok)
-		return i, fmt.tprintf("u %v", i.tok.text), 0, true
+		ident := new_type(ast.Ident, n.pos, n.end, allocator)
+		ident.name = token_kind_to_str(i.tok)
+		return ident, fmt.tprintf("u %v", ident.name), 0, true
 
 	case:
 		if v, v_ok := resolve_type_expression(ast_context, n); v_ok {
@@ -449,6 +450,7 @@ get_symbol_return_value :: proc(
 	return_len: int,
 	ok: bool,
 ) {
+	untyped := false
 	ast_context.use_locals = true
 
 	#partial switch sym_val in symbol.value {
@@ -458,17 +460,21 @@ get_symbol_return_value :: proc(
 
 	case SymbolUntypedValue:
 		if sym_val.type == .Bool {
+			untyped = .Mutable in symbol.flags == false ? false : true
 			ident := new_type(ast.Ident, n.pos, n.end, allocator)
 			ident.name = "bool"
 			expr = wrap_pointer(ident, symbol.pointers)
-			return expr, node_to_string(&expr.expr_base), 0, true
+			name := untyped ? fmt.tprintf("u %v", node_to_string(&expr.expr_base)) : node_to_string(&expr.expr_base)
+			return expr, name, 0, true
 		}
 
+		untyped = .Variable in symbol.flags && .Mutable in symbol.flags == false ? true : false
 		expr = symbol_to_expr(symbol, ast_context.fullpath)
 		bl := expr.derived.(^ast.Basic_Lit) or_return
 		bl.tok.text = token_kind_to_str(bl.tok)
 		expr = wrap_pointer(bl, symbol.pointers)
-		return expr, node_to_string(&expr.expr_base), 0, true
+		name := untyped ? fmt.tprintf("u %v", node_to_string(&expr.expr_base)) : node_to_string(&expr.expr_base)
+		return expr, name, 0, true
 
 
 	case SymbolProcedureValue:

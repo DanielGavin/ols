@@ -3093,11 +3093,25 @@ ast_hover_builtin_compress_untyped_ints_to_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		main :: proc() {
-			m{*} := compress_values(1, 2)
+			C_INT :: 3
+			m{*} := compress_values(1, 2, 3)
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.m: [2]int")
+	test.expect_hover(t, &source, "test.m: [3]int")
+}
+
+@(test)
+ast_hover_builtin_compress_untyped_bools_to_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			C_BOOL :: false
+			m{*} := compress_values(false, true, C_BOOL)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: [3]bool")
 }
 
 @(test)
