@@ -2071,8 +2071,14 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		return document
 	}
 
+	declaration_alignment := 0
+	if p.config.align_struct_declarations && .Enforce_Newline in options {
+		declaration_alignment = get_possible_field_declaration_alignment(list.list)
+	}
+
 	for field, i in list.list {
 		align := empty()
+		declaration_align := empty()
 
 		p.source_position = field.pos
 
@@ -2095,23 +2101,49 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		name_options := List_Options{.Add_Comma}
 
 		if (.Enforce_Newline in options) {
-			if p.config.align_struct_fields {
+			// When align_struct_declarations is active, it handles the visual
+			if p.config.align_struct_fields && !p.config.align_struct_declarations {
 				alignment := get_possible_field_alignment(list.list)
 
 				if alignment > 0 {
 					length := 0
 					for name in field.names {
-						length += get_node_length(name) + 2
-						if .Using in field.flags {
-							length += 6
-						}
-						if .Subtype in field.flags {
-							length += 9
-						}
+						length += get_node_length(name)
+					}
+					if len(field.names) > 1 {
+						length += 2 * (len(field.names) - 1)
+					}
+					if .Using in field.flags {
+						length += 6
+					}
+					if .Subtype in field.flags {
+						length += 9
 					}
 					align = repeat_space(alignment - length)
 				}
 			}
+
+			if p.config.align_struct_declarations && declaration_alignment > 0 {
+				name_length := 0
+				for name in field.names {
+					name_length += get_node_length(name)
+				}
+				if len(field.names) > 1 {
+					name_length += 2 * (len(field.names) - 1)
+				}
+
+				if .Using in field.flags {
+					name_length += 6
+				}
+				if .Subtype in field.flags {
+					name_length += 9
+				}
+
+				if name_length > 0 && name_length < declaration_alignment {
+					declaration_align = repeat_space(declaration_alignment - name_length)
+				}
+			}
+
 			document = cons(document, visit_exprs(p, field.names, name_options))
 		} else {
 			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
@@ -2119,11 +2151,16 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 
 		if field.type != nil {
 			if len(field.names) != 0 {
-				document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), align)
+				document = cons(
+					document,
+					declaration_align,
+					text(" :" if p.config.spaces_around_colons else ":"),
+					align,
+				)
 			}
 			document = cons_with_nopl(document, visit_expr(p, field.type))
 		} else {
-			document = cons(document, text(":"), text("="))
+			document = cons(document, declaration_align, text(":"), text("="))
 			document = cons_with_opl(document, visit_expr(p, field.default_value))
 		}
 
@@ -2499,11 +2536,43 @@ get_possible_field_alignment :: proc(fields: []^ast.Field) -> int {
 	for field in fields {
 		length := 0
 		for name in field.names {
-			length += get_node_length(name) + 2
+			length += get_node_length(name)
+		}
+
+		if len(field.names) > 1 {
+			length += 2 * (len(field.names) - 1)
 		}
 
 		if .Using in field.flags {
 			length += 6
+		}
+
+		longest_name = max(longest_name, length)
+	}
+
+	return longest_name
+}
+
+@(private)
+get_possible_field_declaration_alignment :: proc(fields: []^ast.Field) -> int {
+	longest_name := 0
+
+	for field in fields {
+		length := 0
+		for name in field.names {
+			length += get_node_length(name)
+		}
+
+		if len(field.names) > 1 {
+			length += 2 * (len(field.names) - 1)
+		}
+
+		if .Using in field.flags {
+			length += 6 // "using "
+		}
+
+		if .Subtype in field.flags {
+			length += 9 // "#subtype "
 		}
 
 		longest_name = max(longest_name, length)
