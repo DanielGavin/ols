@@ -26,6 +26,11 @@ CodeActionOptions :: struct {
 CodeActionParams :: struct {
 	textDocument: TextDocumentIdentifier,
 	range:        common.Range,
+	context_:     CodeActionContext,
+}
+
+CodeActionContext :: struct {
+	only: []CodeActionKind,
 }
 
 CodeAction :: struct {
@@ -35,7 +40,15 @@ CodeAction :: struct {
 	edit:        WorkspaceEdit,
 }
 
-get_code_actions :: proc(document: ^Document, range: common.Range, config: ^common.Config) -> ([]CodeAction, bool) {
+get_code_actions :: proc(
+	document: ^Document,
+	ctx: CodeActionContext,
+	range: common.Range,
+	config: ^common.Config,
+) -> (
+	[]CodeAction,
+	bool,
+) {
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -45,7 +58,23 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 		context.temp_allocator,
 	)
 
+	actions := make([dynamic]CodeAction, 0, context.allocator)
+
+	for action in ctx.only {
+		//For some reason on vscode it returns "source", so check for both kinds
+		if action == "source" || action == "source.organizeImports" {
+			source_organize_imports(
+				document,
+				strings.clone(document.uri.uri, context.temp_allocator),
+				config,
+				&actions,
+			)
+			return actions[:], true
+		}
+	}
+
 	position_context, ok := get_document_position_context(document, range.start, .Hover)
+
 	if !ok {
 		log.warn("Failed to get position context")
 		return {}, false
@@ -56,8 +85,6 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
-
-	actions := make([dynamic]CodeAction, 0, context.temp_allocator)
 
 	if position_context.selector_expr != nil {
 		if selector, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
@@ -70,12 +97,7 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 			)
 		}
 	} else if position_context.import_stmt != nil {
-		remove_unused_imports(
-			document,
-			strings.clone(document.uri.uri, context.temp_allocator),
-			config,
-			&actions,
-		)
+		remove_unused_imports(document, strings.clone(document.uri.uri, context.temp_allocator), config, &actions)
 	}
 
 	if position_context.switch_stmt != nil || position_context.switch_type_stmt != nil {
@@ -98,6 +120,76 @@ get_code_actions :: proc(document: ^Document, range: common.Range, config: ^comm
 
 	return actions[:], true
 }
+
+source_organize_imports :: proc(
+	document: ^Document,
+	uri: string,
+	config: ^common.Config,
+	actions: ^[dynamic]CodeAction,
+) {
+	unused_imports := find_unused_imports(document, context.temp_allocator)
+	used_unimported := find_used_not_imported(document, config, context.temp_allocator)
+
+	textEdits := make([dynamic]TextEdit, context.temp_allocator)
+
+	for imp in unused_imports {
+		range := common.get_token_range(imp.import_decl, document.ast.src)
+
+		import_edit := TextEdit {
+			range   = range,
+			newText = "",
+		}
+
+		if (range.start.line != 1) {
+			if column, ok := common.get_last_column(import_edit.range.start.line - 1, document.text); ok {
+				import_edit.range.start.line -= 1
+				import_edit.range.start.character = column
+			}
+
+		}
+
+		append(&textEdits, import_edit)
+	}
+
+	pkg_decl := document.ast.pkg_decl
+
+	// Anchor new imports at the end of the package declaration line. Inserting a
+	// leading newline here keeps the edit off any import line, so it never overlaps a
+	// removal edit for an unused import.
+
+	insert_line := pkg_decl.end.line
+	insert_col := 0
+
+	if col, ok := common.get_last_column(insert_line, document.text); ok {
+		insert_col = col
+	}
+
+	for imp in used_unimported {
+		import_edit := TextEdit {
+			range = {
+				start = {line = insert_line, character = insert_col},
+				end = {line = insert_line, character = insert_col},
+			},
+			newText = fmt.tprintf("\nimport \"%v\"", imp.original),
+		}
+		append(&textEdits, import_edit)
+	}
+
+	workspaceEdit: WorkspaceEdit
+	workspaceEdit.changes = make(map[string][]TextEdit, 0, context.temp_allocator)
+	workspaceEdit.changes[uri] = textEdits[:]
+
+	append(
+		actions,
+		CodeAction {
+			kind = "source.organizeImports",
+			isPreferred = true,
+			title = fmt.tprint("organize imports"),
+			edit = workspaceEdit,
+		},
+	)
+}
+
 
 remove_unused_imports :: proc(
 	document: ^Document,

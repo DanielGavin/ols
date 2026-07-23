@@ -1,11 +1,11 @@
 package ols_testing
 
-import "core:slice"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
@@ -45,7 +45,7 @@ setup :: proc(src: ^Source) {
 
 	if len(src.main) > 0 {
 		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
-		src.main  = ""
+		src.main = ""
 	}
 
 	if len(src.files) <= 0 {
@@ -94,7 +94,8 @@ setup :: proc(src: ^Source) {
 
 		if len(src_pkg.files) > 0 do for f in src_pkg.files {
 			process_file(f.name, f.source, pkg)
-		} else {
+		}
+		else {
 			process_file("package.odin", src_pkg.source, pkg)
 		}
 	}
@@ -137,12 +138,12 @@ teardown :: proc(src: ^Source) {
 	virtual.arena_destroy(src.document.allocator)
 }
 
-source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
+source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
 
 	source: ^string
 	if src.main != "" {
 		source = &src.main
-	} else if len(src.files) > 0{
+	} else if len(src.files) > 0 {
 		source = &src.files[0].source
 	}
 
@@ -160,10 +161,10 @@ source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
 	}
 
 	// remove cursor mark from source
-	new_source := make([]u8, len(source)-len(CURSOR), context.temp_allocator)
+	new_source := make([]u8, len(source) - len(CURSOR), context.temp_allocator)
 	copy(new_source[:marker_pos], source[:marker_pos])
-	copy(new_source[marker_pos:], source[marker_pos+len(CURSOR):])
-	source ^= string(new_source)
+	copy(new_source[marker_pos:], source[marker_pos + len(CURSOR):])
+	source^ = string(new_source)
 
 	// find cursor (line,col) position
 	last: u8
@@ -287,8 +288,7 @@ expect_completion_labels :: proc(
 
 	if len(missing_expected) > 0 ||
 	   len(present_excluded) > 0 ||
-	   (len(expect_labels) == 0 && len(completion_list.items) > 0)
-	{
+	   (len(expect_labels) == 0 && len(completion_list.items) > 0) {
 		sb := strings.builder_make(context.temp_allocator)
 		defer log.error(strings.to_string(sb))
 
@@ -634,14 +634,14 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 }
 
 
-expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string, ctx: server.CodeActionContext = {}) {
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 	}
@@ -674,7 +674,7 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 		return
