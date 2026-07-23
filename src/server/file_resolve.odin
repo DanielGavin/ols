@@ -178,6 +178,33 @@ local_scope_enum :: proc(data: ^FileResolveData, enum_type: ^ast.Enum_Type) {
 }
 
 @(private = "file")
+resolve_binary_expr :: proc(binary: ^ast.Binary_Expr, data: ^FileResolveData) {
+	if data.position_context.parent_binary == nil {
+		data.position_context.parent_binary = binary
+	}
+
+	stack := make([dynamic]^ast.Node, context.temp_allocator)
+	append(&stack, cast(^ast.Node)binary)
+
+	for len(stack) > 0 {
+		node := pop(&stack)
+		if node == nil {
+			continue
+		}
+
+		b, ok := node.derived.(^ast.Binary_Expr)
+		if !ok {
+			resolve_node(node, data)
+			continue
+		}
+
+		data.position_context.binary = b
+		append(&stack, b.left)
+		append(&stack, b.right)
+	}
+}
+
+@(private = "file")
 resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
 		return
@@ -402,12 +429,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	case ^ast.Unary_Expr:
 		resolve_node(n.expr, data)
 	case ^ast.Binary_Expr:
-		if data.position_context.parent_binary == nil {
-			data.position_context.parent_binary = cast(^ast.Binary_Expr)node
-		}
-		data.position_context.binary = n
-		resolve_node(n.left, data)
-		resolve_node(n.right, data)
+		resolve_binary_expr(n, data)
 	case ^ast.Paren_Expr:
 		resolve_node(n.expr, data)
 	case ^ast.Call_Expr:
