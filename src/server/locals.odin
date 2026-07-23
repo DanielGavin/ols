@@ -293,6 +293,28 @@ get_generic_assignment :: proc(
 			append(results, b)
 		}
 	case ^ast.Unary_Expr:
+		if v.op.kind == .Mul_Mul {
+			if ce, ok := expand_values(ast_context, v.expr, ast_context.allocator); ok {
+				if symbol, s_ok := resolve_type_expression(ast_context, ce.expr); s_ok {
+					if proc_val, p_ok := symbol.value.(SymbolProcedureValue); p_ok {
+						returns := get_proc_return_types(ast_context, symbol, ce, is_mutable)
+						if len(returns) == 0 {
+							append(results, cast(^ast.Expr)&ce.node)
+						} else {
+							for ret in returns {
+								calls[len(results)] = {}
+								append(results, ret)
+							}
+						}
+						break
+					}
+				}
+			}
+
+			append(results, value)
+			break
+		}
+		
 		append(results, value)
 
 		#partial switch n in v.expr.derived {

@@ -3089,11 +3089,12 @@ ast_hover_builtin_clamp_from_proc :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_builtin_compress_values_to_array :: proc(t: ^testing.T) {
+ast_hover_builtin_compress_untyped_ints_to_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		main :: proc() {
-			m{*}: [3]int = compress_values(1, 2, 3)
+			C_INT :: 3
+			m{*} := compress_values(1, 2, 3)
 		}
 	`,
 	}
@@ -3101,48 +3102,211 @@ ast_hover_builtin_compress_values_to_array :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_builtin_compress_values_to_struct :: proc(t: ^testing.T) {
+ast_hover_builtin_compress_untyped_bools_to_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		main :: proc() {
-			Foo :: struct {
-				a, b: int,
-			}
-
-			m{*}: Foo = compress_values(1, 2)
+			C_BOOL :: false
+			m{*} := compress_values(false, true, C_BOOL)
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.m: test.Foo")
+	test.expect_hover(t, &source, "test.m: [3]bool")
 }
 
 @(test)
-ast_hover_builtin_expand_values_to_array :: proc(t: ^testing.T) {
+ast_hover_builtin_compress_values_typed_ints_to_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		main :: proc() {
-			arr := [2]int{1, 2}
-			m{*} := [3]int{expand_values(arr), 3}
+			x := 10
+			y := 20
+			
+			m{*} := compress_values(x, y)
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.m: [3]int")
+	test.expect_hover(t, &source, "test.m: [2]int")
 }
 
 @(test)
-ast_hover_builtin_expand_values_to_struct :: proc(t: ^testing.T) {
+ast_hover_builtin_compress_values_structs_to_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
+		St :: struct {
+			x: bool,
+		}
+		
 		main :: proc() {
-			Foo :: struct {
-				a, b: int,
-			}
-
-			m{*} := Foo{expand_values(arr)}
+			x := St{}
+			
+			m{*} := compress_values(x, St{})
 		}
 	`,
 	}
-	test.expect_hover(t, &source, "test.m: test.Foo")
+	test.expect_hover(t, &source, "test.m: [2]St")
+}
+
+@(test)
+ast_hover_builtin_compress_values_untyped_typed_floats_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			x := 31.1
+			
+			m{*} := compress_values(x, 5.1)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: struct {\n\tv0: f64,\n\tv1: f64,\n}")
+}
+
+@(test)
+ast_hover_builtin_compress_values_typed_floats_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			f_16: f16 = 20
+			f_32: f32 = 20
+			f_64 := 20.1
+			
+			m{*} := compress_values(f_16, f_32, f_64)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: struct {\n\tv0: f16,\n\tv1: f32,\n\tv2: f64,\n}")
+}
+
+@(test)
+ast_hover_builtin_compress_values_typed_ints_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			i_8: i8 = 20
+			i_16: i16 = 20
+			i_32: i32 = 20
+			i_64 := 20
+			
+			m{*} := compress_values(i_8, i_16, i_32, i_64)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: struct {\n\tv0: i8,\n\tv1: i16,\n\tv2: i32,\n\tv3: int,\n}")
+}
+
+@(test)
+ast_hover_builtin_compress_values_proc_to_single_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		proc_1 :: proc(i: int) -> int {
+			return i
+		}
+
+		main :: proc() {
+			m{*} := compress_values(proc_1(10))
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: int")
+}
+
+@(test)
+ast_hover_builtin_compress_values_generic_proc_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		proc_1 :: proc(x: $T, y: $N) -> (T, N) {
+			return x, y
+		}
+
+		main :: proc() {
+			m{*} := compress_values(proc_1(false, 35.1))
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: struct {\n\tv0: bool,\n\tv1: f64,\n}")
+}
+
+@(test)
+ast_hover_builtin_compress_values_arrays_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			arr := [2]int{10, 20}
+			slice := []int{10, 20}
+			dyn: [dynamic]int
+			dyn_fixed: [dynamic; 2]int
+
+			m{*} := compress_values(arr, slice, dyn, dyn_fixed)
+		}
+	`,
+	}
+	test.expect_hover(
+		t,
+		&source,
+		"test.m: struct {\n\tv0: [2]int,\n\tv1: []int,\n\tv2: [dynamic]int,\n\tv3: [dynamic; 2]int,\n}",
+	)
+}
+
+@(test)
+ast_hover_builtin_compress_values_ptrs_to_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			arr := [2]int{10, 20}
+			m_ptr: [^]int
+
+			m{*} := compress_values(&arr, m_ptr)
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.m: struct {\n\tv0: ^[2]int,\n\tv1: [^]int,\n}")
+}
+
+@(test)
+ast_hover_builtin_expand_values_from_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		St :: struct {
+			x: int,
+			y: bool,
+		}
+
+		
+		main :: proc() {
+			a, b{*} := expand_values(St{3, true})
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.b: bool")
+}
+
+@(test)
+ast_hover_builtin_expand_values_from_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			a, b{*} := expand_values([2]f32{21.1, 23.3})
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.b: f32")
+}
+
+@(test)
+ast_hover_builtin_expand_values_operator_from_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		St :: struct {
+			x: int,
+			y: bool,
+		}
+
+		main :: proc() {
+			a, b{*} := **St{3, true}
+		}
+	`,
+	}
+	test.expect_hover(t, &source, "test.b: bool")
 }
 
 @(test)
