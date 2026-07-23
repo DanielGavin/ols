@@ -1254,14 +1254,14 @@ get_proc_return_types :: proc(
 	return return_types[:]
 }
 
-check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool {
+check_node_recursion :: proc(recursion_map: ^map[rawptr]struct{}, node: ^ast.Node) -> bool {
 	raw := cast(rawptr)node
 
-	if raw in ast_context.recursion_map {
+	if raw in recursion_map {
 		return true
 	}
 
-	ast_context.recursion_map[raw] = {}
+	recursion_map[raw] = {}
 
 	return false
 }
@@ -1287,7 +1287,7 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 	set_ast_package_scoped(ast_context)
 
-	if check_node_recursion(ast_context, node) {
+	if check_node_recursion(&ast_context.recursion_map, node) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, node)
@@ -1337,7 +1337,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 	set_ast_package_from_node_scoped(ast_context, node)
 
-	if check_node_recursion(ast_context, node) {
+	if check_node_recursion(&ast_context.recursion_map, node) {
 		return false
 	}
 	defer delete_key(&ast_context.recursion_map, node)
@@ -2061,7 +2061,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	ident := node.derived.(^ast.Ident)
-	if check_node_recursion(ast_context, ident) {
+	if check_node_recursion(&ast_context.recursion_map, ident) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, ident)
@@ -2393,7 +2393,7 @@ resolve_proc_lit :: proc(
 
 struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (^ast.Struct_Type, bool) {
 	ident := node.derived.(^ast.Ident)
-	if check_node_recursion(ast_context, ident) {
+	if check_node_recursion(&ast_context.recursion_map, ident) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, ident)
