@@ -771,7 +771,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			}
 
 			if poly_name, ok := get_poly_param_name(name); ok {
-				poly_map[poly_name] = ast_context.call.args[i]
+				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
 				b.poly_names[i] = node_to_string(ast_context.call.args[i])
 			}
 
@@ -788,6 +788,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		parent_proc:          ^ast.Proc_Type,
 		i:                    int,
 		poly_index:           int,
+		recursion_map:        map[rawptr]struct{},
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -796,6 +797,9 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		data := cast(^Visit_Data)visitor.data
+		if check_node_recursion(&data.recursion_map, node) {
+			return nil
+		}
 
 		if ident, ok := node.derived.(^ast.Ident); ok {
 			if expr, ok := data.poly_map[ident.name]; ok {
