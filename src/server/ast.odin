@@ -785,6 +785,12 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.cond, allocator)
 		free_ast(n.post, allocator)
 		free_ast(n.body, allocator)
+	case ^ast.Unroll_Range_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.val0, allocator)
+		free_ast(n.val1, allocator)
+		free_ast(n.expr, allocator)
+		free_ast(n.body, allocator)
 	case ^ast.Range_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)

@@ -403,6 +403,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
 
 	config.enable_auto_import = ols_config.enable_auto_import.(bool) or_else config.enable_auto_import
+	config.enable_add_import_to_bottom = ols_config.enable_add_import_to_bottom.(bool) or_else config.enable_add_import_to_bottom
 
 	config.enable_checker_only_saved =
 		ols_config.enable_checker_only_saved.(bool) or_else config.enable_checker_only_saved

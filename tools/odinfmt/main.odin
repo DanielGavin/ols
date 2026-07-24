@@ -90,7 +90,7 @@ main :: proc() {
 		)
 
 		if ok {
-			fmt.println(source)
+			fmt.print(source)
 		}
 
 		write_failure = !ok
@@ -111,7 +111,7 @@ main :: proc() {
 			}
 		} else {
 			if data, ok := format_file(args.path, config, arena_allocator); ok {
-				fmt.println(data)
+				fmt.print(data)
 			}
 		}
 	} else if os.is_dir(args.path) {

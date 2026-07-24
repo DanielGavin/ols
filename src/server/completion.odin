@@ -2063,6 +2063,27 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	return {}, false
 }
 
+find_most_bottom_line_number :: proc(ast_context: ^AstContext) -> (int, bool) {
+	most_bottom_line := 0
+	is_import := false
+	for decl in ast_context.file.decls {
+		most_bottom_line = max(decl.end.line, most_bottom_line)
+	}
+
+	for comment_node in ast_context.file.comments {
+		most_bottom_line = max(comment_node.end.line, most_bottom_line)
+	}
+
+	for import_node in ast_context.file.imports {
+		if import_node.end.line >= most_bottom_line {
+			most_bottom_line = import_node.end.line
+			is_import = true
+		}
+	}
+
+	return most_bottom_line, is_import
+}
+
 append_non_imported_packages :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -2089,12 +2110,26 @@ append_non_imported_packages :: proc(
 			if !found {
 				pkg_decl := ast_context.file.pkg_decl
 
-				import_edit := TextEdit {
-					range = {
-						start = {line = pkg_decl.end.line + 1, character = 0},
-						end = {line = pkg_decl.end.line + 1, character = 0},
-					},
-					newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+				import_edit : TextEdit
+
+				if config.enable_add_import_to_bottom {
+					most_bottom_line, is_import := find_most_bottom_line_number(ast_context)
+
+					import_edit = TextEdit {
+						range = {
+							start = {line = most_bottom_line, character = 0},
+							end = {line = most_bottom_line, character = 0},
+						},
+						newText = is_import ? fmt.tprintf("import \"%v:%v\"\n", collection, pkg) : fmt.tprintf("\nimport \"%v:%v\"", collection, pkg),
+					}
+				} else {
+					import_edit = TextEdit {
+						range = {
+							start = {line = pkg_decl.end.line + 1, character = 0},
+							end = {line = pkg_decl.end.line + 1, character = 0},
+						},
+						newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+					}
 				}
 
 				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)
