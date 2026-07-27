@@ -760,6 +760,9 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 	clear(&b.poly_names)
 
 	for param in poly_params.list {
+		if param == nil {
+			continue
+		}
 		for name in param.names {
 			append(&b.poly_names, node_to_string(name))
 			if len(ast_context.call.args) <= i {

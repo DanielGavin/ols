@@ -655,6 +655,9 @@ write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names:
 		poly_name_index := 0
 		strings.write_string(sb, "(")
 		for field, i in poly.list {
+			if field == nil {
+				continue
+			}
 			write_type := true
 			for name, j in field.names {
 				if poly_name_index < len(poly_names) {
