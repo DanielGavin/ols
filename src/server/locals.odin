@@ -1273,6 +1273,9 @@ get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^A
 		return
 	}
 	for param in params.list {
+		if param == nil {
+			continue
+		}
 		for name in param.names {
 			if poly, ok := name.derived.(^ast.Poly_Type); ok {
 				str := get_ast_node_string(poly.type, file.src)

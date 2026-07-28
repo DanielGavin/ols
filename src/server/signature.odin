@@ -57,6 +57,9 @@ split_all_field_arguments :: proc(symbol: ^Symbol, allocator := context.temp_all
 separate_fields :: proc(list: []^ast.Field, allocator := context.allocator) -> []^ast.Field {
 	fields := make([dynamic]^ast.Field, allocator)
 	for arg, i in list {
+		if arg == nil {
+			continue
+		}
 		if len(arg.names) == 1 {
 			append(&fields, arg)
 			continue
@@ -198,9 +201,9 @@ add_proc_signature :: proc(
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
 		add_signature_info(call, value.orig_arg_types, &active_parameter, signature_information)
-	} else if value, ok := call.value.(SymbolStructValue); ok && value.poly.list != nil {
+	} else if value, ok := call.value.(SymbolStructValue); ok && value.poly != nil && value.poly.list != nil {
 		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
-	} else if value, ok := call.value.(SymbolUnionValue); ok && value.poly.list != nil {
+	} else if value, ok := call.value.(SymbolUnionValue); ok && value.poly != nil && value.poly.list != nil {
 		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
 	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
