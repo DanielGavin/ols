@@ -1992,6 +1992,8 @@ get_type_switch_completion :: proc(
 				for name in case_clause.list {
 					if n, ok := get_used_switch_name(name); ok {
 						used_unions[n] = {}
+					} else {
+						used_unions[node_to_string(&name.expr_base)] = {}
 					}
 				}
 			}
@@ -2007,15 +2009,16 @@ get_type_switch_completion :: proc(
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
 					//TODO: using symbol.name is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 					//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
-					name := symbol.name
-					if _, ok := used_unions[name]; ok {
+					name := symbol.name == "" ? get_signature(ast_context, symbol) : symbol.name
+					if name in used_unions {
 						continue
 					}
 
 					item := CompletionItem {
 						kind = .EnumMember,
 					}
-					item.label = get_qualified_union_case_name(&symbol, ast_context, position_context)
+					item.label =
+						symbol.name == "" ? name : get_qualified_union_case_name(&symbol, ast_context, position_context)
 					item.detail = item.label
 					if position_context.implicit_selector_expr != nil {
 						if remove_edit, ok := create_implicit_selector_remove_edit(position_context); ok {
