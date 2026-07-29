@@ -1032,6 +1032,28 @@ get_selector_completion :: proc(
 		append_magic_map_completion(position_context, selector, results)
 
 	case SymbolBasicValue:
+		if selector.name == "any" {
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = "data",
+						kind = .Field,
+						detail = fmt.tprintf("%v.data", selector.name),
+					},
+				},
+			)
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = "id",
+						kind = .Field,
+						detail = fmt.tprintf("%v.id", selector.name),
+					},
+				},
+			)
+		}
 		if selector.signature == "string" {
 			append_magic_array_like_completion(position_context, selector, results)
 		}

@@ -1907,6 +1907,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			}
 		case SymbolBasicValue:
 			if s.ident != nil && node.field != nil {
+				if selector.name == "any" {
+					ident := new_type(ast.Ident, s.ident.pos, s.ident.end, context.temp_allocator)
+					ident.name = node.field.name == "id" ? "typeid" : "rawptr"
+					basic_sym := make_symbol_basic_type_from_ast(ast_context, ident)
+					basic_sym.type = .Field
+					basic_sym.flags = {.Mutable}
+					return basic_sym, true
+				}
 				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
 					return symbol, true
 				}
