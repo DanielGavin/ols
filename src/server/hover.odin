@@ -401,6 +401,18 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					return hover, true, true
 				}
 			}
+		case SymbolBasicValue:
+			if selector.name == "any" {
+				name := field == "id" ? "typeid" : "rawptr"
+				symbol := Symbol {
+					name      = name,
+					pkg       = selector.pkg,
+					signature = name,
+					type      = .Field,
+				}
+				hover.contents = write_hover_content(&ast_context, symbol)
+				return hover, true, true
+			}
 		}
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
