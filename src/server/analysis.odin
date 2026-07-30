@@ -1082,6 +1082,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 									if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
 										using_score = min(k, using_score)
 										found = true
+										continue
 									}
 
 									// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
