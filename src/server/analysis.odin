@@ -1074,12 +1074,23 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
 								using_score := 1000000
 								for k in value.usings {
-									if symbol, ok := resolve_type_expression(ast_context, value.types[k]); ok {
+									symbol := resolve_type_expression(ast_context, value.types[k]) or_continue
+
+									// foo :: proc (bar: ^Bar)       — level 1 (arg_symbol)
+									// baz: struct {using bar: ^Bar} — level 1 (symbol)
+									// foo(&baz)                     — level 1 (call_arg.symbol)
+									if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
+										using_score = min(k, using_score)
+										found = true
+									}
+
+									// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
+									// baz: struct {using bar: Bar} — level 0 (symbol)
+									// foo(&baz)                    — level 1 (call_arg.symbol)
+									if call_arg.symbol.pointers != symbol.pointers {
 										symbol.pointers = call_arg.symbol.pointers
 										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
-											if k < using_score {
-												using_score = k
-											}
+											using_score = min(k, using_score)
 											found = true
 										}
 									}
