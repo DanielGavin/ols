@@ -1204,25 +1204,29 @@ visit_stmt :: proc(
 			document = cons(document, text("#reverse"), break_with_no_newline())
 		}
 
-		document = cons(document, text("for"))
+		range_document := text("for")
 
 		if v.init != nil {
-			document = cons(document, break_with_space(), visit_stmt(p, v.init), text(";"))
+			range_document = cons(range_document, break_with_space(), visit_stmt(p, v.init), text(";"))
 		}
 
 		if len(v.vals) >= 1 {
-			document = cons_with_opl(document, visit_expr(p, v.vals[0]))
+			range_document = cons_with_opl(range_document, visit_expr(p, v.vals[0]))
 		}
 
 		if len(v.vals) >= 2 {
 			for val in v.vals[1:] {
-				document = cons(document, cons_with_opl(text(","), visit_expr(p, val)))
+				range_document = cons(range_document, cons_with_opl(text(","), visit_expr(p, val)))
 			}
 		}
 
-		document = cons_with_opl(document, text("in"))
+		range_document = cons_with_opl(range_document, text("in"))
 
-		document = cons_with_opl(document, visit_expr(p, v.expr))
+		range_document = cons_with_opl(range_document, visit_expr(p, v.expr))
+
+		// Newlines in a range-loop header trigger semicolon insertion and turn the
+		// header into invalid Odin, so it must remain on one physical line.
+		document = cons(document, enforce_fit(range_document))
 
 		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
