@@ -2804,6 +2804,30 @@ ast_hover_overloading_struct_with_usings_with_pointers :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_proc_group_with_using_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Nested :: struct {foo: int}
+		Inner  :: struct {using nested: Nested}
+		Outer  :: struct {using inner: Inner}
+
+		takes_int    :: proc (arg: int)       {}
+		takes_nested :: proc (nested: Nested) {}
+		takes_inner  :: proc (inner: Inner)   {}
+		takes        :: proc {takes_int, takes_nested, takes_inner}
+
+		main :: proc() {
+			outer: ^Outer
+			ta{*}kes(outer)
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.takes :: proc(inner: Inner)")
+}
+
+@(test)
 ast_hover_proc_calling_convention :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
