@@ -916,6 +916,10 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	poly_names := make([dynamic]string, 0, context.temp_allocator)
 
 	for param in poly_params.list {
+		if param == nil {
+			continue
+		}
+
 		for name in param.names {
 			append(&poly_names, node_to_string(name))
 			if len(ast_context.call.args) <= i {
