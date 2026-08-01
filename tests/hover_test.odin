@@ -7317,3 +7317,18 @@ ast_hover_type_from_when_ternary_complex :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Pos :: [3]f32")
 }
+
+@(test)
+ast_generic_struct_multipointer_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {
+			foo: [^]T,
+		}
+		Bar :: struct{}
+		Baz :: Fo{*}o(Bar)
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Foo :: struct(Bar) {\n\tfoo: [^]Bar,\n}")
+}
