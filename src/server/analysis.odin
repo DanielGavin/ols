@@ -328,6 +328,7 @@ untyped_map: [SymbolUntypedValueType][]string = {
 	.String     = {"string", "cstring"},
 	.Complex    = {"complex32", "complex64", "complex128"},
 	.Quaternion = {"quaternion64", "quaternion128", "quaternion256"},
+	.Rune       = {"rune"}
 }
 // odinfmt: enable
 
@@ -1194,6 +1195,8 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		} else {
 			value.type = .Quaternion
 		}
+	case .Rune:
+		value.type = .Rune
 	case:
 		if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
 			value.type = .Integer
