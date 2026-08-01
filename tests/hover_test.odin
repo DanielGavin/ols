@@ -7263,3 +7263,16 @@ ast_hover_in_unroll_for :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: test.Foo")
 }
+
+@(test)
+ast_hover_basic_rune :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			f{*}oo := 'a'
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.foo: rune")
+}
