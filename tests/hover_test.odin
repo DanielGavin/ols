@@ -7317,3 +7317,15 @@ ast_hover_type_from_when_ternary_complex :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Pos :: [3]f32")
 }
+
+@(test)
+ast_hover_type_specialization :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {}
+		foo :: proc(f: $T/F{*}oo($V)) {}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Foo :: struct($V: typeid){}")
+}
