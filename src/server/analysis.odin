@@ -1546,7 +1546,13 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Ternary_When_Expr:
-		ok = internal_resolve_type_expression(ast_context, v.x, out)
+		when_expr_map := make_when_expr_map()
+		register_when_consts_from_globals(&when_expr_map, ast_context.globals)
+		if resolve_when_condition(v.cond, when_expr_map) {
+			ok = internal_resolve_type_expression(ast_context, v.x, out)
+			return ok
+		}
+		ok = internal_resolve_type_expression(ast_context, v.y, out)
 		return ok
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)

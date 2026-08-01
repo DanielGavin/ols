@@ -7276,3 +7276,44 @@ ast_hover_basic_rune :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: rune")
 }
+
+@(test)
+ast_hover_type_from_when_ternary_false :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		DOUBLE_PRECISION :: false
+
+		P{*}os :: [3]f64 when DOUBLE_PRECISION else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f32")
+}
+
+@(test)
+ast_hover_type_from_when_ternary_true :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		DOUBLE_PRECISION :: true
+
+		P{*}os :: [3]f64 when DOUBLE_PRECISION else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f64")
+}
+
+@(test)
+ast_hover_type_from_when_ternary_complex :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		TRUE :: true
+		FALSE :: !TRUE
+
+
+		P{*}os :: [3]f64 when FALSE else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f32")
+}
