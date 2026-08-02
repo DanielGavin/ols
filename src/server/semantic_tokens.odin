@@ -246,7 +246,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.row_index, builder)
 		visit_node(n.column_index, builder)
 	case ^ast.Poly_Type:
-		write_semantic_node(builder, n.type, .TypeParameter, { .Declaration })
+		write_semantic_node(builder, n.type, .TypeParameter, {.Declaration})
 		visit_node(n.specialization, builder)
 	case ^ast.Range_Stmt:
 		for val in n.vals {
@@ -404,7 +404,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
-	modifiers += { .Declaration }
+	modifiers += {.Declaration}
 
 	for name in value_decl.names {
 		ident := name.derived.(^ast.Ident) or_continue
@@ -427,7 +427,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 		for param in node.params.list {
 			for name in param.names {
 				if ident, ok := name.derived.(^ast.Ident); ok {
-					write_semantic_node(builder, name, .Parameter, { .Declaration })
+					write_semantic_node(builder, name, .Parameter, {.Declaration})
 				}
 			}
 
@@ -438,7 +438,9 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 
 	if node.results != nil {
 		for result in node.results.list {
-			visit_nodes(result.names, builder)
+			for name in result.names {
+				write_semantic_node(builder, name, .Variable, {.Declaration})
+			}
 			visit_node(result.type, builder)
 		}
 	}
@@ -469,7 +471,7 @@ visit_struct_fields :: proc(node: ast.Struct_Type, builder: ^SemanticTokenBuilde
 	for field in node.fields.list {
 		for name in field.names {
 			if ident, ok := name.derived.(^ast.Ident); ok {
-				write_semantic_node(builder, ident, .Property)
+				write_semantic_node(builder, ident, .Property, {.Declaration})
 			}
 		}
 
@@ -485,7 +487,7 @@ visit_poly_params :: proc(params: ^ast.Field_List, builder: ^SemanticTokenBuilde
 	for param in params.list {
 		for name in param.names {
 			if poly, ok := name.derived.(^ast.Poly_Type); ok {
-				write_semantic_node(builder, poly.type, .TypeParameter)
+				write_semantic_node(builder, poly.type, .TypeParameter, {.Declaration})
 			}
 		}
 		visit_node(param.type, builder)
