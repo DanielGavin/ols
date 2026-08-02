@@ -6,6 +6,7 @@ https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/spe
 */
 package server
 
+import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:unicode/utf8"
@@ -245,7 +246,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_node(n.row_index, builder)
 		visit_node(n.column_index, builder)
 	case ^ast.Poly_Type:
-		write_semantic_node(builder, n.type, .TypeParameter)
+		write_semantic_node(builder, n.type, .TypeParameter, { .Declaration })
 		visit_node(n.specialization, builder)
 	case ^ast.Range_Stmt:
 		for val in n.vals {
@@ -403,6 +404,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
+	modifiers += { .Declaration }
 
 	for name in value_decl.names {
 		ident := name.derived.(^ast.Ident) or_continue
@@ -425,7 +427,7 @@ visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
 		for param in node.params.list {
 			for name in param.names {
 				if ident, ok := name.derived.(^ast.Ident); ok {
-					write_semantic_node(builder, name, .Parameter)
+					write_semantic_node(builder, name, .Parameter, { .Declaration })
 				}
 			}
 
