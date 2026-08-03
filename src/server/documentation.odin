@@ -372,6 +372,8 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 				strings.write_string(sb, "complex128")
 			case .Quaternion:
 				strings.write_string(sb, "quaternion256")
+			case .Rune:
+				strings.write_string(sb, "rune")
 			}
 			return
 		}

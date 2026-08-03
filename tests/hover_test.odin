@@ -2804,6 +2804,30 @@ ast_hover_overloading_struct_with_usings_with_pointers :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_proc_group_with_using_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		Nested :: struct {foo: int}
+		Inner  :: struct {using nested: Nested}
+		Outer  :: struct {using inner: Inner}
+
+		takes_int    :: proc (arg: int)       {}
+		takes_nested :: proc (nested: Nested) {}
+		takes_inner  :: proc (inner: Inner)   {}
+		takes        :: proc {takes_int, takes_nested, takes_inner}
+
+		main :: proc() {
+			outer: ^Outer
+			ta{*}kes(outer)
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.takes :: proc(inner: Inner)")
+}
+
+@(test)
 ast_hover_proc_calling_convention :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -7238,4 +7262,73 @@ ast_hover_in_unroll_for :: proc(t: ^testing.T) {
 		packages = {},
 	}
 	test.expect_hover(t, &source, "test.foo: test.Foo")
+}
+
+@(test)
+ast_hover_basic_rune :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			f{*}oo := 'a'
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.foo: rune")
+}
+
+@(test)
+ast_hover_type_from_when_ternary_false :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		DOUBLE_PRECISION :: false
+
+		P{*}os :: [3]f64 when DOUBLE_PRECISION else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f32")
+}
+
+@(test)
+ast_hover_type_from_when_ternary_true :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		DOUBLE_PRECISION :: true
+
+		P{*}os :: [3]f64 when DOUBLE_PRECISION else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f64")
+}
+
+@(test)
+ast_hover_type_from_when_ternary_complex :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		TRUE :: true
+		FALSE :: !TRUE
+
+
+		P{*}os :: [3]f64 when FALSE else [3]f32
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Pos :: [3]f32")
+}
+
+@(test)
+ast_generic_struct_multipointer_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {
+			foo: [^]T,
+		}
+		Bar :: struct{}
+		Baz :: Fo{*}o(Bar)
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Foo :: struct(Bar) {\n\tfoo: [^]Bar,\n}")
 }

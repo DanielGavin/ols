@@ -308,7 +308,7 @@ resolve_poly_expression :: proc(
 
 	call_node := call_node
 	poly_node := poly_node
-	
+
 	// The expression for the specialization already contains the pointers
 	// so we don't need to represent it in the next poly
 	// Note: this function is only ever called by `resolve_poly_specialization`
@@ -853,12 +853,15 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 						if expr_matches_poly_name(v.value, ident.name) {
 							v.value = expr
 						}
-
 					case ^ast.Call_Expr:
 						for arg, i in v.args {
 							if expr_matches_poly_name(arg, ident.name) {
 								v.args[i] = expr
 							}
+						}
+					case ^ast.Multi_Pointer_Type:
+						if expr_matches_poly_name(v.elem, ident.name) {
+							v.elem = expr
 						}
 					}
 				} else if data.parent_proc == nil {
@@ -871,7 +874,12 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type, ^ast.Map_Type:
+		case ^ast.Array_Type,
+		     ^ast.Dynamic_Array_Type,
+		     ^ast.Selector_Expr,
+		     ^ast.Pointer_Type,
+		     ^ast.Map_Type,
+		     ^ast.Multi_Pointer_Type:
 			data.parent = node
 		case ^ast.Proc_Type:
 			data.parent_proc = v
@@ -916,6 +924,10 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	poly_names := make([dynamic]string, 0, context.temp_allocator)
 
 	for param in poly_params.list {
+		if param == nil {
+			continue
+		}
+
 		for name in param.names {
 			append(&poly_names, node_to_string(name))
 			if len(ast_context.call.args) <= i {

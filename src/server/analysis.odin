@@ -328,6 +328,7 @@ untyped_map: [SymbolUntypedValueType][]string = {
 	.String     = {"string", "cstring"},
 	.Complex    = {"complex32", "complex64", "complex128"},
 	.Quaternion = {"quaternion64", "quaternion128", "quaternion256"},
+	.Rune       = {"rune"}
 }
 // odinfmt: enable
 
@@ -1074,12 +1075,24 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
 								using_score := 1000000
 								for k in value.usings {
-									if symbol, ok := resolve_type_expression(ast_context, value.types[k]); ok {
+									symbol := resolve_type_expression(ast_context, value.types[k]) or_continue
+
+									// foo :: proc (bar: ^Bar)       — level 1 (arg_symbol)
+									// baz: struct {using bar: ^Bar} — level 1 (symbol)
+									// foo(&baz)                     — level 1 (call_arg.symbol)
+									if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
+										using_score = min(k, using_score)
+										found = true
+										continue
+									}
+
+									// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
+									// baz: struct {using bar: Bar} — level 0 (symbol)
+									// foo(&baz)                    — level 1 (call_arg.symbol)
+									if call_arg.symbol.pointers != symbol.pointers {
 										symbol.pointers = call_arg.symbol.pointers
 										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
-											if k < using_score {
-												using_score = k
-											}
+											using_score = min(k, using_score)
 											found = true
 										}
 									}
@@ -1182,6 +1195,8 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		} else {
 			value.type = .Quaternion
 		}
+	case .Rune:
+		value.type = .Rune
 	case:
 		if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
 			value.type = .Integer
@@ -1531,7 +1546,13 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Ternary_When_Expr:
-		ok = internal_resolve_type_expression(ast_context, v.x, out)
+		when_expr_map := make_when_expr_map()
+		register_when_consts_from_globals(&when_expr_map, ast_context.globals)
+		if resolve_when_condition(v.cond, when_expr_map) {
+			ok = internal_resolve_type_expression(ast_context, v.x, out)
+			return ok
+		}
+		ok = internal_resolve_type_expression(ast_context, v.y, out)
 		return ok
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
@@ -1907,6 +1928,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			}
 		case SymbolBasicValue:
 			if s.ident != nil && node.field != nil {
+				if selector.name == "any" {
+					ident := new_type(ast.Ident, s.ident.pos, s.ident.end, context.temp_allocator)
+					ident.name = node.field.name == "id" ? "typeid" : "rawptr"
+					basic_sym := make_symbol_basic_type_from_ast(ast_context, ident)
+					basic_sym.type = .Field
+					basic_sym.flags = {.Mutable}
+					return basic_sym, true
+				}
 				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
 					return symbol, true
 				}
