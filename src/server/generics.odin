@@ -773,12 +773,14 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				continue
 			}
 
+			arg := clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+
 			if poly_name, ok := get_poly_param_name(name); ok {
-				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+				poly_map[poly_name] = arg
 				b.poly_names[i] = node_to_string(ast_context.call.args[i])
 			}
 
-			append(&b.args, ast_context.call.args[i])
+			append(&b.args, arg)
 
 			i += 1
 		}
@@ -921,7 +923,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	poly_names := make([dynamic]string, 0, context.temp_allocator)
+	poly_names := make([dynamic]string, 0, ast_context.allocator)
 
 	for param in poly_params.list {
 		if param == nil {
@@ -938,16 +940,9 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 				continue
 			}
 
-			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
-				if ident, ok := name.derived.(^ast.Ident); ok {
-					poly_map[ident.name] = ast_context.call.args[i]
-					poly_names[i] = node_to_string(ast_context.call.args[i])
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
-					if poly.type != nil {
-						poly_map[poly.type.name] = ast_context.call.args[i]
-						poly_names[i] = node_to_string(ast_context.call.args[i])
-					}
-				}
+			if poly_name, ok := get_poly_param_name(name); ok {
+				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+				poly_names[i] = node_to_string(ast_context.call.args[i])
 			}
 
 			i += 1

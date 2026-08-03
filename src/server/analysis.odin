@@ -3029,10 +3029,11 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
 
 			for type in v.types {
-				append(&types, clone_expr(type, context.temp_allocator, nil))
+				append(&types, clone_expr(type, ast_context.allocator, nil))
 			}
 
 			v.types = types[:]
+			v.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 
 			resolve_poly_union(ast_context, v.poly, &symbol)
 		}
@@ -3042,9 +3043,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if v.poly != nil {
 			clear(&b.types)
 			for type in v.types {
-				append(&b.types, clone_expr(type, context.temp_allocator, nil))
+				append(&b.types, clone_expr(type, ast_context.allocator, nil))
 			}
-			b.poly = cast(^ast.Field_List)clone_type(v.poly, context.temp_allocator, nil)
+			b.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
