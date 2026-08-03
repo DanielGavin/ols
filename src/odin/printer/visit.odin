@@ -1258,7 +1258,7 @@ visit_stmt :: proc(
 			if is_return_stmt_ending_with_comp_lit_expr(v.results) {
 				document = cons(
 					document,
-					if_break_or_document(empty(), text(" ")),
+					text(" "),
 					visit_exprs(p, v.results, {.Add_Comma}),
 				)
 			} else if !is_return_stmt_ending_with_call_expr(v.results) {
