@@ -1,5 +1,6 @@
 package server
 
+import "core:strings"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
@@ -764,7 +765,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			continue
 		}
 		for name in param.names {
-			append(&b.poly_names, node_to_string(name))
+			append(&b.poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -777,7 +778,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 
 			if poly_name, ok := get_poly_param_name(name); ok {
 				poly_map[poly_name] = arg
-				b.poly_names[i] = node_to_string(ast_context.call.args[i])
+				b.poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
 			append(&b.args, arg)
@@ -931,7 +932,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 		}
 
 		for name in param.names {
-			append(&poly_names, node_to_string(name))
+			append(&poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -942,7 +943,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 
 			if poly_name, ok := get_poly_param_name(name); ok {
 				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
-				poly_names[i] = node_to_string(ast_context.call.args[i])
+				poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
 			i += 1
