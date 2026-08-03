@@ -6004,3 +6004,31 @@ ast_completion_const_value_in_struct_decl :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct{}"}, {"test.FOO :: 8"})
 }
+
+@(test)
+ast_distinct_selector_array_swizzle_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package{pkg = "mypkg", source = `package mypkg
+			Vector4f32 :: [4]f32
+		`},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "mypkg"
+
+		Pixel :: distinct mypkg.Vector4f32
+
+		main :: proc() {
+			p: Pixel
+			p.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"x", "y", "z", "w", "r", "g", "b", "a"})
+}
