@@ -2242,7 +2242,7 @@ resolve_identifier_expr :: proc(
 
 	#partial switch v in expr.derived {
 	case ^ast.Distinct_Type:
-		symbol, ok = resolve_identifier_expr(ast_context, v.type, orig_expr, node, name, attributes, is_mutable)
+		symbol, ok = resolve_identifier_expr(ast_context, v.type, v.type, node, name, attributes, is_mutable)
 		symbol.name = name
 		symbol.flags |= {.Distinct}
 	case ^ast.Ident:
