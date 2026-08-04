@@ -297,7 +297,8 @@ convert_completion_results :: proc(
 			continue
 		}
 
-		if position_in_struct_decl(position_context) {
+		// Skip certain symbols when defining a type for a struct field
+		if position_should_skip_struct_type_decl(position_context) {
 			to_skip: bit_set[SymbolType] = {.Function, .Variable, .Constant, .Field}
 			if result.symbol.type in to_skip {
 				continue
@@ -550,6 +551,83 @@ handle_matching :: proc(
 			}
 		}
 	}
+}
+
+@(private = "file")
+position_should_skip_struct_type_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+	if position_context.value_decl == nil {
+		return false
+	}
+
+	if len(position_context.value_decl.values) != 1 {
+		return false
+	}
+
+	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); !ok {
+		return false
+	}
+
+	field := position_context.struct_field
+	if field == nil {
+		return false
+	}
+
+	// recurses through the field types to ensure we provide completions when inside a struct decl,
+	// but we're trying to complete something like a map key type.
+	should_skip_field :: proc(expr: ^ast.Expr, position: common.AbsolutePosition) -> bool {
+		if expr == nil || !position_in_node(expr, position) {
+			return false
+		}
+
+		#partial switch n in expr.derived {
+		case ^ast.Array_Type:
+			if position_in_node(n.len, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+			if position_in_node(n.capacity, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Matrix_Type:
+			if position_in_node(n.row_count, position) || position_in_node(n.column_count, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Map_Type:
+			if position_in_node(n.key, position) {
+				return should_skip_field(n.key, position)
+			}
+			if position_in_node(n.value, position) {
+				return should_skip_field(n.value, position)
+			}
+		case ^ast.Pointer_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Multi_Pointer_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Dynamic_Array_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Distinct_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Poly_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Helper_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Typeid_Type:
+			return should_skip_field(n.specialization, position)
+		}
+
+		return true
+	}
+
+	return should_skip_field(field.type, position_context.position)
 }
 
 get_completion_details :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
