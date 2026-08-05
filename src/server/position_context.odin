@@ -40,6 +40,7 @@ DocumentPositionContext :: struct {
 	parent_comp_lit:        ^ast.Comp_Lit, //used for completion
 	basic_lit:              ^ast.Basic_Lit,
 	struct_type:            ^ast.Struct_Type,
+	struct_field:           ^ast.Field, //used for completion, contains the field being declared in a struct
 	union_type:             ^ast.Union_Type,
 	bitset_type:            ^ast.Bit_Set_Type,
 	enum_type:              ^ast.Enum_Type,
@@ -751,6 +752,12 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		get_document_position(n.cond, position_context)
 		get_document_position(n.post, position_context)
 		get_document_position(n.body, position_context)
+	case ^ast.Unroll_Range_Stmt:
+		get_document_position_label(n.label, position_context)
+		get_document_position(n.val0, position_context)
+		get_document_position(n.val1, position_context)
+		get_document_position(n.expr, position_context)
+		get_document_position(n.body, position_context)
 	case ^ast.Range_Stmt:
 		get_document_position_label(n.label, position_context)
 		get_document_position(n.init, position_context)
@@ -811,6 +818,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^ast.Attribute:
 		get_document_position(n.elems, position_context)
 	case ^ast.Field:
+		position_context.struct_field = n
 		get_document_position(n.names, position_context)
 		get_document_position(n.type, position_context)
 		get_document_position(n.default_value, position_context)

@@ -297,7 +297,8 @@ convert_completion_results :: proc(
 			continue
 		}
 
-		if position_in_struct_decl(position_context) {
+		// Skip certain symbols when defining a type for a struct field
+		if position_should_skip_struct_type_decl(position_context) {
 			to_skip: bit_set[SymbolType] = {.Function, .Variable, .Constant, .Field}
 			if result.symbol.type in to_skip {
 				continue
@@ -550,6 +551,83 @@ handle_matching :: proc(
 			}
 		}
 	}
+}
+
+@(private = "file")
+position_should_skip_struct_type_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+	if position_context.value_decl == nil {
+		return false
+	}
+
+	if len(position_context.value_decl.values) != 1 {
+		return false
+	}
+
+	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); !ok {
+		return false
+	}
+
+	field := position_context.struct_field
+	if field == nil {
+		return false
+	}
+
+	// recurses through the field types to ensure we provide completions when inside a struct decl,
+	// but we're trying to complete something like a map key type.
+	should_skip_field :: proc(expr: ^ast.Expr, position: common.AbsolutePosition) -> bool {
+		if expr == nil || !position_in_node(expr, position) {
+			return false
+		}
+
+		#partial switch n in expr.derived {
+		case ^ast.Array_Type:
+			if position_in_node(n.len, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+			if position_in_node(n.capacity, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Matrix_Type:
+			if position_in_node(n.row_count, position) || position_in_node(n.column_count, position) {
+				return false
+			}
+			if position_in_node(n.elem, position) {
+				return should_skip_field(n.elem, position)
+			}
+		case ^ast.Map_Type:
+			if position_in_node(n.key, position) {
+				return should_skip_field(n.key, position)
+			}
+			if position_in_node(n.value, position) {
+				return should_skip_field(n.value, position)
+			}
+		case ^ast.Pointer_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Multi_Pointer_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Dynamic_Array_Type:
+			return should_skip_field(n.elem, position)
+		case ^ast.Distinct_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Poly_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Helper_Type:
+			return should_skip_field(n.type, position)
+		case ^ast.Typeid_Type:
+			return should_skip_field(n.specialization, position)
+		}
+
+		return true
+	}
+
+	return should_skip_field(field.type, position_context.position)
 }
 
 get_completion_details :: proc(ast_context: ^AstContext, symbol: Symbol) -> string {
@@ -1032,6 +1110,28 @@ get_selector_completion :: proc(
 		append_magic_map_completion(position_context, selector, results)
 
 	case SymbolBasicValue:
+		if selector.name == "any" {
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = "data",
+						kind = .Field,
+						detail = fmt.tprintf("%v.data", selector.name),
+					},
+				},
+			)
+			append(
+				results,
+				CompletionResult {
+					completion_item = CompletionItem {
+						label = "id",
+						kind = .Field,
+						detail = fmt.tprintf("%v.id", selector.name),
+					},
+				},
+			)
+		}
 		if selector.signature == "string" {
 			append_magic_array_like_completion(position_context, selector, results)
 		}
@@ -1992,6 +2092,8 @@ get_type_switch_completion :: proc(
 				for name in case_clause.list {
 					if n, ok := get_used_switch_name(name); ok {
 						used_unions[n] = {}
+					} else {
+						used_unions[node_to_string(&name.expr_base)] = {}
 					}
 				}
 			}
@@ -2007,15 +2109,16 @@ get_type_switch_completion :: proc(
 				if symbol, ok := resolve_type_expression(ast_context, union_value.types[i]); ok {
 					//TODO: using symbol.name is wrong for anonymous enums and structs, where the name field is "enum" or "struct" respectively but we want to use the full signature
 					//we also can't use the signature all the time because type aliases need to use specifically the alias name here and not the signature
-					name := symbol.name
-					if _, ok := used_unions[name]; ok {
+					name := symbol.name == "" ? get_signature(ast_context, symbol) : symbol.name
+					if name in used_unions {
 						continue
 					}
 
 					item := CompletionItem {
 						kind = .EnumMember,
 					}
-					item.label = get_qualified_union_case_name(&symbol, ast_context, position_context)
+					item.label =
+						symbol.name == "" ? name : get_qualified_union_case_name(&symbol, ast_context, position_context)
 					item.detail = item.label
 					if position_context.implicit_selector_expr != nil {
 						if remove_edit, ok := create_implicit_selector_remove_edit(position_context); ok {
@@ -2063,6 +2166,27 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	return {}, false
 }
 
+find_most_bottom_line_number :: proc(ast_context: ^AstContext) -> (int, bool) {
+	most_bottom_line := 0
+	is_import := false
+	for decl in ast_context.file.decls {
+		most_bottom_line = max(decl.end.line, most_bottom_line)
+	}
+
+	for comment_node in ast_context.file.comments {
+		most_bottom_line = max(comment_node.end.line, most_bottom_line)
+	}
+
+	for import_node in ast_context.file.imports {
+		if import_node.end.line >= most_bottom_line {
+			most_bottom_line = import_node.end.line
+			is_import = true
+		}
+	}
+
+	return most_bottom_line, is_import
+}
+
 append_non_imported_packages :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -2089,12 +2213,26 @@ append_non_imported_packages :: proc(
 			if !found {
 				pkg_decl := ast_context.file.pkg_decl
 
-				import_edit := TextEdit {
-					range = {
-						start = {line = pkg_decl.end.line + 1, character = 0},
-						end = {line = pkg_decl.end.line + 1, character = 0},
-					},
-					newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+				import_edit : TextEdit
+
+				if config.enable_add_import_to_bottom {
+					most_bottom_line, is_import := find_most_bottom_line_number(ast_context)
+
+					import_edit = TextEdit {
+						range = {
+							start = {line = most_bottom_line, character = 0},
+							end = {line = most_bottom_line, character = 0},
+						},
+						newText = is_import ? fmt.tprintf("import \"%v:%v\"\n", collection, pkg) : fmt.tprintf("\nimport \"%v:%v\"", collection, pkg),
+					}
+				} else {
+					import_edit = TextEdit {
+						range = {
+							start = {line = pkg_decl.end.line + 1, character = 0},
+							end = {line = pkg_decl.end.line + 1, character = 0},
+						},
+						newText = fmt.tprintf("import \"%v:%v\"\n", collection, pkg),
+					}
 				}
 
 				additionalTextEdits := make([]TextEdit, 1, context.temp_allocator)

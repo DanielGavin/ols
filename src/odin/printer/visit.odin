@@ -318,11 +318,17 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		lhs = cons(lhs, visit_exprs(p, v.names, {.Add_Comma, .Glue}))
 
 		if v.type != nil {
-			lhs = cons(lhs, text(" :" if p.config.spaces_around_colons else ":"))
+			// Typed constant/variable: pad before the colon so it lines up
+			type_colon := text(" :" if p.config.spaces_around_colons else ":")
+			padding := p.constant_alignment[decl.pos.offset]
+			lhs = cons(lhs, repeat_space(padding), type_colon)
 			lhs = cons_with_nopl(lhs, visit_expr(p, v.type))
 		} else {
 			if !v.is_mutable {
-				lhs = cons_with_nopl(lhs, cons(text(":"), text(":")))
+				// Constant (::): pad before the colons so it lines up
+				double_colon := cons(text(":"), text(":"))
+				padding := p.constant_alignment[decl.pos.offset]
+				lhs = cons_with_nopl(lhs, cons(repeat_space(padding), double_colon))
 			} else {
 				lhs = cons_with_nopl(lhs, text(":"))
 			}
@@ -1170,7 +1176,7 @@ visit_stmt :: proc(
 		if !p.config.convert_do {
 			document = enforce_fit_if_do(v.body, document)
 		}
-	case ^ast.Inline_Range_Stmt:
+	case ^ast.Unroll_Range_Stmt:
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
 		}
@@ -1204,25 +1210,29 @@ visit_stmt :: proc(
 			document = cons(document, text("#reverse"), break_with_no_newline())
 		}
 
-		document = cons(document, text("for"))
+		range_document := text("for")
 
 		if v.init != nil {
-			document = cons(document, break_with_space(), visit_stmt(p, v.init), text(";"))
+			range_document = cons(range_document, break_with_space(), visit_stmt(p, v.init), text(";"))
 		}
 
 		if len(v.vals) >= 1 {
-			document = cons_with_opl(document, visit_expr(p, v.vals[0]))
+			range_document = cons_with_opl(range_document, visit_expr(p, v.vals[0]))
 		}
 
 		if len(v.vals) >= 2 {
 			for val in v.vals[1:] {
-				document = cons(document, cons_with_opl(text(","), visit_expr(p, val)))
+				range_document = cons(range_document, cons_with_opl(text(","), visit_expr(p, val)))
 			}
 		}
 
-		document = cons_with_opl(document, text("in"))
+		range_document = cons_with_opl(range_document, text("in"))
 
-		document = cons_with_opl(document, visit_expr(p, v.expr))
+		range_document = cons_with_opl(range_document, visit_expr(p, v.expr))
+
+		// Newlines in a range-loop header trigger semicolon insertion and turn the
+		// header into invalid Odin, so it must remain on one physical line.
+		document = cons(document, enforce_fit(range_document))
 
 		set_source_position(p, v.body.pos)
 		document = cons_with_nopl(document, visit_stmt(p, v.body))
@@ -1254,7 +1264,7 @@ visit_stmt :: proc(
 			if is_return_stmt_ending_with_comp_lit_expr(v.results) {
 				document = cons(
 					document,
-					if_break_or_document(empty(), text(" ")),
+					text(" "),
 					visit_exprs(p, v.results, {.Add_Comma}),
 				)
 			} else if !is_return_stmt_ending_with_call_expr(v.results) {
@@ -2071,8 +2081,14 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		return document
 	}
 
+	declaration_alignment := 0
+	if p.config.align_struct_declarations && .Enforce_Newline in options {
+		declaration_alignment = get_possible_field_declaration_alignment(list.list)
+	}
+
 	for field, i in list.list {
 		align := empty()
+		declaration_align := empty()
 
 		p.source_position = field.pos
 
@@ -2095,23 +2111,49 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		name_options := List_Options{.Add_Comma}
 
 		if (.Enforce_Newline in options) {
-			if p.config.align_struct_fields {
+			// When align_struct_declarations is active, it handles the visual
+			if p.config.align_struct_fields && !p.config.align_struct_declarations {
 				alignment := get_possible_field_alignment(list.list)
 
 				if alignment > 0 {
 					length := 0
 					for name in field.names {
-						length += get_node_length(name) + 2
-						if .Using in field.flags {
-							length += 6
-						}
-						if .Subtype in field.flags {
-							length += 9
-						}
+						length += get_node_length(name)
+					}
+					if len(field.names) > 1 {
+						length += 2 * (len(field.names) - 1)
+					}
+					if .Using in field.flags {
+						length += 6
+					}
+					if .Subtype in field.flags {
+						length += 9
 					}
 					align = repeat_space(alignment - length)
 				}
 			}
+
+			if p.config.align_struct_declarations && declaration_alignment > 0 {
+				name_length := 0
+				for name in field.names {
+					name_length += get_node_length(name)
+				}
+				if len(field.names) > 1 {
+					name_length += 2 * (len(field.names) - 1)
+				}
+
+				if .Using in field.flags {
+					name_length += 6
+				}
+				if .Subtype in field.flags {
+					name_length += 9
+				}
+
+				if name_length > 0 && name_length < declaration_alignment {
+					declaration_align = repeat_space(declaration_alignment - name_length)
+				}
+			}
+
 			document = cons(document, visit_exprs(p, field.names, name_options))
 		} else {
 			document = cons_with_opl(document, visit_exprs(p, field.names, name_options))
@@ -2119,11 +2161,16 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 
 		if field.type != nil {
 			if len(field.names) != 0 {
-				document = cons(document, text(" :" if p.config.spaces_around_colons else ":"), align)
+				document = cons(
+					document,
+					declaration_align,
+					text(" :" if p.config.spaces_around_colons else ":"),
+					align,
+				)
 			}
 			document = cons_with_nopl(document, visit_expr(p, field.type))
 		} else {
-			document = cons(document, text(":"), text("="))
+			document = cons(document, declaration_align, text(":"), text("="))
 			document = cons_with_opl(document, visit_expr(p, field.default_value))
 		}
 
@@ -2499,11 +2546,43 @@ get_possible_field_alignment :: proc(fields: []^ast.Field) -> int {
 	for field in fields {
 		length := 0
 		for name in field.names {
-			length += get_node_length(name) + 2
+			length += get_node_length(name)
+		}
+
+		if len(field.names) > 1 {
+			length += 2 * (len(field.names) - 1)
 		}
 
 		if .Using in field.flags {
 			length += 6
+		}
+
+		longest_name = max(longest_name, length)
+	}
+
+	return longest_name
+}
+
+@(private)
+get_possible_field_declaration_alignment :: proc(fields: []^ast.Field) -> int {
+	longest_name := 0
+
+	for field in fields {
+		length := 0
+		for name in field.names {
+			length += get_node_length(name)
+		}
+
+		if len(field.names) > 1 {
+			length += 2 * (len(field.names) - 1)
+		}
+
+		if .Using in field.flags {
+			length += 6 // "using "
+		}
+
+		if .Subtype in field.flags {
+			length += 9 // "#subtype "
 		}
 
 		longest_name = max(longest_name, length)

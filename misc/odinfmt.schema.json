@@ -80,6 +80,16 @@
 			"type": "boolean",
 			"default": true,
 			"description": "Align the values of struct fields when assigning a struct value to a variable so they all start at the same column"
+		},
+		"align_struct_declarations": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align the struct declaration symbol in struct fields so they all start at the same column"
+		},
+		"align_constant_definitions": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align the :: or : of consecutive constant declarations so they all start at the same column. Constants separated by a blank line form separate alignment groups. Constants with type annotations are aligned separately from those without."
 		}
 	},
 	"required": []

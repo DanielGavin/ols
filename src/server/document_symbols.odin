@@ -41,6 +41,9 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 						if name == "" {
 							continue
 						}
+						if i < len(v.from_usings) && v.from_usings[i] != -1 {
+							continue
+						}
 						child: DocumentSymbol
 						child.range = v.ranges[i]
 						child.selectionRange = v.ranges[i]
@@ -73,7 +76,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 		case ^ast.Comp_Lit:
 			if s, ok := resolve_type_expression(&ast_context, v); ok {
 				ranges :: struct {
-					range: common.Range,
+					range:           common.Range,
 					selection_range: common.Range,
 				}
 				name_map := make(map[string]ranges)
@@ -84,7 +87,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 							range := common.get_token_range(field_value, ast_context.file.src)
 							ensure_selection_range_contained(&range, selection_range)
 							name_map[name.name] = {
-								range = range,
+								range           = range,
 								selection_range = selection_range,
 							}
 						}
@@ -130,7 +133,7 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 	return symbols[:]
 }
 
-@(private="file")
+@(private = "file")
 ensure_selection_range_contained :: proc(range: ^common.Range, selection_range: common.Range) {
 	// selection range must be contained with range, so we set the range start to be the selection range start
 	range.start = selection_range.start

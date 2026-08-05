@@ -328,6 +328,7 @@ untyped_map: [SymbolUntypedValueType][]string = {
 	.String     = {"string", "cstring"},
 	.Complex    = {"complex32", "complex64", "complex128"},
 	.Quaternion = {"quaternion64", "quaternion128", "quaternion256"},
+	.Rune       = {"rune"}
 }
 // odinfmt: enable
 
@@ -1074,12 +1075,24 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 							if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
 								using_score := 1000000
 								for k in value.usings {
-									if symbol, ok := resolve_type_expression(ast_context, value.types[k]); ok {
+									symbol := resolve_type_expression(ast_context, value.types[k]) or_continue
+
+									// foo :: proc (bar: ^Bar)       — level 1 (arg_symbol)
+									// baz: struct {using bar: ^Bar} — level 1 (symbol)
+									// foo(&baz)                     — level 1 (call_arg.symbol)
+									if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
+										using_score = min(k, using_score)
+										found = true
+										continue
+									}
+
+									// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
+									// baz: struct {using bar: Bar} — level 0 (symbol)
+									// foo(&baz)                    — level 1 (call_arg.symbol)
+									if call_arg.symbol.pointers != symbol.pointers {
 										symbol.pointers = call_arg.symbol.pointers
 										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
-											if k < using_score {
-												using_score = k
-											}
+											using_score = min(k, using_score)
 											found = true
 										}
 									}
@@ -1182,6 +1195,8 @@ resolve_basic_lit :: proc(ast_context: ^AstContext, basic_lit: ast.Basic_Lit) ->
 		} else {
 			value.type = .Quaternion
 		}
+	case .Rune:
+		value.type = .Rune
 	case:
 		if v, ok := strconv.parse_int(basic_lit.tok.text); ok {
 			value.type = .Integer
@@ -1254,14 +1269,14 @@ get_proc_return_types :: proc(
 	return return_types[:]
 }
 
-check_node_recursion :: proc(ast_context: ^AstContext, node: ^ast.Node) -> bool {
+check_node_recursion :: proc(recursion_map: ^map[rawptr]struct{}, node: ^ast.Node) -> bool {
 	raw := cast(rawptr)node
 
-	if raw in ast_context.recursion_map {
+	if raw in recursion_map {
 		return true
 	}
 
-	ast_context.recursion_map[raw] = {}
+	recursion_map[raw] = {}
 
 	return false
 }
@@ -1287,7 +1302,7 @@ resolve_location_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 	set_ast_package_scoped(ast_context)
 
-	if check_node_recursion(ast_context, node) {
+	if check_node_recursion(&ast_context.recursion_map, node) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, node)
@@ -1337,7 +1352,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 
 	set_ast_package_from_node_scoped(ast_context, node)
 
-	if check_node_recursion(ast_context, node) {
+	if check_node_recursion(&ast_context.recursion_map, node) {
 		return false
 	}
 	defer delete_key(&ast_context.recursion_map, node)
@@ -1531,7 +1546,13 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Ternary_When_Expr:
-		ok = internal_resolve_type_expression(ast_context, v.x, out)
+		when_expr_map := make_when_expr_map()
+		register_when_consts_from_globals(&when_expr_map, ast_context.globals)
+		if resolve_when_condition(v.cond, when_expr_map) {
+			ok = internal_resolve_type_expression(ast_context, v.x, out)
+			return ok
+		}
+		ok = internal_resolve_type_expression(ast_context, v.y, out)
 		return ok
 	case:
 		log.warnf("default node kind, internal_resolve_type_expression: %v", v)
@@ -1907,6 +1928,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			}
 		case SymbolBasicValue:
 			if s.ident != nil && node.field != nil {
+				if selector.name == "any" {
+					ident := new_type(ast.Ident, s.ident.pos, s.ident.end, context.temp_allocator)
+					ident.name = node.field.name == "id" ? "typeid" : "rawptr"
+					basic_sym := make_symbol_basic_type_from_ast(ast_context, ident)
+					basic_sym.type = .Field
+					basic_sym.flags = {.Mutable}
+					return basic_sym, true
+				}
 				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
 					return symbol, true
 				}
@@ -2061,7 +2090,7 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	ident := node.derived.(^ast.Ident)
-	if check_node_recursion(ast_context, ident) {
+	if check_node_recursion(&ast_context.recursion_map, ident) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, ident)
@@ -2213,7 +2242,7 @@ resolve_identifier_expr :: proc(
 
 	#partial switch v in expr.derived {
 	case ^ast.Distinct_Type:
-		symbol, ok = resolve_identifier_expr(ast_context, v.type, orig_expr, node, name, attributes, is_mutable)
+		symbol, ok = resolve_identifier_expr(ast_context, v.type, v.type, node, name, attributes, is_mutable)
 		symbol.name = name
 		symbol.flags |= {.Distinct}
 	case ^ast.Ident:
@@ -2393,7 +2422,7 @@ resolve_proc_lit :: proc(
 
 struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (^ast.Struct_Type, bool) {
 	ident := node.derived.(^ast.Ident)
-	if check_node_recursion(ast_context, ident) {
+	if check_node_recursion(&ast_context.recursion_map, ident) {
 		return {}, false
 	}
 	defer delete_key(&ast_context.recursion_map, ident)
@@ -2518,6 +2547,10 @@ internal_resolve_comp_literal :: proc(
 				return_index = i
 				break
 			}
+		}
+
+		if position_context.function == nil {
+			return {}, false
 		}
 
 		if position_context.function.type == nil {
@@ -2996,10 +3029,11 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
 
 			for type in v.types {
-				append(&types, clone_expr(type, context.temp_allocator, nil))
+				append(&types, clone_expr(type, ast_context.allocator, nil))
 			}
 
 			v.types = types[:]
+			v.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 
 			resolve_poly_union(ast_context, v.poly, &symbol)
 		}
@@ -3009,9 +3043,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if v.poly != nil {
 			clear(&b.types)
 			for type in v.types {
-				append(&b.types, clone_expr(type, context.temp_allocator, nil))
+				append(&b.types, clone_expr(type, ast_context.allocator, nil))
 			}
-			b.poly = cast(^ast.Field_List)clone_type(v.poly, context.temp_allocator, nil)
+			b.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
@@ -4436,22 +4470,6 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 		if proc_lit.type != nil && position_in_node(proc_lit.type, position_context.position) {
 			return true
 		}
-	}
-
-	return false
-}
-
-position_in_struct_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
-	if position_context.value_decl == nil {
-		return false
-	}
-
-	if len(position_context.value_decl.values) != 1 {
-		return false
-	}
-
-	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); ok {
-		return true
 	}
 
 	return false

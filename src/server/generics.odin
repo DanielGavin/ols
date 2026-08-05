@@ -1,5 +1,6 @@
 package server
 
+import "core:strings"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
@@ -20,8 +21,7 @@ resolve_poly :: proc(
 	specialization: ^ast.Expr
 	type: ^ast.Expr
 
-	poly_node := poly_node
-	poly_node, _, _ = unwrap_pointer_expr(poly_node)
+	poly_node, param_pointers, _ := unwrap_pointer_expr(poly_node)
 
 	#partial switch v in poly_node.derived {
 	case ^ast.Typeid_Type:
@@ -37,7 +37,8 @@ resolve_poly :: proc(
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
 				if call_symbol.type_expr != nil {
-					save_poly_map(ident, call_symbol.type_expr, poly_map)
+					type_expr, _, _ := unwrap_pointer_expr(call_symbol.type_expr)
+					save_poly_map(ident, type_expr, poly_map)
 				} else if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if is_compound_symbol_value(call_symbol.value) {
@@ -53,7 +54,8 @@ resolve_poly :: proc(
 				} else {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				}
-				if call_symbol.pointers > 0 {
+				remaining := call_symbol.pointers - param_pointers
+				if remaining > 0 {
 					if expr, expr_ok := get_poly_map(ident, poly_map); expr_ok {
 						save_poly_map(ident, wrap_pointer(expr, call_symbol.pointers), poly_map)
 					}
@@ -308,7 +310,7 @@ resolve_poly_expression :: proc(
 
 	call_node := call_node
 	poly_node := poly_node
-	
+
 	// The expression for the specialization already contains the pointers
 	// so we don't need to represent it in the next poly
 	// Note: this function is only ever called by `resolve_poly_specialization`
@@ -760,8 +762,11 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 	clear(&b.poly_names)
 
 	for param in poly_params.list {
+		if param == nil {
+			continue
+		}
 		for name in param.names {
-			append(&b.poly_names, node_to_string(name))
+			append(&b.poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -770,12 +775,14 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				continue
 			}
 
+			arg := clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+
 			if poly_name, ok := get_poly_param_name(name); ok {
-				poly_map[poly_name] = ast_context.call.args[i]
-				b.poly_names[i] = node_to_string(ast_context.call.args[i])
+				poly_map[poly_name] = arg
+				b.poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
-			append(&b.args, ast_context.call.args[i])
+			append(&b.args, arg)
 
 			i += 1
 		}
@@ -788,6 +795,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		parent_proc:          ^ast.Proc_Type,
 		i:                    int,
 		poly_index:           int,
+		recursion_map:        map[rawptr]struct{},
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -796,6 +804,9 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		data := cast(^Visit_Data)visitor.data
+		if check_node_recursion(&data.recursion_map, node) {
+			return nil
+		}
 
 		if ident, ok := node.derived.(^ast.Ident); ok {
 			if expr, ok := data.poly_map[ident.name]; ok {
@@ -846,12 +857,15 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 						if expr_matches_poly_name(v.value, ident.name) {
 							v.value = expr
 						}
-
 					case ^ast.Call_Expr:
 						for arg, i in v.args {
 							if expr_matches_poly_name(arg, ident.name) {
 								v.args[i] = expr
 							}
+						}
+					case ^ast.Multi_Pointer_Type:
+						if expr_matches_poly_name(v.elem, ident.name) {
+							v.elem = expr
 						}
 					}
 				} else if data.parent_proc == nil {
@@ -864,7 +878,12 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type, ^ast.Dynamic_Array_Type, ^ast.Selector_Expr, ^ast.Pointer_Type, ^ast.Map_Type:
+		case ^ast.Array_Type,
+		     ^ast.Dynamic_Array_Type,
+		     ^ast.Selector_Expr,
+		     ^ast.Pointer_Type,
+		     ^ast.Map_Type,
+		     ^ast.Multi_Pointer_Type:
 			data.parent = node
 		case ^ast.Proc_Type:
 			data.parent_proc = v
@@ -906,11 +925,15 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	poly_names := make([dynamic]string, 0, context.temp_allocator)
+	poly_names := make([dynamic]string, 0, ast_context.allocator)
 
 	for param in poly_params.list {
+		if param == nil {
+			continue
+		}
+
 		for name in param.names {
-			append(&poly_names, node_to_string(name))
+			append(&poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -919,16 +942,9 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 				continue
 			}
 
-			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
-				if ident, ok := name.derived.(^ast.Ident); ok {
-					poly_map[ident.name] = ast_context.call.args[i]
-					poly_names[i] = node_to_string(ast_context.call.args[i])
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
-					if poly.type != nil {
-						poly_map[poly.type.name] = ast_context.call.args[i]
-						poly_names[i] = node_to_string(ast_context.call.args[i])
-					}
-				}
+			if poly_name, ok := get_poly_param_name(name); ok {
+				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+				poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
 			i += 1

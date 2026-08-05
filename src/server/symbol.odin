@@ -148,6 +148,7 @@ SymbolUntypedValueType :: enum {
 	Quaternion,
 	String,
 	Bool,
+	Rune,
 }
 
 SymbolUntypedValue :: struct {
