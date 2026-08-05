@@ -85,6 +85,11 @@
 			"type": "boolean",
 			"default": true,
 			"description": "Align trailing line comments on consecutive lines so they all start at the same column"
+		},
+		"align_struct_declarations": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align the struct declaration symbol in struct fields so they all start at the same column"
 		}
 	},
 	"required": []

@@ -64,6 +64,7 @@ Config :: struct {
 	space_single_line_blocks:         bool,
 	align_struct_fields:              bool,
 	align_struct_values:              bool,
+	align_struct_declarations:        bool,
 	align_comments:                   bool, //Align trailing line comments to the same column.
 	multiline_composite_literals:     bool,
 }
@@ -117,6 +118,7 @@ when ODIN_OS == .Windows {
 		spaces_around_colons             = false,
 		align_struct_fields              = true,
 		align_struct_values              = true,
+		align_struct_declarations        = false,
 		align_comments                   = true,
 		multiline_composite_literals     = true,
 	}
@@ -135,6 +137,7 @@ when ODIN_OS == .Windows {
 		spaces_around_colons             = false,
 		align_struct_fields              = true,
 		align_struct_values              = true,
+		align_struct_declarations        = false,
 		align_comments                   = true,
 		multiline_composite_literals     = true,
 	}
@@ -407,4 +410,3 @@ print_sorted_imports :: proc(p: ^Printer, decls: []^ast.Stmt) {
 		p.document = cons(p.document, visit_decl(p, cast(^ast.Decl)decl))
 	}
 }
-

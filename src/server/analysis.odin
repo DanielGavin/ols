@@ -2242,7 +2242,7 @@ resolve_identifier_expr :: proc(
 
 	#partial switch v in expr.derived {
 	case ^ast.Distinct_Type:
-		symbol, ok = resolve_identifier_expr(ast_context, v.type, orig_expr, node, name, attributes, is_mutable)
+		symbol, ok = resolve_identifier_expr(ast_context, v.type, v.type, node, name, attributes, is_mutable)
 		symbol.name = name
 		symbol.flags |= {.Distinct}
 	case ^ast.Ident:
@@ -3029,10 +3029,11 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
 
 			for type in v.types {
-				append(&types, clone_expr(type, context.temp_allocator, nil))
+				append(&types, clone_expr(type, ast_context.allocator, nil))
 			}
 
 			v.types = types[:]
+			v.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 
 			resolve_poly_union(ast_context, v.poly, &symbol)
 		}
@@ -3042,9 +3043,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if v.poly != nil {
 			clear(&b.types)
 			for type in v.types {
-				append(&b.types, clone_expr(type, context.temp_allocator, nil))
+				append(&b.types, clone_expr(type, ast_context.allocator, nil))
 			}
-			b.poly = cast(^ast.Field_List)clone_type(v.poly, context.temp_allocator, nil)
+			b.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
@@ -4469,22 +4470,6 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 		if proc_lit.type != nil && position_in_node(proc_lit.type, position_context.position) {
 			return true
 		}
-	}
-
-	return false
-}
-
-position_in_struct_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
-	if position_context.value_decl == nil {
-		return false
-	}
-
-	if len(position_context.value_decl.values) != 1 {
-		return false
-	}
-
-	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); ok {
-		return true
 	}
 
 	return false
