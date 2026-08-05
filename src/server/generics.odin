@@ -21,8 +21,7 @@ resolve_poly :: proc(
 	specialization: ^ast.Expr
 	type: ^ast.Expr
 
-	poly_node := poly_node
-	poly_node, _, _ = unwrap_pointer_expr(poly_node)
+	poly_node, param_pointers, _ := unwrap_pointer_expr(poly_node)
 
 	#partial switch v in poly_node.derived {
 	case ^ast.Typeid_Type:
@@ -38,7 +37,8 @@ resolve_poly :: proc(
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
 				if call_symbol.type_expr != nil {
-					save_poly_map(ident, call_symbol.type_expr, poly_map)
+					type_expr, _, _ := unwrap_pointer_expr(call_symbol.type_expr)
+					save_poly_map(ident, type_expr, poly_map)
 				} else if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if is_compound_symbol_value(call_symbol.value) {
@@ -54,7 +54,8 @@ resolve_poly :: proc(
 				} else {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				}
-				if call_symbol.pointers > 0 {
+				remaining := call_symbol.pointers - param_pointers
+				if remaining > 0 {
 					if expr, expr_ok := get_poly_map(ident, poly_map); expr_ok {
 						save_poly_map(ident, wrap_pointer(expr, call_symbol.pointers), poly_map)
 					}
