@@ -65,6 +65,7 @@ get_code_actions :: proc(
 		if action == "source" || action == "source.organizeImports" {
 			source_organize_imports(
 				document,
+				&ast_context,
 				strings.clone(document.uri.uri, context.temp_allocator),
 				config,
 				&actions,
@@ -123,6 +124,7 @@ get_code_actions :: proc(
 
 source_organize_imports :: proc(
 	document: ^Document,
+	ast_context: ^AstContext,
 	uri: string,
 	config: ^common.Config,
 	actions: ^[dynamic]CodeAction,
@@ -160,6 +162,11 @@ source_organize_imports :: proc(
 	insert_line := pkg_decl.end.line
 	insert_col := 0
 
+	if config.enable_add_import_to_bottom {
+		most_bottom_line, _ := find_most_bottom_line_number(ast_context)
+		insert_line = most_bottom_line
+	}
+
 	if col, ok := common.get_last_column(insert_line, document.text); ok {
 		insert_col = col
 	}
@@ -172,6 +179,7 @@ source_organize_imports :: proc(
 			},
 			newText = fmt.tprintf("\nimport \"%v\"", imp.original),
 		}
+
 		append(&textEdits, import_edit)
 	}
 
@@ -269,7 +277,7 @@ add_missing_imports :: proc(
 				}
 
 				if pkg == name.name {
-					import_edit : TextEdit
+					import_edit: TextEdit
 					if config.enable_add_import_to_bottom {
 						most_bottom_line, is_import := find_most_bottom_line_number(ast_context)
 
