@@ -318,11 +318,17 @@ visit_decl :: proc(p: ^Printer, decl: ^ast.Decl, called_in_stmt := false) -> ^Do
 		lhs = cons(lhs, visit_exprs(p, v.names, {.Add_Comma, .Glue}))
 
 		if v.type != nil {
-			lhs = cons(lhs, text(" :" if p.config.spaces_around_colons else ":"))
+			// Typed constant/variable: pad before the colon so it lines up
+			type_colon := text(" :" if p.config.spaces_around_colons else ":")
+			padding := p.constant_alignment[decl.pos.offset]
+			lhs = cons(lhs, repeat_space(padding), type_colon)
 			lhs = cons_with_nopl(lhs, visit_expr(p, v.type))
 		} else {
 			if !v.is_mutable {
-				lhs = cons_with_nopl(lhs, cons(text(":"), text(":")))
+				// Constant (::): pad before the colons so it lines up
+				double_colon := cons(text(":"), text(":"))
+				padding := p.constant_alignment[decl.pos.offset]
+				lhs = cons_with_nopl(lhs, cons(repeat_space(padding), double_colon))
 			} else {
 				lhs = cons_with_nopl(lhs, text(":"))
 			}
