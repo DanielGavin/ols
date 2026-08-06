@@ -32,6 +32,7 @@ Printer :: struct {
 	render_line:          int, //Output line counter, used to group aligned comments.
 	line_indentation:     int, //Indentation depth of the current line.
 	trailing_comments:    [dynamic]Trailing_Comment_Record,
+	constant_alignment:   map[int]int,
 }
 
 Disabled_Info :: struct {
@@ -65,6 +66,7 @@ Config :: struct {
 	align_struct_fields:              bool,
 	align_struct_values:              bool,
 	align_struct_declarations:        bool,
+	align_constant_definitions:       bool,
 	align_comments:                   bool, //Align trailing line comments to the same column.
 	multiline_composite_literals:     bool,
 }
@@ -119,6 +121,7 @@ when ODIN_OS == .Windows {
 		align_struct_fields              = true,
 		align_struct_values              = true,
 		align_struct_declarations        = false,
+		align_constant_definitions       = false,
 		align_comments                   = true,
 		multiline_composite_literals     = true,
 	}
@@ -138,6 +141,7 @@ when ODIN_OS == .Windows {
 		align_struct_fields              = true,
 		align_struct_values              = true,
 		align_struct_declarations        = false,
+		align_constant_definitions       = false,
 		align_comments                   = true,
 		multiline_composite_literals     = true,
 	}
@@ -145,6 +149,72 @@ when ODIN_OS == .Windows {
 
 make_printer :: proc(config: Config, allocator := context.allocator) -> Printer {
 	return {config = config, allocator = allocator}
+}
+
+// Width of a constant's name as it'll render, counting "using " and the ", "
+// between multiple names.
+@(private)
+get_constant_name_width :: proc(v: ^ast.Value_Decl) -> int {
+	width := v.is_using ? 6 : 0 // "using "
+	for name, i in v.names {
+		width += get_node_length(name)
+		if i < len(v.names) - 1 {
+			width += 2 // ", "
+		}
+	}
+	return width
+}
+
+// Figures out how much padding each constant needs so consecutive ones line up
+// their :: or :. A blank line or a change in type annotation starts a new group,
+// since :: and : don't share an alignment point.
+@(private)
+compute_constant_alignment :: proc(p: ^Printer, decls: []^ast.Stmt) {
+	i := 0
+	for i < len(decls) {
+		decl := cast(^ast.Decl)decls[i]
+		v, ok := decl.derived.(^ast.Value_Decl)
+		// Mutable decls use :=, not ::, so they're not constants
+		if !ok || v.is_mutable {
+			i += 1
+			continue
+		}
+
+		has_type := v.type != nil
+		group_start := i
+		max_width := get_constant_name_width(v)
+
+		j := i + 1
+		for j < len(decls) {
+			next := cast(^ast.Decl)decls[j]
+			nv, is_value := next.derived.(^ast.Value_Decl)
+			if !is_value || nv.is_mutable {
+				break
+			}
+			// Different type annotation means a different alignment point
+			if (nv.type != nil) != has_type {
+				break
+			}
+			// Stop at blank lines
+			prev := cast(^ast.Decl)decls[j - 1]
+			if next.pos.line > prev.end.line + 1 {
+				break
+			}
+			max_width = max(max_width, get_constant_name_width(nv))
+			j += 1
+		}
+
+		// A lone constant doesn't need alignment
+		if j > group_start + 1 {
+			for k := group_start; k < j; k += 1 {
+				kd := cast(^ast.Decl)decls[k]
+				kv := kd.derived.(^ast.Value_Decl)
+				p.constant_alignment[kd.pos.offset] = max_width - get_constant_name_width(kv)
+			}
+		}
+
+		i = j
+	}
 }
 
 
@@ -235,6 +305,10 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 	}
 
 	build_disabled_lines_info(p)
+
+	if p.config.align_constant_definitions {
+		compute_constant_alignment(p, file.decls[:])
+	}
 
 	p.source_position.line = 1
 	p.source_position.column = 1

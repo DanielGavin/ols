@@ -32,11 +32,6 @@
 			"default": false,
 			"description": "Convert all do statements to brace blocks"
 		},
-		"multiline_composite_literals": {
-			"type": "boolean",
-			"default": true,
-			"description": "Composite literals that span multiple lines are not forcibly inlined"
-		},
 		"brace_style": {
 			"type": "string",
 			"enum": ["_1TBS", "Allman", "Stroustrup", "K_And_R"],
@@ -81,15 +76,25 @@
 			"default": true,
 			"description": "Align the values of struct fields when assigning a struct value to a variable so they all start at the same column"
 		},
+		"align_struct_declarations": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align the struct declaration symbol in struct fields so they all start at the same column"
+		},
+		"align_constant_definitions": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align the :: or : of consecutive constant declarations so they all start at the same column. Constants separated by a blank line form separate alignment groups. Constants with type annotations are aligned separately from those without."
+		},
 		"align_comments": {
 			"type": "boolean",
 			"default": true,
 			"description": "Align trailing line comments on consecutive lines so they all start at the same column"
 		},
-		"align_struct_declarations": {
+		"multiline_composite_literals": {
 			"type": "boolean",
-			"default": false,
-			"description": "Align the struct declaration symbol in struct fields so they all start at the same column"
+			"default": true,
+			"description": "Composite literals that span multiple lines are not forcibly inlined"
 		}
 	},
 	"required": []
