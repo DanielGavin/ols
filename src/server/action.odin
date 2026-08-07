@@ -122,6 +122,49 @@ get_code_actions :: proc(
 	return actions[:], true
 }
 
+
+make_unused_import_edits :: proc(
+	document: ^Document,
+	removed_lines: ^map[int]struct{} = nil,
+	allocator := context.temp_allocator,
+) -> [dynamic]TextEdit {
+	unused_imports := find_unused_imports(document, context.temp_allocator)
+
+	textEdits := make([dynamic]TextEdit, 0, len(unused_imports), allocator)
+
+	for imp in unused_imports {
+		range := common.get_token_range(imp.import_decl, document.ast.src)
+
+		import_edit := TextEdit {
+			range = {
+				start = {line = range.start.line, character = 0},
+				end = {line = range.end.line + 1, character = 0},
+			},
+			newText = "",
+		}
+
+		//The last line of the document has no trailing newline to consume.
+		if _, ok := common.get_last_column(range.end.line + 1, document.text); !ok {
+			if column, ok := common.get_last_column(range.end.line, document.text); ok {
+				import_edit.range.end = {
+					line      = range.end.line,
+					character = column,
+				}
+			}
+		}
+
+		if removed_lines != nil {
+			for line in range.start.line ..= range.end.line {
+				removed_lines[line] = {}
+			}
+		}
+
+		append(&textEdits, import_edit)
+	}
+
+	return textEdits
+}
+
 source_organize_imports :: proc(
 	document: ^Document,
 	ast_context: ^AstContext,
@@ -129,42 +172,46 @@ source_organize_imports :: proc(
 	config: ^common.Config,
 	actions: ^[dynamic]CodeAction,
 ) {
-	unused_imports := find_unused_imports(document, context.temp_allocator)
+	removed_lines := make(map[int]struct{}, 0, context.temp_allocator)
+
+	textEdits := make_unused_import_edits(document, &removed_lines, context.temp_allocator)
+
 	used_unimported := find_used_not_imported(document, config, context.temp_allocator)
 
-	textEdits := make([dynamic]TextEdit, context.temp_allocator)
+	// Anchor new imports at the end of an existing line and prefix the text with a newline, so
+	// the insert can never land inside a line that a removal edit deletes. The ast positions are
+	// one indexed, while the lsp positions are zero indexed.
 
-	for imp in unused_imports {
-		range := common.get_token_range(imp.import_decl, document.ast.src)
+	pkg_line := document.ast.pkg_decl.end.line - 1
 
-		import_edit := TextEdit {
-			range   = range,
-			newText = "",
-		}
+	//The line above the first import, so new imports end up at the top of the import block.
+	insert_line := pkg_line
 
-		if (range.start.line != 1) {
-			if column, ok := common.get_last_column(import_edit.range.start.line - 1, document.text); ok {
-				import_edit.range.start.line -= 1
-				import_edit.range.start.character = column
-			}
+	first_import_line := max(int)
 
-		}
-
-		append(&textEdits, import_edit)
+	for imp in document.ast.imports {
+		first_import_line = min(first_import_line, imp.pos.line)
 	}
 
-	pkg_decl := document.ast.pkg_decl
+	if len(document.ast.imports) > 0 {
+		insert_line = max(first_import_line - 1, pkg_line)
+	}
 
-	// Anchor new imports at the end of the package declaration line. Inserting a
-	// leading newline here keeps the edit off any import line, so it never overlaps a
-	// removal edit for an unused import.
-
-	insert_line := pkg_decl.end.line
 	insert_col := 0
 
 	if config.enable_add_import_to_bottom {
-		most_bottom_line, _ := find_most_bottom_line_number(ast_context)
-		insert_line = most_bottom_line
+		most_bottom_line, _ := find_most_bottom_line_number(ast_context) 
+		most_bottom_line -= 1 //go to zero based indexing
+		insert_line = max(most_bottom_line, pkg_line)
+	}
+
+	//Walk past any line that is being removed, the package declaration is never removed.
+	for insert_line > pkg_line {
+		if _, is_removed := removed_lines[insert_line]; !is_removed {
+			break
+		}
+
+		insert_line -= 1
 	}
 
 	if col, ok := common.get_last_column(insert_line, document.text); ok {
@@ -205,32 +252,10 @@ remove_unused_imports :: proc(
 	config: ^common.Config,
 	actions: ^[dynamic]CodeAction,
 ) {
-	unused_imports := find_unused_imports(document, context.temp_allocator)
+	textEdits := make_unused_import_edits(document, nil, context.temp_allocator)
 
-	if len(unused_imports) == 0 {
+	if len(textEdits) == 0 {
 		return
-	}
-
-	textEdits := make([dynamic]TextEdit, context.temp_allocator)
-
-	for imp in unused_imports {
-		range := common.get_token_range(imp.import_decl, document.ast.src)
-
-		import_edit := TextEdit {
-			range   = range,
-			newText = "",
-		}
-
-		if (range.start.line != 1) {
-			if column, ok := common.get_last_column(import_edit.range.start.line - 1, document.text); ok {
-				import_edit.range.start.line -= 1
-				import_edit.range.start.character = column
-			}
-
-		}
-
-
-		append(&textEdits, import_edit)
 	}
 
 	workspaceEdit: WorkspaceEdit
