@@ -2064,6 +2064,10 @@ get_range_from_selection_start_to_dot :: proc(position_context: ^DocumentPositio
 	return {}, false
 }
 
+/*
+	Returns the one based indexed line of the bottom most declaration, comment or import in the file,
+	and whether that line is an import.
+*/
 find_most_bottom_line_number :: proc(ast_context: ^AstContext) -> (int, bool) {
 	most_bottom_line := 0
 	is_import := false
