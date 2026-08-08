@@ -1203,7 +1203,8 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 		replace_package_alias(n.align, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
 	case ^ast.Field:
-		replace_package_alias(n.names, package_map, collection)
+		// NOTE: Field.names are declared names, not references,
+		//       so should not be replaced with package paths.
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.default_value, package_map, collection)
 	case ^ast.Field_List:

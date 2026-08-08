@@ -1,11 +1,11 @@
 package ols_testing
 
-import "core:slice"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
@@ -45,7 +45,7 @@ setup :: proc(src: ^Source) {
 
 	if len(src.main) > 0 {
 		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
-		src.main  = ""
+		src.main = ""
 	}
 
 	if len(src.files) <= 0 {
@@ -60,6 +60,23 @@ setup :: proc(src: ^Source) {
 	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
 	src.document.text = source
 	src.document.used_text = len(source)
+
+	// Make the test packages reachable through the collections
+	if len(src.collections) > 0 {
+		server.build_cache.pkg_aliases = make(map[string][dynamic]string, 0, context.temp_allocator)
+	}
+
+	for collection, collection_path in src.collections {
+		src.config.collections[collection] = collection_path
+
+		aliases := make([dynamic]string, context.temp_allocator)
+
+		for src_pkg in src.packages {
+			append(&aliases, src_pkg.pkg)
+		}
+
+		server.build_cache.pkg_aliases[collection] = aliases
+	}
 
 	server.setup_index(server.get_builtin_path())
 
@@ -94,7 +111,8 @@ setup :: proc(src: ^Source) {
 
 		if len(src_pkg.files) > 0 do for f in src_pkg.files {
 			process_file(f.name, f.source, pkg)
-		} else {
+		}
+		else {
 			process_file("package.odin", src_pkg.source, pkg)
 		}
 	}
@@ -134,15 +152,16 @@ setup :: proc(src: ^Source) {
 teardown :: proc(src: ^Source) {
 	server.free_index()
 	server.indexer.index = {}
+	server.build_cache.pkg_aliases = {}
 	virtual.arena_destroy(src.document.allocator)
 }
 
-source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
+source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
 
 	source: ^string
 	if src.main != "" {
 		source = &src.main
-	} else if len(src.files) > 0{
+	} else if len(src.files) > 0 {
 		source = &src.files[0].source
 	}
 
@@ -160,10 +179,10 @@ source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
 	}
 
 	// remove cursor mark from source
-	new_source := make([]u8, len(source)-len(CURSOR), context.temp_allocator)
+	new_source := make([]u8, len(source) - len(CURSOR), context.temp_allocator)
 	copy(new_source[:marker_pos], source[:marker_pos])
-	copy(new_source[marker_pos:], source[marker_pos+len(CURSOR):])
-	source ^= string(new_source)
+	copy(new_source[marker_pos:], source[marker_pos + len(CURSOR):])
+	source^ = string(new_source)
 
 	// find cursor (line,col) position
 	last: u8
@@ -287,8 +306,7 @@ expect_completion_labels :: proc(
 
 	if len(missing_expected) > 0 ||
 	   len(present_excluded) > 0 ||
-	   (len(expect_labels) == 0 && len(completion_list.items) > 0)
-	{
+	   (len(expect_labels) == 0 && len(completion_list.items) > 0) {
 		sb := strings.builder_make(context.temp_allocator)
 		defer log.error(strings.to_string(sb))
 
@@ -634,14 +652,14 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 }
 
 
-expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string, ctx: server.CodeActionContext = {}) {
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 	}
@@ -674,7 +692,7 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 		return
@@ -702,6 +720,127 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	}
 
 	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
+}
+
+/*
+	Applies all the edits of a code action to the document and compares the result with `expected`.
+
+	The edits are applied back to front, which is one of the orders a client is allowed to use, and
+	the one that will produce a different result than a client applying them front to back if any of
+	the edits overlap. Overlapping edits are reported as an error for the same reason.
+*/
+expect_action_applied :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	action_name: string,
+	expected: string,
+	ctx: server.CodeActionContext = {},
+) {
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range{cursor, cursor}
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title != action_name {
+			continue
+		}
+
+		edits, found := action.edit.changes[src.document.uri.uri]
+
+		if !found {
+			log.errorf("Action '%s' found but has no edits", action_name)
+			return
+		}
+
+		text := apply_text_edits(edits, string(src.document.text))
+
+		testing.expectf(t, text == expected, "\nExpected:\n%s\n\nGot:\n%s", expected, text)
+		return
+	}
+
+	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
+}
+
+@(private)
+AppliedTextEdit :: struct {
+	absolute: common.AbsoluteRange,
+	index:    int,
+	newText:  string,
+}
+
+@(private)
+apply_text_edits :: proc(edits: []server.TextEdit, text: string) -> string {
+	applied := make([dynamic]AppliedTextEdit, 0, len(edits), context.temp_allocator)
+
+	for edit, i in edits {
+		absolute, ok := common.get_absolute_range(edit.range, transmute([]u8)text)
+
+		if !ok {
+			log.errorf("Failed to get the absolute range of edit %v", edit)
+			return text
+		}
+
+		append(&applied, AppliedTextEdit{absolute = absolute, index = i, newText = edit.newText})
+	}
+
+	//Back to front, with the ties broken so that the array order decides the order of insertions
+	//that share a position.
+	slice.sort_by(applied[:], proc(a, b: AppliedTextEdit) -> bool {
+		if a.absolute.start != b.absolute.start {
+			return a.absolute.start > b.absolute.start
+		}
+
+		return a.index > b.index
+	})
+
+	for a, i in applied {
+		for b in applied[i + 1:] {
+			if edits_conflict(a.absolute, b.absolute) {
+				log.errorf(
+					"Overlapping edits, the result depends on the order the client applies them in: %v and %v",
+					edits[a.index],
+					edits[b.index],
+				)
+			}
+		}
+	}
+
+	result := text
+
+	for a in applied {
+		result = fmt.tprintf("%s%s%s", result[:a.absolute.start], a.newText, result[a.absolute.end:])
+	}
+
+	return result
+}
+
+@(private)
+edits_conflict :: proc(a, b: common.AbsoluteRange) -> bool {
+	a_is_insert := a.start == a.end
+	b_is_insert := b.start == b.end
+
+	//Insertions that share a position are well defined by the order of the edits.
+	if a_is_insert && b_is_insert {
+		return false
+	}
+
+	if a_is_insert {
+		return b.start <= a.start && a.start < b.end
+	}
+
+	if b_is_insert {
+		return a.start <= b.start && b.start < a.end
+	}
+
+	return a.start < b.end && b.start < a.end
 }
 
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {

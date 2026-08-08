@@ -2991,63 +2991,6 @@ ast_generics_pointer_poly :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, ".", {"AAA.value: ^int"})
-
-}
-
-
-@(test)
-ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package main
-		Direction :: enum {
-			North,
-			East,
-			South,
-			West,
-		}
-
-		Direction_Vectors :: [Direction][2]int {
-			.North = {0, -1},
-			.East  = {+1, 0},
-			.South = {0, +1},
-			.West  = {-1, 0},
-		}
-
-		main :: proc() {
-			Direction_Vectors[.{*}]
-		}
-		`,
-	}
-
-	test.expect_completion_labels(t, &source, ".", {"North", "East", "South", "West"})
-}
-
-
-@(test)
-ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package main
-		Enum :: enum {
-			Foo,
-			Bar,
-			Baz,
-		}
-
-		ARRAY :: [Enum]string{
-			.Foo = "foo",
-			.Bar = "bar",
-			.Baz = "baz",
-		}
-
-		main :: proc() {
-			for item, indezx in ARRAY {
-				indez{*} 
-			}
-		}
-		`,
-	}
-
-	test.expect_completion_docs(t, &source, "", {"test.indezx: test.Enum"})
 }
 
 @(test)
@@ -3652,11 +3595,84 @@ ast_completion_enumerated_array :: proc(t: ^testing.T) {
 		Bar :: struct {}
 
 		db_data: [Foo]Bar = {
+			{*}
+		}
+		`,
+	}
+	test.expect_completion_labels(t, &source, "", {".Foo1", ".Foo2"})
+}
+
+@(test)
+ast_completion_enumerated_array_dot :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		Bar :: struct {}
+
+		db_data: [Foo]Bar = {
 			.{*}
 		}
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {".Foo1", ".Foo2"})
+}
+
+@(test)
+ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Direction :: enum {
+			North,
+			East,
+			South,
+			West,
+		}
+
+		Direction_Vectors :: [Direction][2]int {
+			.North = {0, -1},
+			.East  = {+1, 0},
+			.South = {0, +1},
+			.West  = {-1, 0},
+		}
+
+		main :: proc() {
+			Direction_Vectors[.{*}]
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"North", "East", "South", "West"})
+}
+
+@(test)
+ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Enum :: enum {
+			Foo,
+			Bar,
+			Baz,
+		}
+
+		ARRAY :: [Enum]string{
+			.Foo = "foo",
+			.Bar = "bar",
+			.Baz = "baz",
+		}
+
+		main :: proc() {
+			for item, indezx in ARRAY {
+				indez{*} 
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.indezx: test.Enum"})
 }
 
 @(test)
@@ -3726,7 +3742,7 @@ ast_completion_nested_enumerated_array :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.Foo: .Foo1"}, {"test.Foo: .Foo2"})
+	test.expect_completion_labels(t, &source, "", {".Foo1"}, {".Foo2"})
 }
 
 @(test)
