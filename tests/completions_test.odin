@@ -5601,7 +5601,7 @@ ast_completion_fake_method_using_subtype :: proc(t: ^testing.T) {
 			{
 				pkg = "lib",
 				source = `package lib
-					Inner :: struct {foo: int}
+					Inner :: struct {foo: int, using outer: Outer} // Infinite recursion check
 					Outer :: struct {using inner: Inner}
 
 					takes_inner :: proc (inner: Inner) {}
