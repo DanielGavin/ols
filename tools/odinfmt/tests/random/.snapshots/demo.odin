@@ -93,10 +93,10 @@ the_basics :: proc() {
 		// Constant literals are “untyped” which means that they can implicitly convert to a type.
 
 		y: int // `y` is typed of type `int`
-		y = 1 // `1` is an untyped integer literal which can implicitly convert to `int`
+		y = 1  // `1` is an untyped integer literal which can implicitly convert to `int`
 
 		z: f64 // `z` is typed of type `f64` (64-bit floating point number)
-		z = 1 // `1` is an untyped integer literal which can be implicitly converted to `f64`
+		z = 1  // `1` is an untyped integer literal which can be implicitly converted to `f64`
 		// No need for any suffixes or decimal places like in other languages
 		// (with the exception of negative zero, which must be given as `-0.0`)
 		// CONSTANTS JUST WORK!!!
@@ -104,7 +104,7 @@ the_basics :: proc() {
 
 		// Assignment statements
 		h: int = 123 // declares a new variable `h` with type `int` and assigns a value to it
-		h = 637 // assigns a new value to `h`
+		h = 637      // assigns a new value to `h`
 
 		// `=` is the assignment operator
 
@@ -493,9 +493,9 @@ explicit_procedure_overloading :: proc() {
 	add(f32(1), f32(2))
 	add(int(1), f32(2), u8(3))
 
-	add(1, 2) // untyped ints coerce to int tighter than f32
+	add(1, 2)     // untyped ints coerce to int tighter than f32
 	add(1.0, 2.0) // untyped floats coerce to f32 tighter than int
-	add(1, 2, 3) // three parameters
+	add(1, 2, 3)  // three parameters
 
 	// Ambiguous answers
 	// add(1.0, 2)
@@ -550,8 +550,8 @@ struct_type :: proc() {
 	{
 		// Structs can tagged with different memory layout and alignment requirements:
 
-		a :: struct #align 4 {} // align to 4 bytes
-		b :: struct #packed {} // remove padding between fields
+		a :: struct #align 4 {}   // align to 4 bytes
+		b :: struct #packed {}    // remove padding between fields
 		c :: struct #raw_union {} // all fields share the same offset (0). This is the same as C's union
 	}
 
@@ -1131,15 +1131,29 @@ parametric_polymorphism :: proc() {
 			return
 		}
 
-		x := [2][3]f32{{1, 2, 3}, {3, 2, 1}}
-		y := [3][2]f32{{0, 8}, {6, 2}, {8, 4}}
+		x := [2][3]f32 {
+			{1, 2, 3},
+			{3, 2, 1},
+		}
+		y := [3][2]f32 {
+			{0, 8},
+			{6, 2},
+			{8, 4},
+		}
 		z := mul(x, y)
 		assert(z == {{36, 24}, {20, 32}})
 	}
 }
 
 
-prefix_table := [?]string{"White", "Red", "Green", "Blue", "Octarine", "Black"}
+prefix_table := [?]string {
+	"White",
+	"Red",
+	"Green",
+	"Blue",
+	"Octarine",
+	"Black",
+}
 
 print_mutex := b64(false)
 
@@ -1493,8 +1507,8 @@ bit_set_type :: proc() {
 
 		assert(a <= b) // 'a' is a subset of 'b'
 		assert(b >= a) // 'b' is a superset of 'a'
-		assert(a < b) // 'a' is a strict subset of 'b'
-		assert(b > a) // 'b' is a strict superset of 'a'
+		assert(a < b)  // 'a' is a strict subset of 'b'
+		assert(b > a)  // 'b' is a strict superset of 'a'
 
 		assert(!(a < c)) // 'a' is a not strict subset of 'c'
 		assert(!(c > a)) // 'c' is a not strict superset of 'a'
@@ -2509,7 +2523,12 @@ matrix_type :: proc() {
 		mat2 :: distinct matrix[2, 2]f32
 		mat4 :: distinct matrix[4, 4]f32
 
-		m2 := mat2{1, 3, 2, 4}
+		m2 := mat2 {
+			1,
+			3,
+			2,
+			4,
+		}
 
 		m4 := mat4(m2)
 		assert(m4[2, 2] == 1)
@@ -2519,7 +2538,24 @@ matrix_type :: proc() {
 		fmt.println("mat2(m4)", mat2(m4))
 		assert(mat2(m4) == m2)
 
-		b4 := mat4{1, 2, 0, 0, 3, 4, 0, 0, 5, 0, 6, 0, 0, 7, 0, 8}
+		b4 := mat4 {
+			1,
+			2,
+			0,
+			0,
+			3,
+			4,
+			0,
+			0,
+			5,
+			0,
+			6,
+			0,
+			0,
+			7,
+			0,
+			8,
+		}
 		fmt.println("b4", matrix_flatten(b4))
 	}
 
@@ -2532,7 +2568,16 @@ matrix_type :: proc() {
 		mat2x4 :: distinct matrix[2, 4]f32
 		mat4x2 :: distinct matrix[4, 2]f32
 
-		x := mat2x4{1, 3, 5, 7, 2, 4, 6, 8}
+		x := mat2x4 {
+			1,
+			3,
+			5,
+			7,
+			2,
+			4,
+			6,
+			8,
+		}
 
 		y := mat4x2(x)
 		fmt.println("x", x)

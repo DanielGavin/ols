@@ -45,8 +45,8 @@ return_with_call_expression_in_the_end :: proc() {
 
 return_with_comp_lit_expression_in_the_end :: proc() {
 	return {
-		alloc_fn = allocator_alloc_func,
-		free_fn = allocator_free_func,
+		alloc_fn  = allocator_alloc_func,
+		free_fn   = allocator_free_func,
 		user_data = cast(rawptr)context_ptr,
 	}
 }

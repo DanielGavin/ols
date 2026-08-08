@@ -183,6 +183,10 @@ Options:
 
 - `align_struct_values`: Align the values of struct fields when assigning a struct value to a variable so they all start at the same column.
 
+- `align_comments`: Align trailing line comments on consecutive lines so they all start at the same column. The alignment resets on a blank line, a line without a trailing comment, or a change in indentation. Standalone comment lines and `/* */` block comments are not aligned.
+
+- `multiline_composite_literals`: When enabled, composite literals that were written across multiple lines are kept multiline.
+
 ## Features
 
 Support Language server features:

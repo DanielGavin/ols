@@ -104,10 +104,10 @@ visit_comment :: proc(p: ^Printer, comment: tokenizer.Token) -> (int, ^Document)
 				delete_key(&p.comments_option, comment.pos.line)
 				return newlines_before_comment, cons_with_nopl(
 					document,
-					cons(text(p.indentation), line_suffix(comment.text)),
+					cons(text(p.indentation), line_suffix(comment.text, alignable = true)),
 				)
 			} else {
-				return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text))
+				return newlines_before_comment, cons_with_nopl(document, line_suffix(comment.text, alignable = true))
 			}
 		} else {
 			p.source_position = comment.pos
@@ -1864,6 +1864,8 @@ visit_expr :: proc(
 		should_newline &= len(v.elems) != 0
 
 		should_newline |= contains_comments_in_range(p, v.pos, v.end)
+
+		should_newline |= p.config.multiline_composite_literals && len(v.elems) > 0 && v.open.line != v.close.line
 
 		if should_newline {
 			document = cons_with_nopl(document, visit_begin_brace(p, v.pos, .Comp_Lit))
