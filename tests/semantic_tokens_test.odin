@@ -454,3 +454,21 @@ semantic_tokens_alias_from_poly_struct :: proc(t: ^testing.T) {
 		{0, 4,  3, .Type,          {.ReadOnly}}, // [4]  int
 	})
 }
+
+@(test)
+semantic_tokens_poly_proc_value_param :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		generic_proc :: proc($FOO: int) {
+			FOO
+		}
+		`
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 2,  12, .Function,  {.ReadOnly}}, // [0]  generic_proc
+		{0, 22, 3,  .Parameter, {}},          // [1]  FOO
+		{0, 5,  3,  .Type,      {.ReadOnly}}, // [2]  int
+		{1, 3,  3,  .Parameter, {}},          // [3]  FOO
+	})
+}
