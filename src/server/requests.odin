@@ -723,22 +723,15 @@ request_initialize :: proc(
 	config.enable_checker_workspace_diagnostics = false
 	config.enable_auto_import = true
 
-	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) -> (ok: bool) {
-		data, err := os.read_entire_file(file, context.temp_allocator)
-		if err != nil {
-			log.warnf("Failed to read/find %v: %v", file, err)
-			return
-		}
+	load_ols_config :: proc(data: []byte, config: ^common.Config, uri: common.Uri) -> (err: json.Unmarshal_Error) {
 		ols_config: OlsConfig
 
 		json_err := json.unmarshal(data, &ols_config, allocator = context.temp_allocator)
-		if json_err == nil {
-			read_ols_initialize_options(config, ols_config, uri)
-			ok = true
-		} else {
-			log.errorf("Failed to unmarshal %v: %v", file, json_err)
+		if json_err != nil {
+			return json_err
 		}
-		return
+		read_ols_initialize_options(config, ols_config, uri)
+		return nil
 	}
 
 	project_uri := ""
@@ -749,20 +742,21 @@ request_initialize :: proc(
 		project_uri = initialize_params.rootUri
 	}
 
-	// Get the global ols config path.
-	global_ols_config_path := path.join(
-		elems = {filepath.dir(os.args[0]), "ols.json"},
-		allocator = context.temp_allocator,
-	)
-
 	uri, uri_ok := common.parse_uri(project_uri, context.temp_allocator)
-
-	global_config_loaded := read_ols_config(global_ols_config_path, config, uri)
 	read_ols_initialize_options(config, initialize_params.initializationOptions, uri)
 	if uri_ok {
 		// Apply ols.json config.
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
-		read_ols_config(ols_config_path, config, uri)
+		data, err := os.read_entire_file(ols_config_path, context.temp_allocator)
+		if err != nil {
+			log.warnf("Failed to read/find %v: %v", ols_config_path, err)
+		} else {
+			json_err := load_ols_config(data, config, uri)
+			if json_err != nil{
+				log.errorf("Failed to unmarshal %v: %v",ols_config_path, json_err)
+				return .ParseError
+			}
+		}
 	}
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
