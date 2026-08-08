@@ -704,7 +704,7 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
 }
 
-expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
+expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken, loc := #caller_location) {
 	setup(src)
 	defer teardown(src)
 
@@ -723,6 +723,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 		"\nExpected %d tokens, but received %d",
 		len(expected),
 		len(tokens),
+		loc=loc,
 	)
 
 	for i in 0 ..< min(len(expected), len(tokens)) {
@@ -742,6 +743,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 			a.len,
 			a.type,
 			a.modifiers,
+			loc=loc,
 		)
 	}
 }
