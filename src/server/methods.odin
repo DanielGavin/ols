@@ -73,38 +73,58 @@ append_method_completion :: proc(
 			)
 		}
 	} else {
+		seen := make(map[^ast.Expr]struct {}, context.temp_allocator)
+		seen[selector_symbol.type_expr] = {}
+		_collect_type_methods(ast_context, selector_symbol, position_context, results, receiver, remove_edit, &seen)
+	}
+
+	_collect_type_methods :: proc (
+		ast_context:      ^AstContext,
+		symbol:           Symbol,
+		position_context: ^DocumentPositionContext,
+		results:          ^[dynamic]CompletionResult,
+		receiver:         string,
+		remove_edit:      []TextEdit,
+		seen:             ^map[^ast.Expr]struct {},
+	) {
 		method := Method {
-			name = selector_symbol.name,
+			name = symbol.name,
 			// For typed values, check if it's a builtin type
-			pkg  = selector_symbol.pkg if !is_builtin_type_name(selector_symbol.name) else "$builtin",
+			pkg  = symbol.pkg if !is_builtin_type_name(symbol.name) else "$builtin",
 		}
 		collect_methods(
 			ast_context,
 			position_context,
 			method,
-			selector_symbol.pointers,
+			symbol.pointers,
 			receiver,
 			remove_edit,
 			results,
 		)
 
-		// Handle using fields in structs
-		if struct_value, is_struct := selector_symbol.value.(SymbolStructValue); is_struct {
+		if struct_value, is_struct := symbol.value.(SymbolStructValue); is_struct {
+			// Handle using fields in structs
 			for using_idx in struct_value.usings {
 				if using_idx >= len(struct_value.types) do continue
 
 				using_type_expr := struct_value.types[using_idx]
 				if using_type_expr == nil do continue
 
+				// Prevent infinite recursion when using types are cyclic
+				if using_type_expr in seen do continue
+				seen[using_type_expr] = {}
+
 				using_symbol := resolve_type_expression(ast_context, using_type_expr) or_continue
 
 				// Recursively collect methods for the using field's type
-				append_method_completion(
+				_collect_type_methods(
 					ast_context,
 					using_symbol,
 					position_context,
 					results,
 					receiver,
+					remove_edit,
+					seen,
 				)
 			}
 		}
