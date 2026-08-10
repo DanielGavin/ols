@@ -96,15 +96,8 @@ main :: proc() {
 		write_failure = !ok
 	} else if os.is_file(args.path) {
 		if args.write {
-			backup_path := strings.concatenate({args.path, "_bk"})
-			defer delete(backup_path)
-
 			if data, ok := format_file(args.path, config, arena_allocator); ok {
-				os.rename(args.path, backup_path)
-
-				if err := os.write_entire_file(args.path, transmute([]byte)data); err == nil {
-					os.remove(backup_path)
-				}
+				write_formatted_file(args.path, data)
 			} else {
 				fmt.eprintf("Failed to write %v", args.path)
 				write_failure = true
@@ -133,16 +126,9 @@ main :: proc() {
 		for file in files {
 			fmt.println(file)
 
-			backup_path := strings.concatenate({file, "_bk"})
-			defer delete(backup_path)
-
 			if data, ok := format_file(file, config, arena_allocator); ok {
 				if args.write {
-					os.rename(file, backup_path)
-
-					if err := os.write_entire_file(file, transmute([]byte)data); err == nil {
-						os.remove(backup_path)
-					}
+					write_formatted_file(file, data)
 				} else {
 					fmt.println(data)
 				}
@@ -168,4 +154,22 @@ main :: proc() {
 	}
 
 	os.exit(1 if write_failure else 0)
+}
+
+write_formatted_file :: proc(path: string, data: string) {
+	// capture and preserve original file perms
+	info, stat_err := os.stat(path, context.temp_allocator)
+
+	backup_path := strings.concatenate({path, "_bk"})
+	defer delete(backup_path)
+
+	os.rename(path, backup_path)
+
+	if err := os.write_entire_file(path, transmute([]byte)data); err == nil {
+		if stat_err == nil {
+			_ = os.chmod(path, info.mode)
+		}
+
+		os.remove(backup_path)
+	}
 }
