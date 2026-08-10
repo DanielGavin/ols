@@ -1,10 +1,7 @@
 package odinfmt_test
 
 main :: proc() {
-	foos := []string {
-		"foo",
-		"bar",
-	}
+	foos := []string{"foo", "bar"}
 
 	for i in 0 ..< len(foos) {
 		switch foo := foo[i]; {

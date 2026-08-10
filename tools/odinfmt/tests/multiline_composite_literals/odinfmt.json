@@ -1,4 +1,5 @@
 {
 	"character_width": 80,
-	"newline_style": "LF"
+	"newline_style": "LF",
+	"multiline_composite_literals": true
 }
