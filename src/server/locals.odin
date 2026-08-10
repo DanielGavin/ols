@@ -680,10 +680,10 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 	}
 
 	for lhs, i in stmt.lhs {
-		if ident, ok := lhs.derived.(^ast.Ident); ok {
+		if ident, ok := unwrap_ident(lhs); ok {
 			store_local(
 				ast_context,
-				lhs,
+				ident,
 				results[i],
 				ident.pos.offset,
 				ident.name,

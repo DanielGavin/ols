@@ -7347,3 +7347,23 @@ ast_hover_generic_pointer_through_proc :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.baz: ^int")
 }
+
+@(test)
+ast_hover_switch_variable_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: union {
+			int,
+			string,
+		}
+
+		bar :: proc(foo: ^Foo) {
+			switch &v{*} in foo^ {
+			}
+			return nil
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.v: test.Foo")
+}

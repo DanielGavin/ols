@@ -5588,6 +5588,33 @@ ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^tes
 }
 
 @(test)
+ast_completion_fake_method_using_subtype :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "lib"
+		main :: proc() {
+			outer: lib.Outer
+			outer.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "lib",
+				source = `package lib
+					Inner :: struct {foo: int, using outer: Outer} // Infinite recursion check
+					Outer :: struct {using inner: Inner}
+
+					takes_inner :: proc (inner: Inner) {}
+				`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"takes_inner", "inner", "foo"})
+}
+
+@(test)
 ast_completion_fake_method_proc_alias :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
