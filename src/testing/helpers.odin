@@ -74,8 +74,9 @@ source_location_display :: proc (
 
 	max_digits := math.count_digits_of_base(end.line, 10)
 
-	it := file.source
 	line_idx := 0
+	in_location: bool
+	it := file.source
 	for line in strings.split_lines_iterator(&it) {
 		defer line_idx += 1
 
@@ -87,13 +88,23 @@ source_location_display :: proc (
 		}
 
 		// Write line number aligned to largest
-		buf: [4]byte
-		line_idx_str := strconv.write_int(buf[:], i64(line_idx), 10)
-		for _ in 0..<max_digits-len(line_idx_str) {
-			strings.write_rune(&sb, ' ')
+		{
+			if in_location {
+				strings.write_string(&sb, after)
+			}
+
+			buf: [4]byte
+			line_idx_str := strconv.write_int(buf[:], i64(line_idx), 10)
+			for _ in 0..<max_digits-len(line_idx_str) {
+				strings.write_rune(&sb, ' ')
+			}
+			strings.write_string(&sb, line_idx_str)
+			strings.write_rune(&sb, '|')
+
+			if in_location {
+				strings.write_string(&sb, before)
+			}
 		}
-		strings.write_string(&sb, line_idx_str)
-		strings.write_rune(&sb, '|')
 
 		if start.line > line_idx { // before but include
 			// Write line
@@ -104,18 +115,29 @@ source_location_display :: proc (
 
 		// Write line with colored location
 		for ch, i in line {
-			if i == start.character {
+			if !in_location && start.line == line_idx && i == start.character {
+				in_location = true
 				strings.write_string(&sb, before)
 			}
 
 			strings.write_rune(&sb, ch)
 
-			if i == end.character-1 {
+			if in_location && end.line == line_idx && i == end.character-1 {
+				in_location = false
 				strings.write_string(&sb, after)
 			}
 		}
 
+		if in_location && line_idx >= end.line {
+			in_location = false
+			strings.write_string(&sb, after)
+		}
+
 		strings.write_rune(&sb, '\n')
+	}
+
+	if in_location {
+		strings.write_string(&sb, after)
 	}
 
 	return strings.to_string(sb)
@@ -124,7 +146,7 @@ source_location_display :: proc (
 compare_expected_slice_set :: proc (
 	actual, expected: []$T,
 	excluded: []T = nil,
-	equals: proc (a, b: T) -> bool,
+	equals: proc (a, e: T) -> bool,
 	allocator := context.allocator,
 ) -> (
 	extra_expected: []int,
