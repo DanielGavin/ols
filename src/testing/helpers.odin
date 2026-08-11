@@ -188,6 +188,7 @@ compare_expected_slice_set :: proc (
 		if found_expected[ei] {
 			continue
 		}
+		all_good = false
 		append(&extra_expected_dyn, ei)
 	}
 
