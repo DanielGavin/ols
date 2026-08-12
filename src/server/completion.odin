@@ -34,6 +34,7 @@ Completion_Type :: enum {
 	Comp_Lit,
 	Directive,
 	Package,
+	Attribute,
 }
 
 get_completion_list :: proc(
@@ -117,6 +118,14 @@ get_completion_list :: proc(
 		completion_type = .Directive
 	}
 
+	// Attributes are matched against the source rather than the AST. A
+	// half-typed `@(` leaves the declaration it belongs to unparseable, so by
+	// the time the user wants this completion there is no Attribute node to
+	// find — the same reason the position context has no field for one.
+	if is_in_attribute(&position_context) {
+		completion_type = .Attribute
+	}
+
 	if position_context.implicit {
 		completion_type = .Implicit
 	}
@@ -170,6 +179,8 @@ get_completion_list :: proc(
 		is_incomplete = get_type_switch_completion(&ast_context, &position_context, &results)
 	case .Directive:
 		is_incomplete = get_directive_completion(&ast_context, &position_context, &results)
+	case .Attribute:
+		is_incomplete = get_attribute_completion(&ast_context, &position_context, &results)
 	case .Package:
 		is_incomplete = get_package_completion(&ast_context, &position_context, &results, config)
 	}
@@ -736,13 +747,96 @@ get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> 
 	return get_short_signature(ast_context, symbol)
 }
 
+/*
+	Is the position inside an attribute, i.e. after an `@` or inside its `(...)`?
+
+	Scans the source backwards from the cursor instead of consulting the AST: an
+	attribute is typed before the declaration it applies to, so while the user is
+	writing one there is no complete declaration to hang an ast.Attribute off.
+
+	Stops at a newline, since an attribute's `@` is always on the same line as
+	the name being completed, and bails on `)` so a finished `@(private)` on the
+	same line does not keep offering attributes afterwards.
+*/
+is_in_attribute :: proc(position_context: ^DocumentPositionContext) -> bool {
+	src := position_context.file.src
+	pos := position_context.position
+
+	if pos > len(src) {
+		return false
+	}
+
+	// `=` means a value is expected rather than another attribute name, but only
+	// for the pair being written: in `@(link_name="x", req|` the `=` belongs to a
+	// pair already finished off by the comma.
+	crossed_comma := false
+
+	for i := pos - 1; i >= 0; i -= 1 {
+		switch src[i] {
+		case '@':
+			// An `@` in a comment is not an attribute.
+			return !position_in_comment(position_context.file, pos)
+		case '\n', ')':
+			return false
+		case ',':
+			crossed_comma = true
+		case '=':
+			if !crossed_comma {
+				return false
+			}
+		case '(', ' ', '\t', '"':
+			continue
+		case:
+			// Only an identifier can sit between `@` and the cursor.
+			if !tokenizer.is_letter(rune(src[i])) && !tokenizer.is_digit(rune(src[i])) {
+				return false
+			}
+		}
+	}
+
+	return false
+}
+
+position_in_comment :: proc(file: ast.File, position: common.AbsolutePosition) -> bool {
+	for group in file.comments {
+		if group.pos.offset <= position && position <= group.end.offset {
+			return true
+		}
+	}
+
+	return false
+}
+
+completion_items_attributes: []CompletionResult
+
+@(init)
+_init_completion_items_attributes :: proc "contextless" () {
+	context = runtime.default_context()
+	attributes := make([dynamic]CompletionResult, 0, len(attribute_docs), allocator = context.allocator)
+	for name, doc in attribute_docs {
+		documentation := MarkupContent {
+			kind  = "markdown",
+			value = doc,
+		}
+		append(
+			&attributes,
+			CompletionResult {
+				completion_item = CompletionItem{label = name, kind = .Keyword, documentation = documentation},
+			},
+		)
+	}
+	completion_items_attributes = attributes[:]
+}
+
 get_attribute_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
-	list: ^CompletionList,
-) {
+	results: ^[dynamic]CompletionResult,
+) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
 
-
+	append(results, ..completion_items_attributes[:])
+	return false
 }
 
 completion_items_directives: []CompletionResult
