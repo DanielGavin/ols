@@ -45,7 +45,11 @@
 			"type": "boolean",
 			"description": "Turns on builtin snippets"
 		},
-
+		"enable_unused_imports_reporting": {
+			"type": "boolean",
+			"description": "Turn on reporting of unused imported packages.",
+			"default": true
+		},
 		"enable_inlay_hints_params": {
 			"type": "boolean",
 			"description": "Turn on inlay hints for (non-default) parameters.",
