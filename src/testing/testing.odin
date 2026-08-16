@@ -520,30 +520,51 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 	defer teardown(src)
 
 	locations, ok := server.get_definition_location(src.document, cursor, &src.config)
-
-	if !ok {
-		log.error("Failed get_definition_location")
+	if !ok && len(expect_locations) > 0 {
+		log.error("No definitions found.")
+		return
 	}
 
-	if len(expect_locations) == 0 && len(locations) > 0 {
-		log.errorf("Expected empty locations, but received %v", locations)
-	}
-
-	flags := make([]int, len(expect_locations), context.temp_allocator)
-
-	for expect_location, i in expect_locations {
-		for location, j in locations {
-			if location.range == expect_location.range {
-				flags[i] += 1
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(
+		locations, expect_locations, equals = proc (a, e: common.Location) -> bool {
+			if e.uri != "" {
+				if a.range == e.range && a.uri == e.uri {
+					return true
+				}
+			} else if a.range == e.range {
+				return true
 			}
+			return false
+	})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Definition(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
+			}
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			log.errorf("Expected location %v, but received %v", expect_locations[i].range, locations)
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Definition(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
+
+	log.error(strings.to_string(sb))
 }
 
 expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
@@ -553,45 +574,57 @@ expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_loc
 	defer teardown(src)
 
 	locations, ok := server.get_type_definition_locations(src.document, cursor)
-
-	if !ok {
-		log.error("Failed get_definition_location")
+	if !ok && len(expect_locations) > 0 {
+		log.error("No type definitions found.")
+		return
 	}
 
-	if len(expect_locations) == 0 && len(locations) > 0 {
-		log.errorf("Expected empty locations, but received %v", locations)
-	}
-
-	flags := make([]int, len(expect_locations), context.temp_allocator)
-
-	for expect_location, i in expect_locations {
-		for location, j in locations {
-			if expect_location.uri != "" {
-				if location.range == expect_location.range && location.uri == expect_location.uri {
-					flags[i] += 1
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(
+		locations, expect_locations, equals = proc (a, e: common.Location) -> bool {
+			if e.uri != "" {
+				if a.range == e.range && a.uri == e.uri {
+					return true
 				}
-			} else if location.range == expect_location.range {
-				flags[i] += 1
+			} else if a.range == e.range {
+				return true
 			}
+			return false
+	})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Type definition(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
+			}
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			if expect_locations[i].uri == "" {
-				log.errorf("Expected location %v, but received %v", expect_locations[i].range, locations)
-			} else {
-				log.errorf("Expected location %v, but received %v", expect_locations[i], locations)
-			}
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Type definition(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
+
+	log.error(strings.to_string(sb))
 }
 
 expect_reference_locations :: proc(
 	t: ^testing.T,
 	src: ^Source,
 	expect_locations: []common.Location,
-	expect_excluded: []common.Location = nil,
 	include_declaration := true,
 ) {
 	cursor := source_remove_cursor(src)
@@ -599,35 +632,43 @@ expect_reference_locations :: proc(
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, cursor, include_declaration = include_declaration)
+	locations, got_references := server.get_references(src.document, cursor, include_declaration = include_declaration)
+	if !got_references && len(expect_locations) > 0 {
+		log.error("No references found.")
+		return
+	}
 
-	for expect_location in expect_locations {
-		match := false
-		for location in locations {
-			if location.range == expect_location.range {
-				match = true
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(locations, expect_locations,
+	                                                                        equals = proc (a, b: common.Location) -> bool {return a.range == b.range})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Reference(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
 			}
-		}
-		if !match {
-			ok = false
-			log.errorf("Failed to match with location: %v", expect_location)
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	if !ok {
-		log.error("Received:")
-		for location in locations {
-			log.errorf("%v \n", location)
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Reference(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
 
-	for expect_exclude in expect_excluded {
-		for location in locations {
-			if expect_exclude.range == location.range {
-				log.errorf("Expected location %v to not be included\n", expect_exclude)
-			}
-		}
-	}
+	log.error(strings.to_string(sb))
 }
 
 expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
