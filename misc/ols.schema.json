@@ -136,7 +136,11 @@
   			"enum": ["", "file", "package"],
   			"default": ""
 		},
-		"disable_parser_errors": { "type": "boolean" },
+		"disable_parser_errors": {
+			"type": "boolean",
+			"description": "Disable real-time diagnostics from `core:odin/parser`",
+  			"default": false
+		},
 		"verbose": {
 			"type": "boolean",
 			"description": "Logs warnings instead of just errors."
