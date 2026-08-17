@@ -1,7 +1,5 @@
 package main
 
-import "base:intrinsics"
-
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -10,6 +8,8 @@ import "core:thread"
 
 import "src:common"
 import "src:server"
+
+@require import "src:spall"
 
 VERSION := #config(VERSION, "dev")
 

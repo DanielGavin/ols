@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:odin/ast"
 
 import "src:common"
+import "src:spall"
 
 get_inlay_hints :: proc(
 	document: ^Document,
@@ -15,6 +16,8 @@ get_inlay_hints :: proc(
 	[]InlayHint,
 	bool,
 ) {
+	spall.trace(#procedure, document.fullpath)
+
 	Visitor_Data :: struct {
 		document: ^Document,
 		range:    common.Range,

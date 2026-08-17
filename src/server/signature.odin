@@ -7,6 +7,7 @@ import "core:odin/tokenizer"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 SignatureInformationCapabilities :: struct {
 	parameterInformation: ParameterInformationCapabilities,
@@ -84,6 +85,8 @@ get_signature_information :: proc(
 	SignatureHelp,
 	bool,
 ) {
+	spall.trace(#procedure, document.fullpath)
+
 	signature_help: SignatureHelp
 
 	ast_context := make_ast_context(

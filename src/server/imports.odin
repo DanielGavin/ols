@@ -10,6 +10,7 @@ import "core:odin/ast"
 import path "core:path/slashpath"
 
 import "src:common"
+import "src:spall"
 
 find_used_not_imported :: proc(
 	document: ^Document,
@@ -96,6 +97,7 @@ find_used_not_imported :: proc(
 }
 
 find_unused_imports :: proc(document: ^Document, allocator := context.temp_allocator) -> []Package {
+	spall.trace(#procedure, document.fullpath)
 
 	file := resolve_entire_file_cached(document)
 

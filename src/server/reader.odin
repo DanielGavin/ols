@@ -1,7 +1,5 @@
 package server
 
-import "core:mem"
-import "core:os"
 import "core:strings"
 
 ReaderFn :: proc(_: rawptr, _: []byte) -> (int, int)

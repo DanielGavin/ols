@@ -7,6 +7,7 @@ import path "core:path/slashpath"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 SymbolCollection :: struct {
 	allocator:      mem.Allocator,
@@ -757,6 +758,9 @@ get_package_decl_doc_comment :: proc(file: ast.File, allocator := context.temp_a
 }
 
 collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: string) -> common.Error {
+
+	spall.trace(#procedure, file.fullpath)
+
 	forward, _ := filepath.replace_separators(file.fullpath, '/', context.temp_allocator)
 	directory := path.dir(forward, context.temp_allocator)
 	package_map := get_package_mapping(file, collection.config, directory)

@@ -12,6 +12,7 @@ import "core:slice"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 prepare_references :: proc(
 	document: ^Document,
@@ -22,7 +23,8 @@ prepare_references :: proc(
 	resolve_flag: ResolveReferenceFlag,
 	ok: bool,
 ) {
-	ok = false
+	spall.trace(#procedure, document.fullpath)
+
 	pkg := ""
 
 	if position_context.enum_type != nil {
@@ -239,6 +241,8 @@ resolve_references :: proc(
 	[]common.Location,
 	bool,
 ) {
+	spall.trace(#procedure, document.fullpath)
+
 	locations := make([dynamic]common.Location, 0, ast_context.allocator)
 	fullpaths := make([dynamic]string, 0, ast_context.allocator)
 
@@ -343,7 +347,7 @@ resolve_references :: proc(
 			pkg      = pkg,
 		}
 
-		ok := parser.parse_file(&p, &file)
+		ok := parse_file(&p, &file)
 
 		if !ok {
 			if !is_ols_builtin_file(fullpath) {

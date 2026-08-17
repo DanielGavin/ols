@@ -11,6 +11,7 @@ import "core:odin/tokenizer"
 import "core:unicode/utf8"
 
 import "src:common"
+import "src:spall"
 
 SemanticTokenTypes :: enum u32 {
 	Namespace,
@@ -130,6 +131,8 @@ get_semantic_tokens :: proc(
 	range: common.Range,
 	symbols: map[uintptr]SymbolAndNode,
 ) -> []SemanticToken {
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,

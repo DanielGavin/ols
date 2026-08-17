@@ -6,6 +6,7 @@ import "core:odin/tokenizer"
 import "core:slice"
 
 import "src:common"
+import "src:spall"
 
 SymbolAndNode :: struct {
 	symbol:                            Symbol,
@@ -539,6 +540,8 @@ write_symbol_bitfield_value :: proc(
 }
 
 expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	base := len(b.names) - 1
 	for len(b.unexpanded_usings) > 0 {
 		u := pop_front(&b.unexpanded_usings)
@@ -710,6 +713,9 @@ new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> ^Symbo
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
+
+	spall.trace(#procedure, symbol.name)
+
 	if symbol.signature != "" &&
 	   symbol.signature != "struct" &&
 	   symbol.signature != "union" &&

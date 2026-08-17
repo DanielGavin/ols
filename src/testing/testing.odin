@@ -133,7 +133,7 @@ setup :: proc(src: ^Source) {
 			pkg      = pkg,
 		}
 
-		ok := parser.parse_file(&p, &file)
+		ok := server.parse_file(&p, &file)
 
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source")

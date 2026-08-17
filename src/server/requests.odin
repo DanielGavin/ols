@@ -14,9 +14,9 @@ import "core:slice"
 import "core:strconv"
 import "core:strings"
 import "core:sync"
-import "core:time"
 
 import "src:common"
+import "src:spall"
 
 Header :: struct {
 	content_length: int,
@@ -346,30 +346,25 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		return
 	}
 
-	diff: time.Duration
-	{
-		time.SCOPED_TICK_DURATION(&diff)
-
-		if fn, ok := call_map[method]; !ok {
-            // nil id == notification - do not respond
-            if id != nil {
-			response := make_response_message_error(
-				id = id,
-				error = ResponseError{code = .MethodNotFound, message = ""},
-			)
+	if fn, ok := call_map[method]; !ok {
+		// nil id == notification - do not respond
+		if id != nil {
+		response := make_response_message_error(
+			id = id,
+			error = ResponseError{code = .MethodNotFound, message = ""},
+		)
+		send_error(response, writer)
+		}
+	} else {
+		params := root["params"]
+		spall.trace(method, json.unparse(params) or_else "json.unparse error")
+		err := fn(params, id, config, writer)
+		// nil id == notification - do not respond
+		if err != .None && id != nil {
+			response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
 			send_error(response, writer)
-            }
-		} else {
-			err := fn(root["params"], id, config, writer)
-			// nil id == notification - do not respond
-			if err != .None && id != nil {
-				response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
-				send_error(response, writer)
-			}
 		}
 	}
-
-	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
