@@ -10,7 +10,7 @@ import "src:spall"
 get_inlay_hints :: proc(
 	document: ^Document,
 	range: common.Range,
-	symbols: map[uintptr]SymbolAndNode,
+	symbols: SymbolAndNodeMap,
 	config: ^common.Config,
 ) -> (
 	[]InlayHint,
@@ -21,7 +21,7 @@ get_inlay_hints :: proc(
 	Visitor_Data :: struct {
 		document: ^Document,
 		range:    common.Range,
-		symbols:  map[uintptr]SymbolAndNode,
+		symbols:  SymbolAndNodeMap,
 		config:   ^common.Config,
 		hints:    [dynamic]InlayHint,
 		depth:    int,
