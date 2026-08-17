@@ -11,6 +11,7 @@ import "core:testing"
 
 import "src:common"
 import "src:server"
+import "src:spall"
 
 File :: struct {
 	name:   string,
@@ -34,6 +35,7 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
+	spall.trace(#procedure)
 
 	src.document = new(server.Document, context.temp_allocator)
 
@@ -207,6 +209,8 @@ expect_signature_labels :: proc(
 	expect_labels: []string,
 	expected_active_parameter := -1,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -269,6 +273,8 @@ expect_completion_labels :: proc(
 	expect_labels: []string,
 	expect_excluded: []string = nil,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -340,6 +346,8 @@ expect_completion_docs :: proc(
 	expect_details: []string,
 	expect_excluded: []string = nil,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -402,6 +410,8 @@ expect_completion_insert_text :: proc(
 	trigger_character: string,
 	expect_inserts: []string,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -488,6 +498,8 @@ expect_completion_edit_text :: proc(
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -514,6 +526,8 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -568,6 +582,8 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 }
 
 expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -627,6 +643,8 @@ expect_reference_locations :: proc(
 	expect_locations: []common.Location,
 	include_declaration := true,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -672,6 +690,8 @@ expect_reference_locations :: proc(
 }
 
 expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -694,6 +714,8 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 
 
 expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string, ctx: server.CodeActionContext = {}) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -727,6 +749,8 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 }
 
 expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -777,6 +801,8 @@ expect_action_applied :: proc(
 	expected: string,
 	ctx: server.CodeActionContext = {},
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -885,6 +911,8 @@ edits_conflict :: proc(a, b: common.AbsoluteRange) -> bool {
 }
 
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
+	spall.trace(#procedure)
+
 	setup(src)
 	defer teardown(src)
 
@@ -927,6 +955,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 }
 
 expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
+	spall.trace(#procedure)
 
 	src_builder := strings.builder_make(context.temp_allocator)
 	expected_hints := make([dynamic]server.InlayHint, context.temp_allocator)

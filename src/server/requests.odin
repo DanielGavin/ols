@@ -61,6 +61,8 @@ requests: [dynamic]Request
 deletings: [dynamic]Request
 
 thread_request_main :: proc(data: rawptr) {
+	spall.name_thread("request")
+
 	request_data := cast(^RequestThreadData)data
 
 	for common.config.running {
@@ -110,6 +112,8 @@ thread_request_main :: proc(data: rawptr) {
 		sync.mutex_lock(&requests_mutex)
 
 		method := root["method"].(json.String)
+
+		spall.trace("request", fmt.tprint(method, id))
 
 		if method == "$/cancelRequest" {
 			append(&deletings, Request{id = id})
@@ -357,7 +361,7 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		}
 	} else {
 		params := root["params"]
-		spall.trace(method, json.unparse(params) or_else "json.unparse error")
+		spall.trace(method)
 		err := fn(params, id, config, writer)
 		// nil id == notification - do not respond
 		if err != .None && id != nil {

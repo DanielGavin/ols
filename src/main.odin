@@ -8,8 +8,7 @@ import "core:thread"
 
 import "src:common"
 import "src:server"
-
-@require import "src:spall"
+import "src:spall"
 
 VERSION := #config(VERSION, "dev")
 
@@ -103,6 +102,8 @@ end :: proc() {
 }
 
 main :: proc() {
+	spall.name_thread("main")
+
 	if len(os.args) > 1 && os.args[1] == "version" {
 		fmt.println("ols version", VERSION)
 		os.exit(0)
