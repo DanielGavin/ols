@@ -102,7 +102,7 @@ end :: proc() {
 }
 
 main :: proc() {
-	spall.name_thread("main")
+	spall.thread("main")
 
 	if len(os.args) > 1 && os.args[1] == "version" {
 		fmt.println("ols version", VERSION)

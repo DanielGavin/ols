@@ -1,5 +1,7 @@
 package ols_testing
 
+import "core:os"
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
@@ -35,6 +37,8 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
+	spall.thread_begin()
+
 	spall.trace(#procedure)
 
 	src.document = new(server.Document, context.temp_allocator)
@@ -156,6 +160,7 @@ teardown :: proc(src: ^Source) {
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
 	virtual.arena_destroy(src.document.allocator)
+	spall.thread_end()
 }
 
 source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {

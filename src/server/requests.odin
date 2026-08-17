@@ -61,7 +61,7 @@ requests: [dynamic]Request
 deletings: [dynamic]Request
 
 thread_request_main :: proc(data: rawptr) {
-	spall.name_thread("request")
+	spall.thread("request")
 
 	request_data := cast(^RequestThreadData)data
 
