@@ -6,7 +6,7 @@ import "core:odin/ast"
 import path "core:path/slashpath"
 
 import "src:common"
-
+import "src:spall"
 
 @(private)
 create_remove_edit :: proc(
@@ -49,6 +49,8 @@ append_method_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	receiver: string,
 ) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	if selector_symbol.type != .Variable && selector_symbol.type != .Struct && selector_symbol.type != .Field {
 		return
 	}

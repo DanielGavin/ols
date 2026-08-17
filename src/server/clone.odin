@@ -1,5 +1,6 @@
 package server
 
+import "core:fmt"
 import "base:intrinsics"
 
 import "core:mem"
@@ -7,6 +8,8 @@ import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
 import "core:strings"
+
+import "src:spall"
 
 new_type :: proc($T: typeid, pos, end: tokenizer.Pos, allocator: mem.Allocator) -> ^T {
 	n, _ := mem.new(T, allocator)
@@ -66,6 +69,8 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	if node == nil {
 		return nil
 	}
+
+	spall.trace(#procedure)
 
 	size := size_of(ast.Node)
 	align := align_of(ast.Node)

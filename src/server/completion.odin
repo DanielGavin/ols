@@ -15,6 +15,7 @@ import "core:strconv"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 CompletionResult :: struct {
 	symbol:          Symbol,
@@ -43,6 +44,8 @@ get_completion_list :: proc(
 	CompletionList,
 	bool,
 ) {
+	spall.trace(#procedure, document.fullpath)
+
 	list: CompletionList
 
 	position_context, ok := get_document_position_context(document, position, .Completion)
@@ -81,6 +84,9 @@ get_completion_list :: proc(
 
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
+
+	// Track own logic separately
+	spall.trace(#procedure + " self", document.fullpath)
 
 	completion_type: Completion_Type = .Identifier
 
@@ -235,6 +241,8 @@ convert_completion_results :: proc(
 	target_symbol: Maybe(Symbol),
 	config: ^common.Config,
 ) -> []CompletionItem {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	for &result in results {
 		score_completion_item(&result, ast_context.current_package)
 	}
@@ -449,6 +457,8 @@ handle_matching :: proc(
 	item: ^CompletionItem,
 	completion_type: Completion_Type,
 ) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	should_skip :: proc(arg_symbol, result_symbol: Symbol) -> bool {
 		if v, ok := arg_symbol.value.(SymbolBasicValue); ok {
 			if v.ident.name == "any" {
@@ -555,6 +565,8 @@ handle_matching :: proc(
 
 @(private = "file")
 position_should_skip_struct_type_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
+	spall.trace(#procedure)
+
 	if position_context.value_decl == nil {
 		return false
 	}
@@ -691,6 +703,8 @@ get_directive_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	is_incomplete := false
 
 	// Right now just return all the possible completions, but later on I should give the context specific ones
@@ -704,6 +718,7 @@ get_comp_lit_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	config: ^common.Config,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
 
 	if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 		#partial switch v in symbol.value {
@@ -812,6 +827,8 @@ get_selector_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	config: ^common.Config,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	ast_context.current_package = ast_context.document_package
 
 	selector: Symbol
@@ -1240,6 +1257,8 @@ get_implicit_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	is_incomplete := false
 
 	selector: Symbol
@@ -1630,6 +1649,8 @@ get_identifier_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	config: ^common.Config,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	lookup_name := ""
 	is_incomplete := true
 
@@ -1829,6 +1850,8 @@ get_package_completion :: proc(
 	results: ^[dynamic]CompletionResult,
 	config: ^common.Config,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	is_incomplete := false
 
 	without_quotes := position_context.import_stmt.fullpath
@@ -1980,6 +2003,8 @@ get_type_switch_completion :: proc(
 	position_context: ^DocumentPositionContext,
 	results: ^[dynamic]CompletionResult,
 ) -> bool {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	is_incomplete := false
 
 	used_unions := make(map[string]struct{}, 5, context.temp_allocator)

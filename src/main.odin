@@ -1,7 +1,5 @@
 package main
 
-import "base:intrinsics"
-
 import "core:fmt"
 import "core:log"
 import "core:mem"
@@ -10,6 +8,7 @@ import "core:thread"
 
 import "src:common"
 import "src:server"
+import "src:spall"
 
 VERSION := #config(VERSION, "dev")
 
@@ -103,6 +102,8 @@ end :: proc() {
 }
 
 main :: proc() {
+	spall.thread("main")
+
 	if len(os.args) > 1 && os.args[1] == "version" {
 		fmt.println("ols version", VERSION)
 		os.exit(0)

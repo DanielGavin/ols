@@ -14,6 +14,7 @@ import "core:thread"
 import "core:time"
 
 import "src:common"
+import "src:spall"
 
 Json_Error :: struct {
 	type: string,
@@ -125,6 +126,8 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 	if !config.enable_unused_imports_reporting {
 		return
 	}
+
+	spall.trace(#procedure, document.fullpath)
 
 	unused_imports := find_unused_imports(document, context.temp_allocator)
 

@@ -9,6 +9,8 @@ import path "core:path/slashpath"
 import "core:strings"
 import "core:log"
 
+import "src:spall"
+
 keyword_map: map[string]struct{} = {
 	"typeid"        = {},
 	"string"        = {},
@@ -102,6 +104,12 @@ GlobalExpr :: struct {
 	deprecated: bool,
 	private:    parser.Private_Flag,
 	builtin:    bool,
+}
+
+parse_file :: proc (p: ^parser.Parser, file: ^ast.File, allocator := context.allocator) -> bool {
+	context.allocator = allocator 
+	spall.trace(#procedure, file.fullpath)
+	return parser.parse_file(p, file)
 }
 
 get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
@@ -556,10 +564,14 @@ collect_when_body :: proc(
 }
 
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
+
+	spall.trace(#procedure, file.fullpath)
+
 	file_tags := parser.parse_file_tags(file, context.temp_allocator)
 	if !should_collect_file(file_tags) {
 		return {}
 	}
+
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
 
@@ -592,7 +604,12 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 }
 
 get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
-	return strings.trim_prefix(string(src[node.pos.offset:node.end.offset]), "$")
+	return strings.trim_prefix(src[node.pos.offset:node.end.offset], "$")
+}
+get_ast_node_string_safe :: proc(node: ^ast.Node, src: string) -> (str: string, ok: bool) #optional_ok {
+	if node.pos.offset >= len(src) do return
+	if node.end.offset >= len(src) do return
+	return get_ast_node_string(node, src), true
 }
 
 COMMENT_DELIMITER_LENGTH :: len("//")

@@ -8,6 +8,7 @@ import "core:strings"
 import "core:time"
 
 import "src:common"
+import "src:spall"
 
 dir_blacklist :: []string{"node_modules", ".git"}
 
@@ -20,6 +21,8 @@ WorkspaceCache :: struct {
 cache: WorkspaceCache
 
 get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceSymbol, ok: bool) {
+	spall.trace(#procedure, query)
+
 	if time.since(cache.time) > 20 * time.Second {
 		for pkg in cache.pkgs {
 			delete(pkg)
