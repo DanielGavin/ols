@@ -53,6 +53,7 @@ Config :: struct {
 	enable_code_action_invert_if:            bool,
 	struct_fields_underscore_visibility:	 StructFieldUnderscoreMeaning,
 	disable_parser_errors:                   bool,
+	enable_diagnostics:                     bool,
 	thread_count:                            int,
 	file_log:                                bool,
 	odin_command:                            string,

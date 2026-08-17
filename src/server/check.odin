@@ -55,6 +55,9 @@ Checker :: struct {
 checker: Checker
 
 queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
+	if config.enable_diagnostics {
+		return
+	}
 	path := strings.clone(path, checker.allocator)
 	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config})
 	if !ok {
@@ -123,7 +126,7 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 }
 
 check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
-	if !config.enable_unused_imports_reporting {
+	if !config.enable_unused_imports_reporting || config.enable_diagnostics {
 		return
 	}
 

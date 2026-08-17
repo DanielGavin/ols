@@ -373,6 +373,7 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 
 read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
 	config.disable_parser_errors = ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+	config.enable_diagnostics = ols_config.enable_diagnostics.(bool) or_else config.enable_diagnostics
 	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count
 	config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
@@ -699,6 +700,7 @@ request_initialize :: proc(
 	config.enable_inlay_hints_implicit_return = false
 
 	config.disable_parser_errors = false
+	config.enable_diagnostics = true
 	config.thread_count = 2
 	config.enable_document_symbols = true
 	config.enable_format = true

@@ -141,6 +141,11 @@
 			"description": "Disable real-time diagnostics from `core:odin/parser`",
   			"default": false
 		},
+		"enable_diagnostics": {
+			"type": "boolean",
+			"description": "Enable diagnostics reported from the lsp.",
+  			"default": true
+		},
 		"verbose": {
 			"type": "boolean",
 			"description": "Logs warnings instead of just errors."

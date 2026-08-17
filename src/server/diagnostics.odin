@@ -1,5 +1,6 @@
 package server
 
+import "src:common"
 import "core:log"
 import "core:slice"
 import "core:strings"
@@ -45,6 +46,10 @@ remove_diagnostics_locked :: proc(type: DiagnosticType, uri: string) {
 
 add_diagnostics :: proc(type: DiagnosticType, uri: string, diagnostic: Diagnostic) {
 	spall.trace(#procedure, uri)
+
+	if common.config.enable_diagnostics {
+		return
+	}
 
 	sync.lock(&diagnostic_mutex)
 	defer sync.unlock(&diagnostic_mutex)
