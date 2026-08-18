@@ -1455,6 +1455,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			}
 		}
 		return ok
+	case ^ast.Or_Else_Expr:
+		ok := internal_resolve_type_expression(ast_context, v.x, out)
+		return ok
 	case ^ast.Deref_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		out.pointers -= 1

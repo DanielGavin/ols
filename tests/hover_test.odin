@@ -7367,3 +7367,15 @@ ast_hover_switch_variable_reference :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.v: test.Foo")
 }
+
+@(test)
+ast_hover_or_else_with_parens :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo: union {int}
+		b{*}ar := (foo.(int) or_else 0)
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.bar: int")
+}
