@@ -136,10 +136,10 @@
   			"enum": ["", "file", "package"],
   			"default": ""
 		},
-		"disable_parser_errors": {
+		"enable_parser_errors": {
 			"type": "boolean",
-			"description": "Disable real-time diagnostics from `core:odin/parser`",
-  			"default": false
+			"description": "Enable real-time diagnostics from `core:odin/parser`",
+			"default": true
 		},
 		"enable_diagnostics": {
 			"type": "boolean",

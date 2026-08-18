@@ -340,7 +340,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	remove_diagnostics(.Syntax, uri.uri)
 	check_unused_imports(document, config)
 
-	if writer != nil && !config.disable_parser_errors {
+	if writer != nil && config.enable_parser_errors {
 		document.diagnosed_errors = true
 
 		for error, i in errors {

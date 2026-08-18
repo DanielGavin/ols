@@ -122,7 +122,7 @@ Options:
   - `"file"`: hide fields when accessed from outside the declaring file 
   - `"package"`: hide fields when accessed from outside the declaring package
 
-- `disable_parser_errors`: Disable real-time diagnostics from `core:odin/parser`.
+- `enable_parser_errors`: Enable real-time diagnostics from `core:odin/parser`. _(Enabled by default)_
 
 - `enable_diagnostics`: Enable real-time diagnostics from the lsp. _(Enabled by default)_
 

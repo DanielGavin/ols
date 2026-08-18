@@ -441,6 +441,7 @@ OlsConfig :: struct {
 	enable_add_import_to_bottom:             Maybe(bool),
 	enable_code_action_invert_if:            Maybe(bool),
 	struct_fields_underscore_visibility: 	 string,
+	enable_parser_errors:                    Maybe(bool),
 	disable_parser_errors:                   Maybe(bool),
 	enable_diagnostics:                      Maybe(bool),
 	verbose:                                 Maybe(bool),
