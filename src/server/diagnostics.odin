@@ -47,7 +47,7 @@ remove_diagnostics_locked :: proc(type: DiagnosticType, uri: string) {
 add_diagnostics :: proc(type: DiagnosticType, uri: string, diagnostic: Diagnostic) {
 	spall.trace(#procedure, uri)
 
-	if common.config.enable_diagnostics {
+	if !common.config.enable_diagnostics {
 		return
 	}
 
