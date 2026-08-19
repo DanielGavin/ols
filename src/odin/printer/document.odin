@@ -75,6 +75,15 @@ Document_Group_Options :: struct {
 
 Document_Break_Parent :: struct {}
 
+@(private)
+append_or_panic :: proc(array: ^[dynamic]$E, #no_broadcast arg: E, loc := #caller_location) -> int {
+	n, err := append(array, arg, loc)
+	if err != nil {
+		panic(fmt.tprintf("%v", err), loc)
+	}
+	return n
+}
+
 empty :: proc(allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Nil{}
@@ -249,7 +258,7 @@ cons :: proc(elems: ..^Document, allocator := context.allocator) -> ^Document {
 	elements := make([dynamic]^Document, 0, len(elems), allocator)
 
 	for elem in elems {
-		append(&elements, elem)
+		append_or_panic(&elements, elem)
 	}
 
 	c := Document_Cons {
@@ -322,7 +331,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			}
 		case Document_Cons:
 			for i := len(v.elements) - 1; i >= 0; i -= 1 {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -333,14 +342,14 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 				)
 			}
 		case Document_Align:
-			append(
+			append_or_panic(
 				list,
 				Tuple{indentation = 0, mode = data.mode, document = v.document, alignment = start_width - width},
 			)
 
 		case Document_Nest:
 			if v.alignment != 0 {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -351,7 +360,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 				)
 
 			} else {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation + (v.negate ? -1 : 1),
@@ -371,7 +380,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 			}
 		case Document_If_Break_Or:
 			if data.mode == .Break {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -381,7 +390,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 					},
 				)
 			} else if v.fit_document != nil {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -392,7 +401,7 @@ fits :: proc(width: int, list: ^[dynamic]Tuple) -> bool {
 				)
 			}
 		case Document_Group:
-			append(
+			append_or_panic(
 				list,
 				Tuple {
 					indentation = data.indentation,
@@ -467,7 +476,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			}
 		case Document_Cons:
 			for i := len(v.elements) - 1; i >= 0; i -= 1 {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -479,7 +488,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			}
 		case Document_Nest:
 			if v.alignment != 0 {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -490,7 +499,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 				)
 
 			} else {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation + (v.negate ? -1 : 1),
@@ -502,7 +511,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			}
 		case Document_Align:
 			align := consumed - data.indentation * p.indentation_width
-			append(
+			append_or_panic(
 				list,
 				Tuple{indentation = data.indentation, mode = data.mode, document = v.document, alignment = align},
 			)
@@ -526,7 +535,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		case Document_If_Break_Or:
 			mode := v.group_id != "" ? p.group_modes[v.group_id] : data.mode
 			if mode == .Break {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -536,7 +545,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 					},
 				)
 			} else if v.fit_document != nil {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -548,7 +557,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			}
 		case Document_Group:
 			if data.mode == .Flat && !recalculate {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -563,10 +572,10 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			clear(&list_fits)
 
 			for element in list {
-				append(&list_fits, element)
+				append_or_panic(&list_fits, element)
 			}
 
-			append(
+			append_or_panic(
 				&list_fits,
 				Tuple{indentation = data.indentation, mode = .Flat, document = v.document, alignment = data.alignment},
 			)
@@ -574,7 +583,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			recalculate = false
 
 			if data.mode == .Fit {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -584,7 +593,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 					},
 				)
 			} else if fits(width - consumed, &list_fits) && v.mode != .Break && v.mode != .Fit {
-				append(
+				append_or_panic(
 					list,
 					Tuple {
 						indentation = data.indentation,
@@ -595,7 +604,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 				)
 			} else {
 				if data.mode == .Fill || v.mode == .Fill {
-					append(
+					append_or_panic(
 						list,
 						Tuple {
 							indentation = data.indentation,
@@ -605,7 +614,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 						},
 					)
 				} else if v.mode == .Fit {
-					append(
+					append_or_panic(
 						list,
 						Tuple {
 							indentation = data.indentation,
@@ -615,7 +624,7 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 						},
 					)
 				} else {
-					append(
+					append_or_panic(
 						list,
 						Tuple {
 							indentation = data.indentation,
