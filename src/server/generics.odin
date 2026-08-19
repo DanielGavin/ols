@@ -6,6 +6,7 @@ import "core:odin/tokenizer"
 import "core:reflect"
 
 import "src:common"
+import "src:spall"
 
 resolve_poly :: proc(
 	ast_context: ^AstContext,
@@ -17,6 +18,8 @@ resolve_poly :: proc(
 	if poly_node == nil || call_node == nil {
 		return false
 	}
+
+	spall.trace(#procedure)
 
 	specialization: ^ast.Expr
 	type: ^ast.Expr
@@ -568,6 +571,8 @@ resolve_generic_function_symbol :: proc(
 		return {}, false
 	}
 
+	spall.trace(#procedure, proc_symbol.name)
+
 	call_expr := ast_context.call
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
@@ -756,6 +761,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		return
 	}
 
+	spall.trace(#procedure)
+
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
@@ -921,6 +928,8 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 	if symbol_value == nil {
 		return
 	}
+
+	spall.trace(#procedure)
 
 	i := 0
 

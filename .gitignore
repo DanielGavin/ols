@@ -12,6 +12,7 @@
 *.exp
 *.sqlite
 *.suo
+*.spall
 *node_modules
 /ols
 /odinfmt

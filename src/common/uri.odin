@@ -7,6 +7,8 @@ import "core:strconv"
 import "core:strings"
 import "core:unicode/utf8"
 
+import "src:spall"
+
 Uri :: struct {
 	uri:         string,
 	path:        string,
@@ -31,6 +33,9 @@ parse_uri :: proc(value: string, allocator: mem.Allocator) -> (Uri, bool) {
 
 //Note(Daniel, Again some really incomplete and scuffed uri writer)
 create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
+
+	spall.trace(#procedure, path)
+
 	path_forward, _ := filepath.replace_separators(path, '/', context.temp_allocator)
 
 	builder := strings.builder_make(allocator)

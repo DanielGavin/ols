@@ -1,9 +1,12 @@
 package server
 
+import "src:common"
 import "core:log"
 import "core:slice"
 import "core:strings"
 import "core:sync"
+
+import "src:spall"
 
 DiagnosticType :: enum {
 	Syntax,
@@ -16,8 +19,9 @@ diagnostic_mutex: sync.Mutex
 
 @(private = "file")
 remove_diagnostics_locked :: proc(type: DiagnosticType, uri: string) {
-	diagnostic_type := &diagnostics[type]
+	spall.trace(#procedure, uri)
 
+	diagnostic_type := &diagnostics[type]
 	if diagnostic_type == nil {
 		log.errorf("Diagnostic type did not exist: %v", type)
 		return
@@ -41,6 +45,12 @@ remove_diagnostics_locked :: proc(type: DiagnosticType, uri: string) {
 }
 
 add_diagnostics :: proc(type: DiagnosticType, uri: string, diagnostic: Diagnostic) {
+	spall.trace(#procedure, uri)
+
+	if !common.config.enable_diagnostics {
+		return
+	}
+
 	sync.lock(&diagnostic_mutex)
 	defer sync.unlock(&diagnostic_mutex)
 

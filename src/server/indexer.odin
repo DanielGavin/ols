@@ -1,8 +1,10 @@
 package server
 
+import "core:fmt"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 Indexer :: struct {
 	builtin_packages: [dynamic]string,
@@ -60,6 +62,8 @@ lookup_builtin_symbol :: proc(name: string, current_pkg: string, current_file_ur
 }
 
 lookup :: proc(name: string, pkg: string, current_file: string, loc := #caller_location) -> (Symbol, bool) {
+	spall.trace(#procedure, fmt.tprint(name, pkg, current_file))
+
 	if name == "" {
 		return {}, false
 	}
@@ -96,6 +100,8 @@ fuzzy_search :: proc(
 	[]FuzzyResult,
 	bool,
 ) {
+	spall.trace(#procedure, fmt.tprint(name, pkgs, current_file))
+
 	results, ok := memory_index_fuzzy_search(&indexer.index, name, pkgs, current_file, resolve_fields, limit = limit)
 	if !ok {
 		return {}, false

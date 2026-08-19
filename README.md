@@ -122,6 +122,10 @@ Options:
   - `"file"`: hide fields when accessed from outside the declaring file 
   - `"package"`: hide fields when accessed from outside the declaring package
 
+- `enable_parser_errors`: Enable real-time diagnostics from `core:odin/parser`. _(Enabled by default)_
+
+- `enable_diagnostics`: Enable real-time diagnostics from the lsp. _(Enabled by default)_
+
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 
 - `odin_root_override`: Allows you to specify a custom `ODIN_ROOT` that `ols` will use to look for `odin` core libraries when implementing custom runtimes.

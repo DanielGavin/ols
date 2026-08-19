@@ -5,6 +5,7 @@ import "core:odin/tokenizer"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 ResolveReferenceFlag :: enum {
 	None,
@@ -30,6 +31,9 @@ resolve_ranged_file :: proc(
 	range: common.Range,
 	allocator := context.allocator,
 ) -> map[uintptr]SymbolAndNode {
+
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -68,6 +72,9 @@ resolve_entire_file :: proc(
 	target_name := "",
 	save_unresolved := false,
 ) -> map[uintptr]SymbolAndNode {
+
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -223,6 +230,8 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
 		return
 	}
+
+	spall.trace(#procedure)
 
 	reset_ast_context(data.ast_context)
 
