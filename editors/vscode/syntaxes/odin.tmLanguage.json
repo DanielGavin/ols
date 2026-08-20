@@ -174,14 +174,15 @@
 		},
 		"for-in-assignment": {
 			"name": "meta.definition.for-in.odin",
-			"match": "for\\s+(?:(\\&)?([A-Za-z_]\\w*)\\s*(,)\\s*)?(\\&)?([A-Za-z_]\\w*)\\s*(in)\\b",
+			"match": "(for)\\s+(?:(\\&)?([A-Za-z_]\\w*)\\s*(,)\\s*)?(\\&)?([A-Za-z_]\\w*)\\s*(in)\\b",
 			"captures": {
-				"1": { "name": "punctuation.odin" },
-				"2": { "name": "variable.name.odin entity.name.variable.odin" },
-				"3": { "name": "punctuation.odin" },
+				"1": { "name": "keyword.control.odin" },
+				"2": { "name": "punctuation.odin" },
+				"3": { "name": "variable.name.odin entity.name.variable.odin" },
 				"4": { "name": "punctuation.odin" },
-				"5": { "name": "variable.name.odin entity.name.variable.odin" },
-				"6": { "name": "keyword.control.odin" }
+				"5": { "name": "punctuation.odin" },
+				"6": { "name": "variable.name.odin entity.name.variable.odin" },
+				"7": { "name": "keyword.control.odin" }
 			}
 		},
 		"variable-assignment": {
