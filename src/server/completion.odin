@@ -1930,11 +1930,11 @@ search_for_packages :: proc(fullpath: string) -> []string {
 
 	fh, err := os.open(fullpath)
 
-	if err != 0 {
+	if err != nil {
 		return {}
 	}
 
-	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == 0 {
+	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == nil {
 		for file in files {
 			if file.type == .Directory {
 				append(&packages, file.fullpath)
