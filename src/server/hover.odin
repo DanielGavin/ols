@@ -7,6 +7,7 @@ import "core:odin/tokenizer"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
 	cat := construct_symbol_information(ast_context, symbol)
@@ -15,6 +16,8 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupC
 }
 
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
+	spall.trace(#procedure, document.fullpath)
+
 	hover := Hover {
 		contents = {kind = "plaintext"},
 	}

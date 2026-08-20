@@ -5,6 +5,7 @@ import "core:odin/tokenizer"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 ResolveReferenceFlag :: enum {
 	None,
@@ -30,6 +31,9 @@ resolve_ranged_file :: proc(
 	range: common.Range,
 	allocator := context.allocator,
 ) -> map[uintptr]SymbolAndNode {
+
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -53,7 +57,7 @@ resolve_ranged_file :: proc(
 	for decl in document.ast.decls {
 		//Look for declarations that overlap with range
 		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
-			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, allocator)
+			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, false, allocator)
 			clear(&ast_context.locals)
 		}
 	}
@@ -66,7 +70,11 @@ resolve_entire_file :: proc(
 	flag := ResolveReferenceFlag.None,
 	allocator := context.allocator,
 	target_name := "",
+	save_unresolved := false,
 ) -> map[uintptr]SymbolAndNode {
+
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -86,7 +94,17 @@ resolve_entire_file :: proc(
 	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
 
 	for decl in document.ast.decls {
-		resolve_decl(&position_context, &ast_context, document, decl, &symbols, flag, allocator, target_name)
+		resolve_decl(
+			&position_context,
+			&ast_context,
+			document,
+			decl,
+			&symbols,
+			flag,
+			save_unresolved,
+			allocator,
+			target_name,
+		)
 		clear(&ast_context.locals)
 	}
 
@@ -101,6 +119,7 @@ FileResolveData :: struct {
 	position_context: ^DocumentPositionContext,
 	flag:             ResolveReferenceFlag,
 	target_name:      string,
+	save_unresolved:  bool,
 }
 
 @(private = "file")
@@ -111,6 +130,7 @@ resolve_decl :: proc(
 	decl: ^ast.Node,
 	symbols: ^map[uintptr]SymbolAndNode,
 	flag: ResolveReferenceFlag,
+	save_unresolved: bool,
 	allocator := context.allocator,
 	target_name := "",
 ) {
@@ -121,6 +141,7 @@ resolve_decl :: proc(
 		document         = document,
 		flag             = flag,
 		target_name      = target_name,
+		save_unresolved  = save_unresolved,
 	}
 
 	resolve_node(decl, &data)
@@ -154,7 +175,7 @@ local_scope :: proc(data: ^FileResolveData, stmt: ^ast.Stmt) {
 }
 
 @(private = "file")
-local_scope_poly_deferred :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List, ) {
+local_scope_poly_deferred :: proc(data: ^FileResolveData, poly_params: ^ast.Field_List) {
 	pop_local_group(data.ast_context)
 }
 
@@ -209,6 +230,8 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
 		return
 	}
+
+	spall.trace(#procedure)
 
 	reset_ast_context(data.ast_context)
 
@@ -292,8 +315,17 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 					node   = n,
 					symbol = symbol,
 				}
-			}
+			} else if data.save_unresolved {
+				//If we failed to resolve the identifier of an selector expression, we check if the base was resolved correctly.
+				//This matters for adding unimported imports.
+				_, ok := resolve_type_expression(data.ast_context, n.expr)
 
+				data.symbols[cast(uintptr)node] = SymbolAndNode {
+					node                              = n,
+					is_unresolved                     = true,
+					is_selector_expression_unresolved = !ok,
+				}
+			}
 			resolve_node(n.expr, data)
 			old := data.ast_context.use_imports
 			data.ast_context.use_imports = false

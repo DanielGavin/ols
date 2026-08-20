@@ -1,10 +1,12 @@
 package server
 
+import "core:strings"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
 
 import "src:common"
+import "src:spall"
 
 resolve_poly :: proc(
 	ast_context: ^AstContext,
@@ -17,11 +19,12 @@ resolve_poly :: proc(
 		return false
 	}
 
+	spall.trace(#procedure)
+
 	specialization: ^ast.Expr
 	type: ^ast.Expr
 
-	poly_node := poly_node
-	poly_node, _, _ = unwrap_pointer_expr(poly_node)
+	poly_node, param_pointers, _ := unwrap_pointer_expr(poly_node)
 
 	#partial switch v in poly_node.derived {
 	case ^ast.Typeid_Type:
@@ -37,7 +40,8 @@ resolve_poly :: proc(
 		if type != nil {
 			if ident, ok := unwrap_ident(type); ok {
 				if call_symbol.type_expr != nil {
-					save_poly_map(ident, call_symbol.type_expr, poly_map)
+					type_expr, _, _ := unwrap_pointer_expr(call_symbol.type_expr)
+					save_poly_map(ident, type_expr, poly_map)
 				} else if untyped_value, ok := call_symbol.value.(SymbolUntypedValue); ok {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				} else if is_compound_symbol_value(call_symbol.value) {
@@ -53,7 +57,8 @@ resolve_poly :: proc(
 				} else {
 					save_poly_map(ident, symbol_to_expr(call_symbol, call_node.pos.file), poly_map)
 				}
-				if call_symbol.pointers > 0 {
+				remaining := call_symbol.pointers - param_pointers
+				if remaining > 0 {
 					if expr, expr_ok := get_poly_map(ident, poly_map); expr_ok {
 						save_poly_map(ident, wrap_pointer(expr, call_symbol.pointers), poly_map)
 					}
@@ -566,6 +571,8 @@ resolve_generic_function_symbol :: proc(
 		return {}, false
 	}
 
+	spall.trace(#procedure, proc_symbol.name)
+
 	call_expr := ast_context.call
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
@@ -754,6 +761,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		return
 	}
 
+	spall.trace(#procedure)
+
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
@@ -764,7 +773,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			continue
 		}
 		for name in param.names {
-			append(&b.poly_names, node_to_string(name))
+			append(&b.poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -773,12 +782,14 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 				continue
 			}
 
+			arg := clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+
 			if poly_name, ok := get_poly_param_name(name); ok {
-				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
-				b.poly_names[i] = node_to_string(ast_context.call.args[i])
+				poly_map[poly_name] = arg
+				b.poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
-			append(&b.args, ast_context.call.args[i])
+			append(&b.args, arg)
 
 			i += 1
 		}
@@ -918,10 +929,12 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 		return
 	}
 
+	spall.trace(#procedure)
+
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	poly_names := make([dynamic]string, 0, context.temp_allocator)
+	poly_names := make([dynamic]string, 0, ast_context.allocator)
 
 	for param in poly_params.list {
 		if param == nil {
@@ -929,7 +942,7 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 		}
 
 		for name in param.names {
-			append(&poly_names, node_to_string(name))
+			append(&poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -938,16 +951,9 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 				continue
 			}
 
-			if poly, ok := param.type.derived.(^ast.Typeid_Type); ok {
-				if ident, ok := name.derived.(^ast.Ident); ok {
-					poly_map[ident.name] = ast_context.call.args[i]
-					poly_names[i] = node_to_string(ast_context.call.args[i])
-				} else if poly, ok := name.derived.(^ast.Poly_Type); ok {
-					if poly.type != nil {
-						poly_map[poly.type.name] = ast_context.call.args[i]
-						poly_names[i] = node_to_string(ast_context.call.args[i])
-					}
-				}
+			if poly_name, ok := get_poly_param_name(name); ok {
+				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
+				poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
 			i += 1

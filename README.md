@@ -89,6 +89,8 @@ Options:
 
 - `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
 
+- `enable_unused_imports_reporting`: Turn on reporting of unused imported packages. _(Enabled by default)_
+
 - `enable_inlay_hints_params`: Turn on inlay hints for (non-default) parameters.
 
 - `enable_inlay_hints_default_params`: Turn on inlay hints for default parameters.
@@ -119,6 +121,10 @@ Options:
   - `""` (default): no hiding, all fields are visible
   - `"file"`: hide fields when accessed from outside the declaring file 
   - `"package"`: hide fields when accessed from outside the declaring package
+
+- `enable_parser_errors`: Enable real-time diagnostics from `core:odin/parser`. _(Enabled by default)_
+
+- `enable_diagnostics`: Enable real-time diagnostics from the lsp. _(Enabled by default)_
 
 - `odin_command`: Specify the location to your Odin executable, rather than relying on the environment path.
 

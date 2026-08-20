@@ -2991,63 +2991,6 @@ ast_generics_pointer_poly :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, ".", {"AAA.value: ^int"})
-
-}
-
-
-@(test)
-ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package main
-		Direction :: enum {
-			North,
-			East,
-			South,
-			West,
-		}
-
-		Direction_Vectors :: [Direction][2]int {
-			.North = {0, -1},
-			.East  = {+1, 0},
-			.South = {0, +1},
-			.West  = {-1, 0},
-		}
-
-		main :: proc() {
-			Direction_Vectors[.{*}]
-		}
-		`,
-	}
-
-	test.expect_completion_labels(t, &source, ".", {"North", "East", "South", "West"})
-}
-
-
-@(test)
-ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package main
-		Enum :: enum {
-			Foo,
-			Bar,
-			Baz,
-		}
-
-		ARRAY :: [Enum]string{
-			.Foo = "foo",
-			.Bar = "bar",
-			.Baz = "baz",
-		}
-
-		main :: proc() {
-			for item, indezx in ARRAY {
-				indez{*} 
-			}
-		}
-		`,
-	}
-
-	test.expect_completion_docs(t, &source, "", {"test.indezx: test.Enum"})
 }
 
 @(test)
@@ -3652,11 +3595,84 @@ ast_completion_enumerated_array :: proc(t: ^testing.T) {
 		Bar :: struct {}
 
 		db_data: [Foo]Bar = {
+			{*}
+		}
+		`,
+	}
+	test.expect_completion_labels(t, &source, "", {".Foo1", ".Foo2"})
+}
+
+@(test)
+ast_completion_enumerated_array_dot :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: enum {
+			Foo1,
+			Foo2,
+		}
+
+		Bar :: struct {}
+
+		db_data: [Foo]Bar = {
 			.{*}
 		}
 		`,
 	}
 	test.expect_completion_docs(t, &source, "", {".Foo1", ".Foo2"})
+}
+
+@(test)
+ast_enumerated_array_index_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Direction :: enum {
+			North,
+			East,
+			South,
+			West,
+		}
+
+		Direction_Vectors :: [Direction][2]int {
+			.North = {0, -1},
+			.East  = {+1, 0},
+			.South = {0, +1},
+			.West  = {-1, 0},
+		}
+
+		main :: proc() {
+			Direction_Vectors[.{*}]
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"North", "East", "South", "West"})
+}
+
+@(test)
+ast_enumerated_array_range_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Enum :: enum {
+			Foo,
+			Bar,
+			Baz,
+		}
+
+		ARRAY :: [Enum]string{
+			.Foo = "foo",
+			.Bar = "bar",
+			.Baz = "baz",
+		}
+
+		main :: proc() {
+			for item, indezx in ARRAY {
+				indez{*} 
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.indezx: test.Enum"})
 }
 
 @(test)
@@ -3726,7 +3742,7 @@ ast_completion_nested_enumerated_array :: proc(t: ^testing.T) {
 		`,
 	}
 
-	test.expect_completion_docs(t, &source, "", {"test.Foo: .Foo1"}, {"test.Foo: .Foo2"})
+	test.expect_completion_labels(t, &source, "", {".Foo1"}, {".Foo2"})
 }
 
 @(test)
@@ -5572,6 +5588,33 @@ ast_completion_fake_method_proc_group_single_arg_cursor_position :: proc(t: ^tes
 }
 
 @(test)
+ast_completion_fake_method_using_subtype :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "lib"
+		main :: proc() {
+			outer: lib.Outer
+			outer.{*}
+		}
+		`,
+		packages = {
+			{
+				pkg = "lib",
+				source = `package lib
+					Inner :: struct {foo: int, using outer: Outer} // Infinite recursion check
+					Outer :: struct {using inner: Inner}
+
+					takes_inner :: proc (inner: Inner) {}
+				`,
+			},
+		},
+		config = {enable_fake_method = true},
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"takes_inner", "inner", "foo"})
+}
+
+@(test)
 ast_completion_fake_method_proc_alias :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -5957,4 +6000,78 @@ ast_completion_nested_comp_lit_with_union :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, "", {"A.some: int"})
+}
+
+@(test)
+ast_completion_const_key_in_struct_decl :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		FOO :: 8
+
+		Bar :: struct {
+			m: [F{*}]
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.FOO :: 8"})
+}
+
+@(test)
+ast_completion_const_key_in_struct_decl_recursive :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		FOO :: 8
+
+		Bar :: struct {
+			m: map[string][F{*}]
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.FOO :: 8"})
+}
+
+@(test)
+ast_completion_const_value_in_struct_decl :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		FOO :: 8
+		Foo :: struct{}
+
+		Bar :: struct {
+			m: map[string]F{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"test.Foo :: struct{}"}, {"test.FOO :: 8"})
+}
+
+@(test)
+ast_distinct_selector_array_swizzle_completion :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+
+	append(
+		&packages,
+		test.Package{pkg = "mypkg", source = `package mypkg
+			Vector4f32 :: [4]f32
+		`},
+	)
+
+	source := test.Source {
+		main     = `package main
+		import "mypkg"
+
+		Pixel :: distinct mypkg.Vector4f32
+
+		main :: proc() {
+			p: Pixel
+			p.{*}
+		}
+		`,
+		packages = packages[:],
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"x", "y", "z", "w", "r", "g", "b", "a"})
 }

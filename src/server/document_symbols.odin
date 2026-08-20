@@ -3,8 +3,11 @@ package server
 import "core:odin/ast"
 
 import "src:common"
+import "src:spall"
 
 get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
+	spall.trace(#procedure, document.fullpath)
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,

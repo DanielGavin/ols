@@ -3,6 +3,8 @@ package server
 import "core:log"
 import "core:odin/ast"
 
+import "src:spall"
+
 LocalFlag :: enum {
 	Mutable, // or constant
 	Variable, // or type
@@ -27,6 +29,9 @@ DocumentLocal :: struct {
 LocalGroup :: map[string][dynamic]DocumentLocal
 
 get_locals :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) {
+
+	spall.trace(#procedure, ast_context.fullpath)
+
 	if position_context.function != nil {
 		get_function_locals(ast_context.file, position_context.function, ast_context, position_context)
 	}
@@ -680,10 +685,10 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 	}
 
 	for lhs, i in stmt.lhs {
-		if ident, ok := lhs.derived.(^ast.Ident); ok {
+		if ident, ok := unwrap_ident(lhs); ok {
 			store_local(
 				ast_context,
-				lhs,
+				ident,
 				results[i],
 				ident.pos.offset,
 				ident.name,

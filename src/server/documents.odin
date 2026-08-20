@@ -14,6 +14,7 @@ import path "core:path/slashpath"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 ParserError :: struct {
 	message: string,
@@ -87,8 +88,8 @@ document_free_allocator :: proc(allocator: ^virtual.Arena) {
 }
 
 document_get :: proc(uri_string: string) -> ^Document {
-	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
+	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 	if !parsed_ok {
 		return nil
 	}
@@ -116,8 +117,10 @@ document_release :: proc(document: ^Document) {
 */
 
 document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
-	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 
+	spall.trace(#procedure, uri_string)
+
+	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 	if !parsed_ok {
 		log.error("Failed to parse uri")
 		return .ParseError
@@ -203,6 +206,9 @@ document_apply_changes :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+
+	spall.trace(#procedure, uri_string)
+
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
@@ -310,6 +316,9 @@ document_close :: proc(uri_string: string) -> common.Error {
 }
 
 document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+	spall.trace(#procedure, document.fullpath)
+
 	errors, ok := parse_document(document, config)
 
 	if !ok {
@@ -331,7 +340,7 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	remove_diagnostics(.Syntax, uri.uri)
 	check_unused_imports(document, config)
 
-	if writer != nil && !config.disable_parser_errors {
+	if writer != nil && config.enable_parser_errors {
 		document.diagnosed_errors = true
 
 		for error, i in errors {
@@ -370,6 +379,9 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }
 
 parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
+
+	spall.trace(#procedure, document.fullpath)
+
 	p := parser.Parser {
 		err   = parser_error_handler,
 		warn  = common.parser_warning_handler,
@@ -402,7 +414,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		pkg      = pkg,
 	}
 
-	parser.parse_file(&p, &document.ast)
+	parse_file(&p, &document.ast)
 
 	parse_imports(document, config)
 
@@ -415,6 +427,9 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 }
 
 parse_imports :: proc(document: ^Document, config: ^common.Config) {
+
+	spall.trace(#procedure, document.fullpath)
+
 	imports := make([dynamic]Package)
 
 	for imp, index in document.ast.imports {

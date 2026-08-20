@@ -14,9 +14,9 @@ import "core:slice"
 import "core:strconv"
 import "core:strings"
 import "core:sync"
-import "core:time"
 
 import "src:common"
+import "src:spall"
 
 Header :: struct {
 	content_length: int,
@@ -61,6 +61,8 @@ requests: [dynamic]Request
 deletings: [dynamic]Request
 
 thread_request_main :: proc(data: rawptr) {
+	spall.thread("request")
+
 	request_data := cast(^RequestThreadData)data
 
 	for common.config.running {
@@ -110,6 +112,8 @@ thread_request_main :: proc(data: rawptr) {
 		sync.mutex_lock(&requests_mutex)
 
 		method := root["method"].(json.String)
+
+		spall.trace("request", fmt.tprint(method, id))
 
 		if method == "$/cancelRequest" {
 			append(&deletings, Request{id = id})
@@ -346,34 +350,34 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 		return
 	}
 
-	diff: time.Duration
-	{
-		time.SCOPED_TICK_DURATION(&diff)
-
-		if fn, ok := call_map[method]; !ok {
-            // nil id == notification - do not respond
-            if id != nil {
-			response := make_response_message_error(
-				id = id,
-				error = ResponseError{code = .MethodNotFound, message = ""},
-			)
+	if fn, ok := call_map[method]; !ok {
+		// nil id == notification - do not respond
+		if id != nil {
+		response := make_response_message_error(
+			id = id,
+			error = ResponseError{code = .MethodNotFound, message = ""},
+		)
+		send_error(response, writer)
+		}
+	} else {
+		params := root["params"]
+		spall.trace(method)
+		err := fn(params, id, config, writer)
+		// nil id == notification - do not respond
+		if err != .None && id != nil {
+			response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
 			send_error(response, writer)
-            }
-		} else {
-			err := fn(root["params"], id, config, writer)
-			// nil id == notification - do not respond
-			if err != .None && id != nil {
-				response := make_response_message_error(id = id, error = ResponseError{code = err, message = ""})
-				send_error(response, writer)
-			}
 		}
 	}
-
-	//log.errorf("time duration %v for %v", time.duration_milliseconds(diff), method)
 }
 
 read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
-	config.disable_parser_errors = ols_config.disable_parser_errors.(bool) or_else config.disable_parser_errors
+	if v, ok := ols_config.enable_parser_errors.(bool); ok {
+		config.enable_parser_errors = v
+	} else if v, ok := ols_config.disable_parser_errors.(bool); ok {
+		config.enable_parser_errors = !v
+	}
+	config.enable_diagnostics = ols_config.enable_diagnostics.(bool) or_else config.enable_diagnostics
 	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count
 	config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
@@ -699,7 +703,8 @@ request_initialize :: proc(
 	config.enable_inlay_hints_default_params = false
 	config.enable_inlay_hints_implicit_return = false
 
-	config.disable_parser_errors = false
+	config.enable_parser_errors = true
+	config.enable_diagnostics = true
 	config.thread_count = 2
 	config.enable_document_symbols = true
 	config.enable_format = true
@@ -829,7 +834,7 @@ request_initialize :: proc(
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
 				documentLinkProvider = {resolveProvider = false},
-				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite"}},
+				codeActionProvider = {resolveProvider = false, codeActionKinds = {"refactor.rewrite", "source.organizeImports"}},
 			},
 		},
 		id = id,
@@ -1701,7 +1706,7 @@ request_code_action :: proc(
 	}
 
 	code_actions: []CodeAction
-	code_actions, ok = get_code_actions(document, code_action_params.range, config)
+	code_actions, ok = get_code_actions(document, code_action_params.context_, code_action_params.range, config)
 	if !ok {
 		return .InternalError
 	}

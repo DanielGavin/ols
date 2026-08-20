@@ -7,6 +7,8 @@ import path "core:path/slashpath"
 import "core:slice"
 import "core:strings"
 
+import "src:spall"
+
 DOC_SECTION_DELIMITER :: "\n---\n" // The string separating each section of documentation
 DOC_FMT_ODIN :: "```odin\n%v\n```" // The format for wrapping odin code in a markdown codeblock
 DOC_FMT_MARKDOWN :: DOC_FMT_ODIN + DOC_SECTION_DELIMITER + "%v" // The format for presenting documentation on hover
@@ -70,6 +72,8 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol, depth := 0) -> s
 
 write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol, depth := 0) {
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
+
+	spall.trace(#procedure, symbol.name)
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
@@ -219,6 +223,8 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 }
 
 write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
 	if .Distinct in symbol.flags {
 		strings.write_string(sb, "distinct ")
@@ -380,7 +386,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		strings.write_string(sb, v.tok.text)
 		return
 	case SymbolGenericValue:
-		build_string_node(v.expr, sb, false)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	}
 
@@ -734,6 +740,27 @@ write_node :: proc(
 		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
 	case ^ast.Comp_Lit:
+		max_elems :: 16
+
+		if len(n.elems) > max_elems {
+			build_string(n.type, sb, false)
+			strings.write_string(sb, "{")
+			for elem, i in n.elems[:max_elems] {
+				if i > 0 {
+					strings.write_string(sb, ", ")
+				}
+				if field, ok := elem.derived.(^ast.Field_Value); ok {
+					build_string(field.field, sb, false)
+					strings.write_string(sb, " = ")
+					write_node(sb, ast_context, field.value, "", depth + 1, false)
+				} else {
+					write_node(sb, ast_context, elem, "", depth + 1, false)
+				}
+			}
+			strings.write_string(sb, ", ..}")
+			return
+		}
+
 		same_line := true
 		start_line := -1
 		for elem in n.elems {

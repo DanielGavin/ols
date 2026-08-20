@@ -13,6 +13,7 @@ import "core:strconv"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 DeferredDepth :: 35
 
@@ -1242,6 +1243,9 @@ get_proc_return_types :: proc(
 	call: ^ast.Call_Expr,
 	is_mutable: bool,
 ) -> []^ast.Expr {
+
+	spall.trace(#procedure, symbol.name)
+
 	return_types := make([dynamic]^ast.Expr, context.temp_allocator)
 	if ret, ok := check_builtin_proc_return_type(ast_context, symbol, call, is_mutable); ok {
 		appended := false
@@ -1344,6 +1348,8 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	if node == nil {
 		return false
 	}
+
+	spall.trace(#procedure)
 
 	//Try to prevent stack overflows and prevent indexing out of bounds.
 	if ast_context.deferred_count >= DeferredDepth {
@@ -1448,6 +1454,9 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 				}
 			}
 		}
+		return ok
+	case ^ast.Or_Else_Expr:
+		ok := internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Deref_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
@@ -1834,6 +1843,9 @@ resolve_soa_selector_field :: proc(
 }
 
 resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selector_Expr) -> (Symbol, bool) {
+
+	spall.trace(#procedure)
+
 	selector := Symbol{}
 	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
 		set_ast_package_from_symbol_scoped(ast_context, selector)
@@ -2089,6 +2101,9 @@ resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (S
 }
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
+
+	spall.trace(#procedure, node.name)
+
 	ident := node.derived.(^ast.Ident)
 	if check_node_recursion(&ast_context.recursion_map, ident) {
 		return {}, false
@@ -2240,9 +2255,11 @@ resolve_identifier_expr :: proc(
 	is_mutable:   bool,
 ) -> (symbol: Symbol, ok: bool) {
 
+	spall.trace(#procedure, node.name)
+
 	#partial switch v in expr.derived {
 	case ^ast.Distinct_Type:
-		symbol, ok = resolve_identifier_expr(ast_context, v.type, orig_expr, node, name, attributes, is_mutable)
+		symbol, ok = resolve_identifier_expr(ast_context, v.type, v.type, node, name, attributes, is_mutable)
 		symbol.name = name
 		symbol.flags |= {.Distinct}
 	case ^ast.Ident:
@@ -2305,6 +2322,9 @@ resolve_identifier_expr :: proc(
 }
 
 resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (symbol: Symbol, ok: bool) {
+
+	spall.trace(#procedure, node.name)
+
 	if local.rhs == nil {
 		return {}, false
 	}
@@ -3029,10 +3049,11 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 			types := make([dynamic]^ast.Expr, ast_context.allocator)
 
 			for type in v.types {
-				append(&types, clone_expr(type, context.temp_allocator, nil))
+				append(&types, clone_expr(type, ast_context.allocator, nil))
 			}
 
 			v.types = types[:]
+			v.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 
 			resolve_poly_union(ast_context, v.poly, &symbol)
 		}
@@ -3042,9 +3063,9 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if v.poly != nil {
 			clear(&b.types)
 			for type in v.types {
-				append(&b.types, clone_expr(type, context.temp_allocator, nil))
+				append(&b.types, clone_expr(type, ast_context.allocator, nil))
 			}
-			b.poly = cast(^ast.Field_List)clone_type(v.poly, context.temp_allocator, nil)
+			b.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
 			resolve_poly_struct(ast_context, &b, v.poly)
 		}
 
@@ -3145,6 +3166,8 @@ resolve_location_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	symbol: Symbol
+
+	spall.trace(#procedure, node.name)
 
 	if local, ok := get_local(ast_context^, node); ok {
 		symbol.range = common.get_token_range(local.lhs, ast_context.file.src)
@@ -3294,6 +3317,8 @@ resolve_location_comp_lit_field :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
+	spall.trace(#procedure)
+
 	reset_ast_context(ast_context)
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
@@ -3331,6 +3356,8 @@ resolve_location_implicit_selector :: proc(
 	ok: bool,
 ) {
 	ok = true
+
+	spall.trace(#procedure)
 
 	reset_ast_context(ast_context)
 
@@ -3439,6 +3466,8 @@ resolve_symbol_selector :: proc(
 	Symbol,
 	bool,
 ) {
+	spall.trace(#procedure)
+
 	field: string
 	symbol := symbol
 
@@ -4469,22 +4498,6 @@ position_in_proc_decl :: proc(position_context: ^DocumentPositionContext) -> boo
 		if proc_lit.type != nil && position_in_node(proc_lit.type, position_context.position) {
 			return true
 		}
-	}
-
-	return false
-}
-
-position_in_struct_decl :: proc(position_context: ^DocumentPositionContext) -> bool {
-	if position_context.value_decl == nil {
-		return false
-	}
-
-	if len(position_context.value_decl.values) != 1 {
-		return false
-	}
-
-	if _, ok := position_context.value_decl.values[0].derived.(^ast.Struct_Type); ok {
-		return true
 	}
 
 	return false

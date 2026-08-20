@@ -7319,7 +7319,7 @@ ast_hover_type_from_when_ternary_complex :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_generic_struct_multipointer_field :: proc(t: ^testing.T) {
+ast_hover_generic_struct_multipointer_field :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test
 		Foo :: struct($T: typeid) {
@@ -7331,4 +7331,51 @@ ast_generic_struct_multipointer_field :: proc(t: ^testing.T) {
 		packages = {},
 	}
 	test.expect_hover(t, &source, "test.Foo :: struct(Bar) {\n\tfoo: [^]Bar,\n}")
+}
+
+@(test)
+ast_hover_generic_pointer_through_proc :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo :: proc(t: ^$T) -> ^T {}
+		main :: proc() {
+			bar: ^int
+			b{*}az := foo(bar)
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.baz: ^int")
+}
+
+@(test)
+ast_hover_switch_variable_reference :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: union {
+			int,
+			string,
+		}
+
+		bar :: proc(foo: ^Foo) {
+			switch &v{*} in foo^ {
+			}
+			return nil
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.v: test.Foo")
+}
+
+@(test)
+ast_hover_or_else_with_parens :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		foo: union {int}
+		b{*}ar := (foo.(int) or_else 0)
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.bar: int")
 }

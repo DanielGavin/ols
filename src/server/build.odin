@@ -16,6 +16,7 @@ import "core:strings"
 import "core:time"
 
 import "src:common"
+import "src:spall"
 
 platform_os: map[string]struct{} = {
 	"windows" = {},
@@ -170,10 +171,14 @@ should_collect_file :: proc(file_tags: parser.File_Tags) -> bool {
 }
 
 try_build_package :: proc(pkg_name: string) {
+	spall.trace(#procedure, pkg_name)
+
 	if pkg, ok := build_cache.loaded_pkgs[pkg_name]; ok {
 		return
 	}
 	defer clear_index_cache()
+
+	spall.trace(#procedure, pkg_name)
 
 	matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg_name), context.temp_allocator)
 
@@ -226,7 +231,7 @@ try_build_package :: proc(pkg_name: string) {
 				pkg      = pkg,
 			}
 
-			ok := parser.parse_file(&p, &file)
+			ok := parse_file(&p, &file)
 
 			if !ok {
 				if !is_ols_builtin_file(fullpath) {
@@ -288,6 +293,8 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 	ok: bool
 	defer clear_index_cache()
 
+	spall.trace(#procedure, uri.path)
+
 	fullpath := uri.path
 
 	p := parser.Parser {
@@ -325,7 +332,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		context.allocator = context.temp_allocator
 		defer context.allocator = allocator
 
-		ok = parser.parse_file(&p, &file)
+		ok = parse_file(&p, &file)
 
 		if !ok {
 			if !is_ols_builtin_file(fullpath) {

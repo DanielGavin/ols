@@ -1,16 +1,19 @@
 package ols_testing
 
-import "core:slice"
+import "core:os"
+import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:slice"
 import "core:strings"
 import "core:testing"
 
 import "src:common"
 import "src:server"
+import "src:spall"
 
 File :: struct {
 	name:   string,
@@ -34,6 +37,9 @@ Source :: struct {
 
 @(private)
 setup :: proc(src: ^Source) {
+	spall.thread_begin()
+
+	spall.trace(#procedure)
 
 	src.document = new(server.Document, context.temp_allocator)
 
@@ -45,7 +51,7 @@ setup :: proc(src: ^Source) {
 
 	if len(src.main) > 0 {
 		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
-		src.main  = ""
+		src.main = ""
 	}
 
 	if len(src.files) <= 0 {
@@ -60,6 +66,23 @@ setup :: proc(src: ^Source) {
 	src.document.uri = common.create_uri(fullpath, context.temp_allocator)
 	src.document.text = source
 	src.document.used_text = len(source)
+
+	// Make the test packages reachable through the collections
+	if len(src.collections) > 0 {
+		server.build_cache.pkg_aliases = make(map[string][dynamic]string, 0, context.temp_allocator)
+	}
+
+	for collection, collection_path in src.collections {
+		src.config.collections[collection] = collection_path
+
+		aliases := make([dynamic]string, context.temp_allocator)
+
+		for src_pkg in src.packages {
+			append(&aliases, src_pkg.pkg)
+		}
+
+		server.build_cache.pkg_aliases[collection] = aliases
+	}
 
 	server.setup_index(server.get_builtin_path())
 
@@ -94,7 +117,8 @@ setup :: proc(src: ^Source) {
 
 		if len(src_pkg.files) > 0 do for f in src_pkg.files {
 			process_file(f.name, f.source, pkg)
-		} else {
+		}
+		else {
 			process_file("package.odin", src_pkg.source, pkg)
 		}
 	}
@@ -115,7 +139,7 @@ setup :: proc(src: ^Source) {
 			pkg      = pkg,
 		}
 
-		ok := parser.parse_file(&p, &file)
+		ok := server.parse_file(&p, &file)
 
 		if !ok || file.syntax_error_count > 0 {
 			panic("Parser error in test package source")
@@ -134,15 +158,17 @@ setup :: proc(src: ^Source) {
 teardown :: proc(src: ^Source) {
 	server.free_index()
 	server.indexer.index = {}
+	server.build_cache.pkg_aliases = {}
 	virtual.arena_destroy(src.document.allocator)
+	spall.thread_end()
 }
 
-source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
+source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
 
 	source: ^string
 	if src.main != "" {
 		source = &src.main
-	} else if len(src.files) > 0{
+	} else if len(src.files) > 0 {
 		source = &src.files[0].source
 	}
 
@@ -160,10 +186,10 @@ source_remove_cursor :: proc (src: ^Source) -> (cursor: common.Position) {
 	}
 
 	// remove cursor mark from source
-	new_source := make([]u8, len(source)-len(CURSOR), context.temp_allocator)
+	new_source := make([]u8, len(source) - len(CURSOR), context.temp_allocator)
 	copy(new_source[:marker_pos], source[:marker_pos])
-	copy(new_source[marker_pos:], source[marker_pos+len(CURSOR):])
-	source ^= string(new_source)
+	copy(new_source[marker_pos:], source[marker_pos + len(CURSOR):])
+	source^ = string(new_source)
 
 	// find cursor (line,col) position
 	last: u8
@@ -188,6 +214,8 @@ expect_signature_labels :: proc(
 	expect_labels: []string,
 	expected_active_parameter := -1,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -250,6 +278,8 @@ expect_completion_labels :: proc(
 	expect_labels: []string,
 	expect_excluded: []string = nil,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -287,8 +317,7 @@ expect_completion_labels :: proc(
 
 	if len(missing_expected) > 0 ||
 	   len(present_excluded) > 0 ||
-	   (len(expect_labels) == 0 && len(completion_list.items) > 0)
-	{
+	   (len(expect_labels) == 0 && len(completion_list.items) > 0) {
 		sb := strings.builder_make(context.temp_allocator)
 		defer log.error(strings.to_string(sb))
 
@@ -322,6 +351,8 @@ expect_completion_docs :: proc(
 	expect_details: []string,
 	expect_excluded: []string = nil,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -384,6 +415,8 @@ expect_completion_insert_text :: proc(
 	trigger_character: string,
 	expect_inserts: []string,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -470,6 +503,8 @@ expect_completion_edit_text :: proc(
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -496,123 +531,172 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 }
 
 expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	locations, ok := server.get_definition_location(src.document, cursor, &src.config)
-
-	if !ok {
-		log.error("Failed get_definition_location")
+	if !ok && len(expect_locations) > 0 {
+		log.error("No definitions found.")
+		return
 	}
 
-	if len(expect_locations) == 0 && len(locations) > 0 {
-		log.errorf("Expected empty locations, but received %v", locations)
-	}
-
-	flags := make([]int, len(expect_locations), context.temp_allocator)
-
-	for expect_location, i in expect_locations {
-		for location, j in locations {
-			if location.range == expect_location.range {
-				flags[i] += 1
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(
+		locations, expect_locations, equals = proc (a, e: common.Location) -> bool {
+			if e.uri != "" {
+				if a.range == e.range && a.uri == e.uri {
+					return true
+				}
+			} else if a.range == e.range {
+				return true
 			}
+			return false
+	})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Definition(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
+			}
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			log.errorf("Expected location %v, but received %v", expect_locations[i].range, locations)
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Definition(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
+
+	log.error(strings.to_string(sb))
 }
 
 expect_type_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_locations: []common.Location) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	locations, ok := server.get_type_definition_locations(src.document, cursor)
-
-	if !ok {
-		log.error("Failed get_definition_location")
+	if !ok && len(expect_locations) > 0 {
+		log.error("No type definitions found.")
+		return
 	}
 
-	if len(expect_locations) == 0 && len(locations) > 0 {
-		log.errorf("Expected empty locations, but received %v", locations)
-	}
-
-	flags := make([]int, len(expect_locations), context.temp_allocator)
-
-	for expect_location, i in expect_locations {
-		for location, j in locations {
-			if expect_location.uri != "" {
-				if location.range == expect_location.range && location.uri == expect_location.uri {
-					flags[i] += 1
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(
+		locations, expect_locations, equals = proc (a, e: common.Location) -> bool {
+			if e.uri != "" {
+				if a.range == e.range && a.uri == e.uri {
+					return true
 				}
-			} else if location.range == expect_location.range {
-				flags[i] += 1
+			} else if a.range == e.range {
+				return true
 			}
+			return false
+	})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Type definition(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
+			}
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	for flag, i in flags {
-		if flag != 1 {
-			if expect_locations[i].uri == "" {
-				log.errorf("Expected location %v, but received %v", expect_locations[i].range, locations)
-			} else {
-				log.errorf("Expected location %v, but received %v", expect_locations[i], locations)
-			}
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Type definition(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
+
+	log.error(strings.to_string(sb))
 }
 
 expect_reference_locations :: proc(
 	t: ^testing.T,
 	src: ^Source,
 	expect_locations: []common.Location,
-	expect_excluded: []common.Location = nil,
 	include_declaration := true,
 ) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_references(src.document, cursor, include_declaration = include_declaration)
+	locations, got_references := server.get_references(src.document, cursor, include_declaration = include_declaration)
+	if !got_references && len(expect_locations) > 0 {
+		log.error("No references found.")
+		return
+	}
 
-	for expect_location in expect_locations {
-		match := false
-		for location in locations {
-			if location.range == expect_location.range {
-				match = true
+	extra_expected, extra_locations, all_good := compare_expected_slice_set(locations, expect_locations,
+	                                                                        equals = proc (a, b: common.Location) -> bool {return a.range == b.range})
+	if all_good do return
+
+	sb := strings.builder_make()
+
+	if len(extra_expected) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_expected))
+		strings.write_string(&sb,  " Reference(s) expected but not reported:\n")
+		for i in extra_expected {
+			loc := expect_locations[i]
+			if loc.uri == "" {
+				loc.uri = "test/main.odin"
 			}
-		}
-		if !match {
-			ok = false
-			log.errorf("Failed to match with location: %v", expect_location)
+			strings.write_string(&sb,
+				source_location_display(src^, loc, before=ANSI_RED_BG))
 		}
 	}
 
-	if !ok {
-		log.error("Received:")
-		for location in locations {
-			log.errorf("%v \n", location)
+	if len(extra_locations) > 0 {
+		strings.write_rune(&sb, '\n')
+		strings.write_int(&sb, len(extra_locations))
+		strings.write_string(&sb,  " Reference(s) reported but not expected:\n")
+		for i in extra_locations {
+			strings.write_string(&sb,
+				source_location_display(src^, locations[i], before=ANSI_GREEN_BG))
 		}
 	}
 
-	for expect_exclude in expect_excluded {
-		for location in locations {
-			if expect_exclude.range == location.range {
-				log.errorf("Expected location %v to not be included\n", expect_exclude)
-			}
-		}
-	}
+	log.error(strings.to_string(sb))
 }
 
 expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: common.Range) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
@@ -634,14 +718,16 @@ expect_prepare_rename_range :: proc(t: ^testing.T, src: ^Source, expect_range: c
 }
 
 
-expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string) {
+expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string, ctx: server.CodeActionContext = {}) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 	}
@@ -668,13 +754,15 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 }
 
 expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string, expected_new_text: string) {
+	spall.trace(#procedure)
+
 	cursor := source_remove_cursor(src)
 
 	setup(src)
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
 	if !ok {
 		log.error("Failed to find actions")
 		return
@@ -704,7 +792,132 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
 }
 
+/*
+	Applies all the edits of a code action to the document and compares the result with `expected`.
+
+	The edits are applied back to front, which is one of the orders a client is allowed to use, and
+	the one that will produce a different result than a client applying them front to back if any of
+	the edits overlap. Overlapping edits are reported as an error for the same reason.
+*/
+expect_action_applied :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	action_name: string,
+	expected: string,
+	ctx: server.CodeActionContext = {},
+) {
+	spall.trace(#procedure)
+
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	input_range := common.Range{cursor, cursor}
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	if !ok {
+		log.error("Failed to find actions")
+		return
+	}
+
+	for action in actions {
+		if action.title != action_name {
+			continue
+		}
+
+		edits, found := action.edit.changes[src.document.uri.uri]
+
+		if !found {
+			log.errorf("Action '%s' found but has no edits", action_name)
+			return
+		}
+
+		text := apply_text_edits(edits, string(src.document.text))
+
+		testing.expectf(t, text == expected, "\nExpected:\n%s\n\nGot:\n%s", expected, text)
+		return
+	}
+
+	log.errorf("Action '%s' not found in actions: %v", action_name, actions)
+}
+
+@(private)
+AppliedTextEdit :: struct {
+	absolute: common.AbsoluteRange,
+	index:    int,
+	newText:  string,
+}
+
+@(private)
+apply_text_edits :: proc(edits: []server.TextEdit, text: string) -> string {
+	applied := make([dynamic]AppliedTextEdit, 0, len(edits), context.temp_allocator)
+
+	for edit, i in edits {
+		absolute, ok := common.get_absolute_range(edit.range, transmute([]u8)text)
+
+		if !ok {
+			log.errorf("Failed to get the absolute range of edit %v", edit)
+			return text
+		}
+
+		append(&applied, AppliedTextEdit{absolute = absolute, index = i, newText = edit.newText})
+	}
+
+	//Back to front, with the ties broken so that the array order decides the order of insertions
+	//that share a position.
+	slice.sort_by(applied[:], proc(a, b: AppliedTextEdit) -> bool {
+		if a.absolute.start != b.absolute.start {
+			return a.absolute.start > b.absolute.start
+		}
+
+		return a.index > b.index
+	})
+
+	for a, i in applied {
+		for b in applied[i + 1:] {
+			if edits_conflict(a.absolute, b.absolute) {
+				log.errorf(
+					"Overlapping edits, the result depends on the order the client applies them in: %v and %v",
+					edits[a.index],
+					edits[b.index],
+				)
+			}
+		}
+	}
+
+	result := text
+
+	for a in applied {
+		result = fmt.tprintf("%s%s%s", result[:a.absolute.start], a.newText, result[a.absolute.end:])
+	}
+
+	return result
+}
+
+@(private)
+edits_conflict :: proc(a, b: common.AbsoluteRange) -> bool {
+	a_is_insert := a.start == a.end
+	b_is_insert := b.start == b.end
+
+	//Insertions that share a position are well defined by the order of the edits.
+	if a_is_insert && b_is_insert {
+		return false
+	}
+
+	if a_is_insert {
+		return b.start <= a.start && a.start < b.end
+	}
+
+	if b_is_insert {
+		return a.start <= b.start && b.start < a.end
+	}
+
+	return a.start < b.end && b.start < a.end
+}
+
 expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken, loc := #caller_location) {
+	spall.trace(#procedure)
+
 	setup(src)
 	defer teardown(src)
 
@@ -749,6 +962,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 }
 
 expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
+	spall.trace(#procedure)
 
 	src_builder := strings.builder_make(context.temp_allocator)
 	expected_hints := make([dynamic]server.InlayHint, context.temp_allocator)

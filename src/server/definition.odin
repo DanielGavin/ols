@@ -7,12 +7,15 @@ import "core:odin/tokenizer"
 import "core:path/filepath"
 
 import "src:common"
+import "src:spall"
 
 get_all_package_file_locations :: proc(
 	document: ^Document,
 	import_decl: ^ast.Import_Decl,
 	locations: ^[dynamic]common.Location,
 ) -> bool {
+	spall.trace(#procedure, document.fullpath)
+
 	path := ""
 
 	for imp in document.imports {
@@ -35,6 +38,8 @@ get_all_package_file_locations :: proc(
 }
 
 get_definition_location :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> ([]common.Location, bool) {
+	spall.trace(#procedure, document.fullpath)
+
 	locations := make([dynamic]common.Location, context.temp_allocator)
 
 	location: common.Location
@@ -172,6 +177,8 @@ try_resolve_proc_group_overload :: proc(
 	symbol: Symbol,
 	selector_expr: ^ast.Node = nil,
 ) -> Symbol {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	if position_context.call == nil {
 		return symbol
 	}
