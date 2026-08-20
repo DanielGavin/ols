@@ -55,8 +55,10 @@
 			"patterns": [
 				{ "include": "#attribute" },
 				{ "include": "#procedure-assignment" },
+				{ "include": "#enum-assignment" },
 				{ "include": "#type-assignment" },
 				{ "include": "#distinct-type-assignment" },
+				{ "include": "#for-in-assignment" },
 				{ "include": "#constant-assignment" },
 				{ "include": "#variable-assignment" },
 				{ "include": "#case-clause" },
@@ -69,8 +71,10 @@
 		"assignments": {
 			"patterns": [
 				{ "include": "#procedure-assignment" },
+				{ "include": "#enum-assignment" },
 				{ "include": "#type-assignment" },
 				{ "include": "#distinct-type-assignment" },
+				{ "include": "#for-in-assignment" },
 				{ "include": "#constant-assignment" },
 				{ "include": "#variable-assignment" },
 				{ "include": "#type-annotation" }
@@ -115,8 +119,8 @@
 					"match": "\\b([A-Za-z_]\\w*)\\b",
 					"name": "entity.other.attribute-name.odin"
 				}, {
-					"match": ",",
-					"name": "punctuation.odin"
+					"name": "punctuation.odin",
+					"match": ","
 				},{
 					"begin": "=",
 					"beginCaptures": {"0": {"name": "keyword.operator.assignment.odin"}},
@@ -127,11 +131,13 @@
         },
 		"procedure-assignment": {
 			"name": "meta.definition.variable.odin",
-			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:|=)\\s*(#\\w+)?\\s*(?=proc\\b)",
+			"begin": "\\b([A-Za-z_]\\w*)\\s*(:)\\s*\\w*\\s*(:|=)\\s*(?:(#)(\\w+))?\\s*(?=proc\\b)",
 			"beginCaptures": {
 				"1": { "name": "meta.definition.function.odin entity.name.function.odin" },
-				"2": { "name": "keyword.operator.assignment.odin" },
-				"3": { "name": "keyword.other.odin" }
+				"2": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
+				"3": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
+				"4": { "name": "keyword.control.directive.odin" },
+				"5": { "name": "entity.other.directive-name.odin" }
 			},
 			"end": "(?=^)|(?<=\\})",
 			"patterns": [ { "include": "#type-declaration" } ]
@@ -140,8 +146,8 @@
 			"name": "meta.definition.variable.odin",
 			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:)\\s*(?=(struct|union|enum|bit_set|bit_field)\\b)",
 			"beginCaptures": {
-				"1": { "name": "entity.name.type.odin" },
-				"2": { "name": "keyword.operator.assignment.odin" },
+				"1": { "name": "entity.name.type.odin entity.name.constant.odin" },
+				"2": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
 				"3": { "name": "storage.type.odin" }
 			},
 			"end": "(?=^)|(?<=\\})",
@@ -151,8 +157,8 @@
 			"name": "meta.definition.variable.odin",
 			"begin": "\\b([A-Za-z_]\\w*)\\s*(:\\s*:)\\s*(?=(distinct)\\b)",
 			"beginCaptures": {
-				"1": { "name": "entity.name.type.odin" },
-				"2": { "name": "keyword.operator.assignment.odin" },
+				"1": { "name": "entity.name.type.odin entity.name.constant.odin" },
+				"2": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
 				"3": { "name": "storage.type.odin" }
 			},
 			"end": "(?=^)|(?<=\\})",
@@ -162,32 +168,58 @@
 			"name": "meta.definition.variable.odin",
 			"match": "([A-Za-z_]\\w*)\\s*(:\\s*:)",
 			"captures": {
-				"1": { "name": "variable.other.constant.odin" },
-				"2": { "name": "keyword.operator.assignment.odin" }
+				"1": { "name": "variable.other.constant.odin entity.name.constant.odin" },
+				"2": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" }
+			}
+		},
+		"for-in-assignment": {
+			"name": "meta.definition.for-in.odin",
+			"match": "(for)\\s+(?:(\\&)?([A-Za-z_]\\w*)\\s*(,)\\s*)?(\\&)?([A-Za-z_]\\w*)\\s*(in)\\b",
+			"captures": {
+				"1": { "name": "keyword.control.odin" },
+				"2": { "name": "punctuation.odin" },
+				"3": { "name": "variable.name.odin entity.name.variable.odin" },
+				"4": { "name": "punctuation.odin" },
+				"5": { "name": "punctuation.odin" },
+				"6": { "name": "variable.name.odin entity.name.variable.odin" },
+				"7": { "name": "keyword.control.odin" }
 			}
 		},
 		"variable-assignment": {
 			"name": "meta.definition.variable.odin",
 			"match": "(?:([A-Za-z_]\\w*)\\s*(,)\\s*)?(?:([A-Za-z_]\\w*)\\s*(,)\\s*)?([A-Za-z_]\\w*)\\s*(:\\s*=)",
 			"captures": {
-				"1": { "name": "variable.name.odin" },
+				"1": { "name": "variable.name.odin entity.name.variable.odin" },
 				"2": { "name": "punctuation.odin" },
-				"3": { "name": "variable.name.odin" },
+				"3": { "name": "variable.name.odin entity.name.variable.odin" },
 				"4": { "name": "punctuation.odin" },
-				"5": { "name": "variable.name.odin" },
-				"6": { "name": "keyword.operator.assignment.odin" }
+				"5": { "name": "variable.name.odin entity.name.variable.odin" },
+				"6": { "name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" }
 			}
+		},
+		"enum-assignment": {
+			"name": "meta.definition.enum.odin",
+			"begin": "([A-Za-z_]\\w*)\\s*:\\s*:\\s*(enum)\\s*(?=\\w*\\s*\\{)",
+			"beginCaptures": {
+				"1": { "name": "entity.name.enum.odin" },
+				"2": { "name": "keyword.enum.odin" }
+			},
+			"end": "\\}",
+			"endCaptures": {
+				"0": { "name": "punctuation.definition.block.odin" }
+			},
+			"patterns": [ { "include": "#statements" } ]
 		},
 		"type-annotation": {
 			"name": "meta.type.annotation.odin",
 			"begin": "(?:([A-Za-z_]\\w*)\\s*(,)\\s*)?(?:([A-Za-z_]\\w*)\\s*(,)\\s*)?([A-Za-z_]\\w*)\\s*(:)",
 			"beginCaptures": {
-				"1": { "name": "variable.name.odin" },
+				"1": { "name": "variable.name.odin entity.name.variable.odin" },
 				"2": { "name": "punctuation.odin" },
-				"3": { "name": "variable.name.odin" },
+				"3": { "name": "variable.name.odin entity.name.variable.odin" },
 				"4": { "name": "punctuation.odin" },
-				"5": { "name": "variable.name.odin" },
-				"6": { "name": "keyword.operator.type.annotation.odin" }
+				"5": { "name": "variable.name.odin entity.name.variable.odin" },
+				"6": { "name": "keyword.operator.type.annotation.odin keyword.operator.declaration.odin" }
 			},
 			"end": "(?=^|,|;|\\)|=|:|for|switch|if|{)",
 			"patterns": [ { "include": "#type-declaration" } ]
@@ -451,7 +483,11 @@
 				},
 				{
 					"name": "keyword.control.odin",
-					"match": "\\b(if|else|or_else|when|where|for|in|not_in|defer|switch|return|or_return)\\b"
+					"match": "\\b(if|else|or_else|when|where|for|in|not_in|defer|switch)\\b"
+				},
+				{
+					"name": "keyword.control.odin keyword.control.jumpy.odin",
+					"match": "\\b(return|or_return)\\b"
 				},
 				{
 					"match": "\\b(break|or_break|continue|or_continue)\\b\\s*(\\w+)?",
@@ -506,11 +542,13 @@
 				},
 				{
 					"name": "keyword.operator.assignment.compound.odin",
-					"match": "[+\\-*/%]=|%%="
+					"match": "([+\\-*/%]%?)=",
+					"captures": {"1": {"name": "keyword.operator.in-compound" }}
 				},
 				{
 					"name": "keyword.operator.assignment.compound.bitwise.odin",
-					"match": "\\|=|~=|&~?=|<<=|>>="
+					"match": "(\\||~|&~?|<<|>>)=",
+					"captures": {"1": {"name": "keyword.operator.in-compound" }}
 				},
 				{
 					"name": "keyword.operator.comparison.odin",
@@ -530,7 +568,12 @@
 				},
 				{
 					"name": "keyword.operator.assignment.odin",
-					"match": ":[:=]|="
+					"match": "(:)=|(::)|(=)",
+					"captures": {
+						"1": {"name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
+						"2": {"name": "keyword.operator.assignment.odin keyword.operator.declaration.odin" },
+						"3": {"name": "keyword.operator.assignment.odin" }
+					}
 				},
 				{
 					"name": "keyword.operator.address.odin",
@@ -550,7 +593,11 @@
 				},
 				{
 					"name": "entity.name.tag.odin",
-					"match": "#[A-Za-z_]\\w*"
+					"match": "(#)([A-Za-z_]\\w*)",
+					"captures": {
+						"1": { "name": "keyword.control.directive.odin" },
+						"2": { "name": "entity.other.directive-name.odin" }
+					}
 				}
 			]
 		},

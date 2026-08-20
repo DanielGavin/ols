@@ -915,7 +915,7 @@ edits_conflict :: proc(a, b: common.AbsoluteRange) -> bool {
 	return a.start < b.end && b.start < a.end
 }
 
-expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken) {
+expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.SemanticToken, loc := #caller_location) {
 	spall.trace(#procedure)
 
 	setup(src)
@@ -936,6 +936,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 		"\nExpected %d tokens, but received %d",
 		len(expected),
 		len(tokens),
+		loc=loc,
 	)
 
 	for i in 0 ..< min(len(expected), len(tokens)) {
@@ -955,6 +956,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 			a.len,
 			a.type,
 			a.modifiers,
+			loc=loc,
 		)
 	}
 }
