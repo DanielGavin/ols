@@ -1,12 +1,12 @@
 package ols_testing
 
-import "core:os"
 import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
+import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:testing"
@@ -192,20 +192,7 @@ source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
 	source^ = string(new_source)
 
 	// find cursor (line,col) position
-	last: u8
-	for j := 0; j < marker_pos; j += 1 {
-		ch := source[j]
-		defer last = ch
-
-		if last == '\r' || ch == '\n' {
-			cursor.line += 1
-			cursor.character = 0
-		} else {
-			cursor.character += 1
-		}
-	}
-
-	return
+	return common.get_relative_token_position(marker_pos, transmute([]u8)source^, 0)
 }
 
 expect_signature_labels :: proc(
@@ -500,6 +487,41 @@ expect_completion_edit_text :: proc(
 	if !found {
 		log.errorf("Expected completion label '%v' not found in %v", label, completion_list.items)
 	}
+}
+
+expect_completion_edits :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	label: string,
+	expected_edit: server.CompletionTextEdit,
+	expected_additional_edits: []server.TextEdit = nil,
+) {
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	if !ok {
+		log.error("Failed get_completion_list")
+		return
+	}
+
+	for completion in completion_list.items {
+		if completion.label != label do continue
+
+		testing.expect_value(t, completion.textEdit, expected_edit)
+		additional_edits := completion.additionalTextEdits.([]server.TextEdit) or_else nil
+		testing.expect(t, slice.equal(additional_edits, expected_additional_edits))
+		return
+	}
+
+	testing.expectf(t, false, "Expected completion label '%v' not found in %v", label, completion_list.items)
 }
 
 expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
