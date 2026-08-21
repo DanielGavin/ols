@@ -29,6 +29,9 @@ Printer :: struct {
 	force_statement_fit:  bool,
 	src:                  string,
 	errored_out:          bool,
+	render_line:          int, //Output line counter, used to group aligned comments.
+	line_indentation:     int, //Indentation depth of the current line.
+	trailing_comments:    [dynamic]Trailing_Comment_Record,
 	constant_alignment:   map[int]int,
 }
 
@@ -39,24 +42,33 @@ Disabled_Info :: struct {
 	end_line:   int,
 }
 
+Trailing_Comment_Record :: struct {
+	offset:      int, //Byte index in string_builder.buf where the comment begins.
+	code_column: int, //Column where the code ends.
+	indentation: int, //Indentation depth of the comment's line.
+	line_index:  int, //Output line the comment is on.
+}
+
 Config :: struct {
-	character_width:            int,
-	spaces:                     int, //Spaces per indentation
-	newline_limit:              int, //The limit of newlines between statements and declarations.
-	tabs:                       bool, //Enable or disable tabs
-	tabs_width:                 int,
-	convert_do:                 bool, //Convert all do statements to brace blocks
-	brace_style:                Brace_Style,
-	indent_cases:               bool,
-	newline_style:              Newline_Style,
-	sort_imports:               bool,
-	inline_single_stmt_case:    bool,
-	spaces_around_colons:       bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
-	space_single_line_blocks:   bool,
-	align_struct_fields:        bool,
-	align_struct_values:        bool,
-	align_struct_declarations:  bool,
-	align_constant_definitions: bool,
+	character_width:              int,
+	spaces:                       int,  //Spaces per indentation
+	newline_limit:                int,  //The limit of newlines between statements and declarations.
+	tabs:                         bool, //Enable or disable tabs
+	tabs_width:                   int,
+	convert_do:                   bool, //Convert all do statements to brace blocks
+	brace_style:                  Brace_Style,
+	indent_cases:                 bool,
+	newline_style:                Newline_Style,
+	sort_imports:                 bool,
+	inline_single_stmt_case:      bool,
+	spaces_around_colons:         bool, //Put spaces to the left of a colon as well as the right. `foo: bar` => `foo : bar`
+	space_single_line_blocks:     bool,
+	align_struct_fields:          bool,
+	align_struct_values:          bool,
+	align_struct_declarations:    bool,
+	align_constant_definitions:   bool,
+	align_comments:               bool, //Align trailing line comments to the same column.
+	multiline_composite_literals: bool,
 }
 
 Brace_Style :: enum {
@@ -95,39 +107,43 @@ Line_Suffix_Option :: enum {
 
 when ODIN_OS == .Windows {
 	default_style := Config {
-		spaces                     = 4,
-		newline_limit              = 2,
-		convert_do                 = false,
-		tabs                       = true,
-		tabs_width                 = 4,
-		brace_style                = ._1TBS,
-		indent_cases               = false,
-		newline_style              = .CRLF,
-		character_width            = 100,
-		sort_imports               = true,
-		spaces_around_colons       = false,
-		align_struct_fields        = true,
-		align_struct_values        = true,
-		align_struct_declarations  = false,
-		align_constant_definitions = false,
+		spaces                       = 4,
+		newline_limit                = 2,
+		convert_do                   = false,
+		tabs                         = true,
+		tabs_width                   = 4,
+		brace_style                  = ._1TBS,
+		indent_cases                 = false,
+		newline_style                = .CRLF,
+		character_width              = 100,
+		sort_imports                 = true,
+		spaces_around_colons         = false,
+		align_struct_fields          = true,
+		align_struct_values          = true,
+		align_struct_declarations    = false,
+		align_constant_definitions   = false,
+		align_comments               = false,
+		multiline_composite_literals = false,
 	}
 } else {
 	default_style := Config {
-		spaces                     = 4,
-		newline_limit              = 2,
-		convert_do                 = false,
-		tabs                       = true,
-		tabs_width                 = 4,
-		brace_style                = ._1TBS,
-		indent_cases               = false,
-		newline_style              = .LF,
-		character_width            = 100,
-		sort_imports               = true,
-		spaces_around_colons       = false,
-		align_struct_fields        = true,
-		align_struct_values        = true,
-		align_struct_declarations  = false,
-		align_constant_definitions = false,
+		spaces                       = 4,
+		newline_limit                = 2,
+		convert_do                   = false,
+		tabs                         = true,
+		tabs_width                   = 4,
+		brace_style                  = ._1TBS,
+		indent_cases                 = false,
+		newline_style                = .LF,
+		character_width              = 100,
+		sort_imports                 = true,
+		spaces_around_colons         = false,
+		align_struct_fields          = true,
+		align_struct_values          = true,
+		align_struct_declarations    = false,
+		align_constant_definitions   = false,
+		align_comments               = false,
+		multiline_composite_literals = false,
 	}
 }
 
@@ -380,7 +396,70 @@ print_file :: proc(p: ^Printer, file: ^ast.File) -> string {
 
 	format(p.config.character_width, &list, &p.string_builder, p)
 
+	if p.config.align_comments {
+		align_trailing_comments(p)
+	}
+
 	return strings.to_string(p.string_builder)
+}
+
+// Align trailing comments on consecutive lines to the same column
+@(private)
+align_trailing_comments :: proc(p: ^Printer) {
+	records := p.trailing_comments[:]
+	if len(records) == 0 {
+		return
+	}
+
+	pads := make([]int, len(records), p.allocator)
+
+	total := 0
+
+	i := 0
+	for i < len(records) {
+		// Group runs of adjacent lines at the same indentation.
+		j := i + 1
+		for j < len(records) &&
+		    records[j].line_index == records[j - 1].line_index + 1 &&
+		    records[j].indentation == records[j - 1].indentation {
+			j += 1
+		}
+
+		target := 0
+		for k in i ..< j {
+			target = max(target, records[k].code_column)
+		}
+
+		for k in i ..< j {
+			pads[k] = target - records[k].code_column
+			total += pads[k]
+		}
+
+		i = j
+	}
+
+	if total == 0 {
+		return
+	}
+
+	// Rebuild the buffer with padding inserted; records are in ascending offset order.
+	old := p.string_builder.buf[:]
+	new_buf := make([dynamic]byte, 0, len(old) + total, p.allocator)
+
+	prev := 0
+	for rec, idx in records {
+		if pads[idx] == 0 {
+			continue
+		}
+		append(&new_buf, ..old[prev:rec.offset])
+		for _ in 0 ..< pads[idx] {
+			append(&new_buf, ' ')
+		}
+		prev = rec.offset
+	}
+	append(&new_buf, ..old[prev:])
+
+	p.string_builder.buf = new_buf
 }
 
 // Sort the imports and add them to the document.

@@ -28,7 +28,8 @@ Document_Text :: struct {
 }
 
 Document_Line_Suffix :: struct {
-	value: string,
+	value:     string,
+	alignable: bool, //Trailing comments can be aligned; standalone comments cannot.
 }
 
 Document_Nest :: struct {
@@ -215,10 +216,11 @@ break_parent :: proc(allocator := context.allocator) -> ^Document {
 	return document
 }
 
-line_suffix :: proc(value: string, allocator := context.allocator) -> ^Document {
+line_suffix :: proc(value: string, alignable := false, allocator := context.allocator) -> ^Document {
 	document := new(Document, allocator)
 	document^ = Document_Line_Suffix {
-		value = value,
+		value     = value,
+		alignable = alignable,
 	}
 	return document
 }
@@ -417,9 +419,34 @@ format_newline :: proc(indentation: int, alignment: int, consumed: ^int, builder
 	}
 
 	consumed^ = indentation * p.indentation_width + alignment
+	p.render_line += 1
+	p.line_indentation = indentation
 }
 
-flush_line_suffix :: proc(builder: ^strings.Builder, suffix_builder: ^strings.Builder) {
+flush_line_suffix :: proc(
+	builder: ^strings.Builder,
+	suffix_builder: ^strings.Builder,
+	p: ^Printer,
+	code_column: int,
+	alignable: bool,
+) {
+	if len(suffix_builder.buf) == 0 {
+		return
+	}
+
+	// Record trailing comments for the alignment post-pass, keyed on the comment's own line.
+	if alignable {
+		append(
+			&p.trailing_comments,
+			Trailing_Comment_Record {
+				offset = len(builder.buf),
+				code_column = code_column,
+				indentation = p.line_indentation,
+				line_index = p.render_line,
+			},
+		)
+	}
+
 	strings.write_string(builder, strings.to_string(suffix_builder^))
 	strings.builder_reset(suffix_builder)
 }
@@ -431,6 +458,10 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 	consumed := 0
 	recalculate := false
 
+	// Column and kind of the pending line suffix, captured for comment alignment.
+	pending_suffix_column := 0
+	pending_suffix_alignable := false
+
 	suffix_builder := strings.builder_make()
 
 	list_fits = make([dynamic]Tuple, 0, 100, p.allocator)
@@ -441,11 +472,15 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 		switch v in data.document {
 		case Document_Nil:
 		case Document_Line_Suffix:
+			if len(suffix_builder.buf) == 0 {
+				pending_suffix_column = consumed
+				pending_suffix_alignable = v.alignable
+			}
 			strings.write_string(&suffix_builder, v.value)
 		case Document_Break_Parent:
 		case Document_Newline:
 			if v.amount > 0 {
-				flush_line_suffix(builder, &suffix_builder)
+				flush_line_suffix(builder, &suffix_builder, p, pending_suffix_column, pending_suffix_alignable)
 				// ensure we strip any misplaced trailing whitespace
 				for len(builder.buf) > 0 && builder.buf[len(builder.buf) - 1] == ' ' {
 					pop(&builder.buf)
@@ -460,6 +495,8 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 					strings.write_string(builder, " ")
 				}
 				consumed = data.indentation * p.indentation_width + data.alignment
+				p.render_line += v.amount
+				p.line_indentation = data.indentation
 
 				if data.mode == .Flat {
 					recalculate = true
@@ -511,13 +548,13 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			consumed += len(v.value)
 		case Document_Break:
 			if data.mode == .Break && v.newline {
-				flush_line_suffix(builder, &suffix_builder)
+				flush_line_suffix(builder, &suffix_builder, p, pending_suffix_column, pending_suffix_alignable)
 				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else if data.mode == .Fill && consumed < width {
 				strings.write_string(builder, v.value)
 				consumed += len(v.value)
 			} else if data.mode == .Fill && v.newline {
-				flush_line_suffix(builder, &suffix_builder)
+				flush_line_suffix(builder, &suffix_builder, p, pending_suffix_column, pending_suffix_alignable)
 				format_newline(data.indentation, data.alignment, &consumed, builder, p)
 			} else {
 				strings.write_string(builder, v.value)
