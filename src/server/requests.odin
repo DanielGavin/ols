@@ -784,6 +784,8 @@ request_initialize :: proc(
 
 	config.enable_label_details =
 		initialize_params.capabilities.textDocument.completion.completionItem.labelDetailsSupport
+	config.completion_insert_replace_support =
+		initialize_params.capabilities.textDocument.completion.completionItem.insertReplaceSupport
 
 	client_snippet_supprot := initialize_params.capabilities.textDocument.completion.completionItem.snippetSupport
 	config.enable_snippets &= client_snippet_supprot

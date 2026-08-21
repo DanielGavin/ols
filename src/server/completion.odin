@@ -13,6 +13,7 @@ import "core:reflect"
 import "core:slice"
 import "core:strconv"
 import "core:strings"
+import "core:unicode/utf8"
 
 import "src:common"
 import "src:spall"
@@ -181,6 +182,7 @@ get_completion_list :: proc(
 		arg_symbol,
 		config,
 	)
+	add_completion_text_edits(items, &position_context, completion_type, position, config)
 	list.items = items
 	list.isIncomplete = is_incomplete
 	return list, true
@@ -400,6 +402,72 @@ convert_completion_results :: proc(
 	}
 
 	return items[:]
+}
+
+
+@(private = "file")
+add_completion_text_edits :: proc(
+	items: []CompletionItem,
+	position_context: ^DocumentPositionContext,
+	completion_type: Completion_Type,
+	position: common.Position,
+	config: ^common.Config,
+) {
+	if completion_type != .Identifier && completion_type != .Selector do return
+	insert_range, replace_range := get_completion_edit_ranges(position_context, position)
+	for &item in items {
+		// Preserve supplied primary edits
+		if item.textEdit != nil do continue
+		// Preserve context-specific multi-edit completions, such as auto-imports and implicit selectors.
+		if len(item.additionalTextEdits.? or_else nil) > 0 do continue
+
+		new_text := item.insertText.(string) or_else item.label
+		if config.completion_insert_replace_support {
+			item.textEdit = InsertReplaceEdit {
+				newText = new_text,
+				insert  = insert_range,
+				replace = replace_range,
+			}
+		} else {
+			item.textEdit = TextEdit {
+				newText = new_text,
+				range   = insert_range,
+			}
+		}
+	}
+}
+
+@(private = "file")
+get_completion_edit_ranges :: proc(
+	position_context: ^DocumentPositionContext,
+	position: common.Position,
+) -> (insert, replace: common.Range) {
+	insert = { start = position, end = position}
+	replace = { start = position, end = position}
+
+	src := transmute([]u8)position_context.file.src
+	cursor := position_context.position
+	if cursor < 0 || cursor > len(src) do return insert, replace
+
+	start, end := cursor, cursor
+
+	for start > 0 {
+		r, width := utf8.decode_last_rune(src[:start])
+		if width == 0 || (!tokenizer.is_letter(r) && !tokenizer.is_digit(r)) do break
+		start -= width
+	}
+
+	for end < len(src) {
+		r, width := utf8.decode_rune(src[end:])
+		if width == 0 || (!tokenizer.is_letter(r) && !tokenizer.is_digit(r)) do break
+		end += width
+	}
+
+	insert.start.character -= common.get_character_offset_u8_to_u16(cursor - start, src[start:cursor])
+	replace.start = insert.start
+	replace.end.character += common.get_character_offset_u8_to_u16(end - cursor, src[cursor:end])
+
+	return insert, replace
 }
 
 should_add_parens_snippet :: proc(position_context: ^DocumentPositionContext, config: ^common.Config, result_type: SymbolType) -> bool{

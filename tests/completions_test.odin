@@ -4,7 +4,96 @@ package tests
 import "core:strings"
 import "core:testing"
 
+import "src:server"
 import test "src:testing"
+
+@(test)
+completion_insert_replace_edit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			target_extra :: proc(value: int) {}
+			main :: proc() {
+				_ = targ{*}et
+			}
+			`,
+		config = {enable_snippets = true, enable_procedure_snippet = true, completion_insert_replace_support = true},
+	}
+
+	expected_edit := server.InsertReplaceEdit {
+		newText = "target_extra($0)",
+		insert = {start = {line = 3, character = 8}, end = {line = 3, character = 12}},
+		replace = {start = {line = 3, character = 8}, end = {line = 3, character = 14}},
+	}
+
+	test.expect_completion_edits(t, &source, "", "target_extra", expected_edit)
+}
+
+@(test)
+completion_insert_replace_edit_fallback :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+			target_extra :: proc(value: int) {}
+			main :: proc() {
+				_ = targ{*}et
+			}
+			`,
+		config = {enable_snippets = true, enable_procedure_snippet = true, completion_insert_replace_support = false},
+	}
+
+	expected_edit := server.TextEdit {
+		newText = "target_extra($0)",
+		range = {start = {line = 3, character = 8}, end = {line = 3, character = 12}},
+	}
+
+	test.expect_completion_edits(t, &source, "", "target_extra", expected_edit)
+}
+
+@(test)
+completion_insert_replace_edit_utf16 :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Thing :: struct {héllö_extra: int}
+		main :: proc() {
+			thing: Thing
+			_ = "😀"; _ = thing.héll{*}ö
+		}
+		`,
+		config = {completion_insert_replace_support = true},
+	}
+
+	test.expect_completion_edits(
+		t,
+		&source,
+		".",
+		"héllö_extra",
+		server.InsertReplaceEdit {
+			newText = "héllö_extra",
+			insert = {start = {line = 4, character = 23}, end = {line = 4, character = 27}},
+			replace = {start = {line = 4, character = 23}, end = {line = 4, character = 28}},
+		},
+	)
+}
+
+@(test)
+completion_insert_replace_with_additional_edits :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			_ = ff{*}
+		}
+		`,
+		config = {enable_snippets = true, completion_insert_replace_support = true},
+	}
+
+	test.expect_completion_edits(
+		t,
+		&source,
+		"",
+		"ff",
+		nil,
+		{{newText = "import \"core:fmt\" \n", range = {start = {line = 2}, end = {line = 2}}}},
+	)
+}
 
 @(test)
 ast_simple_struct_completion :: proc(t: ^testing.T) {
