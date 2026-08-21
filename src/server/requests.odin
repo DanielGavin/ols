@@ -851,8 +851,6 @@ request_initialize :: proc(
 		append(&indexer.builtin_packages, indexer.runtime_package)
 	}
 
-	file_resolve_cache.files = make(map[string]FileResolve, 200)
-
 	builtin_path := get_builtin_path(context.allocator)
 	config.builtin_path = builtin_path
 	// we still need to ensure the index is setup even if the builtin folder was not found
@@ -1321,12 +1319,10 @@ request_semantic_token_full :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		resolve_entire_file_cached(document)
+		symbols := resolve_entire_file(document, allocator=context.temp_allocator)
 
-		if file, ok := file_resolve_cache.files[document.uri.uri]; ok {
-			tokens := get_semantic_tokens(document, range, file.symbols)
-			tokens_params = semantic_tokens_to_response_params(tokens)
-		}
+		tokens := get_semantic_tokens(document, range, symbols)
+		tokens_params = semantic_tokens_to_response_params(tokens)
 	}
 
 	response := make_response_message(params = tokens_params, id = id)
@@ -1363,9 +1359,9 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		file := resolve_ranged_file_cached(document, semantic_params.range, context.temp_allocator)
+		symbols := resolve_entire_file(document, allocator=context.temp_allocator)
 
-		tokens := get_semantic_tokens(document, semantic_params.range, file.symbols)
+		tokens := get_semantic_tokens(document, semantic_params.range, symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)
 	}
 
@@ -1465,9 +1461,9 @@ request_inlay_hint :: proc(
 	document := document_get(inlay_params.textDocument.uri)
 	if document == nil do return .InternalError
 
-	file := resolve_ranged_file_cached(document, inlay_params.range, context.temp_allocator)
+	symbols := resolve_entire_file(document, allocator=context.temp_allocator)
 
-	hints, hints_ok := get_inlay_hints(document, inlay_params.range, file.symbols, config)
+	hints, hints_ok := get_inlay_hints(document, inlay_params.range, symbols, config)
 	if !hints_ok do return .InternalError
 
 	response := make_response_message(params = hints, id = id)

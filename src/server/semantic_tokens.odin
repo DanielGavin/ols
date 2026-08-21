@@ -118,7 +118,7 @@ SemanticTokensResponseParams :: struct {
 SemanticTokenBuilder :: struct {
 	current_start: int,
 	tokens:        [dynamic]SemanticToken,
-	symbols:       map[uintptr]SymbolAndNode,
+	symbols:       SymbolAndNodeMap,
 	src:           string,
 }
 
@@ -129,7 +129,7 @@ semantic_tokens_to_response_params :: proc(tokens: []SemanticToken) -> SemanticT
 get_semantic_tokens :: proc(
 	document: ^Document,
 	range: common.Range,
-	symbols: map[uintptr]SymbolAndNode,
+	symbols: SymbolAndNodeMap,
 ) -> []SemanticToken {
 	spall.trace(#procedure, document.fullpath)
 

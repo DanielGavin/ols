@@ -293,17 +293,12 @@ resolve_references :: proc(
 
 
 	arena: runtime.Arena
+	_ = runtime.arena_init(&arena, mem.Megabyte * 40, context.temp_allocator)
 
-	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+	for fullpath in slice.unique(fullpaths[:]) {
 
-	defer runtime.arena_destroy(&arena)
-
-	context.allocator = runtime.arena_allocator(&arena)
-
-	paths := slice.unique(fullpaths[:])
-
-	for fullpath in paths {
-		defer free_all(context.allocator)
+		context.allocator = runtime.arena_allocator(&arena)
+		defer runtime.arena_free_all(&arena)
 
 		fullpath := fullpath
 		when ODIN_OS == .Windows {
