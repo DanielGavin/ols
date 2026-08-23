@@ -58,8 +58,11 @@ document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		virtual.arena_destroy(v.allocator)
-		free(v.allocator)
+		//`document_close` returns the arena to `free_allocators` and nils the field, but keeps the document in the map
+		if v.allocator != nil {
+			virtual.arena_destroy(v.allocator)
+			free(v.allocator)
+		}
 		delete(k)
 	}
 
