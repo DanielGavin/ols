@@ -88,12 +88,12 @@
 		},
 		"align_comments": {
 			"type": "boolean",
-			"default": true,
+			"default": false,
 			"description": "Align trailing line comments on consecutive lines so they all start at the same column"
 		},
 		"multiline_composite_literals": {
 			"type": "boolean",
-			"default": true,
+			"default": false,
 			"description": "Composite literals that span multiple lines are not forcibly inlined"
 		}
 	},
