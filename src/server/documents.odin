@@ -58,8 +58,10 @@ document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		virtual.arena_destroy(v.allocator)
-		free(v.allocator)
+		if v.allocator != nil {
+			virtual.arena_destroy(v.allocator)
+			free(v.allocator)
+		}
 		delete(k)
 	}
 
