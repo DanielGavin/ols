@@ -1033,15 +1033,17 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-			if p.config.brace_style == .Allman ||
-			   p.config.brace_style == .Stroustrup ||
-			   (!p.config.convert_do && block_uses_do(v.body)) {
+			else_on_newline :=
+				p.config.brace_style == .Allman ||
+				p.config.brace_style == .Stroustrup ||
+				(!p.config.convert_do && block_uses_do(v.body))
+			if else_on_newline {
 				document = cons(document, newline(1))
 			}
 
 			set_source_position(p, v.else_stmt.pos)
 
-			if !p.config.convert_do && block_uses_do(v.body) {
+			if else_on_newline {
 				document = cons(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			} else {
 				document = cons_with_opl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
@@ -1284,13 +1286,18 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-			if p.config.brace_style == .Allman {
+			else_on_newline := p.config.brace_style == .Allman || p.config.brace_style == .Stroustrup
+			if else_on_newline {
 				document = cons(document, newline(1))
 			}
 
 			set_source_position(p, v.else_stmt.pos)
 
-			document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
+			if else_on_newline {
+				document = cons(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
+			} else {
+				document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
+			}
 		}
 	case ^ast.Branch_Stmt:
 		document = cons(document, text(v.tok.text))

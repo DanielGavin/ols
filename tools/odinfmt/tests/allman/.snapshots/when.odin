@@ -7,4 +7,7 @@ main :: proc()
 	when TEST_BOOL
 	{
 	}
+	else
+	{
+	}
 }
