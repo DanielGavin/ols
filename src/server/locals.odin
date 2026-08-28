@@ -1152,19 +1152,20 @@ get_locals_type_switch_stmt :: proc(
 				tag := stmt.tag.derived.(^ast.Assign_Stmt)
 
 				if len(tag.lhs) == 1 && len(cause.list) == 1 {
-					ident, _ := unwrap_ident(tag.lhs[0])
-					store_local(
-						ast_context,
-						ident,
-						cause.list[0],
-						ident.pos.offset,
-						ident.name,
-						ast_context.non_mutable_only,
-						false,
-						{.Mutable},
-						"",
-						false,
-					)
+					if ident, ok := unwrap_ident(tag.lhs[0]); ok {
+						store_local(
+							ast_context,
+							ident,
+							cause.list[0],
+							ident.pos.offset,
+							ident.name,
+							ast_context.non_mutable_only,
+							false,
+							{.Mutable},
+							"",
+							false,
+						)
+					}
 				}
 
 				for b in cause.body {
