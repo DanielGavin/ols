@@ -1319,7 +1319,7 @@ request_semantic_token_full :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		symbols := resolve_entire_file(document, allocator=context.temp_allocator)
+		symbols := resolve_entire_file(document)
 
 		tokens := get_semantic_tokens(document, range, symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)
@@ -1359,7 +1359,7 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		symbols := resolve_entire_file(document, allocator=context.temp_allocator)
+		symbols := resolve_entire_file(document)
 
 		tokens := get_semantic_tokens(document, semantic_params.range, symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)
@@ -1461,7 +1461,7 @@ request_inlay_hint :: proc(
 	document := document_get(inlay_params.textDocument.uri)
 	if document == nil do return .InternalError
 
-	symbols := resolve_entire_file(document, allocator=context.temp_allocator)
+	symbols := resolve_entire_file(document)
 
 	hints, hints_ok := get_inlay_hints(document, inlay_params.range, symbols, config)
 	if !hints_ok do return .InternalError

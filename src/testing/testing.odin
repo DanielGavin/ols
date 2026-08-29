@@ -1,6 +1,5 @@
 package ols_testing
 
-import "core:os"
 import "base:runtime"
 import "core:fmt"
 import "core:log"
@@ -923,7 +922,7 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 
 
 	resolve_flag: server.ResolveReferenceFlag
-	symbols_and_nodes := server.resolve_entire_file(src.document, resolve_flag, context.temp_allocator)
+	symbols_and_nodes := server.resolve_entire_file(src.document)
 
 	range := common.Range {
 		end = {line = 9000000},
@@ -1011,7 +1010,7 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	setup(src)
 	defer teardown(src)
 
-	symbols_and_nodes := server.resolve_entire_file(src.document, allocator = context.temp_allocator)
+	symbols_and_nodes := server.resolve_entire_file(src.document)
 
 	range := common.Range {
 		end = {line = 9000000},

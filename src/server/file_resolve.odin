@@ -1,5 +1,6 @@
 package server
 
+import "base:runtime"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:strings"
@@ -28,39 +29,19 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.index = nil
 }
 
-resolve_entire_file :: proc(
-	document: ^Document,
-	flag := ResolveReferenceFlag.None,
-	allocator := context.allocator,
-	target_name := "",
-	save_unresolved := false,
-) -> (symbols: SymbolAndNodeMap) {
+// Should only be called for open documents
+resolve_entire_file :: proc(document: ^Document) -> (symbols: SymbolAndNodeMap) {
 	spall.trace(#procedure, document.fullpath)
 
-	should_use_cache := (
-		// Only cache symbols for open documents
-		document.client_owned == true &&
-		document.allocator != nil &&
-		// flag changes the symbols output
-		flag == .None
-	)
+	assert(document.client_owned, #procedure + " should only be called for open documents")
 
-	reuse_cached: if should_use_cache {
-		symbols = document.symbols.? or_break reuse_cached
-		return symbols
-	}
+	allocator, has_allocator := document_allocator(document^)
+	assert(has_allocator, "Open document should have an allocator set")
 
-	allocator, target_name, save_unresolved := allocator, target_name, save_unresolved
-
-	if should_use_cache {
-		allocator = document_allocator(document^)
-		// clear filters to cache full symbols map
-		save_unresolved = true
-		target_name = ""
+	reuse_cached: {
+		return document.symbols.? or_break reuse_cached
 	}
-	defer if should_use_cache {
-		document.symbols = symbols
-	}
+	defer document.symbols = symbols
 
 	ast_context := make_ast_context(
 		document.ast,
@@ -87,9 +68,53 @@ resolve_entire_file :: proc(
 			document,
 			decl,
 			&symbols,
-			flag,
-			save_unresolved,
-			target_name,
+			flag = .None,
+			save_unresolved = true,
+			target_name = "",
+		)
+		clear(&ast_context.locals)
+	}
+
+	return symbols
+}
+
+// Should only be called when resolving references
+resolve_entire_file_for_references :: proc(
+	document:    ^Document,
+	allocator:   runtime.Allocator,
+	flag:        ResolveReferenceFlag,
+	target_name: string,
+) -> (symbols: SymbolAndNodeMap) {
+	spall.trace(#procedure, document.fullpath)
+
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		allocator,
+	)
+
+	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
+
+	get_globals(document.ast, &ast_context)
+
+	ast_context.current_package = ast_context.document_package
+
+	symbols = make(SymbolAndNodeMap, 10000, allocator)
+
+	for decl in document.ast.decls {
+		resolve_decl(
+			&position_context,
+			&ast_context,
+			document,
+			decl,
+			&symbols,
+			flag = flag,
+			save_unresolved = false,
+			target_name = target_name,
 		)
 		clear(&ast_context.locals)
 	}
