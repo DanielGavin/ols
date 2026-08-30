@@ -413,7 +413,6 @@ collect_value_decl :: proc(
 		return
 	}
 	comment, _ := get_file_comment(file, value_decl.pos.line)
-
 	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
 	global_expr := GlobalExpr {
@@ -1473,92 +1472,6 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 		return ""
 	}
 	return strings.repeat(value, count, allocator)
-}
-
-// Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
-// using the provided allocator, so `v` should have the same lifetime as the allocator.
-construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
-	if v.fields == nil {
-		return
-	}
-	for field, i in v.fields.list {
-		// There is currently a bug in the odin parser where it adds line comments for a field to the
-		// docs of the following field, we address this problem here.
-		// see https://github.com/odin-lang/Odin/issues/5353
-		// Edit 2025-07-12 it looks like the comments are now added (for structs), however the comments are still
-		// incorrectly added to the following fields docs, and there's an issue where it will only
-		// append the comment if there is a ',' at the end of the line (meaning it can easily be
-		// skipped on the last line) eg
-		// Foo :: struct {
-		//     foo: int // my int <-- skipped as no ',' after 'int'
-		// }
-
-		// remove any unwanted docs
-		if i != len(v.fields.list) - 1 {
-			next_field := v.fields.list[i + 1]
-			if next_field.docs != nil && len(next_field.docs.list) > 0 {
-				list := next_field.docs.list
-				if list[0].pos.line == field.pos.line {
-					// if the comment is missing from the appropriate field, we add it (for older versions of the parser)
-					if field.comment == nil {
-						field.comment = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
-						field.comment.list = list[:1]
-					}
-					if len(list) > 1 {
-						next_field.docs = new_type(
-							ast.Comment_Group,
-							list[1].pos,
-							parser.end_pos(list[len(list) - 2]),
-							allocator,
-						)
-						next_field.docs.list = list[1:]
-					} else {
-						next_field.docs = nil
-					}
-				}
-			}
-		} else if field.comment == nil {
-			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
-		}
-	}
-}
-
-// Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
-// using the provided allocator, so `v` should have the same lifetime as the allocator.
-construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
-	for field, i in v.fields {
-		// There is currently a bug in the odin parser where it adds line comments for a field to the
-		// docs of the following field, we address this problem here.
-		// see https://github.com/odin-lang/Odin/issues/5353
-		// We check if the comment is at the start of the next field
-		if i != len(v.fields) - 1 {
-			next_field := v.fields[i + 1]
-			if next_field.docs != nil && len(next_field.docs.list) > 0 {
-				list := next_field.docs.list
-				if list[0].pos.line == field.pos.line {
-					if field.comments == nil {
-						field.comments = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
-						field.comments.list = list[:1]
-					}
-					if len(list) > 1 {
-						next_field.docs = new_type(
-							ast.Comment_Group,
-							list[1].pos,
-							parser.end_pos(list[len(list) - 2]),
-							allocator,
-						)
-						next_field.docs.list = list[1:]
-					} else {
-						next_field.docs = nil
-					}
-				}
-			}
-		} else if field.comments == nil {
-			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
-		}
-	}
 }
 
 // Retrives the comment group from the specified line of the file
