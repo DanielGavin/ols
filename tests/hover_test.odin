@@ -7379,3 +7379,15 @@ ast_hover_or_else_with_parens :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.bar: int")
 }
+
+@(test)
+ast_hover_type_specialization :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {}
+		foo :: proc(f: $T/F{*}oo($V)) {}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.Foo :: struct($V: typeid){}")
+}
