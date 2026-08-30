@@ -140,7 +140,6 @@ collect_struct_fields :: proc(
 	file: ast.File,
 ) -> SymbolStructValue {
 	b := symbol_struct_value_builder_make(collection.allocator)
-	construct_struct_field_docs(file, struct_type, collection.allocator)
 
 	for field in struct_type.fields.list {
 		for n in field.names {
@@ -201,7 +200,6 @@ collect_bit_field_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
-	construct_bit_field_field_docs(file, bit_field_type, collection.allocator)
 	names := make([dynamic]string, 0, len(bit_field_type.fields), collection.allocator)
 	types := make([dynamic]^ast.Expr, 0, len(bit_field_type.fields), collection.allocator)
 	ranges := make([dynamic]common.Range, 0, len(bit_field_type.fields), collection.allocator)
@@ -964,8 +962,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.uri = get_index_unique_string(collection, uri)
 		symbol.type_expr = clone_type(expr.type_expr, collection.allocator, &collection.unique_strings)
 		symbol.value_expr = clone_type(expr.value_expr, collection.allocator, &collection.unique_strings)
-		comment, _ := get_file_comment(file, symbol.range.start.line + 1)
-		symbol.comment = get_comment(comment, collection.allocator)
+		symbol.comment = get_comment(expr.comment, collection.allocator)
 
 		// symbol.pkg was already set earlier before the switch
 
