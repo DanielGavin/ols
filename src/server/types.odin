@@ -204,8 +204,9 @@ GeneralClientCapabilities :: struct {
 }
 
 CompletionItemCapabilities :: struct {
-	snippetSupport:      bool,
-	labelDetailsSupport: bool,
+	snippetSupport:       bool,
+	labelDetailsSupport:  bool,
+	insertReplaceSupport: bool,
 }
 
 CompletionClientCapabilities :: struct {
@@ -268,6 +269,11 @@ InsertReplaceEdit :: struct {
 	insert:  common.Range,
 	newText: string,
 	replace: common.Range,
+}
+
+CompletionTextEdit :: union {
+	TextEdit,
+	InsertReplaceEdit,
 }
 
 DiagnosticSeverity :: enum {
@@ -379,7 +385,7 @@ CompletionItem :: struct {
 	insertTextFormat:    Maybe(InsertTextFormat),
 	insertText:          Maybe(string),
 	InsertTextMode:      Maybe(InsertTextMode),
-	textEdit:            Maybe(TextEdit),
+	textEdit:            CompletionTextEdit,
 	additionalTextEdits: Maybe([]TextEdit),
 	tags:                []CompletionItemTag,
 	deprecated:          bool,
