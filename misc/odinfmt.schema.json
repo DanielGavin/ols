@@ -32,11 +32,6 @@
 			"default": false,
 			"description": "Convert all do statements to brace blocks"
 		},
-		"exp_multiline_composite_literals": {
-			"type": "boolean",
-			"default": false,
-			"description": "Experimental: Composite literals that span multiple lines are not forcibly inlined"
-		},
 		"brace_style": {
 			"type": "string",
 			"enum": ["_1TBS", "Allman", "Stroustrup", "K_And_R"],
@@ -90,6 +85,16 @@
 			"type": "boolean",
 			"default": false,
 			"description": "Align the :: or : of consecutive constant declarations so they all start at the same column. Constants separated by a blank line form separate alignment groups. Constants with type annotations are aligned separately from those without."
+		},
+		"align_comments": {
+			"type": "boolean",
+			"default": false,
+			"description": "Align trailing line comments on consecutive lines so they all start at the same column"
+		},
+		"multiline_composite_literals": {
+			"type": "boolean",
+			"default": false,
+			"description": "Composite literals that span multiple lines are not forcibly inlined"
 		}
 	},
 	"required": []
