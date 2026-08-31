@@ -924,6 +924,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 		if result, ok := check_call_expr_cache(ast_context, call_expr); ok {
 			return result.symbol, result.ok
 		}
+		ast_context.call_expr_recursion_cache[cast(rawptr)call_expr] = {}
 	}
 
 	resolve_all_possibilities := should_resolve_all_proc_overload_possibilities(ast_context, call_expr)
