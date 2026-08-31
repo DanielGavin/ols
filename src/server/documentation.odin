@@ -365,6 +365,7 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		return
 	case SymbolUntypedValue:
 		if .Mutable in symbol.flags || symbol.type == .Field {
+			strings.write_string(sb, pointer_prefix)
 			switch v.type {
 			case .Float:
 				strings.write_string(sb, "f64")

@@ -7391,3 +7391,17 @@ ast_hover_type_specialization :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.Foo :: struct($V: typeid){}")
 }
+
+@(test)
+ast_hover_pointer_from_untyped_variable :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		main :: proc() {
+			a := 10
+			b{*} := &a
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source, "test.b: ^int")
+}
