@@ -1,8 +1,9 @@
 package server
 
 import "base:intrinsics"
-import "core:os"
+import "base:runtime"
 
+import "core:os"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
@@ -46,6 +47,7 @@ Document :: struct {
 	allocator:        ^virtual.Arena, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
 	version:          Maybe(int),
+	symbols:          Maybe(SymbolAndNodeMap), // Cache resolved symbols for open documents, cleared on change
 }
 
 
@@ -74,7 +76,7 @@ document_storage_shutdown :: proc() {
 	delete(document_storage.documents)
 }
 
-document_get_allocator :: proc() -> ^virtual.Arena {
+document_get_new_allocator :: proc() -> ^virtual.Arena {
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators)
 	} else {
@@ -83,9 +85,12 @@ document_get_allocator :: proc() -> ^virtual.Arena {
 		return allocator
 	}
 }
-
+document_allocator :: proc(document: Document) -> (runtime.Allocator, bool) #optional_ok {
+	if document.allocator == nil do return {}, false
+	return virtual.arena_allocator(document.allocator), true
+}
 document_free_allocator :: proc(allocator: ^virtual.Arena) {
-	free_all(virtual.arena_allocator(allocator))
+	virtual.arena_free_all(allocator)
 	append(&document_storage.free_allocators, allocator)
 }
 
@@ -138,7 +143,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		document.client_owned = true
 		document.text = transmute([]u8)text
 		document.used_text = len(document.text)
-		document.allocator = document_get_allocator()
+		document.allocator = document_get_new_allocator()
 
 		document_setup(document)
 
@@ -151,7 +156,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			text         = transmute([]u8)text,
 			client_owned = true,
 			used_text    = len(text),
-			allocator    = document_get_allocator(),
+			allocator    = document_get_new_allocator(),
 		}
 
 		document_setup(&document)
@@ -298,13 +303,10 @@ document_close :: proc(uri_string: string) -> common.Error {
 		return .InvalidRequest
 	}
 
-	if document.uri.uri in file_resolve_cache.files {
-		delete_key(&file_resolve_cache.files, document.uri.uri)
-	}
-
 	document_free_allocator(document.allocator)
 
 	document.allocator = nil
+	document.symbols = nil
 	document.client_owned = false
 
 	common.delete_uri(document.uri)
@@ -392,11 +394,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	current_errors = make([dynamic]ParserError, context.temp_allocator)
 
-	if document.uri.uri in file_resolve_cache.files {
-		delete_key(&file_resolve_cache.files, document.uri.uri)
-	}
-
-	free_all(virtual.arena_allocator(document.allocator))
+	virtual.arena_free_all(document.allocator)
 
 	context.allocator = virtual.arena_allocator(document.allocator)
 
@@ -415,6 +413,7 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		src      = string(document.text[:document.used_text]),
 		pkg      = pkg,
 	}
+	document.symbols = nil // Invalidate symbols cache
 
 	parse_file(&p, &document.ast)
 

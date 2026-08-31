@@ -252,7 +252,7 @@ resolve_references :: proc(
 	}
 
 	target_name := get_target_name(position_context, resolve_flag)
-	symbols_and_nodes := resolve_entire_file(document, resolve_flag, ast_context.allocator, target_name)
+	symbols_and_nodes := resolve_entire_file_for_references(document, ast_context.allocator, resolve_flag, target_name)
 
 	for k, v in symbols_and_nodes {
 		if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
@@ -293,17 +293,12 @@ resolve_references :: proc(
 
 
 	arena: runtime.Arena
+	_ = runtime.arena_init(&arena, mem.Megabyte * 40, context.temp_allocator)
 
-	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+	for fullpath in slice.unique(fullpaths[:]) {
 
-	defer runtime.arena_destroy(&arena)
-
-	context.allocator = runtime.arena_allocator(&arena)
-
-	paths := slice.unique(fullpaths[:])
-
-	for fullpath in paths {
-		defer free_all(context.allocator)
+		context.allocator = runtime.arena_allocator(&arena)
+		defer runtime.arena_free_all(&arena)
 
 		fullpath := fullpath
 		when ODIN_OS == .Windows {
@@ -380,7 +375,7 @@ resolve_references :: proc(
 		}
 
 		if in_pkg || symbol.pkg == document.package_name {
-			symbols_and_nodes := resolve_entire_file(&document, resolve_flag, context.allocator, target_name)
+			symbols_and_nodes := resolve_entire_file_for_references(&document, context.allocator, resolve_flag, target_name)
 			for k, v in symbols_and_nodes {
 				if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
 					node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)

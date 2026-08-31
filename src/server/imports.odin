@@ -25,7 +25,7 @@ find_used_not_imported :: proc(
 
 	context.allocator = runtime.arena_allocator(&arena)
 
-	symbols_and_nodes := resolve_entire_file(document, .None, context.allocator, "", true)
+	symbols_and_nodes := resolve_entire_file(document)
 
 	already_imported := make(map[string]struct{})
 
@@ -99,10 +99,10 @@ find_used_not_imported :: proc(
 find_unused_imports :: proc(document: ^Document, allocator := context.temp_allocator) -> []Package {
 	spall.trace(#procedure, document.fullpath)
 
-	file := resolve_entire_file_cached(document)
+	symbols := resolve_entire_file(document)
 
 	pkgs := make(map[string]struct{}, context.temp_allocator)
-	for _, v in file.symbols {
+	for _, v in symbols {
 		pkgs[v.symbol.pkg] = {}
 	}
 

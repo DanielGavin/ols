@@ -2,52 +2,10 @@ package server
 
 import "src:common"
 
-import "core:mem/virtual"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
-
-//Used in semantic tokens and inlay hints to handle the entire file being resolved.
-
-FileResolve :: struct {
-	symbols: map[uintptr]SymbolAndNode,
-}
-
-
-FileResolveCache :: struct {
-	files: map[string]FileResolve,
-}
-
-@(thread_local)
-file_resolve_cache: FileResolveCache
-
-resolve_entire_file_cached :: proc(document: ^Document) -> FileResolve {
-
-	file, cached := file_resolve_cache.files[document.uri.uri]
-
-	if !cached {
-		file = {
-			symbols = resolve_entire_file(document, .None, virtual.arena_allocator(document.allocator)),
-		}
-		file_resolve_cache.files[document.uri.uri] = file
-	}
-
-	return file
-}
-
-resolve_ranged_file_cached :: proc(document: ^Document, range: common.Range, allocator := context.allocator) -> FileResolve {
-
-	file, cached := file_resolve_cache.files[document.uri.uri]
-
-	if !cached {
-		file = {
-			symbols = resolve_ranged_file(document, range, allocator),
-		}
-	}
-
-	return file
-}
 
 BuildCache :: struct {
 	loaded_pkgs: map[string]PackageCacheInfo,

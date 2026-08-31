@@ -1,11 +1,14 @@
 package server
 
+import "base:runtime"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:strings"
 
 import "src:common"
 import "src:spall"
+
+SymbolAndNodeMap :: map[uintptr]SymbolAndNode
 
 ResolveReferenceFlag :: enum {
 	None,
@@ -26,54 +29,19 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.index = nil
 }
 
-resolve_ranged_file :: proc(
-	document: ^Document,
-	range: common.Range,
-	allocator := context.allocator,
-) -> map[uintptr]SymbolAndNode {
-
+// Should only be called for open documents
+resolve_entire_file :: proc(document: ^Document) -> (symbols: SymbolAndNodeMap) {
 	spall.trace(#procedure, document.fullpath)
 
-	ast_context := make_ast_context(
-		document.ast,
-		document.imports,
-		document.package_name,
-		document.uri.uri,
-		document.fullpath,
-		allocator,
-	)
+	assert(document.client_owned, #procedure + " should only be called for open documents")
 
-	position_context: DocumentPositionContext
-	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
+	allocator, has_allocator := document_allocator(document^)
+	assert(has_allocator, "Open document should have an allocator set")
 
-	get_globals(document.ast, &ast_context)
-
-	ast_context.current_package = ast_context.document_package
-
-	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
-
-	margin := 20
-
-	for decl in document.ast.decls {
-		//Look for declarations that overlap with range
-		if range.start.line - margin <= decl.end.line && decl.pos.line <= range.end.line + margin {
-			resolve_decl(&position_context, &ast_context, document, decl, &symbols, .None, false, allocator)
-			clear(&ast_context.locals)
-		}
+	reuse_cached: {
+		return document.symbols.? or_break reuse_cached
 	}
-
-	return symbols
-}
-
-resolve_entire_file :: proc(
-	document: ^Document,
-	flag := ResolveReferenceFlag.None,
-	allocator := context.allocator,
-	target_name := "",
-	save_unresolved := false,
-) -> map[uintptr]SymbolAndNode {
-
-	spall.trace(#procedure, document.fullpath)
+	defer document.symbols = symbols
 
 	ast_context := make_ast_context(
 		document.ast,
@@ -91,7 +59,7 @@ resolve_entire_file :: proc(
 
 	ast_context.current_package = ast_context.document_package
 
-	symbols := make(map[uintptr]SymbolAndNode, 10000, allocator)
+	symbols = make(SymbolAndNodeMap, 10000, allocator)
 
 	for decl in document.ast.decls {
 		resolve_decl(
@@ -100,10 +68,53 @@ resolve_entire_file :: proc(
 			document,
 			decl,
 			&symbols,
-			flag,
-			save_unresolved,
-			allocator,
-			target_name,
+			flag = .None,
+			save_unresolved = true,
+			target_name = "",
+		)
+		clear(&ast_context.locals)
+	}
+
+	return symbols
+}
+
+// Should only be called when resolving references
+resolve_entire_file_for_references :: proc(
+	document:    ^Document,
+	allocator:   runtime.Allocator,
+	flag:        ResolveReferenceFlag,
+	target_name: string,
+) -> (symbols: SymbolAndNodeMap) {
+	spall.trace(#procedure, document.fullpath)
+
+	ast_context := make_ast_context(
+		document.ast,
+		document.imports,
+		document.package_name,
+		document.uri.uri,
+		document.fullpath,
+		allocator,
+	)
+
+	position_context: DocumentPositionContext
+	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
+
+	get_globals(document.ast, &ast_context)
+
+	ast_context.current_package = ast_context.document_package
+
+	symbols = make(SymbolAndNodeMap, 10000, allocator)
+
+	for decl in document.ast.decls {
+		resolve_decl(
+			&position_context,
+			&ast_context,
+			document,
+			decl,
+			&symbols,
+			flag = flag,
+			save_unresolved = false,
+			target_name = target_name,
 		)
 		clear(&ast_context.locals)
 	}
@@ -113,7 +124,7 @@ resolve_entire_file :: proc(
 
 FileResolveData :: struct {
 	ast_context:      ^AstContext,
-	symbols:          ^map[uintptr]SymbolAndNode,
+	symbols:          ^SymbolAndNodeMap,
 	id_counter:       int,
 	document:         ^Document,
 	position_context: ^DocumentPositionContext,
@@ -128,10 +139,9 @@ resolve_decl :: proc(
 	ast_context: ^AstContext,
 	document: ^Document,
 	decl: ^ast.Node,
-	symbols: ^map[uintptr]SymbolAndNode,
+	symbols: ^SymbolAndNodeMap,
 	flag: ResolveReferenceFlag,
 	save_unresolved: bool,
-	allocator := context.allocator,
 	target_name := "",
 ) {
 	data := FileResolveData {
