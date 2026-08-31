@@ -188,7 +188,14 @@ visit_disabled :: proc(p: ^Printer, node: ^ast.Node) -> ^Document {
 	p.source_position = node.end
 	p.source_position.line = disabled_info.end_line
 
-	document := cons(move, text(disabled_info.text))
+	// Attributes are part of the declaration but sit above the directive, so they fall outside
+	// `text` and outside ordinary visiting. Dropping them silently un-privatises a declaration.
+	prefix := empty()
+	if node_pos.offset < disabled_info.begin {
+		prefix = text(p.src[node_pos.offset:disabled_info.begin])
+	}
+
+	document := cons(move, prefix, text(disabled_info.text))
 
 	for comment_before_or_in_line(p, disabled_info.end_line + 1) {
 		// we need to handle the rest of the comment group
@@ -1286,7 +1293,12 @@ visit_stmt :: proc(
 		set_source_position(p, v.body.end)
 
 		if v.else_stmt != nil {
-			else_on_newline := p.config.brace_style == .Allman || p.config.brace_style == .Stroustrup
+			// A `do` body has no closing brace, so an `else` on the same line is not valid Odin.
+			// If_Stmt already does this.
+			else_on_newline :=
+				p.config.brace_style == .Allman ||
+				p.config.brace_style == .Stroustrup ||
+				(!p.config.convert_do && block_uses_do(v.body))
 			if else_on_newline {
 				document = cons(document, newline(1))
 			}
@@ -1298,6 +1310,10 @@ visit_stmt :: proc(
 			} else {
 				document = cons_with_nopl(document, cons_with_nopl(text("else"), visit_stmt(p, v.else_stmt)))
 			}
+		}
+
+		if !p.config.convert_do {
+			document = enforce_fit_if_do(v.body, document)
 		}
 	case ^ast.Branch_Stmt:
 		document = cons(document, text(v.tok.text))
@@ -2100,6 +2116,23 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		declaration_align := empty()
 
 		p.source_position = field.pos
+
+		// A field is neither a Decl nor a Stmt, so it reaches neither place that consults
+		// disabled_lines and the region has to be emitted here. Its text already carries the
+		// source's indentation, hence escape_nest and the trim of the first line.
+		if info, disabled := p.disabled_lines[field.pos.line]; disabled && info.text != "" {
+			if p.disabled_until_line > field.pos.line {
+				continue // already emitted by an earlier iteration
+			}
+			p.disabled_until_line = info.end_line
+			p.source_position = field.end
+			p.source_position.line = info.end_line
+			document = cons(document, escape_nest(text(strings.trim_left(info.text, " \t"))))
+			if i != len(list.list) - 1 {
+				document = cons(document, newline(1))
+			}
+			continue
+		}
 
 		if i == 0 && .Enforce_Newline in options {
 			comment, ok := visit_comments(p, list.list[i].pos)

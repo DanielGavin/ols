@@ -475,6 +475,10 @@ format :: proc(width: int, list: ^[dynamic]Tuple, builder: ^strings.Builder, p: 
 			if len(suffix_builder.buf) == 0 {
 				pending_suffix_column = consumed
 				pending_suffix_alignable = v.alignable
+			} else {
+				// Suffixes landing on the same output line would otherwise concatenate, and
+				// `// a// b` makes the second `//` literal text inside the first comment.
+				strings.write_string(&suffix_builder, " ")
 			}
 			strings.write_string(&suffix_builder, v.value)
 		case Document_Break_Parent:
