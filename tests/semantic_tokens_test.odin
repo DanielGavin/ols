@@ -359,6 +359,7 @@ semantic_tokens_imported_symbols :: proc(t: ^testing.T) {
 			_ = my_package.MY_CONST
 			_ = my_package.my_var
 			my_package.my_proc()
+			_ = my_package.arr
 		}
 		`,
 		packages = {
@@ -369,6 +370,7 @@ semantic_tokens_imported_symbols :: proc(t: ^testing.T) {
 			MY_CONST :: 42
 			my_var: int
 			my_proc :: proc() {}
+			arr: [2]int
 			`,
 			},
 		},
@@ -385,6 +387,8 @@ semantic_tokens_imported_symbols :: proc(t: ^testing.T) {
 		{0, 11,  6, .Variable,  {}},          // [7]  my_var
 		{1,  3, 10, .Namespace, {.ReadOnly}}, // [8]  my_package
 		{0, 11,  7, .Function,  {.ReadOnly}}, // [9]  my_proc
+		{1,  7, 10, .Namespace, {.ReadOnly}}, // [10] my_package
+		{0, 11,  3, .Variable,  {}},          // [11] arr
 	})
 }
 

@@ -470,6 +470,7 @@ collect_value_decl :: proc(
 			}
 		}
 		if value_decl.type != nil {
+			global_expr.flags += {.Variable}
 			global_expr.expr = value_decl.type
 			global_expr.type_expr = value_decl.type
 			append(exprs, global_expr)
