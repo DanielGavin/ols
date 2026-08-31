@@ -40,6 +40,9 @@ Disabled_Info :: struct {
 	empty:      bool,
 	start_line: int,
 	end_line:   int,
+	// Where `text` starts in the source. A suppressed declaration can begin earlier than this,
+	// since its attributes sit above the directive, so visit_disabled emits those separately.
+	begin:      int,
 }
 
 Trailing_Comment_Record :: struct {
@@ -246,6 +249,7 @@ build_disabled_lines_info :: proc(p: ^Printer) {
 					end_line   = comment.pos.line,
 					text       = p.src[begin:end],
 					empty      = empty,
+					begin      = begin,
 				}
 
 				for line in disable_position.line ..= comment.pos.line {
