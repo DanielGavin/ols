@@ -118,10 +118,6 @@ get_completion_list :: proc(
 		completion_type = .Directive
 	}
 
-	// Attributes are matched against the source rather than the AST. A
-	// half-typed `@(` leaves the declaration it belongs to unparseable, so by
-	// the time the user wants this completion there is no Attribute node to
-	// find — the same reason the position context has no field for one.
 	if is_in_attribute(&position_context) {
 		completion_type = .Attribute
 	}
@@ -747,17 +743,6 @@ get_completion_description :: proc(ast_context: ^AstContext, symbol: Symbol) -> 
 	return get_short_signature(ast_context, symbol)
 }
 
-/*
-	Is the position inside an attribute, i.e. after an `@` or inside its `(...)`?
-
-	Scans the source backwards from the cursor instead of consulting the AST: an
-	attribute is typed before the declaration it applies to, so while the user is
-	writing one there is no complete declaration to hang an ast.Attribute off.
-
-	Stops at a newline, since an attribute's `@` is always on the same line as
-	the name being completed, and bails on `)` so a finished `@(private)` on the
-	same line does not keep offering attributes afterwards.
-*/
 is_in_attribute :: proc(position_context: ^DocumentPositionContext) -> bool {
 	src := position_context.file.src
 	pos := position_context.position
@@ -766,15 +751,11 @@ is_in_attribute :: proc(position_context: ^DocumentPositionContext) -> bool {
 		return false
 	}
 
-	// `=` means a value is expected rather than another attribute name, but only
-	// for the pair being written: in `@(link_name="x", req|` the `=` belongs to a
-	// pair already finished off by the comma.
 	crossed_comma := false
 
 	for i := pos - 1; i >= 0; i -= 1 {
 		switch src[i] {
 		case '@':
-			// An `@` in a comment is not an attribute.
 			return !position_in_comment(position_context.file, pos)
 		case '\n', ')':
 			return false
@@ -787,7 +768,6 @@ is_in_attribute :: proc(position_context: ^DocumentPositionContext) -> bool {
 		case '(', ' ', '\t', '"':
 			continue
 		case:
-			// Only an identifier can sit between `@` and the cursor.
 			if !tokenizer.is_letter(rune(src[i])) && !tokenizer.is_digit(rune(src[i])) {
 				return false
 			}
