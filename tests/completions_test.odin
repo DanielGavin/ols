@@ -6164,3 +6164,91 @@ ast_distinct_selector_array_swizzle_completion :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, ".", {"x", "y", "z", "w", "r", "g", "b", "a"})
 }
+
+@(test)
+ast_attribute_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		@({*})
+		foo :: proc() {}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "@", {"deferred_none", "private", "require_results", "init"})
+}
+
+@(test)
+ast_attribute_completion_partial :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		@(deferred{*})
+		foo :: proc() {}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "@", {"deferred_none", "deferred_in", "deferred_out"})
+}
+
+@(test)
+ast_attribute_completion_not_offered_in_code :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			my_local := 2
+			my_{*}
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "", {"my_local"}, {"deferred_none", "private"})
+}
+
+@(test)
+ast_attribute_completion_not_offered_in_comment :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		main :: proc() {
+			my_local := 2
+			// @todo my_{*}
+		}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "", {"my_local"}, {"private", "deferred_none"})
+}
+
+@(test)
+ast_attribute_completion_not_offered_after_closed_attribute :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		@(private) my_glob{*}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "", {}, {"private", "deferred_none"})
+}
+
+@(test)
+ast_attribute_completion_not_offered_for_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		my_cleanup :: proc() {}
+		@(deferred_none=my_{*})
+		foo :: proc() {}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "", {"my_cleanup"}, {"private", "deferred_none"})
+}
+
+@(test)
+ast_attribute_completion_after_comma :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		@(link_name="foo", requ{*})
+		bar :: proc() {}
+		`,
+	}
+
+	test.expect_completion_labels(t, &source, "", {"require", "require_results"})
+}

@@ -1160,3 +1160,68 @@ directive_docs: map[string]string = {
 	"load_hash"                = "```odin\n#load_hash(<string-path>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a file’s contents at compile time..\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
 	"load_directory"           = "```odin\n#load_directory(<string-path>)\n```\n\nLoads all files within a directory, at compile time. All the data of those files will be baked into your program. Returns `[]runtime.Load_Directory_File`.",
 }
+
+attribute_docs: map[string]string = {
+	// Visibility
+	"private"                    = "```odin\n@(private)\n// or\n@(private=\"file\")\n// or\n@(private=\"package\")\n```\n\nRestricts the visibility of a declaration. `@(private)` alone is equivalent to `@(private=\"package\")`: the entity is visible within its own package but not exported. `@(private=\"file\")` narrows it further to the file it is declared in.",
+	"export"                     = "```odin\n@(export)\n// or\n@(export=<boolean>)\n```\n\nExports the symbol from the compiled object, making it visible to other languages and linkers. Useful when building a shared library.",
+	"link_name"                  = "```odin\n@(link_name=<string>)\n```\n\nSets the symbol name used by the linker, rather than deriving it from the Odin declaration. Common when binding to an existing C symbol whose name is not a valid Odin identifier.",
+	"link_prefix"                = "```odin\n@(link_prefix=<string>)\n```\n\nPrepends a string to the linker names of all procedures in a `foreign` block. Lets bindings drop a repeated C prefix from the Odin-side names.",
+	"link_suffix"                = "```odin\n@(link_suffix=<string>)\n```\n\nAppends a string to the linker names of all procedures in a `foreign` block.",
+	"link_section"               = "```odin\n@(link_section=<string>)\n```\n\nPlaces the entity in a specific section of the object file.",
+	"linkage"                    = "```odin\n@(linkage=<string>)\n```\n\nSets the linkage of the entity. One of `\"internal\"`, `\"strong\"`, `\"weak\"`, `\"link_once\"`.",
+	// Deferred calls
+	"deferred_none"              = "```odin\n@(deferred_none=<procedure>)\n```\n\nCalls `<procedure>` when the scope containing the call to the attributed procedure exits. No arguments are passed to the deferred procedure.\n\nUseful for pairing acquire/release procedures so callers cannot forget the release.",
+	"deferred_in"                = "```odin\n@(deferred_in=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it the *arguments* that were given to the attributed procedure.",
+	"deferred_out"               = "```odin\n@(deferred_out=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it the *return values* of the attributed procedure.",
+	"deferred_in_out"            = "```odin\n@(deferred_in_out=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it both the arguments and the return values of the attributed procedure.",
+	"deferred_in_by_ptr"         = "```odin\n@(deferred_in_by_ptr=<procedure>)\n```\n\nAs `deferred_in`, but the arguments are passed by pointer.",
+	"deferred_out_by_ptr"        = "```odin\n@(deferred_out_by_ptr=<procedure>)\n```\n\nAs `deferred_out`, but the return values are passed by pointer.",
+	"deferred_in_out_by_ptr"     = "```odin\n@(deferred_in_out_by_ptr=<procedure>)\n```\n\nAs `deferred_in_out`, but the values are passed by pointer.",
+	// Program lifecycle
+	"init"                       = "```odin\n@(init)\n```\n\nRuns the procedure automatically before `main` is entered. The procedure must take no arguments and return nothing.",
+	"fini"                       = "```odin\n@(fini)\n```\n\nRuns the procedure automatically after `main` returns. The procedure must take no arguments and return nothing.",
+	"test"                       = "```odin\n@(test)\n```\n\nMarks the procedure as a test, to be run by `odin test`. The procedure takes a single `^testing.T` parameter.",
+	// Call-site requirements
+	"require_results"            = "```odin\n@(require_results)\n```\n\nMakes it a compile error to discard the procedure's return values. Useful when ignoring the result is always a bug, such as a procedure returning an error.",
+	"require"                    = "```odin\n@(require)\n```\n\nForces the entity to be included in the build even when it appears to be unused.",
+	"disabled"                   = "```odin\n@(disabled=<boolean>)\n```\n\nWhen the condition is true, calls to the procedure are removed at compile time. The procedure must not return any values. Commonly used for assertions and logging that should vanish in release builds.",
+	// Calling convention and codegen
+	"default_calling_convention" = "```odin\n@(default_calling_convention=<string>)\n```\n\nSets the calling convention for every procedure in a `foreign` block, e.g. `\"c\"` or `\"stdcall\"`, so each declaration does not have to repeat it.",
+	"optimization_mode"          = "```odin\n@(optimization_mode=<string>)\n```\n\nSets the optimization mode for a single procedure. One of `\"none\"`, `\"minimal\"`, `\"size\"`, `\"speed\"`.",
+	"cold"                       = "```odin\n@(cold)\n```\n\nHints to the compiler that the procedure is rarely called, so it can be optimized for size and moved off the hot path.",
+	"instrumentation_enter"      = "```odin\n@(instrumentation_enter)\n```\n\nMarks the procedure as the one called on entry to every instrumented procedure. Used with `-sanitize:address` style instrumentation builds.",
+	"instrumentation_exit"       = "```odin\n@(instrumentation_exit)\n```\n\nMarks the procedure as the one called on exit from every instrumented procedure.",
+	"rodata"                     = "```odin\n@(rodata)\n```\n\nPlaces the variable in read-only memory.",
+	"static"                     = "```odin\n@(static)\n```\n\nGives a local variable static storage duration, so it persists across calls rather than living on the stack.",
+	"thread_local"               = "```odin\n@(thread_local)\n```\n\nGives the variable thread-local storage, so each thread gets its own copy.",
+	// Objective-C interop
+	"objc_class"                 = "```odin\n@(objc_class=<string>)\n```\n\nBinds the type to an Objective-C class of the given name.",
+	"objc_name"                  = "```odin\n@(objc_name=<string>)\n```\n\nBinds the procedure to an Objective-C selector of the given name.",
+	"objc_type"                  = "```odin\n@(objc_type=<type>)\n```\n\nAssociates the procedure with an Objective-C bound type, making it callable as a method on that type.",
+	"objc_is_class_method"       = "```odin\n@(objc_is_class_method=<boolean>)\n```\n\nMarks the bound Objective-C method as a class method rather than an instance method.",
+	// Miscellaneous
+	"builtin"                    = "```odin\n@(builtin)\n```\n\nMakes the entity available without qualification, as the `builtin` package does.",
+	"deprecated"                 = "```odin\n@(deprecated=<string>)\n```\n\nMarks the entity as deprecated. The string is reported as a warning at each use site, and should say what to use instead.",
+	"extra_linker_flags"         = "```odin\n@(extra_linker_flags=<string>)\n```\n\nPasses additional flags to the linker for a `foreign` block or `foreign import`.",
+	// Sanitizers and instrumentation
+	"no_instrumentation"         = "```odin\n@(no_instrumentation)\n```\n\nExcludes the procedure from the instrumentation applied by `@(instrumentation_enter)` / `@(instrumentation_exit)`.",
+	"no_sanitize_address"        = "```odin\n@(no_sanitize_address)\n```\n\nExcludes the procedure from address sanitizer instrumentation. Takes no parameter.",
+	"no_sanitize_memory"         = "```odin\n@(no_sanitize_memory)\n```\n\nExcludes the procedure from memory sanitizer instrumentation. Takes no parameter.",
+	"no_sanitize_thread"         = "```odin\n@(no_sanitize_thread)\n```\n\nExcludes the procedure from thread sanitizer instrumentation. Takes no parameter.",
+	// Target features and codegen
+	"enable_target_feature"      = "```odin\n@(enable_target_feature=<string>)\n```\n\nEnables the named target CPU features for this procedure, letting it use instructions the rest of the build is not compiled with.",
+	"require_target_feature"     = "```odin\n@(require_target_feature=<string>)\n```\n\nRequires the named target CPU features. The build fails if the target does not provide them.",
+	"fast_math"                  = "```odin\n@(fast_math=<bit_set>)\n```\n\nApplies floating-point fast-math flags to the procedure. Expects a constant `bit_set` of type `intrinsics.Fast_Math_Flags`.",
+	// Entry point and linking
+	"entry_point_only"           = "```odin\n@(entry_point_only)\n```\n\nMarks the entity as only usable from the entry point. Takes no parameter.",
+	"ignore_duplicates"          = "```odin\n@(ignore_duplicates)\n```\n\nAllows the declaration to be duplicated without the compiler reporting a redeclaration. Takes no parameter.",
+	"priority_index"             = "```odin\n@(priority_index=<integer>)\n```\n\nSets the ordering of a `foreign import` relative to others, for cases where link order matters.",
+	"raddbg_type_view"           = "```odin\n@(raddbg_type_view=<string>)\n```\n\nAttaches a RAD Debugger type view expression to the type, controlling how the debugger renders values of it.",
+	// Objective-C interop
+	"objc_selector"              = "```odin\n@(objc_selector=<identifier>)\n```\n\nSets the Objective-C selector the procedure binds to, when it differs from the Odin name.",
+	"objc_superclass"            = "```odin\n@(objc_superclass=<type>)\n```\n\nNames the Objective-C superclass of a type declared with `@(objc_class)`. Expects a named type.",
+	"objc_ivar"                  = "```odin\n@(objc_ivar=<type>)\n```\n\nNames the Odin type used as the instance-variable storage for an Objective-C class. Requires `@(objc_implement)`.",
+	"objc_implement"             = "```odin\n@(objc_implement)\n// or\n@(objc_implement=<boolean>)\n```\n\nImplements the Objective-C class in Odin rather than only binding to an existing one. Requires `@(objc_class)`.",
+	"objc_context_provider"      = "```odin\n@(objc_context_provider=<procedure>)\n```\n\nSupplies the Odin `context` used by bound Objective-C methods. Requires `@(objc_implement)`.",
+}
