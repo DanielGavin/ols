@@ -1464,19 +1464,9 @@ visit_expr :: proc(
 	document := empty()
 
 	#partial switch v in expr.derived {
-	case ^ast.Inline_Asm_Expr:
-		document = cons(text_token(p, v.tok), text("("), visit_exprs(p, v.param_types, {.Add_Comma}), text(")"))
-		document = cons_with_opl(document, cons(text("-"), text(">")))
-		document = cons_with_opl(document, visit_expr(p, v.return_type))
-
-		document = cons(
-			document,
-			text("{"),
-			visit_expr(p, v.asm_string),
-			text(","),
-			visit_expr(p, v.constraints_string),
-			text("}"),
-		)
+	case ^ast.Asm_Template:
+		// TODO: new `asm` syntax support
+		document = text(p.src[v.pos.offset:v.end.offset])
 	case ^ast.Undef:
 		document = text("---")
 	case ^ast.Auto_Cast:
