@@ -34,3 +34,24 @@ Z :: 30
 SHORT : int : 1
 VERY_LONG_NAME : int : 2
 MEDIUM : int : 3
+
+main :: proc() {
+	SHORT :: 1
+	LONGER_NAME :: 2
+
+	if true {
+		IF_SHORT :: 1
+		IF_LONGER_NAME :: 2
+	}
+
+	when ODIN_OS == .Windows {
+		WHEN_SHORT :: 1
+		WHEN_LONGER_NAME :: 2
+	}
+
+	for {
+		LOOP_SHORT :: 1
+		LOOP_LONGER_NAME :: 2
+		break
+	}
+}

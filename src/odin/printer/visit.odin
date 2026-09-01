@@ -975,6 +975,10 @@ visit_stmt :: proc(
 
 		set_source_position(p, v.pos)
 
+		if p.config.align_constant_definitions {
+			compute_constant_alignment(p, v.stmts)
+		}
+
 		block := visit_block_stmts(p, v.stmts)
 
 		comment_end, _ := visit_comments(p, tokenizer.Pos{line = v.end.line, offset = v.end.offset})
