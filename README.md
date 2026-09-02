@@ -193,6 +193,8 @@ Options:
 
 - `multiline_composite_literals`: When enabled, composite literals that were written across multiple lines are kept multiline.
 
+- `preserve_struct_blank_lines`: Preserve blank lines between struct fields, up to `newline_limit`.
+
 ## Features
 
 Support Language server features:

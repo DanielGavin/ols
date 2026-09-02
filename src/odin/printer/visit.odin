@@ -2100,16 +2100,28 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		return document
 	}
 
-	declaration_alignment := 0
-	if p.config.align_struct_declarations && .Enforce_Newline in options {
-		declaration_alignment = get_possible_field_declaration_alignment(list.list)
-	}
+	// Declaration alignment (align_struct_declarations) takes precedence: it pads before the colon,
+	// while field-type alignment pads after it.
+	align_declarations := p.config.align_struct_declarations
+	align_field_types := p.config.align_struct_fields && !align_declarations
+
+	multiline_alignment_enabled := .Enforce_Newline in options && (align_field_types || align_declarations)
+
+	section_name_width := 0
+	// section_end is exclusive. Reaching it starts the next alignment group.
+	section_end := 0
 
 	for field, i in list.list {
 		align := empty()
 		declaration_align := empty()
 
 		p.source_position = field.pos
+
+		// Initialize alignment for the first section and update it at each section boundary.
+		if multiline_alignment_enabled && i == section_end {
+			section_end = get_struct_field_alignment_section_end(p, list.list, i)
+			section_name_width = get_max_struct_field_name_width(list.list[i:section_end])
+		}
 
 		// A field is neither a Decl nor a Stmt, so it reaches neither place that consults
 		// disabled_lines and the region has to be emitted here. Its text already carries the
@@ -2147,46 +2159,14 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		name_options := List_Options{.Add_Comma}
 
 		if (.Enforce_Newline in options) {
-			// When align_struct_declarations is active, it handles the visual
-			if p.config.align_struct_fields && !p.config.align_struct_declarations {
-				alignment := get_possible_field_alignment(list.list)
-
-				if alignment > 0 {
-					length := 0
-					for name in field.names {
-						length += get_node_length(name)
-					}
-					if len(field.names) > 1 {
-						length += 2 * (len(field.names) - 1)
-					}
-					if .Using in field.flags {
-						length += 6
-					}
-					if .Subtype in field.flags {
-						length += 9
-					}
-					align = repeat_space(alignment - length)
-				}
+			if align_field_types && section_name_width > 0 {
+				align = repeat_space(section_name_width - get_struct_field_name_width(field))
 			}
 
-			if p.config.align_struct_declarations && declaration_alignment > 0 {
-				name_length := 0
-				for name in field.names {
-					name_length += get_node_length(name)
-				}
-				if len(field.names) > 1 {
-					name_length += 2 * (len(field.names) - 1)
-				}
-
-				if .Using in field.flags {
-					name_length += 6
-				}
-				if .Subtype in field.flags {
-					name_length += 9
-				}
-
-				if name_length > 0 && name_length < declaration_alignment {
-					declaration_align = repeat_space(declaration_alignment - name_length)
+			if align_declarations && section_name_width > 0 {
+				name_width := get_struct_field_name_width(field)
+				if name_width > 0 && name_width < section_name_width {
+					declaration_align = repeat_space(section_name_width - name_width)
 				}
 			}
 
@@ -2219,8 +2199,12 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		}
 
 		if i != len(list.list) - 1 && .Enforce_Newline in options {
-			comment, _ := visit_comments(p, list.list[i + 1].pos)
-			document = cons(document, comment, newline(1))
+			if p.config.preserve_struct_blank_lines {
+				document = cons(document, move_line(p, list.list[i + 1].pos))
+			} else {
+				comment, _ := visit_comments(p, list.list[i + 1].pos)
+				document = cons(document, comment, newline(1))
+			}
 		} else {
 			comment, _ := visit_comments(p, list.end)
 			document = cons(document, comment)
@@ -2576,52 +2560,70 @@ get_node_length :: proc(node: ^ast.Node) -> int {
 }
 
 @(private)
-get_possible_field_alignment :: proc(fields: []^ast.Field) -> int {
-	longest_name := 0
+struct_fields_have_blank_line_between :: proc(previous, next: ^ast.Field) -> bool {
+	last_occupied_line := previous.end.line
 
-	for field in fields {
-		length := 0
-		for name in field.names {
-			length += get_node_length(name)
-		}
-
-		if len(field.names) > 1 {
-			length += 2 * (len(field.names) - 1)
-		}
-
-		if .Using in field.flags {
-			length += 6
-		}
-
-		longest_name = max(longest_name, length)
+	if previous.comment != nil {
+		last_occupied_line = max(last_occupied_line, previous.comment.end.line)
 	}
 
-	return longest_name
+	if next.docs != nil {
+		if next.docs.pos.line > last_occupied_line + 1 {
+			return true
+		}
+
+		last_occupied_line = max(last_occupied_line, next.docs.end.line)
+	}
+
+	return next.pos.line > last_occupied_line + 1
 }
 
 @(private)
-get_possible_field_declaration_alignment :: proc(fields: []^ast.Field) -> int {
+get_struct_field_alignment_section_end :: proc(p: ^Printer, fields: []^ast.Field, start: int) -> int {
+	if !p.config.preserve_struct_blank_lines {
+		return len(fields)
+	}
+
+	// With a zero limit, source blank lines are collapsed in the output. They must
+	// not reset alignment when there is no visible section break.
+	if p.config.newline_limit <= 0 {
+		return len(fields)
+	}
+
+	end := start + 1
+	for end < len(fields) && !struct_fields_have_blank_line_between(fields[end - 1], fields[end]) {
+		end += 1
+	}
+
+	return end
+}
+
+@(private)
+get_struct_field_name_width :: proc(field: ^ast.Field) -> int {
+	width := 0
+	for name, i in field.names {
+		width += get_node_length(name)
+		if i < len(field.names) - 1 {
+			width += 2 // ", "
+		}
+	}
+
+	if .Using in field.flags {
+		width += 6 // "using "
+	}
+	if .Subtype in field.flags {
+		width += 9 // "#subtype "
+	}
+
+	return width
+}
+
+@(private)
+get_max_struct_field_name_width :: proc(fields: []^ast.Field) -> int {
 	longest_name := 0
 
 	for field in fields {
-		length := 0
-		for name in field.names {
-			length += get_node_length(name)
-		}
-
-		if len(field.names) > 1 {
-			length += 2 * (len(field.names) - 1)
-		}
-
-		if .Using in field.flags {
-			length += 6 // "using "
-		}
-
-		if .Subtype in field.flags {
-			length += 9 // "#subtype "
-		}
-
-		longest_name = max(longest_name, length)
+		longest_name = max(longest_name, get_struct_field_name_width(field))
 	}
 
 	return longest_name
