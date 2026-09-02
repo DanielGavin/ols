@@ -2219,8 +2219,12 @@ visit_struct_field_list :: proc(p: ^Printer, list: ^ast.Field_List, options := L
 		}
 
 		if i != len(list.list) - 1 && .Enforce_Newline in options {
-			comment, _ := visit_comments(p, list.list[i + 1].pos)
-			document = cons(document, comment, newline(1))
+			if p.config.preserve_struct_blank_lines {
+				document = cons(document, move_line(p, list.list[i + 1].pos))
+			} else {
+				comment, _ := visit_comments(p, list.list[i + 1].pos)
+				document = cons(document, comment, newline(1))
+			}
 		} else {
 			comment, _ := visit_comments(p, list.end)
 			document = cons(document, comment)
