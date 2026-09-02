@@ -6252,3 +6252,20 @@ ast_attribute_completion_after_comma :: proc(t: ^testing.T) {
 
 	test.expect_completion_labels(t, &source, "", {"require", "require_results"})
 }
+
+@(test)
+ast_completion_union_switch_uses_receiver :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package main
+		Foo :: union {f64, i64}
+
+		main :: proc() {
+			f: Foo
+			f.{*}
+		}
+		`,
+		config = {enable_snippets = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, ".", "switch", "switch v in f {\n\t$0 \n}")
+}
