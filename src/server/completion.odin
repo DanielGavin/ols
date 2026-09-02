@@ -1032,7 +1032,7 @@ get_selector_completion :: proc(
 	case SymbolUnionValue:
 		is_incomplete = false
 
-		append_magic_union_completion(position_context, selector, results)
+		append_magic_union_completion(position_context, receiver, results)
 
 		for type in v.types {
 			if symbol, ok := resolve_type_expression(ast_context, type); ok {
@@ -2692,7 +2692,7 @@ append_magic_array_like_completion :: proc(
 
 append_magic_union_completion :: proc(
 	position_context: ^DocumentPositionContext,
-	symbol: Symbol,
+	receiver: string,
 	items: ^[dynamic]CompletionResult,
 ) {
 	range, ok := get_range_from_selection_start_to_dot(position_context)
@@ -2722,7 +2722,7 @@ append_magic_union_completion :: proc(
 			detail = "switch",
 			additionalTextEdits = additionalTextEdits,
 			textEdit = TextEdit {
-				newText = fmt.tprintf("switch v in %v {{\n\t$0 \n}}", symbol.name),
+				newText = fmt.tprintf("switch v in %v {{\n\t$0 \n}}", receiver),
 				range = {start = range.end, end = range.end},
 			},
 			insertTextFormat = .Snippet,
