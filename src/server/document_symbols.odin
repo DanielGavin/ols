@@ -35,26 +35,10 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 		#partial switch v in global.expr.derived {
 		case ^ast.Struct_Type, ^ast.Bit_Field_Type:
-			// TODO: this only does the top level fields, we may want to travers all the way down in the future
 			if s, ok := resolve_type_expression(&ast_context, global.expr); ok {
 				#partial switch v in s.value {
 				case SymbolStructValue:
-					children := make([dynamic]DocumentSymbol, context.temp_allocator)
-					for name, i in v.names {
-						if name == "" {
-							continue
-						}
-						if i < len(v.from_usings) && v.from_usings[i] != -1 {
-							continue
-						}
-						child: DocumentSymbol
-						child.range = v.ranges[i]
-						child.selectionRange = v.ranges[i]
-						child.name = name
-						child.kind = .Field
-						append(&children, child)
-					}
-					symbol.children = children[:]
+					symbol.children = get_struct_field_document_symbols(&ast_context, v)
 				case SymbolBitFieldValue:
 					children := make([dynamic]DocumentSymbol, context.temp_allocator)
 					for name, i in v.names {
@@ -134,6 +118,40 @@ get_document_symbols :: proc(document: ^Document) -> []DocumentSymbol {
 
 
 	return symbols[:]
+}
+
+@(private = "file")
+get_struct_field_document_symbols :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> []DocumentSymbol {
+	children := make([dynamic]DocumentSymbol, context.temp_allocator)
+	for name, i in value.names {
+		if name == "" {
+			continue
+		}
+		if i < len(value.from_usings) && value.from_usings[i] != -1 {
+			continue
+		}
+
+		child := DocumentSymbol {
+			name           = name,
+			kind           = .Field,
+			range          = value.ranges[i],
+			selectionRange = value.ranges[i],
+		}
+
+		if i < len(value.types) {
+			if _, ok := value.types[i].derived.(^ast.Struct_Type); ok {
+				child.range.end = common.get_token_range(value.types[i], ast_context.file.src).end
+				if nested, ok := resolve_type_expression(ast_context, value.types[i]); ok {
+					if nested_value, ok := nested.value.(SymbolStructValue); ok {
+						child.children = get_struct_field_document_symbols(ast_context, nested_value)
+					}
+				}
+			}
+		}
+
+		append(&children, child)
+	}
+	return children[:]
 }
 
 @(private = "file")
