@@ -1,5 +1,6 @@
 package tests
 
+import "core:fmt"
 import "core:testing"
 
 import test "src:testing"
@@ -5851,6 +5852,79 @@ ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) 
 
 	for &source in sources {
 		test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: Value,\n}")
+	}
+}
+
+@(test)
+ast_hover_struct_size_native_width_types :: proc(t: ^testing.T) {
+	Native_Layout :: struct {
+		a: int,
+		b: uint,
+		c: uintptr,
+		d: rawptr,
+		e: u32,
+	}
+
+	source := test.Source {
+		main = `package test
+		Native :: struct {
+			a: int,
+			b: uint,
+			c: uintptr,
+			d: rawptr,
+			e: u32,
+		}
+
+		value := N{*}ative{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+			profile = {
+				arch = ODIN_ARCH_STRING,
+				os = ODIN_OS_STRING,
+			},
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Native :: struct {\n\ta: int,\n\tb: uint,\n\tc: uintptr,\n\td: rawptr,\n\te: u32,\n}",
+			size_of(Native_Layout),
+			align_of(Native_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_cross_target_profile_is_suppressed :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Foo :: struct {value: int}
+			foo := F{*}oo{}
+			`,
+			config = {
+				enable_hover_struct_size_info = true,
+				profile = {arch = "different-test-arch"},
+			},
+		},
+		{
+			main = `package test
+			Foo :: struct {value: int}
+			foo := F{*}oo{}
+			`,
+			config = {
+				enable_hover_struct_size_info = true,
+				profile = {os = "different-test-os"},
+			},
+		},
+	}
+
+	for &source in sources {
+		test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: int,\n}")
 	}
 }
 

@@ -26,8 +26,16 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(byte), align_of(byte)}, true
 	case "i16", "u16":
 		return {size_of(u16), align_of(u16)}, true
-	case "int", "uint", "i32", "u32", "uintptr", "rawptr":
+	case "i32", "u32":
 		return {size_of(u32), align_of(u32)}, true
+	case "int":
+		return {size_of(int), align_of(int)}, true
+	case "uint":
+		return {size_of(uint), align_of(uint)}, true
+	case "uintptr":
+		return {size_of(uintptr), align_of(uintptr)}, true
+	case "rawptr":
+		return {size_of(rawptr), align_of(rawptr)}, true
 	case "rune":
 		return {size_of(rune), align_of(rune)}, true
 	case "i64", "u64":
@@ -58,6 +66,19 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 
 	return {}, false
 }
+
+
+layout_profile_matches_server_target :: proc(config: ^common.Config) -> bool {
+	if config == nil {
+		return true
+	}
+
+	arch_matches := config.profile.arch == "" || config.profile.arch == ODIN_ARCH_STRING
+	os_matches := config.profile.os == "" || config.profile.os == ODIN_OS_STRING
+
+	return arch_matches && os_matches
+}
+
 
 get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
 	if expr == nil {
@@ -180,7 +201,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	doc := construct_symbol_docs(symbol)
 
 	struct_info := ""
-	if config != nil && config.enable_hover_struct_size_info {
+	if config != nil && config.enable_hover_struct_size_info && layout_profile_matches_server_target(config) {
 		if symbol.type == .Struct {
 			if value, is_struct := symbol.value.(SymbolStructValue); is_struct {
 				if layout, known := get_struct_layout(ast_context, value); known {
