@@ -1,6 +1,7 @@
 package tests
 
 import "core:fmt"
+import "core:strings"
 import "core:testing"
 
 import test "src:testing"
@@ -6085,6 +6086,35 @@ ast_hover_struct_size_union_nil_directives :: proc(t: ^testing.T) {
 			size = size_of(Container_Layout),
 			alignment = align_of(Container_Layout),
 			padding = size_of(Container_Layout) - size_of(No_Nil_Union) - size_of(Shared_Nil_Union),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_oversized_union :: proc(t: ^testing.T) {
+	source_builder := strings.builder_make(context.temp_allocator)
+	strings.write_string(&source_builder, "package test\nValue :: union {\n")
+	for variant_size in 1 ..= 256 {
+		fmt.sbprintf(&source_builder, "[%d]u8,\n", variant_size)
+	}
+	strings.write_string(
+		&source_builder,
+		"}\nContainer :: struct {value: Value}\nvalue := C{*}ontainer{}\n",
+	)
+
+	source := test.Source {
+		main = strings.to_string(source_builder),
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tvalue: Value,\n}",
+			size = 256 + size_of(u16),
+			alignment = align_of(u8),
+			padding = 0,
 		),
 	)
 }

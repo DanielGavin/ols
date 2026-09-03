@@ -362,8 +362,19 @@ resolve_union_layout :: proc(
 	if !is_tagged_union ||
 	   value.poly != nil ||
 	   value.align != nil ||
-	   len(value.types) < 2 ||
-	   len(value.types) >= 1 << 8 {
+	   len(value.types) < 2 {
+		return {}, false
+	}
+
+	variant_count := i128(len(value.types))
+	tag_size := 1
+	switch {
+	case variant_count < 1 << 8:
+	case variant_count < 1 << 16:
+		tag_size = 2
+	case variant_count < 1 << 32:
+		tag_size = 4
+	case:
 		return {}, false
 	}
 
@@ -379,13 +390,13 @@ resolve_union_layout :: proc(
 		alignment = max(alignment, variant_layout.alignment)
 	}
 
-	// For fewer than 256 variants, Odin grows the one-byte tag to the largest variant alignment.
+	// Odin grows the count-sized tag to the largest variant alignment.
 	// TODO: Handle cases where the variant alignment exceeds the native scalar layout.
 	if alignment > align_of(u64) {
 		return {}, false
 	}
 
-	tag_size := min(alignment, size_of(u64))
+	tag_size = min(max(tag_size, alignment), size_of(u64))
 	tag_padding := (tag_size - (largest_variant_size % tag_size)) % tag_size
 	size := i128(largest_variant_size) + i128(tag_padding) + i128(tag_size)
 	final_padding := (i128(alignment) - (size % i128(alignment))) % i128(alignment)
