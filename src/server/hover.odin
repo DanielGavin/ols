@@ -357,9 +357,9 @@ resolve_union_layout :: proc(
 	Type_Layout,
 	bool,
 ) {
-	// Single-variant unions may use Odin's pointer-like representation. This
-	// first pass handles only normal, non-polymorphic, default-aligned unions.
-	if value.kind != .Normal ||
+	// Single-variant unions may use Odin's pointer-like representation.
+	is_tagged_union := value.kind == .Normal || value.kind == .no_nil || value.kind == .shared_nil
+	if !is_tagged_union ||
 	   value.poly != nil ||
 	   value.align != nil ||
 	   len(value.types) < 2 ||

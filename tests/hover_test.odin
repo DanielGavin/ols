@@ -6056,6 +6056,40 @@ ast_hover_struct_size_basic_unions :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_union_nil_directives :: proc(t: ^testing.T) {
+	No_Nil_Union :: union #no_nil {u8, u16}
+	Shared_Nil_Union :: union #shared_nil {^u8, ^u16}
+	Container_Layout :: struct {
+		no_nil:     No_Nil_Union,
+		shared_nil: Shared_Nil_Union,
+	}
+
+	source := test.Source {
+		main = `package test
+		No_Nil_Union :: union #no_nil {u8, u16}
+		Shared_Nil_Union :: union #shared_nil {^u8, ^u16}
+		Container :: struct {
+			no_nil:     No_Nil_Union,
+			shared_nil: Shared_Nil_Union,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tno_nil:     No_Nil_Union,\n\tshared_nil: Shared_Nil_Union,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(No_Nil_Union) - size_of(Shared_Nil_Union),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
 	Word :: u16
 	Bits :: bit_field Word {
@@ -6346,7 +6380,7 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 		main = `package test
 		Partial :: struct {
 			known: u64,
-			unknown: union #no_nil {u8, u16},
+			unknown: union {^u8},
 		}
 
 		value := P{*}artial{}
@@ -6359,7 +6393,7 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 	test.expect_hover(
 		t,
 		&source,
-		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: union #no_nil {\n\t\tu8,\n\t\tu16,\n\t},\n}",
+		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: union {\n\t\t^u8,\n\t},\n}",
 	)
 }
 
@@ -7189,22 +7223,6 @@ ast_hover_struct_size_unsupported_unions_are_unknown :: proc(t: ^testing.T) {
 		{
 			main = `package test
 			Value :: union {^u8}
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: union #no_nil {u8, u16}
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: union #shared_nil {u8, u16}
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,
