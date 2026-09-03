@@ -4,6 +4,7 @@ import "core:strings"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:reflect"
+import "core:slice"
 
 import "src:common"
 import "src:spall"
@@ -756,7 +757,13 @@ expr_matches_poly_name :: proc(expr: ^ast.Expr, poly_name: string) -> bool {
 	return ident.name == poly_name
 }
 
-resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder, poly_params: ^ast.Field_List) {
+apply_poly_arguments :: proc(
+	ast_context: ^AstContext,
+	types: ^[dynamic]^ast.Expr,
+	args: ^[dynamic]^ast.Expr,
+	poly_names: ^[dynamic]string,
+	poly_params: ^ast.Field_List,
+) {
 	if ast_context.call == nil {
 		return
 	}
@@ -766,14 +773,14 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 	i := 0
 
 	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	clear(&b.poly_names)
+	clear(poly_names)
 
 	for param in poly_params.list {
 		if param == nil {
 			continue
 		}
 		for name in param.names {
-			append(&b.poly_names, strings.clone(node_to_string(name), ast_context.allocator))
+			append(poly_names, strings.clone(node_to_string(name), ast_context.allocator))
 			if len(ast_context.call.args) <= i {
 				break
 			}
@@ -786,23 +793,23 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 
 			if poly_name, ok := get_poly_param_name(name); ok {
 				poly_map[poly_name] = arg
-				b.poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
+				poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
 			}
 
-			append(&b.args, arg)
+			append(args, arg)
 
 			i += 1
 		}
 	}
 
 	Visit_Data :: struct {
-		poly_map:             map[string]^ast.Expr,
-		symbol_value_builder: ^SymbolStructValueBuilder,
-		parent:               ^ast.Node,
-		parent_proc:          ^ast.Proc_Type,
-		i:                    int,
-		poly_index:           int,
-		recursion_map:        map[rawptr]struct{},
+		poly_map:      map[string]^ast.Expr,
+		types:         ^[dynamic]^ast.Expr,
+		parent:        ^ast.Node,
+		parent_proc:   ^ast.Proc_Type,
+		i:             int,
+		poly_index:    int,
+		recursion_map: map[rawptr]struct{},
 	}
 
 	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
@@ -842,6 +849,21 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 
 				if data.parent != nil {
 					#partial switch &v in data.parent.derived {
+					case ^ast.Paren_Expr:
+						if expr_matches_poly_name(v.expr, ident.name) {
+							v.expr = expr
+						}
+					case ^ast.Unary_Expr:
+						if expr_matches_poly_name(v.expr, ident.name) {
+							v.expr = expr
+						}
+					case ^ast.Binary_Expr:
+						if expr_matches_poly_name(v.left, ident.name) {
+							v.left = expr
+						}
+						if expr_matches_poly_name(v.right, ident.name) {
+							v.right = expr
+						}
 					case ^ast.Array_Type:
 						if expr_matches_poly_name(v.len, ident.name) {
 							v.len = expr
@@ -876,8 +898,8 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 						}
 					}
 				} else if data.parent_proc == nil {
-					if expr_matches_poly_name(data.symbol_value_builder.types[data.i], ident.name) {
-						data.symbol_value_builder.types[data.i] = expr
+					if expr_matches_poly_name(data.types[data.i], ident.name) {
+						data.types[data.i] = expr
 						data.poly_index += 1
 					}
 				}
@@ -885,7 +907,10 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		}
 
 		#partial switch v in node.derived {
-		case ^ast.Array_Type,
+		case ^ast.Paren_Expr,
+		     ^ast.Unary_Expr,
+		     ^ast.Binary_Expr,
+		     ^ast.Array_Type,
 		     ^ast.Dynamic_Array_Type,
 		     ^ast.Selector_Expr,
 		     ^ast.Pointer_Type,
@@ -901,11 +926,11 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		return visitor
 	}
 
-	for type, i in b.types {
+	for type, i in types {
 		data := Visit_Data {
-			poly_map             = poly_map,
-			symbol_value_builder = b,
-			i                    = i,
+			poly_map = poly_map,
+			types    = types,
+			i        = i,
 		}
 
 		visitor := ast.Visitor {
@@ -916,6 +941,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 		ast.walk(&visitor, type)
 	}
 }
+
 
 
 resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_List, symbol: ^Symbol) {
@@ -931,54 +957,30 @@ resolve_poly_union :: proc(ast_context: ^AstContext, poly_params: ^ast.Field_Lis
 
 	spall.trace(#procedure)
 
-	i := 0
-
-	poly_map := make(map[string]^ast.Expr, 0, context.temp_allocator)
-	poly_names := make([dynamic]string, 0, ast_context.allocator)
-
+	parameter_count := 0
 	for param in poly_params.list {
 		if param == nil {
 			continue
 		}
-
-		for name in param.names {
-			append(&poly_names, strings.clone(node_to_string(name), ast_context.allocator))
-			if len(ast_context.call.args) <= i {
-				break
-			}
-
-			if param.type == nil {
-				continue
-			}
-
-			if poly_name, ok := get_poly_param_name(name); ok {
-				poly_map[poly_name] = clone_expr(ast_context.call.args[i], ast_context.allocator, nil)
-				poly_names[i] = strings.clone(node_to_string(ast_context.call.args[i]), ast_context.allocator)
-			}
-
-			i += 1
-		}
+		parameter_count += len(param.names)
 	}
 
-	for type, i in symbol_value.types {
-		if ident, ok := type.derived.(^ast.Ident); ok {
-			if expr, ok := poly_map[ident.name]; ok {
-				symbol_value.types[i] = expr
-			}
-		} else if call_expr, ok := type.derived.(^ast.Call_Expr); ok {
-			if call_expr.args == nil {
-				continue
-			}
+	types := slice.to_dynamic(symbol_value.types, ast_context.allocator)
+	args := make([dynamic]^ast.Expr, ast_context.allocator)
+	poly_names := make([dynamic]string, ast_context.allocator)
 
-			for arg, i in call_expr.args {
-				if ident, ok := arg.derived.(^ast.Ident); ok {
-					if expr, ok := poly_map[ident.name]; ok {
-						call_expr.args[i] = expr
-					}
-				}
-			}
-		}
+	align_index := -1
+	if symbol_value.align != nil {
+		align_index = len(types)
+		append(&types, clone_expr(symbol_value.align, ast_context.allocator, nil))
 	}
 
+	apply_poly_arguments(ast_context, &types, &args, &poly_names, poly_params)
+
+	symbol_value.types = types[:len(symbol_value.types)]
+	if align_index >= 0 {
+		symbol_value.align = types[align_index]
+	}
 	symbol_value.poly_names = poly_names[:]
+	symbol_value.is_fully_specialized = len(args) == parameter_count && len(ast_context.call.args) == parameter_count
 }

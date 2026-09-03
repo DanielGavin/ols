@@ -6211,6 +6211,40 @@ ast_hover_struct_size_imported_union_alignment_package_alias :: proc(t: ^testing
 }
 
 @(test)
+ast_hover_struct_size_specialized_polymorphic_unions :: proc(t: ^testing.T) {
+	Generic_Union :: union($T: typeid, $N: int) {[N]T, ^T, u64}
+	Aligned_Union :: union($T: typeid, $A: int) #align(A) {T, u64}
+	Container_Layout :: struct {
+		generic: Generic_Union(u16, 3),
+		aligned: Aligned_Union(u32, 32),
+	}
+
+	source := test.Source {
+		main = `package test
+		Generic_Union :: union($T: typeid, $N: int) {[N]T, ^T, u64}
+		Aligned_Union :: union($T: typeid, $A: int) #align(A) {T, u64}
+		Container :: struct {
+			generic: Generic_Union(u16, 3),
+			aligned: Aligned_Union(u32, 32),
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tgeneric: Generic_Union(u16, 3),\n\taligned: Aligned_Union(u32, 32),\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(Generic_Union(u16, 3)) - size_of(Aligned_Union(u32, 32)),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
 	Word :: u16
 	Bits :: bit_field Word {
@@ -7344,6 +7378,23 @@ ast_hover_struct_size_unsupported_unions_are_unknown :: proc(t: ^testing.T) {
 		{
 			main = `package test
 			Value :: union {^u8}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: union($T: typeid) {^T, u64}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Generic :: union($T, $E: typeid) {^T, ^E}
+			Value :: Generic(u8)
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,

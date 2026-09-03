@@ -365,7 +365,7 @@ resolve_union_layout :: proc(
 	// Single-variant unions may use Odin's pointer-like representation.
 	is_tagged_union := value.kind == .Normal || value.kind == .no_nil || value.kind == .shared_nil
 	if !is_tagged_union ||
-	   value.poly != nil ||
+	   value.poly != nil && !value.is_fully_specialized ||
 	   len(value.types) < 2 {
 		return {}, false
 	}

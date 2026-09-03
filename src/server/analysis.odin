@@ -3067,7 +3067,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 				append(&b.types, clone_expr(type, ast_context.allocator, nil))
 			}
 			b.poly = cast(^ast.Field_List)clone_type(v.poly, ast_context.allocator, nil)
-			resolve_poly_struct(ast_context, &b, v.poly)
+			apply_poly_arguments(ast_context, &b.types, &b.args, &b.poly_names, v.poly)
 		}
 
 		//expand the types and names from the using - can't be done while indexing without complicating everything(this also saves memory)

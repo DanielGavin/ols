@@ -105,14 +105,15 @@ SymbolEnumValue :: struct {
 }
 
 SymbolUnionValue :: struct {
-	types:         []^ast.Expr,
-	poly:          ^ast.Field_List,
-	poly_names:    []string,
-	docs:          []^ast.Comment_Group,
-	comments:      []^ast.Comment_Group,
-	kind:          ast.Union_Type_Kind,
-	align:         ^ast.Expr,
-	where_clauses: []^ast.Expr,
+	types:                []^ast.Expr,
+	poly:                 ^ast.Field_List,
+	is_fully_specialized: bool,
+	poly_names:           []string,
+	docs:                 []^ast.Comment_Group,
+	comments:             []^ast.Comment_Group,
+	kind:                 ast.Union_Type_Kind,
+	align:                ^ast.Expr,
+	where_clauses:        []^ast.Expr,
 }
 
 SymbolDynamicArrayValue :: struct {
@@ -427,7 +428,7 @@ write_struct_type :: proc(
 	}
 
 	if v.poly_params != nil {
-		resolve_poly_struct(ast_context, b, v.poly_params)
+		apply_poly_arguments(ast_context, &b.types, &b.args, &b.poly_names, v.poly_params)
 	}
 
 	if base_using_index == -1 {
