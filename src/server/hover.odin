@@ -1,6 +1,8 @@
 #+feature dynamic-literals
 package server
 
+import "base:intrinsics"
+
 import "core:fmt"
 import "core:log"
 import "core:odin/ast"
@@ -30,6 +32,9 @@ Layout_Evaluation_Context :: struct {
 // This is the largest legal SIMD vector and therefore exposes the build
 // target's maximum SIMD alignment without duplicating Odin's target table.
 MAX_SIMD_ALIGNMENT :: align_of(#simd[64]u64)
+
+// Probe the compiler's target-specific cap rather than duplicating its target table.
+MAX_UNION_TAG_SIZE :: size_of(intrinsics.type_union_tag_type(union #align(8) {u8, u16}))
 
 get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 	switch name {
@@ -361,9 +366,17 @@ resolve_union_layout :: proc(
 	is_tagged_union := value.kind == .Normal || value.kind == .no_nil || value.kind == .shared_nil
 	if !is_tagged_union ||
 	   value.poly != nil ||
-	   value.align != nil ||
 	   len(value.types) < 2 {
 		return {}, false
+	}
+
+	custom_alignment := 0
+	if value.align != nil {
+		alignment, ok := resolve_layout_alignment(evaluation, value.align)
+		if !ok {
+			return {}, false
+		}
+		custom_alignment = alignment
 	}
 
 	variant_count := i128(len(value.types))
@@ -379,7 +392,7 @@ resolve_union_layout :: proc(
 	}
 
 	largest_variant_size := 0
-	alignment := 1
+	natural_alignment := 1
 	for variant in value.types {
 		variant_layout, ok := resolve_type_layout(evaluation, variant)
 		if !ok || variant_layout.size < 0 || variant_layout.alignment <= 0 {
@@ -387,16 +400,16 @@ resolve_union_layout :: proc(
 		}
 
 		largest_variant_size = max(largest_variant_size, variant_layout.size)
-		alignment = max(alignment, variant_layout.alignment)
+		natural_alignment = max(natural_alignment, variant_layout.alignment)
 	}
 
-	// Odin grows the count-sized tag to the largest variant alignment.
-	// TODO: Handle cases where the variant alignment exceeds the native scalar layout.
-	if alignment > align_of(u64) {
-		return {}, false
+	alignment := natural_alignment
+	if custom_alignment > 0 {
+		alignment = custom_alignment
 	}
 
-	tag_size = min(max(tag_size, alignment), size_of(u64))
+	// Odin grows the count-sized tag to the union alignment, capped by the target.
+	tag_size = min(max(tag_size, alignment), MAX_UNION_TAG_SIZE)
 	tag_padding := (tag_size - (largest_variant_size % tag_size)) % tag_size
 	size := i128(largest_variant_size) + i128(tag_padding) + i128(tag_size)
 	final_padding := (i128(alignment) - (size % i128(alignment))) % i128(alignment)

@@ -294,6 +294,9 @@ collect_union_fields :: proc(
 	temp_docs, temp_comments := get_field_docs_and_comments(file, union_type.variants, context.temp_allocator)
 	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
 	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
+	
+	align := clone_type(union_type.align, collection.allocator, &collection.unique_strings)
+	replace_package_alias(align, package_map, collection)
 
 	value := SymbolUnionValue {
 		types         = types[:],
@@ -301,7 +304,7 @@ collect_union_fields :: proc(
 		comments      = comments[:],
 		docs          = docs[:],
 		kind          = union_type.kind,
-		align         = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
+		align         = align,
 		where_clauses = clone_array(union_type.where_clauses, collection.allocator, &collection.unique_strings),
 	}
 

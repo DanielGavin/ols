@@ -6120,6 +6120,97 @@ ast_hover_struct_size_oversized_union :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_custom_aligned_unions :: proc(t: ^testing.T) {
+	Byte_Aligned_Union :: union #align(1) {u8, u64}
+	Expression_Aligned_Union :: union #align(2 * 2) {u8, u64}
+	Wide_Union :: union #align(32) {u8, u64}
+	Container_Layout :: struct {
+		byte_aligned:       Byte_Aligned_Union,
+		expression_aligned: Expression_Aligned_Union,
+		wide:               Wide_Union,
+	}
+
+	source := test.Source {
+		main = `package test
+		Byte_Aligned_Union :: union #align(1) {u8, u64}
+		Expression_Aligned_Union :: union #align(2 * 2) {u8, u64}
+		Wide_Union :: union #align(32) {u8, u64}
+		Container :: struct {
+			byte_aligned:       Byte_Aligned_Union,
+			expression_aligned: Expression_Aligned_Union,
+			wide:               Wide_Union,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tbyte_aligned:       Byte_Aligned_Union,\n\texpression_aligned: Expression_Aligned_Union,\n\twide:               Wide_Union,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(Byte_Aligned_Union) - size_of(Expression_Aligned_Union) - size_of(Wide_Union),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_imported_union_alignment_package_alias :: proc(t: ^testing.T) {
+	Value_Layout :: union #align(16) {u8, u64}
+	Container_Layout :: struct {
+		prefix: u8,
+		value:  Value_Layout,
+	}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "base",
+			source = `package base
+			ALIGNMENT :: 16
+			`,
+		},
+		test.Package {
+			pkg = "layouts",
+			source = `package layouts
+			import aliased "base"
+
+			Value :: union #align(aliased.ALIGNMENT) {u8, u64}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "layouts"
+
+		Container :: struct {
+			prefix: u8,
+			value:  layouts.Value,
+		}
+		value := C{*}ontainer{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tprefix: u8,\n\tvalue:  layouts.Value,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(u8) - size_of(Value_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
 	Word :: u16
 	Bits :: bit_field Word {
@@ -7260,7 +7351,8 @@ ast_hover_struct_size_unsupported_unions_are_unknown :: proc(t: ^testing.T) {
 		},
 		{
 			main = `package test
-			Value :: union #align(16) {u8, u64}
+			ALIGNMENT: int
+			Value :: union #align(ALIGNMENT) {u8, u64}
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,
