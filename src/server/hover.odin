@@ -34,7 +34,10 @@ Layout_Evaluation_Context :: struct {
 MAX_SIMD_ALIGNMENT :: align_of(#simd[64]u64)
 
 // Probe the compiler's target-specific cap rather than duplicating its target table.
-MAX_UNION_TAG_SIZE :: size_of(intrinsics.type_union_tag_type(union #align(8) {u8, u16}))
+MAX_UNION_TAG_SIZE :: size_of(intrinsics.type_union_tag_type(union #align(8) {
+			u8,
+			u16,
+		}))
 
 get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 	switch name {
@@ -355,18 +358,10 @@ resolve_layout_alignment :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^
 	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
 }
 
-resolve_union_layout :: proc(
-	evaluation: ^Layout_Evaluation_Context,
-	value: SymbolUnionValue,
-) -> (
-	Type_Layout,
-	bool,
-) {
+resolve_union_layout :: proc(evaluation: ^Layout_Evaluation_Context, value: SymbolUnionValue) -> (Type_Layout, bool) {
 	// Single-variant unions may use Odin's pointer-like representation.
 	is_tagged_union := value.kind == .Normal || value.kind == .no_nil || value.kind == .shared_nil
-	if !is_tagged_union ||
-	   value.poly != nil && !value.is_fully_specialized ||
-	   len(value.types) < 2 {
+	if !is_tagged_union || value.poly != nil && !value.is_fully_specialized || len(value.types) < 2 {
 		return {}, false
 	}
 
@@ -470,7 +465,8 @@ resolve_struct_layout :: proc(
 		return {}, false
 	}
 
-	layout := Struct_Layout{}
+	size := i128(0)
+	padding := i128(0)
 	natural_alignment := 1
 
 	if len(value.from_usings) != len(value.types) {
@@ -483,44 +479,62 @@ resolve_struct_layout :: proc(
 		}
 
 		field_layout, ok := resolve_type_layout(evaluation, field_type)
-		if !ok {
+		if !ok || field_layout.size < 0 || field_layout.alignment <= 0 {
 			return {}, false
 		}
 
 		natural_alignment = max(natural_alignment, field_layout.alignment)
 
 		if is_raw_union {
-			layout.size = max(layout.size, field_layout.size)
+			// Raw-union fields begin at offset zero; only the largest storage req contributes to the size.
+			size = max(size, i128(field_layout.size))
 		} else if is_packed {
-			layout.size += field_layout.size
+			// Packed fields start immediately after the previous field, even when misaligned.
+			size += i128(field_layout.size)
 		} else {
+			// Respect the struct's requested bounds.
 			field_alignment := max(field_layout.alignment, min_field_alignment)
 			if max_field_alignment > 0 {
 				field_alignment = min(field_alignment, max_field_alignment)
 			}
 
-			padding := (field_alignment - (layout.size % field_alignment)) % field_alignment
-			layout.padding += padding
-			layout.size += padding + field_layout.size
+			// Compute the padding needed for the field to begin at an aligned offset.
+			wide_field_alignment := i128(field_alignment)
+			field_padding := (wide_field_alignment - (size % wide_field_alignment)) % wide_field_alignment
+
+			padding += field_padding
+			size += field_padding + i128(field_layout.size)
+		}
+
+		// Reject layouts that cannot be represented by Struct_Layout.
+		if size > i128(max(int)) || padding > i128(max(int)) {
+			return {}, false
 		}
 	}
 
+	alignment: int
 	if custom_alignment > 0 {
-		layout.alignment = custom_alignment
+		alignment = custom_alignment
 	} else if is_packed {
-		layout.alignment = 1
+		alignment = 1
 	} else {
-		layout.alignment = max(natural_alignment, min_field_alignment)
+		alignment = max(natural_alignment, min_field_alignment)
 		if max_field_alignment > 0 {
-			layout.alignment = min(layout.alignment, max_field_alignment)
+			alignment = min(alignment, max_field_alignment)
 		}
 	}
 
-	final_padding := (layout.alignment - (layout.size % layout.alignment)) % layout.alignment
-	layout.padding += final_padding
-	layout.size += final_padding
+	alignment_128 := i128(alignment)
+	final_padding := (alignment_128 - (size % alignment_128)) % alignment_128
 
-	return layout, true
+	padding += final_padding
+	size += final_padding
+
+	if size > i128(max(int)) || padding > i128(max(int)) {
+		return {}, false
+	}
+
+	return {size = int(size), alignment = alignment, padding = int(padding)}, true
 }
 
 resolve_type_layout :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (Type_Layout, bool) {

@@ -6120,6 +6120,40 @@ ast_hover_struct_size_oversized_union :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_naturally_aligned_union :: proc(t: ^testing.T) {
+	Value_Layout :: union {#simd[8]f32, u8}
+	Container_Layout :: struct {
+		prefix: u8,
+		value:  Value_Layout,
+		suffix: u8,
+	}
+
+	source := test.Source {
+		main = `package test
+		Value :: union {#simd[8]f32, u8}
+		Container :: struct {
+			prefix: u8,
+			value:  Value,
+			suffix: u8,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tprefix: u8,\n\tvalue:  Value,\n\tsuffix: u8,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(u8) - size_of(Value_Layout) - size_of(u8),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_custom_aligned_unions :: proc(t: ^testing.T) {
 	Byte_Aligned_Union :: union #align(1) {u8, u64}
 	Expression_Aligned_Union :: union #align(2 * 2) {u8, u64}
@@ -6497,6 +6531,51 @@ ast_hover_struct_size_typed_integer_complement_is_conservative :: proc(t: ^testi
 			align_of(Terminal_Auto_Cast_Layout),
 		),
 	)
+}
+
+@(test)
+ast_hover_struct_size_overflow_is_unknown :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Foo :: struct {
+				first:  [4611686018427387904]u8,
+				second: [4611686018427387904]u8,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #packed {
+				first:  [4611686018427387904]u8,
+				second: [4611686018427387904]u8,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #align(8) {
+				value: [9223372036854775807]u8,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Foo :: struct {\n\tfirst:  [4611686018427387904]u8,\n\tsecond: [4611686018427387904]u8,\n}",
+		"test.Foo :: struct #packed {\n\tfirst:  [4611686018427387904]u8,\n\tsecond: [4611686018427387904]u8,\n}",
+		"test.Foo :: struct #align(8) {\n\tvalue: [9223372036854775807]u8,\n}",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
 }
 
 @(test)
