@@ -5761,7 +5761,7 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 		main = `package test
 		Partial :: struct {
 			known: u64,
-			unknown: []u8,
+			unknown: union {u8, u16},
 		}
 
 		value := P{*}artial{}
@@ -5774,7 +5774,197 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 	test.expect_hover(
 		t,
 		&source,
-		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: []u8,\n}",
+		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: union {\n\t\tu8,\n\t\tu16,\n\t},\n}",
+	)
+}
+
+@(test)
+ast_hover_struct_size_maps :: proc(t: ^testing.T) {
+	Map_Alias :: map[string]u64
+	Distinct_Map :: distinct map[uintptr]bool
+	Map_Layout :: struct {
+		direct: map[u8]u16,
+		alias: Map_Alias,
+		distinct_map: Distinct_Map,
+		array: [2]map[u32]string,
+	}
+
+	source := test.Source {
+		main = `package test
+		Map_Alias :: map[string]u64
+		Distinct_Map :: distinct map[uintptr]bool
+		Maps :: struct {
+			direct: map[u8]u16,
+			alias: Map_Alias,
+			distinct_map: Distinct_Map,
+			array: [2]map[u32]string,
+		}
+
+		value := M{*}aps{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Maps :: struct {\n\tdirect:       map[u8]u16,\n\talias:        Map_Alias,\n\tdistinct_map: Distinct_Map,\n\tarray:        [2]map[u32]string,\n}",
+			size_of(Map_Layout),
+			align_of(Map_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_slices_dynamic_arrays_and_enums :: proc(t: ^testing.T) {
+	Error :: enum u32 {None}
+	Container_Layout :: struct {
+		bytes: []byte,
+		values: [dynamic]string,
+		error: Error,
+	}
+
+	source := test.Source {
+		main = `package test
+		Error :: enum u32 {None}
+		Container :: struct {
+			bytes: []byte,
+			values: [dynamic]string,
+			error: Error,
+		}
+
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Container :: struct {\n\tbytes:  []byte,\n\tvalues: [dynamic]string,\n\terror:  Error,\n}",
+			size_of(Container_Layout),
+			align_of(Container_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_container_aliases_distinct_and_enum_backings :: proc(t: ^testing.T) {
+	Default_Error :: enum {None}
+	Small_Error :: enum u8 {None}
+	Imported_Error :: enum u16 {None}
+	Values :: distinct [dynamic]u32
+	Alias_Layout :: struct {
+		bytes: []byte,
+		values: Values,
+		default_error: Default_Error,
+		small_error: Small_Error,
+		imported_error: Imported_Error,
+	}
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "errors",
+			source = `package errors
+			Backing :: u16
+			Error :: enum Backing {None}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "errors"
+		Bytes :: []byte
+		Values :: distinct [dynamic]u32
+		Backing :: u8
+		Default_Error :: enum {None}
+		Small_Error :: enum Backing {None}
+		Aliases :: struct {
+			bytes: Bytes,
+			values: Values,
+			default_error: Default_Error,
+			small_error: Small_Error,
+			imported_error: errors.Error,
+		}
+
+		value := A{*}liases{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Aliases :: struct {\n\tbytes:          Bytes,\n\tvalues:         Values,\n\tdefault_error:  Default_Error,\n\tsmall_error:    Small_Error,\n\timported_error: errors.Error,\n}",
+			size_of(Alias_Layout),
+			align_of(Alias_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_surface_shaped_layout :: proc(t: ^testing.T) {
+	Error :: enum u32 {None}
+	Metrics :: struct {
+		width: int,
+		scale: f32,
+	}
+	Paragraph_Layout :: struct {
+		lines: [dynamic]u32,
+		width: f32,
+	}
+	Surface_Layout :: struct {
+		memory: []byte,
+		commands: [dynamic]string,
+		metrics: Metrics,
+		paragraph: Paragraph_Layout,
+		error: Error,
+		initialized: bool,
+	}
+
+	source := test.Source {
+		main = `package test
+		Error :: enum u32 {None}
+		Metrics :: struct {
+			width: int,
+			scale: f32,
+		}
+		Paragraph_Layout :: struct {
+			lines: [dynamic]u32,
+			width: f32,
+		}
+		Surface :: struct {
+			memory: []byte,
+			commands: [dynamic]string,
+			metrics: Metrics,
+			paragraph: Paragraph_Layout,
+			error: Error,
+			initialized: bool,
+		}
+
+		value := S{*}urface{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Surface :: struct {\n\tmemory:      []byte,\n\tcommands:    [dynamic]string,\n\tmetrics:     Metrics,\n\tparagraph:   Paragraph_Layout,\n\terror:       Error,\n\tinitialized: bool,\n}",
+			size_of(Surface_Layout),
+			align_of(Surface_Layout),
+		),
 	)
 }
 
@@ -5802,23 +5992,7 @@ ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) 
 	sources := []test.Source {
 		{
 			main = `package test
-			Value :: []u8
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: [dynamic]u8
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: map[u8]u8
+			Value :: [dynamic; 8]u8
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,

@@ -261,6 +261,12 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			return get_struct_layout(ast_context, value)
 		case SymbolProcedureValue:
 			return {size_of(^rawptr), align_of(^rawptr)}, true
+		case SymbolEnumValue:
+			if value.base_type == nil {
+				return get_basic_type_layout("int")
+			}
+
+			return get_expr_layout(ast_context, value.base_type)
 		case SymbolFixedArrayValue:
 			if .Simd in symbol.flags || .Soa in symbol.flags {
 				return {}, false
@@ -273,12 +279,17 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			}
 
 			return {size = length * element.size, alignment = element.alignment}, true
-		case SymbolSliceValue,
-		     SymbolDynamicArrayValue,
-		     SymbolMapValue,
-		     SymbolUnionValue,
-		     SymbolMatrixValue,
-		     SymbolBitSetValue:
+		case SymbolSliceValue:
+			return {size_of([]u8), align_of([]u8)}, true
+		case SymbolDynamicArrayValue:
+			if value.cap != nil {
+				return {}, false
+			}
+
+			return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
+		case SymbolMapValue:
+			return {size_of(map[u8]u8), align_of(map[u8]u8)}, true
+		case SymbolUnionValue, SymbolMatrixValue, SymbolBitSetValue:
 			return {}, false
 		}
 	}
@@ -288,7 +299,6 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 
 
 write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^common.Config) -> MarkupContent {
-	content: MarkupContent
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
 
@@ -303,12 +313,9 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 		}
 	}
 
-	content.kind = "markdown"
-
+	content := build_markup_content(cat, doc)
 	if struct_info != "" {
-		content.value = fmt.tprintf("```odin\n%v\n```%v\n%v", cat, doc, struct_info)
-	} else {
-		content.value = fmt.tprintf("```odin\n%v\n```%v", cat, doc)
+		content.value = fmt.tprintf("%v\n%v", content.value, struct_info)
 	}
 
 	return content
