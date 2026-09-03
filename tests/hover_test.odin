@@ -5,6 +5,35 @@ import "core:testing"
 
 import test "src:testing"
 
+layout_summary :: proc(size, alignment, padding: int) -> string {
+	if padding == 0 {
+		return fmt.tprintf("Size: %d bytes, alignment %d bytes", size, alignment)
+	}
+
+	return fmt.tprintf(
+		"Size: %d bytes (including %d bytes padding), alignment %d bytes",
+		size,
+		padding,
+		alignment,
+	)
+}
+
+hover_with_layout_text :: proc(
+	hover: string,
+	size, alignment, padding: int,
+) -> string {
+	return fmt.tprint(
+		hover,
+		"\n---\n",
+		layout_summary(
+			size      = size,
+			alignment = alignment,
+			padding   = padding,
+		),
+		sep = "",
+	)
+}
+
 @(test)
 ast_hover_in_nested_blocks :: proc(t: ^testing.T) {
 	source := test.Source {
@@ -5573,7 +5602,12 @@ ast_hover_struct_size_and_alignment :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Foo :: struct {\n\t// this is a doc\n\ta: u32,\n\tb: u64,\n\tc: u16,\n}\n---\nDocumentation for Foo.\n---\nSize: 24 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Foo :: struct {\n\t// this is a doc\n\ta: u32,\n\tb: u64,\n\tc: u16,\n}\n---\nDocumentation for Foo.",
+			size = 24,
+			alignment = 8,
+			padding = 10,
+		),
 	)
 }
 
@@ -5595,7 +5629,12 @@ ast_hover_struct_size_self_referential_pointer :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Node :: struct {\n\tnext: ^Node,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Node :: struct {\n\tnext: ^Node,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 
@@ -5667,7 +5706,12 @@ ast_hover_struct_size_pointer_alias :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Node :: struct {\n\tnext: Node_Ptr,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Node :: struct {\n\tnext: Node_Ptr,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 
@@ -5692,7 +5736,12 @@ ast_hover_struct_size_mutually_referential_pointers :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.A :: struct {\n\tb: ^B,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.A :: struct {\n\tb: ^B,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 
@@ -5717,7 +5766,12 @@ ast_hover_struct_size_pointer_does_not_embed_pointee :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Holder :: struct {\n\tvalue: ^Large,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Holder :: struct {\n\tvalue: ^Large,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 
@@ -5748,7 +5802,12 @@ ast_hover_struct_size_fixed_width_scalars :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Scalars :: struct {\n\ta: u8,\n\tb: i8,\n\tc: rune,\n\td: f16,\n\te: complex32,\n\tf: complex64,\n\tg: complex128,\n\th: quaternion64,\n\ti: quaternion128,\n\tj: quaternion256,\n}\n---\nSize: 96 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Scalars :: struct {\n\ta: u8,\n\tb: i8,\n\tc: rune,\n\td: f16,\n\te: complex32,\n\tf: complex64,\n\tg: complex128,\n\th: quaternion64,\n\ti: quaternion128,\n\tj: quaternion256,\n}",
+			size = 96,
+			alignment = 8,
+			padding = 4,
+		),
 	)
 }
 
@@ -5838,7 +5897,7 @@ ast_hover_struct_size_remaining_builtin_types :: proc(t: ^testing.T) {
 			t,
 			&source,
 			fmt.aprintf(
-				"test.Foo :: struct {{\n\tvalue: %v,\n}}\n---\nSize: %v bytes, Alignment: %v bytes",
+				"test.Foo :: struct {{\n\tvalue: %v,\n}}\n---\nSize: %v bytes, alignment %v bytes",
 				type_name,
 				layouts[i].size,
 				layouts[i].alignment,
@@ -5871,7 +5930,12 @@ ast_hover_struct_size_aliases_distinct_and_fixed_array :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Aliases :: struct {\n\ta: Byte_Alias,\n\tb: My_Rune,\n\tc: Four_Bytes,\n}\n---\nSize: 12 bytes, Alignment: 4 bytes",
+		hover_with_layout_text(
+			"test.Aliases :: struct {\n\ta: Byte_Alias,\n\tb: My_Rune,\n\tc: Four_Bytes,\n}",
+			size = 12,
+			alignment = 4,
+			padding = 3,
+		),
 	)
 }
 
@@ -5911,7 +5975,7 @@ ast_hover_struct_size_bit_fields_and_enumerated_arrays :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Container :: struct {\n\tbits:   Bits,\n\tdense:  [Index]u16,\n\tsparse: #sparse[Sparse_Index]u8,\n}",
 			size_of(Container_Layout),
 			align_of(Container_Layout),
@@ -5961,7 +6025,7 @@ ast_hover_struct_size_extended_integer_constant_expressions :: proc(t: ^testing.
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 7 bytes padding), alignment %v bytes",
 			"test.Container :: struct #align(align_of(u64)) {\n\tconfigured:  [#config(COUNT, 3)]u8,\n\ttype_size:   [size_of(Element)]u8,\n\texplicit:    [cast(int)3]u8,\n\tconversion:  [int(u8(2))]u8,\n\tconditional: []u8,\n\twhen_expr:   []u8,\n\tdefaulted:   [#config(MISSING, 1)]u8,\n}",
 			size_of(Container_Layout),
 			align_of(Container_Layout),
@@ -6040,7 +6104,7 @@ ast_hover_struct_size_typed_integer_complement_is_conservative :: proc(t: ^testi
 		t,
 		&sources[4],
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Container :: struct {\n\tvalue: [~i8(-3)]u8,\n}",
 			size_of(Signed_Layout),
 			align_of(Signed_Layout),
@@ -6050,7 +6114,7 @@ ast_hover_struct_size_typed_integer_complement_is_conservative :: proc(t: ^testi
 		t,
 		&sources[5],
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Container :: struct {\n\tdirect: []u8,\n\tnested: [int()]u8,\n}",
 			size_of(Terminal_Auto_Cast_Layout),
 			align_of(Terminal_Auto_Cast_Layout),
@@ -6079,7 +6143,12 @@ ast_hover_struct_size_nested_fixed_arrays :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Outer :: struct {\n\tvalues: [2]Inner,\n}\n---\nSize: 12 bytes, Alignment: 2 bytes",
+		hover_with_layout_text(
+			"test.Outer :: struct {\n\tvalues: [2]Inner,\n}",
+			size = 12,
+			alignment = 2,
+			padding = 0,
+		),
 	)
 }
 
@@ -6137,7 +6206,7 @@ ast_hover_struct_size_maps :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Maps :: struct {\n\tdirect:       map[u8]u16,\n\talias:        Map_Alias,\n\tdistinct_map: Distinct_Map,\n\tarray:        [2]map[u32]string,\n}",
 			size_of(Map_Layout),
 			align_of(Map_Layout),
@@ -6178,7 +6247,7 @@ ast_hover_struct_size_matrices :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Matrices :: struct {\n\tdirect:          matrix[3,2]f64,\n\talias:           Matrix_Alias,\n\tdistinct_matrix: Distinct_Matrix,\n\tarray:           [2]matrix[2,2]u32,\n}",
 			size_of(Matrix_Layout),
 			align_of(Matrix_Layout),
@@ -6228,7 +6297,7 @@ ast_hover_struct_size_fixed_capacity_dynamic_arrays :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Arrays :: struct {\n\tbytes:          [dynamic; 5]u8,\n\talias:          Array_Alias,\n\tdistinct_array: Distinct_Array,\n\tnested:         Nested_Array,\n}",
 			size_of(Array_Layout),
 			align_of(Array_Layout),
@@ -6369,14 +6438,24 @@ ast_hover_struct_size_imported_soa_container_aliases_are_unknown :: proc(t: ^tes
 @(test)
 ast_hover_struct_size_simd_vectors_and_soa_pointers :: proc(t: ^testing.T) {
 	Element :: struct {x, y: f32}
+	Soa_Pointer :: #soa^#soa[6]Element
+	Small_Simd :: #simd[2]u8
+	Boolean_Simd :: #simd[8]b16
+	Wide_Simd :: #simd[8]f32
+	Imported_Simd :: #simd[64]u64
 	Specialized_Layout :: struct {
-		direct_soa:    #soa^#soa[6]Element,
-		imported_soa:  #soa^#soa[6]Element,
-		small_simd:    #simd[2]u8,
-		boolean_simd:  #simd[8]b16,
-		wide_simd:     #simd[8]f32,
-		imported_simd: #simd[64]u64,
+		direct_soa:    Soa_Pointer,
+		imported_soa:  Soa_Pointer,
+		small_simd:    Small_Simd,
+		boolean_simd:  Boolean_Simd,
+		wide_simd:     Wide_Simd,
+		imported_simd: Imported_Simd,
 	}
+	payload_size := 2 * size_of(Soa_Pointer) +
+	                size_of(Small_Simd) +
+	                size_of(Boolean_Simd) +
+	                size_of(Wide_Simd) +
+	                size_of(Imported_Simd)
 
 	packages := make([dynamic]test.Package, context.temp_allocator)
 	append(
@@ -6414,9 +6493,10 @@ ast_hover_struct_size_simd_vectors_and_soa_pointers :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including %v bytes padding), alignment %v bytes",
 			"test.Specialized :: struct {\n\tdirect_soa:    #soa^#soa[6]Element,\n\timported_soa:  containers.Soa_Pointer,\n\tsmall_simd:    #simd[2]u8,\n\tboolean_simd:  #simd[8]b16,\n\twide_simd:     #simd[8]f32,\n\timported_simd: containers.Simd_Array,\n}",
 			size_of(Specialized_Layout),
+			size_of(Specialized_Layout) - payload_size,
 			align_of(Specialized_Layout),
 		),
 	)
@@ -6482,7 +6562,7 @@ ast_hover_struct_size_ordinary_pointers_to_specialized_types_are_known :: proc(t
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Pointers :: struct {\n\tsoa:  ^#soa[6]Element,\n\tsimd: ^#simd[4]f32,\n}",
 			size_of(Pointer_Layout),
 			align_of(Pointer_Layout),
@@ -6569,7 +6649,7 @@ ast_hover_struct_size_bit_sets :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 22 bytes padding), alignment %v bytes",
 			"test.Bit_Sets :: struct {\n\thalf_open:     bit_set[5 ..< 13],\n\tinclusive:     bit_set[LOW ..= HIGH],\n\tenum_set:      bit_set[Flags],\n\texplicit:      bit_set[Positive_Flags; Backing],\n\twide_explicit: bit_set[Positive_Flags; u128],\n\talias:         Set_Alias,\n\tdistinct_set:  Distinct_Set,\n\timported:      bit_set[flags.Flags],\n\tmedium:        bit_set[0 ..< 64],\n\twide:          bit_set[0 ..< 128],\n}",
 			size_of(Bit_Set_Layout),
 			align_of(Bit_Set_Layout),
@@ -6664,31 +6744,31 @@ ast_hover_struct_size_integer_constant_expressions :: proc(t: ^testing.T) {
 	hover := "test.Foo :: struct {\n\tvalue: Value,\n}"
 	expected := []string {
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			hover,
 			size_of(Computed_Array_Layout),
 			align_of(Computed_Array_Layout),
 		),
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			hover,
 			size_of(Imported_Bit_Set_Layout),
 			align_of(Imported_Bit_Set_Layout),
 		),
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			hover,
 			size_of(Rune_Bit_Set_Layout),
 			align_of(Rune_Bit_Set_Layout),
 		),
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			hover,
 			size_of(Enum_Bit_Set_Layout),
 			align_of(Enum_Bit_Set_Layout),
 		),
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			hover,
 			size_of(Imported_Enum_Bit_Set_Layout),
 			align_of(Imported_Enum_Bit_Set_Layout),
@@ -6732,7 +6812,7 @@ ast_hover_struct_size_bit_set_size_of_range_is_known :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes, alignment %v bytes",
 			"test.Foo :: struct {\n\tvalue: Value,\n}",
 			size_of(Value_Layout),
 			align_of(Value_Layout),
@@ -6767,7 +6847,7 @@ ast_hover_struct_size_slices_dynamic_arrays_and_enums :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 4 bytes padding), alignment %v bytes",
 			"test.Container :: struct {\n\tbytes:  []byte,\n\tvalues: [dynamic]string,\n\terror:  Error,\n}",
 			size_of(Container_Layout),
 			align_of(Container_Layout),
@@ -6826,7 +6906,7 @@ ast_hover_struct_size_container_aliases_distinct_and_enum_backings :: proc(t: ^t
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 5 bytes padding), alignment %v bytes",
 			"test.Aliases :: struct {\n\tbytes:          Bytes,\n\tvalues:         Values,\n\tdefault_error:  Default_Error,\n\tsmall_error:    Small_Error,\n\timported_error: errors.Error,\n}",
 			size_of(Alias_Layout),
 			align_of(Alias_Layout),
@@ -6883,7 +6963,7 @@ ast_hover_struct_size_surface_shaped_layout :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 3 bytes padding), alignment %v bytes",
 			"test.Surface :: struct {\n\tmemory:      []byte,\n\tcommands:    [dynamic]string,\n\tmetrics:     Metrics,\n\tparagraph:   Paragraph_Layout,\n\terror:       Error,\n\tinitialized: bool,\n}",
 			size_of(Surface_Layout),
 			align_of(Surface_Layout),
@@ -6906,7 +6986,12 @@ ast_hover_struct_size_empty_struct_is_known :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Empty :: struct{}\n---\nSize: 0 bytes, Alignment: 1 bytes",
+		hover_with_layout_text(
+			"test.Empty :: struct{}",
+			size = 0,
+			alignment = 1,
+			padding = 0,
+		),
 	)
 }
 
@@ -6963,7 +7048,7 @@ ast_hover_struct_size_native_width_types :: proc(t: ^testing.T) {
 		t,
 		&source,
 		fmt.tprintf(
-			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"%v\n---\nSize: %v bytes (including 4 bytes padding), alignment %v bytes",
 			"test.Native :: struct {\n\ta: int,\n\tb: uint,\n\tc: uintptr,\n\td: rawptr,\n\te: u32,\n}",
 			size_of(Native_Layout),
 			align_of(Native_Layout),
@@ -7081,13 +7166,48 @@ ast_hover_struct_size_layout_directives :: proc(t: ^testing.T) {
 	}
 
 	expected := []string {
-		"test.Foo :: struct #packed {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}\n---\nSize: 11 bytes, Alignment: 1 bytes",
-		"test.Foo :: struct #align(16) {\n\ta: u8,\n\tb: u32,\n}\n---\nSize: 16 bytes, Alignment: 16 bytes",
-		"test.Foo :: struct #min_field_align(4) {\n\ta: u8,\n\tb: u16,\n\tc: u8,\n}\n---\nSize: 12 bytes, Alignment: 4 bytes",
-		"test.Foo :: struct #max_field_align(4) {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}\n---\nSize: 16 bytes, Alignment: 4 bytes",
-		"test.Foo :: struct #raw_union {\n\ta: u8,\n\tb: u64,\n\tc: [3]u32,\n}\n---\nSize: 16 bytes, Alignment: 8 bytes",
-		"test.Foo :: struct #align(ALIGNMENT) {\n\ta: u8,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
-		"test.Foo :: struct #max_field_align(4) #min_field_align(4) {\n\ta: u8,\n\tb: u64,\n}\n---\nSize: 12 bytes, Alignment: 4 bytes",
+		hover_with_layout_text(
+			"test.Foo :: struct #packed {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}",
+			size = 11,
+			alignment = 1,
+			padding = 0,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #align(16) {\n\ta: u8,\n\tb: u32,\n}",
+			size = 16,
+			alignment = 16,
+			padding = 11,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #min_field_align(4) {\n\ta: u8,\n\tb: u16,\n\tc: u8,\n}",
+			size = 12,
+			alignment = 4,
+			padding = 8,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #max_field_align(4) {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}",
+			size = 16,
+			alignment = 4,
+			padding = 5,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #raw_union {\n\ta: u8,\n\tb: u64,\n\tc: [3]u32,\n}",
+			size = 16,
+			alignment = 8,
+			padding = 4,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #align(ALIGNMENT) {\n\ta: u8,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 7,
+		),
+		hover_with_layout_text(
+			"test.Foo :: struct #max_field_align(4) #min_field_align(4) {\n\ta: u8,\n\tb: u64,\n}",
+			size = 12,
+			alignment = 4,
+			padding = 3,
+		),
 	}
 
 	for &source, i in sources {
@@ -7110,7 +7230,12 @@ ast_hover_struct_size_layout_constant_expression :: proc(t: ^testing.T) {
 	test.expect_hover(
 		t,
 		&source,
-		"test.Foo :: struct #align(2 * 4) {\n\tvalue: u64,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Foo :: struct #align(2 * 4) {\n\tvalue: u64,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 
@@ -7174,11 +7299,32 @@ ast_hover_struct_size_using_fields_are_counted_once :: proc(t: ^testing.T) {
 	}
 
 	expected := []string {
-		"test.Outer :: struct {\n\tusing inner: Inner,\n\n\t// from `using inner: Inner`\n\ta:           u64,\n\tb:           u32,\n}\n---\nSize: 16 bytes, Alignment: 8 bytes",
-		"test.Outer :: struct {\n\tusing inner: ^Inner,\n\n\t// from `using inner: ^Inner`\n\tx:           u64,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
-		"test.Outer :: struct {\n\tusing middle: Middle,\n\n\t// from `using middle: Middle`\n\tusing leaf:   Leaf,\n\n\t// from `using leaf: Leaf`\n\tx:            u32,\n}\n---\nSize: 4 bytes, Alignment: 4 bytes",
-		"test.Outer :: struct #packed {\n\tusing inner: Inner,\n\ttail:        u8,\n\n\t// from `using inner: Inner`\n\ta:           u32,\n\tb:           u64,\n}\n---\nSize: 17 bytes, Alignment: 1 bytes",
+		hover_with_layout_text(
+			"test.Outer :: struct {\n\tusing inner: Inner,\n\n\t// from `using inner: Inner`\n\ta:           u64,\n\tb:           u32,\n}",
+			size = 16,
+			alignment = 8,
+			padding = 0,
+		),
+		hover_with_layout_text(
+			"test.Outer :: struct {\n\tusing inner: ^Inner,\n\n\t// from `using inner: ^Inner`\n\tx:           u64,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
+		hover_with_layout_text(
+			"test.Outer :: struct {\n\tusing middle: Middle,\n\n\t// from `using middle: Middle`\n\tusing leaf:   Leaf,\n\n\t// from `using leaf: Leaf`\n\tx:            u32,\n}",
+			size = 4,
+			alignment = 4,
+			padding = 0,
+		),
+		hover_with_layout_text(
+			"test.Outer :: struct #packed {\n\tusing inner: Inner,\n\ttail:        u8,\n\n\t// from `using inner: Inner`\n\ta:           u32,\n\tb:           u64,\n}",
+			size = 17,
+			alignment = 1,
+			padding = 0,
+		),
 	}
+
 
 	for &source, i in sources {
 		test.expect_hover(t, &source, expected[i])
@@ -7215,7 +7361,12 @@ ast_hover_struct_size_imported_using_field_is_counted_once :: proc(t: ^testing.T
 	test.expect_hover(
 		t,
 		&source,
-		"test.Outer :: struct {\n\tusing inner: my_package.Inner,\n\n\t// from `using inner: my_package.Inner`\n\tx:           u64,\n}\n---\nSize: 8 bytes, Alignment: 8 bytes",
+		hover_with_layout_text(
+			"test.Outer :: struct {\n\tusing inner: my_package.Inner,\n\n\t// from `using inner: my_package.Inner`\n\tx:           u64,\n}",
+			size = 8,
+			alignment = 8,
+			padding = 0,
+		),
 	)
 }
 

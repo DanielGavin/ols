@@ -14,6 +14,12 @@ Type_Layout :: struct {
 	alignment: int,
 }
 
+Struct_Layout :: struct {
+	size:      int,
+	alignment: int,
+	padding:   int,
+}
+
 Layout_Evaluation_Context :: struct {
 	ast_context:                 ^AstContext,
 	config:                      ^common.Config,
@@ -344,7 +350,7 @@ resolve_struct_layout :: proc(
 	evaluation: ^Layout_Evaluation_Context,
 	value: SymbolStructValue,
 ) -> (
-	Type_Layout,
+	Struct_Layout,
 	bool,
 ) {
 	ast_context := evaluation.ast_context
@@ -389,7 +395,7 @@ resolve_struct_layout :: proc(
 		return {}, false
 	}
 
-	layout := Type_Layout{}
+	layout := Struct_Layout{}
 	natural_alignment := 1
 
 	if len(value.from_usings) != len(value.types) {
@@ -419,6 +425,7 @@ resolve_struct_layout :: proc(
 			}
 
 			padding := (field_alignment - (layout.size % field_alignment)) % field_alignment
+			layout.padding += padding
 			layout.size += padding + field_layout.size
 		}
 	}
@@ -435,6 +442,7 @@ resolve_struct_layout :: proc(
 	}
 
 	final_padding := (layout.alignment - (layout.size % layout.alignment)) % layout.alignment
+	layout.padding += final_padding
 	layout.size += final_padding
 
 	return layout, true
@@ -504,7 +512,12 @@ resolve_type_layout :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.E
 		case SymbolBasicValue:
 			return get_basic_type_layout(value.ident.name)
 		case SymbolStructValue:
-			return resolve_struct_layout(evaluation, value)
+			layout, known := resolve_struct_layout(evaluation, value)
+			if !known {
+				return {}, false
+			}
+
+			return {layout.size, layout.alignment}, true
 		case SymbolProcedureValue:
 			return {size_of(^rawptr), align_of(^rawptr)}, true
 		case SymbolEnumValue:
@@ -604,7 +617,7 @@ get_struct_layout :: proc(
 	value: SymbolStructValue,
 	config: ^common.Config,
 ) -> (
-	Type_Layout,
+	Struct_Layout,
 	bool,
 ) {
 	evaluation := Layout_Evaluation_Context {
@@ -633,7 +646,16 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 		if symbol.type == .Struct {
 			if value, is_struct := symbol.value.(SymbolStructValue); is_struct {
 				if layout, known := get_struct_layout(ast_context, value, config); known {
-					struct_info = fmt.aprintf("Size: %v bytes, Alignment: %v bytes", layout.size, layout.alignment)
+					if layout.padding == 0 {
+						struct_info = fmt.aprintf("Size: %v bytes, alignment %v bytes", layout.size, layout.alignment)
+					} else {
+						struct_info = fmt.aprintf(
+							"Size: %v bytes (including %v bytes padding), alignment %v bytes",
+							layout.size,
+							layout.padding,
+							layout.alignment,
+						)
+					}
 				}
 			}
 		}
