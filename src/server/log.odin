@@ -2,9 +2,6 @@ package server
 
 import "core:fmt"
 import "core:log"
-import "core:os"
-import "core:strings"
-import "core:time"
 
 Default_Console_Logger_Opts ::
 	log.Options{.Level, .Terminal_Color, .Short_File_Path, .Line, .Procedure} | log.Full_Timestamp_Opts

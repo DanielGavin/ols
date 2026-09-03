@@ -20,27 +20,31 @@ async function runOnce() {
 
   core.info(`files: ${files}`);
   core.info(`name: ${name}`);
-  core.info(`token: ${token}`);
 
   const options = {
     request: {
       timeout: 30000,
     }
   };
-  
+
   const octokit = github.getOctokit(token, options);
 
   // Delete the previous release since we can't overwrite one. This may happen
   // due to retrying an upload or it may happen because we're doing the dev
   // release.
-  const releases = await octokit.paginate("GET /repos/:owner/:repo/releases", { owner, repo });
-  for (const release of releases) {
-    if (release.tag_name !== name) {
-      continue;
-    }
-    const release_id = release.id;
+  try {
+    const release = await octokit.rest.repos.getReleaseByTag({
+      owner,
+      repo,
+      tag: name,
+    });
+    const release_id = release.data.id;
     core.info(`deleting release ${release_id}`);
     await octokit.rest.repos.deleteRelease({ owner, repo, release_id });
+  } catch (e) {
+	if (e.status !== 404) {
+	  throw e
+	}
   }
 
   // We also need to update the `dev` tag while we're at it on the `dev` branch.
@@ -55,15 +59,16 @@ async function runOnce() {
           force: true,
       });
     } catch (e) {
-      console.log("ERROR: ", JSON.stringify(e, null, 2));
+	  if (e !== 404) {
+		throw e
+	  }
+
       core.info(`creating nightly tag`);
-      await octokit.rest.git.createTag({
+      await octokit.rest.git.createRef({
         owner,
         repo,
-        tag: 'nightly',
-        message: 'nightly release',
-        object: sha,
-        type: 'commit',
+        ref: 'refs/tags/nightly',
+        sha,
       });
     }
   }

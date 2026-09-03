@@ -4,114 +4,14 @@ package server
 import "core:fmt"
 import "core:odin/ast"
 import path "core:path/slashpath"
+import "core:slice"
 import "core:strings"
 
-// Docs taken from https://pkg.odin-lang.org/base/builtin
-keywords_docs: map[string]string = {
-	"typeid"        = "```odin\ntypeid :: typeid\n```\n`typeid` is a unique identifier for an Odin type at runtime. It can be mapped to relevant type information through `type_info_of`.",
-	"string"        = "```odin\nstring :: string\n```\n`string` is the set of all strings of 8-bit bytes, conventionally but not necessarily representing UTF-8 encoding text. A `string` may be empty but not `nil`. Elements of `string` type are immutable and indexable.",
-	"string16"      = "",
-	"cstring"       = "```odin\ncstring :: cstring\n```\n`cstring` is the set of all strings of 8-bit bytes terminated with a NUL (0) byte, conventionally but not necessarily representing UTF-8 encoding text. A `cstring` may be empty or `nil`. Elements of `cstring` type are immutable but not indexable.",
-	"cstring16"     = "",
-	"int"           = "```odin\nint :: int\n```\n`int` is a signed integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `i32`.",
-	"uint"          = "```odin\nuint :: uint\n```\n`uint` is an unsigned integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `u32`.",
-	"u8"            = "```odin\nu8 :: u8\n```\n`u8` is the set of all unsigned 8-bit integers. Range 0 through 255.",
-	"i8"            = "```odin\ni8 :: i8\n```\n`i8` is the set of all signed 8-bit integers. Range -128 through 127.",
-	"u16"           = "```odin\nu16 :: u16\n```\n`u16` is the set of all unsigned 16-bit integers with native endianness. Range 0 through 65535.",
-	"i16"           = "```odin\ni16 :: i16\n```\n`i16` is the set of all signed 16-bit integers with native endianness. Range -32768 through 32767.",
-	"u32"           = "```odin\nu32 :: u32\n```\n`u32` is the set of all unsigned 32-bit integers with native endianness. Range 0 through 4294967295.",
-	"i32"           = "```odin\ni32 :: i32\n```\n`i32` is the set of all signed 32-bit integers with native endianness. Range -2147483648 through 2147483647.",
-	"u64"           = "```odin\nu64 :: u64\n```\n`u64` is the set of all unsigned 64-bit integers with native endianness. Range 0 through 18446744073709551615.",
-	"i64"           = "```odin\ni64 :: i64\n```\n`i64` is the set of all signed 64-bit integers with native endianness. Range -9223372036854775808 through 9223372036854775807.",
-	"u128"          = "```odin\nu128 :: u128\n```\n`u128` is the set of all unsigned 128-bit integers with native endianness. Range 0 through 340282366920938463463374607431768211455.",
-	"i128"          = "```odin\ni128 :: i128\n```\n`i128` is the set of all signed 128-bit integers with native endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
-	"f16"           = "```odin\nf16 :: f16\n```\n`f16` is the set of all IEEE-754 16-bit floating-point numbers with native endianness.",
-	"f32"           = "```odin\nf32 :: f32\n```\n`f32` is the set of all IEEE-754 32-bit floating-point numbers with native endianness.",
-	"f64"           = "```odin\nf64 :: f64\n```\n`f64` is the set of all IEEE-754 64-bit floating-point numbers with native endianness.",
-	"bool"          = "```odin\nbool :: bool\n```\n`bool` is the set of boolean values, `false` and `true`. This is distinct to `b8`. `bool` has a size of 1 byte (8 bits).",
-	"any"           = "```odin\nany :: any\n```\n`any` is reference any data type at runtime. Internally it contains a pointer to the underlying data and its relevant `typeid`. This is a very useful construct in order to have a runtime type safe printing procedure.\n\nNote: The `any` value is only valid for as long as the underlying data is still valid. Passing a literal to an `any` will allocate the literal in the current stack frame.\n\nNote: It is highly recommend that you do not use this unless you know what you are doing. Its primary use is for printing procedures.",
-	"b8"            = "```odin\nb8 :: b8\n```\n`b8` is the set of boolean values, `false` and `true`. This is distinct to `bool`. `b8` has a size of 1 byte (8 bits).",
-	"b16"           = "```odin\nb16 :: b16\n```\n`b16` is the set of boolean values, `false` and `true`. `b16` has a size of 2 bytes (16 bits).",
-	"b32"           = "```odin\nb32 :: b32\n```\n`b32` is the set of boolean values, `false` and `true`. `b32` has a size of 4 bytes (32 bits).",
-	"b64"           = "```odin\nb64 :: b64\n```\n`b64` is the set of boolean values, `false` and `true`. `b64` has a size of 8 bytes (64 bits).",
-	"true"          = "```odin\ntrue :: 0 == 0 // untyped boolean\n```",
-	"false"         = "```odin\nfalse :: 0 != 0 // untyped boolean\n```",
-	"nil"           = "```odin\nnil :: ... // untyped nil \n```\n`nil` is a predeclared identifier representing the zero value for a pointer, multi-pointer, enum, bit_set, slice, dynamic array, map, procedure, any, typeid, cstring, union, #soa array, #soa pointer, #relative type.",
-	"byte"          = "```odin\nbyte :: u8\n```\n`byte` is an alias for `u8` and is equivalent to `u8` in all ways. It is used as a convention to distinguish values from 8-bit unsigned integer values.",
-	"rune"          = "```odin\nrune :: rune\n```\n`rune` is the set of all Unicode code points. It is internally the same as i32 but distinct.",
-	"f16be"         = "```odin\nf16be :: f16be\n```\n`f16be` is the set of all IEEE-754 16-bit floating-point numbers with big endianness.",
-	"f16le"         = "```odin\nf16le :: f16le\n```\n`f16le` is the set of all IEEE-754 16-bit floating-point numbers with little endianness.",
-	"f32be"         = "```odin\nf32be :: f32be\n```\n`f32be` is the set of all IEEE-754 32-bit floating-point numbers with big endianness.",
-	"f32le"         = "```odin\nf32le :: f32le\n```\n`f32le` is the set of all IEEE-754 32-bit floating-point numbers with little endianness.",
-	"f64be"         = "```odin\nf64be :: f64be\n```\n`f64be` is the set of all IEEE-754 64-bit floating-point numbers with big endianness.",
-	"f64le"         = "```odin\nf64le :: f64le\n```\n`f64le` is the set of all IEEE-754 64-bit floating-point numbers with little endianness.",
-	"i16be"         = "```odin\ni16be :: i16be\n```\n`i16be` is the set of all signed 16-bit integers with big endianness. Range -32768 through 32767.",
-	"i16le"         = "```odin\ni16le :: i16le\n```\n`i16le` is the set of all signed 16-bit integers with little endianness. Range -32768 through 32767.",
-	"i32be"         = "```odin\ni32be :: i32be\n```\n`i32be` is the set of all signed 32-bit integers with big endianness. Range -2147483648 through 2147483647.",
-	"i32le"         = "```odin\ni32le :: i32le\n```\n`i32le` is the set of all signed 32-bit integers with little endianness. Range -2147483648 through 2147483647.",
-	"i64be"         = "```odin\ni64be :: i64be\n```\n`i64be` is the set of all signed 64-bit integers with big endianness. Range -9223372036854775808 through 9223372036854775807.",
-	"i64le"         = "```odin\ni64le :: i64le\n```\n`i64le` is the set of all signed 64-bit integers with little endianness. Range -9223372036854775808 through 9223372036854775807.",
-	"u16be"         = "```odin\nu16be :: u16be\n```\n`u16be` is the set of all unsigned 16-bit integers with big endianness. Range 0 through 65535.",
-	"u16le"         = "```odin\nu16le :: u16le\n```\n`u16le` is the set of all unsigned 16-bit integers with little endianness. Range 0 through 65535.",
-	"u32be"         = "```odin\nu32be :: u32be\n```\n`u32be` is the set of all unsigned 32-bit integers with big endianness. Range 0 through 4294967295.",
-	"u32le"         = "```odin\nu32le :: u32le\n```\n`u32le` is the set of all unsigned 32-bit integers with little endianness. Range 0 through 4294967295.",
-	"u64be"         = "```odin\nu64be :: u64be\n```\n`u64be` is the set of all unsigned 64-bit integers with big endianness. Range 0 through 18446744073709551615.",
-	"u64le"         = "```odin\nu64le :: u64le\n```\n`u64le` is the set of all unsigned 64-bit integers with little endianness. Range 0 through 18446744073709551615.",
-	"i128be"        = "```odin\ni128be :: i128be\n```\n`i128be` is the set of all signed 128-bit integers with big endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
-	"i128le"        = "```odin\ni128le :: i128le\n```\n`i128le` is the set of all signed 128-bit integers with little endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
-	"u128be"        = "```odin\nu128be :: u128be\n```\n`u128be` is the set of all unsigned 128-bit integers with big endianness. Range 0 through 340282366920938463463374607431768211455.",
-	"u128le"        = "```odin\nu128le :: u128le\n```\n`u128le` is the set of all unsigned 128-bit integers with little endianness. Range 0 through 340282366920938463463374607431768211455.",
-	"complex32"     = "```odin\ncomplex32 :: complex32\n```\n`complex32` is the set of all complex numbers with `f16` real and imaginary parts.",
-	"complex64"     = "```odin\ncomplex64 :: complex64\n```\n`complex64` is the set of all complex numbers with `f32` real and imaginary parts.",
-	"complex128"    = "```odin\ncomplex128 :: complex128\n```\n`complex128` is the set of all complex numbers with `f64` real and imaginary parts.",
-	"quaternion64"  = "```odin\nquaternion64 :: quaternion64\n```\n`quaternion64` is the set of all complex numbers with `f16` real and imaginary (i, j, & k) parts.",
-	"quaternion128" = "```odin\nquaternion128 :: quaternion128\n```\n`quaternion128` is the set of all complex numbers with `f32` real and imaginary (i, j, & k) parts.",
-	"quaternion256" = "```odin\nquaternion256 :: quaternion256\n```\n`quaternion256` is the set of all complex numbers with `f64` real and imaginary (i, j, & k) parts.",
-	"uintptr"       = "```odin\nuintptr :: uintptr\n```\n`uintptr` is an unsigned integer type that is large enough to hold the bit pattern of any pointer.",
-	"rawptr"        = "```odin\nrawptr :: rawptr\n```\n`rawptr` is a pointer to an arbitrary type. It is equivalent to void * in C.",
-	// taken from https://github.com/odin-lang/Odin/wiki/Keywords-and-Operators
-	"asm"           = "",
-	"auto_cast"     = "```odin\nauto_cast v```\nAutomatically casts an expression `v` to the destination’s type if possible.",
-	"bit_field"     = "",
-	"bit_set"       = "",
-	"break"         = "",
-	"case"          = "",
-	"cast"          = "```odin\ncast(T)v\n```\nConverts the value `v` to the type `T`.",
-	"const"         = "",
-	"context"       = "```odin\nruntime.context: Context\n```\nThe context variable is local to each scope. It is copy-on-write and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
-	"continue"      = "",
-	"defer"         = "",
-	"distinct"      = "```odin\ndistinct T\n```\nCreate a new type with the same underlying semantics as `T`",
-	"do"            = "",
-	"dynamic"       = "",
-	"else"          = "",
-	"enum"          = "",
-	"fallthrough"   = "",
-	"for"           = "",
-	"foreign"       = "",
-	"if"            = "",
-	"import"        = "",
-	"in"            = "",
-	"inline"        = "",
-	"map"           = "",
-	"not_in"        = "",
-	"or_break"      = "",
-	"or_continue"   = "",
-	"or_else"       = "",
-	"or_return"     = "",
-	"opaque"        = "",
-	"package"       = "",
-	"proc"          = "",
-	"return"        = "",
-	"struct"        = "",
-	"switch"        = "",
-	"transmute"     = "```odin\ntransmute(T)v\n```\nBitwise cast between 2 types of the same size.",
-	"typeid"        = "",
-	"union"         = "",
-	"using"         = "",
-	"when"          = "",
-	"where"         = "",
-}
+import "src:spall"
+
+DOC_SECTION_DELIMITER :: "\n---\n" // The string separating each section of documentation
+DOC_FMT_ODIN :: "```odin\n%v\n```" // The format for wrapping odin code in a markdown codeblock
+DOC_FMT_MARKDOWN :: DOC_FMT_ODIN + DOC_SECTION_DELIMITER + "%v" // The format for presenting documentation on hover
 
 // Adds signature and docs information to the provided symbol
 // This should only be used for a symbol created with the temp allocator
@@ -127,21 +27,37 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 	}
 }
 
-construct_symbol_docs :: proc(symbol: Symbol, markdown := true, allocator := context.temp_allocator) -> string {
-	sb := strings.builder_make(allocator = allocator)
-	if symbol.doc != "" {
-		strings.write_string(&sb, symbol.doc)
-		if symbol.comment != "" {
-			strings.write_string(&sb, "\n")
+build_markup_content :: proc(symbol_info: string, doc: string) -> MarkupContent {
+	content: MarkupContent
+	if symbol_info != "" {
+		content.kind = "markdown"
+		if doc != "" {
+			content.value = fmt.tprintf(DOC_FMT_MARKDOWN, symbol_info, doc)
+		} else {
+			content.value = fmt.tprintf(DOC_FMT_ODIN, symbol_info)
 		}
+	} else {
+		content.kind = "plaintext"
 	}
 
-	if symbol.comment != "" {
-		if markdown {
-			fmt.sbprintf(&sb, "\n```odin\n%s\n```", symbol.comment)
-		} else {
-			fmt.sbprintf(&sb, "\n%s", symbol.comment)
+	return content
+}
+
+construct_symbol_docs :: proc(symbol: Symbol, allocator := context.temp_allocator) -> string {
+	return construct_docs(symbol.doc, symbol.comment, allocator)
+}
+
+construct_docs :: proc(doc, comment: string, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator = allocator)
+	if doc != "" {
+		strings.write_string(&sb, doc)
+	}
+
+	if comment != "" {
+		if doc != "" {
+			strings.write_string(&sb, DOC_SECTION_DELIMITER)
 		}
+		strings.write_string(&sb, comment)
 	}
 
 	return strings.to_string(sb)
@@ -156,6 +72,8 @@ get_signature :: proc(ast_context: ^AstContext, symbol: Symbol, depth := 0) -> s
 
 write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol, depth := 0) {
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
+
+	spall.trace(#procedure, symbol.name)
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
@@ -305,6 +223,8 @@ get_short_signature :: proc(ast_context: ^AstContext, symbol: Symbol) -> string 
 }
 
 write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: Symbol) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	pointer_prefix := repeat("^", symbol.pointers, ast_context.allocator)
 	if .Distinct in symbol.flags {
 		strings.write_string(sb, "distinct ")
@@ -321,6 +241,10 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 	case SymbolBitSetValue:
 		fmt.sbprintf(sb, "%sbit_set[", pointer_prefix)
 		build_string_node(v.expr, sb, false)
+		if v.underlying != nil {
+			strings.write_string(sb, "; ")
+			build_string_node(v.underlying, sb, false)
+		}
 		strings.write_string(sb, "]")
 		return
 	case SymbolEnumValue:
@@ -393,7 +317,12 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		if .Soa in symbol.flags {
 			strings.write_string(sb, "#soa")
 		}
-		strings.write_string(sb, "[dynamic]")
+		strings.write_string(sb, "[dynamic")
+		if v.cap != nil {
+			strings.write_string(sb, "; ")
+			write_node(sb, ast_context, v.cap, "", short_signature = true)
+		}
+		strings.write_string(sb, "]")
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	case SymbolSliceValue:
@@ -436,22 +365,29 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 		return
 	case SymbolUntypedValue:
 		if .Mutable in symbol.flags || symbol.type == .Field {
+			strings.write_string(sb, pointer_prefix)
 			switch v.type {
 			case .Float:
-				strings.write_string(sb, "float")
+				strings.write_string(sb, "f64")
 			case .String:
 				strings.write_string(sb, "string")
 			case .Bool:
 				strings.write_string(sb, "bool")
 			case .Integer:
 				strings.write_string(sb, "int")
+			case .Complex:
+				strings.write_string(sb, "complex128")
+			case .Quaternion:
+				strings.write_string(sb, "quaternion256")
+			case .Rune:
+				strings.write_string(sb, "rune")
 			}
 			return
 		}
 		strings.write_string(sb, v.tok.text)
 		return
 	case SymbolGenericValue:
-		build_string_node(v.expr, sb, false)
+		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
 	}
 
@@ -464,9 +400,17 @@ write_indent :: proc(sb: ^strings.Builder, level: int) {
 	}
 }
 
-get_enum_field_signature :: proc(value: SymbolEnumValue, index: int, allocator := context.temp_allocator) -> string {
+get_enum_field_signature :: proc(
+	value: SymbolEnumValue,
+	index: int,
+	add_leading_dot_docs := true,
+	allocator := context.temp_allocator,
+) -> string {
 	sb := strings.builder_make(allocator)
-	fmt.sbprintf(&sb, ".%s", value.names[index])
+	if add_leading_dot_docs {
+		strings.write_string(&sb, ".")
+	}
+	strings.write_string(&sb, value.names[index])
 	if index < len(value.values) && value.values[index] != nil {
 		strings.write_string(&sb, " = ")
 		build_string_node(value.values[index], &sb, false)
@@ -630,6 +574,12 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 		case .Is_No_Copy:
 			wrote_tag = true
 			strings.write_string(sb, " #no_copy")
+		case .Is_All_Or_None:
+			wrote_tag = true
+			strings.write_string(sb, " #all_or_none")
+		case .Is_Simple:
+			wrote_tag = true
+			strings.write_string(sb, " #simple")
 		}
 	}
 
@@ -714,6 +664,9 @@ write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names:
 		poly_name_index := 0
 		strings.write_string(sb, "(")
 		for field, i in poly.list {
+			if field == nil {
+				continue
+			}
 			write_type := true
 			for name, j in field.names {
 				if poly_name_index < len(poly_names) {
@@ -733,6 +686,10 @@ write_poly_list :: proc(sb: ^strings.Builder, poly: ^ast.Field_List, poly_names:
 			if write_type {
 				strings.write_string(sb, ": ")
 				build_string_node(field.type, sb, false)
+				if field.default_value != nil {
+					strings.write_string(sb, " = ")
+					build_string_node(field.default_value, sb, false)
+				}
 			}
 			if i != len(poly.list) - 1 {
 				strings.write_string(sb, ", ")
@@ -784,6 +741,27 @@ write_node :: proc(
 		symbol = make_symbol_procedure_from_ast(ast_context, nil, n^, name, {}, true, .None, nil)
 		ok = true
 	case ^ast.Comp_Lit:
+		max_elems :: 16
+
+		if len(n.elems) > max_elems {
+			build_string(n.type, sb, false)
+			strings.write_string(sb, "{")
+			for elem, i in n.elems[:max_elems] {
+				if i > 0 {
+					strings.write_string(sb, ", ")
+				}
+				if field, ok := elem.derived.(^ast.Field_Value); ok {
+					build_string(field.field, sb, false)
+					strings.write_string(sb, " = ")
+					write_node(sb, ast_context, field.value, "", depth + 1, false)
+				} else {
+					write_node(sb, ast_context, elem, "", depth + 1, false)
+				}
+			}
+			strings.write_string(sb, ", ..}")
+			return
+		}
+
 		same_line := true
 		start_line := -1
 		for elem in n.elems {
@@ -813,13 +791,13 @@ write_node :: proc(
 				if field, ok := elem.derived.(^ast.Field_Value); ok {
 					build_string(field.field, sb, false)
 					strings.write_string(sb, " = ")
-					write_node(sb, ast_context, field.value, "", depth+1, false)
+					write_node(sb, ast_context, field.value, "", depth + 1, false)
 				} else {
 					build_string(elem, sb, false)
 				}
 				strings.write_string(sb, ",\n")
 			}
-			write_indent(sb, depth-1)
+			write_indent(sb, depth - 1)
 			strings.write_string(sb, "}")
 		}
 		return
@@ -833,7 +811,7 @@ write_node :: proc(
 		return
 	}
 
-	build_string_node(node, sb, false)
+	build_string_node(node, sb, false, ast_context.current_package)
 }
 
 
@@ -948,6 +926,9 @@ write_symbol_name :: proc(sb: ^strings.Builder, symbol: Symbol) {
 	} else if pkg != "" && pkg != "$builtin" {
 		fmt.sbprintf(sb, "%v.", pkg)
 	}
+	if .PolyType in symbol.flags {
+		strings.write_string(sb, "$")
+	}
 	strings.write_string(sb, symbol.name)
 }
 
@@ -998,4 +979,249 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 		write_poly_list(sb, v.poly, v.poly_names)
 	}
 	return true
+}
+
+construct_package_docs :: proc(pkg_docs: map[string]string, allocator := context.temp_allocator) -> string {
+	// Just to ensure the docs order is consistent
+	files := make([dynamic]string, 0, len(pkg_docs), context.temp_allocator)
+	for k in pkg_docs {
+		append(&files, k)
+	}
+	slice.sort(files[:])
+
+	sb := strings.builder_make(allocator)
+	for k in files {
+		doc := pkg_docs[k]
+		if doc == "" {
+			continue
+		}
+		if strings.builder_len(sb) > 0 {
+			fmt.sbprintf(&sb, "\n%s", doc)
+		} else {
+			strings.write_string(&sb, doc)
+		}
+	}
+
+	return strings.to_string(sb)
+}
+
+// Docs taken from https://pkg.odin-lang.org/base/builtin
+keywords_docs: map[string]string = {
+	"typeid"        = "```odin\ntypeid :: typeid\n```\n`typeid` is a unique identifier for an Odin type at runtime. It can be mapped to relevant type information through `type_info_of`.",
+	"string"        = "```odin\nstring :: string\n```\n`string` is the set of all strings of 8-bit bytes, conventionally but not necessarily representing UTF-8 encoding text. A `string` may be empty but not `nil`. Elements of `string` type are immutable and indexable.",
+	"string16"      = "",
+	"cstring"       = "```odin\ncstring :: cstring\n```\n`cstring` is the set of all strings of 8-bit bytes terminated with a NUL (0) byte, conventionally but not necessarily representing UTF-8 encoding text. A `cstring` may be empty or `nil`. Elements of `cstring` type are immutable but not indexable.",
+	"cstring16"     = "",
+	"int"           = "```odin\nint :: int\n```\n`int` is a signed integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `i32`.",
+	"uint"          = "```odin\nuint :: uint\n```\n`uint` is an unsigned integer type that is at least 32 bits in size. It is a distinct type, however, and not an alias for say, `u32`.",
+	"u8"            = "```odin\nu8 :: u8\n```\n`u8` is the set of all unsigned 8-bit integers. Range 0 through 255.",
+	"i8"            = "```odin\ni8 :: i8\n```\n`i8` is the set of all signed 8-bit integers. Range -128 through 127.",
+	"u16"           = "```odin\nu16 :: u16\n```\n`u16` is the set of all unsigned 16-bit integers with native endianness. Range 0 through 65535.",
+	"i16"           = "```odin\ni16 :: i16\n```\n`i16` is the set of all signed 16-bit integers with native endianness. Range -32768 through 32767.",
+	"u32"           = "```odin\nu32 :: u32\n```\n`u32` is the set of all unsigned 32-bit integers with native endianness. Range 0 through 4294967295.",
+	"i32"           = "```odin\ni32 :: i32\n```\n`i32` is the set of all signed 32-bit integers with native endianness. Range -2147483648 through 2147483647.",
+	"u64"           = "```odin\nu64 :: u64\n```\n`u64` is the set of all unsigned 64-bit integers with native endianness. Range 0 through 18446744073709551615.",
+	"i64"           = "```odin\ni64 :: i64\n```\n`i64` is the set of all signed 64-bit integers with native endianness. Range -9223372036854775808 through 9223372036854775807.",
+	"u128"          = "```odin\nu128 :: u128\n```\n`u128` is the set of all unsigned 128-bit integers with native endianness. Range 0 through 340282366920938463463374607431768211455.",
+	"i128"          = "```odin\ni128 :: i128\n```\n`i128` is the set of all signed 128-bit integers with native endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
+	"f16"           = "```odin\nf16 :: f16\n```\n`f16` is the set of all IEEE-754 16-bit floating-point numbers with native endianness.",
+	"f32"           = "```odin\nf32 :: f32\n```\n`f32` is the set of all IEEE-754 32-bit floating-point numbers with native endianness.",
+	"f64"           = "```odin\nf64 :: f64\n```\n`f64` is the set of all IEEE-754 64-bit floating-point numbers with native endianness.",
+	"bool"          = "```odin\nbool :: bool\n```\n`bool` is the set of boolean values, `false` and `true`. This is distinct to `b8`. `bool` has a size of 1 byte (8 bits).",
+	"any"           = "```odin\nany :: any\n```\n`any` is reference any data type at runtime. Internally it contains a pointer to the underlying data and its relevant `typeid`. This is a very useful construct in order to have a runtime type safe printing procedure.\n\nNote: The `any` value is only valid for as long as the underlying data is still valid. Passing a literal to an `any` will allocate the literal in the current stack frame.\n\nNote: It is highly recommend that you do not use this unless you know what you are doing. Its primary use is for printing procedures.",
+	"b8"            = "```odin\nb8 :: b8\n```\n`b8` is the set of boolean values, `false` and `true`. This is distinct to `bool`. `b8` has a size of 1 byte (8 bits).",
+	"b16"           = "```odin\nb16 :: b16\n```\n`b16` is the set of boolean values, `false` and `true`. `b16` has a size of 2 bytes (16 bits).",
+	"b32"           = "```odin\nb32 :: b32\n```\n`b32` is the set of boolean values, `false` and `true`. `b32` has a size of 4 bytes (32 bits).",
+	"b64"           = "```odin\nb64 :: b64\n```\n`b64` is the set of boolean values, `false` and `true`. `b64` has a size of 8 bytes (64 bits).",
+	"true"          = "```odin\ntrue :: 0 == 0 // untyped boolean\n```",
+	"false"         = "```odin\nfalse :: 0 != 0 // untyped boolean\n```",
+	"nil"           = "```odin\nnil :: ... // untyped nil \n```\n`nil` is a predeclared identifier representing the zero value for a pointer, multi-pointer, enum, bit_set, slice, dynamic array, map, procedure, any, typeid, cstring, union, #soa array, #soa pointer, #relative type.",
+	"byte"          = "```odin\nbyte :: u8\n```\n`byte` is an alias for `u8` and is equivalent to `u8` in all ways. It is used as a convention to distinguish values from 8-bit unsigned integer values.",
+	"rune"          = "```odin\nrune :: rune\n```\n`rune` is the set of all Unicode code points. It is internally the same as i32 but distinct.",
+	"f16be"         = "```odin\nf16be :: f16be\n```\n`f16be` is the set of all IEEE-754 16-bit floating-point numbers with big endianness.",
+	"f16le"         = "```odin\nf16le :: f16le\n```\n`f16le` is the set of all IEEE-754 16-bit floating-point numbers with little endianness.",
+	"f32be"         = "```odin\nf32be :: f32be\n```\n`f32be` is the set of all IEEE-754 32-bit floating-point numbers with big endianness.",
+	"f32le"         = "```odin\nf32le :: f32le\n```\n`f32le` is the set of all IEEE-754 32-bit floating-point numbers with little endianness.",
+	"f64be"         = "```odin\nf64be :: f64be\n```\n`f64be` is the set of all IEEE-754 64-bit floating-point numbers with big endianness.",
+	"f64le"         = "```odin\nf64le :: f64le\n```\n`f64le` is the set of all IEEE-754 64-bit floating-point numbers with little endianness.",
+	"i16be"         = "```odin\ni16be :: i16be\n```\n`i16be` is the set of all signed 16-bit integers with big endianness. Range -32768 through 32767.",
+	"i16le"         = "```odin\ni16le :: i16le\n```\n`i16le` is the set of all signed 16-bit integers with little endianness. Range -32768 through 32767.",
+	"i32be"         = "```odin\ni32be :: i32be\n```\n`i32be` is the set of all signed 32-bit integers with big endianness. Range -2147483648 through 2147483647.",
+	"i32le"         = "```odin\ni32le :: i32le\n```\n`i32le` is the set of all signed 32-bit integers with little endianness. Range -2147483648 through 2147483647.",
+	"i64be"         = "```odin\ni64be :: i64be\n```\n`i64be` is the set of all signed 64-bit integers with big endianness. Range -9223372036854775808 through 9223372036854775807.",
+	"i64le"         = "```odin\ni64le :: i64le\n```\n`i64le` is the set of all signed 64-bit integers with little endianness. Range -9223372036854775808 through 9223372036854775807.",
+	"u16be"         = "```odin\nu16be :: u16be\n```\n`u16be` is the set of all unsigned 16-bit integers with big endianness. Range 0 through 65535.",
+	"u16le"         = "```odin\nu16le :: u16le\n```\n`u16le` is the set of all unsigned 16-bit integers with little endianness. Range 0 through 65535.",
+	"u32be"         = "```odin\nu32be :: u32be\n```\n`u32be` is the set of all unsigned 32-bit integers with big endianness. Range 0 through 4294967295.",
+	"u32le"         = "```odin\nu32le :: u32le\n```\n`u32le` is the set of all unsigned 32-bit integers with little endianness. Range 0 through 4294967295.",
+	"u64be"         = "```odin\nu64be :: u64be\n```\n`u64be` is the set of all unsigned 64-bit integers with big endianness. Range 0 through 18446744073709551615.",
+	"u64le"         = "```odin\nu64le :: u64le\n```\n`u64le` is the set of all unsigned 64-bit integers with little endianness. Range 0 through 18446744073709551615.",
+	"i128be"        = "```odin\ni128be :: i128be\n```\n`i128be` is the set of all signed 128-bit integers with big endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
+	"i128le"        = "```odin\ni128le :: i128le\n```\n`i128le` is the set of all signed 128-bit integers with little endianness. Range -170141183460469231731687303715884105728 through 170141183460469231731687303715884105727.",
+	"u128be"        = "```odin\nu128be :: u128be\n```\n`u128be` is the set of all unsigned 128-bit integers with big endianness. Range 0 through 340282366920938463463374607431768211455.",
+	"u128le"        = "```odin\nu128le :: u128le\n```\n`u128le` is the set of all unsigned 128-bit integers with little endianness. Range 0 through 340282366920938463463374607431768211455.",
+	"complex32"     = "```odin\ncomplex32 :: complex32\n```\n`complex32` is the set of all complex numbers with `f16` real and imaginary parts.",
+	"complex64"     = "```odin\ncomplex64 :: complex64\n```\n`complex64` is the set of all complex numbers with `f32` real and imaginary parts.",
+	"complex128"    = "```odin\ncomplex128 :: complex128\n```\n`complex128` is the set of all complex numbers with `f64` real and imaginary parts.",
+	"quaternion64"  = "```odin\nquaternion64 :: quaternion64\n```\n`quaternion64` is the set of all complex numbers with `f16` real and imaginary (i, j, & k) parts.",
+	"quaternion128" = "```odin\nquaternion128 :: quaternion128\n```\n`quaternion128` is the set of all complex numbers with `f32` real and imaginary (i, j, & k) parts.",
+	"quaternion256" = "```odin\nquaternion256 :: quaternion256\n```\n`quaternion256` is the set of all complex numbers with `f64` real and imaginary (i, j, & k) parts.",
+	"uintptr"       = "```odin\nuintptr :: uintptr\n```\n`uintptr` is an unsigned integer type that is large enough to hold the bit pattern of any pointer.",
+	"rawptr"        = "```odin\nrawptr :: rawptr\n```\n`rawptr` is a pointer to an arbitrary type. It is equivalent to void * in C.",
+	// taken from https://github.com/odin-lang/Odin/wiki/Keywords-and-Operators
+	"asm"           = "",
+	"auto_cast"     = "```odin\nauto_cast v```\nAutomatically casts an expression `v` to the destination’s type if possible.",
+	"bit_field"     = "",
+	"bit_set"       = "",
+	"break"         = "",
+	"case"          = "",
+	"cast"          = "```odin\ncast(T)v\n```\nConverts the value `v` to the type `T`.",
+	"const"         = "",
+	"context"       = "```odin\nruntime.context: Context\n```\nThe context variable is local to each scope. It is copy-on-write and is implicitly passed by pointer to any procedure call in that scope (if the procedure has the Odin calling convention).",
+	"continue"      = "",
+	"defer"         = "",
+	"distinct"      = "```odin\ndistinct T\n```\nCreate a new type with the same underlying semantics as `T`",
+	"do"            = "",
+	"dynamic"       = "",
+	"else"          = "",
+	"enum"          = "",
+	"fallthrough"   = "",
+	"for"           = "",
+	"foreign"       = "",
+	"if"            = "",
+	"import"        = "",
+	"in"            = "",
+	"inline"        = "",
+	"map"           = "",
+	"not_in"        = "",
+	"or_break"      = "",
+	"or_continue"   = "",
+	"or_else"       = "",
+	"or_return"     = "",
+	"opaque"        = "",
+	"package"       = "",
+	"proc"          = "",
+	"return"        = "",
+	"struct"        = "",
+	"switch"        = "",
+	"transmute"     = "```odin\ntransmute(T)v\n```\nBitwise cast between 2 types of the same size.",
+	"typeid"        = "",
+	"union"         = "",
+	"using"         = "",
+	"when"          = "",
+	"where"         = "",
+}
+
+directive_docs: map[string]string = {
+	// Record validation
+	"all_or_none"              = "```odin\n#all_or_none\n```\n\nThis tag can be applied to a `struct`. Prevents partial initialization of the struct, so either all or none of the fields must be filled.",
+	// Record memory layout
+	"packed"                   = "```odin\n#packed\n```\n\nThis tag can be applied to a `struct`. Removes padding between fields that’s normally inserted to ensure all fields meet their type’s alignment requirements. Fields remain in source order.\n\nThis is useful where the structure is unlikely to be correctly aligned (the insertion rules for padding assume it is), or if the space-savings are more important or useful than the access speed of the fields.\n\nAccessing a field in a packed struct may require copying the field out of the struct into a temporary location, or using a machine instruction that doesn’t assume the pointer address is correctly aligned, in order to be performant or avoid crashing on some systems. (See `intrinsics.unaligned_load`.)",
+	"raw_union"                = "```odin\n#raw_union\n```\n\nThis tag can be applied to a `struct`. Struct’s fields will share the same memory space which serves the same functionality as `union`s in C language. Useful when writing bindings especially.",
+	"align"                    = "```odin\n#align\n```\n\nThis tag can be applied to a `struct` or `union`. When `#align` is passed an integer `N` (as in `#align N`), it specifies that the `struct` will be aligned to `N` bytes. The `struct`’s fields will remain in source-order.",
+	"no_nil"                   = "```odin\n#no_nil\n```\n\nThis tag can be applied to a union to not allow `nil` values.",
+	"simple"                   = "```odin\n#simple\n```\n\nThis tag can be applied to a `struct`. Forces a struct to use simple comparison if all of the fields are 'nearly simply comparable'",
+	// Control statements
+	"partial"                  = "```odin\n#partial\n```\n\nBy default all `case`s of an `enum` or `union` have to be covered in a `switch` statement. The reason for this requirement is because it makes accidental bugs less likely. However, the `#partial` tag allows you to not have to write out cases that you don’t need to handle.\n\nThe `#partial` directive can also be used to initialize an enumerated array.",
+	// Procedure parameters
+	"no_alias"                 = "```odin\n#no_alias\n```\n\nThis tag can be applied to a procedure parameter that is a pointer. This is a hint to the compiler that this parameter will not alias other parameters. This is equivalent to C’s `__restrict`.",
+	"any_int"                  = "```odin\n#any_int\n```\n\n`#any_int` enables implicit casts to a procedure’s integer type at the call site. A parameter with `#any_int` must be an integer.",
+	"caller_location"          = "```odin\n#caller_location\n```\n\n`#caller_location` sets a parameter’s default value to the location of the code calling the procedure. The location value has the type `runtime.Source_Code_Location`. `#caller_location` may only be used as a default value for procedure parameters.",
+	"caller_expression"        = "```odin\n#caller_expression\n// or\n#caller_expression(<count>)\n```\n\n`#caller_expression` gives a procedure the entire call expression or the expression used to create a parameter. `#caller_expression` may only be used as a default value for procedure parameters.",
+	"c_vararg"                 = "```odin\n#c_vararg\n```\n\nUsed to interface with vararg functions in foreign procedures.",
+	"by_ptr"                   = "```odin\n#by_ptr\n```\n\nUsed to interface with const reference parameters in foreign procedures. The parameter is passed by pointer internally.",
+	"optional_ok"              = "```odin\n#optional_ok\n```\n\nAllows skipping the last return parameter, which needs to be a `bool`.",
+	"optional_allocator_error" = "```odin\n#optional_allocator_error\n```\n\nAllows skipping the last return parameter, which needs to be a runtime.Allocator_Error",
+	// Expressions
+	"type"                     = "```odin\n#type\n```\n\nThis tag doesn’t serve a functional purpose in the compiler, this is for telling someone reading the code that the expression is a type. The main case is for showing that a procedure signature without a body is a type and not just missing its body.",
+	"sparse"                   = "```odin\n#sparse\n```\n\nThis directive may be used to create a sparse enumerated array. This is necessary when the enumerated values are not contiguous.",
+	"force_inline"             = "```odin\n#force_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
+	"force_no_inline"          = "```odin\n#force_no_inline\n```\n\nSpecify whether a procedure literal or call will be forced to inline (`#force_inline`) or forced to never inline `#force_no_inline`. This is not an suggestion to the compiler. If the compiler cannot inline the procedure, it will (currently) silently ignore the directive.\n\nThis is enabled all optization levels except `-o:none` which has all inlining disabled.",
+	"must_tail"                = "```odin\n#must_tail\n```\n\nExplicit direction on how to optimize for tail calls. Can be used in conjunction with the calling convention `preserve/none` to allow full use of the register space.",
+	// Statements
+	"bounds_check"             = "```odin\n#bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
+	"no_bounds_check"          = "```odin\n#no_bounds_check\n```\n\nThe `#bounds_check` and `#no_bounds_check` flags control Odin’s built-in bounds checking of arrays and slices. Any statement, block, or function with one of these flags will have their bounds checking turned on or off, depending on the flag provided.\n\nBy default, the Odin compiler has bounds checking enabled program-wide where applicable, and it may be turned off by passing the -no-bounds-check build flag.",
+	"type_assert"              = "```odin\n#type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
+	"no_type_assert"           = "```odin\n#no_type_assert\n```\n\n`#no_type_assert` will bypass the underlying call to `runtime.type_assertion_check` when placed at the head of a statement or block which would normally do a type assert, such as the resolution of a `union` or an `any` into its true type. `#type_assert` will re-enable type assertions, if they were turned off in an outer scope.\n\nBy default, the Odin compiler has type assertions enabled program-wide where applicable, and they may be turned off by passing the `-no-type-assert` build flag. Note that `-disable-assert` does not also turn off type assertions; `-no-type-assert` must be passed explicitly.",
+	// Built-in
+	"assert"                   = "```odin\n#assert\n```\n\nUnlike `assert`, `#assert` runs at compile-time. `#assert` breaks compilation if the given bool expression is false, and thus #assert is useful for catching bugs before they ever even reach run-time. It also has no run-time cost.",
+	"panic"                    = "```odin\n#panic(<string>)\n```\n\nPanic runs at compile-time. It is functionally equivalent to an `#assert` with a `false` condition, but `#panic` has an error message string parameter.",
+	"config"                   = "```odin\n#config(<identifier>, default)\n```\n\nChecks if an identifier is defined through the command line, or gives a default value instead.\n\nValues can be set with the `-define:NAME=VALUE` command line flag.",
+	"defined"                  = "```odin\n#defined\n```\n\nChecks if an identifier is defined. This may only be used within a procedure’s body.",
+	"file"                     = "```odin\n#file\n```\n\nReturn the current file path.",
+	"directory"                = "```odin\n#directory\n```\n\nReturn the current directory.",
+	"line"                     = "```odin\n#line\n```\n\nReturn the current line number.",
+	"procedure"                = "```odin\n#procedure\n```\n\nReturn the current procedure name.",
+	"exists"                   = "```odin\n#exists(<string-path>)\n```\n\nReturns `true` or `false` if the file at the given path exists. If the path is relative, it is accessed relative to the Odin source file that references it.",
+	"branch_location"          = "```odin\n#branch_location\n```\n\nWhen used within a `defer` statement, this directive returns a `runtime.Source_Code_Location` of the point at which the control flow triggered execution of the `defer`. This may be a `return` statement or the end of a scope.",
+	"location"                 = "```odin\n#location()\n// or\n#location(<entity>)\n```\n\nReturns a `runtime.Source_Code_Location`. Can be called with no parameters for current location, or with a parameter for the location of the variable/proc declaration.",
+	"load"                     = "```odin\n#load(<string-path>)\n//or\n#load(<string-path>, <type>)\n```\n\nReturns a `[]u8` of the file contents at compile time. This means that the loaded data is baked into your program. Optionally, you can provide a type name as second argument; interpreting the data as being of that type.\n\n`#load` also works with `or_else` to provide default content when the file wasn’t found",
+	"hash"                     = "```odin\n#hash(<string-text>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a string literal at compile time.\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
+	"load_hash"                = "```odin\n#load_hash(<string-path>, <string-hash>)\n```\n\nReturns a constant integer of the hash of a file’s contents at compile time..\n\nAvailable hashes:\n\n- adler32\n- crc32\n- crc64\n- fnv32\n- fnv64\n- fnv32a\n- fnv64a\n- murmur32\n- murmur64",
+	"load_directory"           = "```odin\n#load_directory(<string-path>)\n```\n\nLoads all files within a directory, at compile time. All the data of those files will be baked into your program. Returns `[]runtime.Load_Directory_File`.",
+}
+
+attribute_docs: map[string]string = {
+	// Visibility
+	"private"                    = "```odin\n@(private)\n// or\n@(private=\"file\")\n// or\n@(private=\"package\")\n```\n\nRestricts the visibility of a declaration. `@(private)` alone is equivalent to `@(private=\"package\")`: the entity is visible within its own package but not exported. `@(private=\"file\")` narrows it further to the file it is declared in.",
+	"export"                     = "```odin\n@(export)\n// or\n@(export=<boolean>)\n```\n\nExports the symbol from the compiled object, making it visible to other languages and linkers. Useful when building a shared library.",
+	"link_name"                  = "```odin\n@(link_name=<string>)\n```\n\nSets the symbol name used by the linker, rather than deriving it from the Odin declaration. Common when binding to an existing C symbol whose name is not a valid Odin identifier.",
+	"link_prefix"                = "```odin\n@(link_prefix=<string>)\n```\n\nPrepends a string to the linker names of all procedures in a `foreign` block. Lets bindings drop a repeated C prefix from the Odin-side names.",
+	"link_suffix"                = "```odin\n@(link_suffix=<string>)\n```\n\nAppends a string to the linker names of all procedures in a `foreign` block.",
+	"link_section"               = "```odin\n@(link_section=<string>)\n```\n\nPlaces the entity in a specific section of the object file.",
+	"linkage"                    = "```odin\n@(linkage=<string>)\n```\n\nSets the linkage of the entity. One of `\"internal\"`, `\"strong\"`, `\"weak\"`, `\"link_once\"`.",
+	// Deferred calls
+	"deferred_none"              = "```odin\n@(deferred_none=<procedure>)\n```\n\nCalls `<procedure>` when the scope containing the call to the attributed procedure exits. No arguments are passed to the deferred procedure.\n\nUseful for pairing acquire/release procedures so callers cannot forget the release.",
+	"deferred_in"                = "```odin\n@(deferred_in=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it the *arguments* that were given to the attributed procedure.",
+	"deferred_out"               = "```odin\n@(deferred_out=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it the *return values* of the attributed procedure.",
+	"deferred_in_out"            = "```odin\n@(deferred_in_out=<procedure>)\n```\n\nCalls `<procedure>` on scope exit, passing it both the arguments and the return values of the attributed procedure.",
+	"deferred_in_by_ptr"         = "```odin\n@(deferred_in_by_ptr=<procedure>)\n```\n\nAs `deferred_in`, but the arguments are passed by pointer.",
+	"deferred_out_by_ptr"        = "```odin\n@(deferred_out_by_ptr=<procedure>)\n```\n\nAs `deferred_out`, but the return values are passed by pointer.",
+	"deferred_in_out_by_ptr"     = "```odin\n@(deferred_in_out_by_ptr=<procedure>)\n```\n\nAs `deferred_in_out`, but the values are passed by pointer.",
+	// Program lifecycle
+	"init"                       = "```odin\n@(init)\n```\n\nRuns the procedure automatically before `main` is entered. The procedure must take no arguments and return nothing.",
+	"fini"                       = "```odin\n@(fini)\n```\n\nRuns the procedure automatically after `main` returns. The procedure must take no arguments and return nothing.",
+	"test"                       = "```odin\n@(test)\n```\n\nMarks the procedure as a test, to be run by `odin test`. The procedure takes a single `^testing.T` parameter.",
+	// Call-site requirements
+	"require_results"            = "```odin\n@(require_results)\n```\n\nMakes it a compile error to discard the procedure's return values. Useful when ignoring the result is always a bug, such as a procedure returning an error.",
+	"require"                    = "```odin\n@(require)\n```\n\nForces the entity to be included in the build even when it appears to be unused.",
+	"disabled"                   = "```odin\n@(disabled=<boolean>)\n```\n\nWhen the condition is true, calls to the procedure are removed at compile time. The procedure must not return any values. Commonly used for assertions and logging that should vanish in release builds.",
+	// Calling convention and codegen
+	"default_calling_convention" = "```odin\n@(default_calling_convention=<string>)\n```\n\nSets the calling convention for every procedure in a `foreign` block, e.g. `\"c\"` or `\"stdcall\"`, so each declaration does not have to repeat it.",
+	"optimization_mode"          = "```odin\n@(optimization_mode=<string>)\n```\n\nSets the optimization mode for a single procedure. One of `\"none\"`, `\"minimal\"`, `\"size\"`, `\"speed\"`.",
+	"cold"                       = "```odin\n@(cold)\n```\n\nHints to the compiler that the procedure is rarely called, so it can be optimized for size and moved off the hot path.",
+	"instrumentation_enter"      = "```odin\n@(instrumentation_enter)\n```\n\nMarks the procedure as the one called on entry to every instrumented procedure. Used with `-sanitize:address` style instrumentation builds.",
+	"instrumentation_exit"       = "```odin\n@(instrumentation_exit)\n```\n\nMarks the procedure as the one called on exit from every instrumented procedure.",
+	"rodata"                     = "```odin\n@(rodata)\n```\n\nPlaces the variable in read-only memory.",
+	"static"                     = "```odin\n@(static)\n```\n\nGives a local variable static storage duration, so it persists across calls rather than living on the stack.",
+	"thread_local"               = "```odin\n@(thread_local)\n```\n\nGives the variable thread-local storage, so each thread gets its own copy.",
+	// Objective-C interop
+	"objc_class"                 = "```odin\n@(objc_class=<string>)\n```\n\nBinds the type to an Objective-C class of the given name.",
+	"objc_name"                  = "```odin\n@(objc_name=<string>)\n```\n\nBinds the procedure to an Objective-C selector of the given name.",
+	"objc_type"                  = "```odin\n@(objc_type=<type>)\n```\n\nAssociates the procedure with an Objective-C bound type, making it callable as a method on that type.",
+	"objc_is_class_method"       = "```odin\n@(objc_is_class_method=<boolean>)\n```\n\nMarks the bound Objective-C method as a class method rather than an instance method.",
+	// Miscellaneous
+	"builtin"                    = "```odin\n@(builtin)\n```\n\nMakes the entity available without qualification, as the `builtin` package does.",
+	"deprecated"                 = "```odin\n@(deprecated=<string>)\n```\n\nMarks the entity as deprecated. The string is reported as a warning at each use site, and should say what to use instead.",
+	"extra_linker_flags"         = "```odin\n@(extra_linker_flags=<string>)\n```\n\nPasses additional flags to the linker for a `foreign` block or `foreign import`.",
+	// Sanitizers and instrumentation
+	"no_instrumentation"         = "```odin\n@(no_instrumentation)\n```\n\nExcludes the procedure from the instrumentation applied by `@(instrumentation_enter)` / `@(instrumentation_exit)`.",
+	"no_sanitize_address"        = "```odin\n@(no_sanitize_address)\n```\n\nExcludes the procedure from address sanitizer instrumentation. Takes no parameter.",
+	"no_sanitize_memory"         = "```odin\n@(no_sanitize_memory)\n```\n\nExcludes the procedure from memory sanitizer instrumentation. Takes no parameter.",
+	"no_sanitize_thread"         = "```odin\n@(no_sanitize_thread)\n```\n\nExcludes the procedure from thread sanitizer instrumentation. Takes no parameter.",
+	// Target features and codegen
+	"enable_target_feature"      = "```odin\n@(enable_target_feature=<string>)\n```\n\nEnables the named target CPU features for this procedure, letting it use instructions the rest of the build is not compiled with.",
+	"require_target_feature"     = "```odin\n@(require_target_feature=<string>)\n```\n\nRequires the named target CPU features. The build fails if the target does not provide them.",
+	"fast_math"                  = "```odin\n@(fast_math=<bit_set>)\n```\n\nApplies floating-point fast-math flags to the procedure. Expects a constant `bit_set` of type `intrinsics.Fast_Math_Flags`.",
+	// Entry point and linking
+	"entry_point_only"           = "```odin\n@(entry_point_only)\n```\n\nMarks the entity as only usable from the entry point. Takes no parameter.",
+	"ignore_duplicates"          = "```odin\n@(ignore_duplicates)\n```\n\nAllows the declaration to be duplicated without the compiler reporting a redeclaration. Takes no parameter.",
+	"priority_index"             = "```odin\n@(priority_index=<integer>)\n```\n\nSets the ordering of a `foreign import` relative to others, for cases where link order matters.",
+	"raddbg_type_view"           = "```odin\n@(raddbg_type_view=<string>)\n```\n\nAttaches a RAD Debugger type view expression to the type, controlling how the debugger renders values of it.",
+	// Objective-C interop
+	"objc_selector"              = "```odin\n@(objc_selector=<identifier>)\n```\n\nSets the Objective-C selector the procedure binds to, when it differs from the Odin name.",
+	"objc_superclass"            = "```odin\n@(objc_superclass=<type>)\n```\n\nNames the Objective-C superclass of a type declared with `@(objc_class)`. Expects a named type.",
+	"objc_ivar"                  = "```odin\n@(objc_ivar=<type>)\n```\n\nNames the Odin type used as the instance-variable storage for an Objective-C class. Requires `@(objc_implement)`.",
+	"objc_implement"             = "```odin\n@(objc_implement)\n// or\n@(objc_implement=<boolean>)\n```\n\nImplements the Objective-C class in Odin rather than only binding to an existing one. Requires `@(objc_class)`.",
+	"objc_context_provider"      = "```odin\n@(objc_context_provider=<procedure>)\n```\n\nSupplies the Odin `context` used by bound Objective-C methods. Requires `@(objc_implement)`.",
 }

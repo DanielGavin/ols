@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import test "src:testing"
@@ -228,3 +227,96 @@ ast_inlay_hints_implicit_return_values :: proc(t: ^testing.T) {
 
 	test.expect_inlay_hints(t, &source)
 }
+
+@(test)
+ast_inlay_hints_implicit_return_nested_procs :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (a, b: int) {
+			bar :: proc () {
+				return
+			}
+			return[[ a, b]]
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_implicit_return = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
+ast_inlay_hints_implicit_return_nested_procs_named :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (a, b: int) {
+			bar :: proc () -> (c, d: int) {
+				return[[ c, d]]
+			}
+			return[[ a, b]]
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_implicit_return = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
+ast_inlay_hints_implicit_return_deeply_nested :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (a, b: int) {
+			bar :: proc () -> (c, d: int) {
+				baz :: proc () {
+					return
+				}
+				return[[ c, d]]
+			}
+			return[[ a, b]]
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_implicit_return = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
+ast_inlay_hints_optional_result :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		foo :: proc () -> (res: int, ok: bool) #optional_ok {
+			return
+		}
+		bar :: proc () -> (a, b: int, ok: bool) #optional_ok {
+			return
+		}
+		main :: proc () {
+			res[[, _]] := foo()
+			res[[, _]] = foo()
+			a, b[[, _]] := bar()
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_optional_result = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+

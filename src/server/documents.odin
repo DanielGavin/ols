@@ -1,20 +1,21 @@
 package server
 
 import "base:intrinsics"
+import "base:runtime"
 
+import "core:os"
 import "core:fmt"
 import "core:log"
-import "core:mem"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
 import "core:odin/tokenizer"
-import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:strings"
 
 import "src:common"
+import "src:spall"
 
 ParserError :: struct {
 	message: string,
@@ -46,6 +47,7 @@ Document :: struct {
 	allocator:        ^virtual.Arena, //because parser does not support freeing I use arena allocators for each document
 	operating_on:     int, //atomic
 	version:          Maybe(int),
+	symbols:          Maybe(SymbolAndNodeMap), // Cache resolved symbols for open documents, cleared on change
 }
 
 
@@ -58,8 +60,10 @@ document_storage: DocumentStorage
 
 document_storage_shutdown :: proc() {
 	for k, v in document_storage.documents {
-		virtual.arena_destroy(v.allocator)
-		free(v.allocator)
+		if v.allocator != nil {
+			virtual.arena_destroy(v.allocator)
+			free(v.allocator)
+		}
 		delete(k)
 	}
 
@@ -72,7 +76,7 @@ document_storage_shutdown :: proc() {
 	delete(document_storage.documents)
 }
 
-document_get_allocator :: proc() -> ^virtual.Arena {
+document_get_new_allocator :: proc() -> ^virtual.Arena {
 	if len(document_storage.free_allocators) > 0 {
 		return pop(&document_storage.free_allocators)
 	} else {
@@ -81,15 +85,18 @@ document_get_allocator :: proc() -> ^virtual.Arena {
 		return allocator
 	}
 }
-
+document_allocator :: proc(document: Document) -> (runtime.Allocator, bool) #optional_ok {
+	if document.allocator == nil do return {}, false
+	return virtual.arena_allocator(document.allocator), true
+}
 document_free_allocator :: proc(allocator: ^virtual.Arena) {
-	free_all(virtual.arena_allocator(allocator))
+	virtual.arena_free_all(allocator)
 	append(&document_storage.free_allocators, allocator)
 }
 
 document_get :: proc(uri_string: string) -> ^Document {
-	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
+	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 	if !parsed_ok {
 		return nil
 	}
@@ -117,8 +124,10 @@ document_release :: proc(document: ^Document) {
 */
 
 document_open :: proc(uri_string: string, text: string, config: ^common.Config, writer: ^Writer) -> common.Error {
-	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 
+	spall.trace(#procedure, uri_string)
+
+	uri, parsed_ok := common.parse_uri(uri_string, context.allocator)
 	if !parsed_ok {
 		log.error("Failed to parse uri")
 		return .ParseError
@@ -134,7 +143,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 		document.client_owned = true
 		document.text = transmute([]u8)text
 		document.used_text = len(document.text)
-		document.allocator = document_get_allocator()
+		document.allocator = document_get_new_allocator()
 
 		document_setup(document)
 
@@ -147,7 +156,7 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			text         = transmute([]u8)text,
 			client_owned = true,
 			used_text    = len(text),
-			allocator    = document_get_allocator(),
+			allocator    = document_get_new_allocator(),
 		}
 
 		document_setup(&document)
@@ -166,14 +175,18 @@ document_setup :: proc(document: ^Document) {
 	//Right now not all clients return the case correct windows path, and that causes issues with indexing, so we ensure that it's case correct.
 	when ODIN_OS == .Windows {
 		package_name := path.dir(document.uri.path, context.temp_allocator)
-		forward, _ := filepath.to_slash(common.get_case_sensitive_path(package_name), context.temp_allocator)
+		forward, _ := filepath.replace_separators(
+			common.get_case_sensitive_path(package_name),
+			'/',
+			context.temp_allocator,
+		)
 		if forward == "" {
 			document.package_name = package_name
 		} else {
-			document.package_name = strings.clone(forward)
+			document.package_name = strings.clone(forward, context.allocator)
 		}
 	} else {
-		document.package_name = path.dir(document.uri.path)
+		document.package_name = path.dir(document.uri.path, context.allocator)
 	}
 
 	when ODIN_OS == .Windows {
@@ -181,9 +194,9 @@ document_setup :: proc(document: ^Document) {
 		fullpath: string
 		if correct == "" {
 			//This is basically here to handle the tests where the physical file doesn't actual exist.
-			document.fullpath, _ = filepath.to_slash(document.uri.path)
+			document.fullpath, _ = filepath.replace_separators(document.uri.path, '/', context.allocator)
 		} else {
-			document.fullpath, _ = filepath.to_slash(correct)
+			document.fullpath, _ = filepath.replace_separators(correct, '/', context.allocator)
 		}
 	} else {
 		document.fullpath = document.uri.path
@@ -200,6 +213,9 @@ document_apply_changes :: proc(
 	config: ^common.Config,
 	writer: ^Writer,
 ) -> common.Error {
+
+	spall.trace(#procedure, uri_string)
+
 	uri, parsed_ok := common.parse_uri(uri_string, context.temp_allocator)
 
 	if !parsed_ok {
@@ -287,13 +303,10 @@ document_close :: proc(uri_string: string) -> common.Error {
 		return .InvalidRequest
 	}
 
-	if document.uri.uri in file_resolve_cache.files {
-		delete_key(&file_resolve_cache.files, document.uri.uri)
-	}
-
 	document_free_allocator(document.allocator)
 
 	document.allocator = nil
+	document.symbols = nil
 	document.client_owned = false
 
 	common.delete_uri(document.uri)
@@ -307,14 +320,16 @@ document_close :: proc(uri_string: string) -> common.Error {
 }
 
 document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^Writer) -> common.Error {
+
+	spall.trace(#procedure, document.fullpath)
+
 	errors, ok := parse_document(document, config)
 
 	if !ok {
 		return .ParseError
 	}
 
-	if strings.contains(document.uri.uri, "base/builtin/builtin.odin") ||
-	   strings.contains(document.uri.uri, "base/intrinsics/intrinsics.odin") {
+	if is_ols_builtin_file(document.uri.uri) {
 		return .None
 	}
 
@@ -327,11 +342,9 @@ document_refresh :: proc(document: ^Document, config: ^common.Config, writer: ^W
 	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Syntax, uri.uri)
-	remove_diagnostics(.Check, uri.uri)
-
 	check_unused_imports(document, config)
 
-	if writer != nil && !config.disable_parser_errors {
+	if writer != nil && config.enable_parser_errors {
 		document.diagnosed_errors = true
 
 		for error, i in errors {
@@ -370,6 +383,9 @@ parser_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
 }
 
 parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]ParserError, bool) {
+
+	spall.trace(#procedure, document.fullpath)
+
 	p := parser.Parser {
 		err   = parser_error_handler,
 		warn  = common.parser_warning_handler,
@@ -378,19 +394,17 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 
 	current_errors = make([dynamic]ParserError, context.temp_allocator)
 
-	if document.uri.uri in file_resolve_cache.files {
-		delete_key(&file_resolve_cache.files, document.uri.uri)
-	}
-
-	free_all(virtual.arena_allocator(document.allocator))
+	virtual.arena_free_all(document.allocator)
 
 	context.allocator = virtual.arena_allocator(document.allocator)
 
+	dir := filepath.base(filepath.dir(document.fullpath))
 	pkg := new(ast.Package)
 	pkg.kind = .Normal
 	pkg.fullpath = document.fullpath
+	pkg.name = dir
 
-	if strings.contains(document.fullpath, "base/runtime") {
+	if dir == "runtime" || strings.contains(document.fullpath, "base/runtime") {
 		pkg.kind = .Runtime
 	}
 
@@ -399,15 +413,24 @@ parse_document :: proc(document: ^Document, config: ^common.Config) -> ([]Parser
 		src      = string(document.text[:document.used_text]),
 		pkg      = pkg,
 	}
+	document.symbols = nil // Invalidate symbols cache
 
-	parser.parse_file(&p, &document.ast)
+	parse_file(&p, &document.ast)
 
 	parse_imports(document, config)
+
+	folder := filepath.dir(document.fullpath)
+	if strings.equal_fold(folder, config.builtin_path) {
+		return nil, true
+	}
 
 	return current_errors[:], true
 }
 
 parse_imports :: proc(document: ^Document, config: ^common.Config) {
+
+	spall.trace(#procedure, document.fullpath)
+
 	imports := make([dynamic]Package)
 
 	for imp, index in document.ast.imports {
@@ -495,4 +518,16 @@ get_import_range :: proc(imp: ^ast.Import_Decl, src: string) -> common.Range {
 	text_len := len(imp.relpath.text)
 	end.character += text_len
 	return {start = start, end = end}
+}
+
+is_ols_builtin_file :: proc(path: string) -> bool {
+	p := path
+	when ODIN_OS == .Windows {
+		p, _ = os.replace_path_separators(p, '/', context.temp_allocator)
+	}
+	return(
+		strings.has_suffix(p, "/builtin/builtin.odin") ||
+		strings.has_suffix(p, "/builtin/intrinsics.odin") ||
+		strings.has_suffix(p, "/intrinsics/intrinsics.odin") \
+	)
 }

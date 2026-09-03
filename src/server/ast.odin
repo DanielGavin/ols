@@ -2,12 +2,14 @@
 package server
 
 import "core:fmt"
-import "core:log"
 import "core:mem"
 import "core:odin/ast"
 import "core:odin/parser"
 import path "core:path/slashpath"
 import "core:strings"
+import "core:log"
+
+import "src:spall"
 
 keyword_map: map[string]struct{} = {
 	"typeid"        = {},
@@ -102,6 +104,12 @@ GlobalExpr :: struct {
 	deprecated: bool,
 	private:    parser.Private_Flag,
 	builtin:    bool,
+}
+
+parse_file :: proc (p: ^parser.Parser, file: ^ast.File, allocator := context.allocator) -> bool {
+	context.allocator = allocator 
+	spall.trace(#procedure, file.fullpath)
+	return parser.parse_file(p, file)
 }
 
 get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
@@ -288,6 +296,15 @@ dynamic_array_is_soa :: proc(array: ast.Dynamic_Array_Type) -> bool {
 	return false
 }
 
+fixed_cap_dynamic_array_is_soa :: proc(array: ast.Fixed_Capacity_Dynamic_Array_Type) -> bool {
+	if array.tag != nil {
+		if basic, ok := array.tag.derived.(^ast.Basic_Directive); ok && basic.name == "soa" {
+			return true
+		}
+	}
+	return false
+}
+
 expr_contains_poly :: proc(expr: ^ast.Expr) -> bool {
 	if expr == nil {
 		return false
@@ -360,7 +377,7 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 				}
 				if _, ok := attr_names[name_to_check]; !ok {
 					new_attr := new_type(ast.Attribute, attr.pos, attr.end, context.temp_allocator)
-					elems := make([dynamic]^ast.Expr)
+					elems := make([dynamic]^ast.Expr, context.temp_allocator)
 					append(&elems, elem)
 					new_attr.elems = elems[:]
 					append(&new_attrs, new_attr)
@@ -373,9 +390,10 @@ merge_attributes :: proc(attrs: []^ast.Attribute, foreign_attrs: []^ast.Attribut
 
 // TODO: it seems the global symbols don't distinguish between a type decl and
 // a const variable declaration, so we do a quick check here to distinguish the cases.
+// Note this will be incorrect for type aliases from poly types, eg `Foo :: Bar(int)`
 is_variable_declaration :: proc(expr: ^ast.Expr) -> bool {
 	#partial switch v in expr.derived {
-	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr, ^ast.Binary_Expr:
+	case ^ast.Comp_Lit, ^ast.Basic_Lit, ^ast.Type_Cast, ^ast.Call_Expr, ^ast.Binary_Expr, ^ast.Unary_Expr:
 		return true
 	case:
 		return false
@@ -395,7 +413,6 @@ collect_value_decl :: proc(
 		return
 	}
 	comment, _ := get_file_comment(file, value_decl.pos.line)
-
 	attributes := merge_attributes(value_decl.attributes[:], foreign_attrs)
 
 	global_expr := GlobalExpr {
@@ -447,12 +464,13 @@ collect_value_decl :: proc(
 		global_expr.name_expr = name
 
 		if len(value_decl.values) > i {
+			global_expr.value_expr = value_decl.values[i]
 			if is_variable_declaration(value_decl.values[i]) {
 				global_expr.flags += {.Variable}
-				global_expr.value_expr = value_decl.values[i]
 			}
 		}
 		if value_decl.type != nil {
+			global_expr.flags += {.Variable}
 			global_expr.expr = value_decl.type
 			global_expr.type_expr = value_decl.type
 			append(exprs, global_expr)
@@ -468,6 +486,7 @@ collect_when_stmt :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	when_decl: ^ast.When_Stmt,
+	when_expr_map: ^map[string]When_Expr,
 ) {
 	if when_decl.cond == nil {
 		return
@@ -476,31 +495,42 @@ collect_when_stmt :: proc(
 	if when_decl.body == nil {
 		return
 	}
+	if stmt, ok := get_when_block_stmt(when_decl, when_expr_map^); ok {
+		collect_when_body(exprs, file, file_tags, stmt, when_expr_map)
+	}
+}
 
-	if resolve_when_condition(when_decl.cond) {
+get_when_block_stmt :: proc(
+	when_decl: ^ast.When_Stmt,
+	when_expr_map: map[string]When_Expr,
+) -> (
+	^ast.Block_Stmt,
+	bool,
+) {
+	if resolve_when_condition(when_decl.cond, when_expr_map) {
 		if block, ok := when_decl.body.derived.(^ast.Block_Stmt); ok {
-			collect_when_body(exprs, file, file_tags, block)
+			return block, true
 		}
 	} else {
 		else_stmt := when_decl.else_stmt
 
 		for else_stmt != nil {
 			if else_when, ok := else_stmt.derived.(^ast.When_Stmt); ok {
-				if resolve_when_condition(else_when.cond) {
+				if resolve_when_condition(else_when.cond, when_expr_map) {
 					if block, ok := else_when.body.derived.(^ast.Block_Stmt); ok {
-						collect_when_body(exprs, file, file_tags, block)
+						return block, true
 					}
-					return
 				}
 				else_stmt = else_when.else_stmt
 			} else {
 				if block, ok := else_stmt.derived.(^ast.Block_Stmt); ok {
-					collect_when_body(exprs, file, file_tags, block)
+					return block, true
 				}
-				return
+				return nil, false
 			}
 		}
 	}
+	return nil, false
 }
 
 collect_when_body :: proc(
@@ -508,37 +538,52 @@ collect_when_body :: proc(
 	file: ast.File,
 	file_tags: parser.File_Tags,
 	block: ^ast.Block_Stmt,
+	when_expr_map: ^map[string]When_Expr,
 ) {
 	for stmt in block.stmts {
 		if when_stmt, ok := stmt.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(exprs, file, file_tags, when_stmt)
+			collect_when_stmt(exprs, file, file_tags, when_stmt, when_expr_map)
 		} else if foreign_decl, ok := stmt.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body != nil {
 				if foreign_block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 					for foreign_stmt in foreign_block.stmts {
 						collect_value_decl(exprs, file, file_tags, foreign_stmt, foreign_decl.attributes[:])
+						if value_decl, ok := foreign_stmt.derived.(^ast.Value_Decl); ok {
+							register_when_consts_from_value_decl(when_expr_map, file, value_decl)
+						}
 					}
 				}
 			}
 		} else {
 			collect_value_decl(exprs, file, file_tags, stmt, {})
+			if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
+				register_when_consts_from_value_decl(when_expr_map, file, value_decl)
+			}
 		}
 	}
 }
 
 collect_globals :: proc(file: ast.File) -> []GlobalExpr {
+
+	spall.trace(#procedure, file.fullpath)
+
 	file_tags := parser.parse_file_tags(file, context.temp_allocator)
 	if !should_collect_file(file_tags) {
 		return {}
 	}
+
 	exprs := make([dynamic]GlobalExpr, context.temp_allocator)
 	defer shrink(&exprs)
+
+	// Declaration-order const fold for when conditions (e.g. MAP_ENABLED :: !ODIN_BEDROCK).
+	when_expr_map := make_when_expr_map()
 
 	for decl in file.decls {
 		if value_decl, ok := decl.derived.(^ast.Value_Decl); ok {
 			collect_value_decl(&exprs, file, file_tags, decl, {})
+			register_when_consts_from_value_decl(&when_expr_map, file, value_decl)
 		} else if when_decl, ok := decl.derived.(^ast.When_Stmt); ok {
-			collect_when_stmt(&exprs, file, file_tags, when_decl)
+			collect_when_stmt(&exprs, file, file_tags, when_decl, &when_expr_map)
 		} else if foreign_decl, ok := decl.derived.(^ast.Foreign_Block_Decl); ok {
 			if foreign_decl.body == nil {
 				continue
@@ -547,6 +592,9 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
 					collect_value_decl(&exprs, file, file_tags, stmt, foreign_decl.attributes[:])
+					if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
+						register_when_consts_from_value_decl(&when_expr_map, file, value_decl)
+					}
 				}
 			}
 		}
@@ -556,35 +604,87 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 }
 
 get_ast_node_string :: proc(node: ^ast.Node, src: string) -> string {
-	return string(src[node.pos.offset:node.end.offset])
+	return strings.trim_prefix(src[node.pos.offset:node.end.offset], "$")
+}
+get_ast_node_string_safe :: proc(node: ^ast.Node, src: string) -> (str: string, ok: bool) #optional_ok {
+	if node.pos.offset >= len(src) do return
+	if node.end.offset >= len(src) do return
+	return get_ast_node_string(node, src), true
 }
 
-get_doc :: proc(node: ^ast.Expr, comment: ^ast.Comment_Group, allocator: mem.Allocator) -> string {
-	if comment == nil {
-		return ""
+COMMENT_DELIMITER_LENGTH :: len("//")
+#assert(COMMENT_DELIMITER_LENGTH == len("/*"))
+#assert(COMMENT_DELIMITER_LENGTH == len("*/"))
+
+// Returns the minimum indentation across all non-empty lines
+get_min_indent :: proc(lines: []string) -> int {
+	min_indent := max(int)
+	for line in lines {
+		if strings.trim_space(line) == "" do continue
+		for c, i in line {
+			if !strings.is_space(c) {
+				min_indent = min(min_indent, i)
+				break
+			}
+		}
 	}
-
-	tmp: string
-
-	for doc in comment.list {
-		tmp = strings.concatenate({tmp, "\n", doc.text}, context.temp_allocator)
-	}
-
-	if tmp != "" {
-		no_lines, _ := strings.replace_all(tmp, "//", "", context.temp_allocator)
-		no_begin_comments, _ := strings.replace_all(no_lines, "/*", "", context.temp_allocator)
-		no_end_comments, _ := strings.replace_all(no_begin_comments, "*/", "", context.temp_allocator)
-		return strings.clone(no_end_comments, allocator)
-	}
-
-	return ""
+	return 0 if min_indent == max(int) else min_indent
 }
 
-get_comment :: proc(comment: ^ast.Comment_Group) -> string {
-	if comment != nil && len(comment.list) > 0 {
-		return comment.list[0].text
+// Strips min_indent characters from each line and joins with newlines
+strip_indent_and_join :: proc(lines: []string, min_indent: int, allocator: mem.Allocator) -> string {
+	result := make([dynamic]string, context.temp_allocator)
+	for line in lines {
+		if len(line) >= min_indent {
+			append(&result, line[min_indent:])
+		} else {
+			append(&result, strings.trim_left_space(line))
+		}
 	}
-	return ""
+	return strings.join(result[:], "\n", allocator)
+}
+
+// Aggregates the content from the provided comment group,
+// omitting extraneous spaces and delimiters.
+get_comment :: proc(comment: ^ast.Comment_Group, allocator := context.allocator) -> string {
+	if comment == nil do return ""
+
+	lines := make([dynamic]string, context.temp_allocator)
+
+	for token in comment.list {
+		if len(token.text) < COMMENT_DELIMITER_LENGTH do continue
+		delimiter := token.text[:COMMENT_DELIMITER_LENGTH]
+
+		switch delimiter {
+		case "/*":
+			if len(token.text) <= COMMENT_DELIMITER_LENGTH * 2 do continue
+			content := token.text[COMMENT_DELIMITER_LENGTH:len(token.text) - COMMENT_DELIMITER_LENGTH]
+
+			// Check if this is a single-line block comment (no newlines)
+			if !strings.contains(content, "\n") {
+				text := strings.trim_space(content)
+				if text != "" do append(&lines, text)
+			} else {
+				// Multi-line block comment: strip leading/trailing newlines
+				content = strings.trim(content, "\r\n")
+				for line in strings.split_lines(content, context.temp_allocator) {
+					append(&lines, line)
+				}
+			}
+
+		case "//":
+			text := token.text[COMMENT_DELIMITER_LENGTH:]
+			append(&lines, text)
+
+		case:
+			log.error("unsupported comment delimiter")
+		}
+	}
+
+	if len(lines) == 0 do return ""
+
+	min_indent := get_min_indent(lines[:])
+	return strip_indent_and_join(lines[:], min_indent, allocator)
 }
 
 free_ast :: proc {
@@ -622,209 +722,218 @@ free_ast_dynamic_array :: proc(array: $A/[dynamic]^$T, allocator: mem.Allocator)
 }
 
 free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
-	using ast
-
 	if node == nil {
 		return
 	}
 
 	if node.derived != nil do #partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
-	case ^Implicit:
-	case ^Undef:
-	case ^Basic_Directive:
-	case ^Basic_Lit:
-	case ^Ellipsis:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
+	case ^ast.Implicit:
+	case ^ast.Undef:
+	case ^ast.Basic_Directive:
+	case ^ast.Basic_Lit:
+	case ^ast.Ellipsis:
 		free_ast(n.expr, allocator)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		free_ast(n.type, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		free_ast(n.type, allocator)
 		free_ast(n.elems, allocator)
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		free_ast(n.expr, allocator)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		free_ast(n.expr, allocator)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		free_ast(n.left, allocator)
 		free_ast(n.right, allocator)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		free_ast(n.expr, allocator)
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.args, allocator)
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.field, allocator)
-	case ^Selector_Call_Expr:
+	case ^ast.Selector_Call_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.call, allocator)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		free_ast(n.field, allocator)
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.index, allocator)
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		free_ast(n.expr, allocator)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.low, allocator)
 		free_ast(n.high, allocator)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		free_ast(n.field, allocator)
 		free_ast(n.value, allocator)
-	case ^Ternary_If_Expr:
+	case ^ast.Ternary_If_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.y, allocator)
-	case ^Ternary_When_Expr:
+	case ^ast.Ternary_When_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.y, allocator)
-	case ^Type_Assertion:
+	case ^ast.Type_Assertion:
 		free_ast(n.expr, allocator)
 		free_ast(n.type, allocator)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
 		free_ast(n.type, allocator)
 		free_ast(n.expr, allocator)
-	case ^Auto_Cast:
+	case ^ast.Auto_Cast:
 		free_ast(n.expr, allocator)
-	case ^Bad_Stmt:
-	case ^Empty_Stmt:
-	case ^Expr_Stmt:
+	case ^ast.Bad_Stmt:
+	case ^ast.Empty_Stmt:
+	case ^ast.Expr_Stmt:
 		free_ast(n.expr, allocator)
-	case ^Tag_Stmt:
-		r := cast(^Expr_Stmt)node
+	case ^ast.Tag_Stmt:
+		r := cast(^ast.Expr_Stmt)node
 		free_ast(r.expr, allocator)
-	case ^Assign_Stmt:
+	case ^ast.Assign_Stmt:
 		free_ast(n.lhs, allocator)
 		free_ast(n.rhs, allocator)
-	case ^Block_Stmt:
+	case ^ast.Block_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.stmts, allocator)
-	case ^If_Stmt:
+	case ^ast.If_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.else_stmt, allocator)
-	case ^When_Stmt:
+	case ^ast.When_Stmt:
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
 		free_ast(n.else_stmt, allocator)
-	case ^Return_Stmt:
+	case ^ast.Return_Stmt:
 		free_ast(n.results, allocator)
-	case ^Defer_Stmt:
+	case ^ast.Defer_Stmt:
 		free_ast(n.stmt, allocator)
-	case ^For_Stmt:
+	case ^ast.For_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.post, allocator)
 		free_ast(n.body, allocator)
-	case ^Range_Stmt:
+	case ^ast.Unroll_Range_Stmt:
 		free_ast(n.label, allocator)
+		free_ast(n.val0, allocator)
+		free_ast(n.val1, allocator)
+		free_ast(n.expr, allocator)
+		free_ast(n.body, allocator)
+	case ^ast.Range_Stmt:
+		free_ast(n.label, allocator)
+		free_ast(n.init, allocator)
 		free_ast(n.vals, allocator)
 		free_ast(n.expr, allocator)
 		free_ast(n.body, allocator)
-	case ^Case_Clause:
+	case ^ast.Case_Clause:
 		free_ast(n.list, allocator)
 		free_ast(n.body, allocator)
-	case ^Switch_Stmt:
+	case ^ast.Switch_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.init, allocator)
 		free_ast(n.cond, allocator)
 		free_ast(n.body, allocator)
-	case ^Type_Switch_Stmt:
+	case ^ast.Type_Switch_Stmt:
 		free_ast(n.label, allocator)
 		free_ast(n.tag, allocator)
 		free_ast(n.expr, allocator)
 		free_ast(n.body, allocator)
-	case ^Branch_Stmt:
+	case ^ast.Branch_Stmt:
 		free_ast(n.label, allocator)
-	case ^Using_Stmt:
+	case ^ast.Using_Stmt:
 		free_ast(n.list, allocator)
-	case ^Bad_Decl:
-	case ^Value_Decl:
+	case ^ast.Bad_Decl:
+	case ^ast.Value_Decl:
 		free_ast(n.attributes, allocator)
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.values, allocator)
-	case ^Package_Decl:
-	case ^Import_Decl:
-	case ^Foreign_Block_Decl:
+	case ^ast.Package_Decl:
+	case ^ast.Import_Decl:
+	case ^ast.Foreign_Block_Decl:
 		free_ast(n.attributes, allocator)
 		free_ast(n.foreign_library, allocator)
 		free_ast(n.body, allocator)
-	case ^Foreign_Import_Decl:
+	case ^ast.Foreign_Import_Decl:
 		free_ast(n.name, allocator)
 		free_ast(n.attributes, allocator)
-	case ^Proc_Group:
+	case ^ast.Proc_Group:
 		free_ast(n.args, allocator)
-	case ^Attribute:
+	case ^ast.Attribute:
 		free_ast(n.elems, allocator)
-	case ^Field:
+	case ^ast.Field:
 		free_ast(n.names, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.default_value, allocator)
 		free_ast_comment(n.docs, allocator)
 		free_ast_comment(n.comment, allocator)
-	case ^Field_List:
+	case ^ast.Field_List:
 		free_ast(n.list, allocator)
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		free_ast(n.specialization, allocator)
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		free_ast(n.type, allocator)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		free_ast(n.type, allocator)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		free_ast(n.type, allocator)
 		free_ast(n.specialization, allocator)
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		free_ast(n.params, allocator)
 		free_ast(n.results, allocator)
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		free_ast(n.elem, allocator)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		free_ast(n.len, allocator)
 		free_ast(n.elem, allocator)
 		free_ast(n.tag, allocator)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		free_ast(n.elem, allocator)
 		free_ast(n.tag, allocator)
-	case ^Struct_Type:
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		free_ast(n.elem, allocator)
+		free_ast(n.tag, allocator)
+		free_ast(n.capacity, allocator)
+	case ^ast.Struct_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
 		free_ast(n.fields, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Union_Type:
+	case ^ast.Union_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
 		free_ast(n.variants, allocator)
 		free_ast(n.where_clauses, allocator)
-	case ^Enum_Type:
+	case ^ast.Enum_Type:
 		free_ast(n.base_type, allocator)
 		free_ast(n.fields, allocator)
-	case ^Bit_Set_Type:
+	case ^ast.Bit_Set_Type:
 		free_ast(n.elem, allocator)
 		free_ast(n.underlying, allocator)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		free_ast(n.key, allocator)
 		free_ast(n.value, allocator)
-	case ^Multi_Pointer_Type:
+	case ^ast.Multi_Pointer_Type:
 		free_ast(n.elem, allocator)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		free_ast(n.elem, allocator)
-	case ^Relative_Type:
+	case ^ast.Relative_Type:
 		free_ast(n.tag, allocator)
 		free_ast(n.type, allocator)
-	case ^Bit_Field_Type:
+	case ^ast.Bit_Field_Type:
 		free_ast(n.backing_type, allocator)
 		for field in n.fields do free_ast(field, allocator)
-	case ^Bit_Field_Field:
+	case ^ast.Bit_Field_Field:
 		free_ast(n.name, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.bit_size, allocator)
@@ -836,6 +945,10 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^ast.Or_Branch_Expr:
 		free_ast(n.expr, allocator)
 		free_ast(n.label, allocator)
+	case ^ast.Matrix_Index_Expr:
+		free_ast(n.expr, allocator)
+		free_ast(n.row_index, allocator)
+		free_ast(n.column_index, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}
@@ -894,158 +1007,162 @@ node_equal_dynamic_array :: proc(a, b: $A/[dynamic]^$T) -> bool {
 }
 
 node_equal_node :: proc(a, b: ^ast.Node) -> bool {
-	using ast
-
 	if a == nil || b == nil {
 		return false
 	}
 
 	#partial switch m in b.derived {
-	case ^Bad_Expr:
-		if n, ok := a.derived.(^Bad_Expr); ok {
+	case ^ast.Bad_Expr:
+		if n, ok := a.derived.(^ast.Bad_Expr); ok {
 			return true
 		}
-	case ^Ident:
-		if n, ok := a.derived.(^Ident); ok {
+	case ^ast.Ident:
+		if n, ok := a.derived.(^ast.Ident); ok {
 			return true
 			//return n.name == m.name;
 		}
-	case ^Implicit:
-		if n, ok := a.derived.(^Implicit); ok {
+	case ^ast.Implicit:
+		if n, ok := a.derived.(^ast.Implicit); ok {
 			return true
 		}
-	case ^Undef:
-		if n, ok := a.derived.(^Undef); ok {
+	case ^ast.Undef:
+		if n, ok := a.derived.(^ast.Undef); ok {
 			return true
 		}
-	case ^Basic_Lit:
-		if n, ok := a.derived.(^Basic_Lit); ok {
+	case ^ast.Basic_Lit:
+		if n, ok := a.derived.(^ast.Basic_Lit); ok {
 			return true
 		}
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		return true
-	case ^Ellipsis:
-		if n, ok := a.derived.(^Ellipsis); ok {
+	case ^ast.Ellipsis:
+		if n, ok := a.derived.(^ast.Ellipsis); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Tag_Expr:
-		if n, ok := a.derived.(^Tag_Expr); ok {
+	case ^ast.Tag_Expr:
+		if n, ok := a.derived.(^ast.Tag_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Unary_Expr:
-		if n, ok := a.derived.(^Unary_Expr); ok {
+	case ^ast.Unary_Expr:
+		if n, ok := a.derived.(^ast.Unary_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Binary_Expr:
-		if n, ok := a.derived.(^Binary_Expr); ok {
+	case ^ast.Binary_Expr:
+		if n, ok := a.derived.(^ast.Binary_Expr); ok {
 			ret := node_equal(n.left, m.left)
 			ret &= node_equal(n.right, m.right)
 			return ret
 		}
-	case ^Paren_Expr:
-		if n, ok := a.derived.(^Paren_Expr); ok {
+	case ^ast.Paren_Expr:
+		if n, ok := a.derived.(^ast.Paren_Expr); ok {
 			return node_equal(n.expr, m.expr)
 		}
-	case ^Selector_Expr:
-		if n, ok := a.derived.(^Selector_Expr); ok {
+	case ^ast.Selector_Expr:
+		if n, ok := a.derived.(^ast.Selector_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.field, m.field)
 			return ret
 		}
-	case ^Slice_Expr:
-		if n, ok := a.derived.(^Slice_Expr); ok {
+	case ^ast.Slice_Expr:
+		if n, ok := a.derived.(^ast.Slice_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.low, m.low)
 			ret &= node_equal(n.high, m.high)
 			return ret
 		}
-	case ^Distinct_Type:
-		if n, ok := a.derived.(^Distinct_Type); ok {
+	case ^ast.Distinct_Type:
+		if n, ok := a.derived.(^ast.Distinct_Type); ok {
 			return node_equal(n.type, m.type)
 		}
-	case ^Proc_Type:
-		if n, ok := a.derived.(^Proc_Type); ok {
+	case ^ast.Proc_Type:
+		if n, ok := a.derived.(^ast.Proc_Type); ok {
 			ret := node_equal(n.params, m.params)
 			ret &= node_equal(n.results, m.results)
 			return ret
 		}
-	case ^Pointer_Type:
-		if n, ok := a.derived.(^Pointer_Type); ok {
+	case ^ast.Pointer_Type:
+		if n, ok := a.derived.(^ast.Pointer_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
-	case ^Array_Type:
-		if n, ok := a.derived.(^Array_Type); ok {
+	case ^ast.Array_Type:
+		if n, ok := a.derived.(^ast.Array_Type); ok {
 			ret := node_equal(n.elem, m.elem)
 			if n.len != nil && m.len != nil {
 				ret &= node_equal(n.len, m.len)
 			}
 			return ret
 		}
-	case ^Dynamic_Array_Type:
-		if n, ok := a.derived.(^Dynamic_Array_Type); ok {
+	case ^ast.Dynamic_Array_Type:
+		if n, ok := a.derived.(^ast.Dynamic_Array_Type); ok {
 			return node_equal(n.elem, m.elem)
+		}
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		if n, ok := a.derived.(^ast.Fixed_Capacity_Dynamic_Array_Type); ok {
+			ret := node_equal(n.elem, m.elem)
+			ret &= node_equal(n.capacity, m.capacity)
+			return ret
 		}
 	case ^ast.Multi_Pointer_Type:
-		if n, ok := a.derived.(^Multi_Pointer_Type); ok {
+		if n, ok := a.derived.(^ast.Multi_Pointer_Type); ok {
 			return node_equal(n.elem, m.elem)
 		}
-	case ^Struct_Type:
-		if n, ok := a.derived.(^Struct_Type); ok {
+	case ^ast.Struct_Type:
+		if n, ok := a.derived.(^ast.Struct_Type); ok {
 			ret := node_equal(n.poly_params, m.poly_params)
 			ret &= node_equal(n.align, m.align)
 			ret &= node_equal(n.fields, m.fields)
 			return ret
 		}
-	case ^Field:
-		if n, ok := a.derived.(^Field); ok {
+	case ^ast.Field:
+		if n, ok := a.derived.(^ast.Field); ok {
 			ret := node_equal(n.names, m.names)
 			ret &= node_equal(n.type, m.type)
 			ret &= node_equal(n.default_value, m.default_value)
 			return ret
 		}
-	case ^Field_List:
-		if n, ok := a.derived.(^Field_List); ok {
+	case ^ast.Field_List:
+		if n, ok := a.derived.(^ast.Field_List); ok {
 			return node_equal(n.list, m.list)
 		}
-	case ^Field_Value:
-		if n, ok := a.derived.(^Field_Value); ok {
+	case ^ast.Field_Value:
+		if n, ok := a.derived.(^ast.Field_Value); ok {
 			ret := node_equal(n.field, m.field)
 			ret &= node_equal(n.value, m.value)
 			return ret
 		}
-	case ^Union_Type:
-		if n, ok := a.derived.(^Union_Type); ok {
+	case ^ast.Union_Type:
+		if n, ok := a.derived.(^ast.Union_Type); ok {
 			ret := node_equal(n.poly_params, m.poly_params)
 			ret &= node_equal(n.align, m.align)
 			ret &= node_equal(n.variants, m.variants)
 			return ret
 		}
-	case ^Enum_Type:
-		if n, ok := a.derived.(^Enum_Type); ok {
+	case ^ast.Enum_Type:
+		if n, ok := a.derived.(^ast.Enum_Type); ok {
 			ret := node_equal(n.base_type, m.base_type)
 			ret &= node_equal(n.fields, m.fields)
 			return ret
 		}
-	case ^Bit_Set_Type:
-		if n, ok := a.derived.(^Bit_Set_Type); ok {
+	case ^ast.Bit_Set_Type:
+		if n, ok := a.derived.(^ast.Bit_Set_Type); ok {
 			ret := node_equal(n.elem, m.elem)
 			ret &= node_equal(n.underlying, m.underlying)
 			return ret
 		}
-	case ^Map_Type:
-		if n, ok := a.derived.(^Map_Type); ok {
+	case ^ast.Map_Type:
+		if n, ok := a.derived.(^ast.Map_Type); ok {
 			ret := node_equal(n.key, m.key)
 			ret &= node_equal(n.value, m.value)
 			return ret
 		}
-	case ^Call_Expr:
-		if n, ok := a.derived.(^Call_Expr); ok {
+	case ^ast.Call_Expr:
+		if n, ok := a.derived.(^ast.Call_Expr); ok {
 			ret := node_equal(n.expr, m.expr)
 			ret &= node_equal(n.args, m.args)
 			return ret
 		}
-	case ^Bit_Field_Type:
-		if n, ok := a.derived.(^Bit_Field_Type); ok {
+	case ^ast.Bit_Field_Type:
+		if n, ok := a.derived.(^ast.Bit_Field_Type); ok {
 			if len(n.fields) != len(m.fields) do return false
 			ret := node_equal(n.backing_type, m.backing_type)
 			for i in 0 ..< len(n.fields) {
@@ -1053,14 +1170,14 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 			}
 			return ret
 		}
-	case ^Bit_Field_Field:
-		if n, ok := a.derived.(^Bit_Field_Field); ok {
+	case ^ast.Bit_Field_Field:
+		if n, ok := a.derived.(^ast.Bit_Field_Field); ok {
 			ret := node_equal(n.name, m.name)
 			ret &= node_equal(n.type, m.type)
 			ret &= node_equal(n.bit_size, m.bit_size)
 			return ret
 		}
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		return true
 	case:
 	}
@@ -1098,39 +1215,46 @@ build_string_ast_array :: proc(array: $A/[dynamic]^$T, builder: ^strings.Builder
 	}
 }
 
-build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool) {
-	using ast
-
+build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_pointers: bool, current_pkg := "") {
 	if node == nil {
 		return
 	}
 
 	#partial switch n in node.derived {
-	case ^Bad_Expr:
-	case ^Ident:
+	case ^ast.Bad_Expr:
+	case ^ast.Ident:
 		if strings.contains(n.name, "/") {
 			strings.write_string(builder, path.base(n.name, false, context.temp_allocator))
 		} else {
+			pkg_path := get_package_from_node(n)
+			if current_pkg != pkg_path && current_pkg != "" {
+				pkg_name := path.base(pkg_path, false, context.temp_allocator)
+				if pkg_name != "" && pkg_name != "$builtin" {
+					if _, ok := keywords_docs[n.name]; !ok {
+						fmt.sbprintf(builder, "%v.", pkg_name)
+					}
+				}
+			}
 			strings.write_string(builder, n.name)
 		}
-	case ^Implicit:
+	case ^ast.Implicit:
 		strings.write_string(builder, n.tok.text)
-	case ^Undef:
-	case ^Basic_Lit:
+	case ^ast.Undef:
+	case ^ast.Basic_Lit:
 		strings.write_string(builder, n.tok.text)
-	case ^Basic_Directive:
+	case ^ast.Basic_Directive:
 		strings.write_string(builder, "#")
 		strings.write_string(builder, n.name)
-	case ^Implicit_Selector_Expr:
+	case ^ast.Implicit_Selector_Expr:
 		strings.write_string(builder, ".")
 		build_string(n.field, builder, remove_pointers)
-	case ^Ellipsis:
+	case ^ast.Ellipsis:
 		strings.write_string(builder, "..")
 		build_string(n.expr, builder, remove_pointers)
-	case ^Proc_Lit:
+	case ^ast.Proc_Lit:
 		build_string(n.type, builder, remove_pointers)
 		build_string(n.body, builder, remove_pointers)
-	case ^Comp_Lit:
+	case ^ast.Comp_Lit:
 		build_string(n.type, builder, remove_pointers)
 		strings.write_string(builder, "{")
 		for elem, i in n.elems {
@@ -1140,22 +1264,22 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			}
 		}
 		strings.write_string(builder, "}")
-	case ^Tag_Expr:
+	case ^ast.Tag_Expr:
 		build_string(n.expr, builder, remove_pointers)
-	case ^Unary_Expr:
+	case ^ast.Unary_Expr:
 		strings.write_string(builder, n.op.text)
 		build_string(n.expr, builder, remove_pointers)
-	case ^Binary_Expr:
+	case ^ast.Binary_Expr:
 		build_string(n.left, builder, remove_pointers)
 		strings.write_string(builder, " ")
 		strings.write_string(builder, n.op.text)
 		strings.write_string(builder, " ")
 		build_string(n.right, builder, remove_pointers)
-	case ^Paren_Expr:
+	case ^ast.Paren_Expr:
 		strings.write_string(builder, "(")
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, ")")
-	case ^Call_Expr:
+	case ^ast.Call_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, "(")
 		for arg, i in n.args {
@@ -1165,33 +1289,35 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			}
 		}
 		strings.write_string(builder, ")")
-	case ^Selector_Expr:
+	case ^ast.Selector_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, ".")
 		build_string(n.field, builder, remove_pointers)
-	case ^Index_Expr:
+	case ^ast.Index_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.index, builder, remove_pointers)
 		strings.write_string(builder, "]")
-	case ^Deref_Expr:
+	case ^ast.Deref_Expr:
 		build_string(n.expr, builder, remove_pointers)
-	case ^Slice_Expr:
+	case ^ast.Slice_Expr:
 		build_string(n.expr, builder, remove_pointers)
 		build_string(n.low, builder, remove_pointers)
 		build_string(n.high, builder, remove_pointers)
-	case ^Field_Value:
+	case ^ast.Field_Value:
 		build_string(n.field, builder, remove_pointers)
 		strings.write_string(builder, ": ")
 		build_string(n.value, builder, remove_pointers)
-	case ^Type_Cast:
+	case ^ast.Type_Cast:
+		strings.write_string(builder, "cast(")
 		build_string(n.type, builder, remove_pointers)
+		strings.write_string(builder, ")")
 		build_string(n.expr, builder, remove_pointers)
-	case ^Bad_Stmt:
-	case ^Bad_Decl:
-	case ^Attribute:
+	case ^ast.Bad_Stmt:
+	case ^ast.Bad_Decl:
+	case ^ast.Attribute:
 		build_string(n.elems, builder, remove_pointers)
-	case ^Field:
+	case ^ast.Field:
 		for name, i in n.names {
 			build_string(name, builder, remove_pointers)
 			if len(n.names) - 1 != i {
@@ -1214,24 +1340,24 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		}
 
 		build_string(n.default_value, builder, remove_pointers)
-	case ^Field_List:
+	case ^ast.Field_List:
 		for field, i in n.list {
 			build_string(field, builder, remove_pointers)
 			if len(n.list) - 1 != i {
-				strings.write_string(builder, ",")
+				strings.write_string(builder, ", ")
 			}
 		}
-	case ^Typeid_Type:
+	case ^ast.Typeid_Type:
 		strings.write_string(builder, "typeid")
 		if n.specialization != nil {
 			strings.write_string(builder, "/")
 			build_string(n.specialization, builder, remove_pointers)
 		}
-	case ^Helper_Type:
+	case ^ast.Helper_Type:
 		build_string(n.type, builder, remove_pointers)
-	case ^Distinct_Type:
+	case ^ast.Distinct_Type:
 		build_string(n.type, builder, remove_pointers)
-	case ^Poly_Type:
+	case ^ast.Poly_Type:
 		strings.write_string(builder, "$")
 
 		build_string(n.type, builder, remove_pointers)
@@ -1240,7 +1366,7 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			strings.write_string(builder, "/")
 			build_string(n.specialization, builder, remove_pointers)
 		}
-	case ^Proc_Type:
+	case ^ast.Proc_Type:
 		strings.write_string(builder, "proc(")
 		build_string(n.params, builder, remove_pointers)
 		strings.write_string(builder, ")")
@@ -1248,46 +1374,72 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 			strings.write_string(builder, " -> ")
 			build_string(n.results, builder, remove_pointers)
 		}
-	case ^Pointer_Type:
+	case ^ast.Pointer_Type:
 		build_string(n.tag, builder, remove_pointers)
 		if !remove_pointers {
 			strings.write_string(builder, "^")
 		}
 		build_string(n.elem, builder, remove_pointers)
-	case ^Array_Type:
+	case ^ast.Array_Type:
 		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[")
 		build_string(n.len, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.elem, builder, remove_pointers)
-	case ^Dynamic_Array_Type:
+	case ^ast.Dynamic_Array_Type:
 		build_string(n.tag, builder, remove_pointers)
 		strings.write_string(builder, "[dynamic]")
 		build_string(n.elem, builder, remove_pointers)
-	case ^Struct_Type:
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		build_string(n.tag, builder, remove_pointers)
+		strings.write_string(builder, "[dynamic; ")
+		build_string(n.capacity, builder, remove_pointers)
+		strings.write_string(builder, "]")
+		build_string(n.elem, builder, remove_pointers)
+	case ^ast.Struct_Type:
+		strings.write_string(builder, "struct{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
 		build_string(n.fields, builder, remove_pointers)
-	case ^Union_Type:
+		strings.write_string(builder, "}")
+	case ^ast.Union_Type:
+		strings.write_string(builder, "union{")
 		build_string(n.poly_params, builder, remove_pointers)
 		build_string(n.align, builder, remove_pointers)
-		build_string(n.variants, builder, remove_pointers)
-	case ^Enum_Type:
+		for variant, i in n.variants {
+			if i != 0 {
+				strings.write_string(builder, ", ")
+			}
+			build_string(variant, builder, remove_pointers)
+		}
+		strings.write_string(builder, "}")
+	case ^ast.Enum_Type:
+		strings.write_string(builder, "enum")
 		build_string(n.base_type, builder, remove_pointers)
-		build_string(n.fields, builder, remove_pointers)
-	case ^Bit_Set_Type:
+		strings.write_string(builder, "{")
+		for field, i in n.fields {
+			if i != 0 {
+				strings.write_string(builder, ", ")
+			}
+			build_string(field, builder, remove_pointers)
+		}
+		strings.write_string(builder, "}")
+	case ^ast.Bit_Set_Type:
 		strings.write_string(builder, "bit_set")
 		strings.write_string(builder, "[")
 		build_string(n.elem, builder, remove_pointers)
+		if n.underlying != nil {
+			strings.write_string(builder, "; ")
+			build_string(n.underlying, builder, remove_pointers)
+		}
 		strings.write_string(builder, "]")
-		build_string(n.underlying, builder, remove_pointers)
-	case ^Map_Type:
+	case ^ast.Map_Type:
 		strings.write_string(builder, "map")
 		strings.write_string(builder, "[")
 		build_string(n.key, builder, remove_pointers)
 		strings.write_string(builder, "]")
 		build_string(n.value, builder, remove_pointers)
-	case ^Matrix_Type:
+	case ^ast.Matrix_Type:
 		strings.write_string(builder, "matrix")
 		strings.write_string(builder, "[")
 		build_string(n.row_count, builder, remove_pointers)
@@ -1321,89 +1473,6 @@ repeat :: proc(value: string, count: int, allocator := context.allocator) -> str
 		return ""
 	}
 	return strings.repeat(value, count, allocator)
-}
-
-// Corrects docs and comments on a Struct_Type. Creates new nodes and adds them to the provided struct
-// using the provided allocator, so `v` should have the same lifetime as the allocator.
-construct_struct_field_docs :: proc(file: ast.File, v: ^ast.Struct_Type, allocator := context.temp_allocator) {
-	for field, i in v.fields.list {
-		// There is currently a bug in the odin parser where it adds line comments for a field to the
-		// docs of the following field, we address this problem here.
-		// see https://github.com/odin-lang/Odin/issues/5353
-		// Edit 2025-07-12 it looks like the comments are now added (for structs), however the comments are still
-		// incorrectly added to the following fields docs, and there's an issue where it will only
-		// append the comment if there is a ',' at the end of the line (meaning it can easily be
-		// skipped on the last line) eg
-		// Foo :: struct {
-		//     foo: int // my int <-- skipped as no ',' after 'int'
-		// }
-
-		// remove any unwanted docs
-		if i != len(v.fields.list) - 1 {
-			next_field := v.fields.list[i + 1]
-			if next_field.docs != nil && len(next_field.docs.list) > 0 {
-				list := next_field.docs.list
-				if list[0].pos.line == field.pos.line {
-					// if the comment is missing from the appropriate field, we add it (for older versions of the parser)
-					if field.comment == nil {
-						field.comment = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
-						field.comment.list = list[:1]
-					}
-					if len(list) > 1 {
-						next_field.docs = new_type(
-							ast.Comment_Group,
-							list[1].pos,
-							parser.end_pos(list[len(list) - 2]),
-							allocator,
-						)
-						next_field.docs.list = list[1:]
-					} else {
-						next_field.docs = nil
-					}
-				}
-			}
-		} else if field.comment == nil {
-			// We need to check the file to see if it contains a line comment as it might be skipped
-			field.comment, _ = get_file_comment(file, field.pos.line, allocator = allocator)
-		}
-	}
-}
-
-// Corrects docs and comments on a Bit_Field_Type. Creates new nodes and adds them to the provided bit_field
-// using the provided allocator, so `v` should have the same lifetime as the allocator.
-construct_bit_field_field_docs :: proc(file: ast.File, v: ^ast.Bit_Field_Type, allocator := context.temp_allocator) {
-	for field, i in v.fields {
-		// There is currently a bug in the odin parser where it adds line comments for a field to the
-		// docs of the following field, we address this problem here.
-		// see https://github.com/odin-lang/Odin/issues/5353
-		// We check if the comment is at the start of the next field
-		if i != len(v.fields) - 1 {
-			next_field := v.fields[i + 1]
-			if next_field.docs != nil && len(next_field.docs.list) > 0 {
-				list := next_field.docs.list
-				if list[0].pos.line == field.pos.line {
-					if field.comments == nil {
-						field.comments = new_type(ast.Comment_Group, list[0].pos, parser.end_pos(list[0]), allocator)
-						field.comments.list = list[:1]
-					}
-					if len(list) > 1 {
-						next_field.docs = new_type(
-							ast.Comment_Group,
-							list[1].pos,
-							parser.end_pos(list[len(list) - 2]),
-							allocator,
-						)
-						next_field.docs.list = list[1:]
-					} else {
-						next_field.docs = nil
-					}
-				}
-			}
-		} else if field.comments == nil {
-			// We need to check the file to see if it contains a line comment as there is no next field
-			field.comments, _ = get_file_comment(file, field.pos.line, allocator = allocator)
-		}
-	}
 }
 
 // Retrives the comment group from the specified line of the file

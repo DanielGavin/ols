@@ -85,3 +85,30 @@ Bar :: struct{}
 
 // Foo doc
 Foo :: struct   {}
+
+// Merged trailing comments must not glue into `// first// second`.
+check_two :: proc(cond: bool, msg: string) {}
+
+two_trailing_comments_on_one_line :: proc() {
+	check_two(
+		len("a") > 0 && // first
+		len("b") > 0, // second
+		"message",
+	)
+}
+
+// An attribute above the directive is still part of the declaration and must survive.
+@(private)
+//odinfmt:disable
+guarded_private_helper :: proc() -> int {
+	return 1
+}
+//odinfmt:enable
+
+// A disable region inside a field list must be honoured, not dropped.
+Guarded_Fields :: struct {
+	//odinfmt:disable
+	code:  string,
+	//odinfmt:enable
+	why:   string,
+}

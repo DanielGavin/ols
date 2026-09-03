@@ -6,16 +6,21 @@ import "core:odin/tokenizer"
 import "core:slice"
 
 import "src:common"
+import "src:spall"
 
 SymbolAndNode :: struct {
-	symbol: Symbol,
-	node:   ^ast.Node,
+	symbol:                            Symbol,
+	node:                              ^ast.Node,
+	is_unresolved:                     bool,
+	is_selector_expression_unresolved: bool,
 }
 
 SymbolStructTag :: enum {
 	Is_Packed,
 	Is_Raw_Union,
 	Is_No_Copy,
+	Is_All_Or_None,
+	Is_Simple,
 }
 
 SymbolStructTags :: bit_set[SymbolStructTag]
@@ -112,6 +117,7 @@ SymbolUnionValue :: struct {
 
 SymbolDynamicArrayValue :: struct {
 	expr: ^ast.Expr,
+	cap:  ^ast.Expr, // Possibly nil; non nil if it's a Fixed_Capacity_Dynamic_Array_Type
 }
 
 SymbolMultiPointerValue :: struct {
@@ -132,14 +138,18 @@ SymbolBasicValue :: struct {
 }
 
 SymbolBitSetValue :: struct {
-	expr: ^ast.Expr,
+	expr:       ^ast.Expr,
+	underlying: ^ast.Expr, // possibly nil
 }
 
 SymbolUntypedValueType :: enum {
 	Integer,
 	Float,
+	Complex,
+	Quaternion,
 	String,
 	Bool,
+	Rune,
 }
 
 SymbolUntypedValue :: struct {
@@ -194,6 +204,7 @@ SymbolValue :: union {
 }
 
 SymbolFlag :: enum {
+	Builtin,
 	Distinct,
 	Deprecated,
 	PrivateFile,
@@ -208,6 +219,7 @@ SymbolFlag :: enum {
 	SoaPointer,
 	Simd,
 	Parameter, //If the symbol is a procedure argument
+	PolyType,
 }
 
 SymbolFlags :: bit_set[SymbolFlag]
@@ -383,9 +395,6 @@ write_struct_type :: proc(
 	base_using_index: int,
 ) {
 	b.poly = v.poly_params
-	// We clone this so we don't override docs and comments with temp allocated docs and comments
-	v := cast(^ast.Struct_Type)clone_node(v, ast_context.allocator, nil)
-	construct_struct_field_docs(ast_context.file, v, ast_context.allocator)
 	for field in v.fields.list {
 		for n in field.names {
 			if identifier, ok := n.derived.(^ast.Ident); ok && field.type != nil {
@@ -409,6 +418,7 @@ write_struct_type :: proc(
 		}
 	}
 
+	s: Symbol
 	if _, ok := get_attribute_objc_class_name(attributes); ok {
 		b.symbol.flags |= {.ObjC}
 		if get_attribute_objc_is_class_method(attributes) {
@@ -425,6 +435,9 @@ write_struct_type :: proc(
 		b.align = v.align
 		b.max_field_align = v.max_field_align
 		b.min_field_align = v.min_field_align
+		if v.is_all_or_none {
+			b.tags |= {.Is_All_Or_None}
+		}
 		if v.is_no_copy {
 			b.tags |= {.Is_No_Copy}
 		}
@@ -433,6 +446,9 @@ write_struct_type :: proc(
 		}
 		if v.is_raw_union {
 			b.tags |= {.Is_Raw_Union}
+		}
+		if v.is_simple {
+			b.tags |= {.Is_Simple}
 		}
 		for clause in v.where_clauses {
 			append(&b.where_clauses, clause)
@@ -521,6 +537,8 @@ write_symbol_bitfield_value :: proc(
 }
 
 expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
+	spall.trace(#procedure, ast_context.fullpath)
+
 	base := len(b.names) - 1
 	for len(b.unexpanded_usings) > 0 {
 		u := pop_front(&b.unexpanded_usings)
@@ -537,7 +555,11 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 		append(&b.usings, u)
 
 		derived := field_expr.derived
-		if ptr, ok := field_expr.derived.(^ast.Pointer_Type); ok {
+		if param, ok := derived.(^ast.Paren_Expr); ok {
+			derived = param.expr.derived
+		}
+
+		if ptr, ok := derived.(^ast.Pointer_Type); ok {
 			(ptr.elem != nil) or_continue
 			derived = ptr.elem.derived
 		}
@@ -615,6 +637,15 @@ expand_objc :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 	}
 }
 
+is_struct_field_using :: proc(v: SymbolStructValue, index: int) -> bool {
+	for i in v.usings {
+		if i == index {
+			return true
+		}
+	}
+	return false
+}
+
 get_proc_arg_count :: proc(v: SymbolProcedureValue) -> int {
 	total := 0
 	for proc_arg in v.arg_types {
@@ -679,6 +710,9 @@ new_clone_symbol :: proc(data: Symbol, allocator := context.allocator) -> ^Symbo
 }
 
 free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
+
+	spall.trace(#procedure, symbol.name)
+
 	if symbol.signature != "" &&
 	   symbol.signature != "struct" &&
 	   symbol.signature != "union" &&
@@ -717,6 +751,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		free_ast(v.types, allocator)
 	case SymbolBitSetValue:
 		free_ast(v.expr, allocator)
+		free_ast(v.underlying, allocator)
 	case SymbolDynamicArrayValue:
 		free_ast(v.expr, allocator)
 	case SymbolFixedArrayValue:
@@ -819,11 +854,21 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 	case SymbolDynamicArrayValue:
 		type := new_type(ast.Dynamic_Array_Type, pos, end, allocator)
 		type.elem = v.expr
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolFixedArrayValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
 		type.len = v.len
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolMapValue:
 		type := new_type(ast.Map_Type, pos, end, allocator)
@@ -831,13 +876,30 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 		type.value = v.value
 		return type
 	case SymbolBasicValue:
-		return v.ident
+		ident := new_type(ast.Ident, pos, end, allocator)
+		ident.name = v.ident.name
+		return ident
 	case SymbolSliceValue:
 		type := new_type(ast.Array_Type, pos, end, allocator)
 		type.elem = v.expr
+		if .Soa in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "soa"
+			type.tag = directive
+		}
 		return type
 	case SymbolStructValue:
 		type := new_type(ast.Struct_Type, pos, end, allocator)
+		type.fields = new_type(ast.Field_List, pos, end, allocator)
+		return type
+	case SymbolEnumValue:
+		type := new_type(ast.Enum_Type, pos, end, allocator)
+		return type
+	case SymbolUnionValue:
+		type := new_type(ast.Union_Type, pos, end, allocator)
+		return type
+	case SymbolBitSetValue:
+		type := new_type(ast.Bit_Set_Type, pos, end, allocator)
 		return type
 	case SymbolUntypedValue:
 		type := new_type(ast.Basic_Lit, pos, end, allocator)
@@ -877,8 +939,8 @@ construct_struct_field_symbol :: proc(symbol: ^Symbol, parent_name: string, valu
 	symbol.name = value.names[index]
 	symbol.type = .Field
 	symbol.parent_name = parent_name
-	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
-	symbol.comment = get_comment(value.comments[index])
+	symbol.doc = get_comment(value.docs[index], context.temp_allocator)
+	symbol.comment = get_comment(value.comments[index], context.temp_allocator)
 	symbol.range = value.ranges[index]
 }
 
@@ -891,16 +953,16 @@ construct_bit_field_field_symbol :: proc(
 	symbol.name = value.names[index]
 	symbol.parent_name = parent_name
 	symbol.type = .Field
-	symbol.doc = get_doc(value.types[index], value.docs[index], context.temp_allocator)
-	symbol.comment = get_comment(value.comments[index])
+	symbol.doc = get_comment(value.docs[index], context.temp_allocator)
+	symbol.comment = get_comment(value.comments[index], context.temp_allocator)
 	symbol.signature = get_bit_field_field_signature(value, index)
 	symbol.range = value.ranges[index]
 }
 
 construct_enum_field_symbol :: proc(symbol: ^Symbol, value: SymbolEnumValue, index: int) {
 	symbol.type = .Field
-	symbol.doc = get_doc(nil, value.docs[index], context.temp_allocator)
-	symbol.comment = get_comment(value.comments[index])
+	symbol.doc = get_comment(value.docs[index], context.temp_allocator)
+	symbol.comment = get_comment(value.comments[index], context.temp_allocator)
 	symbol.signature = get_enum_field_signature(value, index)
 	symbol.range = value.ranges[index]
 }
@@ -910,7 +972,7 @@ construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: string, document_pkg
 	symbol.type_name = symbol.name
 	symbol.type_pkg = symbol.pkg
 	symbol.name = ident
-	if symbol.type == .Variable {
+	if symbol.type == .Variable || symbol.type == .Constant {
 		symbol.pkg = document_pkg
 	}
 
@@ -920,4 +982,20 @@ construct_ident_symbol_info :: proc(symbol: ^Symbol, ident: string, document_pkg
 		symbol.type_name = ""
 		symbol.type_pkg = ""
 	}
+}
+
+symbol_has_attributes :: proc(symbol: Symbol, attrs: map[string]struct{}) -> bool {
+	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		for attr in value.attributes {
+			for elem in attr.elems {
+				if ident, _, ok := unwrap_attr_elem(elem); ok {
+					if ident.name in attrs {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }

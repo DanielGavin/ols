@@ -1,35 +1,26 @@
 package main
 
-import "base:intrinsics"
-
-import "core:encoding/json"
 import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:os"
-import "core:reflect"
-import "core:slice"
-import "core:strconv"
-import "core:strings"
-import "core:sync"
 import "core:thread"
-
-import "core:sys/windows"
 
 import "src:common"
 import "src:server"
+import "src:spall"
 
 VERSION := #config(VERSION, "dev")
 
 os_read :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr := cast(^os.Handle)handle
-	a, b := os.read(ptr^, data)
+	ptr := cast(^os.File)handle
+	a, b := os.read(ptr, data)
 	return a, cast(int)(b != nil)
 }
 
 os_write :: proc(handle: rawptr, data: []byte) -> (int, int) {
-	ptr := cast(^os.Handle)handle
-	a, b := os.write(ptr^, data)
+	ptr := cast(^os.File)handle
+	a, b := os.write(ptr, data)
 	return a, cast(int)(b != nil)
 }
 
@@ -70,10 +61,15 @@ run :: proc(reader: ^server.Reader, writer: ^server.Writer) {
 		log.error("Starting Odin Language Server", VERSION)
 	}
 
+	context.logger = logger^
+	server.create_and_start_check_worker(writer)
+	defer server.stop_check_worker()
+
+
 	for common.config.running {
 		if common.config.verbose {
 			//Currently letting verbose use error, since some ast prints causes crashes - most likely a bug in core:fmt.
-			logger^ = server.create_lsp_logger(writer, log.Level.Error)
+			logger^ = server.create_lsp_logger(writer, log.Level.Info)
 		} else {
 			logger^ = server.create_lsp_logger(writer, log.Level.Error)
 		}
@@ -106,12 +102,14 @@ end :: proc() {
 }
 
 main :: proc() {
+	spall.thread("main")
+
 	if len(os.args) > 1 && os.args[1] == "version" {
 		fmt.println("ols version", VERSION)
 		os.exit(0)
 	}
-	reader := server.make_reader(os_read, cast(rawptr)&os.stdin)
-	writer := server.make_writer(os_write, cast(rawptr)&os.stdout)
+	reader := server.make_reader(os_read, cast(rawptr)os.stdin)
+	writer := server.make_writer(os_write, cast(rawptr)os.stdout)
 
 	/*
 	fh, err := os.open("log.txt", os.O_RDWR|os.O_CREATE) 

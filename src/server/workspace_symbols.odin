@@ -1,44 +1,28 @@
 package server
 
+import "core:slice"
 import "core:fmt"
-import "core:log"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
 import "core:time"
 
 import "src:common"
+import "src:spall"
 
 dir_blacklist :: []string{"node_modules", ".git"}
 
 WorkspaceCache :: struct {
-	time:      time.Time,
-	pkgs:      [dynamic]string,
+	time: time.Time,
+	pkgs: [dynamic]string,
 }
 
 @(thread_local, private = "file")
 cache: WorkspaceCache
 
-@(private)
-walk_dir :: proc(info: os.File_Info, in_err: os.Errno, user_data: rawptr) -> (err: os.Error, skip_dir: bool) {
-	pkgs := cast(^[dynamic]string)user_data
-
-	if info.is_dir {
-		dir, _ := filepath.to_slash(info.fullpath, context.temp_allocator)
-		dir_name := filepath.base(dir)
-
-		for blacklist in dir_blacklist {
-			if blacklist == dir_name {
-				return nil, true
-			}
-		}
-		append(pkgs, dir)
-	}
-
-	return nil, false
-}
-
 get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceSymbol, ok: bool) {
+	spall.trace(#procedure, query)
+
 	if time.since(cache.time) > 20 * time.Second {
 		for pkg in cache.pkgs {
 			delete(pkg)
@@ -47,8 +31,21 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 		for workspace in common.config.workspace_folders {
 			uri := common.parse_uri(workspace.uri, context.temp_allocator) or_return
 			pkgs := make([dynamic]string, 0, context.temp_allocator)
+			append(&pkgs, uri.path)
 
-			filepath.walk(uri.path, walk_dir, &pkgs)
+			w := os.walker_create(uri.path)
+			defer os.walker_destroy(&w)
+			for info in os.walker_walk(&w) {
+				if info.type == .Directory {
+					dir, _ := filepath.replace_separators(info.fullpath, '/', context.temp_allocator)
+					dir_name := filepath.base(dir)
+					if slice.contains(dir_blacklist, dir_name) {
+						os.walker_skip_dir(&w)
+					} else {
+						append(&pkgs, dir)
+					}
+				}
+			}
 
 			_pkg: for pkg in pkgs {
 				matches, err := filepath.glob(fmt.tprintf("%v/*.odin", pkg), context.temp_allocator)
@@ -58,7 +55,7 @@ get_workspace_symbols :: proc(query: string) -> (workspace_symbols: []WorkspaceS
 				}
 
 				for exclude_path in common.config.profile.exclude_path {
-					exclude_forward, _ := filepath.to_slash(exclude_path, context.temp_allocator)
+					exclude_forward, _ := filepath.replace_separators(exclude_path, '/', context.temp_allocator)
 
 					if exclude_forward[len(exclude_forward) - 2:] == "**" {
 						lower_pkg := strings.to_lower(pkg)

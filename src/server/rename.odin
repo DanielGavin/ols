@@ -25,14 +25,10 @@ get_rename :: proc(document: ^Document, new_text: string, position: common.Posit
 		return {}, false
 	}
 	ast_context.position_hint = position_context.hint
-
-	get_globals(document.ast, &ast_context)
-
 	ast_context.current_package = ast_context.document_package
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
+	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
 
 	locations, ok2 := resolve_references(document, &ast_context, &position_context)
 
@@ -80,14 +76,10 @@ get_prepare_rename :: proc(document: ^Document, position: common.Position) -> (c
 		return {}, false
 	}
 	ast_context.position_hint = position_context.hint
-
-	get_globals(document.ast, &ast_context)
-
 	ast_context.current_package = ast_context.document_package
 
-	if position_context.function != nil {
-		get_locals(document.ast, position_context.function, &ast_context, &position_context)
-	}
+	get_globals(document.ast, &ast_context)
+	get_locals(&ast_context, &position_context)
 
 	symbol, ok2 := prepare_rename(document, &ast_context, &position_context)
 	return symbol.range, ok2

@@ -1,9 +1,5 @@
 package server
 
-import "core:os"
-import "core:mem"
-import "core:fmt"
-import "core:strings"
 import "core:sync"
 
 WriterFn :: proc(_: rawptr, _: []byte) -> (int, int)
