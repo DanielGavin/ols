@@ -5671,6 +5671,190 @@ ast_hover_struct_size_pointer_does_not_embed_pointee :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_fixed_width_scalars :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Scalars :: struct {
+			a: u8,
+			b: i8,
+			c: rune,
+			d: f16,
+			e: complex32,
+			f: complex64,
+			g: complex128,
+			h: quaternion64,
+			i: quaternion128,
+			j: quaternion256,
+		}
+
+		value := S{*}calars{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Scalars :: struct {\n\ta: u8,\n\tb: i8,\n\tc: rune,\n\td: f16,\n\te: complex32,\n\tf: complex64,\n\tg: complex128,\n\th: quaternion64,\n\ti: quaternion128,\n\tj: quaternion256,\n}\nSize: 96 bytes, Alignment: 8 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_aliases_distinct_and_fixed_array :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Byte_Alias :: u8
+		My_Rune :: distinct rune
+		COUNT :: 4
+		Four_Bytes :: [COUNT]Byte_Alias
+		Aliases :: struct {
+			a: Byte_Alias,
+			b: My_Rune,
+			c: Four_Bytes,
+		}
+
+		value := A{*}liases{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Aliases :: struct {\n\ta: Byte_Alias,\n\tb: My_Rune,\n\tc: Four_Bytes,\n}\nSize: 12 bytes, Alignment: 4 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_nested_fixed_arrays :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Inner :: struct {
+			values: [3]u16,
+		}
+		Outer :: struct {
+			values: [2]Inner,
+		}
+
+		value := O{*}uter{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Outer :: struct {\n\tvalues: [2]Inner,\n}\nSize: 12 bytes, Alignment: 2 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Partial :: struct {
+			known: u64,
+			unknown: []u8,
+		}
+
+		value := P{*}artial{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: []u8,\n}",
+	)
+}
+
+@(test)
+ast_hover_struct_size_empty_struct_is_known :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Empty :: struct {}
+		value := E{*}mpty{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Empty :: struct{}\nSize: 0 bytes, Alignment: 1 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Value :: []u8
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: [dynamic]u8
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: map[u8]u8
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: union {u8, u16}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: matrix[2, 2]f32
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: bit_set[0..<8]
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	for &source in sources {
+		test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: Value,\n}")
+	}
+}
+
+@(test)
 ast_hover_proc_return_with_union :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test

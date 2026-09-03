@@ -1,84 +1,176 @@
 #+feature dynamic-literals
 package server
 
+import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
+import "core:strconv"
 import "core:strings"
-import "core:fmt"
 
 import "src:common"
 import "src:spall"
 
-get_expr_size_and_align :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (size: int, align: int) {
+Type_Layout :: struct {
+	size:      int,
+	alignment: int,
+}
+
+get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
+	switch name {
+	case "u8":
+		return {size_of(u8), align_of(u8)}, true
+	case "i8":
+		return {size_of(i8), align_of(i8)}, true
+	case "byte":
+		return {size_of(byte), align_of(byte)}, true
+	case "i16", "u16":
+		return {size_of(u16), align_of(u16)}, true
+	case "int", "uint", "i32", "u32", "uintptr", "rawptr":
+		return {size_of(u32), align_of(u32)}, true
+	case "rune":
+		return {size_of(rune), align_of(rune)}, true
+	case "i64", "u64":
+		return {size_of(u64), align_of(u64)}, true
+	case "bool":
+		return {size_of(bool), align_of(bool)}, true
+	case "string":
+		return {size_of(string), align_of(string)}, true
+	case "f16":
+		return {size_of(f16), align_of(f16)}, true
+	case "f32":
+		return {size_of(f32), align_of(f32)}, true
+	case "f64":
+		return {size_of(f64), align_of(f64)}, true
+	case "complex32":
+		return {size_of(complex32), align_of(complex32)}, true
+	case "complex64":
+		return {size_of(complex64), align_of(complex64)}, true
+	case "complex128":
+		return {size_of(complex128), align_of(complex128)}, true
+	case "quaternion64":
+		return {size_of(quaternion64), align_of(quaternion64)}, true
+	case "quaternion128":
+		return {size_of(quaternion128), align_of(quaternion128)}, true
+	case "quaternion256":
+		return {size_of(quaternion256), align_of(quaternion256)}, true
+	}
+
+	return {}, false
+}
+
+get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
 	if expr == nil {
-		return 0, 1
+		return 0, false
+	}
+
+	if paren, ok := expr.derived.(^ast.Paren_Expr); ok {
+		return get_fixed_array_length(ast_context, paren.expr)
+	}
+
+	if literal, ok := expr.derived.(^ast.Basic_Lit); ok {
+		length, parsed := strconv.parse_int(literal.tok.text)
+		return length, parsed && length >= 0
+	}
+
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if value, is_untyped := symbol.value.(SymbolUntypedValue); is_untyped && value.type == .Integer {
+			length, parsed := strconv.parse_int(value.tok.text)
+			return length, parsed && length >= 0
+		}
+	}
+
+	return 0, false
+}
+
+get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
+	layout := Type_Layout {
+		alignment = 1,
+	}
+
+	for field_type in value.types {
+		field_layout, ok := get_expr_layout(ast_context, field_type)
+		if !ok {
+			return {}, false
+		}
+
+		layout.alignment = max(layout.alignment, field_layout.alignment)
+
+		padding := (field_layout.alignment - (layout.size % field_layout.alignment)) % field_layout.alignment
+		layout.size += padding + field_layout.size
+	}
+
+	final_padding := (layout.alignment - (layout.size % layout.alignment)) % layout.alignment
+	layout.size += final_padding
+
+	return layout, true
+}
+
+get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layout, bool) {
+	if expr == nil {
+		return {}, false
 	}
 
 	// Pointer storage is independent of the pointee's layout. Resolve pointers
 	// here so recursive structures do not recursively traverse their pointees.
 	if _, ok := expr.derived.(^ast.Pointer_Type); ok {
-		return size_of(rawptr), align_of(rawptr)
+		return {size_of(rawptr), align_of(rawptr)}, true
 	}
 	if _, ok := expr.derived.(^ast.Multi_Pointer_Type); ok {
-		return size_of(rawptr), align_of(rawptr)
+		return {size_of(rawptr), align_of(rawptr)}, true
+	}
+
+	if distinct_type, ok := expr.derived.(^ast.Distinct_Type); ok {
+		return get_expr_layout(ast_context, distinct_type.type)
 	}
 
 	if ident, ok := expr.derived.(^ast.Ident); ok {
-		switch ident.name {
-		case "int", "uint", "i32", "u32", "uintptr", "rawptr":
-			return size_of(u32), align_of(u32)
-		case "i16", "u16":
-			return size_of(u16), align_of(u16)
-		case "i64", "u64":
-			return size_of(u64), align_of(u64)
-		case "bool":
-			return size_of(bool), align_of(bool)
-		case "string":
-			return size_of(string), align_of(string)
-		case "f32":
-			return size_of(f32), align_of(f32)
-		case "f64":
-			return size_of(f64), align_of(f64)
-		case "byte":
-			return size_of(byte), align_of(byte)
+		if layout, known := get_basic_type_layout(ident.name); known {
+			return layout, true
 		}
 	}
 
 	if _, ok := expr.derived.(^ast.Proc_Type); ok {
-		return size_of(^rawptr), align_of(^rawptr)
+		return {size_of(^rawptr), align_of(^rawptr)}, true
 	}
 
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		// Pointer aliases resolve to their pointee's symbol with the pointer depth
 		// stored separately on the symbol.
 		if symbol.pointers > 0 {
-			return size_of(rawptr), align_of(rawptr)
+			return {size_of(rawptr), align_of(rawptr)}, true
 		}
 
-		if s, is_struct := symbol.value.(SymbolStructValue); is_struct {
-			current_offset := 0
-			max_align := 1
-			for field_type in s.types {
-				field_size, field_align := get_expr_size_and_align(ast_context, field_type)
-				if field_align > max_align {
-					max_align = field_align
-				}
-				if field_align > 0 {
-					padding := (field_align - (current_offset % field_align)) % field_align
-					current_offset += padding
-				}
-				current_offset += field_size
+		#partial switch value in symbol.value {
+		case SymbolBasicValue:
+			return get_basic_type_layout(value.ident.name)
+		case SymbolStructValue:
+			return get_struct_layout(ast_context, value)
+		case SymbolProcedureValue:
+			return {size_of(^rawptr), align_of(^rawptr)}, true
+		case SymbolFixedArrayValue:
+			if .Simd in symbol.flags || .Soa in symbol.flags {
+				return {}, false
 			}
-			if max_align > 0 {
-				final_padding := (max_align - (current_offset % max_align)) % max_align
-				current_offset += final_padding
+
+			length, length_known := get_fixed_array_length(ast_context, value.len)
+			element, element_known := get_expr_layout(ast_context, value.expr)
+			if !length_known || !element_known || element.size > 0 && length > max(int) / element.size {
+				return {}, false
 			}
-			return current_offset, max_align
+
+			return {size = length * element.size, alignment = element.alignment}, true
+		case SymbolSliceValue,
+		     SymbolDynamicArrayValue,
+		     SymbolMapValue,
+		     SymbolUnionValue,
+		     SymbolMatrixValue,
+		     SymbolBitSetValue:
+			return {}, false
 		}
 	}
 
-	return 0, 1
+	return {}, false
 }
 
 
@@ -90,30 +182,9 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	struct_info := ""
 	if config != nil && config.enable_hover_struct_size_info {
 		if symbol.type == .Struct {
-			if s, ok := symbol.value.(SymbolStructValue); ok {
-				current_offset := 0
-				max_align := 1
-
-				for field_type in s.types {
-					field_size, field_align := get_expr_size_and_align(ast_context, field_type)
-
-					if field_align > max_align {
-						max_align = field_align
-					}
-					if field_align > 0 {
-						padding := (field_align - (current_offset % field_align)) % field_align
-						current_offset += padding
-					}
-					current_offset += field_size
-				}
-
-				if max_align > 0 {
-					final_padding := (max_align - (current_offset % max_align)) % max_align
-					current_offset += final_padding
-				}
-
-				if current_offset > 0 {
-					struct_info = fmt.aprintf("Size: %v bytes, Alignment: %v bytes", current_offset, max_align)
+			if value, is_struct := symbol.value.(SymbolStructValue); is_struct {
+				if layout, known := get_struct_layout(ast_context, value); known {
+					struct_info = fmt.aprintf("Size: %v bytes, Alignment: %v bytes", layout.size, layout.alignment)
 				}
 			}
 		}
@@ -130,7 +201,15 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	return content
 }
 
-get_hover_information :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> (Hover, bool, bool) {
+get_hover_information :: proc(
+	document: ^Document,
+	position: common.Position,
+	config: ^common.Config,
+) -> (
+	Hover,
+	bool,
+	bool,
+) {
 	spall.trace(#procedure, document.fullpath)
 	hover := Hover {
 		contents = {kind = "plaintext"},
@@ -613,7 +692,15 @@ get_hover_information :: proc(document: ^Document, position: common.Position, co
 	return hover, false, true
 }
 
-get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_name: string, config: ^common.Config) -> (Hover, bool) {
+get_hover_enum_field :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	field_name: string,
+	config: ^common.Config,
+) -> (
+	Hover,
+	bool,
+) {
 	symbol := symbol
 	hover: Hover
 	#partial switch v in symbol.value {
