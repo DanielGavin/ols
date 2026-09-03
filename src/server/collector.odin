@@ -902,6 +902,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = v^
 			token_type = .Type
 			symbol.value = collect_fixed_cap_dynamic_array(collection, v^, package_map)
+			if fixed_cap_dynamic_array_is_soa(v^) {
+				symbol.flags |= {.Soa}
+			}
 		case ^ast.Multi_Pointer_Type:
 			token = v^
 			token_type = .Type

@@ -333,11 +333,35 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 		case SymbolSliceValue:
 			return {size_of([]u8), align_of([]u8)}, true
 		case SymbolDynamicArrayValue:
-			if value.cap != nil {
+			if .Soa in symbol.flags {
 				return {}, false
 			}
 
-			return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
+			if value.cap == nil {
+				return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
+			}
+
+			capacity, capacity_known := get_fixed_array_length(ast_context, value.cap)
+			element, element_known := get_expr_layout(ast_context, value.expr)
+			if !capacity_known || !element_known || element.size > 0 && capacity > max(int) / element.size {
+				return {}, false
+			}
+
+			elements_size := capacity * element.size
+			int_size := size_of(int)
+			length_padding := (int_size - (elements_size % int_size)) % int_size
+			if elements_size > max(int) - length_padding - int_size {
+				return {}, false
+			}
+
+			size := elements_size + length_padding + int_size
+			alignment := max(int_size, element.alignment)
+			final_padding := (alignment - (size % alignment)) % alignment
+			if size > max(int) - final_padding {
+				return {}, false
+			}
+
+			return {size = size + final_padding, alignment = alignment}, true
 		case SymbolMapValue:
 			return {size_of(map[u8]u8), align_of(map[u8]u8)}, true
 		case SymbolMatrixValue:

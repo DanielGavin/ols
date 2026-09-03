@@ -5859,6 +5859,100 @@ ast_hover_struct_size_matrices :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_fixed_capacity_dynamic_arrays :: proc(t: ^testing.T) {
+	Inner :: struct {
+		value: u64,
+		tail: u8,
+	}
+	Array_Alias :: [dynamic; 3]u16
+	Distinct_Array :: distinct [dynamic; 2]Inner
+	Nested_Array :: [dynamic; 2][dynamic; 3]u8
+	Array_Layout :: struct {
+		bytes: [dynamic; 5]u8,
+		alias: Array_Alias,
+		distinct_array: Distinct_Array,
+		nested: Nested_Array,
+	}
+
+	source := test.Source {
+		main = `package test
+		COUNT :: 3
+		Inner :: struct {
+			value: u64,
+			tail: u8,
+		}
+		Array_Alias :: [dynamic; COUNT]u16
+		Distinct_Array :: distinct [dynamic; 2]Inner
+		Nested_Array :: [dynamic; 2][dynamic; 3]u8
+		Arrays :: struct {
+			bytes: [dynamic; 5]u8,
+			alias: Array_Alias,
+			distinct_array: Distinct_Array,
+			nested: Nested_Array,
+		}
+
+		value := A{*}rrays{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Arrays :: struct {\n\tbytes:          [dynamic; 5]u8,\n\talias:          Array_Alias,\n\tdistinct_array: Distinct_Array,\n\tnested:         Nested_Array,\n}",
+			size_of(Array_Layout),
+			align_of(Array_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_fixed_capacity_soa_arrays_are_unknown :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "arrays",
+			source = `package arrays
+			Element :: struct {value: u8}
+			Value :: #soa[dynamic; 8]Element
+			`,
+		},
+	)
+
+	sources := []test.Source {
+		{
+			main = `package test
+			Element :: struct {value: u8}
+			Value :: #soa[dynamic; 8]Element
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			import "arrays"
+			Foo :: struct {value: arrays.Value}
+			foo := F{*}oo{}
+			`,
+			packages = packages[:],
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Foo :: struct {\n\tvalue: Value,\n}",
+		"test.Foo :: struct {\n\tvalue: arrays.Value,\n}",
+	}
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
 ast_hover_struct_size_bit_sets :: proc(t: ^testing.T) {
 	Flags :: enum {
 		First = -2,
@@ -6271,14 +6365,6 @@ ast_hover_struct_size_empty_struct_is_known :: proc(t: ^testing.T) {
 @(test)
 ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) {
 	sources := []test.Source {
-		{
-			main = `package test
-			Value :: [dynamic; 8]u8
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
 		{
 			main = `package test
 			Value :: union {u8, u16}
