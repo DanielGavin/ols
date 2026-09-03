@@ -5818,6 +5818,47 @@ ast_hover_struct_size_maps :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_matrices :: proc(t: ^testing.T) {
+	Matrix_Alias :: matrix[2, 3]f32
+	Distinct_Matrix :: distinct matrix[4, 2]i16
+	Matrix_Layout :: struct {
+		direct: matrix[3, 2]f64,
+		alias: Matrix_Alias,
+		distinct_matrix: Distinct_Matrix,
+		array: [2]matrix[2, 2]u32,
+	}
+
+	source := test.Source {
+		main = `package test
+		ROWS :: 2
+		COLUMNS :: 3
+		Matrix_Alias :: matrix[ROWS, COLUMNS]f32
+		Distinct_Matrix :: distinct matrix[4, 2]i16
+		Matrices :: struct {
+			direct: matrix[3, 2]f64,
+			alias: Matrix_Alias,
+			distinct_matrix: Distinct_Matrix,
+			array: [2]matrix[2, 2]u32,
+		}
+
+		value := M{*}atrices{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Matrices :: struct {\n\tdirect:          matrix[3,2]f64,\n\talias:           Matrix_Alias,\n\tdistinct_matrix: Distinct_Matrix,\n\tarray:           [2]matrix[2,2]u32,\n}",
+			size_of(Matrix_Layout),
+			align_of(Matrix_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_slices_dynamic_arrays_and_enums :: proc(t: ^testing.T) {
 	Error :: enum u32 {None}
 	Container_Layout :: struct {
@@ -6001,14 +6042,6 @@ ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) 
 		{
 			main = `package test
 			Value :: union {u8, u16}
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: matrix[2, 2]f32
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,

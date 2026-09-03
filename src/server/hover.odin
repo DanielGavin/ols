@@ -289,7 +289,25 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
 		case SymbolMapValue:
 			return {size_of(map[u8]u8), align_of(map[u8]u8)}, true
-		case SymbolUnionValue, SymbolMatrixValue, SymbolBitSetValue:
+		case SymbolMatrixValue:
+			row_count, rows_known := get_fixed_array_length(ast_context, value.x)
+			column_count, columns_known := get_fixed_array_length(ast_context, value.y)
+			element, element_known := get_expr_layout(ast_context, value.expr)
+
+			if !rows_known ||
+			   !columns_known ||
+			   !element_known ||
+			   column_count > 0 && row_count > max(int) / column_count {
+				return {}, false
+			}
+
+			element_count := row_count * column_count
+			if element.size > 0 && element_count > max(int) / element.size {
+				return {}, false
+			}
+
+			return {size = element_count * element.size, alignment = element.alignment}, true
+		case SymbolUnionValue, SymbolBitSetValue:
 			return {}, false
 		}
 	}
