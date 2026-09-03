@@ -225,8 +225,27 @@ layout_profile_matches_server_target :: proc(config: ^common.Config) -> bool {
 
 
 resolve_array_element_count :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (int, bool) {
-	length, known := resolve_integer_constant(evaluation, expr)
-	return length, known && length >= 0
+	if length, known := resolve_integer_constant(evaluation, expr); known {
+		return length, length >= 0
+	}
+
+	if symbol, ok := resolve_type_expression(evaluation.ast_context, expr); ok {
+		if enum_value, is_enum := symbol.value.(SymbolEnumValue); is_enum {
+			lower, upper, range_known := resolve_enum_value_range(evaluation, enum_value)
+			if !range_known {
+				return 0, false
+			}
+
+			length := i128(upper) - i128(lower) + 1
+			if length > i128(max(int)) {
+				return 0, false
+			}
+
+			return int(length), true
+		}
+	}
+
+	return 0, false
 }
 
 resolve_enum_value_range :: proc(evaluation: ^Layout_Evaluation_Context, value: SymbolEnumValue) -> (int, int, bool) {
@@ -494,6 +513,8 @@ resolve_type_layout :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.E
 			}
 
 			return resolve_type_layout(evaluation, value.base_type)
+		case SymbolBitFieldValue:
+			return resolve_type_layout(evaluation, value.backing_type)
 		case SymbolFixedArrayValue:
 			length, length_known := resolve_array_element_count(evaluation, value.len)
 			if .Simd in symbol.flags {

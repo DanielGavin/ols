@@ -5876,6 +5876,50 @@ ast_hover_struct_size_aliases_distinct_and_fixed_array :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_bit_fields_and_enumerated_arrays :: proc(t: ^testing.T) {
+	Index :: enum {A = -1, B, C}
+	Sparse_Index :: enum {A = 2, B = 5}
+	Bits :: bit_field [2]u16 {
+		low:  u16 | 12,
+		high: u32 | 20,
+	}
+	Container_Layout :: struct {
+		bits:   Bits,
+		dense:  [Index]u16,
+		sparse: #sparse[Sparse_Index]u8,
+	}
+
+	source := test.Source {
+		main = `package test
+		Index :: enum {A = -1, B, C}
+		Sparse_Index :: enum {A = 2, B = 5}
+		Bits :: bit_field [2]u16 {
+			low:  u16 | 12,
+			high: u32 | 20,
+		}
+		Container :: struct {
+			bits:   Bits,
+			dense:  [Index]u16,
+			sparse: #sparse[Sparse_Index]u8,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"test.Container :: struct {\n\tbits:   Bits,\n\tdense:  [Index]u16,\n\tsparse: #sparse[Sparse_Index]u8,\n}",
+			size_of(Container_Layout),
+			align_of(Container_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_extended_integer_constant_expressions :: proc(t: ^testing.T) {
 	Element :: struct {value: u16}
 	Container_Layout :: struct #align(align_of(u64)) {
