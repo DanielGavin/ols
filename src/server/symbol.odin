@@ -868,6 +868,10 @@ symbol_to_expr :: proc(symbol: Symbol, file: string, allocator := context.temp_a
 			directive := new_type(ast.Basic_Directive, pos, end, allocator)
 			directive.name = "soa"
 			type.tag = directive
+		} else if .Simd in symbol.flags {
+			directive := new_type(ast.Basic_Directive, pos, end, allocator)
+			directive.name = "simd"
+			type.tag = directive
 		}
 		return type
 	case SymbolMapValue:

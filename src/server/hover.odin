@@ -293,7 +293,11 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 
 	// Pointer storage is independent of the pointee's layout. Resolve pointers
 	// here so recursive structures do not recursively traverse their pointees.
-	if _, ok := expr.derived.(^ast.Pointer_Type); ok {
+	if pointer, ok := expr.derived.(^ast.Pointer_Type); ok {
+		if pointer_is_soa(pointer^) {
+			return {}, false
+		}
+
 		return {size_of(rawptr), align_of(rawptr)}, true
 	}
 	if _, ok := expr.derived.(^ast.Multi_Pointer_Type); ok {
@@ -317,8 +321,16 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
 		// Pointer aliases resolve to their pointee's symbol with the pointer depth
 		// stored separately on the symbol.
+		if .SoaPointer in symbol.flags {
+			return {}, false
+		}
+
 		if symbol.pointers > 0 {
 			return {size_of(rawptr), align_of(rawptr)}, true
+		}
+
+		if .Soa in symbol.flags || .Simd in symbol.flags {
+			return {}, false
 		}
 
 		#partial switch value in symbol.value {
@@ -335,10 +347,6 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 
 			return resolve_expr_layout(resolver, value.base_type)
 		case SymbolFixedArrayValue:
-			if .Simd in symbol.flags || .Soa in symbol.flags {
-				return {}, false
-			}
-
 			length, length_known := get_fixed_array_length(ast_context, value.len)
 			element, element_known := resolve_expr_layout(resolver, value.expr)
 			if !length_known || !element_known || element.size > 0 && length > max(int) / element.size {
@@ -349,10 +357,6 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 		case SymbolSliceValue:
 			return {size_of([]u8), align_of([]u8)}, true
 		case SymbolDynamicArrayValue:
-			if .Soa in symbol.flags {
-				return {}, false
-			}
-
 			if value.cap == nil {
 				return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
 			}

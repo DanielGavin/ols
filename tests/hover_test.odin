@@ -6002,6 +6002,144 @@ ast_hover_struct_size_fixed_capacity_soa_arrays_are_unknown :: proc(t: ^testing.
 }
 
 @(test)
+ast_hover_struct_size_specialized_containers_are_unknown :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Element :: struct {x, y: f32}
+			Foo :: struct {value: #soa[]Element}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Element :: struct {x, y: f32}
+			Foo :: struct {value: #soa[6]Element}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Element :: struct {x, y: f32}
+			Foo :: struct {value: #soa[dynamic]Element}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Element :: struct {x, y: f32}
+			Foo :: struct {value: #soa^#soa[6]Element}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct {value: #simd[4]f32}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Foo :: struct {\n\tvalue: #soa[]Element,\n}",
+		"test.Foo :: struct {\n\tvalue: #soa[6]Element,\n}",
+		"test.Foo :: struct {\n\tvalue: #soa[dynamic]Element,\n}",
+		"test.Foo :: struct {\n\tvalue: #soa^#soa[6]Element,\n}",
+		"test.Foo :: struct {\n\tvalue: #simd[4]f32,\n}",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
+ast_hover_struct_size_imported_specialized_aliases_are_unknown :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "containers",
+			source = `package containers
+			Element :: struct {x, y: f32}
+			Soa_Slice :: #soa[]Element
+			Soa_Array :: #soa[6]Element
+			Soa_Dynamic_Array :: #soa[dynamic]Element
+			Soa_Pointer :: #soa^#soa[6]Element
+			Simd_Array :: #simd[4]f32
+			`,
+		},
+	)
+
+	type_names := []string {
+		"Soa_Slice",
+		"Soa_Array",
+		"Soa_Dynamic_Array",
+		"Soa_Pointer",
+		"Simd_Array",
+	}
+
+	for type_name in type_names {
+		source := test.Source {
+			main = fmt.tprintf(
+				"%v%v%v",
+				`package test
+				import "containers"
+				Foo :: struct {value: containers.`,
+				type_name,
+				`}
+				foo := F{*}oo{}
+				`,
+			),
+			packages = packages[:],
+			config = {enable_hover_struct_size_info = true},
+		}
+
+		test.expect_hover(
+			t,
+			&source,
+			fmt.tprintf("%v%v%v", "test.Foo :: struct {\n\tvalue: containers.", type_name, ",\n}"),
+		)
+	}
+}
+
+@(test)
+ast_hover_struct_size_ordinary_pointers_to_specialized_types_are_known :: proc(t: ^testing.T) {
+	Pointer_Layout :: struct {
+		soa:  rawptr,
+		simd: rawptr,
+	}
+
+	source := test.Source {
+		main = `package test
+		Element :: struct {x, y: f32}
+		Pointers :: struct {
+			soa: ^#soa[6]Element,
+			simd: ^#simd[4]f32,
+		}
+		value := P{*}ointers{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Pointers :: struct {\n\tsoa:  ^#soa[6]Element,\n\tsimd: ^#simd[4]f32,\n}",
+			size_of(Pointer_Layout),
+			align_of(Pointer_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_bit_sets :: proc(t: ^testing.T) {
 	Flags :: enum {
 		First = -2,

@@ -894,10 +894,19 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			} else {
 				symbol.value = collect_array(collection, v^, package_map)
 			}
+			if array_is_soa(v^) {
+				symbol.flags |= {.Soa}
+			}
+			if array_is_simd(v^) {
+				symbol.flags |= {.Simd}
+			}
 		case ^ast.Dynamic_Array_Type:
 			token = v^
 			token_type = .Type
 			symbol.value = collect_dynamic_array(collection, v^, package_map)
+			if dynamic_array_is_soa(v^) {
+				symbol.flags |= {.Soa}
+			}
 		case ^ast.Fixed_Capacity_Dynamic_Array_Type:
 			token = v^
 			token_type = .Type
