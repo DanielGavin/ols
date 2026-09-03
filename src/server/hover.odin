@@ -5,6 +5,7 @@ import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:strings"
+import "core:fmt"
 
 import "src:common"
 import "src:spall"
@@ -12,6 +13,15 @@ import "src:spall"
 get_expr_size_and_align :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (size: int, align: int) {
 	if expr == nil {
 		return 0, 1
+	}
+
+	// Pointer storage is independent of the pointee's layout. Resolve pointers
+	// here so recursive structures do not recursively traverse their pointees.
+	if _, ok := expr.derived.(^ast.Pointer_Type); ok {
+		return size_of(rawptr), align_of(rawptr)
+	}
+	if _, ok := expr.derived.(^ast.Multi_Pointer_Type); ok {
+		return size_of(rawptr), align_of(rawptr)
 	}
 
 	if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -40,6 +50,12 @@ get_expr_size_and_align :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (s
 	}
 
 	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		// Pointer aliases resolve to their pointee's symbol with the pointer depth
+		// stored separately on the symbol.
+		if symbol.pointers > 0 {
+			return size_of(rawptr), align_of(rawptr)
+		}
+
 		if s, is_struct := symbol.value.(SymbolStructValue); is_struct {
 			current_offset := 0
 			max_align := 1

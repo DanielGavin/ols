@@ -5575,10 +5575,100 @@ ast_hover_struct_size_and_alignment :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+ast_hover_struct_size_self_referential_pointer :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Node :: struct {
+			next: ^Node,
+		}
 
-/*
+		node := N{*}ode{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
 
-Waiting for odin fix
+	test.expect_hover(
+		t,
+		&source,
+		"test.Node :: struct {\n\tnext: ^Node,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_pointer_alias :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Node_Ptr :: ^Node
+		Node :: struct {
+			next: Node_Ptr,
+		}
+
+		node := N{*}ode{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Node :: struct {\n\tnext: Node_Ptr,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_mutually_referential_pointers :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		A :: struct {
+			b: ^B,
+		}
+		B :: struct {
+			a: ^A,
+		}
+
+		a := A{*}{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.A :: struct {\n\tb: ^B,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+	)
+}
+
+@(test)
+ast_hover_struct_size_pointer_does_not_embed_pointee :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Large :: struct {
+			a, b, c, d: u64,
+		}
+		Holder :: struct {
+			value: ^Large,
+		}
+
+		holder := H{*}older{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Holder :: struct {\n\tvalue: ^Large,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+	)
+}
 
 @(test)
 ast_hover_proc_return_with_union :: proc(t: ^testing.T) {
