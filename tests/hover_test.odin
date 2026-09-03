@@ -6014,6 +6014,48 @@ ast_hover_struct_size_empty_enumerated_array :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_basic_unions :: proc(t: ^testing.T) {
+	Byte_Union :: union {u8, i8}
+	Word_Union :: union {[3]u8, u32}
+	Wide_Union :: union {u8, u64, [3]u32}
+	Container_Layout :: struct {
+		prefix: u8,
+		bytes:  Byte_Union,
+		words:  Word_Union,
+		wide:   Wide_Union,
+		suffix: u16,
+	}
+
+	source := test.Source {
+		main = `package test
+		Byte_Union :: union {u8, i8}
+		Word_Union :: union {[3]u8, u32}
+		Wide_Union :: union {u8, u64, [3]u32}
+		Container :: struct {
+			prefix: u8,
+			bytes:  Byte_Union,
+			words:  Word_Union,
+			wide:   Wide_Union,
+			suffix: u16,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tprefix: u8,\n\tbytes:  Byte_Union,\n\twords:  Word_Union,\n\twide:   Wide_Union,\n\tsuffix: u16,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(u8) - size_of(Byte_Union) - size_of(Word_Union) - size_of(Wide_Union) - size_of(u16),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
 	Word :: u16
 	Bits :: bit_field Word {
@@ -6304,7 +6346,7 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 		main = `package test
 		Partial :: struct {
 			known: u64,
-			unknown: union {u8, u16},
+			unknown: union #no_nil {u8, u16},
 		}
 
 		value := P{*}artial{}
@@ -6317,7 +6359,7 @@ ast_hover_struct_size_unknown_field_suppresses_partial_layout :: proc(t: ^testin
 	test.expect_hover(
 		t,
 		&source,
-		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: union {\n\t\tu8,\n\t\tu16,\n\t},\n}",
+		"test.Partial :: struct {\n\tknown:   u64,\n\tunknown: union #no_nil {\n\t\tu8,\n\t\tu16,\n\t},\n}",
 	)
 }
 
@@ -7142,11 +7184,35 @@ ast_hover_struct_size_empty_struct_is_known :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) {
+ast_hover_struct_size_unsupported_unions_are_unknown :: proc(t: ^testing.T) {
 	sources := []test.Source {
 		{
 			main = `package test
-			Value :: union {u8, u16}
+			Value :: union {^u8}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: union #no_nil {u8, u16}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: union #shared_nil {u8, u16}
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: union #align(16) {u8, u64}
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,

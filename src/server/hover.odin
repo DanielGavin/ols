@@ -350,6 +350,53 @@ resolve_layout_alignment :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^
 	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
 }
 
+resolve_union_layout :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	value: SymbolUnionValue,
+) -> (
+	Type_Layout,
+	bool,
+) {
+	// Single-variant unions may use Odin's pointer-like representation. This
+	// first pass handles only normal, non-polymorphic, default-aligned unions.
+	if value.kind != .Normal ||
+	   value.poly != nil ||
+	   value.align != nil ||
+	   len(value.types) < 2 ||
+	   len(value.types) >= 1 << 8 {
+		return {}, false
+	}
+
+	largest_variant_size := 0
+	alignment := 1
+	for variant in value.types {
+		variant_layout, ok := resolve_type_layout(evaluation, variant)
+		if !ok || variant_layout.size < 0 || variant_layout.alignment <= 0 {
+			return {}, false
+		}
+
+		largest_variant_size = max(largest_variant_size, variant_layout.size)
+		alignment = max(alignment, variant_layout.alignment)
+	}
+
+	// For fewer than 256 variants, Odin grows the one-byte tag to the largest variant alignment.
+	// TODO: Handle cases where the variant alignment exceeds the native scalar layout.
+	if alignment > align_of(u64) {
+		return {}, false
+	}
+
+	tag_size := min(alignment, size_of(u64))
+	tag_padding := (tag_size - (largest_variant_size % tag_size)) % tag_size
+	size := i128(largest_variant_size) + i128(tag_padding) + i128(tag_size)
+	final_padding := (i128(alignment) - (size % i128(alignment))) % i128(alignment)
+	size += final_padding
+	if size > i128(max(int)) {
+		return {}, false
+	}
+
+	return {size = int(size), alignment = alignment}, true
+}
+
 resolve_struct_layout :: proc(
 	evaluation: ^Layout_Evaluation_Context,
 	value: SymbolStructValue,
@@ -609,7 +656,7 @@ resolve_type_layout :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.E
 
 			return get_implicit_bit_set_layout(lower, upper)
 		case SymbolUnionValue:
-			return {}, false
+			return resolve_union_layout(evaluation, value)
 		}
 	}
 
