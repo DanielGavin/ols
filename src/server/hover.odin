@@ -171,7 +171,15 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 	layout := Type_Layout{}
 	natural_alignment := 1
 
-	for field_type in value.types {
+	if len(value.from_usings) != len(value.types) {
+		return {}, false
+	}
+
+	for field_type, i in value.types {
+		if value.from_usings[i] != -1 {
+			continue
+		}
+
 		field_layout, ok := get_expr_layout(ast_context, field_type)
 		if !ok {
 			return {}, false

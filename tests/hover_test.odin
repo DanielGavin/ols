@@ -6042,6 +6042,111 @@ ast_hover_struct_size_unsupported_layout_expression_is_suppressed :: proc(t: ^te
 }
 
 @(test)
+ast_hover_struct_size_using_fields_are_counted_once :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Inner :: struct {
+				a: u64,
+				b: u32,
+			}
+			Outer :: struct {
+				using inner: Inner,
+			}
+			outer := O{*}uter{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Inner :: struct {
+				x: u64,
+			}
+			Outer :: struct {
+				using inner: ^Inner,
+			}
+			outer := O{*}uter{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Leaf :: struct {
+				x: u32,
+			}
+			Middle :: struct {
+				using leaf: Leaf,
+			}
+			Outer :: struct {
+				using middle: Middle,
+			}
+			outer := O{*}uter{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Inner :: struct {
+				a: u32,
+				b: u64,
+			}
+			Outer :: struct #packed {
+				using inner: Inner,
+				tail: u8,
+			}
+			outer := O{*}uter{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Outer :: struct {\n\tusing inner: Inner,\n\n\t// from `using inner: Inner`\n\ta:           u64,\n\tb:           u32,\n}\nSize: 16 bytes, Alignment: 8 bytes",
+		"test.Outer :: struct {\n\tusing inner: ^Inner,\n\n\t// from `using inner: ^Inner`\n\tx:           u64,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+		"test.Outer :: struct {\n\tusing middle: Middle,\n\n\t// from `using middle: Middle`\n\tusing leaf:   Leaf,\n\n\t// from `using leaf: Leaf`\n\tx:            u32,\n}\nSize: 4 bytes, Alignment: 4 bytes",
+		"test.Outer :: struct #packed {\n\tusing inner: Inner,\n\ttail:        u8,\n\n\t// from `using inner: Inner`\n\ta:           u32,\n\tb:           u64,\n}\nSize: 17 bytes, Alignment: 1 bytes",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
+ast_hover_struct_size_imported_using_field_is_counted_once :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "my_package",
+			source = `package my_package
+			Inner :: struct {
+				x: u64,
+			}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "my_package"
+		Outer :: struct {
+			using inner: my_package.Inner,
+		}
+		outer := O{*}uter{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Outer :: struct {\n\tusing inner: my_package.Inner,\n\n\t// from `using inner: my_package.Inner`\n\tx:           u64,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+	)
+}
+
+@(test)
 ast_hover_proc_return_with_union :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
