@@ -19,6 +19,10 @@ Type_Layout_Resolver :: struct {
 	visiting:    map[rawptr]struct{},
 }
 
+// This is the largest legal SIMD vector and therefore exposes the build
+// target's maximum SIMD alignment without duplicating Odin's target table.
+MAX_SIMD_ALIGNMENT :: align_of(#simd[64]u64)
+
 get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 	switch name {
 	case "u8":
@@ -47,6 +51,14 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(u128), align_of(u128)}, true
 	case "bool":
 		return {size_of(bool), align_of(bool)}, true
+	case "b8":
+		return {size_of(b8), align_of(b8)}, true
+	case "b16":
+		return {size_of(b16), align_of(b16)}, true
+	case "b32":
+		return {size_of(b32), align_of(b32)}, true
+	case "b64":
+		return {size_of(b64), align_of(b64)}, true
 	case "string":
 		return {size_of(string), align_of(string)}, true
 	case "f16":
@@ -70,6 +82,77 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 	}
 
 	return {}, false
+}
+
+get_simd_element_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layout, bool) {
+	symbol, ok := resolve_type_expression(ast_context, expr)
+	if !ok || symbol.pointers > 0 {
+		return {}, false
+	}
+
+	basic, basic_ok := symbol.value.(SymbolBasicValue)
+	if !basic_ok || basic.ident == nil {
+		return {}, false
+	}
+
+	switch basic.ident.name {
+	case "bool",
+	     "b8",
+	     "b16",
+	     "b32",
+	     "b64",
+	     "byte",
+	     "i8",
+	     "u8",
+	     "i16",
+	     "u16",
+	     "i32",
+	     "u32",
+	     "i64",
+	     "u64",
+	     "int",
+	     "uint",
+	     "uintptr",
+	     "rune",
+	     "f16",
+	     "f32",
+	     "f64",
+	     "rawptr":
+		return get_basic_type_layout(basic.ident.name)
+	}
+
+	return {}, false
+}
+
+get_simd_layout :: proc(element: Type_Layout, count: int) -> (Type_Layout, bool) {
+	if count < 1 || count > 64 || count & (count - 1) != 0 {
+		return {}, false
+	}
+
+	if element.size <= 0 || count > max(int) / element.size {
+		return {}, false
+	}
+
+	size := count * element.size
+	alignment := 1
+	for alignment < size {
+		if alignment > max(int) / 2 {
+			return {}, false
+		}
+
+		alignment *= 2
+	}
+
+	return {size = size, alignment = min(alignment, MAX_SIMD_ALIGNMENT)}, true
+}
+
+get_soa_pointer_layout :: proc() -> Type_Layout {
+	Element :: struct {
+		value: u8,
+	}
+	Pointer :: #soa^#soa[1]Element
+
+	return {size = size_of(Pointer), alignment = align_of(Pointer)}
 }
 
 
@@ -295,7 +378,7 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 	// here so recursive structures do not recursively traverse their pointees.
 	if pointer, ok := expr.derived.(^ast.Pointer_Type); ok {
 		if pointer_is_soa(pointer^) {
-			return {}, false
+			return get_soa_pointer_layout(), true
 		}
 
 		return {size_of(rawptr), align_of(rawptr)}, true
@@ -322,14 +405,18 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 		// Pointer aliases resolve to their pointee's symbol with the pointer depth
 		// stored separately on the symbol.
 		if .SoaPointer in symbol.flags {
-			return {}, false
+			return get_soa_pointer_layout(), true
 		}
 
 		if symbol.pointers > 0 {
 			return {size_of(rawptr), align_of(rawptr)}, true
 		}
 
-		if .Soa in symbol.flags || .Simd in symbol.flags {
+		// SOA containers are lowered by the compiler to synthetic structs. Correctly
+		// reproducing their layout requires semantic field expansion, including grouped
+		// and using fields, array elements, aliases, raw unions, and recursive types.
+		// Keep them unknown until OLS can model that expansion completely.
+		if .Soa in symbol.flags {
 			return {}, false
 		}
 
@@ -348,6 +435,15 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 			return resolve_expr_layout(resolver, value.base_type)
 		case SymbolFixedArrayValue:
 			length, length_known := get_fixed_array_length(ast_context, value.len)
+			if .Simd in symbol.flags {
+				element, element_known := get_simd_element_layout(ast_context, value.expr)
+				if !length_known || !element_known {
+					return {}, false
+				}
+
+				return get_simd_layout(element, length)
+			}
+
 			element, element_known := resolve_expr_layout(resolver, value.expr)
 			if !length_known || !element_known || element.size > 0 && length > max(int) / element.size {
 				return {}, false

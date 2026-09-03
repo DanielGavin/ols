@@ -6002,7 +6002,7 @@ ast_hover_struct_size_fixed_capacity_soa_arrays_are_unknown :: proc(t: ^testing.
 }
 
 @(test)
-ast_hover_struct_size_specialized_containers_are_unknown :: proc(t: ^testing.T) {
+ast_hover_struct_size_soa_containers_are_unknown :: proc(t: ^testing.T) {
 	sources := []test.Source {
 		{
 			main = `package test
@@ -6028,29 +6028,12 @@ ast_hover_struct_size_specialized_containers_are_unknown :: proc(t: ^testing.T) 
 			`,
 			config = {enable_hover_struct_size_info = true},
 		},
-		{
-			main = `package test
-			Element :: struct {x, y: f32}
-			Foo :: struct {value: #soa^#soa[6]Element}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Foo :: struct {value: #simd[4]f32}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
 	}
 
 	expected := []string {
 		"test.Foo :: struct {\n\tvalue: #soa[]Element,\n}",
 		"test.Foo :: struct {\n\tvalue: #soa[6]Element,\n}",
 		"test.Foo :: struct {\n\tvalue: #soa[dynamic]Element,\n}",
-		"test.Foo :: struct {\n\tvalue: #soa^#soa[6]Element,\n}",
-		"test.Foo :: struct {\n\tvalue: #simd[4]f32,\n}",
 	}
 
 	for &source, i in sources {
@@ -6059,7 +6042,7 @@ ast_hover_struct_size_specialized_containers_are_unknown :: proc(t: ^testing.T) 
 }
 
 @(test)
-ast_hover_struct_size_imported_specialized_aliases_are_unknown :: proc(t: ^testing.T) {
+ast_hover_struct_size_imported_soa_container_aliases_are_unknown :: proc(t: ^testing.T) {
 	packages := make([dynamic]test.Package, context.temp_allocator)
 	append(
 		&packages,
@@ -6070,8 +6053,6 @@ ast_hover_struct_size_imported_specialized_aliases_are_unknown :: proc(t: ^testi
 			Soa_Slice :: #soa[]Element
 			Soa_Array :: #soa[6]Element
 			Soa_Dynamic_Array :: #soa[dynamic]Element
-			Soa_Pointer :: #soa^#soa[6]Element
-			Simd_Array :: #simd[4]f32
 			`,
 		},
 	)
@@ -6080,8 +6061,6 @@ ast_hover_struct_size_imported_specialized_aliases_are_unknown :: proc(t: ^testi
 		"Soa_Slice",
 		"Soa_Array",
 		"Soa_Dynamic_Array",
-		"Soa_Pointer",
-		"Simd_Array",
 	}
 
 	for type_name in type_names {
@@ -6105,6 +6084,99 @@ ast_hover_struct_size_imported_specialized_aliases_are_unknown :: proc(t: ^testi
 			&source,
 			fmt.tprintf("%v%v%v", "test.Foo :: struct {\n\tvalue: containers.", type_name, ",\n}"),
 		)
+	}
+}
+
+@(test)
+ast_hover_struct_size_simd_vectors_and_soa_pointers :: proc(t: ^testing.T) {
+	Element :: struct {x, y: f32}
+	Specialized_Layout :: struct {
+		direct_soa:    #soa^#soa[6]Element,
+		imported_soa:  #soa^#soa[6]Element,
+		small_simd:    #simd[2]u8,
+		boolean_simd:  #simd[8]b16,
+		wide_simd:     #simd[8]f32,
+		imported_simd: #simd[64]u64,
+	}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "containers",
+			source = `package containers
+			Element :: struct {x, y: f32}
+			Soa_Pointer :: #soa^#soa[6]Element
+			Scalar :: u64
+			Simd_Array :: #simd[64]Scalar
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "containers"
+		Element :: struct {x, y: f32}
+		Specialized :: struct {
+			direct_soa:    #soa^#soa[6]Element,
+			imported_soa:  containers.Soa_Pointer,
+			small_simd:    #simd[2]u8,
+			boolean_simd:  #simd[8]b16,
+			wide_simd:     #simd[8]f32,
+			imported_simd: containers.Simd_Array,
+		}
+		value := S{*}pecialized{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Specialized :: struct {\n\tdirect_soa:    #soa^#soa[6]Element,\n\timported_soa:  containers.Soa_Pointer,\n\tsmall_simd:    #simd[2]u8,\n\tboolean_simd:  #simd[8]b16,\n\twide_simd:     #simd[8]f32,\n\timported_simd: containers.Simd_Array,\n}",
+			size_of(Specialized_Layout),
+			align_of(Specialized_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_invalid_simd_vectors_are_unknown :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Foo :: struct {value: #simd[3]f32}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct {value: #simd[4]complex64}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct {value: #simd[4]u128}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Foo :: struct {\n\tvalue: #simd[3]f32,\n}",
+		"test.Foo :: struct {\n\tvalue: #simd[4]complex64,\n}",
+		"test.Foo :: struct {\n\tvalue: #simd[4]u128,\n}",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
 	}
 }
 
