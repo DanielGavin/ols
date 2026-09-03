@@ -85,6 +85,92 @@ get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (in
 	return length, known && length >= 0
 }
 
+get_enum_value_range :: proc(ast_context: ^AstContext, value: SymbolEnumValue) -> (int, int, bool) {
+	if len(value.names) == 0 || len(value.values) != len(value.names) {
+		return 0, 0, false
+	}
+
+	local_values := make(map[string]int, context.temp_allocator)
+	current := -1
+	lower, upper := max(int), min(int)
+
+	for name, i in value.names {
+		if value.values[i] == nil {
+			if current == max(int) {
+				return 0, 0, false
+			}
+
+			current += 1
+		} else {
+			current_known: bool
+			current, current_known = resolve_integer_constant(ast_context, value.values[i], local_values)
+			if !current_known {
+				return 0, 0, false
+			}
+		}
+
+		local_values[name] = current
+		lower = min(lower, current)
+		upper = max(upper, current)
+	}
+
+	return lower, upper, true
+}
+
+get_bit_set_value_range :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, int, bool) {
+	if expr == nil {
+		return 0, 0, false
+	}
+
+	if binary, ok := expr.derived.(^ast.Binary_Expr);
+	   ok && (binary.op.kind == .Range_Half || binary.op.kind == .Range_Full) {
+		lower, lower_known := resolve_integer_constant(ast_context, binary.left)
+		upper, upper_known := resolve_integer_constant(ast_context, binary.right)
+
+		if !lower_known || !upper_known {
+			return 0, 0, false
+		}
+
+		if binary.op.kind == .Range_Half {
+			if upper == min(int) {
+				return 0, 0, false
+			}
+
+			upper -= 1
+		}
+
+		return lower, upper, lower <= upper
+	}
+
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		if enum_value, is_enum := symbol.value.(SymbolEnumValue); is_enum {
+			return get_enum_value_range(ast_context, enum_value)
+		}
+	}
+
+	return 0, 0, false
+}
+
+get_implicit_bit_set_layout :: proc(lower, upper: int) -> (Type_Layout, bool) {
+	bit_count := i128(upper) - i128(lower) + 1
+	switch {
+	case bit_count <= 0:
+		return {}, false
+	case bit_count <= 8:
+		return {size_of(bit_set[0 ..< 8]), align_of(bit_set[0 ..< 8])}, true
+	case bit_count <= 16:
+		return {size_of(bit_set[0 ..< 16]), align_of(bit_set[0 ..< 16])}, true
+	case bit_count <= 32:
+		return {size_of(bit_set[0 ..< 32]), align_of(bit_set[0 ..< 32])}, true
+	case bit_count <= 64:
+		return {size_of(bit_set[0 ..< 64]), align_of(bit_set[0 ..< 64])}, true
+	case bit_count <= 128:
+		return {size_of(bit_set[0 ..< 128]), align_of(bit_set[0 ..< 128])}, true
+	}
+
+	return {}, false
+}
+
 get_layout_alignment :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
 	alignment, ok := resolve_integer_constant(ast_context, expr)
 
@@ -272,7 +358,18 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			}
 
 			return {size = element_count * element.size, alignment = element.alignment}, true
-		case SymbolUnionValue, SymbolBitSetValue:
+		case SymbolBitSetValue:
+			if value.underlying != nil {
+				return get_expr_layout(ast_context, value.underlying)
+			}
+
+			lower, upper, range_known := get_bit_set_value_range(ast_context, value.expr)
+			if !range_known {
+				return {}, false
+			}
+
+			return get_implicit_bit_set_layout(lower, upper)
+		case SymbolUnionValue:
 			return {}, false
 		}
 	}

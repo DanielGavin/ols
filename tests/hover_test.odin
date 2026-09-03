@@ -5859,6 +5859,246 @@ ast_hover_struct_size_matrices :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_bit_sets :: proc(t: ^testing.T) {
+	Flags :: enum {
+		First = -2,
+		Second,
+		Last = First + 18,
+	}
+	Positive_Flags :: enum {First, Last = 15}
+	Imported_Flags :: enum {
+		First = 4,
+		Last = 20,
+	}
+	Backing :: u16
+	Set_Alias :: bit_set[Flags]
+	Distinct_Set :: distinct bit_set[5..<13]
+	Bit_Set_Layout :: struct {
+		half_open: bit_set[5..<13],
+		inclusive: bit_set[-4..=4],
+		enum_set: bit_set[Flags],
+		explicit: bit_set[Positive_Flags; Backing],
+		wide_explicit: bit_set[Positive_Flags; u128],
+		alias: Set_Alias,
+		distinct_set: Distinct_Set,
+		imported: bit_set[Imported_Flags],
+		medium: bit_set[0..<64],
+		wide: bit_set[0..<128],
+	}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "flags",
+			source = `package flags
+			Flags :: enum {
+				First = 4,
+				Last = 20,
+			}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "flags"
+		LOW :: -4
+		HIGH :: 4
+		Flags :: enum {
+			First = -2,
+			Second,
+			Last = First + (1 << 4) + 2,
+		}
+		Positive_Flags :: enum {First, Last = 15}
+		Backing :: u16
+		Set_Alias :: bit_set[Flags]
+		Distinct_Set :: distinct bit_set[5..<13]
+		Bit_Sets :: struct {
+			half_open: bit_set[5..<13],
+			inclusive: bit_set[LOW..=HIGH],
+			enum_set: bit_set[Flags],
+			explicit: bit_set[Positive_Flags; Backing],
+			wide_explicit: bit_set[Positive_Flags; u128],
+			alias: Set_Alias,
+			distinct_set: Distinct_Set,
+			imported: bit_set[flags.Flags],
+			medium: bit_set[0..<64],
+			wide: bit_set[0..<128],
+		}
+
+		value := B{*}it_Sets{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			"test.Bit_Sets :: struct {\n\thalf_open:     bit_set[5 ..< 13],\n\tinclusive:     bit_set[LOW ..= HIGH],\n\tenum_set:      bit_set[Flags],\n\texplicit:      bit_set[Positive_Flags; Backing],\n\twide_explicit: bit_set[Positive_Flags; u128],\n\talias:         Set_Alias,\n\tdistinct_set:  Distinct_Set,\n\timported:      bit_set[flags.Flags],\n\tmedium:        bit_set[0 ..< 64],\n\twide:          bit_set[0 ..< 128],\n}",
+			size_of(Bit_Set_Layout),
+			align_of(Bit_Set_Layout),
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_integer_constant_expressions :: proc(t: ^testing.T) {
+	Computed_Array_Layout :: struct {value: [1 << 4]u8}
+	Imported_Bit_Set_Layout :: struct {value: bit_set[0..<(1 << 4)]}
+	Rune_Bit_Set_Layout :: struct {value: bit_set['A'..='Z']}
+	Flags :: enum {
+		First,
+		Last = First + (1 << 4),
+	}
+	Enum_Bit_Set_Layout :: struct {value: bit_set[Flags]}
+	Imported_Flags :: enum {
+		First,
+		Last = First + (1 << 4),
+	}
+	Imported_Enum_Bit_Set_Layout :: struct {value: bit_set[Imported_Flags]}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "constants",
+			source = `package constants
+			COUNT :: 1 << 4
+			Flags :: enum {
+				First,
+				Last = First + COUNT,
+			}
+			`,
+		},
+	)
+
+	sources := []test.Source {
+		{
+			main = `package test
+			COUNT :: 1 << 4
+			Value :: [COUNT]u8
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			import "constants"
+			Value :: bit_set[0..<constants.COUNT]
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			packages = packages[:],
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Value :: bit_set['A'..='Z']
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			COUNT :: 1 << 4
+			Flags :: enum {
+				First,
+				Last = First + COUNT,
+			}
+			Value :: bit_set[Flags]
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			import "constants"
+			Value :: bit_set[constants.Flags]
+			Foo :: struct {value: Value}
+			foo := F{*}oo{}
+			`,
+			packages = packages[:],
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	hover := "test.Foo :: struct {\n\tvalue: Value,\n}"
+	expected := []string {
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			hover,
+			size_of(Computed_Array_Layout),
+			align_of(Computed_Array_Layout),
+		),
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			hover,
+			size_of(Imported_Bit_Set_Layout),
+			align_of(Imported_Bit_Set_Layout),
+		),
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			hover,
+			size_of(Rune_Bit_Set_Layout),
+			align_of(Rune_Bit_Set_Layout),
+		),
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			hover,
+			size_of(Enum_Bit_Set_Layout),
+			align_of(Enum_Bit_Set_Layout),
+		),
+		fmt.tprintf(
+			"%v\nSize: %v bytes, Alignment: %v bytes",
+			hover,
+			size_of(Imported_Enum_Bit_Set_Layout),
+			align_of(Imported_Enum_Bit_Set_Layout),
+		),
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
+ast_hover_struct_size_cyclic_integer_constants_are_unknown :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		A :: B
+		B :: A
+		Value :: [A]u8
+		Foo :: struct {value: Value}
+		foo := F{*}oo{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: Value,\n}")
+}
+
+@(test)
+ast_hover_struct_size_unknown_bit_set_range_is_suppressed :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Value :: bit_set[0..<size_of(int)]
+		Foo :: struct {value: Value}
+		foo := F{*}oo{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: Value,\n}")
+}
+
+@(test)
 ast_hover_struct_size_slices_dynamic_arrays_and_enums :: proc(t: ^testing.T) {
 	Error :: enum u32 {None}
 	Container_Layout :: struct {
@@ -6042,14 +6282,6 @@ ast_hover_struct_size_unsupported_containers_are_unknown :: proc(t: ^testing.T) 
 		{
 			main = `package test
 			Value :: union {u8, u16}
-			Foo :: struct {value: Value}
-			foo := F{*}oo{}
-			`,
-			config = {enable_hover_struct_size_info = true},
-		},
-		{
-			main = `package test
-			Value :: bit_set[0..<8]
 			Foo :: struct {value: Value}
 			foo := F{*}oo{}
 			`,
