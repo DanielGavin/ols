@@ -43,6 +43,10 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(uintptr), align_of(uintptr)}, true
 	case "rawptr":
 		return {size_of(rawptr), align_of(rawptr)}, true
+	case "typeid":
+		return {size_of(typeid), align_of(typeid)}, true
+	case "any":
+		return {size_of(any), align_of(any)}, true
 	case "rune":
 		return {size_of(rune), align_of(rune)}, true
 	case "i64", "u64":
@@ -61,6 +65,12 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(b64), align_of(b64)}, true
 	case "string":
 		return {size_of(string), align_of(string)}, true
+	case "string16":
+		return {size_of(string16), align_of(string16)}, true
+	case "cstring":
+		return {size_of(cstring), align_of(cstring)}, true
+	case "cstring16":
+		return {size_of(cstring16), align_of(cstring16)}, true
 	case "f16":
 		return {size_of(f16), align_of(f16)}, true
 	case "f32":
@@ -79,6 +89,50 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(quaternion128), align_of(quaternion128)}, true
 	case "quaternion256":
 		return {size_of(quaternion256), align_of(quaternion256)}, true
+	case "i16le":
+		return {size_of(i16le), align_of(i16le)}, true
+	case "u16le":
+		return {size_of(u16le), align_of(u16le)}, true
+	case "i32le":
+		return {size_of(i32le), align_of(i32le)}, true
+	case "u32le":
+		return {size_of(u32le), align_of(u32le)}, true
+	case "i64le":
+		return {size_of(i64le), align_of(i64le)}, true
+	case "u64le":
+		return {size_of(u64le), align_of(u64le)}, true
+	case "i128le":
+		return {size_of(i128le), align_of(i128le)}, true
+	case "u128le":
+		return {size_of(u128le), align_of(u128le)}, true
+	case "i16be":
+		return {size_of(i16be), align_of(i16be)}, true
+	case "u16be":
+		return {size_of(u16be), align_of(u16be)}, true
+	case "i32be":
+		return {size_of(i32be), align_of(i32be)}, true
+	case "u32be":
+		return {size_of(u32be), align_of(u32be)}, true
+	case "i64be":
+		return {size_of(i64be), align_of(i64be)}, true
+	case "u64be":
+		return {size_of(u64be), align_of(u64be)}, true
+	case "i128be":
+		return {size_of(i128be), align_of(i128be)}, true
+	case "u128be":
+		return {size_of(u128be), align_of(u128be)}, true
+	case "f16le":
+		return {size_of(f16le), align_of(f16le)}, true
+	case "f32le":
+		return {size_of(f32le), align_of(f32le)}, true
+	case "f64le":
+		return {size_of(f64le), align_of(f64le)}, true
+	case "f16be":
+		return {size_of(f16be), align_of(f16be)}, true
+	case "f32be":
+		return {size_of(f32be), align_of(f32be)}, true
+	case "f64be":
+		return {size_of(f64be), align_of(f64be)}, true
 	}
 
 	return {}, false
@@ -530,7 +584,7 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 write_symbol_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
-	
+
 	return build_markup_content(cat, doc)
 }
 

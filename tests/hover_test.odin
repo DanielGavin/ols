@@ -5753,6 +5753,101 @@ ast_hover_struct_size_fixed_width_scalars :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_remaining_builtin_types :: proc(t: ^testing.T) {
+	type_names := []string {
+		"cstring",
+		"cstring16",
+		"string16",
+		"typeid",
+		"any",
+		"b8",
+		"b16",
+		"b32",
+		"b64",
+		"i16le",
+		"u16le",
+		"i32le",
+		"u32le",
+		"i64le",
+		"u64le",
+		"i128le",
+		"u128le",
+		"i16be",
+		"u16be",
+		"i32be",
+		"u32be",
+		"i64be",
+		"u64be",
+		"i128be",
+		"u128be",
+		"f16le",
+		"f32le",
+		"f64le",
+		"f16be",
+		"f32be",
+		"f64be",
+	}
+
+	layouts := []struct {size, alignment: int} {
+		{size_of(cstring), align_of(cstring)},
+		{size_of(cstring16), align_of(cstring16)},
+		{size_of(string16), align_of(string16)},
+		{size_of(typeid), align_of(typeid)},
+		{size_of(any), align_of(any)},
+		{size_of(b8), align_of(b8)},
+		{size_of(b16), align_of(b16)},
+		{size_of(b32), align_of(b32)},
+		{size_of(b64), align_of(b64)},
+		{size_of(i16le), align_of(i16le)},
+		{size_of(u16le), align_of(u16le)},
+		{size_of(i32le), align_of(i32le)},
+		{size_of(u32le), align_of(u32le)},
+		{size_of(i64le), align_of(i64le)},
+		{size_of(u64le), align_of(u64le)},
+		{size_of(i128le), align_of(i128le)},
+		{size_of(u128le), align_of(u128le)},
+		{size_of(i16be), align_of(i16be)},
+		{size_of(u16be), align_of(u16be)},
+		{size_of(i32be), align_of(i32be)},
+		{size_of(u32be), align_of(u32be)},
+		{size_of(i64be), align_of(i64be)},
+		{size_of(u64be), align_of(u64be)},
+		{size_of(i128be), align_of(i128be)},
+		{size_of(u128be), align_of(u128be)},
+		{size_of(f16le), align_of(f16le)},
+		{size_of(f32le), align_of(f32le)},
+		{size_of(f64le), align_of(f64le)},
+		{size_of(f16be), align_of(f16be)},
+		{size_of(f32be), align_of(f32be)},
+		{size_of(f64be), align_of(f64be)},
+	}
+
+	for type_name, i in type_names {
+			source := test.Source {
+			main = fmt.aprintf(
+				`package test
+				Foo :: struct {{value: %v}}
+				foo := F{{*}}oo{{}}
+				`,
+				type_name,
+			),
+			config = {enable_hover_struct_size_info = true},
+		}
+
+		test.expect_hover(
+			t,
+			&source,
+			fmt.aprintf(
+				"test.Foo :: struct {{\n\tvalue: %v,\n}}\n---\nSize: %v bytes, Alignment: %v bytes",
+				type_name,
+				layouts[i].size,
+				layouts[i].alignment,
+			),
+		)
+	}
+}
+
+@(test)
 ast_hover_struct_size_aliases_distinct_and_fixed_array :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
