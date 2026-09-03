@@ -222,8 +222,11 @@ collect_bit_field_fields :: proc(
 		}
 	}
 
+	backing_type := clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings)
+	replace_package_alias(backing_type, package_map, collection)
+
 	value := SymbolBitFieldValue {
-		backing_type = clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings),
+		backing_type = backing_type,
 		names        = names[:],
 		types        = types[:],
 		ranges       = ranges[:],
@@ -249,18 +252,24 @@ collect_enum_fields :: proc(
 		name, range, value := get_enum_field_name_range_value(n, file.src)
 		append(&names, strings.clone(name, collection.allocator))
 		append(&ranges, range)
-		append(&values, clone_type(value, collection.allocator, &collection.unique_strings))
+
+		cloned := clone_type(value, collection.allocator, &collection.unique_strings)
+		replace_package_alias(cloned, package_map, collection)
+		append(&values, cloned)
 	}
 
 	temp_docs, temp_comments := get_field_docs_and_comments(file, enum_type.fields, context.temp_allocator)
 	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
 	comments := clone_dynamic_array(temp_comments, collection.allocator, &collection.unique_strings)
 
+	base_type := clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings)
+	replace_package_alias(base_type, package_map, collection)
+
 	value := SymbolEnumValue {
 		names     = names[:],
 		ranges    = ranges[:],
 		values    = values[:],
-		base_type = clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings),
+		base_type = base_type,
 		comments  = comments[:],
 		docs      = docs[:],
 	}

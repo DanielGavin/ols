@@ -5984,6 +5984,122 @@ ast_hover_struct_size_bit_fields_and_enumerated_arrays :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
+	Word :: u16
+	Bits :: bit_field Word {
+		value: Word | 16,
+	}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "base",
+			source = `package base
+			Word :: u16
+			BIT_COUNT :: 16
+			`,
+		},
+		test.Package {
+			pkg = "layouts",
+			source = `package layouts
+			import aliased "base"
+
+			Bits :: bit_field aliased.Word {
+				value: aliased.Word | aliased.BIT_COUNT,
+			}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "layouts"
+
+		Container :: struct {
+			bits: layouts.Bits,
+		}
+		value := C{*}ontainer{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tbits: layouts.Bits,\n}",
+			size = size_of(Bits),
+			alignment = align_of(Bits),
+			padding = 0,
+		),
+	)
+}
+
+@(test)
+ast_hover_struct_size_imported_enum_package_aliases :: proc(t: ^testing.T) {
+	Index_Backing :: u8
+	MAX :: 1
+	Index :: enum Index_Backing {
+		First = 0,
+		Last  = MAX,
+	}
+	Container_Layout :: struct {
+		index:  Index,
+		values: [Index]u8,
+	}
+
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(
+		&packages,
+		test.Package {
+			pkg = "base",
+			source = `package base
+			Index_Backing :: u8
+			MAX :: 1
+			`,
+		},
+		test.Package {
+			pkg = "layouts",
+			source = `package layouts
+			import aliased "base"
+
+			Index :: enum aliased.Index_Backing {
+				First = 0,
+				Last  = aliased.MAX,
+			}
+			`,
+		},
+	)
+
+	source := test.Source {
+		main = `package test
+		import "layouts"
+
+		Container :: struct {
+			index:  layouts.Index,
+			values: [layouts.Index]u8,
+		}
+		value := C{*}ontainer{}
+		`,
+		packages = packages[:],
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tindex:  layouts.Index,\n\tvalues: [layouts.Index]u8,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = size_of(Container_Layout) - size_of(Index) - size_of([Index]u8),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_extended_integer_constant_expressions :: proc(t: ^testing.T) {
 	Element :: struct {value: u16}
 	Container_Layout :: struct #align(align_of(u64)) {
