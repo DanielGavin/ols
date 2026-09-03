@@ -5926,6 +5926,95 @@ ast_hover_struct_size_extended_integer_constant_expressions :: proc(t: ^testing.
 }
 
 @(test)
+ast_hover_struct_size_typed_integer_complement_is_conservative :: proc(t: ^testing.T) {
+	Signed_Layout :: struct {value: [~i8(-3)]u8}
+	Terminal_Auto_Cast_Layout :: struct {
+		direct: [auto_cast 2]u8,
+		nested: [int(auto_cast 2)]u8,
+	}
+
+	sources := []test.Source {
+		{
+			main = `package test
+			Index :: enum u8 {A = 0, B = ~u8(254)}
+			Container :: struct {values: #sparse[Index]u8}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			MASK: u8 : 254
+			Index :: enum u8 {A = 0, B = ~MASK}
+			Container :: struct {values: #sparse[Index]u8}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			MASK :: u8(254) | u8(1)
+			Index :: enum u8 {A = 0, B = ~MASK}
+			Container :: struct {values: #sparse[Index]u8}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			MASK: u8 : 254
+			Index :: enum u8 {A = 0, B = ~auto_cast MASK}
+			Container :: struct {values: #sparse[Index]u8}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Container :: struct {value: [~i8(-3)]u8}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Container :: struct {
+				direct: [auto_cast 2]u8,
+				nested: [int(auto_cast 2)]u8,
+			}
+			value := C{*}ontainer{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	test.expect_hover(t, &sources[0], "test.Container :: struct {\n\tvalues: #sparse[Index]u8,\n}")
+	test.expect_hover(t, &sources[1], "test.Container :: struct {\n\tvalues: #sparse[Index]u8,\n}")
+	test.expect_hover(t, &sources[2], "test.Container :: struct {\n\tvalues: #sparse[Index]u8,\n}")
+	test.expect_hover(t, &sources[3], "test.Container :: struct {\n\tvalues: #sparse[Index]u8,\n}")
+	test.expect_hover(
+		t,
+		&sources[4],
+		fmt.tprintf(
+			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"test.Container :: struct {\n\tvalue: [~i8(-3)]u8,\n}",
+			size_of(Signed_Layout),
+			align_of(Signed_Layout),
+		),
+	)
+	test.expect_hover(
+		t,
+		&sources[5],
+		fmt.tprintf(
+			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"test.Container :: struct {\n\tdirect: []u8,\n\tnested: [int()]u8,\n}",
+			size_of(Terminal_Auto_Cast_Layout),
+			align_of(Terminal_Auto_Cast_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_nested_fixed_arrays :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test

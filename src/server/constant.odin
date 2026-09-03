@@ -127,6 +127,149 @@ get_integer_type_properties :: proc(name: string) -> (bits: int, signed: bool, o
 }
 
 @(private = "file")
+Integer_Type_Kind :: enum {
+	Unknown,
+	Untyped,
+	Signed,
+	Unsigned,
+	Context_Dependent,
+}
+
+@(private = "file")
+classify_resolved_integer_type :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> Integer_Type_Kind {
+	symbol, ok := resolve_type_expression(evaluation.ast_context, expr)
+	if !ok {
+		return .Unknown
+	}
+	if symbol.pointers > 0 {
+		return .Unknown
+	}
+
+	if basic, ok := symbol.value.(SymbolBasicValue); ok {
+		_, signed, integer_type := get_integer_type_properties(basic.ident.name)
+		if !integer_type {
+			return .Unknown
+		}
+		return signed ? .Signed : .Unsigned
+	}
+
+	if untyped, ok := symbol.value.(SymbolUntypedValue); ok {
+		#partial switch untyped.type {
+		case .Integer, .Rune:
+			return .Untyped
+		}
+	}
+
+	return .Unknown
+}
+
+@(private = "file")
+merge_integer_type_kinds :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	expr: ^ast.Expr,
+	left, right: Integer_Type_Kind,
+) -> Integer_Type_Kind {
+	if left == .Context_Dependent || right == .Context_Dependent {
+		return .Context_Dependent
+	}
+
+	if left == .Unknown || right == .Unknown {
+		return classify_resolved_integer_type(evaluation, expr)
+	}
+
+	if left == right {
+		return left
+	}
+
+	if left == .Untyped {
+		return right
+	}
+
+	if right == .Untyped {
+		return left
+	}
+
+	return classify_resolved_integer_type(evaluation, expr)
+}
+
+@(private = "file")
+classify_integer_expression_type :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	expr: ^ast.Expr,
+	local_integer_values: map[string]int,
+	depth: int = 0,
+) -> Integer_Type_Kind {
+	if expr == nil || depth > 64 {
+		return .Unknown
+	}
+
+	#partial switch value in expr.derived {
+	case ^ast.Paren_Expr:
+		return classify_integer_expression_type(evaluation, value.expr, local_integer_values, depth + 1)
+	case ^ast.Auto_Cast:
+		return .Context_Dependent
+	case ^ast.Type_Cast:
+		return classify_resolved_integer_type(evaluation, value.type)
+	case ^ast.Basic_Lit:
+		#partial switch value.tok.kind {
+		case .Integer, .Rune:
+			return .Untyped
+		}
+
+		return .Unknown
+	case ^ast.Ident:
+		if _, found := local_integer_values[value.name]; found {
+			// Enum-local values have a contextual enum type which is not retained in
+			// local_integer_values. Do not guess its signedness.
+			return .Unknown
+		}
+
+		return classify_resolved_integer_type(evaluation, expr)
+	case ^ast.Implicit_Selector_Expr:
+		return .Unknown
+	case ^ast.Selector_Expr:
+		return classify_resolved_integer_type(evaluation, expr)
+	case ^ast.Unary_Expr:
+		return classify_integer_expression_type(evaluation, value.expr, local_integer_values, depth + 1)
+	case ^ast.Binary_Expr:
+		left := classify_integer_expression_type(evaluation, value.left, local_integer_values, depth + 1)
+		right := classify_integer_expression_type(evaluation, value.right, local_integer_values, depth + 1)
+
+		return merge_integer_type_kinds(evaluation, expr, left, right)
+	case ^ast.Call_Expr:
+		name, ok := get_simple_callee_name(value)
+		if !ok {
+			return .Unknown
+		}
+
+		switch name {
+		case "size_of", "align_of":
+			return .Signed
+		case "config":
+			if len(value.args) != 2 {
+				return .Unknown
+			}
+
+			return classify_integer_expression_type(evaluation, value.args[1], local_integer_values, depth + 1)
+		}
+
+		return classify_resolved_integer_type(evaluation, value.expr)
+	case ^ast.Ternary_If_Expr:
+		x := classify_integer_expression_type(evaluation, value.x, local_integer_values, depth + 1)
+		y := classify_integer_expression_type(evaluation, value.y, local_integer_values, depth + 1)
+
+		return merge_integer_type_kinds(evaluation, expr, x, y)
+	case ^ast.Ternary_When_Expr:
+		x := classify_integer_expression_type(evaluation, value.x, local_integer_values, depth + 1)
+		y := classify_integer_expression_type(evaluation, value.y, local_integer_values, depth + 1)
+
+		return merge_integer_type_kinds(evaluation, expr, x, y)
+	}
+
+	return classify_resolved_integer_type(evaluation, expr)
+}
+
+@(private = "file")
 resolve_integer_conversion :: proc(
 	evaluation: ^Layout_Evaluation_Context,
 	type_expr: ^ast.Expr,
@@ -481,6 +624,11 @@ resolve_integer_constant_internal :: proc(
 
 			return -operand, true
 		case .Xor:
+			kind := classify_integer_expression_type(evaluation, value.expr, local_integer_values)
+			if kind == .Unsigned || kind == .Context_Dependent || kind == .Unknown {
+				return 0, false
+			}
+
 			return ~operand, true
 		}
 
