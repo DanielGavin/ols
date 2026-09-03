@@ -4,8 +4,6 @@ package server
 import "core:fmt"
 import "core:log"
 import "core:odin/ast"
-import "core:odin/tokenizer"
-import "core:strconv"
 import "core:strings"
 
 import "src:common"
@@ -40,6 +38,8 @@ get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 		return {size_of(rune), align_of(rune)}, true
 	case "i64", "u64":
 		return {size_of(u64), align_of(u64)}, true
+	case "i128", "u128":
+		return {size_of(u128), align_of(u128)}, true
 	case "bool":
 		return {size_of(bool), align_of(bool)}, true
 	case "string":
@@ -81,47 +81,12 @@ layout_profile_matches_server_target :: proc(config: ^common.Config) -> bool {
 
 
 get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
-	if expr == nil {
-		return 0, false
-	}
-
-	if paren, ok := expr.derived.(^ast.Paren_Expr); ok {
-		return get_fixed_array_length(ast_context, paren.expr)
-	}
-
-	if literal, ok := expr.derived.(^ast.Basic_Lit); ok {
-		length, parsed := strconv.parse_int(literal.tok.text)
-		return length, parsed && length >= 0
-	}
-
-	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
-		if value, is_untyped := symbol.value.(SymbolUntypedValue); is_untyped && value.type == .Integer {
-			length, parsed := strconv.parse_int(value.tok.text)
-			return length, parsed && length >= 0
-		}
-	}
-
-	return 0, false
+	length, known := resolve_integer_constant(ast_context, expr)
+	return length, known && length >= 0
 }
 
 get_layout_alignment :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
-	if expr == nil {
-		return 0, false
-	}
-
-	if paren, ok := expr.derived.(^ast.Paren_Expr); ok {
-		return get_layout_alignment(ast_context, paren.expr)
-	}
-
-	_, is_literal := expr.derived.(^ast.Basic_Lit)
-	_, is_ident := expr.derived.(^ast.Ident)
-	_, is_selector := expr.derived.(^ast.Selector_Expr)
-
-	if !is_literal && !is_ident && !is_selector {
-		return 0, false
-	}
-
-	alignment, ok := get_fixed_array_length(ast_context, expr)
+	alignment, ok := resolve_integer_constant(ast_context, expr)
 
 	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
 }

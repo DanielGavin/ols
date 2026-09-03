@@ -6230,7 +6230,7 @@ ast_hover_struct_size_layout_directives :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_struct_size_unsupported_layout_expression_is_suppressed :: proc(t: ^testing.T) {
+ast_hover_struct_size_layout_constant_expression :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		Foo :: struct #align(2 * 4) {
@@ -6244,7 +6244,7 @@ ast_hover_struct_size_unsupported_layout_expression_is_suppressed :: proc(t: ^te
 	test.expect_hover(
 		t,
 		&source,
-		"test.Foo :: struct #align(2 * 4) {\n\tvalue: u64,\n}",
+		"test.Foo :: struct #align(2 * 4) {\n\tvalue: u64,\n}\nSize: 8 bytes, Alignment: 8 bytes",
 	)
 }
 
