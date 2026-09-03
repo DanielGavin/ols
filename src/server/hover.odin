@@ -237,6 +237,10 @@ resolve_array_element_count :: proc(evaluation: ^Layout_Evaluation_Context, expr
 
 	if symbol, ok := resolve_type_expression(evaluation.ast_context, expr); ok {
 		if enum_value, is_enum := symbol.value.(SymbolEnumValue); is_enum {
+			if len(enum_value.names) == 0 {
+				return 0, len(enum_value.values) == 0
+			}
+
 			lower, upper, range_known := resolve_enum_value_range(evaluation, enum_value)
 			if !range_known {
 				return 0, false

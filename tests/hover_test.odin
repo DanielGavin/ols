@@ -5984,6 +5984,36 @@ ast_hover_struct_size_bit_fields_and_enumerated_arrays :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_empty_enumerated_array :: proc(t: ^testing.T) {
+	Index :: enum {}
+	Container_Layout :: struct {
+		values: [Index]u64,
+	}
+
+	source := test.Source {
+		main = `package test
+		Index :: enum {}
+		Container :: struct {
+			values: [Index]u64,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		hover_with_layout_text(
+			"test.Container :: struct {\n\tvalues: [Index]u64,\n}",
+			size = size_of(Container_Layout),
+			alignment = align_of(Container_Layout),
+			padding = 0,
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_imported_bit_field_backing_package_alias :: proc(t: ^testing.T) {
 	Word :: u16
 	Bits :: bit_field Word {
