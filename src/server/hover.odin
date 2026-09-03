@@ -549,7 +549,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	}
 
 	if struct_info != "" {
-		content.value = fmt.tprintf("%v\n%v", content.value, struct_info)
+		content.value = fmt.tprintf("%v%v%v", content.value, DOC_SECTION_DELIMITER, struct_info)
 	}
 
 	return content
