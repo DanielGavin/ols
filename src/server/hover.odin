@@ -14,6 +14,11 @@ Type_Layout :: struct {
 	alignment: int,
 }
 
+Type_Layout_Resolver :: struct {
+	ast_context: ^AstContext,
+	visiting:    map[rawptr]struct{},
+}
+
 get_basic_type_layout :: proc(name: string) -> (Type_Layout, bool) {
 	switch name {
 	case "u8":
@@ -177,7 +182,8 @@ get_layout_alignment :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int,
 	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
 }
 
-get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
+resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStructValue) -> (Type_Layout, bool) {
+	ast_context := resolver.ast_context
 	custom_alignment := 0
 	min_field_alignment := 1
 	max_field_alignment := 0
@@ -231,7 +237,7 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 			continue
 		}
 
-		field_layout, ok := get_expr_layout(ast_context, field_type)
+		field_layout, ok := resolve_expr_layout(resolver, field_type)
 		if !ok {
 			return {}, false
 		}
@@ -270,10 +276,20 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 	return layout, true
 }
 
-get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layout, bool) {
+resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) -> (Type_Layout, bool) {
 	if expr == nil {
 		return {}, false
 	}
+
+	raw := cast(rawptr)expr
+	if raw in resolver.visiting {
+		return {}, false
+	}
+
+	resolver.visiting[raw] = {}
+	defer delete_key(&resolver.visiting, raw)
+
+	ast_context := resolver.ast_context
 
 	// Pointer storage is independent of the pointee's layout. Resolve pointers
 	// here so recursive structures do not recursively traverse their pointees.
@@ -285,7 +301,7 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 	}
 
 	if distinct_type, ok := expr.derived.(^ast.Distinct_Type); ok {
-		return get_expr_layout(ast_context, distinct_type.type)
+		return resolve_expr_layout(resolver, distinct_type.type)
 	}
 
 	if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -309,7 +325,7 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 		case SymbolBasicValue:
 			return get_basic_type_layout(value.ident.name)
 		case SymbolStructValue:
-			return get_struct_layout(ast_context, value)
+			return resolve_struct_layout(resolver, value)
 		case SymbolProcedureValue:
 			return {size_of(^rawptr), align_of(^rawptr)}, true
 		case SymbolEnumValue:
@@ -317,14 +333,14 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 				return get_basic_type_layout("int")
 			}
 
-			return get_expr_layout(ast_context, value.base_type)
+			return resolve_expr_layout(resolver, value.base_type)
 		case SymbolFixedArrayValue:
 			if .Simd in symbol.flags || .Soa in symbol.flags {
 				return {}, false
 			}
 
 			length, length_known := get_fixed_array_length(ast_context, value.len)
-			element, element_known := get_expr_layout(ast_context, value.expr)
+			element, element_known := resolve_expr_layout(resolver, value.expr)
 			if !length_known || !element_known || element.size > 0 && length > max(int) / element.size {
 				return {}, false
 			}
@@ -342,7 +358,7 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			}
 
 			capacity, capacity_known := get_fixed_array_length(ast_context, value.cap)
-			element, element_known := get_expr_layout(ast_context, value.expr)
+			element, element_known := resolve_expr_layout(resolver, value.expr)
 			if !capacity_known || !element_known || element.size > 0 && capacity > max(int) / element.size {
 				return {}, false
 			}
@@ -367,7 +383,7 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 		case SymbolMatrixValue:
 			row_count, rows_known := get_fixed_array_length(ast_context, value.x)
 			column_count, columns_known := get_fixed_array_length(ast_context, value.y)
-			element, element_known := get_expr_layout(ast_context, value.expr)
+			element, element_known := resolve_expr_layout(resolver, value.expr)
 
 			if !rows_known ||
 			   !columns_known ||
@@ -384,7 +400,7 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 			return {size = element_count * element.size, alignment = element.alignment}, true
 		case SymbolBitSetValue:
 			if value.underlying != nil {
-				return get_expr_layout(ast_context, value.underlying)
+				return resolve_expr_layout(resolver, value.underlying)
 			}
 
 			lower, upper, range_known := get_bit_set_value_range(ast_context, value.expr)
@@ -399,6 +415,15 @@ get_expr_layout :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Type_Layo
 	}
 
 	return {}, false
+}
+
+get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
+	resolver := Type_Layout_Resolver {
+		ast_context = ast_context,
+		visiting    = make(map[rawptr]struct{}, context.temp_allocator),
+	}
+
+	return resolve_struct_layout(&resolver, value)
 }
 
 

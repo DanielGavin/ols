@@ -5599,6 +5599,55 @@ ast_hover_struct_size_self_referential_pointer :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_recursive_values_are_unknown :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Node :: struct {
+				next: Node,
+			}
+
+			node := N{*}ode{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			A :: struct {
+				b: B,
+			}
+			B :: struct {
+				a: A,
+			}
+
+			a := A{*}{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Node :: struct {
+				children: [1]Node,
+			}
+
+			node := N{*}ode{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Node :: struct {\n\tnext: Node,\n}",
+		"test.A :: struct {\n\tb: B,\n}",
+		"test.Node :: struct {\n\tchildren: [1]Node,\n}",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
 ast_hover_struct_size_pointer_alias :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
