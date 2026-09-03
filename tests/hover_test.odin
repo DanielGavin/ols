@@ -5929,6 +5929,119 @@ ast_hover_struct_size_cross_target_profile_is_suppressed :: proc(t: ^testing.T) 
 }
 
 @(test)
+ast_hover_struct_size_layout_directives :: proc(t: ^testing.T) {
+	sources := []test.Source {
+		{
+			main = `package test
+			Foo :: struct #packed {
+				a: u8,
+				b: u64,
+				c: u16,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #align(16) {
+				a: u8,
+				b: u32,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #min_field_align(4) {
+				a: u8,
+				b: u16,
+				c: u8,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #max_field_align(4) {
+				a: u8,
+				b: u64,
+				c: u16,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #raw_union {
+				a: u8,
+				b: u64,
+				c: [3]u32,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			ALIGNMENT :: 8
+			Foo :: struct #align(ALIGNMENT) {
+				a: u8,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+		{
+			main = `package test
+			Foo :: struct #min_field_align(4) #max_field_align(4) {
+				a: u8,
+				b: u64,
+			}
+			foo := F{*}oo{}
+			`,
+			config = {enable_hover_struct_size_info = true},
+		},
+	}
+
+	expected := []string {
+		"test.Foo :: struct #packed {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}\nSize: 11 bytes, Alignment: 1 bytes",
+		"test.Foo :: struct #align(16) {\n\ta: u8,\n\tb: u32,\n}\nSize: 16 bytes, Alignment: 16 bytes",
+		"test.Foo :: struct #min_field_align(4) {\n\ta: u8,\n\tb: u16,\n\tc: u8,\n}\nSize: 12 bytes, Alignment: 4 bytes",
+		"test.Foo :: struct #max_field_align(4) {\n\ta: u8,\n\tb: u64,\n\tc: u16,\n}\nSize: 16 bytes, Alignment: 4 bytes",
+		"test.Foo :: struct #raw_union {\n\ta: u8,\n\tb: u64,\n\tc: [3]u32,\n}\nSize: 16 bytes, Alignment: 8 bytes",
+		"test.Foo :: struct #align(ALIGNMENT) {\n\ta: u8,\n}\nSize: 8 bytes, Alignment: 8 bytes",
+		"test.Foo :: struct #max_field_align(4) #min_field_align(4) {\n\ta: u8,\n\tb: u64,\n}\nSize: 12 bytes, Alignment: 4 bytes",
+	}
+
+	for &source, i in sources {
+		test.expect_hover(t, &source, expected[i])
+	}
+}
+
+@(test)
+ast_hover_struct_size_unsupported_layout_expression_is_suppressed :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct #align(2 * 4) {
+			value: u64,
+		}
+		foo := F{*}oo{}
+		`,
+		config = {enable_hover_struct_size_info = true},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		"test.Foo :: struct #align(2 * 4) {\n\tvalue: u64,\n}",
+	)
+}
+
+@(test)
 ast_hover_proc_return_with_union :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test

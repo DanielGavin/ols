@@ -104,10 +104,72 @@ get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (in
 	return 0, false
 }
 
-get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
-	layout := Type_Layout {
-		alignment = 1,
+get_layout_alignment :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
+	if expr == nil {
+		return 0, false
 	}
+
+	if paren, ok := expr.derived.(^ast.Paren_Expr); ok {
+		return get_layout_alignment(ast_context, paren.expr)
+	}
+
+	_, is_literal := expr.derived.(^ast.Basic_Lit)
+	_, is_ident := expr.derived.(^ast.Ident)
+	_, is_selector := expr.derived.(^ast.Selector_Expr)
+
+	if !is_literal && !is_ident && !is_selector {
+		return 0, false
+	}
+
+	alignment, ok := get_fixed_array_length(ast_context, expr)
+
+	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
+}
+
+get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
+	custom_alignment := 0
+	min_field_alignment := 1
+	max_field_alignment := 0
+
+	is_packed := .Is_Packed in value.tags
+	is_raw_union := .Is_Raw_Union in value.tags
+
+	if is_packed && (value.align != nil || value.min_field_align != nil || value.max_field_align != nil) {
+		return {}, false
+	}
+
+	if value.align != nil {
+		if alignment, ok := get_layout_alignment(ast_context, value.align); ok {
+			custom_alignment = alignment
+		} else {
+			return {}, false
+		}
+	}
+
+	if value.min_field_align != nil {
+		if alignment, ok := get_layout_alignment(ast_context, value.min_field_align); ok {
+			min_field_alignment = alignment
+		} else {
+			return {}, false
+		}
+	}
+
+	if value.max_field_align != nil {
+		if alignment, ok := get_layout_alignment(ast_context, value.max_field_align); ok {
+			max_field_alignment = alignment
+		} else {
+			return {}, false
+		}
+	}
+
+	if max_field_alignment > 0 && min_field_alignment > max_field_alignment ||
+	   custom_alignment > 0 && custom_alignment < min_field_alignment ||
+	   max_field_alignment > 0 && custom_alignment > max_field_alignment {
+		return {}, false
+	}
+
+	layout := Type_Layout{}
+	natural_alignment := 1
 
 	for field_type in value.types {
 		field_layout, ok := get_expr_layout(ast_context, field_type)
@@ -115,10 +177,32 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 			return {}, false
 		}
 
-		layout.alignment = max(layout.alignment, field_layout.alignment)
+		natural_alignment = max(natural_alignment, field_layout.alignment)
 
-		padding := (field_layout.alignment - (layout.size % field_layout.alignment)) % field_layout.alignment
-		layout.size += padding + field_layout.size
+		if is_raw_union {
+			layout.size = max(layout.size, field_layout.size)
+		} else if is_packed {
+			layout.size += field_layout.size
+		} else {
+			field_alignment := max(field_layout.alignment, min_field_alignment)
+			if max_field_alignment > 0 {
+				field_alignment = min(field_alignment, max_field_alignment)
+			}
+
+			padding := (field_alignment - (layout.size % field_alignment)) % field_alignment
+			layout.size += padding + field_layout.size
+		}
+	}
+
+	if custom_alignment > 0 {
+		layout.alignment = custom_alignment
+	} else if is_packed {
+		layout.alignment = 1
+	} else {
+		layout.alignment = max(natural_alignment, min_field_alignment)
+		if max_field_alignment > 0 {
+			layout.alignment = min(layout.alignment, max_field_alignment)
+		}
 	}
 
 	final_padding := (layout.alignment - (layout.size % layout.alignment)) % layout.alignment
