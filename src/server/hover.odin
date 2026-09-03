@@ -114,7 +114,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	return content
 }
 
-get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
+get_hover_information :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> (Hover, bool, bool) {
 	spall.trace(#procedure, document.fullpath)
 	hover := Hover {
 		contents = {kind = "plaintext"},
@@ -155,7 +155,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 			try_build_package(symbol.pkg)
 			if symbol, ok = resolve_symbol_return(&ast_context, symbol); ok {
 				hover.range = common.get_token_range(document.ast.pkg_decl, ast_context.file.src)
-				hover.contents = write_hover_content(&ast_context, symbol)
+				hover.contents = write_hover_content(&ast_context, symbol, config)
 				return hover, true, true
 			}
 		}
@@ -173,7 +173,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 		try_build_package(symbol.pkg)
 		if symbol, ok = resolve_symbol_return(&ast_context, symbol); ok {
 			hover.range = common.get_token_range(document.ast.pkg_decl, ast_context.file.src)
-			hover.contents = write_hover_content(&ast_context, symbol)
+			hover.contents = write_hover_content(&ast_context, symbol, config)
 			return hover, true, true
 		}
 
@@ -511,7 +511,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					signature = name,
 					type      = .Field,
 				}
-				hover.contents = write_hover_content(&ast_context, symbol)
+				hover.contents = write_hover_content(&ast_context, symbol, config)
 				return hover, true, true
 			}
 		}
@@ -552,7 +552,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					}
 				}
 
-				if hover, ok := get_hover_enum_field(&ast_context, symbol, implicit_selector.field.name); ok {
+				if hover, ok := get_hover_enum_field(&ast_context, symbol, implicit_selector.field.name, config); ok {
 					hover.range = common.get_token_range(implicit_selector, document.ast.src)
 					return hover, true, true
 				}
@@ -582,7 +582,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
 			if position_context.enum_type != nil {
-				if hover, ok := get_hover_enum_field(&ast_context, resolved, ident.name); ok {
+				if hover, ok := get_hover_enum_field(&ast_context, resolved, ident.name, config); ok {
 					return hover, true, true
 				}
 			}
@@ -597,7 +597,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	return hover, false, true
 }
 
-get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_name: string) -> (Hover, bool) {
+get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_name: string, config: ^common.Config) -> (Hover, bool) {
 	symbol := symbol
 	hover: Hover
 	#partial switch v in symbol.value {
@@ -605,7 +605,7 @@ get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_nam
 		for name, i in v.names {
 			if strings.compare(name, field_name) == 0 {
 				construct_enum_field_symbol(&symbol, v, i)
-				hover.contents = write_hover_content(ast_context, symbol)
+				hover.contents = write_hover_content(ast_context, symbol, config)
 				return hover, true
 			}
 		}
@@ -616,7 +616,7 @@ get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_nam
 			for name, i in v.names {
 				if strings.compare(name, field_name) == 0 {
 					construct_enum_field_symbol(&enum_symbol, v, i)
-					hover.contents = write_hover_content(ast_context, enum_symbol)
+					hover.contents = write_hover_content(ast_context, enum_symbol, config)
 					return hover, true
 				}
 			}
@@ -627,7 +627,7 @@ get_hover_enum_field :: proc(ast_context: ^AstContext, symbol: Symbol, field_nam
 				for name, i in v.names {
 					if strings.compare(name, field_name) == 0 {
 						construct_enum_field_symbol(&enum_symbol, v, i)
-						hover.contents = write_hover_content(ast_context, enum_symbol)
+						hover.contents = write_hover_content(ast_context, enum_symbol, config)
 						return hover, true
 					}
 				}
