@@ -14,9 +14,11 @@ Type_Layout :: struct {
 	alignment: int,
 }
 
-Type_Layout_Resolver :: struct {
-	ast_context: ^AstContext,
-	visiting:    map[rawptr]struct{},
+Layout_Evaluation_Context :: struct {
+	ast_context:                 ^AstContext,
+	config:                      ^common.Config,
+	active_layout_expressions:   map[^ast.Expr]struct{},
+	active_constant_expressions: map[^ast.Expr]struct{},
 }
 
 // This is the largest legal SIMD vector and therefore exposes the build
@@ -222,17 +224,17 @@ layout_profile_matches_server_target :: proc(config: ^common.Config) -> bool {
 }
 
 
-get_fixed_array_length :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
-	length, known := resolve_integer_constant(ast_context, expr)
+resolve_array_element_count :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (int, bool) {
+	length, known := resolve_integer_constant(evaluation, expr)
 	return length, known && length >= 0
 }
 
-get_enum_value_range :: proc(ast_context: ^AstContext, value: SymbolEnumValue) -> (int, int, bool) {
+resolve_enum_value_range :: proc(evaluation: ^Layout_Evaluation_Context, value: SymbolEnumValue) -> (int, int, bool) {
 	if len(value.names) == 0 || len(value.values) != len(value.names) {
 		return 0, 0, false
 	}
 
-	local_values := make(map[string]int, context.temp_allocator)
+	local_integer_values := make(map[string]int, context.temp_allocator)
 	current := -1
 	lower, upper := max(int), min(int)
 
@@ -245,13 +247,13 @@ get_enum_value_range :: proc(ast_context: ^AstContext, value: SymbolEnumValue) -
 			current += 1
 		} else {
 			current_known: bool
-			current, current_known = resolve_integer_constant(ast_context, value.values[i], local_values)
+			current, current_known = resolve_integer_constant(evaluation, value.values[i], local_integer_values)
 			if !current_known {
 				return 0, 0, false
 			}
 		}
 
-		local_values[name] = current
+		local_integer_values[name] = current
 		lower = min(lower, current)
 		upper = max(upper, current)
 	}
@@ -259,15 +261,15 @@ get_enum_value_range :: proc(ast_context: ^AstContext, value: SymbolEnumValue) -
 	return lower, upper, true
 }
 
-get_bit_set_value_range :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, int, bool) {
+resolve_bit_set_value_range :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (int, int, bool) {
 	if expr == nil {
 		return 0, 0, false
 	}
 
 	if binary, ok := expr.derived.(^ast.Binary_Expr);
 	   ok && (binary.op.kind == .Range_Half || binary.op.kind == .Range_Full) {
-		lower, lower_known := resolve_integer_constant(ast_context, binary.left)
-		upper, upper_known := resolve_integer_constant(ast_context, binary.right)
+		lower, lower_known := resolve_integer_constant(evaluation, binary.left)
+		upper, upper_known := resolve_integer_constant(evaluation, binary.right)
 
 		if !lower_known || !upper_known {
 			return 0, 0, false
@@ -284,9 +286,9 @@ get_bit_set_value_range :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (i
 		return lower, upper, lower <= upper
 	}
 
-	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+	if symbol, ok := resolve_type_expression(evaluation.ast_context, expr); ok {
 		if enum_value, is_enum := symbol.value.(SymbolEnumValue); is_enum {
-			return get_enum_value_range(ast_context, enum_value)
+			return resolve_enum_value_range(evaluation, enum_value)
 		}
 	}
 
@@ -313,14 +315,20 @@ get_implicit_bit_set_layout :: proc(lower, upper: int) -> (Type_Layout, bool) {
 	return {}, false
 }
 
-get_layout_alignment :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
-	alignment, ok := resolve_integer_constant(ast_context, expr)
+resolve_layout_alignment :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (int, bool) {
+	alignment, ok := resolve_integer_constant(evaluation, expr)
 
 	return alignment, ok && alignment > 0 && alignment & (alignment - 1) == 0
 }
 
-resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStructValue) -> (Type_Layout, bool) {
-	ast_context := resolver.ast_context
+resolve_struct_layout :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	value: SymbolStructValue,
+) -> (
+	Type_Layout,
+	bool,
+) {
+	ast_context := evaluation.ast_context
 	custom_alignment := 0
 	min_field_alignment := 1
 	max_field_alignment := 0
@@ -333,7 +341,7 @@ resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStru
 	}
 
 	if value.align != nil {
-		if alignment, ok := get_layout_alignment(ast_context, value.align); ok {
+		if alignment, ok := resolve_layout_alignment(evaluation, value.align); ok {
 			custom_alignment = alignment
 		} else {
 			return {}, false
@@ -341,7 +349,7 @@ resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStru
 	}
 
 	if value.min_field_align != nil {
-		if alignment, ok := get_layout_alignment(ast_context, value.min_field_align); ok {
+		if alignment, ok := resolve_layout_alignment(evaluation, value.min_field_align); ok {
 			min_field_alignment = alignment
 		} else {
 			return {}, false
@@ -349,7 +357,7 @@ resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStru
 	}
 
 	if value.max_field_align != nil {
-		if alignment, ok := get_layout_alignment(ast_context, value.max_field_align); ok {
+		if alignment, ok := resolve_layout_alignment(evaluation, value.max_field_align); ok {
 			max_field_alignment = alignment
 		} else {
 			return {}, false
@@ -374,7 +382,7 @@ resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStru
 			continue
 		}
 
-		field_layout, ok := resolve_expr_layout(resolver, field_type)
+		field_layout, ok := resolve_type_layout(evaluation, field_type)
 		if !ok {
 			return {}, false
 		}
@@ -413,20 +421,19 @@ resolve_struct_layout :: proc(resolver: ^Type_Layout_Resolver, value: SymbolStru
 	return layout, true
 }
 
-resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) -> (Type_Layout, bool) {
+resolve_type_layout :: proc(evaluation: ^Layout_Evaluation_Context, expr: ^ast.Expr) -> (Type_Layout, bool) {
 	if expr == nil {
 		return {}, false
 	}
 
-	raw := cast(rawptr)expr
-	if raw in resolver.visiting {
+	if expr in evaluation.active_layout_expressions {
 		return {}, false
 	}
 
-	resolver.visiting[raw] = {}
-	defer delete_key(&resolver.visiting, raw)
+	evaluation.active_layout_expressions[expr] = {}
+	defer delete_key(&evaluation.active_layout_expressions, expr)
 
-	ast_context := resolver.ast_context
+	ast_context := evaluation.ast_context
 
 	// Pointer storage is independent of the pointee's layout. Resolve pointers
 	// here so recursive structures do not recursively traverse their pointees.
@@ -442,7 +449,7 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 	}
 
 	if distinct_type, ok := expr.derived.(^ast.Distinct_Type); ok {
-		return resolve_expr_layout(resolver, distinct_type.type)
+		return resolve_type_layout(evaluation, distinct_type.type)
 	}
 
 	if ident, ok := expr.derived.(^ast.Ident); ok {
@@ -478,7 +485,7 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 		case SymbolBasicValue:
 			return get_basic_type_layout(value.ident.name)
 		case SymbolStructValue:
-			return resolve_struct_layout(resolver, value)
+			return resolve_struct_layout(evaluation, value)
 		case SymbolProcedureValue:
 			return {size_of(^rawptr), align_of(^rawptr)}, true
 		case SymbolEnumValue:
@@ -486,9 +493,9 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 				return get_basic_type_layout("int")
 			}
 
-			return resolve_expr_layout(resolver, value.base_type)
+			return resolve_type_layout(evaluation, value.base_type)
 		case SymbolFixedArrayValue:
-			length, length_known := get_fixed_array_length(ast_context, value.len)
+			length, length_known := resolve_array_element_count(evaluation, value.len)
 			if .Simd in symbol.flags {
 				element, element_known := get_simd_element_layout(ast_context, value.expr)
 				if !length_known || !element_known {
@@ -498,7 +505,7 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 				return get_simd_layout(element, length)
 			}
 
-			element, element_known := resolve_expr_layout(resolver, value.expr)
+			element, element_known := resolve_type_layout(evaluation, value.expr)
 			if !length_known || !element_known || element.size > 0 && length > max(int) / element.size {
 				return {}, false
 			}
@@ -511,8 +518,8 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 				return {size_of([dynamic]u8), align_of([dynamic]u8)}, true
 			}
 
-			capacity, capacity_known := get_fixed_array_length(ast_context, value.cap)
-			element, element_known := resolve_expr_layout(resolver, value.expr)
+			capacity, capacity_known := resolve_array_element_count(evaluation, value.cap)
+			element, element_known := resolve_type_layout(evaluation, value.expr)
 			if !capacity_known || !element_known || element.size > 0 && capacity > max(int) / element.size {
 				return {}, false
 			}
@@ -535,9 +542,9 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 		case SymbolMapValue:
 			return {size_of(map[u8]u8), align_of(map[u8]u8)}, true
 		case SymbolMatrixValue:
-			row_count, rows_known := get_fixed_array_length(ast_context, value.x)
-			column_count, columns_known := get_fixed_array_length(ast_context, value.y)
-			element, element_known := resolve_expr_layout(resolver, value.expr)
+			row_count, rows_known := resolve_array_element_count(evaluation, value.x)
+			column_count, columns_known := resolve_array_element_count(evaluation, value.y)
+			element, element_known := resolve_type_layout(evaluation, value.expr)
 
 			if !rows_known ||
 			   !columns_known ||
@@ -554,10 +561,10 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 			return {size = element_count * element.size, alignment = element.alignment}, true
 		case SymbolBitSetValue:
 			if value.underlying != nil {
-				return resolve_expr_layout(resolver, value.underlying)
+				return resolve_type_layout(evaluation, value.underlying)
 			}
 
-			lower, upper, range_known := get_bit_set_value_range(ast_context, value.expr)
+			lower, upper, range_known := resolve_bit_set_value_range(evaluation, value.expr)
 			if !range_known {
 				return {}, false
 			}
@@ -571,13 +578,22 @@ resolve_expr_layout :: proc(resolver: ^Type_Layout_Resolver, expr: ^ast.Expr) ->
 	return {}, false
 }
 
-get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) -> (Type_Layout, bool) {
-	resolver := Type_Layout_Resolver {
-		ast_context = ast_context,
-		visiting    = make(map[rawptr]struct{}, context.temp_allocator),
+get_struct_layout :: proc(
+	ast_context: ^AstContext,
+	value: SymbolStructValue,
+	config: ^common.Config,
+) -> (
+	Type_Layout,
+	bool,
+) {
+	evaluation := Layout_Evaluation_Context {
+		ast_context                 = ast_context,
+		config                      = config,
+		active_layout_expressions   = make(map[^ast.Expr]struct{}, context.temp_allocator),
+		active_constant_expressions = make(map[^ast.Expr]struct{}, context.temp_allocator),
 	}
 
-	return resolve_struct_layout(&resolver, value)
+	return resolve_struct_layout(&evaluation, value)
 }
 
 
@@ -595,7 +611,7 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 	if config != nil && config.enable_hover_struct_size_info && layout_profile_matches_server_target(config) {
 		if symbol.type == .Struct {
 			if value, is_struct := symbol.value.(SymbolStructValue); is_struct {
-				if layout, known := get_struct_layout(ast_context, value); known {
+				if layout, known := get_struct_layout(ast_context, value, config); known {
 					struct_info = fmt.aprintf("Size: %v bytes, Alignment: %v bytes", layout.size, layout.alignment)
 				}
 			}

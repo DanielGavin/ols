@@ -4,28 +4,172 @@ import "core:odin/ast"
 import "core:odin/tokenizer"
 import "core:strconv"
 
-@(private = "file")
-Integer_Constant_Resolver :: struct {
-	ast_context:  ^AstContext,
-	local_values: map[string]int,
-	visiting:     map[rawptr]struct{},
-}
-
 resolve_integer_constant :: proc(
-	ast_context: ^AstContext,
+	evaluation: ^Layout_Evaluation_Context,
 	expr: ^ast.Expr,
-	local_values: map[string]int = nil,
+	local_integer_values: map[string]int = nil,
 ) -> (
 	int,
 	bool,
 ) {
-	resolver := Integer_Constant_Resolver {
-		ast_context  = ast_context,
-		local_values = local_values,
-		visiting     = make(map[rawptr]struct{}, context.temp_allocator),
+	return resolve_integer_constant_internal(evaluation, expr, local_integer_values, 0)
+}
+
+@(private = "file")
+extract_config_key :: proc(expr: ^ast.Expr) -> (string, bool) {
+	if expr == nil {
+		return "", false
 	}
 
-	return resolve_integer_constant_internal(&resolver, expr, 0)
+	if ident, ok := expr.derived.(^ast.Ident); ok {
+		return ident.name, true
+	}
+
+	return "", false
+}
+
+@(private = "file")
+resolve_integer_config_directive :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	call: ^ast.Call_Expr,
+	local_integer_values: map[string]int,
+	depth: int,
+) -> (
+	result: int,
+	ok: bool,
+) {
+	if len(call.args) != 2 {
+		return 0, false
+	}
+
+	key := extract_config_key(call.args[0]) or_return
+	if evaluation.config != nil {
+		if configured, found := evaluation.config.profile.defines[key]; found {
+			return strconv.parse_int(configured)
+		}
+	}
+
+	return resolve_integer_constant_internal(evaluation, call.args[1], local_integer_values, depth + 1)
+}
+
+@(private = "file")
+resolve_boolean_config_directive :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	call: ^ast.Call_Expr,
+	local_integer_values: map[string]int,
+	depth: int,
+) -> (
+	result: bool,
+	ok: bool,
+) {
+	if len(call.args) != 2 {
+		return false, false
+	}
+
+	key := extract_config_key(call.args[0]) or_return
+	if evaluation.config != nil {
+		if configured, found := evaluation.config.profile.defines[key]; found {
+			return strconv.parse_bool(configured)
+		}
+	}
+
+	return resolve_boolean_constant_internal(evaluation, call.args[1], local_integer_values, depth + 1)
+}
+
+@(private = "file")
+get_simple_callee_name :: proc(call: ^ast.Call_Expr) -> (string, bool) {
+	if call == nil || call.expr == nil {
+		return "", false
+	}
+
+	#partial switch callee in call.expr.derived {
+	case ^ast.Ident:
+		return callee.name, true
+	case ^ast.Basic_Directive:
+		return callee.name, true
+	}
+
+	return "", false
+}
+
+@(private = "file")
+get_integer_type_properties :: proc(name: string) -> (bits: int, signed: bool, ok: bool) {
+	switch name {
+	case "i8":
+		return 8, true, true
+	case "i16", "i16le", "i16be":
+		return 16, true, true
+	case "i32", "i32le", "i32be", "rune":
+		return 32, true, true
+	case "i64", "i64le", "i64be":
+		return 64, true, true
+	case "i128", "i128le", "i128be":
+		return 128, true, true
+	case "int":
+		return size_of(int) * 8, true, true
+	case "u8", "byte":
+		return 8, false, true
+	case "u16", "u16le", "u16be":
+		return 16, false, true
+	case "u32", "u32le", "u32be":
+		return 32, false, true
+	case "u64", "u64le", "u64be":
+		return 64, false, true
+	case "u128", "u128le", "u128be":
+		return 128, false, true
+	case "uint":
+		return size_of(uint) * 8, false, true
+	case "uintptr":
+		return size_of(uintptr) * 8, false, true
+	}
+
+	return 0, false, false
+}
+
+@(private = "file")
+resolve_integer_conversion :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	type_expr: ^ast.Expr,
+	value: int,
+) -> (
+	result: int,
+	ok: bool,
+) {
+	if type_expr == nil {
+		return 0, false
+	}
+
+	symbol := resolve_type_expression(evaluation.ast_context, type_expr) or_return
+	if symbol.pointers > 0 {
+		return 0, false
+	}
+
+	basic := symbol.value.(SymbolBasicValue) or_return
+	bits, signed, integer_type := get_integer_type_properties(basic.ident.name)
+	if !integer_type {
+		return 0, false
+	}
+
+	wide := i128(value)
+	if signed {
+		if bits >= size_of(int) * 8 {
+			return value, true
+		}
+
+		limit := i128(1) << uint(bits - 1)
+		return value, -limit <= wide && wide < limit
+	}
+
+	if value < 0 {
+		return 0, false
+	}
+
+	if bits >= size_of(int) * 8 {
+		return value, true
+	}
+
+	limit := i128(1) << uint(bits)
+	return value, wide < limit
 }
 
 @(private = "file")
@@ -58,13 +202,13 @@ get_indexed_constant_expression :: proc(symbol: Symbol) -> (^ast.Expr, bool) {
 
 @(private = "file")
 resolve_identifier_constant_expression :: proc(
-	resolver: ^Integer_Constant_Resolver,
+	evaluation: ^Layout_Evaluation_Context,
 	ident: ^ast.Ident,
 ) -> (
 	^ast.Expr,
 	bool,
 ) {
-	ast_context := resolver.ast_context
+	ast_context := evaluation.ast_context
 	package_name := get_package_from_node(ident.node)
 
 	if package_name == "" || package_name == ast_context.document_package {
@@ -101,13 +245,13 @@ resolve_identifier_constant_expression :: proc(
 
 @(private = "file")
 resolve_selector_constant_expression :: proc(
-	resolver: ^Integer_Constant_Resolver,
+	evaluation: ^Layout_Evaluation_Context,
 	selector: ^ast.Selector_Expr,
 ) -> (
 	^ast.Expr,
 	bool,
 ) {
-	package_symbol, ok := resolve_type_expression(resolver.ast_context, selector.expr)
+	package_symbol, ok := resolve_type_expression(evaluation.ast_context, selector.expr)
 	if !ok {
 		return nil, false
 	}
@@ -126,9 +270,155 @@ resolve_selector_constant_expression :: proc(
 }
 
 @(private = "file")
-resolve_integer_constant_internal :: proc(
-	resolver: ^Integer_Constant_Resolver,
+resolve_boolean_constant_internal :: proc(
+	evaluation: ^Layout_Evaluation_Context,
 	expr: ^ast.Expr,
+	local_integer_values: map[string]int,
+	depth: int,
+) -> (
+	result: bool,
+	ok: bool,
+) {
+	if expr == nil || depth > 64 {
+		return false, false
+	}
+
+	if expr in evaluation.active_constant_expressions {
+		return false, false
+	}
+
+	evaluation.active_constant_expressions[expr] = {}
+	defer delete_key(&evaluation.active_constant_expressions, expr)
+
+	#partial switch value in expr.derived {
+	case ^ast.Paren_Expr:
+		return resolve_boolean_constant_internal(evaluation, value.expr, local_integer_values, depth + 1)
+	case ^ast.Ident:
+		switch value.name {
+		case "true":
+			return true, true
+		case "false":
+			return false, true
+		}
+
+		constant_expr := resolve_identifier_constant_expression(evaluation, value) or_return
+
+		return resolve_boolean_constant_internal(evaluation, constant_expr, local_integer_values, depth + 1)
+	case ^ast.Selector_Expr:
+		constant_expr := resolve_selector_constant_expression(evaluation, value) or_return
+
+		return resolve_boolean_constant_internal(evaluation, constant_expr, local_integer_values, depth + 1)
+	case ^ast.Unary_Expr:
+		if value.op.kind == .Not {
+			operand := resolve_boolean_constant_internal(
+				evaluation,
+				value.expr,
+				local_integer_values,
+				depth + 1,
+			) or_return
+
+			return !operand, true
+		}
+	case ^ast.Binary_Expr:
+		#partial switch value.op.kind {
+		case .Cmp_And:
+			left := resolve_boolean_constant_internal(
+				evaluation,
+				value.left,
+				local_integer_values,
+				depth + 1,
+			) or_return
+
+			if !left {
+				return false, true
+			}
+
+			return resolve_boolean_constant_internal(evaluation, value.right, local_integer_values, depth + 1)
+		case .Cmp_Or:
+			left := resolve_boolean_constant_internal(
+				evaluation,
+				value.left,
+				local_integer_values,
+				depth + 1,
+			) or_return
+
+			if left {
+				return true, true
+			}
+
+			return resolve_boolean_constant_internal(evaluation, value.right, local_integer_values, depth + 1)
+		case .Cmp_Eq, .Not_Eq, .Lt, .Lt_Eq, .Gt, .Gt_Eq:
+			left := resolve_integer_constant_internal(
+				evaluation,
+				value.left,
+				local_integer_values,
+				depth + 1,
+			) or_return
+
+			right := resolve_integer_constant_internal(
+				evaluation,
+				value.right,
+				local_integer_values,
+				depth + 1,
+			) or_return
+
+			#partial switch value.op.kind {
+			case .Cmp_Eq:
+				return left == right, true
+			case .Not_Eq:
+				return left != right, true
+			case .Lt:
+				return left < right, true
+			case .Lt_Eq:
+				return left <= right, true
+			case .Gt:
+				return left > right, true
+			case .Gt_Eq:
+				return left >= right, true
+			}
+		}
+	case ^ast.Call_Expr:
+		name := get_simple_callee_name(value) or_return
+
+		if name == "config" {
+			return resolve_boolean_config_directive(evaluation, value, local_integer_values, depth)
+		}
+	case ^ast.Ternary_If_Expr:
+		condition := resolve_boolean_constant_internal(
+			evaluation,
+			value.cond,
+			local_integer_values,
+			depth + 1,
+		) or_return
+
+		if condition {
+			return resolve_boolean_constant_internal(evaluation, value.x, local_integer_values, depth + 1)
+		}
+
+		return resolve_boolean_constant_internal(evaluation, value.y, local_integer_values, depth + 1)
+	case ^ast.Ternary_When_Expr:
+		condition := resolve_boolean_constant_internal(
+			evaluation,
+			value.cond,
+			local_integer_values,
+			depth + 1,
+		) or_return
+
+		if condition {
+			return resolve_boolean_constant_internal(evaluation, value.x, local_integer_values, depth + 1)
+		}
+
+		return resolve_boolean_constant_internal(evaluation, value.y, local_integer_values, depth + 1)
+	}
+
+	return false, false
+}
+
+@(private = "file")
+resolve_integer_constant_internal :: proc(
+	evaluation: ^Layout_Evaluation_Context,
+	expr: ^ast.Expr,
+	local_integer_values: map[string]int,
 	depth: int,
 ) -> (
 	result: int,
@@ -138,17 +428,22 @@ resolve_integer_constant_internal :: proc(
 		return 0, false
 	}
 
-	raw := cast(rawptr)expr
-	if raw in resolver.visiting {
+	if expr in evaluation.active_constant_expressions {
 		return 0, false
 	}
 
-	resolver.visiting[raw] = {}
-	defer delete_key(&resolver.visiting, raw)
+	evaluation.active_constant_expressions[expr] = {}
+	defer delete_key(&evaluation.active_constant_expressions, expr)
 
 	#partial switch value in expr.derived {
 	case ^ast.Paren_Expr:
-		return resolve_integer_constant_internal(resolver, value.expr, depth + 1)
+		return resolve_integer_constant_internal(evaluation, value.expr, local_integer_values, depth + 1)
+	case ^ast.Auto_Cast:
+		return resolve_integer_constant_internal(evaluation, value.expr, local_integer_values, depth + 1)
+	case ^ast.Type_Cast:
+		operand := resolve_integer_constant_internal(evaluation, value.expr, local_integer_values, depth + 1) or_return
+
+		return resolve_integer_conversion(evaluation, value.type, operand)
 	case ^ast.Basic_Lit:
 		if value.tok.kind == .Rune {
 			return resolve_rune_constant(value.tok)
@@ -156,23 +451,25 @@ resolve_integer_constant_internal :: proc(
 
 		return strconv.parse_int(value.tok.text)
 	case ^ast.Ident:
-		if local_value, found := resolver.local_values[value.name]; found {
+		if local_value, found := local_integer_values[value.name]; found {
 			return local_value, true
 		}
 
-		constant_expr := resolve_identifier_constant_expression(resolver, value) or_return
-		return resolve_integer_constant_internal(resolver, constant_expr, depth + 1)
+		constant_expr := resolve_identifier_constant_expression(evaluation, value) or_return
+
+		return resolve_integer_constant_internal(evaluation, constant_expr, local_integer_values, depth + 1)
 	case ^ast.Implicit_Selector_Expr:
-		if local_value, found := resolver.local_values[value.field.name]; found {
+		if local_value, found := local_integer_values[value.field.name]; found {
 			return local_value, true
 		}
 
 		return 0, false
 	case ^ast.Selector_Expr:
-		constant_expr := resolve_selector_constant_expression(resolver, value) or_return
-		return resolve_integer_constant_internal(resolver, constant_expr, depth + 1)
+		constant_expr := resolve_selector_constant_expression(evaluation, value) or_return
+
+		return resolve_integer_constant_internal(evaluation, constant_expr, local_integer_values, depth + 1)
 	case ^ast.Unary_Expr:
-		operand := resolve_integer_constant_internal(resolver, value.expr, depth + 1) or_return
+		operand := resolve_integer_constant_internal(evaluation, value.expr, local_integer_values, depth + 1) or_return
 
 		#partial switch value.op.kind {
 		case .Add:
@@ -189,8 +486,8 @@ resolve_integer_constant_internal :: proc(
 
 		return 0, false
 	case ^ast.Binary_Expr:
-		left := resolve_integer_constant_internal(resolver, value.left, depth + 1) or_return
-		right := resolve_integer_constant_internal(resolver, value.right, depth + 1) or_return
+		left := resolve_integer_constant_internal(evaluation, value.left, local_integer_values, depth + 1) or_return
+		right := resolve_integer_constant_internal(evaluation, value.right, local_integer_values, depth + 1) or_return
 
 		wide: i128
 		#partial switch value.op.kind {
@@ -241,6 +538,62 @@ resolve_integer_constant_internal :: proc(
 		}
 
 		return int(wide), true
+	case ^ast.Call_Expr:
+		name := get_simple_callee_name(value) or_return
+		switch name {
+		case "config":
+			return resolve_integer_config_directive(evaluation, value, local_integer_values, depth)
+		case "size_of", "align_of":
+			if len(value.args) != 1 {
+				return 0, false
+			}
+
+			layout := resolve_type_layout(evaluation, value.args[0]) or_return
+			if name == "size_of" {
+				return layout.size, true
+			}
+
+			return layout.alignment, true
+		}
+
+		if len(value.args) != 1 {
+			return 0, false
+		}
+
+		operand := resolve_integer_constant_internal(
+			evaluation,
+			value.args[0],
+			local_integer_values,
+			depth + 1,
+		) or_return
+
+		return resolve_integer_conversion(evaluation, value.expr, operand)
+	case ^ast.Ternary_If_Expr:
+		condition := resolve_boolean_constant_internal(
+			evaluation,
+			value.cond,
+			local_integer_values,
+			depth + 1,
+		) or_return
+
+		if condition {
+			return resolve_integer_constant_internal(evaluation, value.x, local_integer_values, depth + 1)
+		}
+
+		return resolve_integer_constant_internal(evaluation, value.y, local_integer_values, depth + 1)
+	case ^ast.Ternary_When_Expr:
+		condition := resolve_boolean_constant_internal(
+			evaluation,
+			value.cond,
+			local_integer_values,
+			depth + 1,
+		) or_return
+
+		if condition {
+			return resolve_integer_constant_internal(evaluation, value.x, local_integer_values, depth + 1)
+		}
+
+		return resolve_integer_constant_internal(evaluation, value.y, local_integer_values, depth + 1)
 	}
 
 	return 0, false

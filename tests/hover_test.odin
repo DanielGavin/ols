@@ -5876,6 +5876,56 @@ ast_hover_struct_size_aliases_distinct_and_fixed_array :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_struct_size_extended_integer_constant_expressions :: proc(t: ^testing.T) {
+	Element :: struct {value: u16}
+	Container_Layout :: struct #align(align_of(u64)) {
+		configured:  [5]u8,
+		type_size:   [size_of(Element)]u8,
+		explicit:    [3]u8,
+		conversion:  [2]u8,
+		conditional: [4]u8,
+		when_expr:   [8]u8,
+		defaulted:   [1]u8,
+	}
+	defines := make(map[string]string)
+	defines["COUNT"] = "5"
+	defines["WIDE"] = "true"
+
+	source := test.Source {
+		main = `package test
+		Element :: struct {value: u16}
+		Container :: struct #align(align_of(u64)) {
+			configured:  [#config(COUNT, 3)]u8,
+			type_size:   [size_of(Element)]u8,
+			explicit:    [cast(int) 3]u8,
+			conversion:  [int(u8(2))]u8,
+			conditional: [4 if 1 < 2 else 6]u8,
+			when_expr:   [8 when #config(WIDE, false) else 2]u8,
+			defaulted:   [#config(MISSING, 1)]u8,
+		}
+		value := C{*}ontainer{}
+		`,
+		config = {
+			enable_hover_struct_size_info = true,
+			profile = {
+				defines = defines,
+			},
+		},
+	}
+
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"test.Container :: struct #align(align_of(u64)) {\n\tconfigured:  [#config(COUNT, 3)]u8,\n\ttype_size:   [size_of(Element)]u8,\n\texplicit:    [cast(int)3]u8,\n\tconversion:  [int(u8(2))]u8,\n\tconditional: []u8,\n\twhen_expr:   []u8,\n\tdefaulted:   [#config(MISSING, 1)]u8,\n}",
+			size_of(Container_Layout),
+			align_of(Container_Layout),
+		),
+	)
+}
+
+@(test)
 ast_hover_struct_size_nested_fixed_arrays :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -6534,7 +6584,8 @@ ast_hover_struct_size_cyclic_integer_constants_are_unknown :: proc(t: ^testing.T
 }
 
 @(test)
-ast_hover_struct_size_unknown_bit_set_range_is_suppressed :: proc(t: ^testing.T) {
+ast_hover_struct_size_bit_set_size_of_range_is_known :: proc(t: ^testing.T) {
+	Value_Layout :: bit_set[0..<size_of(int)]
 	source := test.Source {
 		main = `package test
 		Value :: bit_set[0..<size_of(int)]
@@ -6544,7 +6595,16 @@ ast_hover_struct_size_unknown_bit_set_range_is_suppressed :: proc(t: ^testing.T)
 		config = {enable_hover_struct_size_info = true},
 	}
 
-	test.expect_hover(t, &source, "test.Foo :: struct {\n\tvalue: Value,\n}")
+	test.expect_hover(
+		t,
+		&source,
+		fmt.tprintf(
+			"%v\n---\nSize: %v bytes, Alignment: %v bytes",
+			"test.Foo :: struct {\n\tvalue: Value,\n}",
+			size_of(Value_Layout),
+			align_of(Value_Layout),
+		),
+	)
 }
 
 @(test)
