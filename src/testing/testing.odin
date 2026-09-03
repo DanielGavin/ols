@@ -200,6 +200,7 @@ expect_signature_labels :: proc(
 	src: ^Source,
 	expect_labels: []string,
 	expected_active_parameter := -1,
+	expected_documentation: []string = nil,
 ) {
 	spall.trace(#procedure)
 
@@ -231,6 +232,27 @@ expect_signature_labels :: proc(
 	for flag, i in flags {
 		if flag != 1 {
 			log.errorf("Expected signature label %v, but received %v", expect_labels[i], help.signatures)
+		}
+	}
+
+	documentation_flags := make([]int, len(expected_documentation), context.temp_allocator)
+	for expected_doc, i in expected_documentation {
+		for signature in help.signatures {
+			first_strip, _ := strings.remove(signature.documentation.value, "```odin\n", 2, context.temp_allocator)
+			content_without_markdown, _ := strings.remove(first_strip, "\n```", 2, context.temp_allocator)
+			if expected_doc == content_without_markdown {
+				documentation_flags[i] += 1
+			}
+		}
+	}
+
+	for flag, i in documentation_flags {
+		if flag != 1 {
+			log.errorf(
+				"Expected signature documentation %v, but received %v",
+				expected_documentation[i],
+				help.signatures,
+			)
 		}
 	}
 

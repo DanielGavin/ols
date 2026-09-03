@@ -376,6 +376,9 @@ ast_completion_in_comp_lit_type :: proc(t: ^testing.T) {
 		}
 		`,
 		packages = {},
+		config = {
+			enable_hover_struct_size_info = true,
+		},
 	}
 
 	test.expect_completion_docs(t, &source, "", {"test.My_Struct :: struct {..}"})

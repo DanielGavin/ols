@@ -527,9 +527,15 @@ get_struct_layout :: proc(ast_context: ^AstContext, value: SymbolStructValue) ->
 }
 
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^common.Config) -> MarkupContent {
+write_symbol_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol)
+	
+	return build_markup_content(cat, doc)
+}
+
+write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^common.Config) -> MarkupContent {
+	content := write_symbol_content(ast_context, symbol)
 
 	struct_info := ""
 	if config != nil && config.enable_hover_struct_size_info && layout_profile_matches_server_target(config) {
@@ -542,7 +548,6 @@ write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, config: ^c
 		}
 	}
 
-	content := build_markup_content(cat, doc)
 	if struct_info != "" {
 		content.value = fmt.tprintf("%v\n%v", content.value, struct_info)
 	}

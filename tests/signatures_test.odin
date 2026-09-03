@@ -590,6 +590,37 @@ signature_comp_lit_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
+signature_comp_lit_struct_docs_exclude_hover_layout :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+		Foo :: struct {
+			a: int,
+			b: string,
+		}
+
+		main :: proc() {
+			foo := Foo{
+				{*}
+			}
+		}
+		`,
+		packages = {},
+		config = {
+			enable_comp_lit_signature_help          = true,
+			enable_comp_lit_signature_help_use_docs = true,
+			enable_hover_struct_size_info            = true,
+		}
+	}
+
+	test.expect_signature_labels(
+		t,
+		&source,
+		{"test.Foo :: struct {..}"},
+		expected_documentation = {"test.Foo :: struct {\n\ta: int,\n\tb: string,\n}"},
+	)
+}
+
+@(test)
 signature_comp_lit_struct_pre_declared :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test

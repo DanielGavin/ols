@@ -126,7 +126,7 @@ get_signature_information :: proc(
 				build_documentation(&ast_context, &symbol, short_signature = false)
 				append(
 					&signature_information,
-					SignatureInformation{label = signature, documentation = write_hover_content(&ast_context, symbol, config)},
+					SignatureInformation{label = signature, documentation = write_symbol_content(&ast_context, symbol)},
 				)
 			} else {
 				build_documentation(&ast_context, &symbol, short_signature = false)
