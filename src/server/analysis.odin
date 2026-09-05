@@ -794,6 +794,7 @@ CallArg :: struct {
 	is_nil:            bool,
 	bad_expr:          bool,
 	has_symbol:        bool,
+	is_constant:       bool,
 	is_poly_type:      bool,
 }
 
@@ -854,6 +855,7 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 		if symbol, ok := resolve_call_arg_type_expression(ast_context, call_arg.value_expr); ok {
 			call_arg.symbol = symbol
 			call_arg.has_symbol = true
+			call_arg.is_constant = symbol.type == .Constant && !(.Mutable in symbol.flags)
 			if _, ok := symbol.value.(SymbolPolyTypeValue); ok {
 				call_arg.is_poly_type = true
 				append(results, call_arg)
@@ -903,6 +905,240 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 	return results[:], all_valid
 }
 
+untyped_basic_match_score :: proc(value: SymbolUntypedValue, expected: Symbol) -> (score: int, compatible: bool, handled: bool) {
+
+	basic := expected.value.(SymbolBasicValue) or_return
+	name  := basic.ident.name
+
+	handled = true
+
+	switch name {
+	case "bool", "b8", "b16", "b32", "b64":
+		if value.type == .Bool {
+			score = 1 if name != "bool" else 0
+		} else {
+			return
+		}
+	case "int",  "i8", "i16", "i32", "i64", "i128",
+	     "uint", "u8", "u16", "u32", "u64", "u128", "uintptr",
+	     "i16le", "i32le", "i64le", "i128le", "u16le", "u32le", "u64le", "u128le",
+	     "i16be", "i32be", "i64be", "i128be", "u16be", "u32be", "u64be", "u128be",
+	     "rune":
+		if value.type == .Integer {
+			score = 1 if name != "int" else 0
+
+			n := strconv.parse_i128(value.tok.text) or_return
+			valid := true
+			switch name {
+			case "u8":  valid = n >= i128(min(u8))  && n <= i128(max(u8))
+			case "i8":  valid = n >= i128(min(i8))  && n <= i128(max(i8))
+			case "u16": valid = n >= i128(min(u16)) && n <= i128(max(u16))
+			case "i16": valid = n >= i128(min(i16)) && n <= i128(max(i16))
+			case "u32": valid = n >= i128(min(u32)) && n <= i128(max(u32))
+			case "i32": valid = n >= i128(min(i32)) && n <= i128(max(i32))
+			case "u64": valid = n >= i128(min(u64)) && n <= i128(max(u64))
+			case "i64": valid = n >= i128(min(i64)) && n <= i128(max(i64))
+			}
+			if !valid {
+				return
+			}
+		} else if value.type == .Rune {
+			score = 1 if name != "rune" else 0
+		} else {
+			return
+		}
+	case "f16",   "f32",   "f64",
+	     "f16le", "f32le", "f64le",
+	     "f16be", "f32be", "f64be":
+		if value.type == .Float {
+			score = 1 if name != "f64" else 0
+		} else if value.type == .Integer {
+			score = 2
+		} else {
+			return
+		}
+	case "string", "cstring":
+		if value.type == .String {
+			score = 1 if name != "string" else 0
+		} else {
+			return
+		}
+	case "complex32", "complex64", "complex128",
+	     "quaternion64", "quaternion128", "quaternion256":
+		if value.type == .Complex {
+			score = 1 if strings.has_prefix(name, "quaternion") else 0
+		} else if value.type == .Quaternion {
+			score = 1 if name != "quaternion64" else 0
+		} else {
+			return
+		}
+	case:
+		return
+	}
+
+	return score, true, true
+}
+
+proc_field_type_for_call :: proc(field: ^ast.Field) -> (type: ^ast.Expr, ok: bool) #optional_ok {
+	if field == nil {
+		return nil, false
+	}
+	if field.type != nil {
+		if ellipsis, ok := field.type.derived.(^ast.Ellipsis); ok {
+			return ellipsis.expr, true
+		}
+		return field.type, false
+	}
+	return field.default_value, false
+}
+
+proc_field_from_list_at :: proc(fields: []^ast.Field, index: int) -> (field: ^ast.Field, ok:bool) #optional_ok {
+	current := 0
+	for field in fields {
+		count := max(1, len(field.names))
+		if index < current+count {
+			return field, true
+		}
+		current += count
+	}
+	return nil, false
+}
+
+get_proc_return_type_from_index :: proc(fields: []^ast.Field, index: int) -> (type: ^ast.Expr, ok: bool) #optional_ok {
+	field := proc_field_from_list_at(fields, index) or_return
+	return proc_field_type_for_call(field)
+}
+
+proc_has_variadic_arg :: proc(procedure: SymbolProcedureValue) -> bool {
+	for field in procedure.arg_types {
+		if field.type != nil {
+			if _, ok := field.type.derived.(^ast.Ellipsis); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+proc_total_arg_count :: proc(procedure: SymbolProcedureValue) -> int {
+	total := 0
+	for field in procedure.arg_types {
+		count := max(1, len(field.names))
+		total += count
+	}
+	return total
+}
+
+proc_has_value_poly_arg :: proc(procedure: SymbolProcedureValue) -> bool {
+	for field in procedure.orig_arg_types {
+		for name in field.names {
+			_ = name.derived.(^ast.Poly_Type) or_continue
+			if field.type == nil {
+				return true
+			}
+			if _, is_type_parameter := field.type.derived.(^ast.Typeid_Type); !is_type_parameter {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+proc_arg_is_value_poly :: proc(procedure: SymbolProcedureValue, index: int) -> bool {
+	if index < 0 || index >= len(procedure.orig_arg_types) {
+		return false
+	}
+	for name in procedure.orig_arg_types[index].names {
+		_ = name.derived.(^ast.Poly_Type) or_continue
+		if procedure.orig_arg_types[index].type == nil {
+			return true
+		}
+		if _, is_type_parameter := procedure.orig_arg_types[index].type.derived.(^ast.Typeid_Type); !is_type_parameter {
+			return true
+		}
+	}
+	return false
+}
+
+proc_has_type_poly_arg :: proc(procedure: SymbolProcedureValue) -> bool {
+	for field in procedure.orig_arg_types {
+		if expr_contains_poly(field.type) {
+			return true
+		}
+	}
+	return false
+}
+
+proc_unconstrained_poly_arg_count :: proc(procedure: SymbolProcedureValue) -> int {
+	count := 0
+	for field in procedure.orig_arg_types {
+		if !expr_contains_poly(field.type) {
+			continue
+		}
+		if field.type != nil {
+			if poly, is_poly := field.type.derived.(^ast.Poly_Type);
+			   is_poly && poly.specialization != nil {
+				continue
+			}
+		}
+		count += 1
+	}
+	return count
+}
+
+proc_symbols_compatible :: proc(ast_context: ^AstContext, actual, expected: Symbol) -> bool {
+
+	a := actual.value.(SymbolProcedureValue) or_return
+	b := expected.value.(SymbolProcedureValue) or_return
+
+	a_args := get_proc_arg_count(a)
+	b_args := get_proc_arg_count(b)
+	if a_args != b_args {
+		return false
+	}
+
+	for i in 0..<a_args {
+		af := get_proc_arg_type_from_index(a, i) or_continue
+		bf := get_proc_arg_type_from_index(b, i) or_continue
+		at := proc_field_type_for_call(af)
+		bt := proc_field_type_for_call(bf)
+		if expr_contains_poly(at) || expr_contains_poly(bt) {
+			continue
+		}
+
+		as := resolve_type_expression(ast_context, at) or_continue
+		bs := resolve_type_expression(ast_context, bt) or_continue
+
+		if av, ok := as.value.(SymbolProcedureValue); ok {
+			if bv, ok := bs.value.(SymbolProcedureValue); !ok || !proc_symbols_compatible(ast_context, Symbol{value = av}, Symbol{value = bv}) {
+				return false
+			}
+		} else if !is_symbol_same_typed(ast_context, as, bs) {
+			return false
+		}
+	}
+
+	a_returns := get_proc_return_value_count(a.return_types)
+	b_returns := get_proc_return_value_count(b.return_types)
+	if a_returns != b_returns {
+		return false
+	}
+	for i := 0; i < a_returns; i += 1 {
+		at := get_proc_return_type_from_index(a.return_types, i)
+		bt := get_proc_return_type_from_index(b.return_types, i)
+		if expr_contains_poly(at) || expr_contains_poly(bt) {
+			continue
+		}
+		as, aok := resolve_type_expression(ast_context, at)
+		bs, bok := resolve_type_expression(ast_context, bt)
+		if !aok || !bok || !is_symbol_same_typed(ast_context, as, bs) {
+			return false
+		}
+	}
+
+	return true
+}
+
 /*
 	Figure out which function the call expression is using out of the list from proc group
 */
@@ -944,188 +1180,213 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 		}
 	}
 
-	for arg_expr in group.args {
-		f := Symbol{}
-		next_fn: if ok := internal_resolve_type_expression(ast_context, arg_expr, &f); ok {
-			candidate := Candidate {
-				symbol = f,
-				score  = 1,
-			}
-			if call_expr == nil || (resolve_all_possibilities && len(call_args) == 0) {
-				append(&candidates, candidate)
-				break next_fn
-			}
-			if procedure, ok := f.value.(SymbolProcedureValue); ok {
-				i := 0
+	args: for arg_expr in group.args {
 
+		f := Symbol{}
+		internal_resolve_type_expression(ast_context, arg_expr, &f) or_continue
+
+		candidate := Candidate {
+			symbol = f,
+			score  = 0,
+		}
+		if call_expr == nil || (resolve_all_possibilities && len(call_args) == 0) {
+			append(&candidates, candidate)
+			continue
+		}
+		if procedure, ok := f.value.(SymbolProcedureValue); ok {
+			i := 0
+			total_arg_count := proc_total_arg_count(procedure)
+			is_variadic := proc_has_variadic_arg(procedure)
+			if call_expr != nil {
 				if !resolve_all_possibilities {
-					arg_count := get_proc_arg_count(procedure)
-					if call_expr != nil && arg_count < len(call_args) {
-						break next_fn
-					}
-					if arg_count == len(call_args) {
-						candidate.score /= 2
+					if !is_variadic && len(call_args) > total_arg_count {
+						continue
 					}
 				}
-				for proc_arg, arg_index in procedure.arg_types {
-					for name in proc_arg.names {
-						// Since poly args are usually replaced, we give them a slightly worse score here
-						// That way if an overload has an exact type match, it'll do better
-						// We add 1 point per named arg that is poly
-						orig_arg := procedure.orig_arg_types[arg_index].type
-						if orig_arg == nil {
-							orig_arg = procedure.orig_arg_types[arg_index].default_value
-						}
-						if expr_contains_poly(orig_arg) {
-							candidate.score += 1
-						}
-						if i >= len(call_args) {
-							i += 1
-							continue
-						}
-
-						call_arg := call_args[i]
+				// Fewer synthesized defaults is a closer match
+				provided := min(len(call_args), total_arg_count)
+				candidate.score += (total_arg_count - provided) * 100
+				if is_variadic && len(call_args) == total_arg_count-1 {
+					candidate.score += 1
+				}
+			}
+			for proc_arg, arg_index in procedure.arg_types {
+				for name in proc_arg.names {
+					orig_arg := procedure.orig_arg_types[arg_index].type
+					if orig_arg == nil {
+						orig_arg = procedure.orig_arg_types[arg_index].default_value
+					}
+					if i >= len(call_args) {
 						i += 1
+						continue
+					}
 
-						ast_context.use_locals = true
+					call_arg := call_args[i]
+					i += 1
 
-						arg_symbol: Symbol
-						ok: bool
+					ast_context.use_locals = true
 
-						if call_arg.bad_expr {
+					arg_symbol: Symbol
+					ok: bool
+
+					if call_arg.bad_expr {
+						continue
+					}
+
+					if call_arg.is_poly_type {
+						continue
+					}
+
+					if !call_arg.has_symbol && call_arg.implicit_selector == nil && !call_arg.is_nil {
+						continue
+					}
+
+					proc_arg := proc_arg
+
+					if call_arg.named {
+						proc_arg = get_proc_arg_type_from_name(procedure, call_arg.name) or_continue args
+					}
+
+					if proc_arg_is_value_poly(procedure, arg_index) && !call_arg.is_constant {
+						continue args
+					}
+
+					expected_expr, expected_is_variadic := proc_field_type_for_call(proc_arg)
+					if expected_is_variadic && ast_context.call != nil && ast_context.call.ellipsis.pos.line != 0 {
+						expected_expr = proc_arg.type
+					}
+					arg_symbol = resolve_call_arg_type_expression(ast_context, expected_expr) or_continue args
+
+					// TODO: check intrinsics for parapoly types?
+					if _, is_poly := arg_symbol.value.(SymbolPolyTypeValue); is_poly {
+						candidate.score += 1
+						continue
+					}
+
+					if call_arg.implicit_selector != nil {
+						if call_arg.implicit_selector.field.name == "_" {
 							continue
 						}
-
-						if call_arg.is_poly_type {
-							continue
-						}
-
-						if !call_arg.has_symbol && call_arg.implicit_selector == nil && !call_arg.is_nil {
-							continue
-						}
-
-						proc_arg := proc_arg
-
-						if call_arg.named {
-							proc_arg, ok = get_proc_arg_type_from_name(procedure, call_arg.name)
-							if !ok {
-								break next_fn
+						if value, ok := arg_symbol.value.(SymbolEnumValue); ok {
+							found: bool
+							for name in value.names {
+								if call_arg.implicit_selector.field.name == name {
+									found = true
+									break
+								}
 							}
-						}
-
-						if proc_arg.type != nil {
-							arg_symbol, ok = resolve_call_arg_type_expression(ast_context, proc_arg.type)
-						} else {
-							arg_symbol, ok = resolve_call_arg_type_expression(ast_context, proc_arg.default_value)
-						}
-
-						if !ok {
-							break next_fn
-						}
-
-						// TODO: check intrinsics for parapoly types?
-						if _, is_poly := arg_symbol.value.(SymbolPolyTypeValue); is_poly {
-							candidate.score += 1
-							continue
-						}
-
-						if call_arg.implicit_selector != nil {
-							if call_arg.implicit_selector.field.name == "_" {
+							if found {
 								continue
 							}
-							if value, ok := arg_symbol.value.(SymbolEnumValue); ok {
-								found: bool
-								for name in value.names {
-									if call_arg.implicit_selector.field.name == name {
+						}
+						continue args
+					}
+
+					if call_arg.is_nil {
+						if is_valid_nil_symbol(arg_symbol) {
+							continue
+						} else {
+							continue args
+						}
+					}
+
+					if untyped, is_untyped := call_arg.symbol.value.(SymbolUntypedValue); is_untyped {
+						literal_score, compatible, handled := untyped_basic_match_score(untyped, arg_symbol)
+						if handled {
+							if !compatible {
+								continue args
+							}
+							candidate.score += literal_score
+							continue
+						}
+					}
+
+
+					if !is_symbol_same_typed(ast_context, call_arg.symbol, arg_symbol, proc_arg.flags) {
+						if _, actual_is_proc := call_arg.symbol.value.(SymbolProcedureValue); actual_is_proc {
+							if _, expected_is_proc := arg_symbol.value.(SymbolProcedureValue); expected_is_proc {
+								if proc_symbols_compatible(ast_context, call_arg.symbol, arg_symbol) {
+									continue
+								}
+							}
+						}
+						found := false
+						// Are we a union variant
+						if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
+							for variant in value.types {
+								if symbol, ok := resolve_type_expression(ast_context, variant); ok {
+									if is_symbol_same_typed(ast_context, call_arg.symbol, symbol, proc_arg.flags) {
+										// matching union types are a low priority
+										candidate.score = 1000000
 										found = true
 										break
 									}
 								}
-								if found {
+							}
+						}
+
+						// Do we contain a using that matches
+						if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
+							using_score := 1000000
+							for k in value.usings {
+								symbol := resolve_type_expression(ast_context, value.types[k]) or_continue
+
+								// foo :: proc (bar: ^Bar)       — level 1 (arg_symbol)
+								// baz: struct {using bar: ^Bar} — level 1 (symbol)
+								// foo(&baz)                     — level 1 (call_arg.symbol)
+								if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
+									using_score = min(k, using_score)
+									found = true
 									continue
 								}
-							}
-							break next_fn
-						}
 
-						if call_arg.is_nil {
-							if is_valid_nil_symbol(arg_symbol) {
-								continue
-							} else {
-								break next_fn
-							}
-						}
-
-
-						if !is_symbol_same_typed(ast_context, call_arg.symbol, arg_symbol, proc_arg.flags) {
-							found := false
-							// Are we a union variant
-							if value, ok := arg_symbol.value.(SymbolUnionValue); ok {
-								for variant in value.types {
-									if symbol, ok := resolve_type_expression(ast_context, variant); ok {
-										if is_symbol_same_typed(ast_context, call_arg.symbol, symbol, proc_arg.flags) {
-											// matching union types are a low priority
-											candidate.score = 1000000
-											found = true
-											break
-										}
-									}
-								}
-							}
-
-							// Do we contain a using that matches
-							if value, ok := call_arg.symbol.value.(SymbolStructValue); ok {
-								using_score := 1000000
-								for k in value.usings {
-									symbol := resolve_type_expression(ast_context, value.types[k]) or_continue
-
-									// foo :: proc (bar: ^Bar)       — level 1 (arg_symbol)
-									// baz: struct {using bar: ^Bar} — level 1 (symbol)
-									// foo(&baz)                     — level 1 (call_arg.symbol)
+								// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
+								// baz: struct {using bar: Bar} — level 0 (symbol)
+								// foo(&baz)                    — level 1 (call_arg.symbol)
+								if call_arg.symbol.pointers != symbol.pointers {
+									symbol.pointers = call_arg.symbol.pointers
 									if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
 										using_score = min(k, using_score)
 										found = true
-										continue
-									}
-
-									// foo :: proc (bar: ^Bar)      — level 1 (arg_symbol)
-									// baz: struct {using bar: Bar} — level 0 (symbol)
-									// foo(&baz)                    — level 1 (call_arg.symbol)
-									if call_arg.symbol.pointers != symbol.pointers {
-										symbol.pointers = call_arg.symbol.pointers
-										if is_symbol_same_typed(ast_context, symbol, arg_symbol, proc_arg.flags) {
-											using_score = min(k, using_score)
-											found = true
-										}
 									}
 								}
-								candidate.score = using_score
+							}
+							candidate.score = using_score
+						}
+
+						if !found {
+							// If still not found, resolve to the base type and see if it matches
+							bypass_distinct := expr_contains_poly(orig_arg)
+							resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol, bypass_distinct)
+							resolved_expected_arg := resolve_base_symbol(ast_context, arg_symbol)
+							resolved_call_arg.pointers = call_arg.symbol.pointers
+							resolved_expected_arg.pointers = arg_symbol.pointers
+							if !is_symbol_same_typed(
+								ast_context,
+								resolved_call_arg,
+								resolved_expected_arg,
+								proc_arg.flags,
+							) {
+								continue args
 							}
 
-							if !found {
-								// If still not found, resolve to the base type and see if it matches
-								bypass_distinct := expr_contains_poly(orig_arg)
-								resolved_call_arg := resolve_base_symbol(ast_context, call_arg.symbol, bypass_distinct)
-								resolved_expected_arg := resolve_base_symbol(ast_context, arg_symbol)
-								resolved_call_arg.pointers = call_arg.symbol.pointers
-								resolved_expected_arg.pointers = arg_symbol.pointers
-								if !is_symbol_same_typed(
-									ast_context,
-									resolved_call_arg,
-									resolved_expected_arg,
-									proc_arg.flags,
-								) {
-									break next_fn
-								}
-
-								candidate.score += 1
-							}
+							candidate.score += 1
 						}
 					}
 				}
-
-				append(&candidates, candidate)
 			}
+
+			// Keep polymorphic tie-breaks small
+			// Match quality and arity must remain dominant
+			if proc_has_value_poly_arg(procedure) {
+				candidate.score -= 2
+			} else if proc_has_type_poly_arg(procedure) {
+				candidate.score += proc_unconstrained_poly_arg_count(procedure)
+				// Concrete > specialized generic > unconstrained generic
+				candidate.score += 1
+			}
+
+			append(&candidates, candidate)
 		}
 	}
 
