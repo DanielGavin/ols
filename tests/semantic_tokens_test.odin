@@ -458,3 +458,25 @@ semantic_tokens_alias_from_poly_struct :: proc(t: ^testing.T) {
 		{0, 4,  3, .Type,          {.ReadOnly}}, // [4]  int
 	})
 }
+
+@(test)
+semantic_tokens_soa_pointer_fields :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: #soa^#soa[]struct {bar: int}
+			x := foo.bar
+		}
+		`,
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1,  2, 4, .Function, {.ReadOnly}}, // [0]  main
+		{1,  3, 3, .Variable, {}},          // [1]  foo
+		{0, 24, 3, .Property, {}},          // [2]  bar (decl)
+		{0,  5, 3, .Type,     {.ReadOnly}}, // [3]  int
+		{1,  3, 1, .Variable, {}},          // [4]  x
+		{0,  5, 3, .Variable, {}},          // [5]  foo
+		{0,  4, 3, .Property, {}},          // [6]  bar
+	})
+}

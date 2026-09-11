@@ -2060,45 +2060,40 @@ resolve_soa_selector_field :: proc(
 	size: ^ast.Expr,
 	name: string,
 ) -> (
-	Symbol,
-	bool,
+	symbol: Symbol,
+	ok: bool,
 ) {
 	if .Soa not_in selector.flags && .SoaPointer not_in selector.flags {
 		return {}, false
 	}
 
 	ast_context.use_locals = true
-	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
-		if v, ok := symbol.value.(SymbolStructValue); ok {
-			for n, i in v.names {
-				if n == name {
-					if .SoaPointer in selector.flags {
-						if resolved, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-							resolved.pkg = symbol.name
-							resolved.range = v.ranges[i]
-							resolved.type = .Field
-							return resolved, ok
-						} else {
-							return {}, false
-						}
-					} else if size != nil {
-						symbol.value = SymbolFixedArrayValue {
-							expr = v.types[i],
-							len  = size,
-						}
-					} else {
-						symbol.value = SymbolMultiPointerValue {
-							expr = v.types[i],
-						}
-					}
+	symbol = resolve_type_expression(ast_context, expr) or_return
+	v := symbol.value.(SymbolStructValue) or_return
 
-					symbol.name = name
-					symbol.type = .Field
-					symbol.range = v.ranges[i]
-					return symbol, true
-				}
+	for n, i in v.names do if n == name {
+
+		if .SoaPointer in selector.flags {
+			pkg := symbol.name
+			symbol = resolve_type_expression(ast_context, v.types[i]) or_return
+			symbol.pkg = pkg
+		} else if size != nil {
+			symbol.value = SymbolFixedArrayValue {
+				expr = v.types[i],
+				len  = size,
 			}
+			symbol.name = name
+		} else {
+			symbol.value = SymbolMultiPointerValue {
+				expr = v.types[i],
+			}
+			symbol.name = name
 		}
+
+		symbol.type = .Field
+		symbol.range = v.ranges[i]
+		symbol.flags |= {.Mutable}
+		return symbol, true
 	}
 
 	return {}, false
