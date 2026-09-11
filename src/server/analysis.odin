@@ -1181,9 +1181,14 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 	}
 
 	args: for arg_expr in group.args {
+		expr := arg_expr
+		// quick fix for evaluating where exprs with the map overloads
+		if where_expr, ok := arg_expr.derived.(^ast.Binary_Expr); ok && where_expr.op.kind == .Where {
+			expr = where_expr.left
+		}
 
 		f := Symbol{}
-		internal_resolve_type_expression(ast_context, arg_expr, &f) or_continue
+		internal_resolve_type_expression(ast_context, expr, &f) or_continue
 
 		candidate := Candidate {
 			symbol = f,
