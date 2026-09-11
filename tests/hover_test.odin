@@ -7421,3 +7421,26 @@ ast_hover_for_index_from_variable :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.i: int")
 }
+
+@(test)
+ast_hover_map_overload_where_expr :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		MAP_ENABLED :: !ODIN_BEDROCK
+		make_dynamic_array :: proc($T: typeid/[dynamic]$E) -> T { return {} }
+		when MAP_ENABLED {
+			make_map :: proc($T: typeid/map[$K]$E) -> T { return {} }
+		}
+		make :: proc{
+			make_dynamic_array,
+			make_map where MAP_ENABLED,
+		}
+
+		main :: proc() {
+			m{*} := make(map[string]int)
+		}
+		`,
+	}
+
+	test.expect_hover(t, &source, "test.m: map[string]int")
+}
