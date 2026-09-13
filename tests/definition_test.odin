@@ -810,3 +810,45 @@ ast_goto_enum_field_value_reference :: proc(t: ^testing.T) {
 
 	test.expect_definition_locations(t, &source, {location})
 }
+
+@(test)
+ast_goto_chained_generic_alias :: proc(t: ^testing.T) {
+	source0 := test.Source {
+		main = `package test
+Foo :: struct($T: typeid) {foo: T}
+Bar :: Foo(f32)
+Baz :: Bar
+Qux :: Baz
+main :: proc() {
+x := Ba{*}r{foo = 1}
+}
+`,
+	}
+	test.expect_definition_locations(t, &source0, {{range = {{line = 2, character = 0}, {line = 2, character = 3}}}})
+
+	source1 := test.Source {
+		main = `package test
+Foo :: struct($T: typeid) {foo: T}
+Bar :: Foo(f32)
+Baz :: Bar
+Qux :: Baz
+main :: proc() {
+x := Ba{*}z{foo = 1}
+}
+`,
+	}
+	test.expect_definition_locations(t, &source1, {{range = {{line = 3, character = 0}, {line = 3, character = 3}}}})
+
+	source2 := test.Source {
+		main = `package test
+Foo :: struct($T: typeid) {foo: T}
+Bar :: Foo(f32)
+Baz :: Bar
+Qux :: Baz
+main :: proc() {
+x := Qu{*}x{foo = 1}
+}
+`,
+	}
+	test.expect_definition_locations(t, &source2, {{range = {{line = 4, character = 0}, {line = 4, character = 3}}}})
+}

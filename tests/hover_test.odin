@@ -7444,3 +7444,57 @@ ast_hover_map_overload_where_expr :: proc(t: ^testing.T) {
 
 	test.expect_hover(t, &source, "test.m: map[string]int")
 }
+
+@(test)
+ast_hover_chained_generic_alias_usages :: proc(t: ^testing.T) {
+	source_bar := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {
+			foo: T,
+		}
+		Bar :: Foo(f32)
+		Baz :: Bar
+		Qux :: Baz
+
+		main :: proc() {
+			b: B{*}ar
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source_bar, "test.Bar :: struct(f32) {\n\tfoo: f32,\n}")
+
+	source_baz := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {
+			foo: T,
+		}
+		Bar :: Foo(f32)
+		Baz :: Bar
+		Qux :: Baz
+
+		main :: proc() {
+			c: B{*}az
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source_baz, "test.Baz :: struct(f32) {\n\tfoo: f32,\n}")
+
+	source_qux := test.Source {
+		main     = `package test
+		Foo :: struct($T: typeid) {
+			foo: T,
+		}
+		Bar :: Foo(f32)
+		Baz :: Bar
+		Qux :: Baz
+
+		main :: proc() {
+			d: Q{*}ux
+		}
+		`,
+		packages = {},
+	}
+	test.expect_hover(t, &source_qux, "test.Qux :: struct(f32) {\n\tfoo: f32,\n}")
+}
