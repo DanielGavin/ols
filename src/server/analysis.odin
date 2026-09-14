@@ -2656,6 +2656,16 @@ resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, glo
 		symbol.flags |= {.Variable}
 	}
 
+	// `is_variable_declaration` flags every `Call_Expr` as a variable,
+	// so a generic `Bar :: Foo(f32)` arrives here marked `.Variable`
+	#partial switch _ in symbol.value {
+	case SymbolStructValue, SymbolUnionValue, SymbolEnumValue, SymbolBitFieldValue:
+		if global.value_expr != nil do #partial switch _ in global.value_expr.derived {
+		case ^ast.Call_Expr, ^ast.Ident:
+			symbol.flags -= {.Variable}
+		}
+	}
+
 	if global.docs != nil {
 		symbol.doc = get_comment(global.docs, ast_context.allocator)
 	}

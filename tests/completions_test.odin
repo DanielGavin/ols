@@ -6269,3 +6269,24 @@ ast_completion_union_switch_uses_receiver :: proc(t: ^testing.T) {
 
 	test.expect_completion_edit_text(t, &source, ".", "switch", "switch v in f {\n\t$0 \n}")
 }
+
+@(test)
+ast_completion_chained_generic_alias_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct($T: typeid) {foo: T}
+		Bar :: Foo(f32)
+		Baz :: Bar
+		Qux :: Baz
+
+		main :: proc() {
+			q: Qux
+			q.{*}
+		}
+		`,
+		packages = {},
+	}
+
+	// TODO: Qux field completions should display "Qux.foo: f32"
+	test.expect_completion_docs(t, &source, ".", {"Foo.foo: f32"})
+}

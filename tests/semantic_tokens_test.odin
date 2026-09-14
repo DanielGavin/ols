@@ -460,6 +460,30 @@ semantic_tokens_alias_from_poly_struct :: proc(t: ^testing.T) {
 }
 
 @(test)
+semantic_tokens_chained_generic_alias :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+Foo :: struct($A: typeid){}
+Bar :: Foo(f32)
+Baz :: Bar
+Qux :: Baz
+`,
+	}
+
+	test.expect_semantic_tokens(t, &src, {
+		{1, 0,  3, .Struct,        {.ReadOnly}}, // [0] Foo
+		{0, 15, 1, .TypeParameter, {}},          // [1] A
+		{1, 0,  3, .Struct,        {.ReadOnly}}, // [2] Bar
+		{0, 7,  3, .Struct,        {.ReadOnly}}, // [3] Foo
+		{0, 4,  3, .Type,          {.ReadOnly}}, // [4] f32
+		{1, 0,  3, .Struct,        {.ReadOnly}}, // [5] Baz
+		{0, 7,  3, .Struct,        {.ReadOnly}}, // [6] Bar
+		{1, 0,  3, .Struct,        {.ReadOnly}}, // [7] Qux
+		{0, 7,  3, .Struct,        {.ReadOnly}}, // [8] Baz
+	})
+}
+
+@(test)
 semantic_tokens_soa_pointer_fields :: proc(t: ^testing.T) {
 	src := test.Source {
 		main = `package test

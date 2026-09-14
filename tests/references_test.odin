@@ -1643,3 +1643,25 @@ ast_reference_enum_field_value_reference  :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations)
 }
+
+@(test)
+ast_references_chained_generic_alias :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct($T:typeid){foo: T}
+		Bar :: Foo(f32)
+		Baz :: Bar
+		Qux :: Baz
+
+		main :: proc() {
+			q: Qu{*}x
+		}
+		`,
+	}
+	locations := []common.Location {
+		{range = {start = {line = 4, character = 2}, end = {line = 4, character = 5}}},
+		{range = {start = {line = 7, character = 6}, end = {line = 7, character = 9}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:], include_declaration = true)
+}
