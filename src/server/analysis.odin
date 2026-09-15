@@ -2077,6 +2077,9 @@ resolve_soa_selector_field :: proc(
 	v := symbol.value.(SymbolStructValue) or_return
 
 	for n, i in v.names do if n == name {
+		if i < len(v.from_usings) && v.from_usings[i] != -1 {
+			continue
+		}
 
 		if .SoaPointer in selector.flags {
 			pkg := symbol.name
@@ -2117,6 +2120,9 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 		case SymbolFixedArrayValue:
 			if symbol, ok := resolve_soa_selector_field(ast_context, selector, s.expr, s.len, node.field.name); ok {
 				return symbol, ok
+			}
+			if .Soa in selector.flags {
+				return {}, false
 			}
 			components_count := 0
 			for c in node.field.name {

@@ -932,6 +932,9 @@ add_soa_field_completion :: proc(
 				if name == "_" {
 					continue
 				}
+				if i < len(v.from_usings) && v.from_usings[i] != -1 {
+					continue
+				}
 
 				resolved := Symbol {
 					type  = .Field,
@@ -1027,7 +1030,9 @@ get_selector_completion :: proc(
 	case SymbolFixedArrayValue:
 		is_incomplete = true
 		append_magic_array_like_completion(position_context, selector, results)
-		add_fixed_array_selector_completions(v, field, results)
+		if .Soa not_in selector.flags {
+			add_fixed_array_selector_completions(v, field, results)
+		}
 		add_soa_field_completion(ast_context, selector, v.expr, v.len, results, selector.name)
 	case SymbolUnionValue:
 		is_incomplete = false
