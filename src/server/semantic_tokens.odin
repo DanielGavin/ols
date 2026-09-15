@@ -349,6 +349,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^ast.Implicit:
 	case ^ast.Slice_Expr:
 		visit_node(n.expr, builder)
+		visit_node(n.low, builder)
+		visit_node(n.high, builder)
 	case ^ast.Using_Stmt:
 		visit_nodes(n.list, builder)
 	case ^ast.Map_Type:
