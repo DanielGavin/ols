@@ -6290,3 +6290,31 @@ ast_completion_chained_generic_alias_field :: proc(t: ^testing.T) {
 	// TODO: Qux field completions should display "Qux.foo: f32"
 	test.expect_completion_docs(t, &source, ".", {"Foo.foo: f32"})
 }
+
+@(test)
+ast_completion_soa_ignore_usings_swizzles :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+		Bar :: struct {
+			using a: Foo,
+			b: [4]u8,
+		}
+
+		main :: proc() {
+			bars: #soa[3]Bar
+			bars.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(
+		t,
+		&source,
+		"",
+		{"bars.a: [3]Foo", "bars.b: [3][4]u8"},
+		{"bars.foo: [3]int", "x: u8", "r: u8"},
+	)
+}
