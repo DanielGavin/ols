@@ -1,5 +1,7 @@
 package tests
 
+import "base:runtime"
+
 import "core:encoding/json"
 import "core:fmt"
 import "core:path/filepath"
@@ -41,6 +43,9 @@ test_writer_capture :: proc(ctx: rawptr, data: []byte) -> (int, int) {
 
 @(test)
 unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
+	// Server teardown performs individual frees, which the test runner's rollback allocator does not support.
+	context.allocator = runtime.default_allocator()
+
 	config := common.Config {
 		enable_diagnostics              = true,
 		enable_parser_errors            = true,
@@ -129,7 +134,9 @@ main :: proc() {
 	unused_imports := server.find_unused_imports(document)
 
 	diagnostics := server.get_merged_diagnostics()
-	unused := diagnostics[uri.uri]
+	// Windows test URIs are canonicalized when the document is opened.
+	diagnostic_uri := document.uri.uri
+	unused := diagnostics[diagnostic_uri]
 	if len(unused) != 1 {
 		testing.expectf(
 			t,
@@ -147,7 +154,7 @@ main :: proc() {
 	}
 
 	// A rejected edit must not analyze or publish diagnostics from the old document state.
-	server.remove_diagnostics(.Unused, uri.uri)
+	server.remove_diagnostics(.Unused, diagnostic_uri)
 	invalid_params_text := strings.join(
 		{
 			`{"textDocument":{"uri":"`,
@@ -179,7 +186,7 @@ main :: proc() {
 	testing.expect_value(t, change_error, common.Error.ParseError)
 
 	diagnostics = server.get_merged_diagnostics()
-	if got := len(diagnostics[uri.uri]); got != 0 {
+	if got := len(diagnostics[diagnostic_uri]); got != 0 {
 		testing.expectf(t, false, "expected no diagnostics after rejected didChange, got %d", got)
 	}
 	if got := len(capture.data); got != 0 {
