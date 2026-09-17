@@ -265,6 +265,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
+	invalidate_document_symbol_caches()
 
 	for k, &v in indexer.index.collection.packages {
 		for k2, v2 in v.symbols {
@@ -333,15 +334,16 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		defer context.allocator = allocator
 
 		ok = parse_file(&p, &file)
-
-		if !ok {
-			if !is_ols_builtin_file(fullpath) {
-				log.errorf("error in parse file for indexing %v", fullpath)
-			}
+	}
+	if !ok || file.syntax_error_count > 0 {
+		if !is_ols_builtin_file(fullpath) {
+			log.errorf("error in parse file for indexing %v", fullpath)
 		}
+		return .None
 	}
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
+	invalidate_document_symbol_caches()
 
 	for k, &v in indexer.index.collection.packages {
 		for k2, v2 in v.symbols {
