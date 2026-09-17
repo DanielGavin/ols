@@ -29,8 +29,26 @@ reset_position_context :: proc(position_context: ^DocumentPositionContext) {
 	position_context.index = nil
 }
 
+ResolveCancelProc :: #type proc() -> bool
+
 // Should only be called for open documents
 resolve_entire_file :: proc(document: ^Document) -> (symbols: SymbolAndNodeMap) {
+	symbols, _ = resolve_entire_file_internal(document, nil)
+	return
+}
+
+resolve_entire_file_cancellable :: proc(
+	document: ^Document,
+	should_cancel: ResolveCancelProc,
+) -> (SymbolAndNodeMap, bool) {
+	return resolve_entire_file_internal(document, should_cancel)
+}
+
+@(private = "file")
+resolve_entire_file_internal :: proc(
+	document: ^Document,
+	should_cancel: ResolveCancelProc,
+) -> (symbols: SymbolAndNodeMap, completed: bool) {
 	spall.trace(#procedure, document.fullpath)
 
 	assert(document.client_owned, #procedure + " should only be called for open documents")
@@ -38,11 +56,16 @@ resolve_entire_file :: proc(document: ^Document) -> (symbols: SymbolAndNodeMap) 
 	allocator, has_allocator := document_allocator(document^)
 	assert(has_allocator, "Open document should have an allocator set")
 
-	reuse_cached: {
-		return document.symbols.? or_break reuse_cached
+	if should_cancel != nil && should_cancel() {
+		return nil, false
 	}
-	defer document.symbols = symbols
 
+	reuse_cached: {
+		symbols = document.symbols.? or_break reuse_cached
+		return symbols, true
+	}
+
+	cancelled := false
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,
@@ -71,11 +94,17 @@ resolve_entire_file :: proc(document: ^Document) -> (symbols: SymbolAndNodeMap) 
 			flag = .None,
 			save_unresolved = true,
 			target_name = "",
+			should_cancel = should_cancel,
+			cancelled = &cancelled,
 		)
+		if cancelled {
+			return nil, false
+		}
 		clear(&ast_context.locals)
 	}
 
-	return symbols
+	document.symbols = symbols
+	return symbols, true
 }
 
 // Should only be called when resolving references
@@ -131,6 +160,8 @@ FileResolveData :: struct {
 	flag:             ResolveReferenceFlag,
 	target_name:      string,
 	save_unresolved:  bool,
+	should_cancel:    ResolveCancelProc,
+	cancelled:        ^bool,
 }
 
 @(private = "file")
@@ -143,6 +174,8 @@ resolve_decl :: proc(
 	flag: ResolveReferenceFlag,
 	save_unresolved: bool,
 	target_name := "",
+	should_cancel: ResolveCancelProc = nil,
+	cancelled: ^bool = nil,
 ) {
 	data := FileResolveData {
 		position_context = position_context,
@@ -152,6 +185,8 @@ resolve_decl :: proc(
 		flag             = flag,
 		target_name      = target_name,
 		save_unresolved  = save_unresolved,
+		should_cancel    = should_cancel,
+		cancelled        = cancelled,
 	}
 
 	resolve_node(decl, &data)
@@ -238,6 +273,11 @@ resolve_binary_expr :: proc(binary: ^ast.Binary_Expr, data: ^FileResolveData) {
 @(private = "file")
 resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 	if node == nil {
+		return
+	}
+	// Only cancel between nodes. Nested type resolution assumes it can finish the current node.
+	if data.should_cancel != nil && data.should_cancel() {
+		data.cancelled^ = true
 		return
 	}
 

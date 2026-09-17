@@ -5,6 +5,18 @@ import "core:testing"
 import test "src:testing"
 
 @(test)
+semantic_tokens_cancel_stale_resolution :: proc(t: ^testing.T) {
+	src := test.Source {
+		main =
+`package test
+Value :: 42
+`,
+	}
+
+	test.expect_file_resolution_cancelled(t, &src)
+}
+
+@(test)
 semantic_tokens :: proc(t: ^testing.T) {
 	src := test.Source {
 		main =

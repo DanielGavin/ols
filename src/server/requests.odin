@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "base:intrinsics"
 import "base:runtime"
 import "core:unicode/utf8"
 
@@ -49,8 +50,9 @@ RequestThreadData :: struct {
 
 Request :: struct {
 	// Nil id means it's a notification - do not respond
-	id:    RequestId,
-	value: json.Value,
+	id:       RequestId,
+	value:    json.Value,
+	sequence: int,
 }
 
 
@@ -59,6 +61,10 @@ requests_mutex: sync.Mutex
 
 requests: [dynamic]Request
 deletings: [dynamic]Request
+
+request_sequence:                int
+latest_document_change_sequence: int
+active_request_sequence:         int
 
 thread_request_main :: proc(data: rawptr) {
 	spall.thread("request")
@@ -119,7 +125,11 @@ thread_request_main :: proc(data: rawptr) {
 			append(&deletings, Request{id = id})
 			json.destroy_value(root)
 		} else {
-			append(&requests, Request{id = id, value = root})
+			request_sequence += 1
+			if method == "textDocument/didChange" {
+				intrinsics.atomic_store(&latest_document_change_sequence, request_sequence)
+			}
+			append(&requests, Request{id = id, value = root, sequence = request_sequence})
 			sync.sema_post(&requests_semaphore)
 		}
 
@@ -302,6 +312,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 
 	for ; request_index < len(temp_requests); request_index += 1 {
 		request := temp_requests[request_index]
+		active_request_sequence = request.sequence
 		call(request.value, request.id, writer, config)
 		clear_index_cache()
 		free_all(context.temp_allocator)
@@ -324,6 +335,10 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 	}
 
 	return true
+}
+
+semantic_tokens_request_is_stale :: proc() -> bool {
+	return intrinsics.atomic_load(&latest_document_change_sequence) > active_request_sequence
 }
 
 
@@ -1334,7 +1349,10 @@ request_semantic_token_full :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		symbols := resolve_entire_file(document)
+		symbols, completed := resolve_entire_file_cancellable(document, semantic_tokens_request_is_stale)
+		if !completed {
+			return .RequestCancelled
+		}
 
 		tokens := get_semantic_tokens(document, range, symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)
@@ -1374,7 +1392,10 @@ request_semantic_token_range :: proc(
 	tokens_params: SemanticTokensResponseParams
 
 	if config.enable_semantic_tokens {
-		symbols := resolve_entire_file(document)
+		symbols, completed := resolve_entire_file_cancellable(document, semantic_tokens_request_is_stale)
+		if !completed {
+			return .RequestCancelled
+		}
 
 		tokens := get_semantic_tokens(document, semantic_params.range, symbols)
 		tokens_params = semantic_tokens_to_response_params(tokens)

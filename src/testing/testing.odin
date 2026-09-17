@@ -984,6 +984,29 @@ expect_semantic_tokens :: proc(t: ^testing.T, src: ^Source, expected: []server.S
 	}
 }
 
+resolution_cancel_checks: int
+
+@(private)
+cancel_resolution_after_start :: proc() -> bool {
+	resolution_cancel_checks += 1
+	return resolution_cancel_checks > 1
+}
+
+expect_file_resolution_cancelled :: proc(t: ^testing.T, src: ^Source) {
+	setup(src)
+	defer teardown(src)
+
+	resolution_cancel_checks = 0
+	_, completed := server.resolve_entire_file_cancellable(
+		src.document,
+		cancel_resolution_after_start,
+	)
+	_, cached := src.document.symbols.?
+
+	testing.expectf(t, !completed, "Expected file resolution to be cancelled")
+	testing.expectf(t, !cached, "Cancelled file resolution must not cache partial symbols")
+}
+
 expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	spall.trace(#procedure)
 
