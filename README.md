@@ -91,6 +91,8 @@ Options:
 
 - `enable_unused_imports_reporting`: Turn on reporting of unused imported packages. _(Enabled by default)_
 
+- `enable_unused_imports_on_change`: Report unused imported packages after each document change. This can slow editing in large files. _(Disabled by default)_
+
 - `enable_inlay_hints_params`: Turn on inlay hints for (non-default) parameters.
 
 - `enable_inlay_hints_default_params`: Turn on inlay hints for default parameters.

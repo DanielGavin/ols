@@ -438,6 +438,7 @@ OlsConfig :: struct {
 	enable_inlay_hints_optional_result:      Maybe(bool),
 	enable_semantic_tokens:                  Maybe(bool),
 	enable_unused_imports_reporting:         Maybe(bool),
+	enable_unused_imports_on_change:         Maybe(bool),
 	enable_procedure_context:                Maybe(bool),
 	enable_snippets:                         Maybe(bool),
 	enable_procedure_snippet:                Maybe(bool),
