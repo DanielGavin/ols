@@ -605,7 +605,7 @@ handle_matching :: proc(
 	prefix := ""
 
 	if _, ok := arg_symbol.value.(SymbolSliceValue); ok {
-		if _, ok := result_symbol.value.(SymbolDynamicArrayValue); ok {
+		if v, ok := result_symbol.value.(SymbolDynamicArrayValue); ok && v.cap == nil {
 			suffix = "[:]"
 		}
 	}
