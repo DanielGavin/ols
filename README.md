@@ -113,6 +113,8 @@ Options:
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.
 
+- `enable_auto_import_skip_hidden_paths`: Skip hidden directories when discovering packages for auto-import. _(Enabled by default)_
+
 - `enable_comp_lit_signature_help`: Provide signature help for comp lits such as when instantiating structs. Will not display correctly on some editors such as vscode.
 
 - `enable_comp_lit_signature_help_use_docs`: Put signature help for comp lits in the documentation. This will allow it to be rendered nicely using markdown in editors that render the label without colour on one line.

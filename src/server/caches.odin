@@ -32,10 +32,16 @@ clear_all_package_aliases :: proc() {
 }
 
 //Go through all the collections to find all the possible packages that exists
-find_all_package_aliases :: proc() {
-	for k, v in common.config.collections {
+find_all_package_aliases :: proc(config: ^common.Config) {
+	for k, v in config.collections {
 		pkgs := make([dynamic]string, context.temp_allocator)
-		append_packages(v, &pkgs, {}, context.temp_allocator)
+		append_packages(
+			v,
+			&pkgs,
+			{},
+			context.temp_allocator,
+			skip_hidden = config.enable_auto_import_skip_hidden_paths,
+		)
 
 		for pkg in pkgs {
 			if pkg, err := filepath.rel(v, pkg, context.temp_allocator); err == .None {
@@ -50,4 +56,18 @@ find_all_package_aliases :: proc() {
 			}
 		}
 	}
+}
+
+refresh_package_aliases_if_hidden_paths_changed :: proc(
+	previous_value: bool,
+	config: ^common.Config,
+) -> bool {
+	if previous_value == config.enable_auto_import_skip_hidden_paths {
+		return false
+	}
+
+	clear_all_package_aliases()
+	find_all_package_aliases(config)
+
+	return true
 }
