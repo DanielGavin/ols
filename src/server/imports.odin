@@ -99,6 +99,10 @@ find_used_not_imported :: proc(
 find_unused_imports :: proc(document: ^Document, allocator := context.temp_allocator) -> []Package {
 	spall.trace(#procedure, document.fullpath)
 
+	if document.ast.syntax_error_count > 0 {
+		return nil
+	}
+
 	symbols := resolve_entire_file(document)
 
 	pkgs := make(map[string]struct{}, context.temp_allocator)

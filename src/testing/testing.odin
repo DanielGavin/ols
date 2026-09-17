@@ -45,9 +45,11 @@ setup :: proc(src: ^Source) {
 
 	src.document.client_owned = true
 	src.document.allocator = new(virtual.Arena, context.temp_allocator)
+	src.document.symbol_cache_arena = new(virtual.Arena, context.temp_allocator)
 	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
+	_ = virtual.arena_init_growing(src.document.symbol_cache_arena)
 
 	if len(src.main) > 0 {
 		src.files = slice.concatenate([][]File{{{"main.odin", src.main}}, src.files}, context.temp_allocator)
@@ -160,6 +162,7 @@ teardown :: proc(src: ^Source) {
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
 	virtual.arena_destroy(src.document.allocator)
+	virtual.arena_destroy(src.document.symbol_cache_arena)
 	spall.thread_end()
 }
 
