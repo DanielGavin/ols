@@ -80,6 +80,11 @@
 			"description": "Automatically import packages that aren't in your import on completion",
 			"default": true
 		},
+		"enable_auto_import_skip_hidden_paths": {
+			"type": "boolean",
+			"description": "Skip hidden directories when discovering packages for auto-import",
+			"default": true
+		},
 		"enable_add_import_to_bottom": {
 			"type": "boolean",
 			"description": "Add automatically imported packages to bottom of file",

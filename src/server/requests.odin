@@ -407,6 +407,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_procedure_snippet.(bool) or_else config.enable_procedure_snippet
 
 	config.enable_auto_import = ols_config.enable_auto_import.(bool) or_else config.enable_auto_import
+	config.enable_auto_import_skip_hidden_paths =
+		ols_config.enable_auto_import_skip_hidden_paths.(bool) or_else config.enable_auto_import_skip_hidden_paths
 	config.enable_add_import_to_bottom = ols_config.enable_add_import_to_bottom.(bool) or_else config.enable_add_import_to_bottom
 
 	config.enable_checker_only_saved =
@@ -727,6 +729,7 @@ request_initialize :: proc(
 	config.enable_checker_only_saved = true
 	config.enable_checker_workspace_diagnostics = false
 	config.enable_auto_import = true
+	config.enable_auto_import_skip_hidden_paths = true
 
 	read_ols_config :: proc(file: string, config: ^common.Config, uri: common.Uri) -> (ok: bool) {
 		data, err := os.read_entire_file(file, context.temp_allocator)
@@ -842,8 +845,6 @@ request_initialize :: proc(
 		id = id,
 	)
 
-	send_response(response, writer)
-
 	/*
 		Add runtime package
 	*/
@@ -862,11 +863,14 @@ request_initialize :: proc(
 		try_build_package(pkg)
 	}
 
+	find_all_package_aliases(config)
+
+	// Finish synchronous setup before announcing that the server is ready.
+	send_response(response, writer)
+
 	if initialize_params.capabilities.workspace.didChangeWatchedFiles.dynamicRegistration {
 		register_dynamic_capabilities(writer)
 	}
-
-	find_all_package_aliases()
 
 	return .None
 }
@@ -1733,13 +1737,13 @@ notification_did_change_watched_files :: proc(
 		return .ParseError
 	}
 
+	package_aliases_changed := false
 	for change in did_change_watched_files_params.changes {
 		if change.type == cast(int)FileChangeType.Deleted {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
 				remove_index_file(uri)
 			}
-			clear_all_package_aliases()
-			find_all_package_aliases()
+			package_aliases_changed = true
 		} else {
 			if uri, ok := common.parse_uri(change.uri, context.temp_allocator); ok {
 				if data, err := os.read_entire_file(uri.path, context.temp_allocator); err == nil {
@@ -1747,10 +1751,13 @@ notification_did_change_watched_files :: proc(
 				}
 			}
 			if change.type == cast(int)FileChangeType.Created {
-				clear_all_package_aliases()
-				find_all_package_aliases()
+				package_aliases_changed = true
 			}
 		}
+	}
+	if package_aliases_changed {
+		clear_all_package_aliases()
+		find_all_package_aliases(config)
 	}
 
 	if config.enable_checker_workspace_diagnostics {
@@ -1782,11 +1789,14 @@ notification_workspace_did_change_configuration :: proc(
 		return .ParseError
 	}
 
+	previous_skip_hidden_paths := config.enable_auto_import_skip_hidden_paths
 	ols_config := workspace_config_params.settings
 
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
 	}
+	refresh_package_aliases_if_hidden_paths_changed(previous_skip_hidden_paths, config)
+
 	if config.enable_checker_workspace_diagnostics {
 		queue_check_request(.Workspace, {}, config)
 	}

@@ -121,16 +121,29 @@ skip_file :: proc(filename: string) -> bool {
 
 // Finds all packages under the provided path by walking the file system
 // and appends them to the provided dynamic array
-append_packages :: proc(path: string, pkgs: ^[dynamic]string, skip: map[string]struct{}, allocator := context.temp_allocator) {
+append_packages :: proc(
+	path: string,
+	pkgs: ^[dynamic]string,
+	skip: map[string]struct{},
+	allocator := context.temp_allocator,
+	skip_hidden := false,
+) {
+	if path in skip {
+		return
+	}
+
 	w := os.walker_create(path)
 	defer os.walker_destroy(&w)
 	for info in os.walker_walk(&w) {
-		if info.type != .Directory && filepath.ext(info.name) == ".odin" {
-			dir := filepath.dir(info.fullpath)
-			if dir in skip {
+		if info.type == .Directory {
+			if info.fullpath in skip || (skip_hidden && strings.has_prefix(info.name, ".")) {
 				os.walker_skip_dir(&w)
-				continue
 			}
+			continue
+		}
+
+		if filepath.ext(info.name) == ".odin" {
+			dir := filepath.dir(info.fullpath)
 			if !slice.contains(pkgs[:], dir) {
 				append(pkgs, strings.clone(dir, allocator))
 			}
