@@ -385,6 +385,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
 	config.enable_unused_imports_reporting =
 		ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
+	config.enable_unused_imports_on_change =
+		ols_config.enable_unused_imports_on_change.(bool) or_else config.enable_unused_imports_on_change
 	config.enable_procedure_context =
 		ols_config.enable_procedure_context.(bool) or_else config.enable_procedure_context
 	config.enable_snippets = ols_config.enable_snippets.(bool) or_else config.enable_snippets
@@ -711,6 +713,7 @@ request_initialize :: proc(
 	config.enable_hover = true
 	config.enable_semantic_tokens = false
 	config.enable_unused_imports_reporting = true
+	config.enable_unused_imports_on_change = false
 	config.enable_procedure_context = false
 	config.enable_snippets = false
 	config.enable_references = true
@@ -1204,13 +1207,23 @@ notification_did_change :: proc(
 		return .ParseError
 	}
 
-	document_apply_changes(
+	if err := document_apply_changes(
 		change_params.textDocument.uri,
 		change_params.contentChanges,
 		change_params.textDocument.version,
 		config,
 		writer,
-	)
+	); err != .None {
+		return err
+	}
+
+	if config.enable_unused_imports_on_change {
+		document := document_get(change_params.textDocument.uri)
+		if document != nil {
+			check_unused_imports(document, config)
+		}
+		push_diagnostics(writer)
+	}
 
 	return .None
 }

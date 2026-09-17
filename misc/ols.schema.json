@@ -50,6 +50,11 @@
 			"description": "Turn on reporting of unused imported packages.",
 			"default": true
 		},
+		"enable_unused_imports_on_change": {
+			"type": "boolean",
+			"description": "Report unused imported packages after each document change. This can slow editing in large files.",
+			"default": false
+		},
 		"enable_inlay_hints_params": {
 			"type": "boolean",
 			"description": "Turn on inlay hints for (non-default) parameters.",
