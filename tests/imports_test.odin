@@ -76,6 +76,10 @@ unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
 	}
 
 	uri := common.create_uri(test_path, context.temp_allocator)
+	when ODIN_OS == .Windows {
+		// create_uri omits the third slash in tests, but document_open expects a client URI.
+		uri.uri = strings.concatenate({"file:///", strings.trim_prefix(uri.uri, "file://")}, context.temp_allocator)
+	}
 	initial_text := strings.clone(`package test
 
 import "./fmt"
