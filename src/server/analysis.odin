@@ -3391,6 +3391,10 @@ resolve_unresolved_symbol :: proc(ast_context: ^AstContext, symbol: ^Symbol) -> 
 
 		if ret, ok := resolve_type_expression(ast_context, v.expr); ok {
 			symbol.type = ret.type
+			// follow packages to handle things like fmt :: fmt
+			if _, is_package := ret.value.(SymbolPackageValue); is_package {
+				symbol.pkg = ret.pkg
+			}
 			symbol.signature = ret.signature
 			symbol.value = ret.value
 			symbol.flags |= ret.flags

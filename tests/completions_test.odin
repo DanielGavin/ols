@@ -6318,3 +6318,39 @@ ast_completion_soa_ignore_usings_swizzles :: proc(t: ^testing.T) {
 		{"bars.foo: [3]int", "x: u8", "r: u8"},
 	)
 }
+
+@(test)
+ast_completion_package_alias_from_another_file :: proc(t: ^testing.T) {
+	source := test.Source {
+		files = {
+			{
+				name = "main.odin",
+				source = `package test
+
+				main :: proc() {
+					my_package.{*}
+				}
+				`,
+			},
+			{
+				name = "foo.odin",
+				source = `package test
+
+				import "my_package"
+				my_package :: my_package
+				`,
+			},
+		},
+		packages = {
+			{
+				pkg = "my_package",
+				source = `package my_package
+
+				bar :: proc() {}
+				`,
+			},
+		},
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"my_package.bar :: proc()"})
+}
