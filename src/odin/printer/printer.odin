@@ -72,6 +72,7 @@ Config :: struct {
 	align_constant_definitions:   bool,
 	align_comments:               bool, //Align trailing line comments to the same column.
 	multiline_composite_literals: bool,
+	preserve_struct_blank_lines:  bool,
 }
 
 Brace_Style :: enum {
@@ -127,6 +128,7 @@ when ODIN_OS == .Windows {
 		align_constant_definitions   = false,
 		align_comments               = false,
 		multiline_composite_literals = false,
+		preserve_struct_blank_lines  = false,
 	}
 } else {
 	default_style := Config {
@@ -147,6 +149,7 @@ when ODIN_OS == .Windows {
 		align_constant_definitions   = false,
 		align_comments               = false,
 		multiline_composite_literals = false,
+		preserve_struct_blank_lines  = false,
 	}
 }
 

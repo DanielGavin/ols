@@ -1,0 +1,5 @@
+{
+	"align_struct_declarations": true,
+	"preserve_struct_blank_lines": true,
+	"spaces_around_colons": true
+}
