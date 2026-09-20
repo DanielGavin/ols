@@ -409,7 +409,9 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 	}
 
 	if len(results) == 0 {
-		return
+		for value in value_decl.values {
+			append(&results, value)
+		}
 	}
 
 	for name, i in value_decl.names {

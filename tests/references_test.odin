@@ -1665,3 +1665,25 @@ ast_references_chained_generic_alias :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:], include_declaration = true)
 }
+
+@(test)
+ast_references_shadowed_variable_unresolved_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			foo: int
+
+			{
+				fo{*}o := bar()
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 6, character = 4}, end = {line = 6, character = 7}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
