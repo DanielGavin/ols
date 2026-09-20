@@ -329,8 +329,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^ast.Dynamic_Array_Type:
 		visit_node(n.elem, builder)
 	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
-		visit_node(n.elem, builder)
 		visit_node(n.capacity, builder)
+		visit_node(n.elem, builder)
 	case ^ast.Multi_Pointer_Type:
 		visit_node(n.elem, builder)
 	case ^ast.Field_Value:
