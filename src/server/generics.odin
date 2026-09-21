@@ -579,6 +579,12 @@ resolve_generic_function_symbol :: proc(
 	i := 0
 
 	call_args, _ := expand_call_args(ast_context, call_expr)
+	is_objc_block := proc_symbol.name == "objc_block" && is_objc_intrinsics_package(proc_symbol.pkg)
+	if is_objc_block && len(call_args) > 0 {
+		// objc_block's handler is syntactically last even though the intrinsic declaration
+		// places its polymorphic `invoke` parameter first.
+		call_args = call_args[len(call_args) - 1:]
+	}
 
 	i = 0
 	count_required_params := 0
@@ -630,7 +636,7 @@ resolve_generic_function_symbol :: proc(
 		find_and_replace_poly_type(v, &poly_map)
 	}
 
-	if count_required_params > len(call_args) || count_required_params == 0 || len(call_args) == 0 {
+	if (!is_objc_block && count_required_params > len(call_args)) || count_required_params == 0 || len(call_args) == 0 {
 		return {}, false
 	}
 

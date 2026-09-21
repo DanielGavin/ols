@@ -34,6 +34,8 @@ DocumentPositionContext :: struct {
 	tag:                    ^ast.Node,
 	field:                  ^ast.Expr, //used for completion
 	call:                   ^ast.Expr, //used for signature help
+	calls:                  [dynamic]^ast.Call_Expr, // Lists enclosing calls from outermost to innermost so the Objc_Block action can find the expected callback type.
+	selector_calls:         [dynamic]^ast.Selector_Call_Expr, // Keeps each '->' receiver so the Objc_Block action can look up the method's parameter types.
 	call_arg:               ^ast.Expr, //used for completion
 	returns:                ^ast.Return_Stmt, //used for completion
 	comp_lit:               ^ast.Comp_Lit, //used for completion
@@ -123,6 +125,8 @@ get_document_position_context :: proc(
 	position_context.line = position.line
 
 	position_context.functions = make([dynamic]^ast.Proc_Lit, context.temp_allocator)
+	position_context.calls = make([dynamic]^ast.Call_Expr, context.temp_allocator)
+	position_context.selector_calls = make([dynamic]^ast.Selector_Call_Expr, context.temp_allocator)
 
 	absolute_position, ok := common.get_absolute_position(position, document.text)
 
@@ -647,6 +651,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 	case ^ast.Paren_Expr:
 		get_document_position(n.expr, position_context)
 	case ^ast.Call_Expr:
+		append(&position_context.calls, n)
 		position_context.call = n
 		get_document_position(n.expr, position_context)
 		for arg in n.args {
@@ -656,6 +661,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		}
 		get_document_position(n.args, position_context)
 	case ^ast.Selector_Call_Expr:
+		append(&position_context.selector_calls, n)
 		position_context.selector = n.expr
 		position_context.field = n.call
 		position_context.selector_expr = node

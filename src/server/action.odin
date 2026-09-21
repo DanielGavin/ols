@@ -110,6 +110,15 @@ get_code_actions :: proc(
 		)
 	}
 
+	add_objc_block_handler_action(
+		document,
+		&ast_context,
+		&position_context,
+		range.start,
+		strings.clone(document.uri.uri, context.temp_allocator),
+		&actions,
+	)
+
 	if config.enable_code_action_invert_if {
 		add_invert_if_action(
 			document,
