@@ -402,6 +402,8 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_bit_field_fields(n^, builder)
 	case ^ast.Helper_Type:
 		visit_node(n.type, builder)
+	case ^ast.Distinct_Type:
+		visit_node(n.type, builder)
 	case:
 	}
 }

@@ -516,3 +516,16 @@ semantic_tokens_soa_pointer_fields :: proc(t: ^testing.T) {
 		{0,  4, 3, .Property, {}},          // [6]  bar
 	})
 }
+
+@(test)
+semantic_tokens_distinct_int :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+INT :: distinct int
+`,
+	}
+	test.expect_semantic_tokens(t, &src, {
+		{1,  0, 3, .Type, {.ReadOnly}}, // [0] INT
+		{0, 16, 3, .Type, {.ReadOnly}}, // [1] int
+	})
+}
