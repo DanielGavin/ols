@@ -1,5 +1,6 @@
 package tests
 
+import "core:slice"
 import "core:testing"
 
 import test "src:testing"
@@ -132,7 +133,8 @@ NotificationCenter_addObserverForName :: proc "c" (
 		},
 		test.Package {
 			pkg = "Cross",
-			files = {
+			// This helper returns the package, so its file list must outlive this call.
+			files = slice.clone([]test.File {
 				{
 					name = "aliases.odin",
 					source = `package Cross
@@ -152,7 +154,7 @@ CrossLayer :: struct {}
 CrossLayer_layer :: proc "c" () -> InstanceType ---
 `,
 				},
-			},
+			}, context.temp_allocator),
 		},
 		test.Package {
 			pkg = "IvarBase",
