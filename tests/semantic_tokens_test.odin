@@ -529,3 +529,21 @@ INT :: distinct int
 		{0, 16, 3, .Type, {.ReadOnly}}, // [1] int
 	})
 }
+
+@(test)
+semantic_tokens_attribute_values :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+foo :: proc () {}
+@(private, deferred_none=foo)
+bar :: proc () {}
+`,
+	}
+	test.expect_semantic_tokens(t, &src, {
+		{1,  0,  3, .Function, {.ReadOnly}}, // [0] foo
+		{1,  2,  7, .Property, {.ReadOnly}}, // [1] private
+		{0,  9, 13, .Property, {.ReadOnly}}, // [2] deferred_none
+		{0, 14,  3, .Function, {.ReadOnly}}, // [3] foo
+		{1,  0,  3, .Function, {.ReadOnly}}, // [4] bar
+	})
+}
