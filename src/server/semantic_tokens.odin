@@ -236,6 +236,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 	case ^ast.Block_Stmt:
 		visit_nodes(n.stmts, builder)
 	case ^ast.Foreign_Block_Decl:
+		visit_nodes(n.attributes[:], builder)
 		visit_node(n.body, builder)
 	case ^ast.Expr_Stmt:
 		visit_node(n.expr, builder)
@@ -402,6 +403,20 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_bit_field_fields(n^, builder)
 	case ^ast.Helper_Type:
 		visit_node(n.type, builder)
+	case ^ast.Distinct_Type:
+		visit_node(n.type, builder)
+	case ^ast.Attribute:
+		for elem in n.elems {
+			// `@(private, disabled=FOO)`
+			//                       ^- only field values are symbols
+			#partial switch e in elem.derived {
+			case ^ast.Ident:
+				write_semantic_node(builder, e, .Property, {.ReadOnly})
+			case ^ast.Field_Value:
+				write_semantic_node(builder, e.field, .Property, {.ReadOnly})
+				visit_node(e.value, builder)
+			}
+		}
 	case:
 	}
 }
@@ -409,16 +424,15 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 visit_value_decl :: proc(value_decl: ast.Value_Decl, builder: ^SemanticTokenBuilder) {
 	modifiers: SemanticTokenModifiers = value_decl.is_mutable ? {} : {.ReadOnly}
 
+	visit_nodes(value_decl.attributes[:], builder)
+
 	for name in value_decl.names {
 		ident := name.derived.(^ast.Ident) or_continue
 		visit_ident(ident, ident, modifiers, builder)
 	}
 
 	visit_node(value_decl.type, builder)
-
-	for value in value_decl.values {
-		visit_node(value, builder)
-	}
+	visit_nodes(value_decl.values, builder)
 }
 
 visit_proc_type :: proc(node: ^ast.Proc_Type, builder: ^SemanticTokenBuilder) {
@@ -511,6 +525,9 @@ visit_bit_field_fields :: proc(node: ast.Bit_Field_Type, builder: ^SemanticToken
 }
 
 visit_import_decl :: proc(decl: ^ast.Import_Decl, builder: ^SemanticTokenBuilder) {
+
+	visit_nodes(decl.attributes[:], builder)
+
 	/*
 	hightlight the namespace in the import declaration
 
