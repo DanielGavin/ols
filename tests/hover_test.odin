@@ -7498,3 +7498,16 @@ ast_hover_chained_generic_alias_usages :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source_qux, "test.Qux :: struct(f32) {\n\tfoo: f32,\n}")
 }
+
+@(test)
+ast_hover_range_iter_inherits_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: u32 = 1
+			for i{*} in 0..<foo {}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.i: u32")
+}
