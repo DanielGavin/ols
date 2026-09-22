@@ -195,6 +195,42 @@ get_completion_list :: proc(
 	return list, true
 }
 
+get_objc_block_capture_target :: proc(
+	ast_context: ^AstContext,
+	call: ^ast.Call_Expr,
+	param_index: int,
+) -> (Symbol, bool) {
+	capture_count := len(call.args) - 1
+	if capture_count <= 0 || param_index >= capture_count {
+		return {}, false
+	}
+
+	block_symbol, block_ok := resolve_type_expression(ast_context, call.expr)
+	if !block_ok || block_symbol.name != "objc_block" || !is_objc_intrinsics_package(block_symbol.pkg) {
+		return {}, false
+	}
+
+	handler_symbol, handler_symbol_ok := resolve_type_expression(ast_context, call.args[len(call.args) - 1])
+	if !handler_symbol_ok {
+		return {}, false
+	}
+	handler, handler_ok := handler_symbol.value.(SymbolProcedureValue)
+	if !handler_ok {
+		return {}, false
+	}
+
+	param_count := proc_total_arg_count(handler)
+	if capture_count > param_count {
+		return {}, false
+	}
+	field, field_ok := proc_field_from_list_at(handler.arg_types, param_count - capture_count + param_index)
+	if !field_ok {
+		return {}, false
+	}
+	type_expr, _ := proc_field_type_for_call(field)
+	return resolve_type_expression(ast_context, type_expr)
+}
+
 get_target_symbol :: proc(ast_context: ^AstContext, position_context: ^DocumentPositionContext) -> Maybe(Symbol) {
 	if position_context.call != nil {
 		if call, ok := position_context.call.derived.(^ast.Call_Expr); ok {
@@ -205,6 +241,9 @@ get_target_symbol :: proc(ast_context: ^AstContext, position_context: ^DocumentP
 					case "append", "non_zero_append":
 						return Symbol{value = SymbolDynamicArrayValue{}, pointers = 1}
 					}
+				}
+				if target, ok := get_objc_block_capture_target(ast_context, call, param_index); ok {
+					return target
 				}
 				if call_symbol, ok := resolve_type_expression(ast_context, call.expr); ok {
 					if value, ok := call_symbol.value.(SymbolProcedureValue); ok {
@@ -1013,6 +1052,18 @@ get_selector_completion :: proc(
 	receiver_start := position_context.selector.expr_base.pos.offset
 	receiver_end := position_context.selector.expr_base.end.offset
 	receiver := position_context.file.src[receiver_start:receiver_end]
+	// Use the outer selector's operator to decide which completions to show.
+	// For `self.impl->`, we need `->`, not the `.` used to access `impl`.
+	access_expr := position_context.selector_expr
+	if access_expr == nil {
+		access_expr = position_context.selector
+	}
+	is_arrow_access := position_context.arrow
+	if position_context.selector_expr != nil {
+		if expr, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
+			is_arrow_access = expr.op.kind == .Arrow_Right
+		}
+	}
 
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
@@ -1140,7 +1191,17 @@ get_selector_completion :: proc(
 
 	case SymbolStructValue:
 		is_incomplete = false
+		is_objc_value := .ObjC in selector.flags || len(v.objc_ivars) > 0
+
 		for name, i in v.names {
+			is_objc_ivar := symbol_struct_value_has_objc_ivar(v, i)
+
+			// This loop only needs ivars for dot access. Fake methods are already added
+			// above by append_method_completion when enabled, so resolving the expanded
+			// Objective-C method entries here would be wasted work.
+			if is_objc_value && !is_arrow_access && !is_objc_ivar {
+				continue
+			}
 			if name == "_" {
 				if is_struct_field_using(v, i) {
 					if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
@@ -1155,22 +1216,27 @@ get_selector_completion :: proc(
 			if is_struct_field_hidden(name, selector, ast_context, config) do continue
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-				if expr, ok := position_context.selector.derived.(^ast.Selector_Expr); ok {
-					if expr.op.kind == .Arrow_Right {
-						if symbol.type != .Function && symbol.type != .Type_Function {
+				if expr, ok := access_expr.derived.(^ast.Selector_Expr); ok {
+					if is_arrow_access {
+						if !is_objc_ivar && symbol.type != .Function && symbol.type != .Type_Function {
 							continue
 						}
 						if .ObjCIsClassMethod in symbol.flags {
 							assert(.ObjC in symbol.flags)
 							continue
 						}
-					} else if .ObjC in selector.flags {
+					} else if .ObjC in selector.flags && !is_objc_ivar {
 						continue
 					}
 				}
 
 				construct_struct_field_symbol(&symbol, selector.name, v, i)
-				append(results, CompletionResult{symbol = symbol})
+				result := CompletionResult{symbol = symbol}
+				if is_objc_ivar {
+					// Keep ivars ahead of methods regardless of package scoring.
+					result.score = 2
+				}
+				append(results, result)
 
 				if is_struct_field_using(v, i) {
 					if value, ok := symbol.value.(SymbolFixedArrayValue); ok {

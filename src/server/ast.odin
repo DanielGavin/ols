@@ -112,11 +112,11 @@ parse_file :: proc (p: ^parser.Parser, file: ^ast.File, allocator := context.all
 	return parser.parse_file(p, file)
 }
 
-get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
+get_attribute_type :: proc(attributes: []^ast.Attribute, name: string) -> ^ast.Expr {
 	for attribute in attributes {
 		for elem in attribute.elems {
 			if assign, ok := elem.derived.(^ast.Field_Value); ok {
-				if ident, ok := assign.field.derived.(^ast.Ident); ok && ident.name == "objc_type" {
+				if ident, ok := assign.field.derived.(^ast.Ident); ok && ident.name == name {
 					return assign.value
 				}
 			}
@@ -126,7 +126,19 @@ get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
 	return nil
 }
 
-get_attribute_objc_name :: proc(attributes: []^ast.Attribute) -> (string, bool) {
+get_attribute_objc_type :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
+	return get_attribute_type(attributes, "objc_type")
+}
+
+get_attribute_objc_ivar :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
+	return get_attribute_type(attributes, "objc_ivar")
+}
+
+get_attribute_objc_superclass :: proc(attributes: []^ast.Attribute) -> ^ast.Expr {
+	return get_attribute_type(attributes, "objc_superclass")
+}
+
+get_attribute_objc_name :: proc(attributes: []^ast.Attribute, proc_name := "") -> (string, bool) {
 	for attribute in attributes {
 		for elem in attribute.elems {
 			if assign, ok := elem.derived.(^ast.Field_Value); ok {
@@ -136,6 +148,18 @@ get_attribute_objc_name :: proc(attributes: []^ast.Attribute) -> (string, bool) 
 					}
 				}
 
+			}
+		}
+	}
+
+	// With no explicit objc_name, only strip the prefix matching the declared objc_type.
+	if objc_type := get_attribute_objc_type(attributes); objc_type != nil {
+		if ident, ok := objc_type.derived.(^ast.Ident); ok {
+			type_name_len := len(ident.name)
+			if len(proc_name) > type_name_len + 1 &&
+			   proc_name[type_name_len] == '_' &&
+			   proc_name[:type_name_len] == ident.name {
+				return proc_name[type_name_len + 1:], true
 			}
 		}
 	}

@@ -19,12 +19,15 @@ SymbolCollection :: struct {
 ObjcFunction :: struct {
 	physical_name: string,
 	logical_name:  string,
+	fullpath:      string,
 }
 
 ObjcStruct :: struct {
-	functions: [dynamic]ObjcFunction,
-	pkg:       string,
-	ranges:    [dynamic]common.Range,
+	functions:  [dynamic]ObjcFunction,
+	pkg:        string,
+	ranges:     [dynamic]common.Range,
+	ivar:       ^ast.Expr,
+	superclass: ^ast.Expr,
 }
 
 Method :: struct {
@@ -678,26 +681,38 @@ add_symbol_to_method :: proc(collection: ^SymbolCollection, pkg: ^SymbolPackage,
 	append(symbols, symbol)
 }
 
-collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute, symbol: Symbol) {
+get_or_create_objc_struct :: proc(
+	collection: ^SymbolCollection,
+	pkg: ^SymbolPackage,
+	name, pkg_name: string,
+) -> ^ObjcStruct {
+	objc_struct := &pkg.objc_structs[name]
+	if objc_struct == nil {
+		pkg.objc_structs[name] = {}
+		objc_struct = &pkg.objc_structs[name]
+		objc_struct.functions = make([dynamic]ObjcFunction, 0, 10, collection.allocator)
+		objc_struct.ranges = make([dynamic]common.Range, 0, 10, collection.allocator)
+		objc_struct.pkg = pkg_name
+	}
+	return objc_struct
+}
+
+collect_objc :: proc(
+	collection: ^SymbolCollection,
+	attributes: []^ast.Attribute,
+	symbol: Symbol,
+	package_map: map[string]string,
+) {
 	pkg := &collection.packages[symbol.pkg]
 
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
-		objc_name, found_objc_name := get_attribute_objc_name(attributes)
+		objc_name, found_objc_name := get_attribute_objc_name(attributes, symbol.name)
 
 		if objc_type := get_attribute_objc_type(attributes); objc_type != nil && found_objc_name {
 
 			if struct_ident, ok := objc_type.derived.(^ast.Ident); ok {
 				struct_name := get_index_unique_string_collection(collection, struct_ident.name)
-
-				objc_struct := &pkg.objc_structs[struct_name]
-
-				if objc_struct == nil {
-					pkg.objc_structs[struct_name] = {}
-					objc_struct = &pkg.objc_structs[struct_name]
-					objc_struct.functions = make([dynamic]ObjcFunction, 0, 10, collection.allocator)
-					objc_struct.ranges = make([dynamic]common.Range, 0, 10, collection.allocator)
-					objc_struct.pkg = symbol.pkg
-				}
+				objc_struct := get_or_create_objc_struct(collection, pkg, struct_name, symbol.pkg)
 
 				append(&objc_struct.ranges, symbol.range)
 
@@ -706,9 +721,24 @@ collect_objc :: proc(collection: ^SymbolCollection, attributes: []^ast.Attribute
 					ObjcFunction {
 						logical_name = get_index_unique_string_collection(collection, objc_name),
 						physical_name = symbol.name,
+						// Cache the method's own file so inherited definitions do not use the receiver's file.
+						fullpath = common.uri_to_path(symbol.uri, collection.allocator),
 					},
 				)
 			}
+		}
+	} else if _, ok := symbol.value.(SymbolStructValue); ok {
+		objc_struct := get_or_create_objc_struct(collection, pkg, symbol.name, symbol.pkg)
+
+		// The index outlives this file's AST, so keep our own copies of these types.
+		// Replace import aliases with package paths so other files can resolve them.
+		if ivar := get_attribute_objc_ivar(attributes); ivar != nil {
+			objc_struct.ivar = clone_type(ivar, collection.allocator, &collection.unique_strings)
+			replace_package_alias(objc_struct.ivar, package_map, collection)
+		}
+		if superclass := get_attribute_objc_superclass(attributes); superclass != nil {
+			objc_struct.superclass = clone_type(superclass, collection.allocator, &collection.unique_strings)
+			replace_package_alias(objc_struct.superclass, package_map, collection)
 		}
 	}
 }
@@ -821,7 +851,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				)
 			}
 
-			if _, is_objc := get_attribute_objc_name(expr.attributes); is_objc {
+			if _, is_objc := get_attribute_objc_name(expr.attributes, expr.name); is_objc {
 				symbol.flags |= {.ObjC}
 				if get_attribute_objc_is_class_method(expr.attributes) {
 					symbol.flags |= {.ObjCIsClassMethod}
@@ -997,7 +1027,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		pkg := get_or_create_package(collection, symbol.pkg)
 
 		if .ObjC in symbol.flags {
-			collect_objc(collection, expr.attributes, symbol)
+			collect_objc(collection, expr.attributes, symbol, package_map)
 		}
 
 		if v, ok := pkg.symbols[symbol.name]; !ok || v.name == "" {

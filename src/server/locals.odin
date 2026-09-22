@@ -16,6 +16,7 @@ DocumentLocal :: struct {
 	rhs:             ^ast.Expr,
 	type_expr:       ^ast.Expr,
 	value_expr:      ^ast.Expr,
+	initializer:     ^ast.Expr, // Keeps the original expression for Objc_Block hover and handler generation after rhs has been reduced to a type.
 	offset:          int,
 	resolved_global: bool, //Some locals have already been resolved and are now in global space
 	local_global:    bool, //Some locals act like globals, i.e. functions defined inside functions.
@@ -62,6 +63,7 @@ store_local :: proc(
 	value_expr: ^ast.Expr = nil,
 	docs: ^ast.Comment_Group = nil,
 	comment: ^ast.Comment_Group = nil,
+	initializer: ^ast.Expr = nil,
 ) {
 	local_group := get_local_group(ast_context)
 	local_stack := &local_group[name]
@@ -78,6 +80,7 @@ store_local :: proc(
 			rhs = rhs,
 			type_expr = type_expr,
 			value_expr = value_expr,
+			initializer = initializer,
 			offset = offset,
 			resolved_global = resolved_global,
 			local_global = local_global,
@@ -388,6 +391,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 				value_expr,
 				value_decl.docs,
 				value_decl.comment,
+				len(value_decl.values) > i ? value_decl.values[i] : nil,
 			)
 		}
 		return
@@ -454,6 +458,7 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 			value_expr,
 			value_decl.docs,
 			value_decl.comment,
+			len(value_decl.values) > i ? value_decl.values[i] : nil,
 		)
 	}
 }

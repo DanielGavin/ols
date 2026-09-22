@@ -32,6 +32,7 @@ SymbolStructValue :: struct {
 	usings:            []int,
 	from_usings:       []int,
 	unexpanded_usings: []int,
+	objc_ivars:        []int,
 	poly:              ^ast.Field_List,
 	poly_names:        []string, // The resolved names for the poly fields
 	args:              []^ast.Expr, //The arguments in the call expression for poly
@@ -53,6 +54,15 @@ SymbolStructValue :: struct {
 symbol_struct_value_has_using :: proc(v: SymbolStructValue, index: int) -> bool {
 	for u in v.usings {
 		if u == index {
+			return true
+		}
+	}
+	return false
+}
+
+symbol_struct_value_has_objc_ivar :: proc(v: SymbolStructValue, index: int) -> bool {
+	for ivar in v.objc_ivars {
+		if ivar == index {
 			return true
 		}
 	}
@@ -270,6 +280,7 @@ SymbolStructValueBuilder :: struct {
 	usings:            [dynamic]int,
 	from_usings:       [dynamic]int,
 	unexpanded_usings: [dynamic]int,
+	objc_ivars:        [dynamic]int,
 	poly:              ^ast.Field_List,
 	poly_names:        [dynamic]string,
 	where_clauses:     [dynamic]^ast.Expr,
@@ -296,6 +307,7 @@ symbol_struct_value_builder_make_none :: proc(allocator := context.allocator) ->
 		usings = make([dynamic]int, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
+		objc_ivars = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
 		backing_types = make(map[int]^ast.Expr, allocator),
 		bit_sizes = make(map[int]^ast.Expr, allocator),
@@ -318,6 +330,7 @@ symbol_struct_value_builder_make_symbol :: proc(
 		usings = make([dynamic]int, allocator),
 		from_usings = make([dynamic]int, allocator),
 		unexpanded_usings = make([dynamic]int, allocator),
+		objc_ivars = make([dynamic]int, allocator),
 		poly_names = make([dynamic]string, allocator),
 		backing_types = make(map[int]^ast.Expr, allocator),
 		bit_sizes = make(map[int]^ast.Expr, allocator),
@@ -341,6 +354,7 @@ symbol_struct_value_builder_make_symbol_symbol_struct_value :: proc(
 		usings = slice.to_dynamic(v.usings, allocator),
 		from_usings = slice.to_dynamic(v.from_usings, allocator),
 		unexpanded_usings = slice.to_dynamic(v.unexpanded_usings, allocator),
+		objc_ivars = slice.to_dynamic(v.objc_ivars, allocator),
 		poly_names = slice.to_dynamic(v.poly_names, allocator),
 		backing_types = v.backing_types,
 		bit_sizes = v.bit_sizes,
@@ -375,6 +389,7 @@ to_symbol_struct_value :: proc(b: SymbolStructValueBuilder) -> SymbolStructValue
 		usings = b.usings[:],
 		from_usings = b.from_usings[:],
 		unexpanded_usings = b.unexpanded_usings[:],
+		objc_ivars = b.objc_ivars[:],
 		poly = b.poly,
 		poly_names = b.poly_names[:],
 		backing_types = b.backing_types,
@@ -494,6 +509,9 @@ write_symbol_struct_value :: proc(
 	for u in v.unexpanded_usings {
 		append(&b.unexpanded_usings, u + base_index)
 	}
+	for ivar in v.objc_ivars {
+		append(&b.objc_ivars, ivar + base_index)
+	}
 	for k, value in v.backing_types {
 		b.backing_types[k + base_index] = value
 	}
@@ -598,20 +616,120 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 	}
 }
 
+ObjcStructKey :: struct {
+	pkg:  string,
+	name: string,
+}
+
+get_objc_struct_reference :: proc(expr: ^ast.Expr, default_pkg: string) -> (name, pkg: string, ok: bool) {
+	if expr == nil {
+		return
+	}
+
+	#partial switch value in expr.derived {
+	case ^ast.Ident:
+		return value.name, default_pkg, true
+	case ^ast.Selector_Expr:
+		base, base_ok := value.expr.derived.(^ast.Ident)
+		if base_ok && value.field != nil {
+			return value.field.name, base.name, true
+		}
+	case ^ast.Paren_Expr:
+		return get_objc_struct_reference(value.expr, default_pkg)
+	case ^ast.Helper_Type:
+		return get_objc_struct_reference(value.type, default_pkg)
+	}
+	return
+}
+
+// Add storage fields child-first so the nearest ivar wins a name conflict.
+// Mark their field indexes for completion ranking and source-file lookup.
+append_objc_ivars :: proc(
+	ast_context: ^AstContext,
+	b: ^SymbolStructValueBuilder,
+	name: string,
+	objc_struct: ObjcStruct,
+	visited: ^map[ObjcStructKey]struct{},
+) {
+	key := ObjcStructKey{pkg = objc_struct.pkg, name = name}
+	if key in visited^ {
+		return
+	}
+	visited^[key] = {}
+
+	if objc_struct.ivar != nil {
+		if ivar_symbol, ok := resolve_type_expression(ast_context, objc_struct.ivar); ok {
+			if ivar, ok := ivar_symbol.value.(SymbolStructValue); ok {
+				_ivar_field: for ivar_name, i in ivar.names {
+					if ivar_name == "_" {
+						continue
+					}
+					for existing_name in b.names {
+						if existing_name == ivar_name {
+							continue _ivar_field
+						}
+					}
+
+					append(&b.objc_ivars, len(b.names))
+					append(&b.names, ivar_name)
+					append(&b.types, ivar.types[i])
+					append(&b.ranges, ivar.ranges[i])
+					append(&b.docs, ivar.docs[i])
+					append(&b.comments, ivar.comments[i])
+					append(&b.from_usings, -1)
+				}
+			}
+		}
+	}
+
+	if objc_struct.superclass != nil {
+		if superclass_name, superclass_pkg, ok := get_objc_struct_reference(
+			objc_struct.superclass,
+			objc_struct.pkg,
+		); ok {
+			if pkg, ok := indexer.index.collection.packages[superclass_pkg]; ok {
+				if parent, ok := pkg.objc_structs[superclass_name]; ok {
+					append_objc_ivars(ast_context, b, superclass_name, parent, visited)
+					return
+				}
+			}
+		}
+
+		// Preserve aliases and other uncommon superclass expressions without paying
+		// for full type resolution on ordinary qualified class references.
+		if superclass, ok := resolve_type_expression(ast_context, objc_struct.superclass); ok {
+			if pkg, ok := indexer.index.collection.packages[superclass.pkg]; ok {
+				if parent, ok := pkg.objc_structs[superclass.name]; ok {
+					append_objc_ivars(ast_context, b, superclass.name, parent, visited)
+				}
+			}
+		}
+	}
+}
+
 expand_objc :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 	symbol := b.symbol
 	if .ObjC in symbol.flags {
 		pkg := indexer.index.collection.packages[symbol.pkg]
 
 		if obj_struct, ok := pkg.objc_structs[symbol.name]; ok {
+			if obj_struct.ivar != nil || obj_struct.superclass != nil {
+				visited := make(map[ObjcStructKey]struct{}, context.temp_allocator)
+				append_objc_ivars(ast_context, b, symbol.name, obj_struct, &visited)
+			}
+
 			_objc_function: for function, i in obj_struct.functions {
-				base := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				pos := tokenizer.Pos {
+					file = function.fullpath,
+				}
+
+				base := new_type(ast.Ident, pos, pos, context.temp_allocator)
 				base.name = obj_struct.pkg
 
-				field := new_type(ast.Ident, {}, {}, context.temp_allocator)
+				field := new_type(ast.Ident, pos, pos, context.temp_allocator)
 				field.name = function.physical_name
 
-				selector := new_type(ast.Selector_Expr, {}, {}, context.temp_allocator)
+				selector := new_type(ast.Selector_Expr, pos, pos, context.temp_allocator)
 
 				selector.field = field
 				selector.expr = base

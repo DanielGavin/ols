@@ -203,13 +203,13 @@ add_proc_method_completion :: proc(
 		return
 	}
 
-	first_arg: Symbol
-	first_arg, ok = resolve_type_expression(ast_context, value.arg_types[0].type)
-	if !ok {
-		return
-	}
+	first_arg_pointers, receiver_ok := get_method_receiver_pointers(
+		ast_context,
+		value.arg_types[0].type,
+	)
+	if !receiver_ok do return
 
-	references, dereferences := compute_pointer_adjustments(first_arg.pointers, pointers)
+	references, dereferences := compute_pointer_adjustments(first_arg_pointers, pointers)
 
 	new_text := build_method_call_text(
 		ast_context,
@@ -267,13 +267,13 @@ add_proc_group_method_completion :: proc(
 		return
 	}
 
-	first_arg: Symbol
-	first_arg, ok = resolve_type_expression(ast_context, member_proc.arg_types[0].type)
-	if !ok {
-		return
-	}
+	first_arg_pointers, receiver_ok := get_method_receiver_pointers(
+		ast_context,
+		member_proc.arg_types[0].type,
+	)
+	if !receiver_ok do return
 
-	references, dereferences := compute_pointer_adjustments(first_arg.pointers, pointers)
+	references, dereferences := compute_pointer_adjustments(first_arg_pointers, pointers)
 
 	// Check if any member of the proc group has additional arguments beyond the receiver
 	has_additional_args := false
@@ -305,6 +305,20 @@ add_proc_group_method_completion :: proc(
 	}
 
 	append(results, CompletionResult{completion_item = item})
+}
+
+@(private = "file")
+get_method_receiver_pointers :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (int, bool) {
+	// Fake-method completion only needs pointer depth. Avoid expanding the same
+	// receiver type for every method (hundreds on Objective-C classes).
+	if _, pointers, ok := unwrap_pointer_ident(expr); ok {
+		return pointers, true
+	}
+
+	if symbol, ok := resolve_type_expression(ast_context, expr); ok {
+		return symbol.pointers, true
+	}
+	return 0, false
 }
 
 @(private = "file")

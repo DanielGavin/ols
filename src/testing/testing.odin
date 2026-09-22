@@ -334,6 +334,48 @@ expect_completion_labels :: proc(
 	}
 }
 
+// Checks that every expected label appears exactly once and in the given order.
+// Ivar tests use this to verify that fields appear before fake methods.
+expect_completion_label_order :: proc(
+	t: ^testing.T,
+	src: ^Source,
+	trigger_character: string,
+	expect_labels: []string,
+) {
+	spall.trace(#procedure)
+
+	cursor := source_remove_cursor(src)
+
+	setup(src)
+	defer teardown(src)
+
+	completion_context := server.CompletionContext {
+		triggerCharacter = trigger_character,
+	}
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	if !ok {
+		log.error("Failed get_completion_list")
+	}
+
+	previous_index := -1
+	for label in expect_labels {
+		index := -1
+		count := 0
+		for completion, i in completion_list.items {
+			if completion.label == label {
+				index = i
+				count += 1
+			}
+		}
+		if count != 1 {
+			log.errorf("Expected one completion labeled %q, received %v", label, count)
+		} else if index <= previous_index {
+			log.errorf("Expected completion labels in order %v, received %v", expect_labels, completion_list.items)
+		}
+		previous_index = index
+	}
+}
+
 expect_completion_docs :: proc(
 	t: ^testing.T,
 	src: ^Source,

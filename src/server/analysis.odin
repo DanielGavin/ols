@@ -1525,19 +1525,307 @@ get_proc_return_types :: proc(
 		append(&return_types, ret)
 	} else if v, ok := symbol.value.(SymbolProcedureValue); ok {
 		for ret in v.return_types {
+			return_type := ret.type
+			if return_type == nil {
+				return_type = ret.default_value
+			}
+			if contextual_type, ok := get_objc_instancetype_return_type(ast_context, symbol, call, return_type); ok {
+				return_type = contextual_type
+			}
+
 			// Need min 1 loop for when return types aren't named, and to loop correctly when we have returns
 			// like -> (a, b, c: int)
 			for _ in 0 ..< max(1, len(ret.names)) {
-				if ret.type != nil {
-					append(&return_types, ret.type)
-				} else if ret.default_value != nil {
-					append(&return_types, ret.default_value)
+				if return_type != nil {
+					append(&return_types, return_type)
 				}
 			}
 		}
 	}
 
 	return return_types[:]
+}
+
+is_objc_intrinsics_package :: proc(pkg: string) -> bool {
+	return pkg == "base/intrinsics" || strings.has_suffix(pkg, "/base/intrinsics")
+}
+
+get_imported_package :: proc(ast_context: ^AstContext, name: string) -> (string, bool) {
+	if strings.contains(name, "/") {
+		return name, true
+	}
+	for imp in ast_context.imports {
+		if imp.base == name || imp.base_original == name {
+			return imp.name, true
+		}
+	}
+	return {}, false
+}
+
+lookup_objc_alias :: proc(ast_context: ^AstContext, name, pkg: string) -> (Symbol, bool) {
+	symbol, ok := memory_index_lookup(&indexer.index, name, pkg)
+	if !ok || should_skip_private_symbol(symbol, ast_context.document_package, ast_context.uri) {
+		return {}, false
+	}
+	return symbol, true
+}
+
+is_objc_instancetype :: proc(ast_context: ^AstContext, expr: ^ast.Expr, pkg: string) -> bool {
+	// Follow aliases directly so long chains are not limited by AstContext's deferred resolution depth.
+	current_expr := expr
+	current_pkg := pkg
+	visited: map[string]struct{}
+
+	for current_expr != nil {
+		#partial switch v in current_expr.derived {
+		case ^ast.Paren_Expr:
+			current_expr = v.expr
+		case ^ast.Helper_Type:
+			current_expr = v.type
+		case ^ast.Distinct_Type:
+			return false
+		case ^ast.Ident:
+			if v.name == "objc_instancetype" && is_objc_intrinsics_package(current_pkg) {
+				return true
+			}
+
+			if current_pkg == ast_context.document_package {
+				if global, ok := ast_context.globals[v.name]; ok {
+					if visited == nil {
+						visited = make(map[string]struct{}, context.temp_allocator)
+					}
+					key := fmt.tprintf("%s\x00%s", current_pkg, v.name)
+					if key in visited {
+						return false
+					}
+					visited[key] = {}
+					current_expr = global.expr
+					continue
+				}
+			}
+
+			symbol, found := lookup_objc_alias(ast_context, v.name, current_pkg)
+			if !found || .Distinct in symbol.flags {
+				return false
+			}
+			alias, is_alias := symbol.value.(SymbolGenericValue)
+			if !is_alias {
+				return false
+			}
+			if visited == nil {
+				visited = make(map[string]struct{}, context.temp_allocator)
+			}
+			key := fmt.tprintf("%s\x00%s", current_pkg, v.name)
+			if key in visited {
+				return false
+			}
+			visited[key] = {}
+			current_expr = alias.expr
+			current_pkg = symbol.pkg
+		case ^ast.Selector_Expr:
+			base, is_ident := v.expr.derived.(^ast.Ident)
+			if !is_ident || v.field == nil {
+				return false
+			}
+			selector_pkg, found_package := get_imported_package(ast_context, base.name)
+			if !found_package {
+				return false
+			}
+			if v.field.name == "objc_instancetype" && is_objc_intrinsics_package(selector_pkg) {
+				return true
+			}
+
+			symbol, found := lookup_objc_alias(ast_context, v.field.name, selector_pkg)
+			if !found || .Distinct in symbol.flags {
+				return false
+			}
+			alias, is_alias := symbol.value.(SymbolGenericValue)
+			if !is_alias {
+				return false
+			}
+			if visited == nil {
+				visited = make(map[string]struct{}, context.temp_allocator)
+			}
+			key := fmt.tprintf("%s\x00%s", selector_pkg, v.field.name)
+			if key in visited {
+				return false
+			}
+			visited[key] = {}
+			current_expr = alias.expr
+			current_pkg = symbol.pkg
+		case:
+			return false
+		}
+	}
+
+	return false
+}
+
+resolve_value_type_expression :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> (Symbol, bool) {
+	if expr == nil {
+		return {}, false
+	}
+
+	#partial switch v in expr.derived {
+	case ^ast.Paren_Expr:
+		return resolve_value_type_expression(ast_context, v.expr)
+	case ^ast.Call_Expr:
+		callee := Symbol{}
+		if !internal_resolve_type_expression(ast_context, v.expr, &callee) {
+			return {}, false
+		}
+		return_types := get_proc_return_types(ast_context, callee, v, true)
+		if len(return_types) != 1 {
+			return {}, false
+		}
+		return resolve_value_type_expression(ast_context, return_types[0])
+	case ^ast.Selector_Call_Expr:
+		return resolve_selector_call_expr(ast_context, v)
+	}
+
+	symbol := Symbol{}
+	ok := internal_resolve_type_expression(ast_context, expr, &symbol)
+	return symbol, ok
+}
+
+get_completed_call :: proc(expr: ^ast.Expr) -> (^ast.Call_Expr, bool) {
+	current := expr
+	for current != nil {
+		if paren, ok := current.derived.(^ast.Paren_Expr); ok {
+			current = paren.expr
+			continue
+		}
+		if call, ok := current.derived.(^ast.Call_Expr); ok {
+			return call, true
+		}
+		if selector_call, ok := current.derived.(^ast.Selector_Call_Expr); ok {
+			return selector_call.call, true
+		}
+		break
+	}
+	return nil, false
+}
+
+make_symbol_type_reference :: proc(ast_context: ^AstContext, symbol: Symbol, source: ^ast.Expr) -> ^ast.Expr {
+	if symbol.name == "" {
+		return nil
+	}
+
+	field := new_type(ast.Ident, source.pos, source.end, ast_context.allocator)
+	field.name = symbol.name
+
+	type_expr: ^ast.Expr = field
+	// Generated nodes retain the caller's source file, so keep package references explicit.
+	if symbol.pkg != "" && symbol.pkg != "$builtin" {
+		base := new_type(ast.Ident, source.pos, source.end, ast_context.allocator)
+		base.name = symbol.pkg
+
+		selector := new_type(ast.Selector_Expr, source.pos, source.end, ast_context.allocator)
+		selector.expr = base
+		selector.field = field
+		type_expr = selector
+	}
+
+	for _ in 0 ..< max(symbol.pointers, 1) {
+		pointer := new_type(ast.Pointer_Type, source.pos, source.end, ast_context.allocator)
+		pointer.elem = type_expr
+		type_expr = pointer
+	}
+	return type_expr
+}
+
+get_objc_instancetype_return_type :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	call: ^ast.Call_Expr,
+	return_type: ^ast.Expr,
+) -> (
+	^ast.Expr,
+	bool,
+) {
+	// Objective-C instancetype means an instance of the receiver's concrete class.
+	// An inherited class method such as MetalLayer.layer() therefore returns ^MetalLayer.
+	if call == nil || .ObjC not_in symbol.flags || !is_objc_instancetype(ast_context, return_type, symbol.pkg) {
+		return nil, false
+	}
+
+	callee := call.expr
+	for callee != nil {
+		paren, is_paren := callee.derived.(^ast.Paren_Expr)
+		if !is_paren {
+			break
+		}
+		callee = paren.expr
+	}
+	selector, is_selector := callee.derived.(^ast.Selector_Expr)
+	if !is_selector || selector.expr == nil {
+		return nil, false
+	}
+
+	receiver_expr := selector.expr
+	receiver, resolved := resolve_value_type_expression(ast_context, receiver_expr)
+	// A receiver already on the resolution stack cannot be revisited. Peel contextual calls back
+	// to their concrete receiver until a stable type can be resolved.
+	for !resolved {
+		receiver_call, found_call := get_completed_call(receiver_expr)
+		if !found_call {
+			return nil, false
+		}
+		receiver_callee := receiver_call.expr
+		for receiver_callee != nil {
+			paren, is_paren := receiver_callee.derived.(^ast.Paren_Expr)
+			if !is_paren {
+				break
+			}
+			receiver_callee = paren.expr
+		}
+		receiver_selector, is_selector := receiver_callee.derived.(^ast.Selector_Expr)
+		if !is_selector {
+			return nil, false
+		}
+		receiver_expr = receiver_selector.expr
+		receiver, resolved = resolve_value_type_expression(ast_context, receiver_expr)
+	}
+	type_expr := make_symbol_type_reference(ast_context, receiver, receiver_expr)
+	return type_expr, type_expr != nil
+}
+
+contextualize_objc_call_symbol :: proc(ast_context: ^AstContext, symbol: Symbol, call: ^ast.Call_Expr) -> Symbol {
+	// Some requests inspect the procedure returned for a call, so expose its effective return type.
+	result := symbol
+	procedure, ok := symbol.value.(SymbolProcedureValue)
+	if !ok || .ObjC not_in symbol.flags {
+		return symbol
+	}
+
+	return_types: []^ast.Field
+	changed := false
+	for ret, i in procedure.return_types {
+		return_type := ret.type if ret.type != nil else ret.default_value
+		contextual_type, ok := get_objc_instancetype_return_type(ast_context, symbol, call, return_type)
+		if !ok {
+			continue
+		}
+
+		if !changed {
+			return_types = make([]^ast.Field, len(procedure.return_types), ast_context.allocator)
+			copy(return_types, procedure.return_types)
+			changed = true
+		}
+		field := cast(^ast.Field)clone_type(ret, ast_context.allocator, nil)
+		if ret.type != nil {
+			field.type = contextual_type
+		} else {
+			field.default_value = contextual_type
+		}
+		return_types[i] = field
+	}
+
+	if changed {
+		procedure.return_types = return_types
+		result.value = procedure
+	}
+	return result
 }
 
 check_node_recursion :: proc(recursion_map: ^map[rawptr]struct{}, node: ^ast.Node) -> bool {
@@ -1731,13 +2019,10 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return ok
 	case ^ast.Paren_Expr:
 		ok = internal_resolve_type_expression(ast_context, v.expr, out)
-		if value, ok := out.value.(SymbolProcedureValue); ok {
-			if len(value.return_types) > 0 {
-				type := value.return_types[0].type
-				if type == nil {
-					type = value.return_types[0].default_value
-				}
-				ok = internal_resolve_type_expression(ast_context, type, out)
+		if call, is_call := v.expr.derived.(^ast.Call_Expr); is_call {
+			return_types := get_proc_return_types(ast_context, out^, call, true)
+			if len(return_types) == 1 {
+				out^, ok = resolve_value_type_expression(ast_context, return_types[0])
 				return ok
 			}
 		}
@@ -1869,6 +2154,9 @@ resolve_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Call_Expr) -> (Symbo
 	}
 
 	ok := internal_resolve_type_expression(ast_context, v.expr, &symbol)
+	if ok {
+		symbol = contextualize_objc_call_symbol(ast_context, symbol, v)
+	}
 	return symbol, ok
 }
 
@@ -2009,9 +2297,10 @@ resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Ca
 
 		#partial switch s in selector.value {
 		case SymbolProcedureValue:
-			if len(s.return_types) == 1 {
+			return_types := get_proc_return_types(ast_context, selector, v.call, true)
+			if len(return_types) == 1 {
 				symbol := Symbol{}
-				ok := internal_resolve_type_expression(ast_context, s.return_types[0].type, &symbol)
+				ok := internal_resolve_type_expression(ast_context, return_types[0], &symbol)
 				return symbol, ok
 			}
 		}
@@ -2155,13 +2444,22 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 			}
 		case SymbolProcedureValue:
 			if len(s.return_types) == 1 {
+				return_type := s.return_types[0].type
+				// Resolve the call's concrete result before looking up the next member,
+				// so MetalLayer.layer()->nextDrawable uses MetalLayer rather than instancetype.
+				if call, ok := get_completed_call(node.expr); ok {
+					return_types := get_proc_return_types(ast_context, selector, call, true)
+					if len(return_types) == 1 {
+						return_type = return_types[0]
+					}
+				}
 				selector_expr := new_type(
 					ast.Selector_Expr,
 					s.return_types[0].node.pos,
 					s.return_types[0].node.end,
 					ast_context.allocator,
 				)
-				selector_expr.expr = s.return_types[0].type
+				selector_expr.expr = return_type
 				selector_expr.field = node.field
 				ok := internal_resolve_type_expression(ast_context, selector_expr, &symbol)
 				return symbol, ok
@@ -3729,7 +4027,14 @@ resolve_location_selector :: proc(ast_context: ^AstContext, selector_expr: ^ast.
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	if selector, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
+	selector: ^ast.Selector_Expr
+	if value, ok := selector_expr.derived.(^ast.Selector_Expr); ok {
+		selector = value
+	} else if value, ok := selector_expr.derived.(^ast.Selector_Call_Expr); ok {
+		selector = value.expr.derived.(^ast.Selector_Expr) or_return
+	}
+
+	if selector != nil {
 		ast_context.use_usings = false
 		defer ast_context.use_usings = true
 
@@ -3771,7 +4076,7 @@ resolve_symbol_selector :: proc(
 	case SymbolStructValue:
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
-				if v.from_usings[i] != -1 {
+				if v.from_usings[i] != -1 || symbol_struct_value_has_objc_ivar(v, i) {
 					symbol.uri = common.create_uri(v.types[i].pos.file, context.temp_allocator).uri
 				}
 				symbol.range = v.ranges[i]
@@ -3793,10 +4098,17 @@ resolve_symbol_selector :: proc(
 			return {}, false
 		}
 	case SymbolProcedureValue:
-		if len(v.return_types) != 1 {
+		return_type := v.return_types[0].type if len(v.return_types) == 1 else nil
+		if call, ok := get_completed_call(selector.expr); ok {
+			return_types := get_proc_return_types(ast_context, symbol, call, true)
+			if len(return_types) == 1 {
+				return_type = return_types[0]
+			}
+		}
+		if return_type == nil {
 			return {}, false
 		}
-		if s, ok := resolve_type_expression(ast_context, v.return_types[0].type); ok {
+		if s, ok := resolve_type_expression(ast_context, return_type); ok {
 			return resolve_symbol_selector(ast_context, selector, s)
 		}
 	case SymbolSliceValue:
@@ -4202,7 +4514,7 @@ make_symbol_procedure_from_ast :: proc(
 		where_clauses      = where_clauses,
 	}
 
-	if _, ok := get_attribute_objc_name(attributes); ok {
+	if _, ok := get_attribute_objc_name(attributes, name); ok {
 		symbol.flags |= {.ObjC}
 		if get_attribute_objc_is_class_method(attributes) {
 			symbol.flags |= {.ObjCIsClassMethod}
