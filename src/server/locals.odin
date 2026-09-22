@@ -773,10 +773,16 @@ get_locals_range_vals :: proc(
 		if binary.op.kind == .Range_Half || binary.op.kind == .Range_Full {
 			if len(vals) >= 1 {
 				if ident, ok := unwrap_ident(vals[0]); ok {
+					type_expr: ^ast.Expr = make_int_ast(ast_context, ident.pos, ident.end)
+					if range_symbol, ok := resolve_type_expression(ast_context, expr); ok {
+						if _, ok := range_symbol.value.(SymbolUntypedValue); !ok {
+							type_expr = expr
+						}
+					}
 					store_local(
 						ast_context,
 						ident,
-						make_int_ast(ast_context, ident.pos, ident.end),
+						type_expr,
 						ident.pos.offset,
 						ident.name,
 						ast_context.non_mutable_only,
