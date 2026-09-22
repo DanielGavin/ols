@@ -7511,3 +7511,18 @@ ast_hover_range_iter_inherits_type :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.i: u32")
 }
+
+@(test)
+ast_hover_static_locals :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			@static foo := 1
+			bar :: proc() {
+				b := f{*}oo + 1
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: int")
+}

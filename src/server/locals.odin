@@ -347,8 +347,22 @@ get_locals_value_decl :: proc(file: ast.File, value_decl: ast.Value_Decl, ast_co
 		return
 	}
 
+	is_static := false
+	for attribute in value_decl.attributes {
+		for elem in attribute.elems {
+			if ident, _, ok := unwrap_attr_elem(elem); ok && ident.name == "static" {
+				is_static = true
+				break
+			}
+		}
+		if is_static {
+			break
+		}
+	}
+
 	//We have two stages of getting locals: local non mutable and mutables, since they are treated differently in scopes by Odin.
-	if ast_context.non_mutable_only && value_decl.is_mutable {
+	// Static variables are mutable, but remain visible to nested procedures.
+	if ast_context.non_mutable_only && value_decl.is_mutable && !is_static {
 		return
 	}
 
