@@ -107,21 +107,14 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}
 		delete(pkg.objc_structs)
 
-		// doc/comment values are owned clones, but get_comment returns "" (static)
-		// when missing — same guard as free_symbol uses for symbol.doc.
-		for k, v in pkg.doc {
-			delete(k, collection.allocator)
-			if v != "" {
-				delete(v, collection.allocator)
-			}
+		// doc/comment KEYS are interned (owned by unique_strings) — free VALUES only.
+		for _, v in pkg.doc {
+			delete(v, collection.allocator)
 		}
 		delete(pkg.doc)
 
-		for k, v in pkg.comment {
-			delete(k, collection.allocator)
-			if v != "" {
-				delete(v, collection.allocator)
-			}
+		for _, v in pkg.comment {
+			delete(v, collection.allocator)
 		}
 		delete(pkg.comment)
 
@@ -858,10 +851,21 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	file_pkg := get_or_create_package(collection, file_pkg_name)
 	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
 
-	// NOTE: doc and comment maps each own their keys, so the uri must be
-	// cloned separately — sharing one allocation double-frees on teardown.
-	file_pkg.doc[strings.clone(uri, collection.allocator)] = doc
-	file_pkg.comment[strings.clone(uri, collection.allocator)] = comment
+	// doc/comment keys are interned in unique_strings (single shared owner).
+	// Eviction and teardown free values only — never the keys.
+	uri_key := get_index_unique_string(collection, uri)
+	if old, ok := file_pkg.doc[uri_key]; ok {
+		if old != "" {
+			delete(old, collection.allocator)
+		}
+	}
+	file_pkg.doc[uri_key] = doc
+	if old, ok := file_pkg.comment[uri_key]; ok {
+		if old != "" {
+			delete(old, collection.allocator)
+		}
+	}
+	file_pkg.comment[uri_key] = comment
 
 	for expr in exprs {
 		symbol: Symbol

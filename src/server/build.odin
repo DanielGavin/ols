@@ -268,53 +268,37 @@ try_build_package :: proc(pkg_name: string) {
 
 
 @(private = "file")
-free_index_file_doc_comment :: proc(pkg: ^SymbolPackage, uri: string, allocator: mem.Allocator, fold_case := false) {
-	// doc/comment maps own their keys (strings.clone(uri)) and values
-	// (get_comment clones, "" is static). Free both with the heap-backed
-	// collection allocator before removing the entry. No arena/free_all.
-	stored_doc_key, stored_doc_val := "", ""
-	found_doc := false
-	for k, v in pkg.doc {
-		matched := k == uri
-		if fold_case {
-			matched = strings.equal_fold(k, uri)
+free_index_file_map_entry :: proc(m: ^map[string]string, uri: string, allocator: mem.Allocator, fold_case := false) {
+	if !fold_case {
+		// O(1) lookup: keys are interned, so equality on the uri hits directly.
+		if v, ok := m[uri]; ok {
+			delete_key(m, uri)
+			// Key is interned (owned by unique_strings) — free the VALUE only.
+			// get_comment returns "" (static) when missing — same guard as free_symbol.
+			if v != "" {
+				delete(v, allocator)
+			}
 		}
-		if matched {
-			stored_doc_key = k
-			stored_doc_val = v
-			found_doc = true
-			break
-		}
-	}
-	if found_doc {
-		delete_key(&pkg.doc, stored_doc_key)
-		delete(stored_doc_key, allocator)
-		if stored_doc_val != "" {
-			delete(stored_doc_val, allocator)
-		}
+		return
 	}
 
-	stored_comment_key, stored_comment_val := "", ""
-	found_comment := false
-	for k, v in pkg.comment {
-		matched := k == uri
-		if fold_case {
-			matched = strings.equal_fold(k, uri)
-		}
-		if matched {
-			stored_comment_key = k
-			stored_comment_val = v
-			found_comment = true
+	// Case-insensitive path (Windows eviction): linear scan, compare only.
+	for k, v in m^ {
+		if strings.equal_fold(k, uri) {
+			stored_key, stored_val := k, v
+			delete_key(m, stored_key)
+			if stored_val != "" {
+				delete(stored_val, allocator)
+			}
 			break
 		}
 	}
-	if found_comment {
-		delete_key(&pkg.comment, stored_comment_key)
-		delete(stored_comment_key, allocator)
-		if stored_comment_val != "" {
-			delete(stored_comment_val, allocator)
-		}
-	}
+}
+
+@(private = "file")
+free_index_file_doc_comment :: proc(pkg: ^SymbolPackage, uri: string, allocator: mem.Allocator, fold_case := false) {
+	free_index_file_map_entry(&pkg.doc, uri, allocator, fold_case)
+	free_index_file_map_entry(&pkg.comment, uri, allocator, fold_case)
 }
 
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
@@ -347,7 +331,7 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 			}
 		}
 		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
-		// doc/comment own their key/value clones: free both with collection.allocator.
+		// doc/comment keys are borrowed (interned in unique_strings): free values only with collection.allocator.
 		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator, true)
 	}
 
@@ -392,14 +376,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	{
-		allocator := context.allocator
-		context.allocator = context.temp_allocator
-		defer context.allocator = allocator
-
-		ok = parse_file(&p, &file)
-	}
-	if !ok || file.syntax_error_count > 0 {
+	if !parse_file(&p, &file, context.temp_allocator) || file.syntax_error_count > 0 {
 		if !is_ols_builtin_file(fullpath) {
 			log.errorf("error in parse file for indexing %v", fullpath)
 		}
@@ -426,7 +403,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 			}
 		}
 		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
-		// doc/comment own their key/value clones: free both with collection.allocator.
+		// doc/comment keys are borrowed (interned in unique_strings): free values only with collection.allocator.
 		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator)
 	}
 

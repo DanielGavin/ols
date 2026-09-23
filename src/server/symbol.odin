@@ -844,6 +844,10 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		delete(symbol.doc, allocator)
 	}
 
+	if symbol.comment != "" {
+		delete(symbol.comment, allocator)
+	}
+
 	switch v in symbol.value {
 	case SymbolMatrixValue:
 		free_ast(v.expr, allocator)

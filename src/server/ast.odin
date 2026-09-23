@@ -1213,8 +1213,8 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 	Returns the string representation of a type. This allows us to print the signature without storing it in the indexer as a string(saving memory).
 */
 
-node_to_string :: proc(node: ^ast.Node, remove_pointers := false) -> string {
-	builder := strings.builder_make(context.temp_allocator)
+node_to_string :: proc(node: ^ast.Node, remove_pointers := false, allocator := context.temp_allocator) -> string {
+	builder := strings.builder_make(allocator)
 
 	build_string(node, &builder, remove_pointers)
 
