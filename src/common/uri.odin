@@ -63,17 +63,32 @@ uri_to_path :: proc(uri: string, allocator: mem.Allocator) -> string {
 	decoded, ok := decode_percent(path, allocator)
 	if ok {
 		path = decoded
+	} else {
+		// decode failed: path still aliases `uri`; clone so the
+		// result is always heap-owned and safe for delete_uri.
+		path = strings.clone(path, allocator)
 	}
 	when ODIN_OS == .Windows {
 		// file:///C:/foo -> /C:/foo after trim, strip leading /
-		path = strings.trim_prefix(path, "/")
+		// trim_prefix returns an alias (interior pointer); clone so
+		// delete_uri frees the exact base pointer.
+		trimmed := strings.trim_prefix(path, "/")
+		if raw_data(trimmed) != raw_data(path) {
+			trimmed = strings.clone(trimmed, allocator)
+			delete(path)
+			path = trimmed
+		}
 	}
 	return path
 }
 
 delete_uri :: proc(uri: Uri) {
+	// Both strings are heap-owned by create_uri/parse_uri; free them together.
 	if uri.uri != "" {
 		delete(uri.uri)
+	}
+	if uri.path != "" {
+		delete(uri.path)
 	}
 }
 

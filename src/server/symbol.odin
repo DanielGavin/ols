@@ -889,7 +889,8 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		free_ast(v.key, allocator)
 		free_ast(v.value, allocator)
 	case SymbolUntypedValue:
-		delete(v.tok.text)
+		// tok.text borrows parser / interned memory, not owned by the index.
+		// Do not free here; unique_strings pool owns interns.
 	case SymbolPackageValue:
 	case SymbolBitFieldValue:
 		delete(v.names, allocator)

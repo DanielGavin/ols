@@ -77,7 +77,67 @@ make_symbol_collection :: proc(allocator := context.allocator, config: ^common.C
 }
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
-	free_all(collection.allocator)
+	for pkg_name in collection.packages {
+		pkg := &collection.packages[pkg_name]
+
+		// symbols map VALUES own cloned AST; keys are interned (owned by unique_strings).
+		for _, symbol in pkg.symbols {
+			free_symbol(symbol, collection.allocator)
+		}
+		delete(pkg.symbols)
+
+		// methods vectors hold BORROWED Symbol copies; keys are interned.
+		// Delete ONLY the vector headers, never free_symbol the elements.
+		for _, vec in pkg.methods {
+			delete(vec)
+		}
+		delete(pkg.methods)
+
+		// objc_structs values own functions/ranges vectors, cloned ivar/superclass
+		// AST, and each ObjcFunction.fullpath. Keys, pkg, and logical/physical
+		// names are interned - do NOT delete them individually.
+		for _, objc_struct in pkg.objc_structs {
+			for fn in objc_struct.functions {
+				delete(fn.fullpath, collection.allocator)
+			}
+			delete(objc_struct.functions)
+			delete(objc_struct.ranges)
+			free_ast(objc_struct.ivar, collection.allocator)
+			free_ast(objc_struct.superclass, collection.allocator)
+		}
+		delete(pkg.objc_structs)
+
+		// doc/comment values are owned clones, but get_comment returns "" (static)
+		// when missing — same guard as free_symbol uses for symbol.doc.
+		for k, v in pkg.doc {
+			delete(k, collection.allocator)
+			if v != "" {
+				delete(v, collection.allocator)
+			}
+		}
+		delete(pkg.doc)
+
+		for k, v in pkg.comment {
+			delete(k, collection.allocator)
+			if v != "" {
+				delete(v, collection.allocator)
+			}
+		}
+		delete(pkg.comment)
+
+		// imports: header only (never populated with owned strings).
+		delete(pkg.imports)
+
+		// proc_group_members keys are interned.
+		delete(pkg.proc_group_members)
+	}
+	delete(collection.packages)
+
+	// unique_strings key == value is the same allocation: delete each key ONCE.
+	for k, _ in collection.unique_strings {
+		delete(k, collection.allocator)
+	}
+	delete(collection.unique_strings)
 }
 
 collect_procedure_fields :: proc(
@@ -797,10 +857,11 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	file_pkg_name := get_symbol_package_name(collection, directory, uri)
 	file_pkg := get_or_create_package(collection, file_pkg_name)
 	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
-	
-	u := strings.clone(uri, collection.allocator)
-	file_pkg.doc[u] = doc
-	file_pkg.comment[u] = comment
+
+	// NOTE: doc and comment maps each own their keys, so the uri must be
+	// cloned separately — sharing one allocation double-frees on teardown.
+	file_pkg.doc[strings.clone(uri, collection.allocator)] = doc
+	file_pkg.comment[strings.clone(uri, collection.allocator)] = comment
 
 	for expr in exprs {
 		symbol: Symbol

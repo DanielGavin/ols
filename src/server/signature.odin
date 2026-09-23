@@ -145,7 +145,7 @@ get_signature_information :: proc(
 
 @(private = "file")
 get_signature :: proc(symbol: Symbol) -> string {
-	sb := strings.builder_make()
+	sb := strings.builder_make(context.temp_allocator)
 	write_symbol_name(&sb, symbol)
 	strings.write_string(&sb, " :: ")
 	strings.write_string(&sb, symbol.signature)

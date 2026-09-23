@@ -912,6 +912,7 @@ resolve_poly_struct :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuild
 			poly_map             = poly_map,
 			symbol_value_builder = b,
 			i                    = i,
+			recursion_map        = make(map[rawptr]struct{}, 0, context.temp_allocator),
 		}
 
 		visitor := ast.Visitor {

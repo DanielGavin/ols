@@ -1,7 +1,5 @@
 package tests
 
-import "base:runtime"
-
 import "core:encoding/json"
 import "core:fmt"
 import "core:path/filepath"
@@ -22,7 +20,8 @@ setup_diagnostics :: proc() {
 teardown_diagnostics :: proc() {
 	for diagnostic_type in server.DiagnosticType {
 		server.clear_diagnostics(diagnostic_type)
-		for uri in server.diagnostics[diagnostic_type] {
+		for uri, &arr in server.diagnostics[diagnostic_type] {
+			delete(arr)
 			delete(uri)
 		}
 		delete(server.diagnostics[diagnostic_type])
@@ -63,7 +62,10 @@ unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
 	server.document_storage.documents = make(map[string]server.Document)
 	defer server.document_storage_shutdown()
 
-	server.setup_index(server.get_builtin_path())
+	builtin_path := server.get_builtin_path()
+	defer delete(builtin_path)
+
+	server.setup_index(builtin_path)
 	defer server.free_index()
 
 	fullpath, path_error := filepath.abs(".", context.temp_allocator)
@@ -91,11 +93,14 @@ main :: proc() {
 	_ = fmt.println
 }
 `)
-
 	if err := server.document_open(uri.uri, initial_text, &config, nil); err != .None {
+		delete(initial_text)
 		testing.expectf(t, false, "failed to open document: %v", err)
 		return
 	}
+	// document_close frees the document text and both halves of document.uri
+	// (delete_uri handles uri.uri and uri.path); do not free them here.
+	defer server.document_close(uri.uri)
 
 	changed_text := `package test
 
@@ -121,6 +126,7 @@ main :: proc() {
 		testing.expectf(t, false, "failed to parse didChange params: %v: %s", parse_error, params_text)
 		return
 	}
+	defer json.destroy_value(params)
 
 	if err := server.notification_did_change(params, i64(0), &config, nil); err != .None {
 		testing.expectf(t, false, "didChange failed: %v", err)
@@ -176,6 +182,7 @@ main :: proc() {
 		)
 		return
 	}
+	defer json.destroy_value(invalid_params)
 
 	capture: TestWriterCapture
 	defer delete(capture.data)

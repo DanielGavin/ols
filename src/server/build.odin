@@ -267,6 +267,56 @@ try_build_package :: proc(pkg_name: string) {
 }
 
 
+@(private = "file")
+free_index_file_doc_comment :: proc(pkg: ^SymbolPackage, uri: string, allocator: mem.Allocator, fold_case := false) {
+	// doc/comment maps own their keys (strings.clone(uri)) and values
+	// (get_comment clones, "" is static). Free both with the heap-backed
+	// collection allocator before removing the entry. No arena/free_all.
+	stored_doc_key, stored_doc_val := "", ""
+	found_doc := false
+	for k, v in pkg.doc {
+		matched := k == uri
+		if fold_case {
+			matched = strings.equal_fold(k, uri)
+		}
+		if matched {
+			stored_doc_key = k
+			stored_doc_val = v
+			found_doc = true
+			break
+		}
+	}
+	if found_doc {
+		delete_key(&pkg.doc, stored_doc_key)
+		delete(stored_doc_key, allocator)
+		if stored_doc_val != "" {
+			delete(stored_doc_val, allocator)
+		}
+	}
+
+	stored_comment_key, stored_comment_val := "", ""
+	found_comment := false
+	for k, v in pkg.comment {
+		matched := k == uri
+		if fold_case {
+			matched = strings.equal_fold(k, uri)
+		}
+		if matched {
+			stored_comment_key = k
+			stored_comment_val = v
+			found_comment = true
+			break
+		}
+	}
+	if found_comment {
+		delete_key(&pkg.comment, stored_comment_key)
+		delete(stored_comment_key, allocator)
+		if stored_comment_val != "" {
+			delete(stored_comment_val, allocator)
+		}
+	}
+}
+
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
 	defer clear_index_cache()
@@ -296,8 +346,9 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 				}
 			}
 		}
-		delete_key(&v.doc, corrected_uri.uri)
-		delete_key(&v.comment, corrected_uri.uri)
+		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
+		// doc/comment own their key/value clones: free both with collection.allocator.
+		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator, true)
 	}
 
 	return .None
@@ -326,7 +377,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	dir := filepath.base(filepath.dir(fullpath))
 
-	pkg := new(ast.Package)
+	pkg := new(ast.Package, context.temp_allocator)
 	pkg.kind = .Normal
 	pkg.fullpath = fullpath
 	pkg.name = dir
@@ -374,6 +425,9 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 				}
 			}
 		}
+		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
+		// doc/comment own their key/value clones: free both with collection.allocator.
+		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator)
 	}
 
 	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
@@ -385,15 +439,23 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 
 setup_index :: proc(builtin_path: string) {
-	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
-	symbol_collection := make_symbol_collection(context.allocator, &common.config)
+	index_allocator := runtime.default_allocator()
+	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, index_allocator)
+	symbol_collection := make_symbol_collection(index_allocator, &common.config)
 	indexer.index = make_memory_index(symbol_collection)
 
 	try_build_package(builtin_path)
 }
 
 free_index :: proc() {
+	for k in build_cache.loaded_pkgs {
+		delete(k, indexer.index.collection.allocator)
+	}
+	delete(build_cache.loaded_pkgs)
 	delete_symbol_collection(indexer.index.collection)
+	memory_index_clear_cache(&indexer.index)
+	// pkg_aliases may be temp-allocator owned in tests; just reset, don't free elements.
+	build_cache.pkg_aliases = {}
 }
 
 log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {
