@@ -41,11 +41,11 @@ setup :: proc(src: ^Source) {
 
 	spall.trace(#procedure)
 
-	src.document = new(server.Document, context.temp_allocator)
+	src.document = new(server.Document)
 
 	src.document.client_owned = true
-	src.document.allocator = new(virtual.Arena, context.temp_allocator)
-	src.document.symbol_cache_arena = new(virtual.Arena, context.temp_allocator)
+	src.document.allocator = new(virtual.Arena)
+	src.document.symbol_cache_arena = new(virtual.Arena)
 	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
@@ -158,11 +158,20 @@ setup :: proc(src: ^Source) {
 
 @(private)
 teardown :: proc(src: ^Source) {
+
+	virtual.arena_destroy(src.document.allocator)
+	free(src.document.allocator)
+
+	virtual.arena_destroy(src.document.symbol_cache_arena)
+	free(src.document.symbol_cache_arena)
+
+	free(src.document)
+	src.document = nil
+
 	server.free_index()
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
-	virtual.arena_destroy(src.document.allocator)
-	virtual.arena_destroy(src.document.symbol_cache_arena)
+
 	spall.thread_end()
 }
 
