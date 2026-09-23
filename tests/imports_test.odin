@@ -43,8 +43,6 @@ test_writer_capture :: proc(ctx: rawptr, data: []byte) -> (int, int) {
 
 @(test)
 unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
-	// Server teardown performs individual frees, which the test runner's rollback allocator does not support.
-	context.allocator = runtime.default_allocator()
 
 	config := common.Config {
 		enable_diagnostics              = true,
