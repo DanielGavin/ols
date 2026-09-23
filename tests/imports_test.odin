@@ -94,12 +94,9 @@ main :: proc() {
 }
 `)
 	if err := server.document_open(uri.uri, initial_text, &config, nil); err != .None {
-		delete(initial_text)
 		testing.expectf(t, false, "failed to open document: %v", err)
 		return
 	}
-	// document_close frees the document text and both halves of document.uri
-	// (delete_uri handles uri.uri and uri.path); do not free them here.
 	defer server.document_close(uri.uri)
 
 	changed_text := `package test
@@ -121,12 +118,11 @@ main :: proc() {
 		"",
 		context.temp_allocator,
 	)
-	params, parse_error := json.parse_string(params_text, parse_integers = true)
+	params, parse_error := json.parse_string(params_text, parse_integers = true, allocator=context.temp_allocator)
 	if parse_error != .None {
 		testing.expectf(t, false, "failed to parse didChange params: %v: %s", parse_error, params_text)
 		return
 	}
-	defer json.destroy_value(params)
 
 	if err := server.notification_did_change(params, i64(0), &config, nil); err != .None {
 		testing.expectf(t, false, "didChange failed: %v", err)
@@ -171,7 +167,7 @@ main :: proc() {
 		"",
 		context.temp_allocator,
 	)
-	invalid_params, invalid_parse_error := json.parse_string(invalid_params_text, parse_integers = true)
+	invalid_params, invalid_parse_error := json.parse_string(invalid_params_text, parse_integers = true, allocator=context.temp_allocator)
 	if invalid_parse_error != .None {
 		testing.expectf(
 			t,
@@ -182,7 +178,6 @@ main :: proc() {
 		)
 		return
 	}
-	defer json.destroy_value(invalid_params)
 
 	capture: TestWriterCapture
 	defer delete(capture.data)

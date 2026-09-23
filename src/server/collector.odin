@@ -80,22 +80,18 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 	for pkg_name in collection.packages {
 		pkg := &collection.packages[pkg_name]
 
-		// symbols map VALUES own cloned AST; keys are interned (owned by unique_strings).
+		// Symbol keys are interned (owned by unique_strings), free only values here
+
 		for _, symbol in pkg.symbols {
 			free_symbol(symbol, collection.allocator)
 		}
 		delete(pkg.symbols)
 
-		// methods vectors hold BORROWED Symbol copies; keys are interned.
-		// Delete ONLY the vector headers, never free_symbol the elements.
 		for _, vec in pkg.methods {
 			delete(vec)
 		}
 		delete(pkg.methods)
 
-		// objc_structs values own functions/ranges vectors, cloned ivar/superclass
-		// AST, and each ObjcFunction.fullpath. Keys, pkg, and logical/physical
-		// names are interned - do NOT delete them individually.
 		for _, objc_struct in pkg.objc_structs {
 			for fn in objc_struct.functions {
 				delete(fn.fullpath, collection.allocator)
@@ -107,7 +103,6 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}
 		delete(pkg.objc_structs)
 
-		// doc/comment KEYS are interned (owned by unique_strings) — free VALUES only.
 		for _, v in pkg.doc {
 			delete(v, collection.allocator)
 		}
@@ -118,15 +113,11 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		}
 		delete(pkg.comment)
 
-		// imports: header only (never populated with owned strings).
 		delete(pkg.imports)
-
-		// proc_group_members keys are interned.
 		delete(pkg.proc_group_members)
 	}
 	delete(collection.packages)
 
-	// unique_strings key == value is the same allocation: delete each key ONCE.
 	for k, _ in collection.unique_strings {
 		delete(k, collection.allocator)
 	}
@@ -851,20 +842,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 	file_pkg := get_or_create_package(collection, file_pkg_name)
 	doc, comment := get_package_decl_doc_comment(file, collection.allocator)
 
-	// doc/comment keys are interned in unique_strings (single shared owner).
-	// Eviction and teardown free values only — never the keys.
 	uri_key := get_index_unique_string(collection, uri)
-	if old, ok := file_pkg.doc[uri_key]; ok {
-		if old != "" {
-			delete(old, collection.allocator)
-		}
-	}
+
+	delete(file_pkg.doc[uri_key], collection.allocator)
 	file_pkg.doc[uri_key] = doc
-	if old, ok := file_pkg.comment[uri_key]; ok {
-		if old != "" {
-			delete(old, collection.allocator)
-		}
-	}
+
+	delete(file_pkg.comment[uri_key], collection.allocator)
 	file_pkg.comment[uri_key] = comment
 
 	for expr in exprs {

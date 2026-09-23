@@ -93,6 +93,7 @@ refresh_package_aliases_when_hidden_path_setting_changes :: proc(t: ^testing.T) 
 	server.build_cache.pkg_aliases = make(map[string][dynamic]string, context.temp_allocator)
 	defer {
 		server.clear_all_package_aliases()
+		delete(server.build_cache.pkg_aliases)
 		server.build_cache.pkg_aliases = previous_aliases
 	}
 
