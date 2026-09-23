@@ -201,7 +201,7 @@ try_build_package :: proc(pkg_name: string) {
 	}
 
 	arena: runtime.Arena
-	result := runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+	result := runtime.arena_init(&arena, mem.Megabyte * 40, context.allocator)
 	defer runtime.arena_destroy(&arena)
 
 	{
@@ -416,9 +416,8 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 
 setup_index :: proc(builtin_path: string) {
-	index_allocator := runtime.default_allocator()
-	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, index_allocator)
-	symbol_collection := make_symbol_collection(index_allocator, &common.config)
+	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50)
+	symbol_collection := make_symbol_collection(&common.config)
 	indexer.index = make_memory_index(symbol_collection)
 
 	try_build_package(builtin_path)
@@ -431,7 +430,6 @@ free_index :: proc() {
 	delete(build_cache.loaded_pkgs)
 	delete_symbol_collection(indexer.index.collection)
 	memory_index_clear_cache(&indexer.index)
-	// pkg_aliases may be temp-allocator owned in tests; just reset, don't free elements.
 	build_cache.pkg_aliases = {}
 }
 

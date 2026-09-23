@@ -67,7 +67,7 @@ get_index_unique_string_collection_raw :: proc(
 	return unique_strings[s]
 }
 
-make_symbol_collection :: proc(allocator := context.allocator, config: ^common.Config) -> SymbolCollection {
+make_symbol_collection :: proc(config: ^common.Config, allocator := context.allocator) -> SymbolCollection {
 	return SymbolCollection {
 		allocator = allocator,
 		config = config,
