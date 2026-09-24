@@ -77,44 +77,11 @@ make_symbol_collection :: proc(config: ^common.Config, allocator := context.allo
 }
 
 delete_symbol_collection :: proc(collection: SymbolCollection) {
+	spall.trace(#procedure)
+
 	for pkg_name in collection.packages {
-		pkg := &collection.packages[pkg_name]
-
-		// Symbol keys are interned (owned by unique_strings), free only values here
-
-		for _, symbol in pkg.symbols {
-			free_symbol(symbol, collection.allocator)
-		}
-		delete(pkg.symbols)
-
-		for _, vec in pkg.methods {
-			delete(vec)
-		}
-		delete(pkg.methods)
-
-		for _, objc_struct in pkg.objc_structs {
-			for fn in objc_struct.functions {
-				delete(fn.fullpath, collection.allocator)
-			}
-			delete(objc_struct.functions)
-			delete(objc_struct.ranges)
-			free_ast(objc_struct.ivar, collection.allocator)
-			free_ast(objc_struct.superclass, collection.allocator)
-		}
-		delete(pkg.objc_structs)
-
-		for _, v in pkg.doc {
-			delete(v, collection.allocator)
-		}
-		delete(pkg.doc)
-
-		for _, v in pkg.comment {
-			delete(v, collection.allocator)
-		}
-		delete(pkg.comment)
-
-		delete(pkg.imports)
-		delete(pkg.proc_group_members)
+		pkg := collection.packages[pkg_name]
+		delete_symbol_package(pkg, allocator=collection.allocator)
 	}
 	delete(collection.packages)
 
@@ -122,6 +89,46 @@ delete_symbol_collection :: proc(collection: SymbolCollection) {
 		delete(k, collection.allocator)
 	}
 	delete(collection.unique_strings)
+}
+
+delete_symbol_package :: proc (pkg: SymbolPackage, allocator := context.allocator) {
+	spall.trace(#procedure)
+
+	// Symbol keys are interned (owned by unique_strings), free only values here
+
+	for _, symbol in pkg.symbols {
+		free_symbol(symbol, allocator)
+	}
+	delete(pkg.symbols)
+
+	for _, vec in pkg.methods {
+		delete(vec)
+	}
+	delete(pkg.methods)
+
+	for _, objc_struct in pkg.objc_structs {
+		for fn in objc_struct.functions {
+			delete(fn.fullpath, allocator)
+		}
+		delete(objc_struct.functions)
+		delete(objc_struct.ranges)
+		free_ast(objc_struct.ivar, allocator)
+		free_ast(objc_struct.superclass, allocator)
+	}
+	delete(pkg.objc_structs)
+
+	for _, v in pkg.doc {
+		delete(v, allocator)
+	}
+	delete(pkg.doc)
+
+	for _, v in pkg.comment {
+		delete(v, allocator)
+	}
+	delete(pkg.comment)
+
+	delete(pkg.imports)
+	delete(pkg.proc_group_members)
 }
 
 collect_procedure_fields :: proc(
@@ -134,6 +141,8 @@ collect_procedure_fields :: proc(
 	inlining: ast.Proc_Inlining,
 	where_clauses: []^ast.Expr,
 ) -> SymbolProcedureValue {
+	spall.trace(#procedure)
+
 	returns := make([dynamic]^ast.Field, 0, collection.allocator)
 	args := make([dynamic]^ast.Field, 0, collection.allocator)
 	attrs := make([dynamic]^ast.Attribute, 0, collection.allocator)
@@ -186,6 +195,8 @@ collect_struct_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolStructValue {
+	spall.trace(#procedure)
+
 	b := symbol_struct_value_builder_make(collection.allocator)
 
 	for field in struct_type.fields.list {
@@ -247,6 +258,8 @@ collect_bit_field_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolBitFieldValue {
+	spall.trace(#procedure)
+
 	names := make([dynamic]string, 0, len(bit_field_type.fields), collection.allocator)
 	types := make([dynamic]^ast.Expr, 0, len(bit_field_type.fields), collection.allocator)
 	ranges := make([dynamic]common.Range, 0, len(bit_field_type.fields), collection.allocator)
@@ -288,6 +301,8 @@ collect_enum_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolEnumValue {
+	spall.trace(#procedure)
+
 	names := make([dynamic]string, 0, collection.allocator)
 	ranges := make([dynamic]common.Range, 0, collection.allocator)
 	values := make([dynamic]^ast.Expr, 0, collection.allocator)
@@ -321,6 +336,8 @@ collect_union_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) -> SymbolUnionValue {
+	spall.trace(#procedure)
+
 	types := make([dynamic]^ast.Expr, 0, collection.allocator)
 
 	for variant in union_type.variants {
@@ -351,6 +368,8 @@ collect_bitset_field :: proc(
 	bitset_type: ast.Bit_Set_Type,
 	package_map: map[string]string,
 ) -> SymbolBitSetValue {
+	spall.trace(#procedure)
+
 	expr := clone_type(bitset_type.elem, collection.allocator, &collection.unique_strings)
 	underlying := clone_type(bitset_type.underlying, collection.allocator, &collection.unique_strings)
 	replace_package_alias(expr, package_map, collection)
@@ -364,6 +383,8 @@ collect_slice :: proc(
 	array: ast.Array_Type,
 	package_map: map[string]string,
 ) -> SymbolSliceValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 
 	replace_package_alias(elem, package_map, collection)
@@ -376,6 +397,8 @@ collect_array :: proc(
 	array: ast.Array_Type,
 	package_map: map[string]string,
 ) -> SymbolFixedArrayValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 	len := clone_type(array.len, collection.allocator, &collection.unique_strings)
 
@@ -386,6 +409,8 @@ collect_array :: proc(
 }
 
 collect_map :: proc(collection: ^SymbolCollection, m: ast.Map_Type, package_map: map[string]string) -> SymbolMapValue {
+	spall.trace(#procedure)
+
 	key := clone_type(m.key, collection.allocator, &collection.unique_strings)
 	value := clone_type(m.value, collection.allocator, &collection.unique_strings)
 
@@ -400,6 +425,8 @@ collect_dynamic_array :: proc(
 	array: ast.Dynamic_Array_Type,
 	package_map: map[string]string,
 ) -> SymbolDynamicArrayValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 
 	replace_package_alias(elem, package_map, collection)
@@ -412,6 +439,8 @@ collect_fixed_cap_dynamic_array :: proc(
 	array: ast.Fixed_Capacity_Dynamic_Array_Type,
 	package_map: map[string]string,
 ) -> SymbolDynamicArrayValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 	cap := clone_type(array.capacity, collection.allocator, &collection.unique_strings)
 
@@ -426,6 +455,8 @@ collect_matrix :: proc(
 	mat: ast.Matrix_Type,
 	package_map: map[string]string,
 ) -> SymbolMatrixValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(mat.elem, collection.allocator, &collection.unique_strings)
 
 	y := clone_type(mat.column_count, collection.allocator, &collection.unique_strings)
@@ -444,6 +475,8 @@ collect_multi_pointer :: proc(
 	array: ast.Multi_Pointer_Type,
 	package_map: map[string]string,
 ) -> SymbolMultiPointerValue {
+	spall.trace(#procedure)
+
 	elem := clone_type(array.elem, collection.allocator, &collection.unique_strings)
 
 	replace_package_alias(elem, package_map, collection)
@@ -458,6 +491,8 @@ collect_generic :: proc(
 	package_map: map[string]string,
 	uri: string,
 ) -> SymbolGenericValue {
+	spall.trace(#procedure)
+
 	//Bit hacky right now, but it's hopefully a temporary solution.
 	//In the c package code it uses a documentation package(builtin).
 	if selector, ok := expr.derived.(^ast.Selector_Expr); ok {
@@ -490,6 +525,8 @@ add_comp_lit_fields :: proc(
 	package_map: map[string]string,
 	file: ast.File,
 ) {
+	spall.trace(#procedure)
+
 	names := make([dynamic]string, 0, len(comp_lit_type.elems), collection.allocator)
 	ranges := make([dynamic]common.Range, 0, len(comp_lit_type.elems), collection.allocator)
 	for elem in comp_lit_type.elems {
@@ -511,6 +548,8 @@ add_comp_lit_fields :: proc(
 	when the proc group should be shown instead.
 */
 record_proc_group_members :: proc(collection: ^SymbolCollection, group: ^ast.Proc_Group, pkg_name: string) {
+	spall.trace(#procedure)
+
 	pkg := get_or_create_package(collection, pkg_name)
 
 	for arg in group.args {
@@ -592,6 +631,8 @@ collect_alias_method :: proc(collection: ^SymbolCollection, symbol: Symbol, visi
 	Collects a procedure as a fake method if it's not part of a proc group.
 */
 collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
+	spall.trace(#procedure)
+
 	pkg := &collection.packages[symbol.pkg]
 
 	if symbol.name in pkg.proc_group_members {
@@ -619,6 +660,8 @@ collect_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
 	across all its members.
 */
 collect_proc_group_method :: proc(collection: ^SymbolCollection, symbol: Symbol) {
+	spall.trace(#procedure)
+
 	pkg := &collection.packages[symbol.pkg]
 
 	group_value, ok := symbol.value.(SymbolProcedureGroupValue)
@@ -747,6 +790,8 @@ collect_objc :: proc(
 	symbol: Symbol,
 	package_map: map[string]string,
 ) {
+	spall.trace(#procedure)
+
 	pkg := &collection.packages[symbol.pkg]
 
 	if value, ok := symbol.value.(SymbolProcedureValue); ok {
@@ -788,6 +833,8 @@ collect_objc :: proc(
 }
 
 collect_imports :: proc(collection: ^SymbolCollection, file: ast.File, directory: string) {
+	spall.trace(#procedure)
+
 	_pkg := get_index_unique_string(collection, directory)
 
 	if _pkg, ok := collection.packages[_pkg]; ok {
@@ -873,6 +920,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 				is_distinct = true
 			}
 		}
+
+		spall.trace(#procedure + " expr", name)
 
 		// Compute pkg early so it's available inside the switch
 		symbol.pkg = get_symbol_package_name(collection, directory, uri, expr.builtin)
@@ -1032,6 +1081,7 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token = expr.expr
 		}
 
+		spall.trace(#procedure + " common")
 
 		symbol.range = common.get_token_range(expr.name_expr, file.src)
 		symbol.name = get_index_unique_string(collection, name)
@@ -1103,6 +1153,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 */
 @(private = "file")
 collect_fake_methods :: proc(collection: ^SymbolCollection, exprs: []GlobalExpr, directory: string, uri: string) {
+	spall.trace(#procedure)
+
 	for expr in exprs {
 		// Determine the package name (same logic as in collect_symbols)
 		pkg_name := get_symbol_package_name(collection, directory, uri, expr.builtin)

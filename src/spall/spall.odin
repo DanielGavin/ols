@@ -35,7 +35,7 @@ when SPALL_ENABLED {
 @(no_instrumentation, disabled=!SPALL_ENABLED)
 thread_begin :: proc (name: string = "", loc := #caller_location) {
 	when SPALL_ENABLED {
-		buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+		buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE, runtime.default_allocator())
 		spall_buffer = spall.buffer_create(buffer_backing, u32(sync.current_thread_id()))
 		if name != "" {
 			spall._buffer_name_thread(&spall_ctx, &spall_buffer, name, loc)
@@ -46,7 +46,7 @@ thread_begin :: proc (name: string = "", loc := #caller_location) {
 thread_end :: proc () {
 	when SPALL_ENABLED {
 		spall.buffer_destroy(&spall_ctx, &spall_buffer)
-		delete(spall_buffer.data)
+		delete(spall_buffer.data, runtime.default_allocator())
 	}
 }
 @(no_instrumentation, deferred_none=thread_end, disabled=!SPALL_ENABLED)

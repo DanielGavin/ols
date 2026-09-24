@@ -161,6 +161,9 @@ setup :: proc(src: ^Source) {
 @(private)
 teardown :: proc(src: ^Source) {
 
+	defer spall.thread_end()
+	spall.trace(#procedure)
+
 	server.free_index()
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
@@ -177,8 +180,6 @@ teardown :: proc(src: ^Source) {
 
 	free(src.document)
 	src.document = nil
-
-	spall.thread_end()
 }
 
 source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {

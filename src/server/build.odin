@@ -383,6 +383,8 @@ setup_index :: proc(builtin_path: string) {
 }
 
 free_index :: proc() {
+	spall.trace(#procedure)
+
 	for k in build_cache.loaded_pkgs {
 		delete(k, indexer.index.collection.allocator)
 	}
