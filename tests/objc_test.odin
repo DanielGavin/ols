@@ -1,6 +1,7 @@
 package tests
 
 import "core:slice"
+import "core:strings"
 import "core:testing"
 
 import test "src:testing"
@@ -123,12 +124,29 @@ NotificationCenter :: struct {using _: Object}
 @(objc_type=NotificationCenter, objc_name="defaultCenter", objc_is_class_method=true)
 NotificationCenter_defaultCenter :: proc "c" () -> ^NotificationCenter ---
 
+@(objc_type=NotificationCenter, objc_name="centerWithName", objc_is_class_method=true)
+NotificationCenter_centerWithName :: proc "c" (name: string) -> ^NotificationCenter ---
+
 @(objc_type=NotificationCenter, objc_name="addObserverForName")
 NotificationCenter_addObserverForName :: proc "c" (
 	self: ^NotificationCenter,
 	name, object, queue: int,
 	block: ^intrinsics.Objc_Block(proc(notification: ^Notification)),
 ) ---
+`,
+		},
+		test.Package {
+			pkg = "AppKit",
+			source = `package AppKit
+import Foundation "NS"
+
+Object :: Foundation.Object
+
+@(objc_class="GestureRecognizer", objc_superclass=Foundation.Object)
+GestureRecognizer :: struct {using _: Object}
+
+@(objc_class="RotationGestureRecognizer", objc_superclass=GestureRecognizer)
+RotationGestureRecognizer :: struct {using _: GestureRecognizer}
 `,
 		},
 		test.Package {
@@ -388,6 +406,77 @@ main :: proc() {
 		"->",
 		{"@(objc_type=MetalLayer, objc_name=\"nextDrawable\")\nMetalLayer.nextDrawable: CA.MetalLayer_nextDrawable"},
 	)
+}
+
+@(test)
+objc_class_completion_includes_inherited_methods :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "NS"
+
+main :: proc() {
+	NS.AutoreleasePool.{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"alloc"}, {"init", "drain"})
+}
+
+@(test)
+objc_class_completion_through_package_alias :: proc(t: ^testing.T) {
+	names := []string{"Object", "RotationGestureRecognizer"}
+	for name in names {
+		main, _ := strings.replace_all(`package test
+import NS "AppKit"
+
+main :: proc() {
+	NS.CLASS_NAME.{*}
+}
+`, "CLASS_NAME", name, allocator = context.temp_allocator)
+		source := test.Source {
+			main = main,
+			packages = objc_test_packages(),
+		}
+
+		test.expect_completion_labels(t, &source, ".", {"alloc"}, {"init"})
+	}
+}
+
+@(test)
+objc_class_completion_inserts_call_parentheses :: proc(t: ^testing.T) {
+	names := []string{"Object", "RotationGestureRecognizer"}
+	for name in names {
+		main, _ := strings.replace_all(`package test
+import NS "AppKit"
+
+main :: proc() {
+	NS.CLASS_NAME.{*}
+}
+`, "CLASS_NAME", name, allocator = context.temp_allocator)
+		source := test.Source {
+			main = main,
+			packages = objc_test_packages(),
+			config = {enable_snippets = true, enable_procedure_snippet = true},
+		}
+
+		test.expect_completion_edit_text(t, &source, ".", "alloc", "alloc()$0")
+	}
+
+	source := test.Source {
+		main = `package test
+import "NS"
+
+main :: proc() {
+	NS.NotificationCenter.{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, ".", "centerWithName", "centerWithName($0)")
 }
 
 @(test)

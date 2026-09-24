@@ -431,8 +431,15 @@ convert_completion_results :: proc(
 
 		item.kind = symbol_type_to_completion_kind(result.symbol.type)
 
-		if should_add_parens_snippet(position_context, config, result.symbol.type) {
-			item.insertText = fmt.tprintf("%v($0)", item.label)
+		is_objc_class_method := completion_type == .Selector &&
+		   result.symbol.type == .Field &&
+		   .ObjCIsClassMethod in result.symbol.flags
+		if should_add_parens_snippet(position_context, config, is_objc_class_method ? .Function : result.symbol.type) {
+			if proc_value, ok := result.symbol.value.(SymbolProcedureValue); is_objc_class_method && ok && get_proc_arg_count(proc_value) == 0 {
+				item.insertText = fmt.tprintf("%v()$0", item.label)
+			} else {
+				item.insertText = fmt.tprintf("%v($0)", item.label)
+			}
 			item.insertTextFormat = .Snippet
 			item.deprecated = .Deprecated in result.symbol.flags
 			item.command = Command {
@@ -1005,6 +1012,28 @@ add_soa_field_completion :: proc(
 	}
 }
 
+// Indexed Objective-C methods carry the class-method flag, so avoid resolving
+// every inherited instance method while completing a class name.
+get_indexed_objc_class_method :: proc(expr: ^ast.Expr) -> (is_class_method, known: bool) {
+	if expr == nil {
+		return
+	}
+	selector, selector_ok := expr.derived.(^ast.Selector_Expr)
+	if !selector_ok || selector.field == nil {
+		return
+	}
+	base, base_ok := selector.expr.derived.(^ast.Ident)
+	if !base_ok {
+		return
+	}
+	if pkg, ok := indexer.index.collection.packages[base.name]; ok {
+		if symbol, ok := pkg.symbols[selector.field.name]; ok {
+			return .ObjCIsClassMethod in symbol.flags, true
+		}
+	}
+	return
+}
+
 get_selector_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -1027,12 +1056,13 @@ get_selector_completion :: proc(
 		return is_incomplete
 	}
 
+	is_objc_class := selector.type == .Struct && .Variable not_in selector.flags && .ObjC in selector.flags
 	if selector.type != .Variable &&
 	   selector.type != .Field &&
 	   selector.type != .Package &&
 	   selector.type != .Enum &&
 	   selector.type != .Function &&
-	   (selector.type == .Struct && .Variable not_in selector.flags) {
+	   (selector.type == .Struct && .Variable not_in selector.flags && !is_objc_class) {
 		// We don't want completions for struct types, but we do want completions for constant variables.
 		// See tests `ast_global_non_mutable_completion` vs `ast_completion_global_selector_from_local_scope`
 		return is_incomplete
@@ -1196,10 +1226,12 @@ get_selector_completion :: proc(
 		for name, i in v.names {
 			is_objc_ivar := symbol_struct_value_has_objc_ivar(v, i)
 
-			// This loop only needs ivars for dot access. Fake methods are already added
-			// above by append_method_completion when enabled, so resolving the expanded
-			// Objective-C method entries here would be wasted work.
-			if is_objc_value && !is_arrow_access && !is_objc_ivar {
+			// Value dot access only needs ivars. Fake methods are already added above,
+			// so resolving expanded Objective-C methods would be wasted work.
+			if is_objc_value && !is_arrow_access && !is_objc_ivar && !is_objc_class {
+				continue
+			}
+			if is_objc_class && is_objc_ivar {
 				continue
 			}
 			if name == "_" {
@@ -1214,8 +1246,16 @@ get_selector_completion :: proc(
 			}
 
 			if is_struct_field_hidden(name, selector, ast_context, config) do continue
+			if is_objc_class {
+				if is_class_method, known := get_indexed_objc_class_method(v.types[i]); known && !is_class_method {
+					continue
+				}
+			}
 
 			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+				if is_objc_class && .ObjCIsClassMethod not_in symbol.flags {
+					continue
+				}
 				if expr, ok := access_expr.derived.(^ast.Selector_Expr); ok {
 					if is_arrow_access {
 						if !is_objc_ivar && symbol.type != .Function && symbol.type != .Type_Function {
@@ -1225,7 +1265,7 @@ get_selector_completion :: proc(
 							assert(.ObjC in symbol.flags)
 							continue
 						}
-					} else if .ObjC in selector.flags && !is_objc_ivar {
+					} else if .ObjC in selector.flags && !is_objc_ivar && !is_objc_class {
 						continue
 					}
 				}
