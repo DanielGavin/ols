@@ -76,8 +76,9 @@ append_method_completion :: proc(
 		}
 	} else {
 		seen := make(map[^ast.Expr]struct {}, context.temp_allocator)
+		seen_objc := make(map[ObjcStructKey]struct {}, context.temp_allocator)
 		seen[selector_symbol.type_expr] = {}
-		_collect_type_methods(ast_context, selector_symbol, position_context, results, receiver, remove_edit, &seen)
+		_collect_type_methods(ast_context, selector_symbol, position_context, results, receiver, remove_edit, &seen, &seen_objc)
 	}
 
 	_collect_type_methods :: proc (
@@ -88,7 +89,14 @@ append_method_completion :: proc(
 		receiver:         string,
 		remove_edit:      []TextEdit,
 		seen:             ^map[^ast.Expr]struct {},
+		seen_objc:        ^map[ObjcStructKey]struct {},
 	) {
+		if .ObjC in symbol.flags {
+			key := ObjcStructKey{pkg = symbol.pkg, name = symbol.name}
+			if key in seen_objc^ do return
+			seen_objc[key] = {}
+		}
+
 		method := Method {
 			name = symbol.name,
 			// For typed values, check if it's a builtin type
@@ -127,6 +135,7 @@ append_method_completion :: proc(
 					receiver,
 					remove_edit,
 					seen,
+					seen_objc,
 				)
 			}
 		}
