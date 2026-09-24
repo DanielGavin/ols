@@ -1,12 +1,10 @@
 package ols_testing
 
-import "base:runtime"
 import "core:fmt"
 import "core:log"
 import "core:mem/virtual"
 import "core:odin/ast"
 import "core:odin/parser"
-import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:testing"
@@ -41,11 +39,11 @@ setup :: proc(src: ^Source) {
 
 	spall.trace(#procedure)
 
-	src.document = new(server.Document, context.temp_allocator)
+	src.document = new(server.Document)
 
 	src.document.client_owned = true
-	src.document.allocator = new(virtual.Arena, context.temp_allocator)
-	src.document.symbol_cache_arena = new(virtual.Arena, context.temp_allocator)
+	src.document.allocator = new(virtual.Arena)
+	src.document.symbol_cache_arena = new(virtual.Arena)
 	src.document.package_name = "test"
 
 	_ = virtual.arena_init_growing(src.document.allocator)
@@ -86,7 +84,9 @@ setup :: proc(src: ^Source) {
 		server.build_cache.pkg_aliases[collection] = aliases
 	}
 
-	server.setup_index(server.get_builtin_path())
+	builtin_path := server.get_builtin_path()
+	server.setup_index(builtin_path)
+	defer delete(builtin_path)
 
 	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
 	server.indexer.index.collection.config = &src.config
@@ -94,6 +94,8 @@ setup :: proc(src: ^Source) {
 	server.document_setup(src.document)
 
 	server.document_refresh(src.document, &src.config, nil)
+
+	context.allocator = virtual.arena_allocator(src.document.allocator)
 
 	if len(src.files) > 1 {
 		pkg := new(ast.Package, context.temp_allocator)
@@ -158,12 +160,26 @@ setup :: proc(src: ^Source) {
 
 @(private)
 teardown :: proc(src: ^Source) {
+
+	defer spall.thread_end()
+	spall.trace(#procedure)
+
 	server.free_index()
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
+
+	delete(src.config.collections)
+	delete(src.collections)
+	delete(src.document.package_name)
+
 	virtual.arena_destroy(src.document.allocator)
+	free(src.document.allocator)
+
 	virtual.arena_destroy(src.document.symbol_cache_arena)
-	spall.thread_end()
+	free(src.document.symbol_cache_arena)
+
+	free(src.document)
+	src.document = nil
 }
 
 source_remove_cursor :: proc(src: ^Source) -> (cursor: common.Position) {
@@ -795,6 +811,7 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 
 	input_range := common.Range{cursor, cursor}
 	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
 	}
@@ -830,6 +847,7 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 
 	input_range := common.Range{cursor, cursor}
 	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
+	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
 		return
@@ -882,6 +900,7 @@ expect_action_applied :: proc(
 
 	input_range := common.Range{cursor, cursor}
 	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
 		return

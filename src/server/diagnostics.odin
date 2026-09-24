@@ -101,6 +101,7 @@ clear_diagnostics :: proc(type: DiagnosticType) {
 		for diagnostic in diagnostic_array {
 			delete(diagnostic.message)
 			delete(diagnostic.code)
+			delete(diagnostic.tags)
 		}
 		clear(&diagnostic_array)
 	}

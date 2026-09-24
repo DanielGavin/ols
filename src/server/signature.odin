@@ -81,6 +81,7 @@ get_signature_information :: proc(
 	document: ^Document,
 	position: common.Position,
 	config: ^common.Config,
+	allocator := context.temp_allocator,
 ) -> (
 	SignatureHelp,
 	bool,
@@ -112,27 +113,27 @@ get_signature_information :: proc(
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
 
-	signature_information := make([dynamic]SignatureInformation, context.temp_allocator)
+	signature_information := make([dynamic]SignatureInformation, allocator)
 
 	if position_context.call != nil {
-		signature_help.activeParameter = add_proc_signature(&ast_context, &position_context, &signature_information)
+		signature_help.activeParameter = add_proc_signature(&ast_context, &position_context, &signature_information, allocator)
 	}
 
 	if config.enable_comp_lit_signature_help {
 		if symbol, ok := resolve_comp_literal(&ast_context, &position_context); ok {
 			if config.enable_comp_lit_signature_help_use_docs {
 				build_documentation(&ast_context, &symbol, short_signature = true)
-				signature := get_signature(symbol)
+				signature := get_signature(symbol, allocator)
 				build_documentation(&ast_context, &symbol, short_signature = false)
 				append(
 					&signature_information,
-					SignatureInformation{label = signature, documentation = write_hover_content(&ast_context, symbol)},
+					SignatureInformation{label = signature, documentation = write_hover_content(&ast_context, symbol, allocator)},
 				)
 			} else {
 				build_documentation(&ast_context, &symbol, short_signature = false)
 				append(
 					&signature_information,
-					SignatureInformation{label = get_signature(symbol), documentation = write_markdown_doc(symbol)},
+					SignatureInformation{label = get_signature(symbol, allocator), documentation = write_markdown_doc(symbol, allocator)},
 				)
 			}
 		}
@@ -144,8 +145,8 @@ get_signature_information :: proc(
 }
 
 @(private = "file")
-get_signature :: proc(symbol: Symbol) -> string {
-	sb := strings.builder_make()
+get_signature :: proc(symbol: Symbol, allocator := context.temp_allocator) -> string {
+	sb := strings.builder_make(allocator)
 	write_symbol_name(&sb, symbol)
 	strings.write_string(&sb, " :: ")
 	strings.write_string(&sb, symbol.signature)
@@ -157,6 +158,7 @@ add_proc_signature :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
 	signature_information: ^[dynamic]SignatureInformation,
+	allocator := context.temp_allocator,
 ) -> (
 	active_parameter: int,
 ) {
@@ -200,21 +202,21 @@ add_proc_signature :: proc(
 		return active_parameter
 	}
 
-	split_all_field_arguments(&call)
+	split_all_field_arguments(&call, allocator)
 
 	if value, ok := call.value.(SymbolProcedureValue); ok {
-		add_signature_info(call, value.orig_arg_types, &active_parameter, signature_information)
+		add_signature_info(call, value.orig_arg_types, &active_parameter, signature_information, allocator)
 	} else if value, ok := call.value.(SymbolStructValue); ok && value.poly != nil && value.poly.list != nil {
-		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
+		add_signature_info(call, value.poly.list, &active_parameter, signature_information, allocator)
 	} else if value, ok := call.value.(SymbolUnionValue); ok && value.poly != nil && value.poly.list != nil {
-		add_signature_info(call, value.poly.list, &active_parameter, signature_information)
+		add_signature_info(call, value.poly.list, &active_parameter, signature_information, allocator)
 	} else if value, ok := call.value.(SymbolAggregateValue); ok {
 		//function overloaded procedures
 		for symbol in value.symbols {
 			symbol := symbol
 
 			if value, ok := symbol.value.(SymbolProcedureValue); ok {
-				add_signature_info(symbol, value.orig_arg_types, &active_parameter, signature_information)
+				add_signature_info(symbol, value.orig_arg_types, &active_parameter, signature_information, allocator)
 			}
 		}
 	}
@@ -226,8 +228,9 @@ add_signature_info :: proc(
 	args: []^ast.Field,
 	active_parameter: ^int,
 	signature_information: ^[dynamic]SignatureInformation,
+	allocator := context.temp_allocator,
 ) {
-	parameters := make([]ParameterInformation, len(args), context.temp_allocator)
+	parameters := make([]ParameterInformation, len(args), allocator)
 	call := call
 
 	for arg, i in args {
@@ -237,10 +240,10 @@ add_signature_info :: proc(
 			}
 		}
 
-		parameters[i].label = node_to_string(arg)
+		parameters[i].label = node_to_string(arg, allocator = allocator)
 	}
 
-	sb := strings.builder_make(context.temp_allocator)
+	sb := strings.builder_make(allocator)
 	#partial switch &value in call.value {
 	case SymbolProcedureValue:
 		write_procedure_symbol_signature(&sb, value, detailed_signature = false)
@@ -254,15 +257,15 @@ add_signature_info :: proc(
 	call.signature = strings.to_string(sb)
 
 	info := SignatureInformation {
-		label         = get_signature(call),
-		documentation = write_markdown_doc(call),
+		label         = get_signature(call, allocator),
+		documentation = write_markdown_doc(call, allocator),
 		parameters    = parameters,
 	}
 	append(signature_information, info)
 }
 
 @(private = "file")
-write_markdown_doc :: proc(symbol: Symbol) -> MarkupContent {
-	doc := construct_symbol_docs(symbol)
+write_markdown_doc :: proc(symbol: Symbol, allocator := context.temp_allocator) -> MarkupContent {
+	doc := construct_symbol_docs(symbol, allocator)
 	return MarkupContent{kind = "markdown", value = fmt.tprintf(DOC_FMT_ODIN, doc)}
 }

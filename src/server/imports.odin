@@ -19,8 +19,7 @@ find_used_not_imported :: proc(
 ) -> []Package {
 	arena: runtime.Arena
 
-	_ = runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
-
+	_ = runtime.arena_init(&arena, mem.Megabyte * 40, context.allocator)
 	defer runtime.arena_destroy(&arena)
 
 	context.allocator = runtime.arena_allocator(&arena)

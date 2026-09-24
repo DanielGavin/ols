@@ -722,11 +722,11 @@ free_ast_comment :: proc(a: ^ast.Comment_Group, allocator: mem.Allocator) {
 	if a == nil {
 		return
 	}
-
-	if len(a.list) > 0 {
-		delete(a.list, allocator)
+	for t in a.list {
+		delete(t.text, allocator)
+		delete(t.pos.file, allocator)
 	}
-
+	delete(a.list, allocator)
 	free(a, allocator)
 }
 
@@ -931,6 +931,8 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^ast.Struct_Type:
 		free_ast(n.poly_params, allocator)
 		free_ast(n.align, allocator)
+		free_ast(n.min_field_align, allocator)
+		free_ast(n.max_field_align, allocator)
 		free_ast(n.fields, allocator)
 		free_ast(n.where_clauses, allocator)
 	case ^ast.Union_Type:
@@ -950,17 +952,21 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 	case ^ast.Multi_Pointer_Type:
 		free_ast(n.elem, allocator)
 	case ^ast.Matrix_Type:
+		free_ast(n.row_count, allocator)
+		free_ast(n.column_count, allocator)
 		free_ast(n.elem, allocator)
 	case ^ast.Relative_Type:
 		free_ast(n.tag, allocator)
 		free_ast(n.type, allocator)
 	case ^ast.Bit_Field_Type:
 		free_ast(n.backing_type, allocator)
-		for field in n.fields do free_ast(field, allocator)
+		free_ast(n.fields, allocator)
 	case ^ast.Bit_Field_Field:
 		free_ast(n.name, allocator)
 		free_ast(n.type, allocator)
 		free_ast(n.bit_size, allocator)
+		free_ast_comment(n.docs, allocator)
+		free_ast_comment(n.comments, allocator)
 	case ^ast.Or_Else_Expr:
 		free_ast(n.x, allocator)
 		free_ast(n.y, allocator)
@@ -1213,8 +1219,8 @@ node_equal_node :: proc(a, b: ^ast.Node) -> bool {
 	Returns the string representation of a type. This allows us to print the signature without storing it in the indexer as a string(saving memory).
 */
 
-node_to_string :: proc(node: ^ast.Node, remove_pointers := false) -> string {
-	builder := strings.builder_make(context.temp_allocator)
+node_to_string :: proc(node: ^ast.Node, remove_pointers := false, allocator := context.temp_allocator) -> string {
+	builder := strings.builder_make(allocator)
 
 	build_string(node, &builder, remove_pointers)
 

@@ -201,7 +201,7 @@ try_build_package :: proc(pkg_name: string) {
 	}
 
 	arena: runtime.Arena
-	result := runtime.arena_init(&arena, mem.Megabyte * 40, runtime.default_allocator())
+	result := runtime.arena_init(&arena, mem.Megabyte * 40, context.allocator)
 	defer runtime.arena_destroy(&arena)
 
 	{
@@ -266,7 +266,6 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
-
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
 	defer clear_index_cache()
@@ -296,8 +295,6 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 				}
 			}
 		}
-		delete_key(&v.doc, corrected_uri.uri)
-		delete_key(&v.comment, corrected_uri.uri)
 	}
 
 	return .None
@@ -326,7 +323,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 	dir := filepath.base(filepath.dir(fullpath))
 
-	pkg := new(ast.Package)
+	pkg := new(ast.Package, context.temp_allocator)
 	pkg.kind = .Normal
 	pkg.fullpath = fullpath
 	pkg.name = dir
@@ -341,14 +338,7 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 		pkg      = pkg,
 	}
 
-	{
-		allocator := context.allocator
-		context.allocator = context.temp_allocator
-		defer context.allocator = allocator
-
-		ok = parse_file(&p, &file)
-	}
-	if !ok || file.syntax_error_count > 0 {
+	if !parse_file(&p, &file, context.temp_allocator) || file.syntax_error_count > 0 {
 		if !is_ols_builtin_file(fullpath) {
 			log.errorf("error in parse file for indexing %v", fullpath)
 		}
@@ -385,15 +375,23 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 
 
 setup_index :: proc(builtin_path: string) {
-	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50, context.allocator)
-	symbol_collection := make_symbol_collection(context.allocator, &common.config)
+	build_cache.loaded_pkgs = make(map[string]PackageCacheInfo, 50)
+	symbol_collection := make_symbol_collection(&common.config)
 	indexer.index = make_memory_index(symbol_collection)
 
 	try_build_package(builtin_path)
 }
 
 free_index :: proc() {
+	spall.trace(#procedure)
+
+	for k in build_cache.loaded_pkgs {
+		delete(k, indexer.index.collection.allocator)
+	}
+	delete(build_cache.loaded_pkgs)
 	delete_symbol_collection(indexer.index.collection)
+	memory_index_clear_cache(&indexer.index)
+	build_cache.pkg_aliases = {}
 }
 
 log_error_handler :: proc(pos: tokenizer.Pos, msg: string, args: ..any) {

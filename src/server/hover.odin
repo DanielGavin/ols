@@ -9,10 +9,10 @@ import "core:strings"
 import "src:common"
 import "src:spall"
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol) -> MarkupContent {
+write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, allocator := context.temp_allocator) -> MarkupContent {
 	cat := construct_symbol_information(ast_context, symbol)
-	doc := construct_symbol_docs(symbol)
-	return build_markup_content(cat, doc)
+	doc := construct_symbol_docs(symbol, allocator)
+	return build_markup_content(cat, doc, allocator)
 }
 
 get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {

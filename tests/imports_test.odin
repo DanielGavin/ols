@@ -1,7 +1,5 @@
 package tests
 
-import "base:runtime"
-
 import "core:encoding/json"
 import "core:fmt"
 import "core:path/filepath"
@@ -22,7 +20,8 @@ setup_diagnostics :: proc() {
 teardown_diagnostics :: proc() {
 	for diagnostic_type in server.DiagnosticType {
 		server.clear_diagnostics(diagnostic_type)
-		for uri in server.diagnostics[diagnostic_type] {
+		for uri, &arr in server.diagnostics[diagnostic_type] {
+			delete(arr)
 			delete(uri)
 		}
 		delete(server.diagnostics[diagnostic_type])
@@ -43,8 +42,6 @@ test_writer_capture :: proc(ctx: rawptr, data: []byte) -> (int, int) {
 
 @(test)
 unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
-	// Server teardown performs individual frees, which the test runner's rollback allocator does not support.
-	context.allocator = runtime.default_allocator()
 
 	config := common.Config {
 		enable_diagnostics              = true,
@@ -65,7 +62,10 @@ unused_imports_on_change_preserves_previous_behavior :: proc(t: ^testing.T) {
 	server.document_storage.documents = make(map[string]server.Document)
 	defer server.document_storage_shutdown()
 
-	server.setup_index(server.get_builtin_path())
+	builtin_path := server.get_builtin_path()
+	defer delete(builtin_path)
+
+	server.setup_index(builtin_path)
 	defer server.free_index()
 
 	fullpath, path_error := filepath.abs(".", context.temp_allocator)
@@ -93,11 +93,11 @@ main :: proc() {
 	_ = fmt.println
 }
 `)
-
 	if err := server.document_open(uri.uri, initial_text, &config, nil); err != .None {
 		testing.expectf(t, false, "failed to open document: %v", err)
 		return
 	}
+	defer server.document_close(uri.uri)
 
 	changed_text := `package test
 
@@ -118,7 +118,7 @@ main :: proc() {
 		"",
 		context.temp_allocator,
 	)
-	params, parse_error := json.parse_string(params_text, parse_integers = true)
+	params, parse_error := json.parse_string(params_text, parse_integers = true, allocator=context.temp_allocator)
 	if parse_error != .None {
 		testing.expectf(t, false, "failed to parse didChange params: %v: %s", parse_error, params_text)
 		return
@@ -167,7 +167,7 @@ main :: proc() {
 		"",
 		context.temp_allocator,
 	)
-	invalid_params, invalid_parse_error := json.parse_string(invalid_params_text, parse_integers = true)
+	invalid_params, invalid_parse_error := json.parse_string(invalid_params_text, parse_integers = true, allocator=context.temp_allocator)
 	if invalid_parse_error != .None {
 		testing.expectf(
 			t,

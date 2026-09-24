@@ -27,14 +27,14 @@ build_documentation :: proc(ast_context: ^AstContext, symbol: ^Symbol, short_sig
 	}
 }
 
-build_markup_content :: proc(symbol_info: string, doc: string) -> MarkupContent {
-	content: MarkupContent
+build_markup_content :: proc(symbol_info: string, doc: string, allocator := context.temp_allocator) -> (content: MarkupContent) {
+
 	if symbol_info != "" {
 		content.kind = "markdown"
 		if doc != "" {
-			content.value = fmt.tprintf(DOC_FMT_MARKDOWN, symbol_info, doc)
+			content.value = fmt.aprintf(DOC_FMT_MARKDOWN, symbol_info, doc, allocator=allocator)
 		} else {
-			content.value = fmt.tprintf(DOC_FMT_ODIN, symbol_info)
+			content.value = fmt.aprintf(DOC_FMT_ODIN, symbol_info, allocator=allocator)
 		}
 	} else {
 		content.kind = "plaintext"

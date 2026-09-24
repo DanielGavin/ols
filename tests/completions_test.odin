@@ -6044,6 +6044,7 @@ ast_completion_super_enum_assignment :: proc(t: ^testing.T) {
 
 @(test)
 ast_completion_skip_test_procs :: proc(t: ^testing.T) {
+
 	source := test.Source {
 		main = `package test
 			@(test)
@@ -6058,6 +6059,8 @@ ast_completion_skip_test_procs :: proc(t: ^testing.T) {
 			completion_exclude_attributes = {"test" = {}}
 		}
 	}
+	// completion_exclude_attributes is a map
+	defer delete(source.config.completion_exclude_attributes)
 
 	test.expect_completion_docs(t, &source, "", {"test.foo :: proc()"}, {"test.foo_test :: proc()"})
 }
