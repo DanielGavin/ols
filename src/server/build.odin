@@ -266,41 +266,6 @@ try_build_package :: proc(pkg_name: string) {
 	}
 }
 
-
-@(private = "file")
-free_index_file_map_entry :: proc(m: ^map[string]string, uri: string, allocator: mem.Allocator, fold_case := false) {
-	if !fold_case {
-		// O(1) lookup: keys are interned, so equality on the uri hits directly.
-		if v, ok := m[uri]; ok {
-			delete_key(m, uri)
-			// Key is interned (owned by unique_strings) — free the VALUE only.
-			// get_comment returns "" (static) when missing — same guard as free_symbol.
-			if v != "" {
-				delete(v, allocator)
-			}
-		}
-		return
-	}
-
-	// Case-insensitive path (Windows eviction): linear scan, compare only.
-	for k, v in m^ {
-		if strings.equal_fold(k, uri) {
-			stored_key, stored_val := k, v
-			delete_key(m, stored_key)
-			if stored_val != "" {
-				delete(stored_val, allocator)
-			}
-			break
-		}
-	}
-}
-
-@(private = "file")
-free_index_file_doc_comment :: proc(pkg: ^SymbolPackage, uri: string, allocator: mem.Allocator, fold_case := false) {
-	free_index_file_map_entry(&pkg.doc, uri, allocator, fold_case)
-	free_index_file_map_entry(&pkg.comment, uri, allocator, fold_case)
-}
-
 remove_index_file :: proc(uri: common.Uri) -> common.Error {
 	ok: bool
 	defer clear_index_cache()
@@ -330,9 +295,6 @@ remove_index_file :: proc(uri: common.Uri) -> common.Error {
 				}
 			}
 		}
-		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
-		// doc/comment keys are borrowed (interned in unique_strings): free values only with collection.allocator.
-		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator, true)
 	}
 
 	return .None
@@ -402,9 +364,6 @@ index_file :: proc(uri: common.Uri, text: string) -> common.Error {
 				}
 			}
 		}
-		// Methods hold borrowed Symbol copies: unordered_remove only, never free_symbol.
-		// doc/comment keys are borrowed (interned in unique_strings): free values only with collection.allocator.
-		free_index_file_doc_comment(&v, corrected_uri.uri, indexer.index.collection.allocator)
 	}
 
 	if ret := collect_symbols(&indexer.index.collection, file, corrected_uri.uri); ret != .None {
