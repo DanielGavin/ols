@@ -60,36 +60,17 @@ create_uri :: proc(path: string, allocator: mem.Allocator) -> Uri {
 
 uri_to_path :: proc(uri: string, allocator: mem.Allocator) -> string {
 	path := strings.trim_prefix(uri, "file://")
-	decoded, ok := decode_percent(path, allocator)
-	if ok {
-		path = decoded
-	} else {
-		// decode failed: path still aliases `uri`; clone so the
-		// result is always heap-owned and safe for delete_uri.
-		path = strings.clone(path, allocator)
-	}
+	path = decode_percent(path, context.temp_allocator) or_else path
 	when ODIN_OS == .Windows {
 		// file:///C:/foo -> /C:/foo after trim, strip leading /
-		// trim_prefix returns an alias (interior pointer); clone so
-		// delete_uri frees the exact base pointer.
-		trimmed := strings.trim_prefix(path, "/")
-		if raw_data(trimmed) != raw_data(path) {
-			trimmed = strings.clone(trimmed, allocator)
-			delete(path)
-			path = trimmed
-		}
+		path = strings.trim_prefix(path, "/")
 	}
-	return path
+	return strings.clone(path, allocator)
 }
 
-delete_uri :: proc(uri: Uri) {
-	// Both strings are heap-owned by create_uri/parse_uri; free them together.
-	if uri.uri != "" {
-		delete(uri.uri)
-	}
-	if uri.path != "" {
-		delete(uri.path)
-	}
+delete_uri :: proc(uri: Uri, allocator := context.allocator, loc := #caller_location) {
+	delete(uri.uri, allocator, loc)
+	delete(uri.path, allocator, loc)
 }
 
 encode_percent :: proc(value: string, allocator: mem.Allocator) -> string {
