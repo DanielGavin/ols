@@ -39,6 +39,7 @@ Config :: struct {
 	enable_references:                       bool,
 	enable_document_highlights:              bool,
 	enable_label_details:                    bool,
+	enable_completions:                       bool,
 	enable_std_references:                   bool,
 	enable_import_fixer:                     bool,
 	enable_fake_method:                      bool,
