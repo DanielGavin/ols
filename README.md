@@ -87,6 +87,8 @@ Options:
 
 - `enable_document_links`: Follow links when opening documentation. This is usually done via `<ctrl+click>` and will open the documentation in a browser (or similar). _(Enabled by default)_
 
+- `enable_completions`: Enables completion results. _(Enabled by default)_
+
 - `enable_completion_matching`: Attempt to match types and pointers when passing arguments to procedures. _(Enabled by default)_
 
 - `enable_unused_imports_reporting`: Turn on reporting of unused imported packages. _(Enabled by default)_

@@ -395,6 +395,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_diagnostics = ols_config.enable_diagnostics.(bool) or_else config.enable_diagnostics
 	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count
 	config.enable_document_symbols = ols_config.enable_document_symbols.(bool) or_else config.enable_document_symbols
+	config.enable_completions = ols_config.enable_completions.(bool) or_else config.enable_completions
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
@@ -726,6 +727,7 @@ request_initialize :: proc(
 	config.enable_diagnostics = true
 	config.thread_count = 2
 	config.enable_document_symbols = true
+	config.enable_completions = true
 	config.enable_format = true
 	config.enable_hover = true
 	config.enable_semantic_tokens = false
@@ -1058,6 +1060,12 @@ request_completion :: proc(
 
 	if !ok {
 		return .ParseError
+	}
+
+	if !config.enable_completions {
+		response := make_response_message(params = CompletionList{}, id = id)
+		send_response(response, writer)
+		return .None
 	}
 
 	completition_params: CompletionParams
