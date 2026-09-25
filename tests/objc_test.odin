@@ -1,6 +1,7 @@
 package tests
 
 import "core:slice"
+import "core:strings"
 import "core:testing"
 
 import test "src:testing"
@@ -123,12 +124,44 @@ NotificationCenter :: struct {using _: Object}
 @(objc_type=NotificationCenter, objc_name="defaultCenter", objc_is_class_method=true)
 NotificationCenter_defaultCenter :: proc "c" () -> ^NotificationCenter ---
 
+@(objc_type=NotificationCenter, objc_name="centerWithName", objc_is_class_method=true)
+NotificationCenter_centerWithName :: proc "c" (name: string) -> ^NotificationCenter ---
+
 @(objc_type=NotificationCenter, objc_name="addObserverForName")
 NotificationCenter_addObserverForName :: proc "c" (
 	self: ^NotificationCenter,
 	name, object, queue: int,
 	block: ^intrinsics.Objc_Block(proc(notification: ^Notification)),
 ) ---
+
+@(objc_type=Object, objc_name="alpha")
+Object_alpha :: proc "c" (self: ^Object) ---
+`,
+		},
+		test.Package {
+			pkg = "AppKit",
+			source = `package AppKit
+import Foundation "NS"
+
+Object :: Foundation.Object
+
+@(objc_class="GestureRecognizer", objc_superclass=Foundation.Object)
+GestureRecognizer :: struct {using _: Object}
+
+@(objc_type=GestureRecognizer, objc_name="gestureClass", objc_is_class_method=true)
+GestureRecognizer_gestureClass :: proc "c" () -> ^GestureRecognizer ---
+
+@(objc_type=GestureRecognizer, objc_name="beta")
+GestureRecognizer_beta :: proc "c" (self: ^GestureRecognizer) ---
+
+@(objc_class="RotationGestureRecognizer", objc_superclass=GestureRecognizer)
+RotationGestureRecognizer :: struct {using _: GestureRecognizer}
+
+@(objc_type=RotationGestureRecognizer, objc_name="rotationClass", objc_is_class_method=true)
+RotationGestureRecognizer_rotationClass :: proc "c" () -> ^RotationGestureRecognizer ---
+
+@(objc_type=RotationGestureRecognizer, objc_name="zeta")
+RotationGestureRecognizer_zeta :: proc "c" (self: ^RotationGestureRecognizer) ---
 `,
 		},
 		test.Package {
@@ -204,6 +237,62 @@ Thing_unresolved_fake :: proc "c" () -> Missing ---
 
 @(objc_type=Thing, objc_name="next")
 Thing_next :: proc "c" (self: ^Thing) ---
+`,
+		},
+		test.Package {
+			pkg = "Diamond",
+			source = `package Diamond
+
+@(objc_class="Base")
+Base :: struct {}
+
+@(objc_type=Base, objc_name="self")
+Base_self :: proc "c" (self: ^Base) -> ^Base ---
+
+@(objc_type=Base, objc_name="performSelector_")
+Base_performSelector_ :: proc "c" (self: ^Base, selector: int) ---
+
+@(objc_type=Base, objc_name="performSelector_withObject")
+Base_performSelector_withObject :: proc "c" (self: ^Base, selector, object: int) ---
+
+@(objc_type=Base, objc_name="performSelector")
+Base_performSelector :: proc {
+	Base_performSelector_,
+	Base_performSelector_withObject,
+}
+
+@(objc_type=Base, objc_name="ping")
+Base_ping :: proc "c" (self: ^Base) ---
+
+@(objc_type=Base, objc_name="pingGroup")
+Base_pingGroup :: proc {Base_ping}
+
+@(objc_type=Base, objc_name="makeDefault", objc_is_class_method=true)
+Base_makeDefault :: proc "c" () -> ^Base ---
+
+@(objc_type=Base, objc_name="makeNamed", objc_is_class_method=true)
+Base_makeNamed :: proc "c" (name: int) -> ^Base ---
+
+@(objc_type=Base, objc_name="make", objc_is_class_method=true)
+Base_make :: proc {
+	Base_makeDefault,
+	Base_makeNamed,
+}
+
+@(objc_class="Left")
+Left :: struct {using _: Base}
+
+@(objc_type=Left, objc_name="shared")
+Left_shared :: proc "c" (self: ^Left) ---
+
+@(objc_class="Right")
+Right :: struct {using _: Base}
+
+@(objc_type=Right, objc_name="shared")
+Right_shared :: proc "c" (self: ^Right) ---
+
+@(objc_class="Leaf")
+Leaf :: struct {using _: Left, using _: Right}
 `,
 		},
 	)
@@ -388,6 +477,297 @@ main :: proc() {
 		"->",
 		{"@(objc_type=MetalLayer, objc_name=\"nextDrawable\")\nMetalLayer.nextDrawable: CA.MetalLayer_nextDrawable"},
 	)
+}
+
+@(test)
+objc_class_completion_includes_inherited_methods :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "NS"
+
+main :: proc() {
+	NS.AutoreleasePool.{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"alloc"}, {"init", "drain"})
+}
+
+@(test)
+objc_class_completion_through_package_alias :: proc(t: ^testing.T) {
+	names := []string{"Object", "RotationGestureRecognizer"}
+	for name in names {
+		main, _ := strings.replace_all(`package test
+import NS "AppKit"
+
+main :: proc() {
+	NS.CLASS_NAME.{*}
+}
+`, "CLASS_NAME", name, allocator = context.temp_allocator)
+		source := test.Source {
+			main = main,
+			packages = objc_test_packages(),
+		}
+
+		test.expect_completion_labels(t, &source, ".", {"alloc"}, {"init"})
+	}
+}
+
+@(test)
+objc_class_completion_excludes_fake_methods :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "CA"
+
+main :: proc() {
+	CA.IvarLeaf.{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_fake_method = true},
+	}
+
+	test.expect_completion_labels(t, &source, ".", {}, {"IvarLeaf_fake_method", "IvarLeaf_perform"})
+}
+
+@(test)
+objc_class_completion_ranks_nearer_methods_first :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import NS "AppKit"
+
+main :: proc() {
+	NS.RotationGestureRecognizer.{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_label_order(t, &source, ".", {"rotationClass", "gestureClass", "alloc"})
+}
+
+@(test)
+objc_instance_completion_ranks_nearer_methods_first :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import NS "AppKit"
+
+main :: proc(self: ^NS.RotationGestureRecognizer) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_label_order(t, &source, "->", {"zeta", "beta", "alpha"})
+}
+
+@(test)
+objc_class_completion_inserts_call_parentheses :: proc(t: ^testing.T) {
+	names := []string{"Object", "RotationGestureRecognizer"}
+	for name in names {
+		main, _ := strings.replace_all(`package test
+import NS "AppKit"
+
+main :: proc() {
+	NS.CLASS_NAME.{*}
+}
+`, "CLASS_NAME", name, allocator = context.temp_allocator)
+		source := test.Source {
+			main = main,
+			packages = objc_test_packages(),
+			config = {enable_snippets = true, enable_procedure_snippet = true},
+		}
+
+		test.expect_completion_edit_text(t, &source, ".", "alloc", "alloc()$0")
+	}
+
+	source := test.Source {
+		main = `package test
+import "NS"
+
+main :: proc() {
+	NS.NotificationCenter.{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, ".", "centerWithName", "centerWithName($0)")
+}
+
+@(test)
+objc_instance_completion_deduplicates_inherited_methods :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc(self: ^Diamond.Leaf) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_fake_method = true},
+	}
+
+	test.expect_completion_label_order(t, &source, "->", {"Base_self", "self"})
+}
+
+@(test)
+objc_instance_completion_includes_proc_groups :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc(self: ^Diamond.Leaf) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_labels(t, &source, "->", {"performSelector"})
+}
+
+@(test)
+objc_instance_proc_group_inserts_call_parentheses :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc(self: ^Diamond.Leaf) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, "->", "performSelector", "performSelector($0)")
+}
+
+@(test)
+objc_instance_proc_group_without_args_places_cursor_after_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc(self: ^Diamond.Leaf) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, "->", "pingGroup", "pingGroup()$0")
+}
+
+@(test)
+objc_class_completion_includes_proc_groups :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc() {
+	Diamond.Leaf.{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_labels(t, &source, ".", {"make"}, {"performSelector"})
+}
+
+@(test)
+objc_class_proc_group_inserts_call_parentheses :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc() {
+	Diamond.Leaf.{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, ".", "make", "make($0)")
+}
+
+@(test)
+objc_instance_completion_keeps_distinct_methods_with_same_name :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "Diamond"
+
+main :: proc(self: ^Diamond.Leaf) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+	}
+
+	test.expect_completion_docs(
+		t,
+		&source,
+		"->",
+		{"@(objc_type=Left, objc_name=\"shared\")\nLeaf.shared: Diamond.Left_shared",
+		 "@(objc_type=Right, objc_name=\"shared\")\nLeaf.shared: Diamond.Right_shared"},
+	)
+}
+
+@(test)
+objc_instance_completion_inserts_call_parentheses :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "CA"
+
+main :: proc(self: ^CA.IvarChild) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, "->", "perform", "perform()$0")
+
+	with_params := test.Source {
+		main = `package test
+import "CA"
+
+main :: proc(self: ^CA.IvarChild) {
+	self->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+	test.expect_completion_edit_text(t, &with_params, "->", "observe", "observe($0)")
+}
+
+@(test)
+objc_instance_completion_inserts_call_parentheses_through_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+import "CA"
+
+Wrapper :: struct {impl: ^CA.MetalLayer}
+
+main :: proc(self: ^Wrapper) {
+	self.impl->{*}
+}
+`,
+		packages = objc_test_packages(),
+		config = {enable_snippets = true, enable_procedure_snippet = true},
+	}
+
+	test.expect_completion_edit_text(t, &source, "->", "nextDrawable", "nextDrawable()$0")
 }
 
 @(test)

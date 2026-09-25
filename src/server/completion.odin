@@ -431,8 +431,39 @@ convert_completion_results :: proc(
 
 		item.kind = symbol_type_to_completion_kind(result.symbol.type)
 
-		if should_add_parens_snippet(position_context, config, result.symbol.type) {
-			item.insertText = fmt.tprintf("%v($0)", item.label)
+		is_objc_method := completion_type == .Selector &&
+		   result.symbol.type == .Field && .ObjC in result.symbol.flags
+		is_objc_class_method := is_objc_method && .ObjCIsClassMethod in result.symbol.flags
+		is_objc_instance_method := is_objc_method && .ObjCIsClassMethod not_in result.symbol.flags &&
+		   is_arrow_selector_access(position_context)
+		is_objc_selector_method := is_objc_class_method || is_objc_instance_method
+		if should_add_parens_snippet(position_context, config, is_objc_selector_method ? .Function : result.symbol.type) {
+			no_args := false
+			receiver_count := is_objc_instance_method ? 1 : 0
+			if proc_value, ok := result.symbol.value.(SymbolProcedureValue); is_objc_selector_method && ok {
+				no_args = get_proc_arg_count(proc_value) <= receiver_count
+			} else if group_value, ok := result.symbol.value.(SymbolProcedureGroupValue); is_objc_selector_method && ok {
+				if group, ok := group_value.group.derived.(^ast.Proc_Group); ok && len(group.args) > 0 {
+					no_args = true
+					for member_expr in group.args {
+						member, member_ok := resolve_type_expression(ast_context, member_expr)
+						if !member_ok {
+							no_args = false
+							break
+						}
+						member_proc, ok := member.value.(SymbolProcedureValue)
+						if !ok || get_proc_arg_count(member_proc) > receiver_count {
+							no_args = false
+							break
+						}
+					}
+				}
+			}
+			if is_objc_selector_method && no_args {
+				item.insertText = fmt.tprintf("%v()$0", item.label)
+			} else {
+				item.insertText = fmt.tprintf("%v($0)", item.label)
+			}
 			item.insertTextFormat = .Snippet
 			item.deprecated = .Deprecated in result.symbol.flags
 			item.command = Command {
@@ -1005,6 +1036,29 @@ add_soa_field_completion :: proc(
 	}
 }
 
+// Keep indexed procedure groups intact for completion. Resolving one would
+// choose an overload before the user has supplied arguments.
+get_indexed_objc_method :: proc(expr: ^ast.Expr) -> (symbol: Symbol, found: bool) {
+	if expr == nil do return
+	selector, selector_ok := expr.derived.(^ast.Selector_Expr)
+	if !selector_ok || selector.field == nil do return
+	base, base_ok := selector.expr.derived.(^ast.Ident)
+	if !base_ok do return
+	if pkg, ok := indexer.index.collection.packages[base.name]; ok {
+		return pkg.symbols[selector.field.name]
+	}
+	return
+}
+
+is_arrow_selector_access :: proc(position_context: ^DocumentPositionContext) -> bool {
+	if position_context.selector_expr != nil {
+		if expr, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
+			return expr.op.kind == .Arrow_Right
+		}
+	}
+	return position_context.arrow
+}
+
 get_selector_completion :: proc(
 	ast_context: ^AstContext,
 	position_context: ^DocumentPositionContext,
@@ -1027,12 +1081,13 @@ get_selector_completion :: proc(
 		return is_incomplete
 	}
 
+	is_objc_class := selector.type == .Struct && .Variable not_in selector.flags && .ObjC in selector.flags
 	if selector.type != .Variable &&
 	   selector.type != .Field &&
 	   selector.type != .Package &&
 	   selector.type != .Enum &&
 	   selector.type != .Function &&
-	   (selector.type == .Struct && .Variable not_in selector.flags) {
+	   (selector.type == .Struct && .Variable not_in selector.flags && !is_objc_class) {
 		// We don't want completions for struct types, but we do want completions for constant variables.
 		// See tests `ast_global_non_mutable_completion` vs `ast_completion_global_selector_from_local_scope`
 		return is_incomplete
@@ -1058,12 +1113,7 @@ get_selector_completion :: proc(
 	if access_expr == nil {
 		access_expr = position_context.selector
 	}
-	is_arrow_access := position_context.arrow
-	if position_context.selector_expr != nil {
-		if expr, ok := position_context.selector_expr.derived.(^ast.Selector_Expr); ok {
-			is_arrow_access = expr.op.kind == .Arrow_Right
-		}
-	}
+	is_arrow_access := is_arrow_selector_access(position_context)
 
 	if s, ok := selector.value.(SymbolProcedureValue); ok {
 		if len(s.return_types) == 1 {
@@ -1073,7 +1123,7 @@ get_selector_completion :: proc(
 		}
 	}
 
-	if config.enable_fake_method {
+	if config.enable_fake_method && !is_objc_class {
 		append_method_completion(ast_context, selector, position_context, results, receiver)
 	}
 
@@ -1193,13 +1243,45 @@ get_selector_completion :: proc(
 		is_incomplete = false
 		is_objc_value := .ObjC in selector.flags || len(v.objc_ivars) > 0
 
-		for name, i in v.names {
+		// The same Objective-C type can be reached through several using paths.
+		// Resolve each type's methods only through its nearest path.
+		skipped_usings := make(map[int]bool, context.temp_allocator)
+		if is_objc_value && is_arrow_access {
+			nearest_usings := make(map[ObjcStructKey]int, context.temp_allocator)
+			for using_index in v.usings {
+				using_type := resolve_type_expression(ast_context, v.types[using_index]) or_continue
+				if .ObjC not_in using_type.flags do continue
+				key := ObjcStructKey{pkg = using_type.pkg, name = using_type.name}
+				if previous, seen := nearest_usings[key]; seen {
+					if previous == using_index do continue
+					depth := 0
+					for index := using_index; index != -1; index = v.from_usings[index] do depth += 1
+					previous_depth := 0
+					for index := previous; index != -1; index = v.from_usings[index] do previous_depth += 1
+					if depth < previous_depth {
+						skipped_usings[previous] = true
+						nearest_usings[key] = using_index
+					} else {
+						skipped_usings[using_index] = true
+					}
+				} else {
+					nearest_usings[key] = using_index
+				}
+			}
+		}
+
+		objc_field: for name, i in v.names {
+			for using_index := v.from_usings[i]; using_index != -1; using_index = v.from_usings[using_index] {
+				if skipped_usings[using_index] do continue objc_field
+			}
 			is_objc_ivar := symbol_struct_value_has_objc_ivar(v, i)
 
-			// This loop only needs ivars for dot access. Fake methods are already added
-			// above by append_method_completion when enabled, so resolving the expanded
-			// Objective-C method entries here would be wasted work.
-			if is_objc_value && !is_arrow_access && !is_objc_ivar {
+			// Value dot access only needs ivars. Fake methods are already added above,
+			// so resolving expanded Objective-C methods would be wasted work.
+			if is_objc_value && !is_arrow_access && !is_objc_ivar && !is_objc_class {
+				continue
+			}
+			if is_objc_class && is_objc_ivar {
 				continue
 			}
 			if name == "_" {
@@ -1214,8 +1296,19 @@ get_selector_completion :: proc(
 			}
 
 			if is_struct_field_hidden(name, selector, ast_context, config) do continue
+			indexed_symbol, indexed := get_indexed_objc_method(v.types[i])
+			if is_objc_class && indexed && .ObjCIsClassMethod not_in indexed_symbol.flags do continue
 
-			if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+			symbol := indexed_symbol
+			_, is_objc_group := indexed_symbol.value.(SymbolProcedureGroupValue)
+			ok := indexed && .ObjC in indexed_symbol.flags && is_objc_group
+			if !ok {
+				symbol, ok = resolve_type_expression(ast_context, v.types[i])
+			}
+			if ok {
+				if is_objc_class && .ObjCIsClassMethod not_in symbol.flags {
+					continue
+				}
 				if expr, ok := access_expr.derived.(^ast.Selector_Expr); ok {
 					if is_arrow_access {
 						if !is_objc_ivar && symbol.type != .Function && symbol.type != .Type_Function {
@@ -1225,7 +1318,7 @@ get_selector_completion :: proc(
 							assert(.ObjC in symbol.flags)
 							continue
 						}
-					} else if .ObjC in selector.flags && !is_objc_ivar {
+					} else if .ObjC in selector.flags && !is_objc_ivar && !is_objc_class {
 						continue
 					}
 				}
@@ -1235,6 +1328,13 @@ get_selector_completion :: proc(
 				if is_objc_ivar {
 					// Keep ivars ahead of methods regardless of package scoring.
 					result.score = 2
+				} else if is_objc_class || (is_objc_value && is_arrow_access) {
+					// Each using hop ranks below a method declared on the nearer class.
+					using_index := v.from_usings[i]
+					for using_index != -1 {
+						result.score -= 2
+						using_index = v.from_usings[using_index]
+					}
 				}
 				append(results, result)
 

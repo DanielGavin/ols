@@ -794,7 +794,9 @@ collect_objc :: proc(
 
 	pkg := &collection.packages[symbol.pkg]
 
-	if value, ok := symbol.value.(SymbolProcedureValue); ok {
+	_, is_proc := symbol.value.(SymbolProcedureValue)
+	_, is_group := symbol.value.(SymbolProcedureGroupValue)
+	if is_proc || is_group {
 		objc_name, found_objc_name := get_attribute_objc_name(attributes, symbol.name)
 
 		if objc_type := get_attribute_objc_type(attributes); objc_type != nil && found_objc_name {
@@ -972,6 +974,12 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 			token_type = .Function
 			symbol.value = SymbolProcedureGroupValue {
 				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
+			}
+			if _, is_objc := get_attribute_objc_name(expr.attributes, expr.name); is_objc {
+				symbol.flags |= {.ObjC}
+				if get_attribute_objc_is_class_method(expr.attributes) {
+					symbol.flags |= {.ObjCIsClassMethod}
+				}
 			}
 			// Record proc group members for fake methods feature
 			if collection.config != nil && collection.config.enable_fake_method {
