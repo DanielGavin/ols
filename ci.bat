@@ -8,12 +8,13 @@ if not defined OLS_VERSION (
     set "OLS_VERSION=nightly-!today!-!commit_hash!"
 )
 if "%1" == "CI" (
+    shift
     set "PATH=%cd%\Odin;!PATH!"
 
-    odin test tests -collection:src=src -define:ODIN_TEST_THREADS=1
+    call build.bat test
     if errorlevel 1 exit /b 1
 
-    odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000" -define:VERSION=%OLS_VERSION%
+    call build.bat release
     if errorlevel 1 exit /b 1
 
     pushd .
@@ -24,12 +25,12 @@ if "%1" == "CI" (
     )
     popd
 
-    odin build tools\odinfmt\main.odin -file -collection:src=src -out:odinfmt.exe -o:speed -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000"
+    call odinfmt.bat
     if errorlevel 1 exit /b 1
 ) else (
-    odin build src\ -collection:src=src -out:ols.exe -o:speed  -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000" -define:VERSION=%OLS_VERSION%
+    call build.bat release %1 %2 %3 %4 %5 %6 %7 %8 %9
     if errorlevel 1 exit /b 1
 
-    odin build tools\odinfmt\main.odin -file -collection:src=src -out:odinfmt.exe -o:speed -no-bounds-check -extra-linker-flags:"/STACK:4000000,2000000"
+    call odinfmt.bat %1 %2 %3 %4 %5 %6 %7 %8 %9
     if errorlevel 1 exit /b 1
 )
