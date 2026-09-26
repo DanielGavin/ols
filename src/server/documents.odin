@@ -347,6 +347,10 @@ document_close :: proc(uri_string: string) -> common.Error {
 
 	delete(document.text)
 	delete(document.package_name)
+	when ODIN_OS == .Windows {
+		// Only on Windows fullpath is allocated (replace_separators in document_setup); elsewhere it's an alias of uri.path
+		delete(document.fullpath)
+	}
 
 	document.used_text = 0
 

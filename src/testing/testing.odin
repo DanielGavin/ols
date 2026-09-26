@@ -171,6 +171,10 @@ teardown :: proc(src: ^Source) {
 	delete(src.config.collections)
 	delete(src.collections)
 	delete(src.document.package_name)
+	when ODIN_OS == .Windows {
+		// Only on Windows fullpath is allocated (replace_separators in document_setup); elsewhere it's an alias of uri.path
+		delete(src.document.fullpath)
+	}
 
 	virtual.arena_destroy(src.document.allocator)
 	free(src.document.allocator)
