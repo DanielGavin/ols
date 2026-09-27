@@ -33,7 +33,7 @@ jobs:
         cd Odin
         ./build_odin.sh release
     - name: Build ols
-      run: ./ci.sh CI_NO_TESTS -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
+      run: ./ci.sh -target:darwin_arm64 -extra-linker-flags:"--target=arm64-apple-macos"
     - name: Move to Dist
       run: |
         mkdir dist
@@ -143,7 +143,7 @@ jobs:
     - name: Install ARM64 cross-compilation toolchain (for linker)
       run: sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
     - name: Build ols
-      run: ./ci.sh CI_NO_TESTS -target:linux_arm64 -linker:lld -microarch:generic -extra-linker-flags:'--target=aarch64-linux-gnu'
+      run: ./ci.sh -target:linux_arm64 -linker:lld -microarch:generic -extra-linker-flags:'--target=aarch64-linux-gnu'
     - name: Move to Dist
       run: |
         mkdir dist
