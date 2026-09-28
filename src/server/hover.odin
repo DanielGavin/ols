@@ -9,13 +9,50 @@ import "core:strings"
 import "src:common"
 import "src:spall"
 
-write_hover_content :: proc(ast_context: ^AstContext, symbol: Symbol, allocator := context.temp_allocator) -> MarkupContent {
+write_hover_content :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	allocator := context.temp_allocator,
+	layout := "",
+) -> MarkupContent {
 	cat := construct_symbol_information(ast_context, symbol)
 	doc := construct_symbol_docs(symbol, allocator)
+
+	if ast_context.show_layout {
+		layout := layout
+		if layout == "" {
+			layout = construct_symbol_layout(ast_context, symbol, allocator)
+		}
+		if layout != "" && cat != "" {
+			cat = append_first_line_comment(cat, layout, allocator)
+		}
+	}
+
 	return build_markup_content(cat, doc, allocator)
 }
 
-get_hover_information :: proc(document: ^Document, position: common.Position) -> (Hover, bool, bool) {
+write_field_hover_content :: proc(
+	ast_context: ^AstContext,
+	symbol: Symbol,
+	parent: SymbolStructValue,
+	field_index: int,
+) -> MarkupContent {
+	layout := ""
+	if ast_context.show_layout {
+		layout = construct_field_layout(ast_context, parent, field_index)
+	}
+	return write_hover_content(ast_context, symbol, layout = layout)
+}
+
+get_hover_information :: proc(
+	document: ^Document,
+	position: common.Position,
+	config: ^common.Config,
+) -> (
+	Hover,
+	bool,
+	bool,
+) {
 	spall.trace(#procedure, document.fullpath)
 
 	hover := Hover {
@@ -37,6 +74,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 	}
 
 	ast_context.position_hint = position_context.hint
+	ast_context.show_layout = config.enable_hover_layout
 
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
@@ -177,7 +215,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 											construct_struct_field_symbol(&symbol, name, value, index)
 											build_documentation(&ast_context, &symbol, true)
 											hover.range = symbol.range
-											hover.contents = write_hover_content(&ast_context, symbol)
+											hover.contents = write_field_hover_content(&ast_context, symbol, value, index)
 											return hover, true, true
 										}
 									}
@@ -231,7 +269,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 									if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 										construct_struct_field_symbol(&symbol, comp_symbol.name, v, i)
 										build_documentation(&ast_context, &symbol, true)
-										hover.contents = write_hover_content(&ast_context, symbol)
+										hover.contents = write_field_hover_content(&ast_context, symbol, v, i)
 										return hover, true, true
 									}
 								}
@@ -328,7 +366,7 @@ get_hover_information :: proc(document: ^Document, position: common.Position) ->
 					if symbol, ok := resolve_type_expression(&ast_context, v.types[i]); ok {
 						construct_struct_field_symbol(&symbol, selector.name, v, i)
 						build_documentation(&ast_context, &symbol, true)
-						hover.contents = write_hover_content(&ast_context, symbol)
+						hover.contents = write_field_hover_content(&ast_context, symbol, v, i)
 						return hover, true, true
 					}
 				}

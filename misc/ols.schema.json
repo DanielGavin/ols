@@ -40,6 +40,11 @@
 			"type": "boolean",
 			"description": "Enables hover feature"
 		},
+		"enable_hover_layout": {
+			"type": "boolean",
+			"description": "Show memory layout (size, alignment, field offsets) of types on hover.",
+			"default": false
+		},
 		"enable_procedure_context": { "type": "boolean" },
 		"enable_snippets": {
 			"type": "boolean",

@@ -424,6 +424,7 @@ OlsConfig :: struct {
 	enable_format:                           Maybe(bool),
 	enable_completions:                      Maybe(bool),
 	enable_hover:                            Maybe(bool),
+	enable_hover_layout:                     Maybe(bool),
 	enable_document_symbols:                 Maybe(bool),
 	enable_fake_methods:                     Maybe(bool),
 	enable_overload_resolution:              Maybe(bool),

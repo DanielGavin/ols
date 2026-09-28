@@ -26,6 +26,7 @@ Config :: struct {
 	verbose:                                 bool,
 	enable_format:                           bool,
 	enable_hover:                            bool,
+	enable_hover_layout:                     bool,
 	enable_document_symbols:                 bool,
 	enable_semantic_tokens:                  bool,
 	enable_unused_imports_reporting:         bool,
