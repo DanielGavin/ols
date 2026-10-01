@@ -227,6 +227,9 @@ collect_struct_fields :: proc(
 	b.align = clone_expr(struct_type.align, collection.allocator, &collection.unique_strings)
 	b.max_field_align = clone_expr(struct_type.max_field_align, collection.allocator, &collection.unique_strings)
 	b.min_field_align = clone_expr(struct_type.min_field_align, collection.allocator, &collection.unique_strings)
+	replace_package_alias(b.align, package_map, collection)
+	replace_package_alias(b.max_field_align, package_map, collection)
+	replace_package_alias(b.min_field_align, package_map, collection)
 	if struct_type.is_all_or_none {
 		b.tags |= {.Is_All_Or_None}
 	}
@@ -282,8 +285,11 @@ collect_bit_field_fields :: proc(
 		}
 	}
 
+	backing_type := clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings)
+	replace_package_alias(backing_type, package_map, collection)
+
 	value := SymbolBitFieldValue {
-		backing_type = clone_type(bit_field_type.backing_type, collection.allocator, &collection.unique_strings),
+		backing_type = backing_type,
 		names        = names[:],
 		types        = types[:],
 		ranges       = ranges[:],
@@ -312,8 +318,13 @@ collect_enum_fields :: proc(
 		name, range, value := get_enum_field_name_range_value(n, file.src)
 		append(&names, strings.clone(name, collection.allocator))
 		append(&ranges, range)
-		append(&values, clone_type(value, collection.allocator, &collection.unique_strings))
+		cloned_value := clone_type(value, collection.allocator, &collection.unique_strings)
+		replace_package_alias(cloned_value, package_map, collection)
+		append(&values, cloned_value)
 	}
+
+	base_type := clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings)
+	replace_package_alias(base_type, package_map, collection)
 
 	temp_docs, temp_comments := get_field_docs_and_comments(file, enum_type.fields, context.temp_allocator)
 	docs := clone_dynamic_array(temp_docs, collection.allocator, &collection.unique_strings)
@@ -324,7 +335,7 @@ collect_enum_fields :: proc(
 		ranges    = ranges[:],
 		uri       = uri,
 		values    = values[:],
-		base_type = clone_type(enum_type.base_type, collection.allocator, &collection.unique_strings),
+		base_type = base_type,
 		comments  = comments[:],
 		docs      = docs[:],
 	}
@@ -361,6 +372,7 @@ collect_union_fields :: proc(
 		align         = clone_type(union_type.align, collection.allocator, &collection.unique_strings),
 		where_clauses = clone_array(union_type.where_clauses, collection.allocator, &collection.unique_strings),
 	}
+	replace_package_alias(value.align, package_map, collection)
 
 	return value
 }

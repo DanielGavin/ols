@@ -398,6 +398,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_completions = ols_config.enable_completions.(bool) or_else config.enable_completions
 	config.enable_format = ols_config.enable_format.(bool) or_else config.enable_format
 	config.enable_hover = ols_config.enable_hover.(bool) or_else config.enable_hover
+	config.enable_hover_layout = ols_config.enable_hover_layout.(bool) or_else config.enable_hover_layout
 	config.enable_semantic_tokens = ols_config.enable_semantic_tokens.(bool) or_else config.enable_semantic_tokens
 	config.enable_unused_imports_reporting =
 		ols_config.enable_unused_imports_reporting.(bool) or_else config.enable_unused_imports_reporting
@@ -717,6 +718,7 @@ request_initialize :: proc(
 	}
 
 	config.enable_hover = true
+	config.enable_hover_layout = false
 	config.enable_format = true
 
 	config.enable_inlay_hints_params = false
@@ -730,6 +732,7 @@ request_initialize :: proc(
 	config.enable_completions = true
 	config.enable_format = true
 	config.enable_hover = true
+	config.enable_hover_layout = false
 	config.enable_semantic_tokens = false
 	config.enable_unused_imports_reporting = true
 	config.enable_unused_imports_on_change = false
@@ -1474,7 +1477,7 @@ request_hover :: proc(params: json.Value, id: RequestId, config: ^common.Config,
 
 	hover: Hover
 	valid: bool
-	hover, valid, ok = get_hover_information(document, hover_params.position)
+	hover, valid, ok = get_hover_information(document, hover_params.position, config)
 
 	if !ok {
 		return .InternalError

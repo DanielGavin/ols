@@ -53,6 +53,7 @@ AstContext :: struct {
 	// We should probably rework how this is handled in the future
 	resolve_specific_overload: bool,
 	call_expr_recursion_cache: map[rawptr]SymbolResult,
+	show_layout:               bool,
 }
 
 SymbolResult :: struct {

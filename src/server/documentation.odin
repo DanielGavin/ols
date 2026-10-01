@@ -541,6 +541,17 @@ write_where_clauses :: proc(sb: ^strings.Builder, where_clauses: []^ast.Expr) {
 }
 
 write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: SymbolStructValue, depth: int) {
+	layout_comments: map[int]string
+	if ast_context.show_layout && depth == 0 {
+		layout_comments, _ = struct_field_layout_comments(ast_context, v)
+	}
+	start := strings.builder_len(sb^)
+	defer if len(layout_comments) > 0 {
+		aligned := align_layout_comments(strings.clone(string(sb.buf[start:]), context.temp_allocator))
+		resize(&sb.buf, start)
+		strings.write_string(sb, aligned)
+	}
+
 	strings.write_string(sb, "struct")
 	write_poly_list(sb, v.poly, v.poly_names)
 
@@ -652,6 +663,10 @@ write_struct_hover :: proc(sb: ^strings.Builder, ast_context: ^AstContext, v: Sy
 			build_string_node(bit_size, sb, false)
 		}
 		strings.write_string(sb, ",")
+		if comment, ok := layout_comments[i]; ok {
+			strings.write_rune(sb, LAYOUT_COMMENT_MARKER)
+			strings.write_string(sb, comment)
+		}
 		write_comments(sb, v.comments, i)
 		strings.write_string(sb, "\n")
 	}

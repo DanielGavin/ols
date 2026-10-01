@@ -75,6 +75,8 @@ Options:
 
 - `enable_hover`: Enables hover feature. _(Enabled by default)_
 
+- `enable_hover_layout`: Show the memory layout (size, alignment, field offsets and padding) of types on hover. Computed by ols from the resolved types, for the configured `profile` arch. This feature is experimental and the reported layout may not always match the compiler. _(Disabled by default)_
+
 - `enable_document_symbols`: Turns on outline of all your global declarations in your document. _(Enabled by default)_
 
 - `enable_fake_methods`: Turn on fake methods completion. This is currently highly experimental and requires client snippet support.
