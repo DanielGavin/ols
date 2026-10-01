@@ -3935,21 +3935,22 @@ resolve_location_implicit_selector :: proc(
 	symbol: Symbol,
 	ok: bool,
 ) {
-	ok = true
-
 	spall.trace(#procedure)
 
 	reset_ast_context(ast_context)
 
 	set_ast_package_set_scoped(ast_context, ast_context.document_package)
 
-	symbol = resolve_implicit_selector(ast_context, position_context) or_return
+	symbol, ok = resolve_implicit_selector(ast_context, position_context)
+	if !ok do return {}, false
 
 	#partial switch v in symbol.value {
 	case SymbolEnumValue:
 		for name, i in v.names {
 			if strings.compare(name, implicit_selector.field.name) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.uri = v.uri
+				return symbol, true
 			}
 		}
 	case SymbolUnionValue:
@@ -3959,29 +3960,29 @@ resolve_location_implicit_selector :: proc(
 				for name, i in value.names {
 					if strings.compare(name, implicit_selector.field.name) == 0 {
 						symbol.range = value.ranges[i]
-						symbol.uri = enum_symbol.uri
-						return symbol, ok
+						symbol.uri = value.uri
+						return symbol, true
 					}
 				}
 			}
 		}
+		return {}, false
 	case SymbolBitSetValue:
 		enum_symbol := resolve_type_expression(ast_context, v.expr) or_return
 		if value, ok := enum_symbol.value.(SymbolEnumValue); ok {
 			for name, i in value.names {
 				if strings.compare(name, implicit_selector.field.name) == 0 {
 					symbol.range = value.ranges[i]
-					symbol.uri = enum_symbol.uri
-					return symbol, ok
+					symbol.uri = value.uri
+					return symbol, true
 				}
 			}
 		}
+		return {}, false
 
-	case:
-		ok = false
 	}
 
-	return symbol, ok
+	return {}, false
 }
 
 resolve_container_allocator :: proc(ast_context: ^AstContext, container_name: string) -> (Symbol, bool) {
@@ -4070,6 +4071,7 @@ resolve_symbol_selector :: proc(
 		for name, i in v.names {
 			if strings.compare(name, field) == 0 {
 				symbol.range = v.ranges[i]
+				symbol.uri = v.uri
 				symbol.type = .EnumMember
 			}
 		}
@@ -4773,6 +4775,7 @@ make_symbol_enum_from_ast :: proc(
 	symbol.value = SymbolEnumValue {
 		names     = names[:],
 		ranges    = ranges[:],
+		uri       = symbol.uri,
 		base_type = v.base_type,
 		values    = values[:],
 		docs      = docs[:],

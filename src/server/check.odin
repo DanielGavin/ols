@@ -132,8 +132,6 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 
 	spall.trace(#procedure, document.fullpath)
 
-	unused_imports := find_unused_imports(document, context.temp_allocator)
-
 	path := document.uri.path
 
 	when ODIN_OS == .Windows {
@@ -143,6 +141,11 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 	uri := common.create_uri(path, context.temp_allocator)
 
 	remove_diagnostics(.Unused, uri.uri)
+	if len(document.imports) == 0 {
+		return
+	}
+
+	unused_imports := find_unused_imports(document, context.temp_allocator)
 
 	for imp in unused_imports {
 		add_diagnostics(
