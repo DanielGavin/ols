@@ -1093,6 +1093,7 @@ keywords_docs: map[string]string = {
 	"in"            = "",
 	"inline"        = "",
 	"map"           = "",
+	"matrix"        = "",
 	"not_in"        = "",
 	"or_break"      = "",
 	"or_continue"   = "",
