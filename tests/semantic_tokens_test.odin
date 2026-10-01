@@ -547,3 +547,21 @@ bar :: proc () {}
 		{1,  0,  3, .Function, {.ReadOnly}}, // [4] bar
 	})
 }
+
+@(test)
+semantic_tokens_parameter_shadowing :: proc(t: ^testing.T) {
+	src := test.Source {
+		main = `package test
+		foo :: proc(a: int) {
+			a := a
+		}
+`,
+	}
+	test.expect_semantic_tokens(t, &src, {
+		{1,  2, 3, .Function,  {.ReadOnly}}, // [0] foo
+		{0, 12, 1, .Parameter, {}},          // [1] a
+		{0,  3, 3, .Type,      {.ReadOnly}}, // [2] int
+		{1,  3, 1, .Variable,  {}},          // [3] a
+		{0,  5, 1, .Parameter, {}},          // [4] a
+	})
+}
