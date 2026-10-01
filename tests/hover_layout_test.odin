@@ -25,6 +25,9 @@ U4 :: union { ^int }
 U5 :: union { i128, u8 }
 U7 :: union { [5]u8, u16 }
 U8 :: union #align(16) { u8 }
+U9 :: union #align(16) { ^int }
+U10 :: union #align(16) { [9]u8 }
+U12 :: union #align(2) { u64, u8 }
 U11 :: union { []int }
 Enums :: struct { e: E3, s: Small, bs: bit_set[E3], bs2: bit_set[E10], bs3: bit_set[0..<33], bs4: bit_set['a'..='z'], bs5: bit_set[E3; u32] }
 Mats :: struct { a: matrix[3, 3]f32, b: matrix[4, 4]f64, c: matrix[2, 3]f32 }
@@ -162,6 +165,21 @@ hover_layout_u7 :: proc(t: ^testing.T) {
 @(test)
 hover_layout_u8 :: proc(t: ^testing.T) {
 	expect_type_layout(t, "U8", "size=16, align=16")
+}
+
+@(test)
+hover_layout_u9 :: proc(t: ^testing.T) {
+	expect_type_layout(t, "U9", "size=16, align=16")
+}
+
+@(test)
+hover_layout_u10 :: proc(t: ^testing.T) {
+	expect_type_layout(t, "U10", "size=32, align=16")
+}
+
+@(test)
+hover_layout_u12 :: proc(t: ^testing.T) {
+	expect_type_layout(t, "U12", "size=10, align=2")
 }
 
 @(test)

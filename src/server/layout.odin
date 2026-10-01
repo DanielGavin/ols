@@ -306,12 +306,9 @@ union_layout :: proc(ast_context: ^AstContext, v: SymbolUnionValue, depth: int) 
 		return {0, 1}, true
 	}
 
-	if len(v.types) == 1 && v.kind != .no_nil {
-		if symbol, resolved := resolve_type_expression(ast_context, v.types[0]);
-		   resolved && is_pointer_like_symbol(symbol) {
-			ptr := target_pointer_size()
-			return {ptr, ptr}, true
-		}
+	custom_align: i64 = 0
+	if v.align != nil {
+		custom_align = eval_const_int(ast_context, v.align, depth + 1) or_return
 	}
 
 	max_size, max_align: i64 = 0, 1
@@ -321,20 +318,26 @@ union_layout :: proc(ast_context: ^AstContext, v: SymbolUnionValue, depth: int) 
 		max_align = max(max_align, l.align)
 	}
 
-	tag_count := len(v.types) + (v.kind == .no_nil ? 0 : 1)
-	tag_size: i64 = 1
-	if tag_count > 1 << 8 {
-		tag_size = 2
-	}
-	if tag_count > 1 << 16 {
-		tag_size = 4
+	align := custom_align > 0 ? custom_align : max_align
+
+	if len(v.types) == 1 {
+		if symbol, resolved := resolve_type_expression(ast_context, v.types[0]);
+		   resolved && is_pointer_like_symbol(symbol) {
+			return {align_forward(max_size, align), align}, true
+		}
 	}
 
-	align := max(max_align, tag_size)
-	size := align_forward(max_size, align) + tag_size
-	if v.align != nil {
-		align = eval_const_int(ast_context, v.align, depth + 1) or_return
+	// Mirrors `union_tag_size` in the compiler.
+	tag_size: i64 = 1
+	if len(v.types) >= 1 << 16 {
+		tag_size = 4
+	} else if len(v.types) >= 1 << 8 {
+		tag_size = 2
 	}
+	tag_size = max(tag_size, align)
+	tag_size = min(tag_size, target_max_align(), 8)
+
+	size := align_forward(max_size, tag_size) + tag_size
 	return {align_forward(size, align), align}, true
 }
 
