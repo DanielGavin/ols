@@ -2915,6 +2915,7 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 		.Mutable in local.flags,
 	)
 
+	symbol.flags -= {.Parameter}
 	if local.parameter {
 		symbol.flags |= {.Parameter}
 	}
