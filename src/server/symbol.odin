@@ -110,6 +110,7 @@ SymbolEnumValue :: struct {
 	values:    []^ast.Expr,
 	base_type: ^ast.Expr,
 	ranges:    []common.Range,
+	uri:       string,
 	docs:      []^ast.Comment_Group,
 	comments:  []^ast.Comment_Group,
 }
