@@ -1,5 +1,6 @@
 {
 	"character_width": 120,
+	"preserve_struct_blank_lines": true,
 	"tabs": true,
 	"tabs_width": 4
 }

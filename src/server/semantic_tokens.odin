@@ -206,7 +206,7 @@ write_semantic_token :: proc(
 	write_semantic_at_pos(builder, token.pos.offset, len(token.text), type, modifiers)
 }
 
-visit_nodes :: proc(array: []$T, builder: ^SemanticTokenBuilder) {
+visit_nodes :: proc(array: []$T/^ast.Node, builder: ^SemanticTokenBuilder) {
 	for elem in array {
 		visit_node(elem, builder)
 	}

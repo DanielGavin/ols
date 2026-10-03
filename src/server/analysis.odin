@@ -37,7 +37,7 @@ AstContext :: struct {
 	deferred_count:            int,
 	use_locals:                bool,
 	use_usings:                bool,
-	use_imports:              bool,
+	use_imports:               bool,
 	call:                      ^ast.Call_Expr, //used to determine the types for generics and the correct function for overloaded functions
 	value_decl:                ^ast.Value_Decl,
 	field_name:                ast.Ident,
