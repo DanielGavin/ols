@@ -613,7 +613,7 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		if !filepath.is_abs(odin_bin) {
 			// Join with the project path
 			tmp_path := path.join(elems = {uri.path, odin_bin})
-			if os.exists(tmp_path) {
+			if os.is_file(tmp_path) {
 				odin_bin = tmp_path
 			}
 		}
