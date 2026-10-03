@@ -4582,16 +4582,6 @@ ast_hover_keyword_transmute :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_hover_ternary :: proc(t: ^testing.T) {
-	source := test.Source {
-		main = `package test
-		fo{*}o :: true ? 1 : 2
-		`,
-	}
-	test.expect_hover(t, &source, "test.foo :: 1")
-}
-
-@(test)
 ast_hover_defer_statement :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
@@ -7525,4 +7515,14 @@ ast_hover_static_locals :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.foo: int")
+}
+
+@(test)
+ast_host_ternary_untyped_value :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo := true ? 0 : f32(1)
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: f32")
 }
