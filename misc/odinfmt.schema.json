@@ -95,6 +95,11 @@
 			"type": "boolean",
 			"default": false,
 			"description": "Composite literals that span multiple lines are not forcibly inlined"
+		},
+		"preserve_struct_blank_lines": {
+			"type": "boolean",
+			"default": false,
+			"description": "Preserve blank lines between struct fields, up to newline_limit"
 		}
 	},
 	"required": []
