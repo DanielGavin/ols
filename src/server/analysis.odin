@@ -906,13 +906,21 @@ expand_call_args :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -> ([]C
 	return results[:], all_valid
 }
 
-untyped_basic_match_score :: proc(value: SymbolUntypedValue, expected: Symbol) -> (score: int, compatible: bool, handled: bool) {
+untyped_basic_match_score :: proc(
+	value: SymbolUntypedValue,
+	expected: Symbol,
+) -> (
+	score: int,
+	compatible: bool,
+	handled: bool,
+) {
 
 	basic := expected.value.(SymbolBasicValue) or_return
-	name  := basic.ident.name
+	name := basic.ident.name
 
 	handled = true
-
+	
+	// odinfmt: disable
 	switch name {
 	case "bool", "b8", "b16", "b32", "b64":
 		if value.type == .Bool {
@@ -976,6 +984,7 @@ untyped_basic_match_score :: proc(value: SymbolUntypedValue, expected: Symbol) -
 	case:
 		return
 	}
+	// odinfmt: enable
 
 	return score, true, true
 }
@@ -993,11 +1002,11 @@ proc_field_type_for_call :: proc(field: ^ast.Field) -> (type: ^ast.Expr, ok: boo
 	return field.default_value, false
 }
 
-proc_field_from_list_at :: proc(fields: []^ast.Field, index: int) -> (field: ^ast.Field, ok:bool) #optional_ok {
+proc_field_from_list_at :: proc(fields: []^ast.Field, index: int) -> (field: ^ast.Field, ok: bool) #optional_ok {
 	current := 0
 	for field in fields {
 		count := max(1, len(field.names))
-		if index < current+count {
+		if index < current + count {
 			return field, true
 		}
 		current += count
@@ -1054,7 +1063,8 @@ proc_arg_is_value_poly :: proc(procedure: SymbolProcedureValue, index: int) -> b
 		if procedure.orig_arg_types[index].type == nil {
 			return true
 		}
-		if _, is_type_parameter := procedure.orig_arg_types[index].type.derived.(^ast.Typeid_Type); !is_type_parameter {
+		if _, is_type_parameter := procedure.orig_arg_types[index].type.derived.(^ast.Typeid_Type);
+		   !is_type_parameter {
 			return true
 		}
 	}
@@ -1077,8 +1087,7 @@ proc_unconstrained_poly_arg_count :: proc(procedure: SymbolProcedureValue) -> in
 			continue
 		}
 		if field.type != nil {
-			if poly, is_poly := field.type.derived.(^ast.Poly_Type);
-			   is_poly && poly.specialization != nil {
+			if poly, is_poly := field.type.derived.(^ast.Poly_Type); is_poly && poly.specialization != nil {
 				continue
 			}
 		}
@@ -1098,7 +1107,7 @@ proc_symbols_compatible :: proc(ast_context: ^AstContext, actual, expected: Symb
 		return false
 	}
 
-	for i in 0..<a_args {
+	for i in 0 ..< a_args {
 		af := get_proc_arg_type_from_index(a, i) or_continue
 		bf := get_proc_arg_type_from_index(b, i) or_continue
 		at := proc_field_type_for_call(af)
@@ -1111,7 +1120,8 @@ proc_symbols_compatible :: proc(ast_context: ^AstContext, actual, expected: Symb
 		bs := resolve_type_expression(ast_context, bt) or_continue
 
 		if av, ok := as.value.(SymbolProcedureValue); ok {
-			if bv, ok := bs.value.(SymbolProcedureValue); !ok || !proc_symbols_compatible(ast_context, Symbol{value = av}, Symbol{value = bv}) {
+			if bv, ok := bs.value.(SymbolProcedureValue);
+			   !ok || !proc_symbols_compatible(ast_context, Symbol{value = av}, Symbol{value = bv}) {
 				return false
 			}
 		} else if !is_symbol_same_typed(ast_context, as, bs) {
@@ -1212,7 +1222,7 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 				// Fewer synthesized defaults is a closer match
 				provided := min(len(call_args), total_arg_count)
 				candidate.score += (total_arg_count - provided) * 100
-				if is_variadic && len(call_args) == total_arg_count-1 {
+				if is_variadic && len(call_args) == total_arg_count - 1 {
 					candidate.score += 1
 				}
 			}
@@ -2106,6 +2116,10 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return true
 	case ^ast.Ternary_If_Expr:
 		ok = internal_resolve_type_expression(ast_context, v.x, out)
+		if _, is_untyped := out.value.(SymbolUntypedValue); !ok || is_untyped {
+			ok = internal_resolve_type_expression(ast_context, v.y, out)
+			return ok
+		}
 		return ok
 	case ^ast.Ternary_When_Expr:
 		when_expr_map := make_when_expr_map()
@@ -2814,13 +2828,16 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 // orig_expr - the original unsimplified expression
 resolve_identifier_expr :: proc(
 	ast_context: ^AstContext,
-	expr:         ^ast.Expr,
-	orig_expr:    ^ast.Expr,
-	node:         ast.Ident,
-	name:         string,
-	attributes:   []^ast.Attribute,
-	is_mutable:   bool,
-) -> (symbol: Symbol, ok: bool) {
+	expr: ^ast.Expr,
+	orig_expr: ^ast.Expr,
+	node: ast.Ident,
+	name: string,
+	attributes: []^ast.Attribute,
+	is_mutable: bool,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
 
 	spall.trace(#procedure, node.name)
 
@@ -2888,7 +2905,14 @@ resolve_identifier_expr :: proc(
 	return symbol, ok
 }
 
-resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, local: ^DocumentLocal) -> (symbol: Symbol, ok: bool) {
+resolve_local_identifier :: proc(
+	ast_context: ^AstContext,
+	node: ast.Ident,
+	local: ^DocumentLocal,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
 
 	spall.trace(#procedure, node.name)
 
@@ -2940,7 +2964,14 @@ resolve_local_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, loca
 	return symbol, ok
 }
 
-resolve_global_identifier :: proc(ast_context: ^AstContext, node: ast.Ident, global: ^GlobalExpr) -> (symbol: Symbol, ok: bool) {
+resolve_global_identifier :: proc(
+	ast_context: ^AstContext,
+	node: ast.Ident,
+	global: ^GlobalExpr,
+) -> (
+	symbol: Symbol,
+	ok: bool,
+) {
 	ast_context.use_locals = false
 
 	symbol, ok = resolve_identifier_expr(
