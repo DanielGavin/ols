@@ -773,7 +773,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 }
 
 @(private = "file")
-resolve_nodes :: proc(array: []$T, data: ^FileResolveData) {
+resolve_nodes :: proc(array: []$T/^ast.Node, data: ^FileResolveData) {
 	for elem in array {
 		resolve_node(elem, data)
 	}
