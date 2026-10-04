@@ -2235,16 +2235,7 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 
 resolve_label :: proc(ast_context: ^AstContext, name: string) -> (Symbol, bool) {
 	if label, ok := ast_context.labels[name]; ok {
-		symbol := Symbol {
-			range = common.get_token_range(label^, ast_context.file.src),
-			uri   = ast_context.uri,
-			type  = .Variable,
-			pkg   = get_package_from_node(label^),
-			flags = {.Local},
-		}
-
-		symbol.value = SymbolLabelValue{}
-		return symbol, true
+		return make_symbol_label_from_ast(ast_context, label), true
 	}
 	return {}, false
 }
@@ -4726,6 +4717,20 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident)
 		ident = n,
 	}
 
+	return symbol
+}
+
+make_symbol_label_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident) -> Symbol {
+	symbol := Symbol {
+		name  = n.name,
+		range = common.get_token_range(n^, ast_context.file.src),
+		uri   = ast_context.uri,
+		type  = .Variable,
+		pkg   = get_package_from_node(n^),
+		flags = {.Local, .Variable, .Mutable},
+	}
+
+	symbol.value = SymbolLabelValue{}
 	return symbol
 }
 

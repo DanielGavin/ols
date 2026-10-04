@@ -6357,3 +6357,19 @@ ast_completion_package_alias_from_another_file :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, ".", {"my_package.bar :: proc()"})
 }
+
+@(test)
+ast_completion_labels :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: for {
+				break f{*}
+			}
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"test.foo: label"})
+}

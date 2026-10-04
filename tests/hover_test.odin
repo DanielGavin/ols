@@ -7548,5 +7548,5 @@ ast_hover_label :: proc(t: ^testing.T) {
 		}
 		`,
 	}
-	test.expect_hover(t, &source, "foo: label")
+	test.expect_hover(t, &source, "test.foo: label")
 }

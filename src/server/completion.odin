@@ -2154,6 +2154,11 @@ get_identifier_completion :: proc(
 		}
 	}
 
+	for _, label in ast_context.labels {
+		symbol := make_symbol_label_from_ast(ast_context, label)
+		append(results, CompletionResult{symbol = symbol})
+	}
+
 	return is_incomplete
 }
 

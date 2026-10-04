@@ -161,10 +161,12 @@ get_hover_information :: proc(
 	}
 
 	if position_context.label != nil && position_in_node(position_context.label, position_context.position) {
-		hover.contents.kind = "markdown"
-		hover.contents.value = fmt.tprintf("%s: label", position_context.label.name)
-		hover.range = common.get_token_range(position_context.label, ast_context.file.src)
-		return hover, true, true
+		if symbol, ok := resolve_label(&ast_context, position_context.label.name); ok {
+			build_documentation(&ast_context, &symbol)
+			hover.contents = write_hover_content(&ast_context, symbol)
+			hover.range = common.get_token_range(position_context.label, ast_context.file.src)
+			return hover, true, true
+		}
 	}
 
 	if position_context.value_decl != nil && len(position_context.value_decl.names) != 0 {
