@@ -110,6 +110,8 @@ eval_const_int :: proc(
 		return 0, false
 	}
 
+	set_ast_package_from_node_scoped(ast_context, expr)
+
 	#partial switch v in expr.derived {
 	case ^ast.Basic_Lit:
 		#partial switch v.tok.kind {
