@@ -23,8 +23,10 @@ UsingStatement :: struct {
 }
 
 AstContext :: struct {
-	locals:                    [dynamic]LocalGroup, //locals all the way to the document position
-	globals:                   map[string]GlobalExpr,
+	locals:  [dynamic]LocalGroup, //locals all the way to the document position
+	globals: map[string]GlobalExpr,
+	labels:  map[string]^ast.Ident,
+
 	recursion_map:             map[rawptr]struct{},
 	generic_recursion_map:     map[rawptr]struct{},
 	usings:                    [dynamic]UsingStatement,
