@@ -538,7 +538,8 @@ get_locals_stmt :: proc(
 		return
 	}
 
-	if stmt.pos.offset > document_position.position {
+	if stmt.pos.offset > document_position.position &&
+	   !position_in_node_or_label(stmt, document_position.position) {
 		return
 	}
 

@@ -2237,8 +2237,10 @@ resolve_label :: proc(ast_context: ^AstContext, name: string) -> (Symbol, bool) 
 	if label, ok := ast_context.labels[name]; ok {
 		symbol := Symbol {
 			range = common.get_token_range(label^, ast_context.file.src),
+			uri   = ast_context.uri,
 			type  = .Variable,
 			pkg   = get_package_from_node(label^),
+			flags = {.Local},
 		}
 
 		symbol.value = SymbolLabelValue{}
