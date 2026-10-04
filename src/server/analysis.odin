@@ -74,6 +74,7 @@ make_ast_context :: proc(
 	ast_context := AstContext {
 		locals                    = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals                   = make(map[string]GlobalExpr, 0, allocator),
+		labels                    = make(map[string]^ast.Ident, 0, allocator),
 		usings                    = make([dynamic]UsingStatement, allocator),
 		recursion_map             = make(map[rawptr]struct{}, 0, allocator),
 		generic_recursion_map     = make(map[rawptr]struct{}, 0, allocator),
@@ -2229,6 +2230,20 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		return symbol, true
 	}
 
+	return {}, false
+}
+
+resolve_label :: proc(ast_context: ^AstContext, name: string) -> (Symbol, bool) {
+	if label, ok := ast_context.labels[name]; ok {
+		symbol := Symbol {
+			range = common.get_token_range(label^, ast_context.file.src),
+			type  = .Variable,
+			pkg   = get_package_from_node(label^),
+		}
+
+		symbol.value = SymbolLabelValue{}
+		return symbol, true
+	}
 	return {}, false
 }
 

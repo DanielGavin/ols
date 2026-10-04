@@ -148,6 +148,8 @@ SymbolBasicValue :: struct {
 	ident: ^ast.Ident,
 }
 
+SymbolLabelValue :: struct{}
+
 SymbolBitSetValue :: struct {
 	expr:       ^ast.Expr,
 	underlying: ^ast.Expr, // possibly nil
@@ -212,6 +214,7 @@ SymbolValue :: union {
 	SymbolMatrixValue,
 	SymbolBitFieldValue,
 	SymbolPolyTypeValue,
+	SymbolLabelValue,
 }
 
 SymbolFlag :: enum {
@@ -953,6 +956,7 @@ free_symbol :: proc(symbol: Symbol, allocator: mem.Allocator) {
 		free_ast(v.comments, allocator)
 		free_ast(v.bit_sizes, allocator)
 		free_ast(v.backing_type, allocator)
+	case SymbolLabelValue:
 	}
 }
 

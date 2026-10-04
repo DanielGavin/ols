@@ -67,6 +67,15 @@ get_definition_location :: proc(document: ^Document, position: common.Position, 
 	get_globals(document.ast, &ast_context)
 	get_locals(&ast_context, &position_context)
 
+	if position_context.label != nil && position_in_node(position_context.label, position_context.position) {
+		if symbol, ok := resolve_label(&ast_context, position_context.label.name); ok {
+			location.range = symbol.range
+			location.uri = document.uri.uri
+			append(&locations, location)
+			return locations[:], true
+		}
+	}
+
 	if position_context.import_stmt != nil {
 		if get_all_package_file_locations(document, position_context.import_stmt, &locations) {
 			return locations[:], true
