@@ -7526,3 +7526,13 @@ ast_host_ternary_untyped_value :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: f32")
 }
+
+@(test)
+ast_hover_bitset_inline_enum_base_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		f{*}oo := bit_set[enum u8{Foo, Bar}; u8]
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: bit_set[enum u8{Foo, Bar}; u8]")
+}

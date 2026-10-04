@@ -1445,7 +1445,10 @@ build_string_node :: proc(node: ^ast.Node, builder: ^strings.Builder, remove_poi
 		strings.write_string(builder, "}")
 	case ^ast.Enum_Type:
 		strings.write_string(builder, "enum")
-		build_string(n.base_type, builder, remove_pointers)
+		if n.base_type != nil {
+			strings.write_string(builder, " ")
+			build_string(n.base_type, builder, remove_pointers)
+		}
 		strings.write_string(builder, "{")
 		for field, i in n.fields {
 			if i != 0 {
