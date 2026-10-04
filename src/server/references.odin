@@ -27,6 +27,12 @@ prepare_references :: proc(
 
 	pkg := ""
 
+	if position_context.label != nil && position_in_node(position_context.label, position_context.position) {
+		if symbol, ok := resolve_label(ast_context, position_context.label.name); ok {
+			return symbol, .Identifier, true
+		}
+	}
+
 	if position_context.enum_type != nil {
 		found := false
 		done_enum: for field in position_context.enum_type.fields {
