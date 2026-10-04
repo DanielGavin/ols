@@ -389,6 +389,9 @@ write_short_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, sy
 	case SymbolGenericValue:
 		write_node(sb, ast_context, v.expr, "", short_signature = true)
 		return
+	case SymbolLabelValue:
+		strings.write_string(sb, "label")
+		return
 	}
 
 	return
@@ -968,7 +971,8 @@ write_symbol_type_information :: proc(sb: ^strings.Builder, ast_context: ^AstCon
 	     SymbolDynamicArrayValue,
 	     SymbolFixedArrayValue,
 	     SymbolMatrixValue,
-	     SymbolMultiPointerValue:
+	     SymbolMultiPointerValue,
+		 SymbolLabelValue:
 		return false
 	}
 

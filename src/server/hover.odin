@@ -1,6 +1,7 @@
 #+feature dynamic-literals
 package server
 
+import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
@@ -155,6 +156,15 @@ get_hover_information :: proc(
 			hover.contents.kind = "markdown"
 			hover.contents.value = str
 			hover.range = common.get_token_range(position_context.implicit_context^, ast_context.file.src)
+			return hover, true, true
+		}
+	}
+
+	if position_context.label != nil && position_in_node(position_context.label, position_context.position) {
+		if symbol, ok := resolve_label(&ast_context, position_context.label.name); ok {
+			build_documentation(&ast_context, &symbol)
+			hover.contents = write_hover_content(&ast_context, symbol)
+			hover.range = common.get_token_range(position_context.label, ast_context.file.src)
 			return hover, true, true
 		}
 	}

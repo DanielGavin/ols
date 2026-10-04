@@ -434,14 +434,14 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.body, data)
 	case ^ast.For_Stmt:
 		local_scope(data, n)
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.post, data)
 		resolve_node(n.body, data)
 	case ^ast.Range_Stmt:
 		local_scope(data, n)
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		resolve_node(n.init, data)
 		resolve_nodes(n.vals, data)
 		resolve_node(n.expr, data)
@@ -453,13 +453,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		}
 		local_scope(data, n)
 		data.position_context.switch_stmt = n
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
 	case ^ast.If_Stmt:
 		local_scope(data, n)
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		resolve_node(n.init, data)
 		resolve_node(n.cond, data)
 		resolve_node(n.body, data)
@@ -471,7 +471,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.else_stmt, data)
 	case ^ast.Block_Stmt:
 		local_scope(data, n)
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		resolve_nodes(n.stmts, data)
 	case ^ast.Implicit:
 		if n.tok.text == "context" {
@@ -584,13 +584,13 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			data.position_context.switch_type_stmt = old_switch
 		}
 		data.position_context.switch_type_stmt = n
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 		local_scope(data, n)
 		resolve_node(n.tag, data)
 		resolve_node(n.expr, data)
 		resolve_node(n.body, data)
 	case ^ast.Branch_Stmt:
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 	case ^ast.Using_Stmt:
 		resolve_nodes(n.list, data)
 	case ^ast.Bad_Decl:
@@ -745,7 +745,7 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 		resolve_node(n.expr, data)
 	case ^ast.Or_Branch_Expr:
 		resolve_node(n.expr, data)
-		resolve_node(n.label, data)
+		add_label(n.label, data)
 	case ^ast.Bit_Field_Type:
 		data.position_context.bit_field_type = n
 		resolve_node(n.backing_type, data)
@@ -776,5 +776,21 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 resolve_nodes :: proc(array: []$T/^ast.Node, data: ^FileResolveData) {
 	for elem in array {
 		resolve_node(elem, data)
+	}
+}
+
+@(private = "file")
+add_label :: proc(label: ^ast.Expr, data: ^FileResolveData) {
+	if label == nil {
+		return
+	}
+
+	if ident, ok := label.derived.(^ast.Ident); ok {
+		if symbol, ok := resolve_label(data.ast_context, ident.name); ok {
+			data.symbols[cast(uintptr)label] = SymbolAndNode {
+				node = label,
+				symbol = symbol,
+			}
+		}
 	}
 }

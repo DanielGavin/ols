@@ -639,7 +639,7 @@ visit_ident :: proc(
 			write_semantic_node(builder, ident, .Type, modifiers)
 		case SymbolUntypedValue:
 		// handled by static syntax highlighting
-		case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue:
+		case SymbolGenericValue, SymbolProcedureGroupValue, SymbolAggregateValue, SymbolLabelValue:
 		// unused
 		case:
 		}

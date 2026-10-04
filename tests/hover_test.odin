@@ -7518,7 +7518,7 @@ ast_hover_static_locals :: proc(t: ^testing.T) {
 }
 
 @(test)
-ast_host_ternary_untyped_value :: proc(t: ^testing.T) {
+ast_hover_ternary_untyped_value :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
 		f{*}oo := true ? 0 : f32(1)
@@ -7535,4 +7535,18 @@ ast_hover_bitset_inline_enum_base_type :: proc(t: ^testing.T) {
 		`,
 	}
 	test.expect_hover(t, &source, "test.foo: bit_set[enum u8{Foo, Bar}; u8]")
+}
+
+@(test)
+ast_hover_label :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			fo{*}o: for {
+
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "test.foo: label")
 }

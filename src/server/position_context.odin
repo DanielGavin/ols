@@ -556,8 +556,33 @@ get_document_position_dynamic_array :: proc(array: $A/[dynamic]^$T, position_con
 	}
 }
 
-position_in_node :: proc(node: ^ast.Node, position: common.AbsolutePosition) -> bool {
+position_in_node :: proc(node: $T/^ast.Node, position: common.AbsolutePosition) -> bool {
 	return node != nil && node.pos.offset <= position && position <= node.end.offset
+}
+
+position_in_node_or_label :: proc(node: $T/^ast.Node, position: common.AbsolutePosition) -> bool {
+	if position_in_node(node, position) {
+		return true
+	}
+
+	#partial switch n in node.derived {
+	case ^ast.Block_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.If_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.For_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.Range_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.Unroll_Range_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.Switch_Stmt:
+		return position_in_node(n.label, position)
+	case ^ast.Type_Switch_Stmt:
+		return position_in_node(n.label, position)
+	}
+
+	return false
 }
 
 position_in_exprs :: proc(nodes: []^ast.Expr, position: common.AbsolutePosition) -> bool {
@@ -585,7 +610,7 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 		return
 	}
 
-	if !position_in_node(node, position_context.position) {
+	if !position_in_node_or_label(node, position_context.position) {
 		return
 	}
 

@@ -93,6 +93,16 @@ store_local :: proc(
 	)
 }
 
+store_label :: proc(ast_context: ^AstContext, label: ^ast.Expr) {
+	if label == nil {
+		return
+	}
+
+	if ident, ok := label.derived.(^ast.Ident); ok {
+		ast_context.labels[ident.name] = ident
+	}
+}
+
 add_local_group :: proc(ast_context: ^AstContext) {
 	append(&ast_context.locals, make(LocalGroup, 100, ast_context.allocator))
 }
@@ -528,7 +538,8 @@ get_locals_stmt :: proc(
 		return
 	}
 
-	if stmt.pos.offset > document_position.position {
+	if stmt.pos.offset > document_position.position &&
+	   !position_in_node_or_label(stmt, document_position.position) {
 		return
 	}
 
@@ -536,19 +547,19 @@ get_locals_stmt :: proc(
 	case ^ast.Value_Decl:
 		get_locals_value_decl(file, v^, ast_context)
 	case ^ast.Type_Switch_Stmt:
-		get_locals_type_switch_stmt(file, v^, ast_context, document_position)
+		get_locals_type_switch_stmt(file, v, ast_context, document_position)
 	case ^ast.Switch_Stmt:
-		get_locals_switch_stmt(file, v^, ast_context, document_position)
+		get_locals_switch_stmt(file, v, ast_context, document_position)
 	case ^ast.For_Stmt:
-		get_locals_for_stmt(file, v^, ast_context, document_position)
+		get_locals_for_stmt(file, v, ast_context, document_position)
 	case ^ast.Unroll_Range_Stmt:
-		get_locals_unroll_range_stmt(file, v^, ast_context, document_position)
+		get_locals_unroll_range_stmt(file, v, ast_context, document_position)
 	case ^ast.Range_Stmt:
-		get_locals_for_range_stmt(file, v^, ast_context, document_position)
+		get_locals_for_range_stmt(file, v, ast_context, document_position)
 	case ^ast.If_Stmt:
-		get_locals_if_stmt(file, v^, ast_context, document_position)
+		get_locals_if_stmt(file, v, ast_context, document_position)
 	case ^ast.Block_Stmt:
-		get_locals_block_stmt(file, v^, ast_context, document_position)
+		get_locals_block_stmt(file, v, ast_context, document_position)
 	case ^ast.Proc_Lit:
 		get_locals_stmt(file, v.body, ast_context, document_position)
 	case ^ast.Assign_Stmt:
@@ -561,7 +572,7 @@ get_locals_stmt :: proc(
 		when_expr_map := make_when_expr_map()
 		register_when_consts_from_globals(&when_expr_map, ast_context.globals)
 		if stmt, ok := get_when_block_stmt(v, when_expr_map); ok {
-			get_locals_block_stmt(file, stmt^, ast_context, document_position, true)
+			get_locals_block_stmt(file, stmt, ast_context, document_position, true)
 		}
 	case ^ast.Case_Clause:
 		get_locals_case_clause(file, v, ast_context, document_position)
@@ -590,7 +601,7 @@ get_locals_case_clause :: proc(
 
 get_locals_block_stmt :: proc(
 	file: ast.File,
-	block: ast.Block_Stmt,
+	block: ^ast.Block_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 	skip_position_check := false,
@@ -614,6 +625,9 @@ get_locals_block_stmt :: proc(
 			}
 	   } <-- document_position.position
 	*/
+	if position_in_node_or_label(block, document_position.position) {
+		store_label(ast_context, block.label)
+	}
 
 	if !skip_position_check {
 		if ast_context.non_mutable_only {
@@ -725,10 +739,13 @@ get_locals_assign_stmt :: proc(file: ast.File, stmt: ast.Assign_Stmt, ast_contex
 
 get_locals_if_stmt :: proc(
 	file: ast.File,
-	stmt: ast.If_Stmt,
+	stmt: ^ast.If_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -740,10 +757,13 @@ get_locals_if_stmt :: proc(
 
 get_locals_for_range_stmt :: proc(
 	file: ast.File,
-	stmt: ast.Range_Stmt,
+	stmt: ^ast.Range_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -757,10 +777,13 @@ get_locals_for_range_stmt :: proc(
 
 get_locals_unroll_range_stmt :: proc(
 	file: ast.File,
-	stmt: ast.Unroll_Range_Stmt,
+	stmt: ^ast.Unroll_Range_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -1105,10 +1128,14 @@ get_locals_range_vals :: proc(
 
 get_locals_for_stmt :: proc(
 	file: ast.File,
-	stmt: ast.For_Stmt,
+	stmt: ^ast.For_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
+
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -1119,10 +1146,13 @@ get_locals_for_stmt :: proc(
 
 get_locals_switch_stmt :: proc(
 	file: ast.File,
-	stmt: ast.Switch_Stmt,
+	stmt: ^ast.Switch_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}
@@ -1133,10 +1163,13 @@ get_locals_switch_stmt :: proc(
 
 get_locals_type_switch_stmt :: proc(
 	file: ast.File,
-	stmt: ast.Type_Switch_Stmt,
+	stmt: ^ast.Type_Switch_Stmt,
 	ast_context: ^AstContext,
 	document_position: ^DocumentPositionContext,
 ) {
+	if position_in_node_or_label(stmt, document_position.position) {
+		store_label(ast_context, stmt.label)
+	}
 	if !(stmt.pos.offset <= document_position.position && document_position.position <= stmt.end.offset) {
 		return
 	}

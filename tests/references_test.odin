@@ -1687,3 +1687,28 @@ ast_references_shadowed_variable_unresolved_call :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_labels :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		main :: proc() {
+			foo: for {
+				bar: if true {
+					break bar
+				} else {
+					continue fo{*}o
+				}
+			}
+		}
+		`,
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 3, character = 3}, end = {line = 3, character = 6}}},
+		{range = {start = {line = 7, character = 14}, end = {line = 7, character = 17}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}

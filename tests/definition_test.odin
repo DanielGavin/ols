@@ -1,6 +1,5 @@
 package tests
 
-import "core:fmt"
 import "core:testing"
 
 import "src:common"
@@ -851,4 +850,23 @@ x := Qu{*}x{foo = 1}
 `,
 	}
 	test.expect_definition_locations(t, &source2, {{range = {{line = 4, character = 0}, {line = 4, character = 3}}}})
+}
+
+@(test)
+ast_goto_label :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		main :: proc() {
+			foo: for {
+				break fo{*}o
+			}
+		}
+		`,
+	}
+
+	location := common.Location {
+		range = {start = {line = 2, character = 3}, end = {line = 2, character = 6}},
+	}
+
+	test.expect_definition_locations(t, &source, {location})
 }

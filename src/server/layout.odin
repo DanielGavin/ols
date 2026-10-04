@@ -530,7 +530,8 @@ symbol_layout :: proc(ast_context: ^AstContext, symbol: Symbol, depth := 0) -> (
 	     SymbolProcedureGroupValue,
 	     SymbolAggregateValue,
 	     SymbolUntypedValue,
-	     SymbolPolyTypeValue:
+	     SymbolPolyTypeValue,
+		 SymbolLabelValue:
 		return {}, false
 	}
 	return {}, false

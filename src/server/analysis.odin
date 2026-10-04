@@ -23,8 +23,10 @@ UsingStatement :: struct {
 }
 
 AstContext :: struct {
-	locals:                    [dynamic]LocalGroup, //locals all the way to the document position
-	globals:                   map[string]GlobalExpr,
+	locals:  [dynamic]LocalGroup, //locals all the way to the document position
+	globals: map[string]GlobalExpr,
+	labels:  map[string]^ast.Ident,
+
 	recursion_map:             map[rawptr]struct{},
 	generic_recursion_map:     map[rawptr]struct{},
 	usings:                    [dynamic]UsingStatement,
@@ -72,6 +74,7 @@ make_ast_context :: proc(
 	ast_context := AstContext {
 		locals                    = make([dynamic]map[string][dynamic]DocumentLocal, 0, allocator),
 		globals                   = make(map[string]GlobalExpr, 0, allocator),
+		labels                    = make(map[string]^ast.Ident, 0, allocator),
 		usings                    = make([dynamic]UsingStatement, allocator),
 		recursion_map             = make(map[rawptr]struct{}, 0, allocator),
 		generic_recursion_map     = make(map[rawptr]struct{}, 0, allocator),
@@ -2227,6 +2230,13 @@ resolve_call_directive :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 		return symbol, true
 	}
 
+	return {}, false
+}
+
+resolve_label :: proc(ast_context: ^AstContext, name: string) -> (Symbol, bool) {
+	if label, ok := ast_context.labels[name]; ok {
+		return make_symbol_label_from_ast(ast_context, label), true
+	}
 	return {}, false
 }
 
@@ -4707,6 +4717,20 @@ make_symbol_basic_type_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident)
 		ident = n,
 	}
 
+	return symbol
+}
+
+make_symbol_label_from_ast :: proc(ast_context: ^AstContext, n: ^ast.Ident) -> Symbol {
+	symbol := Symbol {
+		name  = n.name,
+		range = common.get_token_range(n^, ast_context.file.src),
+		uri   = ast_context.uri,
+		type  = .Variable,
+		pkg   = get_package_from_node(n^),
+		flags = {.Local, .Variable, .Mutable},
+	}
+
+	symbol.value = SymbolLabelValue{}
 	return symbol
 }
 
