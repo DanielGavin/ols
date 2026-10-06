@@ -354,9 +354,6 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			#partial switch v in n.expr.derived {
 			// TODO: Should there be more here?
 			case ^ast.Selector_Expr, ^ast.Index_Expr, ^ast.Ident, ^ast.Paren_Expr, ^ast.Call_Expr:
-				old := data.ast_context.use_imports
-				data.ast_context.use_imports = false
-				defer data.ast_context.use_imports = old
 				resolve_node(n.expr, data)
 			}
 		} else {

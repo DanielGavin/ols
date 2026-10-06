@@ -1712,3 +1712,50 @@ ast_references_labels :: proc(t: ^testing.T) {
 
 	test.expect_reference_locations(t, &source, locations[:])
 }
+
+@(test)
+ast_references_many_fields_across_packages :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+
+		import "foo"
+		import "bar"
+
+		baz :: proc(f: ^foo.Foo) {
+			i := f.a.b{*}.c
+			j := f.a.b.d
+		}
+		`,
+		packages = {
+			{
+				pkg = "foo",
+				source = `package foo
+				import "../bar"
+
+				Foo :: struct {
+					a: bar.Bar,
+				}
+				`,
+			},
+			{
+				pkg = "bar",
+				source = `package bar
+				Bar :: struct {
+					b: Baz,
+				}
+
+				Baz :: struct {
+					c, d: int,
+				}
+				`,
+			},
+		},
+	}
+
+	locations := []common.Location {
+		{range = {start = {line = 6, character = 12}, end = {line = 6, character = 13}}},
+		{range = {start = {line = 7, character = 12}, end = {line = 7, character = 13}}},
+	}
+
+	test.expect_reference_locations(t, &source, locations[:])
+}
