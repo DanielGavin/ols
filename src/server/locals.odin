@@ -1228,6 +1228,7 @@ get_locals_proc_param_and_results :: proc(
 	}
 
 	if proc_lit.type != nil && proc_lit.type.params != nil {
+		get_locals_poly(file, proc_lit.type.params, ast_context)
 		for arg in proc_lit.type.params.list {
 			for name in arg.names {
 				flags: bit_set[LocalFlag] = {.Mutable}
@@ -1319,6 +1320,30 @@ get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^A
 	if params == nil {
 		return
 	}
+
+	visit :: proc(visitor: ^ast.Visitor, node: ^ast.Node) -> ^ast.Visitor {
+		if node == nil {
+			return nil
+		}
+		if poly, ok := node.derived.(^ast.Poly_Type); ok && poly.type != nil {
+			ast_context := cast(^AstContext)visitor.data
+			store_local(
+				ast_context,
+				poly.type,
+				poly,
+				poly.type.pos.offset,
+				poly.type.name,
+				false,
+				false,
+				{.PolyType},
+				"",
+				false,
+			)
+		}
+		return visitor
+	}
+
+	visitor := ast.Visitor {data = ast_context, visit = visit}
 	for param in params.list {
 		if param == nil {
 			continue
@@ -1329,6 +1354,7 @@ get_locals_poly :: proc(file: ast.File, params: ^ast.Field_List, ast_context: ^A
 				store_local(ast_context, name, param.type, name.pos.offset, str, false, false, {.PolyType}, "", false)
 			}
 		}
+		ast.walk(&visitor, param.type)
 	}
 }
 
