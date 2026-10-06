@@ -684,7 +684,14 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 				position_context.call_arg = arg
 			}
 		}
+
+		old_parent := position_context.parent_comp_lit
+		position_context.parent_comp_lit = nil
 		get_document_position(n.args, position_context)
+
+		if position_context.parent_comp_lit == nil {
+			position_context.parent_comp_lit = old_parent
+		}
 	case ^ast.Selector_Call_Expr:
 		append(&position_context.selector_calls, n)
 		position_context.selector = n.expr

@@ -6373,3 +6373,31 @@ ast_completion_labels :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, ".", {"test.foo: label"})
 }
+
+@(test)
+ast_completion_comp_lit_arg_in_proc_call_nested_in_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Inner :: struct {
+			top:   u16,
+			color: [4]f32,
+		}
+
+		Config :: struct {
+			borders: Inner,
+		}
+
+		make_thing :: proc(config: Config) -> int {
+			return 0
+		}
+
+		main :: proc() {
+			_ = []int{
+				make_thing({borders = { {*}}}),
+			}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"Inner.top: u16", "Inner.color: [4]f32"})
+}
