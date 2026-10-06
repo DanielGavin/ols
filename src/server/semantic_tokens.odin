@@ -396,6 +396,7 @@ visit_node :: proc(node: ^ast.Node, builder: ^SemanticTokenBuilder) {
 		visit_proc_type(n, builder)
 	case ^ast.Proc_Lit:
 		visit_proc_type(n.type, builder)
+		visit_nodes(n.where_clauses, builder)
 		visit_node(n.body, builder)
 	case ^ast.Proc_Group:
 		visit_nodes(n.args, builder)

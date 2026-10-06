@@ -209,7 +209,8 @@ semantic_tokens_poly_proc :: proc(t: ^testing.T) {
 		{1, 2,  3, .Function,      {.ReadOnly}}, // [0]  foo
 		{0, 12, 1, .Parameter,     {}},          // [1]  a
 		{0, 4,  1, .TypeParameter, {}},          // [2]  A
-		{1, 10, 1, .Parameter,     {}},          // [3]  a
+		{0, 6,  1, .TypeParameter, {.ReadOnly}}, // [3]  A
+		{1, 10, 1, .Parameter,     {}},          // [4]  a
 	})
 }
 
