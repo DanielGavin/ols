@@ -5172,6 +5172,80 @@ ast_hover_const_comp_lit_with_type :: proc(t: ^testing.T) {
 }
 
 @(test)
+ast_hover_comp_lit_arg_in_proc_call :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Config :: struct {
+			size: int,
+		}
+
+		make_thing :: proc(config: Config) -> int {
+			return 0
+		}
+
+		main :: proc() {
+			make_thing({si{*}ze = 1})
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Config.size: int")
+}
+
+@(test)
+ast_hover_comp_lit_arg_in_proc_call_nested_in_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Inner :: struct {
+			top:   u16,
+			color: [4]f32,
+		}
+
+		Config :: struct {
+			borders: Inner,
+		}
+
+		make_thing :: proc(config: Config) -> int {
+			return 0
+		}
+
+		main :: proc() {
+			_ = []int{
+				make_thing({bor{*}ders = {}}),
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Config.borders: test.Inner")
+}
+
+@(test)
+ast_hover_nested_comp_lit_field_in_proc_call_nested_in_comp_lit :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Inner :: struct {
+			top:   u16,
+			color: [4]f32,
+		}
+
+		Config :: struct {
+			borders: Inner,
+		}
+
+		make_thing :: proc(config: Config) -> int {
+			return 0
+		}
+
+		main :: proc() {
+			_ = []int{
+				make_thing({borders = {to{*}p = 1}}),
+			}
+		}
+		`,
+	}
+	test.expect_hover(t, &source, "Inner.top: u16")
+}
+
+@(test)
 ast_hover_const_binary_expr :: proc(t: ^testing.T) {
 	source := test.Source {
 		main = `package test
