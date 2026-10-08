@@ -6401,3 +6401,54 @@ ast_completion_comp_lit_arg_in_proc_call_nested_in_comp_lit :: proc(t: ^testing.
 
 	test.expect_completion_docs(t, &source, "", {"Inner.top: u16", "Inner.color: [4]f32"})
 }
+
+@(test)
+ast_union_assertion_completion :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			bar: int,
+		}
+
+		Baz :: union {
+			Foo,
+		}
+
+		main :: proc() {
+			baz: Baz
+			baz.?.{*}
+
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"Foo.bar: int"})
+}
+
+@(test)
+ast_union_assertion_completion_type :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			f: int,
+		}
+
+		Bar :: struct {
+			b: string,
+		}
+
+		Baz :: union {
+			Foo,
+			Bar,
+		}
+
+		main :: proc() {
+			baz: Baz
+			baz.(Bar).{*}
+
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, "", {"Bar.b: string"}, {"Foo.f: int"})
+}
