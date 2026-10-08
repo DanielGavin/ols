@@ -2065,6 +2065,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		return ok
 	case ^ast.Type_Assertion:
 		out^, ok = resolve_type_assertion_expr(ast_context, v)
+		out.type = .Variable
 		return ok
 	case ^ast.Proc_Lit:
 		out^, ok =
