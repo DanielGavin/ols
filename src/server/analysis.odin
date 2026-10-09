@@ -5173,6 +5173,9 @@ is_lhs_comp_lit :: proc(position_context: ^DocumentPositionContext) -> bool {
 				if position_in_node(field.value, position_context.position) {
 					return false
 				}
+			} else if _, ok := elem.derived.(^ast.Binary_Expr); ok {
+				// Positional element that is an expression, i.e. Foo{a + b{*}, c}, so it can't be a field name
+				return false
 			}
 		}
 	}

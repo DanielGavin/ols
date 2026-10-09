@@ -6452,3 +6452,69 @@ ast_union_assertion_completion_type :: proc(t: ^testing.T) {
 
 	test.expect_completion_docs(t, &source, "", {"Bar.b: string"}, {"Foo.f: int"})
 }
+
+@(test)
+ast_completion_comp_lit_binary_expr_operand :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Vec2 :: [2]f32
+		EDGE_EPS :: 0.01
+		to_tile :: proc(p: Vec2) -> [2]int { return {} }
+		main :: proc() {
+			x := f32(1)
+			right := to_tile(Vec2{x + x + 1 - EDGE_{*}, 0}).x
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.EDGE_EPS :: 0.01"})
+}
+
+@(test)
+ast_completion_comp_lit_implicit_binary_expr_operand :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Vec2 :: [2]f32
+		EDGE_EPS :: 0.01
+		to_tile :: proc(p: Vec2) -> [2]int { return {} }
+		main :: proc() {
+			x := f32(1)
+			right := to_tile({x + x + 1 - EDGE_{*}, 0}).x
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.EDGE_EPS :: 0.01"})
+}
+
+@(test)
+ast_completion_comp_lit_struct_binary_expr_operand :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			a: int,
+			b: int,
+		}
+		BAR :: 1
+		main :: proc() {
+			x := 1
+			f := Foo{x + BA{*}, 2}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"test.BAR :: 1"}, {"Foo.a: int", "Foo.b: int"})
+}
+
+@(test)
+ast_completion_comp_lit_struct_field_name_partial :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			alpha: int,
+			beta: int,
+		}
+		main :: proc() {
+			f := Foo{alpha = 1, be{*}}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.beta: int"}, {"Foo.alpha: int"})
+}

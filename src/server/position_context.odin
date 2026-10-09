@@ -713,7 +713,11 @@ get_document_position_node :: proc(node: ^ast.Node, position_context: ^DocumentP
 			   position_context.hint == .Hover ||
 			   position_context.hint == .TypeDefinition ||
 			   position_context.hint == .Completion) &&
-		   n.field != nil {
+		   n.field != nil &&
+		   !(position_context.hint == .Completion &&
+				   position_in_node(n.expr, position_context.position) &&
+				   position_context.position < n.expr.end.offset) {
+			// When completing inside the receiver, i.e. foo(a{*}).bar, the selector is not the one being completed
 			position_context.selector = n.expr
 			position_context.field = n.field
 			position_context.selector_expr = node
