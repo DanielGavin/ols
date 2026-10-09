@@ -126,7 +126,18 @@ main :: proc() {
 		for file in files {
 			fmt.println(file)
 
-			if data, ok := format_file(file, config, arena_allocator); ok {
+			// Discover the config per file, not once for the whole walk: a
+			// directory tree can hold nested odinfmt.json scopes, and
+			// single-file mode plus the language server both resolve per
+			// file. One invocation-wide config formats nested scopes with
+			// the wrong style, which the next per-file run then flips back.
+			// An explicit --config still wins for the entire walk.
+			file_config := config
+			if args.config == "" {
+				file_config = format.find_config_file_or_default(file)
+			}
+
+			if data, ok := format_file(file, file_config, arena_allocator); ok {
 				if args.write {
 					write_formatted_file(file, data)
 				} else {
