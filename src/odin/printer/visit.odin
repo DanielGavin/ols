@@ -958,7 +958,12 @@ visit_stmt :: proc(
 		document = cons(document, cons_with_nopl(text("using"), visit_exprs(p, v.list, {.Add_Comma})))
 	case ^ast.Block_Stmt:
 		uses_do := v.uses_do && !p.config.convert_do
-		is_single_line := v.open.line == v.end.line
+		is_single_line := v.pos.line == v.end.line
+
+		one_tbs_multiline := p.config.brace_style == ._1TBS && !uses_do && len(v.stmts) > 0
+
+		space_inline_body :=
+			p.config.space_single_line_blocks && is_single_line && len(v.stmts) > 0 && !one_tbs_multiline
 
 		if v.label != nil {
 			document = cons(document, visit_expr(p, v.label), text(":"), break_with_space())
@@ -966,7 +971,7 @@ visit_stmt :: proc(
 
 		if !uses_do {
 			document = cons(document, visit_begin_brace(p, v.pos, block_type))
-			if p.config.space_single_line_blocks && is_single_line {
+			if space_inline_body {
 				document = cons(document, break_with_no_newline())
 			}
 		} else {
@@ -979,7 +984,11 @@ visit_stmt :: proc(
 			compute_constant_alignment(p, v.stmts)
 		}
 
-		block := visit_block_stmts(p, v.stmts)
+		block := visit_block_stmts(p, v.stmts, split_inline_stmts = one_tbs_multiline)
+
+		if one_tbs_multiline && v.stmts[0].pos.line == v.pos.line {
+			block = cons(newline(1), block)
+		}
 
 		comment_end, _ := visit_comments(p, tokenizer.Pos{line = v.end.line, offset = v.end.offset})
 
@@ -992,10 +1001,14 @@ visit_stmt :: proc(
 		}
 
 		if !uses_do {
-			if p.config.space_single_line_blocks && is_single_line {
+			if space_inline_body {
 				document = cons(document, break_with_no_newline())
 			}
-			document = cons(document, visit_end_brace(p, v.end))
+
+			document = cons(
+				document,
+				visit_end_brace(p, v.end, p.config.newline_limit + 1 if one_tbs_multiline else 0),
+			)
 		}
 	case ^ast.If_Stmt:
 		if v.label != nil {
@@ -1275,11 +1288,7 @@ visit_stmt :: proc(
 			document = cons(document, text("return"))
 
 			if is_return_stmt_ending_with_comp_lit_expr(v.results) {
-				document = cons(
-					document,
-					text(" "),
-					visit_exprs(p, v.results, {.Add_Comma}),
-				)
+				document = cons(document, text(" "), visit_exprs(p, v.results, {.Add_Comma}))
 			} else if !is_return_stmt_ending_with_call_expr(v.results) {
 				document = cons_with_nopl(document, group(nest(visit_exprs(p, v.results, {.Add_Comma, .Group}))))
 			} else {
@@ -2064,13 +2073,16 @@ visit_end_brace :: proc(p: ^Printer, end: tokenizer.Pos, limit := 0) -> ^Documen
 }
 
 @(private)
-visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt) -> ^Document {
+visit_block_stmts :: proc(p: ^Printer, stmts: []^ast.Stmt, split_inline_stmts := false) -> ^Document {
 	document := empty()
 
 	for stmt, i in stmts {
-		last_index := max(0, i - 1)
-		if stmts[last_index].end.line == stmt.pos.line && i != 0 && stmt.pos.line not_in p.disabled_lines {
-			document = group(cons(document, break_with("; ")))
+		if i > 0 && stmts[i - 1].end.line == stmt.pos.line && stmt.pos.line not_in p.disabled_lines {
+			if split_inline_stmts {
+				document = cons(document, newline(1))
+			} else {
+				document = group(cons(document, break_with("; ")))
+			}
 		}
 
 		if p.force_statement_fit {

@@ -1,0 +1,9 @@
+{
+	"brace_style": "_1TBS",
+	"convert_do": false,
+	"newline_style": "LF",
+	"tabs": true,
+	"tabs_width": 4,
+	"space_single_line_blocks": true,
+	"character_width": 100
+}
