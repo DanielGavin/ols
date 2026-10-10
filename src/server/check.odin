@@ -8,6 +8,7 @@ import "core:mem"
 import "core:os"
 import "core:path/filepath"
 import path "core:path/slashpath"
+import "core:slice"
 import "core:strings"
 import "core:sync/chan"
 import "core:thread"
@@ -44,6 +45,12 @@ Check_Request :: struct {
 	check_mode: Check_Mode,
 	path:       string,
 	config:     ^common.Config,
+	buffers:    []Check_Buffer,
+}
+
+Check_Buffer :: struct {
+	path: string,
+	text: []u8,
 }
 
 Checker :: struct {
@@ -59,14 +66,45 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 		return
 	}
 	path := strings.clone(path, checker.allocator)
-	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config})
+
+	buffers := make([dynamic]Check_Buffer, 0, len(document_storage.documents), checker.allocator)
+	for _, &document in document_storage.documents {
+		if !document.client_owned || is_ols_builtin_file(document.fullpath) {
+			continue
+		}
+		append(
+			&buffers,
+			Check_Buffer {
+				path = strings.clone(document.fullpath, checker.allocator),
+				text = slice.clone(document.text[:document.used_text], checker.allocator),
+			},
+		)
+	}
+
+	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config, buffers = buffers[:]})
 	if !ok {
 		log.errorf("Failed to queue check request for path %q", path)
+		delete_check_buffers(buffers[:])
 	}
 }
 
+@(private = "file")
+delete_check_buffers :: proc(buffers: []Check_Buffer) {
+	for b in buffers {
+		delete(b.path, checker.allocator)
+		delete(b.text, checker.allocator)
+	}
+	delete(buffers, checker.allocator)
+}
+
+@(private = "file")
+overlay_dir: string
+
 stop_check_worker :: proc() {
 	chan.close(checker.send)
+	if overlay_dir != "" {
+		_ = os.remove_all(overlay_dir)
+	}
 }
 
 create_and_start_check_worker :: proc(writer: ^Writer) {
@@ -99,14 +137,22 @@ run_check_consumer :: proc(c: Consumer) {
 		}
 		paths := make([dynamic]string, allocator = context.temp_allocator)
 		append(&paths, request.path)
-		for request in chan.try_recv(c.ch) {
-			append(&paths, request.path)
+
+		buffers := request.buffers
+		for later in chan.try_recv(c.ch) {
+			append(&paths, later.path)
+			delete_check_buffers(buffers)
+			buffers = later.buffers
 		}
-		check(request.check_mode, paths[:], request.config)
+
+		check(request.check_mode, paths[:], buffers, request.config)
+
 		push_diagnostics(c.w)
 		for path in paths {
 			delete(path, checker.allocator)
 		}
+		delete_check_buffers(buffers)
+
 		free_all(context.temp_allocator)
 	}
 	free_all(context.temp_allocator)
@@ -195,7 +241,49 @@ CheckProcess :: struct {
 	buffer:   [dynamic]u8,
 }
 
-check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
+check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, config: ^common.Config) {
+	write_overlay :: proc(buffers: []Check_Buffer) -> string {
+		if len(buffers) == 0 {
+			return ""
+		}
+		if overlay_dir == "" {
+			temp, err := os.temp_directory(context.temp_allocator)
+			if err != nil {
+				log.errorf("Failed to find the temporary directory for the overlay: %v", err)
+				return ""
+			}
+			overlay_dir = fmt.aprintf("%s/ols-%d", temp, os.get_pid(), allocator = checker.allocator)
+			_ = os.make_directory(overlay_dir)
+		}
+
+		Overlay :: struct {
+			replace: map[string]string `json:"Replace"`,
+		}
+		overlay := Overlay {
+			replace = make(map[string]string, len(buffers), context.temp_allocator),
+		}
+		for b, i in buffers {
+			file := fmt.tprintf("%s/%d.odin", overlay_dir, i)
+			if err := os.write_entire_file(file, b.text); err != nil {
+				log.errorf("Failed to write the overlay file %q: %v", file, err)
+				return ""
+			}
+			overlay.replace[b.path] = file
+		}
+
+		data, err := json.marshal(overlay, allocator = context.temp_allocator)
+		if err != nil {
+			log.errorf("Failed to make the overlay: %v", err)
+			return ""
+		}
+		path := fmt.tprintf("%s/overlay.json", overlay_dir)
+		if err := os.write_entire_file(path, data); err != nil {
+			log.errorf("Failed to write the overlay %q: %v", path, err)
+			return ""
+		}
+		return path
+	}
+
 	paths := resolve_check_paths(mode, check_paths, config)
 
 	if len(paths) == 0 {
@@ -203,6 +291,11 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 	}
 
 	clear_diagnostics(.Check)
+
+	command := config.odin_command
+	if command == "" {
+		command = "odin"
+	}
 
 	collections := make([dynamic]string, context.temp_allocator)
 
@@ -213,18 +306,50 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 		append(&collections, fmt.aprintf("-collection:%v=%v", k, v))
 	}
 
-	max_concurrent_checks := max(1, os.get_processor_core_count())
-	processes := make([dynamic]CheckProcess, 0, len(paths))
+	jobs := make([dynamic][]string, 0, len(paths), context.temp_allocator)
+	overlay := ""
+	if odin_supports_workspace(command) {
+		overlay = write_overlay(buffers)
 
-	errors := make([dynamic]Json_Errors, 0, len(paths), context.temp_allocator)
+		// NOTE(bill): This is here just to keep the command line well within Windows' limit of 32767 characters
+		MAX_WORKSPACE_PATHS_LEN :: 16384
+
+		dirs := make([dynamic]string, 0, len(paths), context.temp_allocator)
+		dirs_len := 0
+		for p, i in paths {
+			if filepath.ext(p) == ".odin" {
+				append(&jobs, paths[i:i + 1])
+				continue
+			}
+			if dirs_len + len(p) > MAX_WORKSPACE_PATHS_LEN && len(dirs) > 0 {
+				append(&jobs, dirs[:])
+				dirs = make([dynamic]string, 0, len(paths), context.temp_allocator)
+				dirs_len = 0
+			}
+			append(&dirs, p)
+			dirs_len += len(p) + 3
+		}
+		if len(dirs) > 0 {
+			append(&jobs, dirs[:])
+		}
+	} else {
+		for _, i in paths {
+			append(&jobs, paths[i:i + 1])
+		}
+	}
+
+	max_concurrent_checks := max(1, os.get_processor_core_count())
+	processes := make([dynamic]CheckProcess, 0, len(jobs))
+
+	errors := make([dynamic]Json_Errors, 0, len(jobs), context.temp_allocator)
 
 	next_index := 0
 	running_count := 0
 	start := time.now()
 
-	for running_count > 0 || next_index < len(paths) {
-		for running_count < max_concurrent_checks && next_index < len(paths) {
-			p, ok := start_check_process(paths[next_index], collections[:], config)
+	for running_count > 0 || next_index < len(jobs) {
+		for running_count < max_concurrent_checks && next_index < len(jobs) {
+			p, ok := start_check_process(command, jobs[next_index], collections[:], overlay, config)
 			next_index += 1
 			if !ok {
 				continue
@@ -296,7 +421,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 			}
 		}
 
-		if running_count > 0 || next_index < len(paths) {
+		if running_count > 0 || next_index < len(jobs) {
 			time.sleep(1 * time.Millisecond)
 		}
 	}
@@ -350,12 +475,17 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 
 			uri := common.create_uri(path, context.temp_allocator)
 
+			diagnostic_severity := DiagnosticSeverity.Error
+			if strings.equal_fold(error.type, "warning") {
+				diagnostic_severity = .Warning
+			}
+
 			add_diagnostics(
 				.Check,
 				uri.uri,
 				Diagnostic {
 					code = "checker",
-					severity = map_diagnostic_severity(error.type),
+					severity = diagnostic_severity,
 					range = {
 						// odin will sometimes report errors on column 0, so we ensure we don't provide a negative column/line to the client
 						start = {character = max(error.pos.column - 1, 0), line = max(error.pos.line - 1, 0)},
@@ -371,24 +501,19 @@ check :: proc(mode: Check_Mode, check_paths: []string, config: ^common.Config) {
 }
 @(private = "file")
 start_check_process :: proc(
-	check_path: string,
+	command: string,
+	check_paths: []string,
 	collections: []string,
+	overlay: string,
 	config: ^common.Config,
 ) -> (
 	CheckProcess,
 	bool,
 ) {
-	command: string
-
-	if config.odin_command != "" {
-		command = config.odin_command
-	} else {
-		command = "odin"
-	}
-
-	entry_point_opt := filepath.ext(check_path) == ".odin" ? "-file" : "-no-entry-point"
+	entry_point_opt := filepath.ext(check_paths[0]) == ".odin" ? "-file" : "-no-entry-point"
 	cmd := make([dynamic]string, context.temp_allocator)
-	append(&cmd, command, "check", check_path)
+	append(&cmd, command, "check")
+	append(&cmd, ..check_paths)
 	for c in collections {
 		append(&cmd, c)
 	}
@@ -396,6 +521,13 @@ start_check_process :: proc(
 		append(&cmd, fmt.tprintf("-define:%s=%s", k, v))
 	}
 	append(&cmd, entry_point_opt, "-json-errors")
+	if len(check_paths) > 1 {
+		// TODO(bill): is this a good idea to change the limit to 1000?
+		append(&cmd, "-workspace", "-max-error-count:1000")
+	}
+	if overlay != "" {
+		append(&cmd, fmt.tprintf("-overlay:%s", overlay))
+	}
 	args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
 	for arg in args {
 		if arg != "" {
@@ -428,10 +560,23 @@ start_check_process :: proc(
 }
 
 @(private = "file")
-map_diagnostic_severity :: proc(type: string) -> DiagnosticSeverity {
-	if strings.equal_fold(type, "warning") {
-		return .Warning
-	}
+odin_supports_workspace :: proc(command: string) -> bool {
+	@(static) checked_command: string
+	@(static) supported: bool
+	if checked_command != command {
+		delete(checked_command, checker.allocator)
 
-	return .Error
+		checked_command = strings.clone(command, checker.allocator)
+
+		_, stdout, stderr, err := os.process_exec({command = {command, "check", "-help"}}, context.temp_allocator)
+
+		help := strings.concatenate({string(stdout), string(stderr)}, context.temp_allocator)
+
+		supported = err == nil &&
+			strings.contains(help, "\t-workspace") &&
+			strings.contains(help, "\t-overlay:")
+
+		log.infof("`%s` supports `-workspace` and `-overlay`: %v", command, supported)
+	}
+	return supported
 }
