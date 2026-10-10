@@ -50,19 +50,20 @@ Check_Request :: struct {
 }
 
 Check_Buffer :: struct {
-	path: string,
-	text: []u8,
+	path:    string,
+	text:    []u8,
+	version: Maybe(int),
 }
 
 Checker :: struct {
 	allocator:              mem.Allocator,
 	send:                   chan.Chan(Check_Request, .Send),
 	odin_without_workspace: string,
+	dir:                    string, // Used by the -overlay and -exported-semantics
 	overlay:                Check_Overlay,
 }
 
 Check_Overlay :: struct {
-	dir:   string,
 	files: map[string]Check_Overlay_File, // by path
 	json:  []u8,                          // as last written
 }
@@ -90,8 +91,9 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 		append(
 			&buffers,
 			Check_Buffer {
-				path = strings.clone(document.fullpath, checker.allocator),
-				text = slice.clone(document.text[:document.used_text], checker.allocator),
+				path    = strings.clone(document.fullpath, checker.allocator),
+				text    = slice.clone(document.text[:document.used_text], checker.allocator),
+				version = document.version,
 			},
 		)
 	}
@@ -114,9 +116,23 @@ delete_check_buffers :: proc(buffers: []Check_Buffer) {
 
 stop_check_worker :: proc() {
 	chan.close(checker.send)
-	if checker.overlay.dir != "" {
-		_ = os.remove_all(checker.overlay.dir)
+	if checker.dir != "" {
+		_ = os.remove_all(checker.dir)
 	}
+}
+
+@(private = "file")
+checker_dir :: proc() -> string {
+	if checker.dir == "" {
+		temp, err := os.temp_directory(context.temp_allocator)
+		if err != nil {
+			log.errorf("Failed to find the temporary directory: %v", err)
+			return ""
+		}
+		checker.dir = fmt.aprintf("%s/ols-%d", temp, os.get_pid(), allocator = checker.allocator)
+		_ = os.make_directory(checker.dir)
+	}
+	return checker.dir
 }
 
 create_and_start_check_worker :: proc(writer: ^Writer) {
@@ -157,9 +173,10 @@ run_check_consumer :: proc(c: Consumer) {
 			buffers = later.buffers
 		}
 
-		check(request.check_mode, paths[:], buffers, request.config)
+		semantics := check(request.check_mode, paths[:], buffers, request.config)
 
 		push_diagnostics(c.w)
+		load_semantics(semantics, buffers)
 		for path in paths {
 			delete(path, checker.allocator)
 		}
@@ -253,19 +270,11 @@ CheckProcess :: struct {
 	buffer:   [dynamic]u8,
 }
 
-check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, config: ^common.Config) {
+check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, config: ^common.Config) -> (semantics: []string) {
 	write_overlay :: proc(o: ^Check_Overlay, buffers: []Check_Buffer) -> string {
-		if len(buffers) == 0 {
+		dir := checker_dir()
+		if len(buffers) == 0 || dir == "" {
 			return ""
-		}
-		if o.dir == "" {
-			temp, err := os.temp_directory(context.temp_allocator)
-			if err != nil {
-				log.errorf("Failed to find the temporary directory for the overlay: %v", err)
-				return ""
-			}
-			o.dir = fmt.aprintf("%s/ols-%d", temp, os.get_pid(), allocator = checker.allocator)
-			_ = os.make_directory(o.dir)
 		}
 
 		Overlay :: struct {
@@ -281,7 +290,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 			entry := &o.files[b.path]
 			if entry == nil {
 				path := strings.clone(b.path, checker.allocator)
-				o.files[path] = {file = fmt.aprintf("%s/%d.odin", o.dir, len(o.files), allocator = checker.allocator)}
+				o.files[path] = {file = fmt.aprintf("%s/%d.odin", dir, len(o.files), allocator = checker.allocator)}
 				entry = &o.files[path]
 			}
 			h := hash.fnv64a(b.text)
@@ -301,7 +310,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 			log.errorf("Failed to make the overlay: %v", err)
 			return ""
 		}
-		path := fmt.tprintf("%s/overlay.json", o.dir)
+		path := fmt.tprintf("%s/overlay.json", dir)
 		if !slice.equal(data, o.json) {
 			if err := os.write_entire_file(path, data); err != nil {
 				log.errorf("Failed to write the overlay %q: %v", path, err)
@@ -371,7 +380,8 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 	max_concurrent_checks := max(1, os.get_processor_core_count())
 	processes := make([dynamic]CheckProcess, 0, len(jobs))
 
-	errors := make([dynamic]Json_Errors, 0, len(jobs), context.temp_allocator)
+	errors   := make([dynamic]Json_Errors, 0, len(jobs), context.temp_allocator)
+	exported := make([dynamic]string, 0, len(jobs), context.temp_allocator)
 	lacks_workspace := false
 
 	next_index := 0
@@ -380,10 +390,18 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	for running_count > 0 || next_index < len(jobs) {
 		for running_count < max_concurrent_checks && next_index < len(jobs) {
-			p, ok := start_check_process(command, jobs[next_index], collections[:], overlay, config)
+			semantics_file := ""
+			if use_workspace && checker_dir() != "" {
+				semantics_file = fmt.tprintf("%s/semantics-%d.cbor", checker_dir(), next_index)
+				_ = os.remove(semantics_file)
+			}
+			p, ok := start_check_process(command, jobs[next_index], collections[:], overlay, semantics_file, config)
 			next_index += 1
 			if !ok {
 				continue
+			}
+			if semantics_file != "" {
+				append(&exported, semantics_file)
 			}
 			append(&processes, p)
 			running_count += 1
@@ -438,9 +456,13 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 			p.reader = nil
 
 			output := string(p.buffer[:])
-			if use_workspace && (strings.contains(output, "Unknown flag: 'workspace'") || strings.contains(output, "Unknown flag: 'overlay'")) {
-				lacks_workspace = true
-				continue
+			if use_workspace {
+				for flag in ([]string{"'workspace'", "'overlay'", "'export-semantics'"}) {
+					lacks_workspace ||= strings.contains(output, fmt.tprintf("Unknown flag: %s", flag))
+				}
+				if lacks_workspace {
+					continue
+				}
 			}
 
 			if len(p.buffer) > 0 {
@@ -471,8 +493,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 		log.infof("`%s` has no `-workspace` or `-overlay`, so packages are checked one at a time from disk", command)
 		delete(checker.odin_without_workspace, checker.allocator)
 		checker.odin_without_workspace = strings.clone(command, checker.allocator)
-		check(mode, check_paths, buffers, config)
-		return
+		return check(mode, check_paths, buffers, config)
 	}
 
 	DiagnosticKey :: struct {
@@ -543,14 +564,18 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	}
 
+	return exported[:]
 }
+
+
 @(private = "file")
 start_check_process :: proc(
-	command: string,
+	command:     string,
 	check_paths: []string,
 	collections: []string,
-	overlay: string,
-	config: ^common.Config,
+	overlay:     string,
+	semantics:   string,
+	config:      ^common.Config,
 ) -> (
 	CheckProcess,
 	bool,
@@ -567,11 +592,18 @@ start_check_process :: proc(
 	}
 	append(&cmd, entry_point_opt, "-json-errors")
 	if len(check_paths) > 1 {
+		append(&cmd, "-workspace")
+	}
+	if len(check_paths) > 1 || semantics != "" {
 		// TODO(bill): is this a good idea to change the limit to 1000?
-		append(&cmd, "-workspace", "-max-error-count:1000")
+		// NOTE(bill): The semantics are not exported once the errors reach it either
+		append(&cmd, "-max-error-count:1000")
 	}
 	if overlay != "" {
 		append(&cmd, fmt.tprintf("-overlay:%s", overlay))
+	}
+	if semantics != "" {
+		append(&cmd, "-export-semantics:cbor", fmt.tprintf("-export-semantics-file:%s", semantics))
 	}
 	args, _ := strings.split(config.checker_args, " ", context.temp_allocator)
 	for arg in args {
