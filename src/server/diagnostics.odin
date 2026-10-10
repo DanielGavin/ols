@@ -123,7 +123,16 @@ get_merged_diagnostics :: proc() -> map[string][dynamic]Diagnostic {
 				diagnostic_array = &merged_diagnostics[k]
 			}
 
-			append(diagnostic_array, ..v[:])
+			// cloned, as another thread can free them once this is unlocked
+			for diagnostic in v {
+				diagnostic := diagnostic
+				diagnostic.message = strings.clone(diagnostic.message, context.temp_allocator)
+				diagnostic.code = strings.clone(diagnostic.code, context.temp_allocator)
+				if diagnostic.tags != nil {
+					diagnostic.tags = slice.clone(diagnostic.tags, context.temp_allocator)
+				}
+				append(diagnostic_array, diagnostic)
+			}
 		}
 	}
 	return merged_diagnostics

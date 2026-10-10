@@ -18,15 +18,15 @@ make_writer :: proc(writer_fn: WriterFn, writer_context: rawptr) -> Writer {
 	return writer
 }
 
-write_sized :: proc(writer: ^Writer, data: []byte) -> bool {
+// The header and data are written under one lock, so another thread's message cannot land between them
+write_sized :: proc(writer: ^Writer, header, data: []byte) -> bool {
 	sync.mutex_lock(&writer.writer_mutex)
 	defer sync.mutex_unlock(&writer.writer_mutex)
 
-	written, err := writer.writer_fn(writer.writer_context, data)
-
-	if (err != 0) {
+	if _, err := writer.writer_fn(writer.writer_context, header); err != 0 {
 		return false
 	}
 
-	return true
+	_, err := writer.writer_fn(writer.writer_context, data)
+	return err == 0
 }
