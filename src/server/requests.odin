@@ -1211,6 +1211,9 @@ notification_did_open :: proc(
 	}
 
 	document := document_get(open_params.textDocument.uri)
+	if document != nil {
+		document.version = open_params.textDocument.version
+	}
 
 	check_unused_imports(document, config)
 

@@ -256,8 +256,9 @@ TextDocumentIdentifier :: struct {
 }
 
 TextDocumentItem :: struct {
-	uri:  string,
-	text: string,
+	uri:     string,
+	text:    string,
+	version: int,
 }
 
 TextEdit :: struct {
