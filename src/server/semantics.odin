@@ -105,5 +105,3 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer) {
 	}
 	log.infof("Loaded the semantics of %d files in %v", loaded, time.since(start))
 }
-
-@(private = "file")
