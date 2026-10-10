@@ -285,6 +285,10 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 	temp_requests := make([dynamic]Request, 0, context.allocator)
 	defer delete(temp_requests)
 
+	if sync.atomic_exchange(&semantics_store.refresh, false) {
+		semantics_refresh(config, writer)
+	}
+
 	sync.mutex_lock(&requests_mutex)
 
 	for d in deletings {
@@ -1336,14 +1340,16 @@ notification_did_save :: proc(
 
 	corrected_uri := common.create_uri(fullpath, context.temp_allocator)
 
+	// NOTE(bill): we queue first so that the check runes whilst unused imports are found
+	// Meaning it can resolve the whole file still
+	queue_check_request(.Saved, corrected_uri.path, config)
+
 	document := document_get(save_params.textDocument.uri)
-	if document != nil {
+	if document != nil && !sync.atomic_load(&semantics_store.loaded) {
 		check_unused_imports(document, config)
 	}
 
 	push_diagnostics(writer)
-
-	queue_check_request(.Saved, corrected_uri.path, config)
 
 	return .None
 }

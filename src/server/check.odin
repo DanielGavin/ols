@@ -271,7 +271,7 @@ fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	return data[:]
 }
 
-check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
+check_unused_imports :: proc(document: ^Document, config: ^common.Config, semantics_only := false) {
 	if !config.enable_unused_imports_reporting || !config.enable_diagnostics {
 		return
 	}
@@ -286,13 +286,20 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config) {
 
 	uri := common.create_uri(path, context.temp_allocator)
 
-	remove_diagnostics(.Unused, uri.uri)
 	if len(document.imports) == 0 {
+		remove_diagnostics(.Unused, uri.uri)
 		return
 	}
 
-	unused_imports := find_unused_imports(document, context.temp_allocator)
+	unused_imports, found := semantics_unused_imports(document)
+	if !found {
+		if semantics_only {
+			return
+		}
+		unused_imports = find_unused_imports(document, context.temp_allocator)
+	}
 
+	remove_diagnostics(.Unused, uri.uri)
 	for imp in unused_imports {
 		add_diagnostics(
 			.Unused,

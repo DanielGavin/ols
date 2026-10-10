@@ -19,6 +19,9 @@ Semantics_Store :: struct {
 	files:            map[string]Semantics_File, // by `semantics_key`
 	covers_workspace: bool,                      // a workspace check has been loaded in full, so no workspace file is missing
 	unparsed:         map[string]string,         // by `semantics_key`: the files of checked packages that were not parsed, e.g. for other targets or tests
+
+	loaded:           bool,
+	refresh:          bool, // atomic: a check has loaded since the main thread last refreshed from it
 }
 
 Semantics_File :: struct {
@@ -238,6 +241,53 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 		}
 	}
 	log.infof("Loaded the semantics of %d files in %v", loaded, time.since(start))
+
+	if loaded > 0 {
+		sync.atomic_store(&semantics_store.loaded, true)
+		sync.atomic_store(&semantics_store.refresh, true)
+		sync.sema_post(&requests_semaphore)
+	}
+}
+
+semantics_refresh :: proc(config: ^common.Config, writer: ^Writer) {
+	for _, &document in document_storage.documents {
+		if document.client_owned {
+			check_unused_imports(&document, config, semantics_only = true)
+		}
+	}
+	push_diagnostics(writer)
+}
+
+semantics_unused_imports :: proc(document: ^Document, allocator := context.temp_allocator) -> (unused: []Package, ok: bool) {
+	sync.mutex_guard(&semantics_store.mutex)
+	file := semantics_file_of(document)
+	if file == nil {
+		return
+	}
+
+	s := &file.export.semantics
+	used := make(map[string]bool, 16, context.temp_allocator)
+	for i := 0; i+1 < len(file.exported.uses); i += 2 {
+		e := &s.entities[file.exported.uses[i+1]]
+		if e.kind == .Import {
+			used[e.name] = true
+		}
+	}
+
+	text := string(document.text[:document.used_text])
+	result := make([dynamic]Package, allocator)
+	imports: for imp in document.imports {
+		if imp.base == "_" || used[imp.base] {
+			continue
+		}
+		for i := 0; i+1 < len(file.exported.inactive); i += 2 {
+			if contains_word(text[file.exported.inactive[i]:file.exported.inactive[i+1]], imp.base) {
+				continue imports
+			}
+		}
+		append(&result, imp)
+	}
+	return result[:], true
 }
 
 Semantic_Entity :: struct {
