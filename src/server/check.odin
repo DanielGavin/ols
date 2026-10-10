@@ -11,7 +11,7 @@ import "core:path/filepath"
 import path "core:path/slashpath"
 import "core:slice"
 import "core:strings"
-import "core:sync/chan"
+import "core:sync"
 import "core:thread"
 import "core:time"
 
@@ -37,7 +37,9 @@ Json_Errors :: struct {
 	errors:      []Json_Error,
 }
 
+// In order of how much is checked, as requests checked together check as much as the largest
 Check_Mode :: enum {
+	Changed,
 	Saved,
 	Workspace,
 }
@@ -47,6 +49,7 @@ Check_Request :: struct {
 	path:       string,
 	config:     ^common.Config,
 	buffers:    []Check_Buffer,
+	sequence:   u64, // when it was queued, so the newest buffers are checked
 }
 
 Check_Buffer :: struct {
@@ -57,10 +60,16 @@ Check_Buffer :: struct {
 
 Checker :: struct {
 	allocator:              mem.Allocator,
-	send:                   chan.Chan(Check_Request, .Send),
 	odin_without_workspace: string,
 	dir:                    string, // Used by the -overlay and -exported-semantics
 	overlay:                Check_Overlay,
+
+	mutex:                  sync.Mutex,
+	cond:                   sync.Cond,
+	queue:                  [dynamic]Check_Request,
+	changed:                Maybe(Check_Request), // only the newest change matters, so it replaces the one before
+	sequence:               u64,
+	stopped:                bool,
 }
 
 Check_Overlay :: struct {
@@ -98,11 +107,28 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 		)
 	}
 
-	ok := chan.send(checker.send, Check_Request{check_mode = mode, path = path, config = config, buffers = buffers[:]})
-	if !ok {
-		log.errorf("Failed to queue check request for path %q", path)
-		delete_check_buffers(buffers[:])
+	request := Check_Request{
+		check_mode = mode,
+		path       = path,
+		config     = config,
+		buffers    = buffers[:],
 	}
+
+	sync.mutex_lock(&checker.mutex)
+	checker.sequence += 1
+	request.sequence = checker.sequence
+	if mode == .Changed {
+		if older, has_older := checker.changed.?; has_older {
+			delete(older.path, checker.allocator)
+			delete_check_buffers(older.buffers)
+		}
+		checker.changed = request
+	} else {
+		append(&checker.queue, request)
+	}
+	sync.mutex_unlock(&checker.mutex)
+
+	sync.cond_signal(&checker.cond)
 }
 
 @(private = "file")
@@ -115,7 +141,12 @@ delete_check_buffers :: proc(buffers: []Check_Buffer) {
 }
 
 stop_check_worker :: proc() {
-	chan.close(checker.send)
+	sync.mutex_lock(&checker.mutex)
+	checker.stopped = true
+	sync.mutex_unlock(&checker.mutex)
+
+	sync.cond_broadcast(&checker.cond)
+
 	if checker.dir != "" {
 		_ = os.remove_all(checker.dir)
 	}
@@ -136,65 +167,103 @@ checker_dir :: proc() -> string {
 }
 
 create_and_start_check_worker :: proc(writer: ^Writer) {
-	allocator := runtime.heap_allocator()
-	check_chan, _ := chan.create(chan.Chan(Check_Request), 8, context.allocator)
-	check_send := chan.as_send(check_chan)
 	checker = Checker {
 		allocator = runtime.heap_allocator(),
-		send      = check_send,
+		queue     = make([dynamic]Check_Request, runtime.heap_allocator()),
 	}
-	check_recv := chan.as_recv(check_chan)
-	thread.create_and_start_with_poly_data(
-		Consumer{logger = context.logger, ch = check_recv, w = writer},
-		run_check_consumer,
-	)
+	thread.create_and_start_with_poly_data(Consumer{logger = context.logger, w = writer}, run_check_consumer)
 }
 
 Consumer :: struct {
 	logger: log.Logger,
-	ch:     chan.Chan(Check_Request, .Recv),
 	w:      ^Writer,
+}
+
+@(private = "file")
+Check_Batch :: struct {
+	mode:     Check_Mode,
+	paths:    [dynamic]string,
+	buffers:  []Check_Buffer,
+	sequence: u64, // Where the request `buffers` came from
+	config:   ^common.Config,
+}
+
+@(private = "file")
+add_to_check_batch :: proc(batch: ^Check_Batch, request: Check_Request) {
+	if request.path != "" {
+		append(&batch.paths, request.path)
+	}
+	if request.sequence > batch.sequence {
+		delete_check_buffers(batch.buffers)
+		batch.buffers = request.buffers
+		batch.sequence = request.sequence
+		batch.config = request.config
+	} else {
+		delete_check_buffers(request.buffers)
+	}
+	if request.check_mode > batch.mode {
+		batch.mode = request.check_mode
+	}
 }
 
 run_check_consumer :: proc(c: Consumer) {
 	context.logger = c.logger
 	for {
-		request, ok := chan.recv(c.ch)
-		if !ok {
+		batch := Check_Batch {
+			paths = make([dynamic]string, allocator = context.temp_allocator),
+		}
+
+		sync.mutex_lock(&checker.mutex)
+		for !checker.stopped && len(checker.queue) == 0 && checker.changed == nil {
+			sync.cond_wait(&checker.cond, &checker.mutex)
+		}
+		if checker.stopped {
+			sync.mutex_unlock(&checker.mutex)
 			break
 		}
-		paths := make([dynamic]string, allocator = context.temp_allocator)
-		append(&paths, request.path)
 
-		buffers := request.buffers
-		for later in chan.try_recv(c.ch) {
-			append(&paths, later.path)
-			delete_check_buffers(buffers)
-			buffers = later.buffers
+		last_change: time.Tick
+		for {
+			for request in checker.queue {
+				add_to_check_batch(&batch, request)
+			}
+			clear(&checker.queue)
+			if changed, has_changed := checker.changed.?; has_changed {
+				add_to_check_batch(&batch, changed)
+				checker.changed = nil
+				last_change = time.tick_now()
+			}
+
+			if batch.mode != .Changed || checker.stopped {
+				break
+			}
+			remaining := time.Duration(batch.config.checker_on_change_delay) * time.Millisecond - time.tick_since(last_change)
+			if remaining <= 0 {
+				break
+			}
+			sync.cond_wait_with_timeout(&checker.cond, &checker.mutex, remaining)
 		}
+		sync.mutex_unlock(&checker.mutex)
 
-		semantics := check(request.check_mode, paths[:], buffers, request.config)
-
+		semantics := check(batch.mode, batch.paths[:], batch.buffers, batch.config)
 		push_diagnostics(c.w)
-		load_semantics(semantics, buffers)
-		for path in paths {
+		load_semantics(semantics, batch.buffers)
+		for path in batch.paths {
 			delete(path, checker.allocator)
 		}
-		delete_check_buffers(buffers)
+		delete_check_buffers(batch.buffers)
 
 		free_all(context.temp_allocator)
 	}
 	free_all(context.temp_allocator)
 }
 
-//If the user does not specify where to call odin check, it'll just find all directory with odin, and call them seperately.
 fallback_find_odin_directories :: proc(config: ^common.Config) -> []string {
 	data := make([dynamic]string, context.temp_allocator)
 
 	for workspace in config.workspace_folders {
-		if uri, ok := common.parse_uri(workspace.uri, context.temp_allocator); ok {
-			append_packages(uri.path, &data, config.checker_skip_packages, context.temp_allocator)
-		}
+		uri := common.parse_uri(workspace.uri, context.temp_allocator) or_continue
+		append_packages(uri.path, &data, config.checker_skip_packages, context.temp_allocator)
 	}
 
 	return data[:]
@@ -242,14 +311,14 @@ resolve_check_paths :: proc(mode: Check_Mode, paths: []string, config: ^common.C
 		return config.profile.checker_path[:]
 	}
 
-	if mode == .Saved || config.enable_checker_only_saved {
+	if mode != .Workspace || config.enable_checker_only_saved {
 		results := make([dynamic]string, context.temp_allocator)
 		for p in paths {
 			if p == "" {
 				continue
 			}
 			dir := path.dir(p, context.temp_allocator)
-			if dir not_in config.checker_skip_packages {
+			if dir not_in config.checker_skip_packages && !slice.contains(results[:], dir) {
 				append(&results, dir)
 			}
 		}

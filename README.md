@@ -113,6 +113,10 @@ Options:
 
 - `enable_checker_only_saved`: Turns on only calling the checker on the package being saved. _(Enabled by default)_
 
+- `enable_checker_on_change`: Turns on calling the checker on the package being edited once typing pauses for `checker_on_change_delay`, with the unsaved text of the open documents. Needs an `odin` with `-overlay`.
+
+- `checker_on_change_delay`: How long typing must pause, in milliseconds, before `enable_checker_on_change` calls the checker. _(Defaults to 400)_
+
 - `enable_checker_workspace_diagnostics`: Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.

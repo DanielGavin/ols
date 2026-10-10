@@ -436,6 +436,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_checker_workspace_diagnostics =
 		ols_config.enable_checker_workspace_diagnostics.(bool) or_else config.enable_checker_workspace_diagnostics
 
+	config.enable_checker_on_change = ols_config.enable_checker_on_change.(bool) or_else config.enable_checker_on_change
+	config.checker_on_change_delay  = ols_config.checker_on_change_delay.(int)   or_else config.checker_on_change_delay
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(ols_config.odin_command, context.temp_allocator)
 
@@ -751,6 +754,8 @@ request_initialize :: proc(
 	config.enable_procedure_snippet = true
 	config.enable_checker_only_saved = true
 	config.enable_checker_workspace_diagnostics = false
+	config.enable_checker_on_change = false
+	config.checker_on_change_delay = 400
 	config.enable_auto_import = true
 	config.enable_auto_import_skip_hidden_paths = true
 
@@ -1256,6 +1261,14 @@ notification_did_change :: proc(
 			check_unused_imports(document, config)
 		}
 		push_diagnostics(writer)
+	}
+
+	if config.enable_checker_on_change {
+		document := document_get(change_params.textDocument.uri)
+		if document != nil {
+			queue_check_request(.Changed, document.fullpath, config)
+		}
+		document_release(document)
 	}
 
 	return .None

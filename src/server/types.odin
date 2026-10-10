@@ -447,6 +447,8 @@ OlsConfig :: struct {
 	enable_procedure_snippet:                Maybe(bool),
 	enable_checker_only_saved:               Maybe(bool),
 	enable_checker_workspace_diagnostics:    Maybe(bool),
+	enable_checker_on_change:                Maybe(bool),
+	checker_on_change_delay:                 Maybe(int),
 	enable_auto_import:                      Maybe(bool),
 	enable_auto_import_skip_hidden_paths:    Maybe(bool),
 	enable_add_import_to_bottom:             Maybe(bool),
