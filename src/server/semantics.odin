@@ -285,17 +285,6 @@ semantics_entity_at :: proc(
 		chosen = e
 	}
 
-	if chosen == nil && len(idents) == 0 {
-		for &e in s.entities {
-			// TODO(bill): remove once the compiler records local variables as definitions
-			if e.offset == offset &&
-			   e.file   == file.exported.file &&
-			   is_ident_at(text, offset, e.name) {
-				chosen = &e
-				break
-			}
-		}
-	}
 	if chosen == nil {
 		return
 	}
@@ -557,24 +546,6 @@ contains_word :: proc(text, word: string) -> bool {
 	return false
 }
 
-// Whether `text` has the identifier `name` at `offset`, rather than a longer one
-@(private = "file")
-is_ident_at :: proc(text: []u8, offset: int, name: string) -> bool {
-	end := offset + len(name)
-	if offset < 0 {
-		return false
-	}
-	if len(text) < end {
-		return false
-	}
-	if string(text[offset:end]) != name {
-		return false
-	}
-	return end == len(text) || !is_ident(text[end])
-}
-
-// The ranges of `name` at the sorted `offsets`, walking `text` once.
-// An offset where the text is not `name` is skipped, such as a call through a procedure group, which records the procedure it picks.
 @(private = "file")
 semantics_ranges :: proc(text: []u8, offsets: []int, name: string, ranges: ^[dynamic]common.Range) {
 	width := common.get_character_offset_u8_to_u16(len(name), transmute([]u8)name)
@@ -583,7 +554,14 @@ semantics_ranges :: proc(text: []u8, offsets: []int, name: string, ranges: ^[dyn
 
 	at := 0
 	for offset, i in offsets {
-		if (i > 0 && offset == offsets[i - 1]) || !is_ident_at(text, offset, name) {
+		if i > 0 && offset == offsets[i - 1] {
+			continue
+		}
+		end := offset + len(name)
+		if offset < 0 || len(text) < end || string(text[offset:end]) != name {
+			continue
+		}
+		if end < len(text) && is_ident(text[end]) {
 			continue
 		}
 		for at < offset {
