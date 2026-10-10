@@ -246,8 +246,10 @@ run_check_consumer :: proc(c: Consumer) {
 		sync.mutex_unlock(&checker.mutex)
 
 		semantics := check(batch.mode, batch.paths[:], batch.buffers, batch.config)
-		push_diagnostics(c.w)
+
+		// NOTE(bill): This is loaded first as it adds the hints for the untaken branches of `when` statements
 		load_semantics(semantics, batch.buffers, batch.mode == .Workspace)
+		push_diagnostics(c.w)
 		for path in batch.paths {
 			delete(path, checker.allocator)
 		}

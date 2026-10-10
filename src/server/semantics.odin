@@ -87,8 +87,10 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 	start := time.now()
 
 	versions := make(map[string]Maybe(int), len(buffers), context.temp_allocator)
+	texts := make(map[string][]u8, len(buffers), context.temp_allocator)
 	for b in buffers {
 		versions[semantics_key(b.path)] = b.version
+		texts[semantics_key(b.path)] = b.text
 	}
 
 	loaded := 0
@@ -198,6 +200,37 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 			semantics_store.covers_workspace = true
 		}
 		sync.mutex_unlock(&semantics_store.mutex)
+
+		// fades the branches of `when` statements that were not taken, which are not checked
+		for exported in export.semantics.exported {
+			exported_path := export.semantics.files[exported.file]
+			uri := common.create_uri(exported_path, context.temp_allocator).uri
+			remove_diagnostics(.Inactive, uri)
+			if len(exported.inactive) == 0 {
+				continue
+			}
+
+			text, is_buffer := texts[semantics_key(exported_path)]
+			if !is_buffer {
+				text = os.read_entire_file(exported_path, context.temp_allocator) or_continue
+			}
+			for i := 0; i+1 < len(exported.inactive); i += 2 {
+				add_diagnostics(
+					.Inactive,
+					uri,
+					Diagnostic {
+						range = {
+							start = common.get_relative_token_position(int(exported.inactive[i]), text, 0),
+							end   = common.get_relative_token_position(int(exported.inactive[i+1]), text, 0),
+						},
+						severity = .Hint,
+						code     = "Inactive",
+						message  = "inactive `when` branch",
+						tags     = {.Unnecessary},
+					},
+				)
+			}
+		}
 
 		loaded += export.files
 		if export.files == 0 {
@@ -579,4 +612,63 @@ semantics_ranges :: proc(text: []u8, offsets: []int, name: string, ranges: ^[dyn
 		}
 		append(ranges, common.Range{start = position, end = {line = position.line, character = position.character + width}})
 	}
+}
+
+@(require_results)
+semantics_file_of :: proc(document: ^Document) -> ^Semantics_File {
+	file := &semantics_store.files[semantics_key(document.fullpath)]
+	if file == nil || !semantics_current(file, document) {
+		return nil
+	}
+	return file
+}
+
+@(require_results)
+semantics_token :: proc(file: ^Semantics_File, offset: int) -> (type: SemanticTokenTypes, modifiers: SemanticTokenModifiers, ok: bool) {
+	idents := tf.find_idents(file.exported.uses, offset)
+	if len(idents) == 0 {
+		idents = tf.find_idents(file.exported.definitions, offset)
+	}
+
+	s := &file.export.semantics
+	for x, i in idents {
+		e := &s.entities[x.entity]
+		t: SemanticTokenTypes
+		m: SemanticTokenModifiers
+		#partial switch e.kind {
+		case .Constant:
+			t, m = .Variable, {.ReadOnly}
+		case .Field:
+			t = .Property
+		case .Parameter:
+			t = .Parameter
+		case .Variable:
+			t = .Variable
+		case .Type:
+			t, m = .Type, {.ReadOnly}
+			if e.type >= 0 {
+				switch type_string := s.types[e.type]; {
+				case strings.has_prefix(type_string, "$"):
+					t = .TypeParameter
+				case strings.has_prefix(type_string, "struct"), strings.has_prefix(type_string, "bit_field"):
+					t = .Struct
+				case strings.has_prefix(type_string, "enum"), strings.has_prefix(type_string, "union"):
+					t = .Enum
+				}
+			}
+		case .Procedure, .Group:
+			t, m = .Function, {.ReadOnly}
+		case .Builtin:
+			t, m = .Function, {.ReadOnly, .DefaultLibrary}
+		case .Import, .Library:
+			t, m = .Namespace, {.ReadOnly}
+		case:
+			return {}, {}, false
+		}
+		if i > 0 && (t != type || m != modifiers) {
+			return {}, {}, false
+		}
+		type, modifiers = t, m
+	}
+	return type, modifiers, len(idents) > 0
 }
