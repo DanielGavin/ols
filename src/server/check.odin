@@ -247,7 +247,7 @@ run_check_consumer :: proc(c: Consumer) {
 
 		semantics := check(batch.mode, batch.paths[:], batch.buffers, batch.config)
 		push_diagnostics(c.w)
-		load_semantics(semantics, batch.buffers)
+		load_semantics(semantics, batch.buffers, batch.mode == .Workspace)
 		for path in batch.paths {
 			delete(path, checker.allocator)
 		}
