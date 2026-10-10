@@ -3,6 +3,7 @@ package server
 import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
+import "core:hash"
 import "core:log"
 import "core:mem"
 import "core:os"
@@ -54,18 +55,26 @@ Check_Buffer :: struct {
 }
 
 Checker :: struct {
-	allocator: mem.Allocator,
-	send:      chan.Chan(Check_Request, .Send),
+	allocator:              mem.Allocator,
+	send:                   chan.Chan(Check_Request, .Send),
+	odin_without_workspace: string,
+	overlay:                Check_Overlay,
+}
+
+Check_Overlay :: struct {
+	dir:   string,
+	files: map[string]Check_Overlay_File, // by path
+	json:  []u8,                          // as last written
+}
+
+Check_Overlay_File :: struct {
+	file:    string,
+	hash:    u64, // unchanged documents are not written again based of the text last written to `file`
+	written: bool,
 }
 
 @(private = "file")
 checker: Checker
-
-@(private = "file")
-overlay_dir: string
-
-@(private = "file")
-odin_without_workspace: string
 
 queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
 	if !config.enable_diagnostics {
@@ -105,8 +114,8 @@ delete_check_buffers :: proc(buffers: []Check_Buffer) {
 
 stop_check_worker :: proc() {
 	chan.close(checker.send)
-	if overlay_dir != "" {
-		_ = os.remove_all(overlay_dir)
+	if checker.overlay.dir != "" {
+		_ = os.remove_all(checker.overlay.dir)
 	}
 }
 
@@ -245,18 +254,18 @@ CheckProcess :: struct {
 }
 
 check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, config: ^common.Config) {
-	write_overlay :: proc(buffers: []Check_Buffer) -> string {
+	write_overlay :: proc(o: ^Check_Overlay, buffers: []Check_Buffer) -> string {
 		if len(buffers) == 0 {
 			return ""
 		}
-		if overlay_dir == "" {
+		if o.dir == "" {
 			temp, err := os.temp_directory(context.temp_allocator)
 			if err != nil {
 				log.errorf("Failed to find the temporary directory for the overlay: %v", err)
 				return ""
 			}
-			overlay_dir = fmt.aprintf("%s/ols-%d", temp, os.get_pid(), allocator = checker.allocator)
-			_ = os.make_directory(overlay_dir)
+			o.dir = fmt.aprintf("%s/ols-%d", temp, os.get_pid(), allocator = checker.allocator)
+			_ = os.make_directory(o.dir)
 		}
 
 		Overlay :: struct {
@@ -265,24 +274,41 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 		overlay := Overlay {
 			replace = make(map[string]string, len(buffers), context.temp_allocator),
 		}
-		for b, i in buffers {
-			file := fmt.tprintf("%s/%d.odin", overlay_dir, i)
-			if err := os.write_entire_file(file, b.text); err != nil {
-				log.errorf("Failed to write the overlay file %q: %v", file, err)
-				return ""
+		if o.files == nil {
+			o.files = make(map[string]Check_Overlay_File, 16, checker.allocator)
+		}
+		for b in buffers {
+			entry := &o.files[b.path]
+			if entry == nil {
+				path := strings.clone(b.path, checker.allocator)
+				o.files[path] = {file = fmt.aprintf("%s/%d.odin", o.dir, len(o.files), allocator = checker.allocator)}
+				entry = &o.files[path]
 			}
-			overlay.replace[b.path] = file
+			h := hash.fnv64a(b.text)
+			if !entry.written || entry.hash != h {
+				if err := os.write_entire_file(entry.file, b.text); err != nil {
+					log.errorf("Failed to write the overlay file %q: %v", entry.file, err)
+					return ""
+				}
+				entry.hash = h
+				entry.written = true
+			}
+			overlay.replace[b.path] = entry.file
 		}
 
-		data, err := json.marshal(overlay, allocator = context.temp_allocator)
+		data, err := json.marshal(overlay, {sort_maps_by_key = true}, context.temp_allocator)
 		if err != nil {
 			log.errorf("Failed to make the overlay: %v", err)
 			return ""
 		}
-		path := fmt.tprintf("%s/overlay.json", overlay_dir)
-		if err := os.write_entire_file(path, data); err != nil {
-			log.errorf("Failed to write the overlay %q: %v", path, err)
-			return ""
+		path := fmt.tprintf("%s/overlay.json", o.dir)
+		if !slice.equal(data, o.json) {
+			if err := os.write_entire_file(path, data); err != nil {
+				log.errorf("Failed to write the overlay %q: %v", path, err)
+				return ""
+			}
+			delete(o.json, checker.allocator)
+			o.json = slice.clone(data, checker.allocator)
 		}
 		return path
 	}
@@ -311,9 +337,9 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	jobs := make([dynamic][]string, 0, len(paths), context.temp_allocator)
 	overlay := ""
-	use_workspace := command != odin_without_workspace
+	use_workspace := command != checker.odin_without_workspace
 	if use_workspace {
-		overlay = write_overlay(buffers)
+		overlay = write_overlay(&checker.overlay, buffers)
 
 		// NOTE(bill): This is here just to keep the command line well within Windows' limit of 32767 characters
 		MAX_WORKSPACE_PATHS_LEN :: 16384
@@ -443,8 +469,8 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	if lacks_workspace {
 		log.infof("`%s` has no `-workspace` or `-overlay`, so packages are checked one at a time from disk", command)
-		delete(odin_without_workspace, checker.allocator)
-		odin_without_workspace = strings.clone(command, checker.allocator)
+		delete(checker.odin_without_workspace, checker.allocator)
+		checker.odin_without_workspace = strings.clone(command, checker.allocator)
 		check(mode, check_paths, buffers, config)
 		return
 	}
