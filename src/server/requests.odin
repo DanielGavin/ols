@@ -1222,6 +1222,21 @@ notification_did_open :: proc(
 	document := document_get(open_params.textDocument.uri)
 	if document != nil {
 		document.version = open_params.textDocument.version
+
+		// a workspace file is checked when opened, so the compiler's semantics are there before the first save
+		sync.mutex_lock(&semantics_store.mutex)
+		checked := semantics_file_of(document) != nil
+		sync.mutex_unlock(&semantics_store.mutex)
+		if !checked && !config.enable_checker_workspace_diagnostics {
+			key := semantics_key(document.fullpath)
+			for workspace in config.workspace_folders {
+				uri := common.parse_uri(workspace.uri, context.temp_allocator) or_continue
+				if strings.has_prefix(key, fmt.tprintf("%s/", strings.trim_right(semantics_key(uri.path), "/"))) {
+					queue_check_request(.Saved, document.fullpath, config)
+					break
+				}
+			}
+		}
 	}
 
 	check_unused_imports(document, config)
