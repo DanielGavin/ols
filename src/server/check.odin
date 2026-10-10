@@ -61,6 +61,12 @@ Checker :: struct {
 @(private = "file")
 checker: Checker
 
+@(private = "file")
+overlay_dir: string
+
+@(private = "file")
+odin_without_workspace: string
+
 queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Config) {
 	if !config.enable_diagnostics {
 		return
@@ -96,9 +102,6 @@ delete_check_buffers :: proc(buffers: []Check_Buffer) {
 	}
 	delete(buffers, checker.allocator)
 }
-
-@(private = "file")
-overlay_dir: string
 
 stop_check_worker :: proc() {
 	chan.close(checker.send)
@@ -308,7 +311,8 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	jobs := make([dynamic][]string, 0, len(paths), context.temp_allocator)
 	overlay := ""
-	if odin_supports_workspace(command) {
+	use_workspace := command != odin_without_workspace
+	if use_workspace {
 		overlay = write_overlay(buffers)
 
 		// NOTE(bill): This is here just to keep the command line well within Windows' limit of 32767 characters
@@ -342,6 +346,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 	processes := make([dynamic]CheckProcess, 0, len(jobs))
 
 	errors := make([dynamic]Json_Errors, 0, len(jobs), context.temp_allocator)
+	lacks_workspace := false
 
 	next_index := 0
 	running_count := 0
@@ -406,6 +411,12 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 			os.close(p.reader)
 			p.reader = nil
 
+			output := string(p.buffer[:])
+			if use_workspace && (strings.contains(output, "Unknown flag: 'workspace'") || strings.contains(output, "Unknown flag: 'overlay'")) {
+				lacks_workspace = true
+				continue
+			}
+
 			if len(p.buffer) > 0 {
 				json_errors: Json_Errors
 				if res := json.unmarshal(
@@ -428,6 +439,14 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 
 	for p in processes {
 		os.close(p.reader)
+	}
+
+	if lacks_workspace {
+		log.infof("`%s` has no `-workspace` or `-overlay`, so packages are checked one at a time from disk", command)
+		delete(odin_without_workspace, checker.allocator)
+		odin_without_workspace = strings.clone(command, checker.allocator)
+		check(mode, check_paths, buffers, config)
+		return
 	}
 
 	DiagnosticKey :: struct {
@@ -557,26 +576,4 @@ start_check_process :: proc(
 
 	buffer := make([dynamic]u8, 0, mem.Kilobyte * 200, context.temp_allocator)
 	return CheckProcess{process = p, reader = r, buffer = buffer}, true
-}
-
-@(private = "file")
-odin_supports_workspace :: proc(command: string) -> bool {
-	@(static) checked_command: string
-	@(static) supported: bool
-	if checked_command != command {
-		delete(checked_command, checker.allocator)
-
-		checked_command = strings.clone(command, checker.allocator)
-
-		_, stdout, stderr, err := os.process_exec({command = {command, "check", "-help"}}, context.temp_allocator)
-
-		help := strings.concatenate({string(stdout), string(stderr)}, context.temp_allocator)
-
-		supported = err == nil &&
-			strings.contains(help, "\t-workspace") &&
-			strings.contains(help, "\t-overlay:")
-
-		log.infof("`%s` supports `-workspace` and `-overlay`: %v", command, supported)
-	}
-	return supported
 }
