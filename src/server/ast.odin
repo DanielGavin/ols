@@ -979,6 +979,38 @@ free_ast_node :: proc(node: ^ast.Node, allocator: mem.Allocator) {
 		free_ast(n.expr, allocator)
 		free_ast(n.row_index, allocator)
 		free_ast(n.column_index, allocator)
+	case ^ast.Asm_Instruction:
+		free_ast(n.name, allocator)
+		free_ast(n.operands, allocator)
+	case ^ast.Asm_Template:
+		free_ast(n.type, allocator)
+		free_ast(n.specs, allocator)
+		free_ast(n.instructions, allocator)
+		free_ast(n.clobbers, allocator)
+	case ^ast.Asm_Spec:
+		free_ast(n.name, allocator)
+		free_ast(n.tied_name, allocator)
+		free_ast(n.type, allocator)
+		free_ast(n.value, allocator)
+		free_ast(n.directives, allocator)
+	case ^ast.Asm_Clobber:
+		free_ast(n.value, allocator)
+	case ^ast.Asm_Register:
+	case ^ast.Asm_Label:
+	case ^ast.Asm_Label_Decl:
+		free_ast(n.label, allocator)
+	case ^ast.Asm_Memory_Operand:
+		free_ast(n.segment_override, allocator)
+		free_ast(n.base, allocator)
+		free_ast(n.index, allocator)
+		free_ast(n.scale, allocator)
+		free_ast(n.disp, allocator)
+		free_ast(n.type, allocator)
+	case ^ast.Asm_Register_Group:
+		free_ast(n.registers, allocator)
+		free_ast(n.type, allocator)
+	case ^ast.Asm_Directive:
+		free_ast(n.operands, allocator)
 	case:
 		panic(fmt.aprintf("free Unhandled node kind: %v", node.derived))
 	}

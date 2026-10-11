@@ -97,13 +97,13 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 	res_ptr_any.id = ti.id
 
 	if unique_strings != nil && node.pos.file != "" {
-		res.pos.file = get_index_unique_string(unique_strings, allocator, node.pos.file)
+		res.pos.file = clone_string(node.pos.file, allocator, unique_strings)
 	} else {
 		res.pos.file = node.pos.file
 	}
 
 	if unique_strings != nil && node.end.file != "" {
-		res.end.file = get_index_unique_string(unique_strings, allocator, node.end.file)
+		res.end.file = clone_string(node.end.file, allocator, unique_strings)
 	} else {
 		res.end.file = node.end.file
 	}
@@ -123,57 +123,26 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 
 	if res.derived != nil do #partial switch r in res.derived {
 	case ^ast.Ident:
-		n := node.derived.(^ast.Ident)
-
-		if unique_strings == nil {
-			r.name = strings.clone(n.name, allocator)
-		} else {
-			r.name = get_index_unique_string(unique_strings, allocator, n.name)
-		}
+		r.name = clone_string(r.name, allocator, unique_strings)
 	case ^ast.Implicit:
-		n := node.derived.(^ast.Implicit)
-		if unique_strings == nil {
-			r.tok.text = strings.clone(n.tok.text, allocator)
-		} else {
-			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
-		}
+		r.tok.text = clone_string(r.tok.text, allocator, unique_strings)
 	case ^ast.Undef:
 	case ^ast.Basic_Lit:
-		n := node.derived.(^ast.Basic_Lit)
-		if unique_strings == nil {
-			r.tok.text = strings.clone(n.tok.text, allocator)
-		} else {
-			r.tok.text = get_index_unique_string(unique_strings, allocator, n.tok.text)
-		}
+		r.tok.text = clone_string(r.tok.text, allocator, unique_strings)
 	case ^ast.Basic_Directive:
-		n := node.derived.(^ast.Basic_Directive)
-		if unique_strings == nil {
-			r.name = strings.clone(n.name, allocator)
-		} else {
-			r.name = get_index_unique_string(unique_strings, allocator, n.name)
-		}
+		r.name = clone_string(r.name, allocator, unique_strings)
 	case ^ast.Ellipsis:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 	case ^ast.Tag_Expr:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 	case ^ast.Unary_Expr:
-		n := node.derived.(^ast.Unary_Expr)
 		r.expr = clone_type(r.expr, allocator, unique_strings)
-		if unique_strings == nil {
-			r.op.text = strings.clone(n.op.text, allocator)
-		} else {
-			r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
-		}
+		r.op.text = clone_string(r.op.text, allocator, unique_strings)
 	case ^ast.Binary_Expr:
-		n := node.derived.(^ast.Binary_Expr)
 		r.left = clone_type(r.left, allocator, unique_strings)
 		r.right = clone_type(r.right, allocator, unique_strings)
 		//Todo: Replace this with some constant table for opeator text
-		if unique_strings == nil {
-			r.op.text = strings.clone(n.op.text, allocator)
-		} else {
-			r.op.text = get_index_unique_string(unique_strings, allocator, n.op.text)
-		}
+		r.op.text = clone_string(r.op.text, allocator, unique_strings)
 	case ^ast.Paren_Expr:
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 	case ^ast.Selector_Expr:
@@ -306,8 +275,9 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.label = clone_type(r.label, allocator, unique_strings)
 	case ^ast.Comment_Group:
 		list := make([dynamic]tokenizer.Token, 0, len(r.list), allocator)
+		// Comment strings are freed individually, so they must not be interned.
 		for t in r.list {
-			append(&list, tokenizer.Token{text = strings.clone(t.text, allocator), kind = t.kind, pos = tokenizer.Pos{file = strings.clone(t.pos.file, allocator), offset = t.pos.offset, line = t.pos.line, column = t.pos.column}})
+			append(&list, tokenizer.Token{text = clone_string(t.text, allocator, nil), kind = t.kind, pos = tokenizer.Pos{file = clone_string(t.pos.file, allocator, nil), offset = t.pos.offset, line = t.pos.line, column = t.pos.column}})
 		}
 		r.list = list[:]
 	case ^ast.Auto_Cast:
@@ -318,10 +288,54 @@ clone_node :: proc(node: ^ast.Node, allocator: mem.Allocator, unique_strings: ^m
 		r.expr = clone_type(r.expr, allocator, unique_strings)
 		r.row_index = clone_type(r.row_index, allocator, unique_strings)
 		r.column_index = clone_type(r.column_index, allocator, unique_strings)
+	case ^ast.Asm_Template:
+		r.type = auto_cast clone_type(r.type, allocator, unique_strings)
+		r.specs = clone_type(r.specs, allocator, unique_strings)
+		r.clobbers = clone_type(r.clobbers, allocator, unique_strings)
+		r.instructions = clone_type(r.instructions, allocator, unique_strings)
+	case ^ast.Asm_Spec:
+		r.name = auto_cast clone_type(r.name, allocator, unique_strings)
+		r.tied_name = auto_cast clone_type(r.tied_name, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+		r.value = clone_type(r.value, allocator, unique_strings)
+		r.directives = clone_type(r.directives, allocator, unique_strings)
+	case ^ast.Asm_Register:
+		r.name = clone_string(r.name, allocator, unique_strings)
+		r.flag = clone_string(r.flag, allocator, unique_strings)
+	case ^ast.Asm_Clobber:
+		r.name = clone_string(r.name, allocator, unique_strings)
+		r.value = clone_type(r.value, allocator, unique_strings)
+	case ^ast.Asm_Label:
+		r.name = clone_string(r.name, allocator, unique_strings)
+	case ^ast.Asm_Label_Decl:
+		r.label = auto_cast clone_type(r.label, allocator, unique_strings)
+	case ^ast.Asm_Instruction:
+		r.name = auto_cast clone_type(r.name, allocator, unique_strings)
+		r.operands = clone_type(r.operands, allocator, unique_strings)
+	case ^ast.Asm_Memory_Operand:
+		r.segment_override = clone_type(r.segment_override, allocator, unique_strings)
+		r.base = clone_type(r.base, allocator, unique_strings)
+		r.index = clone_type(r.index, allocator, unique_strings)
+		r.scale = clone_type(r.scale, allocator, unique_strings)
+		r.disp = clone_type(r.disp, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^ast.Asm_Register_Group:
+		r.registers = clone_type(r.registers, allocator, unique_strings)
+		r.type = clone_type(r.type, allocator, unique_strings)
+	case ^ast.Asm_Directive:
+		r.name = clone_string(r.name, allocator, unique_strings)
+		r.operands = clone_type(r.operands, allocator, unique_strings)
 	case:
 	}
 
 	return res
+}
+
+clone_string :: proc(s: string, allocator: mem.Allocator, unique_strings: ^map[string]string) -> string {
+	if unique_strings != nil {
+		return get_index_unique_string(unique_strings, allocator, s)
+	}
+	return strings.clone(s, allocator)
 }
 
 clone_comment_group :: proc(
@@ -341,10 +355,7 @@ clone_calling_convention :: proc(
 
 	switch v in cc {
 	case string:
-		if unique_strings != nil {
-			return get_index_unique_string(unique_strings, allocator, v)
-		}
-		return strings.clone(v, allocator)
+		return clone_string(v, allocator, unique_strings)
 	case ast.Proc_Calling_Convention_Extra:
 		return v
 	}
