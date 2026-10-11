@@ -117,6 +117,8 @@ Options:
 
 - `checker_on_change_delay`: How long typing must pause, in milliseconds, before `enable_checker_on_change` calls the checker. _(Defaults to 400)_
 
+- `enable_fade_untaken_when_branches`: Fades the branches of `when` statements that the checker did not take. Needs an `odin` with `-export-semantics`. _(Enabled by default)_
+
 - `enable_checker_workspace_diagnostics`: Turns on running all workspace diagnostics using odin check. This is currently experimental and may cause problems. A better option is using the `checker_path` feature to explicity tell `ols` the projects that it should check. (experimental).
 
 - `enable_auto_import`: Automatically import packages that aren't in your import on completion.

@@ -209,7 +209,7 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 			exported_path := export.semantics.files[exported.file]
 			uri := common.create_uri(exported_path, context.temp_allocator).uri
 			remove_diagnostics(.Inactive, uri)
-			if len(exported.inactive) == 0 {
+			if len(exported.inactive) == 0 || !common.config.enable_fade_untaken_when_branches {
 				continue
 			}
 

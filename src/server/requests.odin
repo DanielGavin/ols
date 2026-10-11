@@ -443,6 +443,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 	config.enable_checker_on_change = ols_config.enable_checker_on_change.(bool) or_else config.enable_checker_on_change
 	config.checker_on_change_delay  = ols_config.checker_on_change_delay.(int)   or_else config.checker_on_change_delay
 
+	config.enable_fade_untaken_when_branches =
+		ols_config.enable_fade_untaken_when_branches.(bool) or_else config.enable_fade_untaken_when_branches
+
 	if ols_config.odin_command != "" {
 		config.odin_command = strings.clone(ols_config.odin_command, context.temp_allocator)
 
@@ -760,6 +763,7 @@ request_initialize :: proc(
 	config.enable_checker_workspace_diagnostics = false
 	config.enable_checker_on_change = false
 	config.checker_on_change_delay = 400
+	config.enable_fade_untaken_when_branches = true
 	config.enable_auto_import = true
 	config.enable_auto_import_skip_hidden_paths = true
 
