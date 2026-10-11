@@ -3396,7 +3396,7 @@ resolve_implicit_selector_comp_literal :: proc(
 		case SymbolMapValue:
 			for elem in comp_lit.elems {
 				if position_in_node(elem, position_context.position) {
-					if _, ok := elem.derived.(^ast.Field_Value); ok {
+					if field, ok := elem.derived.(^ast.Field_Value); ok && !position_in_node(field.field, position_context.position) {
 						return resolve_type_expression(ast_context, v.value)
 					}
 					return resolve_type_expression(ast_context, v.key)
