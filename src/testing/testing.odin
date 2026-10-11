@@ -33,6 +33,9 @@ Source :: struct {
 	config:      common.Config,
 }
 
+@(thread_local)
+test_config: common.Config
+
 @(private)
 setup :: proc(src: ^Source) {
 	spall.thread_begin()
@@ -89,11 +92,12 @@ setup :: proc(src: ^Source) {
 	defer delete(builtin_path)
 
 	// Set the collection's config to the test's config to enable feature flags like enable_fake_method
-	server.indexer.index.collection.config = &src.config
+	test_config = src.config
+	server.indexer.index.collection.config = &test_config
 
 	server.document_setup(src.document)
 
-	server.document_refresh(src.document, &src.config, nil)
+	server.document_refresh(src.document, &test_config, nil)
 
 	context.allocator = virtual.arena_allocator(src.document.allocator)
 
@@ -167,6 +171,7 @@ teardown :: proc(src: ^Source) {
 	server.free_index()
 	server.indexer.index = {}
 	server.build_cache.pkg_aliases = {}
+	test_config = {}
 
 	delete(src.config.collections)
 	delete(src.collections)
@@ -231,7 +236,7 @@ expect_signature_labels :: proc(
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, cursor, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &test_config)
 
 	if !ok {
 		log.error("Failed get_signature_information")
@@ -274,7 +279,8 @@ expect_signature_parameter_position :: proc(t: ^testing.T, src: ^Source, positio
 	setup(src)
 	defer teardown(src)
 
-	help, ok := server.get_signature_information(src.document, cursor, &src.config)
+	help, ok := server.get_signature_information(src.document, cursor, &test_config)
+	_ = ok
 
 	if help.activeParameter != position {
 		log.errorf("expected parameter position %v, but received %v", position, help.activeParameter)
@@ -299,7 +305,7 @@ expect_completion_labels :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -372,7 +378,7 @@ expect_completion_label_order :: proc(
 	completion_context := server.CompletionContext {
 		triggerCharacter = trigger_character,
 	}
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 	if !ok {
 		log.error("Failed get_completion_list")
 	}
@@ -426,7 +432,7 @@ expect_completion_docs :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -478,7 +484,7 @@ expect_completion_insert_text :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -524,7 +530,7 @@ expect_completion_edit_text :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 
 	if !ok {
 		log.error("Failed get_completion_list")
@@ -571,7 +577,7 @@ expect_completion_edits :: proc(
 		triggerCharacter = trigger_character,
 	}
 
-	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &src.config)
+	completion_list, ok := server.get_completion_list(src.document, cursor, completion_context, &test_config)
 	if !ok {
 		log.error("Failed get_completion_list")
 		return
@@ -597,7 +603,7 @@ expect_hover :: proc(t: ^testing.T, src: ^Source, expect_hover_string: string) {
 	setup(src)
 	defer teardown(src)
 
-	hover, valid, ok := server.get_hover_information(src.document, cursor, &src.config)
+	hover, valid, ok := server.get_hover_information(src.document, cursor, &test_config)
 
 	if !ok {
 		log.error(t, "Failed get_hover_information")
@@ -625,7 +631,7 @@ expect_hover_contains :: proc(t: ^testing.T, src: ^Source, expect_substring: str
 	setup(src)
 	defer teardown(src)
 
-	hover, valid, ok := server.get_hover_information(src.document, cursor, &src.config)
+	hover, valid, ok := server.get_hover_information(src.document, cursor, &test_config)
 
 	if !ok || !valid {
 		log.error(t, "Failed get_hover_information")
@@ -645,7 +651,7 @@ expect_definition_locations :: proc(t: ^testing.T, src: ^Source, expect_location
 	setup(src)
 	defer teardown(src)
 
-	locations, ok := server.get_definition_location(src.document, cursor, &src.config)
+	locations, ok := server.get_definition_location(src.document, cursor, &test_config)
 	if !ok && len(expect_locations) > 0 {
 		log.error("No definitions found.")
 		return
@@ -834,7 +840,7 @@ expect_action :: proc(t: ^testing.T, src: ^Source, expect_action_names: []string
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &test_config)
 	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
@@ -870,7 +876,7 @@ expect_action_with_edit :: proc(t: ^testing.T, src: ^Source, action_name: string
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, {}, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, {}, input_range, &test_config)
 	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
@@ -923,7 +929,7 @@ expect_action_applied :: proc(
 	defer teardown(src)
 
 	input_range := common.Range{cursor, cursor}
-	actions, ok := server.get_code_actions(src.document, ctx, input_range, &src.config)
+	actions, ok := server.get_code_actions(src.document, ctx, input_range, &test_config)
 	defer delete(actions)
 	if !ok {
 		log.error("Failed to find actions")
@@ -1149,7 +1155,7 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 	range := common.Range {
 		end = {line = 9000000},
 	} //should be enough
-	hints, hints_ok := server.get_inlay_hints(src.document, range, symbols_and_nodes, &src.config)
+	hints, hints_ok := server.get_inlay_hints(src.document, range, symbols_and_nodes, &test_config)
 	if !hints_ok {
 		log.error("Failed get_inlay_hints")
 		return

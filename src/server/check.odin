@@ -47,7 +47,6 @@ Check_Mode :: enum {
 Check_Request :: struct {
 	check_mode: Check_Mode,
 	path:       string,
-	config:     ^common.Config,
 	buffers:    []Check_Buffer,
 	sequence:   u64, // when it was queued, so the newest buffers are checked
 }
@@ -110,7 +109,6 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 	request := Check_Request{
 		check_mode = mode,
 		path       = path,
-		config     = config,
 		buffers    = buffers[:],
 	}
 
@@ -185,7 +183,6 @@ Check_Batch :: struct {
 	paths:    [dynamic]string,
 	buffers:  []Check_Buffer,
 	sequence: u64, // Where the request `buffers` came from
-	config:   ^common.Config,
 }
 
 @(private = "file")
@@ -197,7 +194,6 @@ add_to_check_batch :: proc(batch: ^Check_Batch, request: Check_Request) {
 		delete_check_buffers(batch.buffers)
 		batch.buffers = request.buffers
 		batch.sequence = request.sequence
-		batch.config = request.config
 	} else {
 		delete_check_buffers(request.buffers)
 	}
@@ -237,7 +233,7 @@ run_check_consumer :: proc(c: Consumer) {
 			if batch.mode != .Changed || checker.stopped {
 				break
 			}
-			remaining := time.Duration(batch.config.checker_on_change_delay) * time.Millisecond - time.tick_since(last_change)
+			remaining := time.Duration(common.config.checker_on_change_delay) * time.Millisecond - time.tick_since(last_change)
 			if remaining <= 0 {
 				break
 			}
@@ -245,7 +241,7 @@ run_check_consumer :: proc(c: Consumer) {
 		}
 		sync.mutex_unlock(&checker.mutex)
 
-		semantics := check(batch.mode, batch.paths[:], batch.buffers, batch.config)
+		semantics := check(batch.mode, batch.paths[:], batch.buffers, &common.config)
 
 		// NOTE(bill): This is loaded first as it adds the hints for the untaken branches of `when` statements
 		load_semantics(semantics, batch.buffers, batch.mode == .Workspace)
