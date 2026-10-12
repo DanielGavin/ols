@@ -420,6 +420,10 @@ get_references :: proc(
 	[]common.Location,
 	bool,
 ) {
+	if locations, ok := semantics_references(document, position, current_file_only, include_declaration); ok {
+		return locations, true
+	}
+
 	ast_context := make_ast_context(
 		document.ast,
 		document.imports,

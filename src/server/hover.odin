@@ -54,6 +54,25 @@ get_hover_information :: proc(
 	bool,
 	bool,
 ) {
+	hover, valid, ok := resolve_hover_information(document, position, config)
+	if valid {
+		return hover, valid, ok
+	}
+	if entity, start, found := semantics_entity_at(document, position); found {
+		return semantics_hover(document, entity, start, config), true, true
+	}
+	return hover, valid, ok
+}
+
+resolve_hover_information :: proc(
+	document: ^Document,
+	position: common.Position,
+	config: ^common.Config,
+) -> (
+	Hover,
+	bool,
+	bool,
+) {
 	spall.trace(#procedure, document.fullpath)
 
 	hover := Hover {

@@ -8,6 +8,7 @@ package server
 
 import "core:odin/ast"
 import "core:odin/tokenizer"
+import "core:sync"
 import "core:unicode/utf8"
 
 import "src:common"
@@ -120,6 +121,7 @@ SemanticTokenBuilder :: struct {
 	tokens:        [dynamic]SemanticToken,
 	symbols:       SymbolAndNodeMap,
 	src:           string,
+	semantics:     ^Semantics_File,
 }
 
 semantic_tokens_to_response_params :: proc(tokens: []SemanticToken) -> SemanticTokensResponseParams {
@@ -147,6 +149,9 @@ get_semantic_tokens :: proc(
 		symbols = symbols,
 		src     = ast_context.file.src,
 	}
+
+	sync.mutex_guard(&semantics_store.mutex)
+	builder.semantics = semantics_file_of(document)
 
 	margin := 20
 
@@ -576,6 +581,11 @@ visit_ident :: proc(
 ) {
 	symbol_and_node, in_symbols := builder.symbols[cast(uintptr)symbol_ptr]
 	if !in_symbols {
+		if builder.semantics != nil {
+			if type, semantic_modifiers, ok := semantics_token(builder.semantics, ident.pos.offset); ok {
+				write_semantic_node(builder, ident, type, modifiers + semantic_modifiers)
+			}
+		}
 		return
 	}
 	symbol := symbol_and_node.symbol

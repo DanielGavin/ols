@@ -9,27 +9,31 @@ import "core:strings"
 import "src:common"
 
 get_rename :: proc(document: ^Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
-	ast_context := make_ast_context(
-		document.ast,
-		document.imports,
-		document.package_name,
-		document.uri.uri,
-		document.fullpath,
-		context.temp_allocator,
-	)
+	locations, found := semantics_references(document, position, current_file_only = false, include_declaration = true)
+	if !found {
+		ast_context := make_ast_context(
+			document.ast,
+			document.imports,
+			document.package_name,
+			document.uri.uri,
+			document.fullpath,
+			context.temp_allocator,
+		)
 
-	position_context, ok := get_document_position_context(document, position, .Hover)
-	if !ok {
-		log.warn("Failed to get position context")
-		return {}, false
+		position_context, ok := get_document_position_context(document, position, .Hover)
+		if !ok {
+			log.warn("Failed to get position context")
+			return {}, false
+		}
+
+		ast_context.position_hint = position_context.hint
+		ast_context.current_package = ast_context.document_package
+
+		get_globals(document.ast, &ast_context)
+		get_locals(&ast_context, &position_context)
+
+		locations, _ = resolve_references(document, &ast_context, &position_context)
 	}
-	ast_context.position_hint = position_context.hint
-	ast_context.current_package = ast_context.document_package
-
-	get_globals(document.ast, &ast_context)
-	get_locals(&ast_context, &position_context)
-
-	locations, ok2 := resolve_references(document, &ast_context, &position_context)
 
 	changes := make(map[string][dynamic]TextEdit, 0, context.temp_allocator)
 
