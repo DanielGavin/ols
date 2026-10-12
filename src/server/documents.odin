@@ -48,6 +48,7 @@ Document :: struct {
 	symbol_cache_arena: ^virtual.Arena, // Separate so invalidation can reclaim caches without discarding the AST
 	operating_on:       int, //atomic
 	version:            Maybe(int),
+	session:            u64, // used to identify stale documents after re-opening.
 	symbols:            Maybe(SymbolAndNodeMap), // Cache resolved symbols for open documents, cleared on change
 }
 
@@ -55,6 +56,7 @@ Document :: struct {
 DocumentStorage :: struct {
 	documents:       map[string]Document,
 	free_allocators: [dynamic]^virtual.Arena,
+	next_session:    u64,
 }
 
 document_storage: DocumentStorage
@@ -174,6 +176,9 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 
 		document.uri = uri
 		document.client_owned = true
+		document.version = nil
+		document_storage.next_session += 1
+		document.session = document_storage.next_session
 		document.text = transmute([]u8)text
 		document.used_text = len(document.text)
 		document.allocator = document_get_new_allocator()
@@ -185,10 +190,12 @@ document_open :: proc(uri_string: string, text: string, config: ^common.Config, 
 			return err
 		}
 	} else {
+		document_storage.next_session += 1
 		document := Document {
 			uri                = uri,
 			text               = transmute([]u8)text,
 			client_owned       = true,
+			session            = document_storage.next_session,
 			used_text          = len(text),
 			allocator          = document_get_new_allocator(),
 			symbol_cache_arena = document_get_new_symbol_cache_arena(),

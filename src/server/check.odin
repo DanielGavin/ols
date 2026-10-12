@@ -55,6 +55,7 @@ Check_Buffer :: struct {
 	path:    string,
 	text:    []u8,
 	version: Maybe(int),
+	session: u64,
 }
 
 Checker :: struct {
@@ -102,6 +103,7 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 				path    = strings.clone(document.fullpath, checker.allocator),
 				text    = slice.clone(document.text[:document.used_text], checker.allocator),
 				version = document.version,
+				session = document.session,
 			},
 		)
 	}

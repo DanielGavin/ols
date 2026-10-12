@@ -1237,7 +1237,7 @@ notification_did_open :: proc(
 		sync.mutex_lock(&semantics_store.mutex)
 		checked := semantics_file_of(document) != nil
 		sync.mutex_unlock(&semantics_store.mutex)
-		if !checked && !config.enable_checker_workspace_diagnostics {
+		if !checked {
 			key := semantics_key(document.fullpath)
 			for workspace in config.workspace_folders {
 				uri := common.parse_uri(workspace.uri, context.temp_allocator) or_continue
