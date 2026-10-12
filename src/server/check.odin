@@ -244,7 +244,9 @@ run_check_consumer :: proc(c: Consumer) {
 		semantics := check(batch.mode, batch.paths[:], batch.buffers, &common.config)
 
 		// NOTE(bill): This is loaded first as it adds the hints for the untaken branches of `when` statements
-		load_semantics(semantics, batch.buffers, batch.mode == .Workspace)
+		if common.config.enable_compiler_semantics {
+			load_semantics(semantics, batch.buffers, batch.mode == .Workspace)
+		}
 		push_diagnostics(c.w)
 		for path in batch.paths {
 			delete(path, checker.allocator)
@@ -287,7 +289,11 @@ check_unused_imports :: proc(document: ^Document, config: ^common.Config, semant
 		return
 	}
 
-	unused_imports, found := semantics_unused_imports(document)
+	unused_imports: []Package
+	found := false
+	if config.enable_compiler_semantics {
+		unused_imports, found = semantics_unused_imports(document)
+	}
 	if !found {
 		if semantics_only {
 			return
@@ -465,7 +471,7 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 	for running_count > 0 || next_index < len(jobs) {
 		for running_count < max_concurrent_checks && next_index < len(jobs) {
 			semantics_file := ""
-			if use_workspace && checker_dir() != "" {
+			if config.enable_compiler_semantics && use_workspace && checker_dir() != "" {
 				semantics_file = fmt.tprintf("%s/semantics-%d.cbor", checker_dir(), next_index)
 				_ = os.remove(semantics_file)
 			}

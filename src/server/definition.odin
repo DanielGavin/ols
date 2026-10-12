@@ -38,10 +38,12 @@ get_all_package_file_locations :: proc(
 }
 
 get_definition_location :: proc(document: ^Document, position: common.Position, config: ^common.Config) -> ([]common.Location, bool) {
-	if location, ok := semantics_definition(document, position); ok {
-		locations := make([]common.Location, 1, context.temp_allocator)
-		locations[0] = location
-		return locations, true
+	if config.enable_compiler_semantics {
+		if location, ok := semantics_definition(document, position); ok {
+			locations := make([]common.Location, 1, context.temp_allocator)
+			locations[0] = location
+			return locations, true
+		}
 	}
 	return resolve_definition_location(document, position, config)
 }

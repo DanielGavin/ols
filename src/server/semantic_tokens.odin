@@ -151,7 +151,9 @@ get_semantic_tokens :: proc(
 	}
 
 	sync.mutex_guard(&semantics_store.mutex)
-	builder.semantics = semantics_file_of(document)
+	if common.config.enable_compiler_semantics {
+		builder.semantics = semantics_file_of(document)
+	}
 
 	margin := 20
 

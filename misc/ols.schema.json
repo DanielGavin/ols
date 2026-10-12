@@ -19,17 +19,25 @@
 			"type": "boolean",
 			"description": "Turns on only calling the checker on the package being saved."
 		},
+		"enable_compiler_semantics": {
+			"type": "boolean",
+			"description": "Enables compiler semantics for reporting type information. This is currently experimental and under active development. Needs an `odin` with `-export-semantics`.",
+			"default": false
+		},
 		"enable_checker_on_change": {
 			"type": "boolean",
-			"description": "Turns on calling the checker on the package being edited once typing pauses for `checker_on_change_delay`, with the unsaved text of the open documents. Needs an `odin` with `-overlay`."
+			"description": "Turns on calling the checker on the package being edited once typing pauses for `checker_on_change_delay`, with the unsaved text of the open documents. Needs an `odin` with `-overlay`.",
+			"default": false
 		},
 		"checker_on_change_delay": {
 			"type": "integer",
-			"description": "How long typing must pause, in milliseconds, before `enable_checker_on_change` calls the checker. Defaults to 400."
+			"description": "How long typing must pause, in milliseconds, before `enable_checker_on_change` calls the checker. Defaults to 400.",
+			"default": 400
 		},
 		"enable_fade_untaken_when_branches": {
 			"type": "boolean",
-			"description": "Fades the branches of `when` statements that the checker did not take. Needs an `odin` with `-export-semantics`. Defaults to true."
+			"description": "Fades the branches of `when` statements that the checker did not take. Requires `enable_compiler_semantics` and an `odin` with `-export-semantics`. Defaults to true.",
+			"default": true
 		},
 		"enable_checker_workspace_diagnostics": {
 			"type": "boolean",

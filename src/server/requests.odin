@@ -285,7 +285,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 	temp_requests := make([dynamic]Request, 0, context.allocator)
 	defer delete(temp_requests)
 
-	if sync.atomic_exchange(&semantics_store.refresh, false) {
+	if sync.atomic_exchange(&semantics_store.refresh, false) && config.enable_compiler_semantics {
 		semantics_refresh(config, writer)
 	}
 
@@ -442,6 +442,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 
 	config.enable_checker_on_change = ols_config.enable_checker_on_change.(bool) or_else config.enable_checker_on_change
 	config.checker_on_change_delay  = ols_config.checker_on_change_delay.(int)   or_else config.checker_on_change_delay
+
+	config.enable_compiler_semantics =
+		ols_config.enable_compiler_semantics.(bool) or_else config.enable_compiler_semantics
 
 	config.enable_fade_untaken_when_branches =
 		ols_config.enable_fade_untaken_when_branches.(bool) or_else config.enable_fade_untaken_when_branches
@@ -763,6 +766,7 @@ request_initialize :: proc(
 	config.enable_checker_workspace_diagnostics = false
 	config.enable_checker_on_change = false
 	config.checker_on_change_delay = 400
+	config.enable_compiler_semantics = false
 	config.enable_fade_untaken_when_branches = true
 	config.enable_auto_import = true
 	config.enable_auto_import_skip_hidden_paths = true
@@ -1226,7 +1230,9 @@ notification_did_open :: proc(
 	document := document_get(open_params.textDocument.uri)
 	if document != nil {
 		document.version = open_params.textDocument.version
+	}
 
+	if document != nil && config.enable_compiler_semantics {
 		// a workspace file is checked when opened, so the compiler's semantics are there before the first save
 		sync.mutex_lock(&semantics_store.mutex)
 		checked := semantics_file_of(document) != nil
@@ -1364,7 +1370,7 @@ notification_did_save :: proc(
 	queue_check_request(.Saved, corrected_uri.path, config)
 
 	document := document_get(save_params.textDocument.uri)
-	if document != nil && !sync.atomic_load(&semantics_store.loaded) {
+	if document != nil && (!config.enable_compiler_semantics || !sync.atomic_load(&semantics_store.loaded)) {
 		check_unused_imports(document, config)
 	}
 

@@ -58,8 +58,10 @@ get_hover_information :: proc(
 	if valid {
 		return hover, valid, ok
 	}
-	if entity, start, found := semantics_entity_at(document, position); found {
-		return semantics_hover(document, entity, start, config), true, true
+	if config.enable_compiler_semantics {
+		if entity, start, found := semantics_entity_at(document, position); found {
+			return semantics_hover(document, entity, start, config), true, true
+		}
 	}
 	return hover, valid, ok
 }
