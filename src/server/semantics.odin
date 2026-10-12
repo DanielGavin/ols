@@ -28,10 +28,12 @@ Semantics_File :: struct {
 	export:   ^Semantics_Export,
 	exported: ^tf.Exported_File,
 	version:  Maybe(int), // The version of the open document whose text was checked, and `nil` indicates it was checked from disk
+	session:  u64,
 
 	// When checked from disk (version == nil), the last version of the open document compared with the disk and whether they matched
-	compared: Maybe(int),
-	matches:  bool,
+	compared:         Maybe(int),
+	compared_session: u64,
+	matches:          bool,
 
 	modified: time.Time,
 }
@@ -49,14 +51,18 @@ semantics_unmodified :: proc(file: ^Semantics_File) -> bool {
 semantics_current :: proc(file: ^Semantics_File, document: ^Document) -> bool {
 	current := document.version.? or_return
 	if checked, ok := file.version.?; ok {
-		return checked == current
+		return file.session == document.session && checked == current
 	}
-	if compared, ok := file.compared.?; ok && compared == current {
+	if !semantics_unmodified(file) {
+		return false
+	}
+	if compared, ok := file.compared.?; ok && file.compared_session == document.session && compared == current {
 		return file.matches
 	}
 
 	disk, err := os.read_entire_file(document.fullpath, context.temp_allocator)
 	file.compared = current
+	file.compared_session = document.session
 	file.matches = err == nil && string(disk) == string(document.text[:document.used_text])
 	return file.matches
 }
@@ -90,9 +96,11 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 	start := time.now()
 
 	versions := make(map[string]Maybe(int), len(buffers), context.temp_allocator)
+	sessions := make(map[string]u64, len(buffers), context.temp_allocator)
 	texts := make(map[string][]u8, len(buffers), context.temp_allocator)
 	for b in buffers {
 		versions[semantics_key(b.path)] = b.version
+		sessions[semantics_key(b.path)] = b.session
 		texts[semantics_key(b.path)] = b.text
 	}
 
@@ -194,6 +202,7 @@ load_semantics :: proc(paths: []string, buffers: []Check_Buffer, workspace: bool
 				export   = export,
 				exported = &exported,
 				version  = versions[key],
+				session  = sessions[key],
 				modified = modified[i],
 			}
 			export.files += 1
