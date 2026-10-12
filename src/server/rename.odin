@@ -9,7 +9,11 @@ import "core:strings"
 import "src:common"
 
 get_rename :: proc(document: ^Document, new_text: string, position: common.Position) -> (WorkspaceEdit, bool) {
-	locations, found := semantics_references(document, position, current_file_only = false, include_declaration = true)
+	locations: []common.Location
+	found := false
+	if common.config.enable_compiler_semantics {
+		locations, found = semantics_references(document, position, current_file_only = false, include_declaration = true)
+	}
 	if !found {
 		ast_context := make_ast_context(
 			document.ast,

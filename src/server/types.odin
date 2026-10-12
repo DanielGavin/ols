@@ -449,6 +449,7 @@ OlsConfig :: struct {
 	enable_checker_workspace_diagnostics:    Maybe(bool),
 	enable_checker_on_change:                Maybe(bool),
 	checker_on_change_delay:                 Maybe(int),
+	enable_compiler_semantics:               Maybe(bool),
 	enable_fade_untaken_when_branches:       Maybe(bool),
 	enable_auto_import:                      Maybe(bool),
 	enable_auto_import_skip_hidden_paths:    Maybe(bool),

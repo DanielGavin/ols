@@ -50,6 +50,7 @@ Config :: struct {
 	enable_checker_workspace_diagnostics:    bool,
 	enable_checker_on_change:                bool,
 	checker_on_change_delay:                 int, // in milliseconds
+	enable_compiler_semantics:               bool,
 	enable_fade_untaken_when_branches:       bool,
 	enable_auto_import:                      bool,
 	enable_auto_import_skip_hidden_paths:    bool,
