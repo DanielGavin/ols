@@ -7624,3 +7624,54 @@ ast_hover_label :: proc(t: ^testing.T) {
 	}
 	test.expect_hover(t, &source, "test.foo: label")
 }
+
+@(test)
+hover_on_generic_proc_group :: proc(t: ^testing.T) {
+	packages := make([dynamic]test.Package, context.temp_allocator)
+	append(&packages, test.Package {
+		pkg = "pack",
+		source = `package pack
+
+		Bar :: struct($T: typeid) {}
+
+		baz_proc :: proc(table: ^$T, entry: Bar(T)) -> (data: ^T, ok: bool) {
+			return
+		}
+
+		baz :: proc {
+			baz_proc,
+		}
+		`,
+	})
+	files := make([dynamic]test.File, context.temp_allocator)
+	append(&files, test.File {
+		name = "main.odin",
+		source = `package test
+
+		import cnt "pack"
+		@(private = "file")
+		baz :: cnt.baz
+
+		test_ols_issue :: proc() -> (fooBar: Foo_Bar) {
+			foo: Foo
+			{*}baz(&foo, fooBar)
+		}
+		`,
+	})
+	append(&files, test.File {
+		name = "foo.odin",
+		source = `package test
+
+		import cnt "pack"
+
+		Foo :: struct {}
+		Foo_Bar :: cnt.Bar(Foo)
+		`,
+	})
+
+	source := test.Source {
+		files = files[:],
+		packages = packages[:],
+	}
+	test.expect_hover_contains(t, &source, "baz")
+}

@@ -402,7 +402,21 @@ resolve_base_symbol :: proc(ast_context: ^AstContext, symbol: Symbol, bypass_dis
 	}
 	if expr == nil {
 		file := common.uri_to_path(symbol.uri, context.temp_allocator)
-		expr = symbol_to_expr(symbol, file, context.temp_allocator)
+		// An alias resolved from the index has no expression, and a synthesized one would
+		// lose the package it was declared in, so look up its declaration first.
+		// Note(DD): This is probably an issue for aliases of some other types
+		if _, is_struct := symbol.value.(SymbolStructValue); is_struct && symbol.name != "" && symbol.pkg != "" {
+			if decl, ok := lookup(symbol.name, symbol.pkg, file); ok {
+				if decl.value_expr != nil {
+					expr = decl.value_expr
+				} else if generic, is_generic := decl.value.(SymbolGenericValue); is_generic {
+					expr = generic.expr
+				}
+			}
+		}
+		if expr == nil {
+			expr = symbol_to_expr(symbol, file, context.temp_allocator)
+		}
 	}
 	if expr == nil {
 		return symbol
