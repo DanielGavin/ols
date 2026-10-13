@@ -111,3 +111,7 @@ Guarded_Fields :: struct {
 	//odinfmt:enable
 	why:  string,
 }
+
+asm_comments_are_not_reemitted :: asm() {
+	nop // test comment
+}

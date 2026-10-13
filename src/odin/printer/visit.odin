@@ -36,6 +36,13 @@ next_comment_group :: proc(p: ^Printer) {
 }
 
 @(private)
+skip_comments_before_position :: proc(p: ^Printer, pos: tokenizer.Pos) {
+	for comment_before_position(p, pos) {
+		next_comment_group(p)
+	}
+}
+
+@(private)
 text_token :: proc(p: ^Printer, token: tokenizer.Token) -> ^Document {
 	document, _ := visit_comments(p, token.pos)
 	return cons(document, text(token.text))
@@ -1471,6 +1478,7 @@ visit_expr :: proc(
 	case ^ast.Asm_Template:
 		// TODO: new `asm` syntax support
 		document = text(p.src[v.pos.offset:v.end.offset])
+		skip_comments_before_position(p, v.end)
 	case ^ast.Undef:
 		document = text("---")
 	case ^ast.Auto_Cast:
