@@ -393,8 +393,12 @@ control_flow :: proc() {
 
 	{ 	// Branch statements
 		cond, cond1, cond2 := false, false, false
-		one_step :: proc() {fmt.println("one_step")}
-		beyond :: proc() {fmt.println("beyond")}
+		one_step :: proc() {
+			fmt.println("one_step")
+		}
+		beyond :: proc() {
+			fmt.println("beyond")
+		}
 
 		// Break statement
 		for cond {
@@ -651,8 +655,12 @@ union_type :: proc() {
 		case Frog:
 			fmt.println("Ribbit")
 		case Monster:
-			if e.is_robot {fmt.println("Robotic")}
-			if e.is_zombie {fmt.println("Grrrr!")}
+			if e.is_robot {
+				fmt.println("Robotic")
+			}
+			if e.is_zombie {
+				fmt.println("Grrrr!")
+			}
 			fmt.println("I'm a monster")
 		}
 	}
@@ -700,8 +708,12 @@ union_type :: proc() {
 		case Frog:
 			fmt.println("Ribbit")
 		case Monster:
-			if e.is_robot {fmt.println("Robotic")}
-			if e.is_zombie {fmt.println("Grrrr!")}
+			if e.is_robot {
+				fmt.println("Robotic")
+			}
+			if e.is_zombie {
+				fmt.println("Grrrr!")
+			}
 		}
 
 		// NOTE(bill): As you can see, the usage code has not changed, only its
@@ -1059,8 +1071,12 @@ parametric_polymorphism :: proc() {
 
 		table: Table(string, int)
 
-		for i in 0 ..= 36 {put(&table, "Hellope", i)}
-		for i in 0 ..= 42 {put(&table, "World!", i)}
+		for i in 0 ..= 36 {
+			put(&table, "Hellope", i)
+		}
+		for i in 0 ..= 42 {
+			put(&table, "World!", i)
+		}
 
 		found, _ := find(&table, "Hellope")
 		fmt.printf("`found` is %v\n", found)
@@ -1200,7 +1216,9 @@ threading_example :: proc() {
 		task_proc :: proc(t: thread.Task) {
 			index := t.user_index % len(prefix_table)
 			for iteration in 1 ..= 5 {
-				for !did_acquire(&print_mutex) {thread.yield()} 	// Allow one thread to print at a time.
+				for !did_acquire(&print_mutex) {
+					thread.yield()
+				} 	// Allow one thread to print at a time.
 
 				fmt.printf(
 					"Worker Task %d is on iteration %d\n",
@@ -1248,7 +1266,9 @@ threading_example :: proc() {
 			time.sleep(5 * time.Millisecond)
 
 			// Allow one thread to print at a time.
-			for !did_acquire(&print_mutex) {thread.yield()}
+			for !did_acquire(&print_mutex) {
+				thread.yield()
+			}
 
 			thread.terminate(pool.threads[N - 1], 0)
 			fmt.println("Canceled last thread")
