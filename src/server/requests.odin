@@ -608,11 +608,9 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 			config.collections[strings.clone(it.name)] = strings.clone(slashed_path)
 		}
 	}
+}
 
-	// Ideally we'd disallow specifying the builtin `base`, `core` and `vendor` completely
-	// because using `odin root` is always correct, but I suspect a lot of people have this in
-	// their config and it would break.
-
+resolve_default_collections :: proc(config: ^common.Config, uri: common.Uri) {
 	odin_core_env: string
 	if config.odin_root_override != "" {
 		odin_core_env = config.odin_root_override
@@ -812,6 +810,7 @@ request_initialize :: proc(
 		ols_config_path := path.join(elems = {uri.path, "ols.json"}, allocator = context.temp_allocator)
 		read_ols_config(ols_config_path, config, uri)
 	}
+	resolve_default_collections(config, uri)
 
 	for format in initialize_params.capabilities.textDocument.hover.contentFormat {
 		if format == "markdown" {
@@ -1886,6 +1885,7 @@ notification_workspace_did_change_configuration :: proc(
 
 	if uri, ok := common.parse_uri(config.workspace_folders[0].uri, context.temp_allocator); ok {
 		read_ols_initialize_options(config, ols_config, uri)
+		resolve_default_collections(config, uri)
 	}
 	refresh_package_aliases_if_hidden_paths_changed(previous_skip_hidden_paths, config)
 
