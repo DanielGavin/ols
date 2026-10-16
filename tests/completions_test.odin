@@ -6518,3 +6518,21 @@ ast_completion_comp_lit_struct_field_name_partial :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.beta: int"}, {"Foo.alpha: int"})
 }
+
+@(test)
+ast_completion_or_return_field :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Foo :: struct {
+			foo: int,
+		}
+
+		bar :: proc() -> (Foo, bool) {}
+
+		main :: proc() {
+			f := (bar() or_return).{*}
+		}
+		`,
+	}
+	test.expect_completion_docs(t, &source, "", {"Foo.foo: int"})
+}

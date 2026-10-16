@@ -2041,6 +2041,17 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^ast.Or_Else_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
+	case ^ast.Or_Return_Expr:
+		ok = internal_resolve_type_expression(ast_context, v.expr, out)
+		if call, is_call := v.expr.derived.(^ast.Call_Expr); is_call {
+			return_types := get_proc_return_types(ast_context, out^, call, true)
+			if len(return_types) == 2 {
+				out^, ok = resolve_value_type_expression(ast_context, return_types[0])
+				out.type = .Variable
+				return ok
+			}
+		}
+		return ok
 	case ^ast.Deref_Expr:
 		ok := internal_resolve_type_expression(ast_context, v.expr, out)
 		out.pointers -= 1
