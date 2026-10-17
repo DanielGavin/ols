@@ -58,12 +58,12 @@ get_switch_cases_info :: proc(
 	if position_context.switch_stmt != nil {
 		switch_block, found_switch_block = position_context.switch_stmt.body.derived.(^ast.Block_Stmt)
 		is_enum = true
-		pos = position_context.switch_stmt.pos
+		pos = switch_block.end
 	}
 
 	if !found_switch_block && position_context.switch_type_stmt != nil {
 		switch_block, found_switch_block = position_context.switch_type_stmt.body.derived.(^ast.Block_Stmt)
-		pos = position_context.switch_type_stmt.pos
+		pos = switch_block.end
 	}
 
 	if !found_switch_block {
@@ -95,7 +95,6 @@ get_switch_cases_info :: proc(
 					}
 				}
 			}
-			pos = case_clause.stmt_base.end
 		}
 	}
 	if is_enum {
@@ -160,8 +159,13 @@ create_populate_switch_cases_edit :: proc(
 	}
 
 	pos := info.pos
-	pos.line += 1
-	pos.column = 1
+	pos.offset -= 1
+	pos.column -= 1
+	line_start := get_line_start_offset(position_context.file.src, pos.offset)
+	inline_close := strings.trim_space(position_context.file.src[line_start:pos.offset]) != ""
+	if !inline_close {
+		pos.column = 1
+	}
 
 	position := common.token_pos_to_position(pos, position_context.file.src)
 
@@ -173,9 +177,15 @@ create_populate_switch_cases_edit :: proc(
 	replacement_builder := strings.builder_make(context.temp_allocator)
 	dot := info.is_enum ? "." : ""
 	b := &replacement_builder
+	if inline_close {
+		fmt.sbprintln(b)
+	}
 	for name in info.names {
 		if name in info.existing_cases {continue}
 		fmt.sbprintln(b, info.switch_indentation, "case ", dot, name, ":", sep = "")
+	}
+	if inline_close {
+		fmt.sbprint(b, info.switch_indentation)
 	}
 	return TextEdit{range = range, newText = strings.to_string(replacement_builder)}, true
 }
