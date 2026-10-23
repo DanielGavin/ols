@@ -1,6 +1,5 @@
 package server
 
-import "core:fmt"
 import "core:log"
 import "core:odin/ast"
 import "core:odin/tokenizer"
@@ -267,5 +266,5 @@ add_signature_info :: proc(
 @(private = "file")
 write_markdown_doc :: proc(symbol: Symbol, allocator := context.temp_allocator) -> MarkupContent {
 	doc := construct_symbol_docs(symbol, allocator)
-	return MarkupContent{kind = "markdown", value = fmt.tprintf(DOC_FMT_ODIN, doc)}
+	return MarkupContent{kind = "markdown", value = doc}
 }
