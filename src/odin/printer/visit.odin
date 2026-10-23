@@ -1794,10 +1794,20 @@ visit_expr :: proc(
 			}
 		}
 
+		// Comments above the first argument belong on their own line, before it. Visit them
+		// before the opening break so they don't slide onto the first argument's line.
+		leading_comments := empty()
+		if len(v.args) > 0 {
+			leading_comments, _ = visit_comments(p, v.args[0].pos)
+		}
+
 		if is_call_expr_nestable(v.args) {
-			document = cons(document, nest(cons(break_with(""), visit_call_exprs(p, v))))
+			document = cons(document, nest(cons(leading_comments, break_with(""), visit_call_exprs(p, v))))
 		} else {
-			document = cons(document, nest_if_break(cons(break_with(""), visit_call_exprs(p, v)), "call_expr"))
+			document = cons(
+				document,
+				nest_if_break(cons(leading_comments, break_with(""), visit_call_exprs(p, v)), "call_expr"),
+			)
 		}
 
 		document = cons(document, break_with(""), text(")"))
@@ -2316,7 +2326,11 @@ visit_proc_type :: proc(
 		results_parens := text("(")
 		results_parens = cons(
 			results_parens,
-			nest(cons(break_with(""), visit_signature_list(p, proc_type.results, true, true))),
+			// The same options the parameter list gets: under `.Enforce_Newline` the comments
+			// before each field are visited AFTER that field's comma and BEFORE the newline
+			// separating it from the next field, so their line suffixes ride the newline that
+			// follows them instead of sliding down the list and gluing onto a later field.
+			nest(cons(break_with(""), visit_signature_list(p, proc_type.results, true, true, options))),
 		)
 		results_parens = cons(results_parens, break_with(""), text(")"))
 
@@ -2369,12 +2383,27 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false)
 
 	document = cons_with_nopl(document, text(binary.op.text))
 
+	has_comments := false
+
 	if binary.right != nil {
+		// A comment between the operator and the right operand was written at the end of the
+		// operator's line. Visit it before the break so its line suffix rides that break's
+		// newline instead of sliding down onto the operand's line -- and mark the chain
+		// unflattenable below, or the layout merges the commented lines and drags the
+		// comments along with them (the same rule visit_call_exprs follows for arg lists).
+		comments, _ := visit_comments(p, binary.right.pos)
+		_, comments_empty := comments.(Document_Nil)
+		has_comments = !comments_empty
+
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-			document = cons_with_opl(document, group(nest(visit_binary_expr(p, b^, true))))
+			document = cons(document, comments, break_with_space(), group(nest(visit_binary_expr(p, b^, true))))
 		} else {
-			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, .Binary_Expr))))
+			document = cons(document, comments, break_with_space(), group(nest(visit_expr(p, binary.right, .Binary_Expr))))
 		}
+	}
+
+	if has_comments {
+		return enforce_break(document)
 	}
 
 	return document
@@ -2462,6 +2491,18 @@ visit_signature_list :: proc(
 
 	for field, i in list.list {
 		p.source_position = field.pos
+
+		// Comments written above the FIRST field are visited here, before the field itself:
+		// nothing else reaches them until after the field is already built, and a line suffix
+		// queued that late flushes at the field's own trailing newline -- gluing the comment
+		// onto the field's line. The same rule visit_struct_field_list follows for i == 0.
+		// The newline(1) is what puts the field on the line after the comment.
+		if i == 0 {
+			leading, _ := visit_comments(p, field.pos)
+			if _, is_nil := leading.(Document_Nil); !is_nil {
+				document = cons(document, leading, newline(1))
+			}
+		}
 
 		document = cons(document, visit_signature_field(p, field, remove_blank))
 
