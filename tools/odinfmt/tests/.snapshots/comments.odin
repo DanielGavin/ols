@@ -91,7 +91,8 @@ check_two :: proc(cond: bool, msg: string) {}
 
 two_trailing_comments_on_one_line :: proc() {
 	check_two(
-		len("a") > 0 && len("b") > 0, // first // second
+		len("a") > 0 && // first
+		len("b") > 0, // second
 		"message",
 	)
 }
