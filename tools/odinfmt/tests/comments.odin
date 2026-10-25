@@ -117,6 +117,7 @@ asm_comments_are_not_reemitted :: asm() {
 	nop // test comment
 }
 
+SufficientlyLongTypeName :: int
 proc_named_results_trailing_comments :: proc(
 ) -> (
 	a: SufficientlyLongTypeName, //comment about a
