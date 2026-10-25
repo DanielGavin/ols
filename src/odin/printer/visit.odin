@@ -2469,11 +2469,12 @@ visit_signature_list :: proc(
 			if .Enforce_Newline in options {
 				document = cons(document, text(","))
 			} else {
-				document = cons(document, text(","), break_with_space())
+				document = cons(document, text(","), visit_trailing_line_comments(p, field.end, list.list[i + 1].pos), break_with_space())
 			}
 		} else {
 			if .Enforce_Newline not_in options {
 				document = len(list.list) > 1 || contains_body ? cons(document, if_break(",")) : document
+				document = cons(document, visit_trailing_line_comments(p, field.end, list.end))
 			} else {
 				document = cons(document, text(","))
 			}
@@ -2491,6 +2492,34 @@ visit_signature_list :: proc(
 
 	comment, _ := visit_comments(p, list.end)
 	document = cons(document, comment)
+
+	return document
+}
+
+// Visit comments that sit on the same line as `end` and before `limit`, so they stay attached to that
+// line instead of being emitted after the next break.
+@(private)
+visit_trailing_line_comments :: proc(p: ^Printer, end: tokenizer.Pos, limit: tokenizer.Pos) -> ^Document {
+	document := empty()
+
+	for p.latest_comment_index < len(p.comments) {
+		comment_group := p.comments[p.latest_comment_index]
+
+		if comment_group.pos.line != end.line ||
+		   comment_group.pos.offset < end.offset ||
+		   comment_group.pos.offset >= limit.offset {
+			break
+		}
+
+		p.source_position = end
+
+		for comment in comment_group.list {
+			_, tmp_document := visit_comment(p, comment)
+			document = cons(document, tmp_document)
+		}
+
+		next_comment_group(p)
+	}
 
 	return document
 }

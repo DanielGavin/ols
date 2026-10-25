@@ -116,3 +116,12 @@ Guarded_Fields :: struct {
 asm_comments_are_not_reemitted :: asm() {
 	nop // test comment
 }
+
+proc_named_results_trailing_comments :: proc(
+) -> (
+	a: SufficientlyLongTypeName, //comment about a
+	b: SufficientlyLongTypeName, //comment about b
+	c: SufficientlyLongTypeName, //comment about c
+) {
+	return 1, 2, 3
+}
