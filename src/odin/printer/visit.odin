@@ -2496,8 +2496,8 @@ visit_signature_list :: proc(
 	return document
 }
 
-// Visit comments that sit on the same line as `end` and before `limit`, so they stay attached to that
-// line instead of being emitted after the next break.
+// Visit comments that sit on the same line as `end` and before `limit`
+// so they stay attached to that line instead of being emitted after the next break.
 @(private)
 visit_trailing_line_comments :: proc(p: ^Printer, end: tokenizer.Pos, limit: tokenizer.Pos) -> ^Document {
 	document := empty()
