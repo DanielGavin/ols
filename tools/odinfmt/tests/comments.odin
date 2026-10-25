@@ -27,7 +27,7 @@ line_comments_one_line_seperation :: proc() {
 
 
 	// comment
-	
+
 	thing: int
 }
 
@@ -35,10 +35,10 @@ line_comments_one_line_seperation :: proc() {
 //More comments YAY
 
 bracket_comments_alignment :: proc() {
-    {   // Describe block
-        a := 10
-        // etc..
-    }
+	{ 	// Describe block
+		a := 10
+		// etc..
+	}
 }
 
 empty_odin_fmt_block :: proc() {
@@ -84,15 +84,14 @@ Bar :: struct{}
 // odinfmt: enable
 
 // Foo doc
-Foo :: struct   {}
+Foo :: struct {}
 
 // Merged trailing comments must not glue into `// first// second`.
 check_two :: proc(cond: bool, msg: string) {}
 
 two_trailing_comments_on_one_line :: proc() {
 	check_two(
-		len("a") > 0 && // first
-		len("b") > 0, // second
+		len("a") > 0 && len("b") > 0, // first // second
 		"message",
 	)
 }
@@ -110,12 +109,13 @@ Guarded_Fields :: struct {
 	//odinfmt:disable
 	code:  string,
 	//odinfmt:enable
-	why:   string,
+	why:  string,
 }
 
 asm_comments_are_not_reemitted :: asm() {
 	nop // test comment
 }
+
 
 SufficientlyLongTypeName :: int
 proc_named_results_trailing_comments :: proc(

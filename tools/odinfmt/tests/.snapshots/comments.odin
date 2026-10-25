@@ -114,7 +114,7 @@ Guarded_Fields :: struct {
 
 asm_comments_are_not_reemitted :: asm() {
 	nop // test comment
-}
+}// test comment
 
 
 SufficientlyLongTypeName :: int
