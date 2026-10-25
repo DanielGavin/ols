@@ -30,11 +30,17 @@ convert_os_string: map[string]string = {
 }
 
 // Profile defines seed for when-condition evaluation.
-make_when_expr_map :: proc() -> map[string]When_Expr {
+make_when_expr_map :: proc(defines := common.config.profile.defines) -> map[string]When_Expr {
 	when_expr_map := make(map[string]When_Expr, context.temp_allocator)
 
-	for key, value in common.config.profile.defines {
-		when_expr_map[key] = resolve_when_ident(when_expr_map, value) or_continue
+	for key, value in defines {
+		resolved := resolve_when_ident(when_expr_map, value) or_continue
+		if b, is_bool := resolved.(bool); is_bool && !b {
+			if _, is_bool_text := strconv.parse_bool(value); !is_bool_text {
+				resolved = value
+			}
+		}
+		when_expr_map[key] = resolved
 	}
 
 	return when_expr_map
@@ -91,10 +97,7 @@ register_when_consts_from_value_decl :: proc(
 }
 
 // Multi-pass fold of package globals (map order is unstable).
-register_when_consts_from_globals :: proc(
-	when_expr_map: ^map[string]When_Expr,
-	globals: map[string]GlobalExpr,
-) {
+register_when_consts_from_globals :: proc(when_expr_map: ^map[string]When_Expr, globals: map[string]GlobalExpr) {
 	// Enough passes for short const chains (A :: B, B :: !C).
 	for _ in 0 ..< 8 {
 		added := false
@@ -183,6 +186,10 @@ resolve_when_expr :: proc(
 		case ^ast.Ident:
 			return resolve_when_ident(when_expr_map, odin_expr.name)
 		case ^ast.Basic_Lit:
+			if odin_expr.tok.kind == .String {
+				s, _, unquoted := strconv.unquote_string(odin_expr.tok.text, context.temp_allocator)
+				return s, unquoted
+			}
 			return resolve_when_ident(when_expr_map, odin_expr.tok.text)
 		case ^ast.Implicit_Selector_Expr:
 			return odin_expr.field.name, true

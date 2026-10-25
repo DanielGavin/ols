@@ -2,6 +2,7 @@ package tests
 
 import "core:testing"
 
+import "src:server"
 import test "src:testing"
 
 // #1562: package-level consts used in `when` (MAP_ENABLED :: !ODIN_BEDROCK)
@@ -9,7 +10,7 @@ import test "src:testing"
 @(test)
 ast_when_const_map_enabled_pattern :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		// Mirrors base/runtime/core_builtin.odin
 		MAP_ENABLED :: !ODIN_BEDROCK
@@ -25,17 +26,13 @@ ast_when_const_map_enabled_pattern :: proc(t: ^testing.T) {
 		packages = {},
 	}
 
-	test.expect_hover(
-		t,
-		&source,
-		"test.map_insert_like :: proc(m: ^map[int]int, key: int, value: int)",
-	)
+	test.expect_hover(t, &source, "test.map_insert_like :: proc(m: ^map[int]int, key: int, value: int)")
 }
 
 @(test)
 ast_when_const_true_literal :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		ALWAYS :: true
 
@@ -56,7 +53,7 @@ ast_when_const_true_literal :: proc(t: ^testing.T) {
 @(test)
 ast_when_const_false_skips_body :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		NEVER :: false
 
@@ -79,7 +76,7 @@ ast_when_const_false_skips_body :: proc(t: ^testing.T) {
 @(test)
 ast_when_const_chain :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		A :: true
 		B :: A
@@ -102,7 +99,7 @@ ast_when_const_chain :: proc(t: ^testing.T) {
 @(test)
 ast_when_direct_not_define_still_works :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		when !ODIN_BEDROCK {
 			direct :: proc() {}
@@ -121,7 +118,7 @@ ast_when_direct_not_define_still_works :: proc(t: ^testing.T) {
 @(test)
 ast_when_local_const_condition :: proc(t: ^testing.T) {
 	source := test.Source {
-		main = `package test
+		main     = `package test
 
 		FLAG :: true
 
@@ -138,4 +135,43 @@ ast_when_local_const_condition :: proc(t: ^testing.T) {
 	}
 
 	test.expect_completion_docs(t, &source, "", {"test.foo: i32"})
+}
+
+// String literals in when conditions resolve to strings
+@(test)
+ast_when_const_string_compare :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		STRING_CONST :: "foo"
+
+		when STRING_CONST == "bar" {
+			hidden :: proc() {}
+		} else when STRING_CONST == "foo" {
+			shown :: proc() {}
+		}
+
+		main :: proc() {
+			sho{*}wn
+		}
+		`,
+		packages = {},
+	}
+
+	test.expect_hover(t, &source, "test.shown :: proc()")
+}
+
+// Profile define values that are not ints, bools or known names stay strings
+@(test)
+when_define_string_value :: proc(t: ^testing.T) {
+	defines := make(map[string]string)
+	defines["FLAG"] = "false"
+	defines["STRING_CONST"] = "foo"
+	defines["ON"] = "true"
+	defer delete(defines)
+
+	when_expr_map := server.make_when_expr_map(defines)
+	testing.expect_value(t, when_expr_map["FLAG"], server.When_Expr(false))
+	testing.expect_value(t, when_expr_map["STRING_CONST"], server.When_Expr("foo"))
+	testing.expect_value(t, when_expr_map["ON"], server.When_Expr(true))
 }
