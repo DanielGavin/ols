@@ -6536,3 +6536,25 @@ ast_completion_or_return_field :: proc(t: ^testing.T) {
 	}
 	test.expect_completion_docs(t, &source, "", {"Foo.foo: int"})
 }
+
+@(test)
+ast_completion_using_poly_struct :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		Array :: struct($T: typeid, $BUFFER_SIZE: int) {
+			buf: [BUFFER_SIZE]T,
+			len: int,
+		}
+		String :: struct($BUFFER_SIZE: int) {
+			using _: Array(byte, BUFFER_SIZE),
+		}
+
+		str: String(5)
+		main :: proc() {
+			str.{*}
+		}
+		`,
+	}
+
+	test.expect_completion_docs(t, &source, ".", {"String.buf: [5]byte", "String.len: int"})
+}

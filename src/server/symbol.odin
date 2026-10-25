@@ -586,12 +586,13 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 			derived = ptr.elem.derived
 		}
 
-		if ident, ok := derived.(^ast.Ident); ok {
-			if v, ok := struct_type_from_identifier(ast_context, ident^); ok {
+		#partial switch n in derived {
+		case ^ast.Ident:
+			if v, ok := struct_type_from_identifier(ast_context, n^); ok {
 				write_struct_type(ast_context, b, v, {}, u)
 			} else {
 				clear(&ast_context.recursion_map)
-				if symbol, ok := resolve_type_identifier(ast_context, ident^); ok {
+				if symbol, ok := resolve_type_identifier(ast_context, n^); ok {
 					if v, ok := symbol.value.(SymbolStructValue); ok {
 						write_symbol_struct_value(ast_context, b, v, u)
 					} else if v, ok := symbol.value.(SymbolBitFieldValue); ok {
@@ -599,20 +600,26 @@ expand_usings :: proc(ast_context: ^AstContext, b: ^SymbolStructValueBuilder) {
 					}
 				}
 			}
-		} else if selector, ok := derived.(^ast.Selector_Expr); ok {
-			if symbol, ok := resolve_selector_expression(ast_context, selector); ok {
+		case ^ast.Selector_Expr:
+			if symbol, ok := resolve_selector_expression(ast_context, n); ok {
 				if v, ok := symbol.value.(SymbolStructValue); ok {
 					write_symbol_struct_value(ast_context, b, v, u)
 				} else if v, ok := symbol.value.(SymbolBitFieldValue); ok {
 					write_symbol_bitfield_value(ast_context, b, v, u)
 				}
 			}
-		} else if v, ok := derived.(^ast.Struct_Type); ok {
-			write_struct_type(ast_context, b, v, {}, u)
-		} else if v, ok := derived.(^ast.Bit_Field_Type); ok {
+		case ^ast.Struct_Type:
+			write_struct_type(ast_context, b, n, {}, u)
+		case ^ast.Bit_Field_Type:
 			if symbol, ok := resolve_type_expression(ast_context, field_expr); ok {
 				if v, ok := symbol.value.(SymbolBitFieldValue); ok {
 					write_symbol_bitfield_value(ast_context, b, v, u)
+				}
+			}
+		case ^ast.Call_Expr:
+			if symbol, ok := resolve_type_expression(ast_context, n); ok {
+				if v, ok := symbol.value.(SymbolStructValue); ok {
+					write_symbol_struct_value(ast_context, b, v, u)
 				}
 			}
 		}
