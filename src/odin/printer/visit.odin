@@ -2367,13 +2367,20 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false)
 		document = group(document)
 	}
 
-	document = cons_with_nopl(document, text(binary.op.text))
+	document = cons_with_nopl(document, text_token(p, binary.op))
 
 	if binary.right != nil {
+		contains_comments := contains_comments_in_range(p, binary.op.pos, binary.right.pos)
+		set_source_position(p, binary.op.pos)
+		comments, _ := visit_comments(p, binary.right.pos)
+		document = cons(document, comments)
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
 			document = cons_with_opl(document, group(nest(visit_binary_expr(p, b^, true))))
 		} else {
 			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, .Binary_Expr))))
+		}
+		if contains_comments {
+			document = enforce_break(document)
 		}
 	}
 
