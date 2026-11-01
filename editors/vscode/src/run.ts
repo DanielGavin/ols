@@ -2,6 +2,7 @@
 
 import { runInNewContext } from "vm";
 import * as path from "path";
+import { findOdinTestProcs } from "./test_utils";
 
 /*
 	Modified code from https://github.com/hdevalke/rust-test-lens/
@@ -51,47 +52,17 @@ export class RunnableCodeLensProvider implements CodeLensProvider {
 
 	private testMethodLenses(doc: TextDocument) {
 		const text = doc.getText();
-		const reTest = /\@\(?test\)?/g;
-		const reFnTest = /\s*\w+\s*::\s*proc\s*\s*\(/g;
-		const rePackageName = /package\s+\w+/g;
-
-		var testMatch: RegExpExecArray | null = null;
-
 		let lenses: CodeLens[] = [];
-		while ((testMatch = reTest.exec(text)) !== null) {
-
-			reFnTest.lastIndex = reTest.lastIndex;
-			const fnMatch = reFnTest.exec(text);
-
-			if (fnMatch === null) {
-				continue;
+		for (const method of findOdinTestProcs(text)) {
+			const debugCodelens = this.makeDebugLens(method.index, method.length, method.pkg, method.function, doc);
+			if (debugCodelens !== undefined) {
+				lenses.push(debugCodelens);
 			}
 
-			const pkgMatch = rePackageName.exec(text);
-
-			if (pkgMatch === null) {
-				continue;
+			const runCodelens = this.makeRunLens(method.index, method.length, method.pkg, method.function, doc);
+			if (runCodelens !== undefined) {
+				lenses.push(runCodelens);
 			}
-
-			const fn = fnMatch[0].split(":")[0];
-			const pkg = pkgMatch[0].split(" ")[1];
-
-			if (fn && fn[0]) {
-
-				const debugCodelens = this.makeDebugLens(reTest.lastIndex, testMatch[0].length, pkg, fn.trim(), doc);
-
-				if (debugCodelens !== undefined) {
-					lenses.push(debugCodelens);
-				}
-
-				const runCodelens = this.makeRunLens(reTest.lastIndex, testMatch[0].length, pkg, fn.trim(), doc);
-
-				if (runCodelens !== undefined) {
-					lenses.push(runCodelens);
-				}
-
-			}
-
 		}
 
 		return lenses;

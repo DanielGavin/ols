@@ -173,7 +173,7 @@
 		"pretest": "npm run compile && npm run lint",
 		"package": "vsce package -o extension.vsix",
 		"build": "npm run compile && npm run package",
-		"test": "node ./out/test/runTest.js"
+		"test": "mocha \"test/**/*.test.js\""
 	},
 	"devDependencies": {
 		"@types/glob": "^7.2.0",

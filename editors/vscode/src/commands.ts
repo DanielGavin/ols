@@ -7,6 +7,7 @@ import { promises as fs } from "fs";
 import { getDebugConfiguration } from './debug';
 import { getExt } from './extension';
 import { log } from './util';
+import { getOdinTestName } from './test_utils';
 
 export function runDebugTest(ctx: Ctx): Cmd {
     return async (debugConfig: any) => {
@@ -18,11 +19,11 @@ export function runDebugTest(ctx: Ctx): Cmd {
 
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
-        const pkg = path.basename(cwd);
+        const pkg = debugConfig.pkg;
 
         const args: string[] = [];
 
-        const testName = `${pkg}.${fn}`;
+        const testName = getOdinTestName(pkg, fn);
 
         args.push("build");
         args.push(cwd);
@@ -91,13 +92,13 @@ export function runTest(ctx: Ctx): Cmd {
     return async(debugConfig: any) => {
         const fn = debugConfig.function;
         const cwd = debugConfig.cwd;
-        const pkg = path.basename(cwd);
+        const pkg = debugConfig.pkg;
 
         var args = [];
 
         args.push("test");
         args.push(cwd);
-        args.push(`-define:ODIN_TEST_NAMES=${pkg}.${fn}`);
+        args.push(`-define:ODIN_TEST_NAMES=${getOdinTestName(pkg, fn)}`);
 
         for(var i = 0; i < ctx.config.collections.length; i++) {
             const name = ctx.config.collections[i].name;
