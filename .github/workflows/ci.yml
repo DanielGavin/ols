@@ -46,10 +46,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Dependencies
         run: |
-          wget https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 17
-          echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y clang-22 llvm-22-dev lld-22
+          echo "/usr/lib/llvm-22/bin" >> "$GITHUB_PATH"
       - name: Build Odin
         run: |
           git clone --depth 1 --branch $ODIN_BRANCH https://github.com/odin-lang/Odin
@@ -68,8 +67,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Dependencies
         run: |
-          brew install llvm@17
-          echo "/usr/local/opt/llvm@17/bin" >> $GITHUB_PATH
+          brew install llvm@22
+          echo "$(brew --prefix llvm@22)/bin" >> "$GITHUB_PATH"
           TMP_PATH=$(xcrun --show-sdk-path)/user/include
           echo "CPATH=$TMP_PATH" >> $GITHUB_ENV
       - name: Build Odin
