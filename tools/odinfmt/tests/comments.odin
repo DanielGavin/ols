@@ -86,7 +86,7 @@ Bar :: struct{}
 // Foo doc
 Foo :: struct   {}
 
-// Merged trailing comments must not glue into `// first// second`.
+// Trailing comments must keep their own lines when the layout would merge them.
 check_two :: proc(cond: bool, msg: string) {}
 
 two_trailing_comments_on_one_line :: proc() {
@@ -115,4 +115,28 @@ Guarded_Fields :: struct {
 
 asm_comments_are_not_reemitted :: asm() {
 	nop // test comment
+}
+// Leading comments in a proc RESULT list must keep their own lines.
+result_comment_list :: proc() -> (
+	// the description, set once at construction
+	name: string,
+	// bounded by MAX_VALUES, never rescaled
+	size: int,
+) {
+	return "", 0
+}
+// The comment above the FIRST parameter of a signature must keep its own line too.
+param_first_comment :: proc(
+	// the seed, fixed for reproducibility
+	seed: int,
+	x: int,
+) {
+}
+// A comment above the FIRST argument must stay above it, not glue onto its line.
+leading_arg_comment :: proc() {
+	check_two(
+		// whether anything matched at all
+		len("a") > 0,
+		"message",
+	)
 }
