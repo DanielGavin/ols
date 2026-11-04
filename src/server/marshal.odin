@@ -211,9 +211,9 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 	case runtime.Type_Info_String:
 		switch s in a {
 		case string:
-			io.write_quoted_string(w, s, '"', nil, true) or_return
+			json.write_quoted_json_string(w, s) or_return
 		case cstring:
-			io.write_quoted_string(w, string(s), '"', nil, true) or_return
+			json.write_quoted_json_string(w, string(s)) or_return
 		}
 
 	case runtime.Type_Info_Boolean:

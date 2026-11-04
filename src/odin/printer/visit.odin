@@ -2381,29 +2381,21 @@ visit_binary_expr :: proc(p: ^Printer, binary: ast.Binary_Expr, nested := false)
 		document = group(document)
 	}
 
-	document = cons_with_nopl(document, text(binary.op.text))
-
-	has_comments := false
+	document = cons_with_nopl(document, text_token(p, binary.op))
 
 	if binary.right != nil {
-		// A comment between the operator and the right operand was written at the end of the
-		// operator's line. Visit it before the break so its line suffix rides that break's
-		// newline instead of sliding down onto the operand's line -- and mark the chain
-		// unflattenable below, or the layout merges the commented lines and drags the
-		// comments along with them (the same rule visit_call_exprs follows for arg lists).
+		contains_comments := contains_comments_in_range(p, binary.op.pos, binary.right.pos)
+		set_source_position(p, binary.op.pos)
 		comments, _ := visit_comments(p, binary.right.pos)
-		_, comments_empty := comments.(Document_Nil)
-		has_comments = !comments_empty
-
+		document = cons(document, comments)
 		if b, ok := binary.right.derived.(^ast.Binary_Expr); ok {
-			document = cons(document, comments, break_with_space(), group(nest(visit_binary_expr(p, b^, true))))
+			document = cons_with_opl(document, group(nest(visit_binary_expr(p, b^, true))))
 		} else {
-			document = cons(document, comments, break_with_space(), group(nest(visit_expr(p, binary.right, .Binary_Expr))))
+			document = cons_with_opl(document, group(nest(visit_expr(p, binary.right, .Binary_Expr))))
 		}
-	}
-
-	if has_comments {
-		return enforce_break(document)
+		if contains_comments {
+			document = enforce_break(document)
+		}
 	}
 
 	return document

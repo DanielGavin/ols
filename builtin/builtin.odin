@@ -400,3 +400,24 @@ ODIN_WINDOWS_SUBSYSTEM_STRING: string
 */
 @builtin
 __ODIN_LLVM_F16_SUPPORTED: bool
+
+@builtin
+Odin_Calling_Convention :: enum u8 {
+	Invalid      = 0,
+	Odin         = 1,
+	Contextless  = 2,
+	CDecl        = 3,
+	Std_Call     = 4,
+	Fast_Call    = 5,
+	None         = 6,
+	Naked        = 7,
+	_            = 8, // reserved for inline assembly
+	Win64        = 9,
+	SysV         = 10,
+	PreserveNone = 11,
+	PreserveMost = 12,
+	PreserveAll  = 13,
+}
+
+@builtin
+ODIN_DEFAULT_CALLING_CONVENTION: Odin_Calling_Convention
