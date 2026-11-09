@@ -451,8 +451,8 @@ convert_completion_results :: proc(
 							no_args = false
 							break
 						}
-						member_proc, ok := member.value.(SymbolProcedureValue)
-						if !ok || get_proc_arg_count(member_proc) > receiver_count {
+						member_proc, member_proc_ok := member.value.(SymbolProcedureValue)
+						if !member_proc_ok || get_proc_arg_count(member_proc) > receiver_count {
 							no_args = false
 							break
 						}
@@ -974,8 +974,8 @@ get_comp_lit_completion :: proc(
 			return false
 
 		case SymbolFixedArrayValue:
-			symbol := resolve_type_expression(ast_context, v.len) or_break
-			enum_value := symbol.value.(SymbolEnumValue) or_break
+			len_symbol := resolve_type_expression(ast_context, v.len) or_break
+			enum_value := len_symbol.value.(SymbolEnumValue) or_break
 			append_enum_completion_items(enum_value, ast_context, position_context, results, dot_before_label=true)
 			return false
 		}
@@ -1190,8 +1190,8 @@ get_selector_completion :: proc(
 	case SymbolBitSetValue:
 		is_incomplete = false
 
-		enumv, ok := unwrap_bitset(ast_context, selector)
-		if !ok {break}
+		enumv, enum_ok := unwrap_bitset(ast_context, selector)
+		if !enum_ok {break}
 
 		remove_edit, rok := create_remove_edit(position_context, true)
 		if !rok {break}
@@ -1301,11 +1301,11 @@ get_selector_completion :: proc(
 
 			symbol := indexed_symbol
 			_, is_objc_group := indexed_symbol.value.(SymbolProcedureGroupValue)
-			ok := indexed && .ObjC in indexed_symbol.flags && is_objc_group
-			if !ok {
-				symbol, ok = resolve_type_expression(ast_context, v.types[i])
+			resolved := indexed && .ObjC in indexed_symbol.flags && is_objc_group
+			if !resolved {
+				symbol, resolved = resolve_type_expression(ast_context, v.types[i])
 			}
-			if ok {
+			if resolved {
 				if is_objc_class && .ObjCIsClassMethod not_in symbol.flags {
 					continue
 				}
@@ -1592,14 +1592,14 @@ get_implicit_completion :: proc(
 			if symbol, ok := resolve_comp_literal(ast_context, position_context); ok {
 				#partial switch v in symbol.value {
 				case SymbolFixedArrayValue:
-					symbol := resolve_type_expression(ast_context, v.len) or_break
-					enum_value := symbol.value.(SymbolEnumValue) or_break
+					len_symbol := resolve_type_expression(ast_context, v.len) or_break
+					enum_value := len_symbol.value.(SymbolEnumValue) or_break
 					append_enum_completion_items(enum_value, ast_context, position_context, results)
 					return is_incomplete
 				case SymbolStructValue:
 					if position_context.field_value == nil do break
-					symbol := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol) or_break
-					enum_value := symbol.value.(SymbolEnumValue) or_break
+					field_symbol := resolve_implicit_selector_comp_literal(ast_context, position_context, symbol) or_break
+					enum_value := field_symbol.value.(SymbolEnumValue) or_break
 					append_enum_completion_items(enum_value, ast_context, position_context, results)
 					return is_incomplete
 				}
@@ -1659,8 +1659,8 @@ get_implicit_completion :: proc(
 			}
 			return is_incomplete
 		}
-		else if enum_value, is_bitset := unwrap_bitset(ast_context, comp_symbol); is_bitset {
-			append_enum_completion_items(enum_value, ast_context, position_context, results)
+		else if bitset_enum, is_bitset := unwrap_bitset(ast_context, comp_symbol); is_bitset {
+			append_enum_completion_items(bitset_enum, ast_context, position_context, results)
 			return is_incomplete
 		}
 	}
@@ -1994,8 +1994,8 @@ get_identifier_completion :: proc(
 			lookup_name = ident.name
 		} else if poly, ok := position_context.identifier.derived.(^ast.Poly_Type); ok {
 			if poly.specialization != nil {
-				if ident, ok := poly.specialization.derived.(^ast.Ident); ok {
-					lookup_name = ident.name
+				if spec_ident, is_ident := poly.specialization.derived.(^ast.Ident); is_ident {
+					lookup_name = spec_ident.name
 				}
 			}
 		}
@@ -2252,7 +2252,7 @@ search_for_packages :: proc(fullpath: string) -> []string {
 		return {}
 	}
 
-	if files, err := os.read_dir(fh, 0, context.temp_allocator); err == nil {
+	if files, read_err := os.read_dir(fh, 0, context.temp_allocator); read_err == nil {
 		for file in files {
 			if file.type == .Directory {
 				append(&packages, file.fullpath)

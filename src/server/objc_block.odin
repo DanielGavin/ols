@@ -34,11 +34,11 @@ get_objc_block_handler :: proc(ast_context: ^AstContext, call: ^ast.Call_Expr) -
 }
 
 get_objc_block_proc_type_from_expr :: proc(expr: ^ast.Expr) -> (^ast.Proc_Type, bool) {
-	expr, _, ok := unwrap_pointer_expr(expr)
+	unwrapped, _, ok := unwrap_pointer_expr(expr)
 	if !ok {
 		return nil, false
 	}
-	call, call_ok := expr.derived.(^ast.Call_Expr)
+	call, call_ok := unwrapped.derived.(^ast.Call_Expr)
 	if !call_ok || len(call.args) == 0 {
 		return nil, false
 	}

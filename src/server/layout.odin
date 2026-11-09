@@ -167,8 +167,8 @@ eval_const_int :: proc(
 		}
 	case ^ast.Ident:
 		if locals != nil {
-			if value, found := locals[v.name]; found {
-				return value, true
+			if local_value, found := locals[v.name]; found {
+				return local_value, true
 			}
 		}
 		symbol := resolve_type_identifier(ast_context, v^) or_return

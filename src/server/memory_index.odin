@@ -84,8 +84,8 @@ memory_index_fuzzy_search :: proc(
 					// TODO: this only does the top level fields, we may want to travers all the way down in the future
 					#partial switch v in symbol.value {
 					case SymbolStructValue:
-						for name, i in v.names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+						for field_name, i in v.names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, field_name)
 							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								construct_struct_field_symbol(&s, symbol.name, v, i)
@@ -99,8 +99,8 @@ memory_index_fuzzy_search :: proc(
 							}
 						}
 					case SymbolBitFieldValue:
-						for name, i in v.names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+						for field_name, i in v.names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, field_name)
 							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								construct_bit_field_field_symbol(&s, symbol.name, v, i)
@@ -114,8 +114,8 @@ memory_index_fuzzy_search :: proc(
 							}
 						}
 					case SymbolGenericValue:
-						for name, i in v.field_names {
-							full_name := fmt.tprintf("%s.%s", symbol.name, name)
+						for field_name, i in v.field_names {
+							full_name := fmt.tprintf("%s.%s", symbol.name, field_name)
 							if score, ok := score_name(matchers[:], full_name); ok {
 								s := symbol
 								s.name = full_name

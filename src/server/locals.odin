@@ -213,8 +213,8 @@ get_generic_assignment :: proc(
 				return
 			case ^ast.Ident:
 				internal_resolve_type_expression(ast_context, type, &symbol) or_break
-				value := symbol.value.(SymbolProcedureValue) or_break
-				for return_item in value.return_types {
+				ident_value := symbol.value.(SymbolProcedureValue) or_break
+				for return_item in ident_value.return_types {
 					get_generic_assignment(file, return_item.type, ast_context, results, calls, flags, is_mutable)
 				}
 			}
@@ -649,21 +649,21 @@ get_locals_block_stmt :: proc(
 }
 
 get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
-	if symbol, expr, ok := unwrap_procedure_until_struct_bit_field_or_package(ast_context, expr); ok {
+	if symbol, unwrapped, ok := unwrap_procedure_until_struct_bit_field_or_package(ast_context, expr); ok {
 		#partial switch v in symbol.value {
 		case SymbolPackageValue:
-			if ident, ok := expr.derived.(^ast.Ident); ok {
+			if ident, is_ident := unwrapped.derived.(^ast.Ident); is_ident {
 				add_using(ast_context, ident.name, symbol.pkg)
 			}
 		case SymbolStructValue:
 			for name, i in v.names {
 				selector := new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, ast_context.allocator)
-				selector.expr = expr
+				selector.expr = unwrapped
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
 				store_local(
 					ast_context,
-					expr,
+					unwrapped,
 					selector,
 					0,
 					name,
@@ -677,12 +677,12 @@ get_locals_using :: proc(expr: ^ast.Expr, ast_context: ^AstContext) {
 		case SymbolBitFieldValue:
 			for name, i in v.names {
 				selector := new_type(ast.Selector_Expr, v.types[i].pos, v.types[i].end, ast_context.allocator)
-				selector.expr = expr
+				selector.expr = unwrapped
 				selector.field = new_type(ast.Ident, v.types[i].pos, v.types[i].end, ast_context.allocator)
 				selector.field.name = name
 				store_local(
 					ast_context,
-					expr,
+					unwrapped,
 					selector,
 					0,
 					name,

@@ -235,8 +235,8 @@ get_type_definition_locations :: proc(document: ^Document, position: common.Posi
 		}
 
 		if symbol, ok := resolve_location_type_identifier(&ast_context, ident); ok {
-			if symbol, ok := resolve_symbol_proc_first_return_symbol(&ast_context, symbol); ok {
-				append_symbol_to_locations(&locations, document, symbol)
+			if return_symbol, return_ok := resolve_symbol_proc_first_return_symbol(&ast_context, symbol); return_ok {
+				append_symbol_to_locations(&locations, document, return_symbol)
 				return locations[:], true
 			}
 			append_symbol_to_locations(&locations, document, symbol)

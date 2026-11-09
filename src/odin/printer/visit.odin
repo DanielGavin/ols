@@ -1693,8 +1693,8 @@ visit_expr :: proc(
 			}
 
 			if contains_comments_in_range(p, v.pos, v.end) {
-				comments, _ := visit_comments(p, v.end)
-				document = cons(document, nest(comments), newline(1), text("}"))
+				inner_comments, _ := visit_comments(p, v.end)
+				document = cons(document, nest(inner_comments), newline(1), text("}"))
 			} else {
 				document = cons(document, visit_struct_field_list(p, v.fields, {.Add_Comma}), text("}"))
 			}

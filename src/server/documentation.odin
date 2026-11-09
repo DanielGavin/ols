@@ -154,10 +154,10 @@ write_signature :: proc(sb: ^strings.Builder, ast_context: ^AstContext, symbol: 
 		return
 	case SymbolAggregateValue:
 		strings.write_string(sb, "proc {\n")
-		for symbol in v.symbols {
-			if value, ok := symbol.value.(SymbolProcedureValue); ok {
+		for aggregate_symbol in v.symbols {
+			if value, ok := aggregate_symbol.value.(SymbolProcedureValue); ok {
 				write_indent(sb, depth + 1)
-				fmt.sbprintf(sb, "%s :: ", symbol.name)
+				fmt.sbprintf(sb, "%s :: ", aggregate_symbol.name)
 				write_procedure_symbol_signature(sb, value, detailed_signature = false)
 				strings.write_string(sb, ",\n")
 			}

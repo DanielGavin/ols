@@ -208,9 +208,9 @@ resolve_hover_information :: proc(
 							}
 						} else if value, ok := field.derived.(^ast.Field_Value); ok {
 							if position_in_node(value.field, position_context.position) {
-								if ident, ok := value.field.derived.(^ast.Ident); ok {
+								if field_ident, field_ok := value.field.derived.(^ast.Ident); field_ok {
 									for name, i in v.names {
-										if name == ident.name {
+										if name == field_ident.name {
 											construct_enum_field_symbol(&enum_symbol, v, i)
 											hover.range = enum_symbol.range
 											hover.contents = write_hover_content(&ast_context, enum_symbol)
@@ -489,9 +489,9 @@ resolve_hover_information :: proc(
 	} else if position_context.implicit_selector_expr != nil {
 		implicit_selector := position_context.implicit_selector_expr
 		if symbol, ok := resolve_implicit_selector(&ast_context, &position_context); ok {
-			if hover, ok := get_hover_enum_field(&ast_context, symbol, implicit_selector.field.name); ok {
-				hover.range = common.get_token_range(implicit_selector, document.ast.src)
-				return hover, true, true
+			if enum_hover, enum_ok := get_hover_enum_field(&ast_context, symbol, implicit_selector.field.name); enum_ok {
+				enum_hover.range = common.get_token_range(implicit_selector, document.ast.src)
+				return enum_hover, true, true
 			}
 		}
 		return {}, false, true
@@ -526,8 +526,8 @@ resolve_hover_information :: proc(
 
 		if resolved, ok := resolve_type_identifier(&ast_context, ident); ok {
 			if position_context.enum_type != nil {
-				if hover, ok := get_hover_enum_field(&ast_context, resolved, ident.name); ok {
-					return hover, true, true
+				if enum_hover, enum_ok := get_hover_enum_field(&ast_context, resolved, ident.name); enum_ok {
+					return enum_hover, true, true
 				}
 			}
 			construct_ident_symbol_info(&resolved, ident.name, ast_context.document_package)

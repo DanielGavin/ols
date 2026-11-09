@@ -277,9 +277,9 @@ get_complex_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) -> ^a
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
 				// There isn't a token for `Complex` so we just set it to `f64` instead
-				ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
-				ident.name = "f64"
-				return ident
+				f64_ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
+				f64_ident.name = "f64"
+				return f64_ident
 			}
 		}
 	}
@@ -309,9 +309,9 @@ get_quaternion_return_expr :: proc(ast_context: ^AstContext, expr: ^ast.Expr) ->
 				return v.ident
 			} else if v, ok := symbol.value.(SymbolUntypedValue); ok {
 				// There isn't a token for `Quaternion` so we just set it to `quaternion256` instead
-				ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
-				ident.name = "f64"
-				return ident
+				f64_ident := new_type(ast.Ident, expr.pos, expr.end, context.temp_allocator)
+				f64_ident.name = "f64"
+				return f64_ident
 			}
 		}
 	}
@@ -347,8 +347,8 @@ get_basic_lit_value :: proc(n: ^ast.Expr) -> (^ast.Basic_Lit, f64, bool) {
 		if op != "" {
 			text = fmt.tprintf("%s%s", op, text)
 		}
-		value, ok := strconv.parse_f64(text)
-		if !ok {
+		value, parse_ok := strconv.parse_f64(text)
+		if !parse_ok {
 			return nil, 0, false
 		}
 

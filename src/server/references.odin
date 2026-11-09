@@ -28,15 +28,15 @@ prepare_references :: proc(
 	pkg := ""
 
 	if position_context.label != nil && position_in_node(position_context.label, position_context.position) {
-		if symbol, ok := resolve_label(ast_context, position_context.label.name); ok {
-			return symbol, .Identifier, true
+		if label_symbol, label_ok := resolve_label(ast_context, position_context.label.name); label_ok {
+			return label_symbol, .Identifier, true
 		}
 	}
 
 	if position_context.enum_type != nil {
 		found := false
 		done_enum: for field in position_context.enum_type.fields {
-			if ident, ok := field.derived.(^ast.Ident); ok {
+			if ident, is_ident := field.derived.(^ast.Ident); is_ident {
 				if position_in_node(ident, position_context.position) {
 					symbol = Symbol {
 						pkg   = ast_context.current_package,
@@ -46,7 +46,7 @@ prepare_references :: proc(
 					resolve_flag = .Field
 					break done_enum
 				}
-			} else if value, ok := field.derived.(^ast.Field_Value); ok {
+			} else if value, is_field_value := field.derived.(^ast.Field_Value); is_field_value {
 				if position_in_node(value.field, position_context.position) {
 					symbol = Symbol {
 						range = common.get_token_range(value.field, ast_context.file.src),
@@ -56,8 +56,8 @@ prepare_references :: proc(
 					resolve_flag = .Field
 					break done_enum
 				} else if position_in_node(value.value, position_context.position) {
-					if ident, ok := value.value.derived.(^ast.Ident); ok {
-						symbol, ok = resolve_location_identifier(ast_context, ident^)
+					if value_ident, value_ok := value.value.derived.(^ast.Ident); value_ok {
+						symbol, ok = resolve_location_identifier(ast_context, value_ident^)
 						if !ok {
 							return
 						}
@@ -85,7 +85,7 @@ prepare_references :: proc(
 		found := false
 		for variant in position_context.union_type.variants {
 			if position_in_node(variant, position_context.position) {
-				if ident, _, ok := unwrap_pointer_ident(variant); ok {
+				if ident, _, is_ident := unwrap_pointer_ident(variant); is_ident {
 					symbol, ok = resolve_location_identifier(ast_context, ident)
 					resolve_flag = .Identifier
 
@@ -349,9 +349,9 @@ resolve_references :: proc(
 			pkg      = pkg,
 		}
 
-		ok := parse_file(&p, &file)
+		parse_ok := parse_file(&p, &file)
 
-		if !ok {
+		if !parse_ok {
 			if !is_ols_builtin_file(fullpath) {
 				log.errorf("error in parse file for indexing %v", fullpath)
 			}
@@ -382,8 +382,8 @@ resolve_references :: proc(
 		}
 
 		if in_pkg || symbol.pkg == document.package_name {
-			symbols_and_nodes := resolve_entire_file_for_references(&document, context.allocator, resolve_flag, target_name)
-			for k, v in symbols_and_nodes {
+			file_symbols_and_nodes := resolve_entire_file_for_references(&document, context.allocator, resolve_flag, target_name)
+			for k, v in file_symbols_and_nodes {
 				if strings.equal_fold(v.symbol.uri, symbol.uri) && v.symbol.range == symbol.range {
 					node_uri := common.create_uri(v.node.pos.file, ast_context.allocator)
 					range := common.get_token_range(v.node^, string(document.text))
