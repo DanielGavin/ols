@@ -62,8 +62,8 @@ resolve_home_dir :: proc(
 				return path, false
 			}
 
-			path, _ := filepath.join({home, path[1:]}, allocator)
-			return path, true
+			joined, _ := filepath.join({home, path[1:]}, allocator)
+			return joined, true
 		} else if strings.has_prefix(path, "$HOME") {
 			home := os.get_env("HOME", context.temp_allocator)
 			if home == "" {
@@ -71,8 +71,8 @@ resolve_home_dir :: proc(
 				return path, false
 			}
 
-			path, _ := filepath.join({home, path[5:]}, allocator)
-			return path, true
+			joined, _ := filepath.join({home, path[5:]}, allocator)
+			return joined, true
 		}
 		return path, false
 	}

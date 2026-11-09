@@ -616,8 +616,8 @@ collect_globals :: proc(file: ast.File) -> []GlobalExpr {
 			if block, ok := foreign_decl.body.derived.(^ast.Block_Stmt); ok {
 				for stmt in block.stmts {
 					collect_value_decl(&exprs, file, file_tags, stmt, foreign_decl.attributes[:])
-					if value_decl, ok := stmt.derived.(^ast.Value_Decl); ok {
-						register_when_consts_from_value_decl(&when_expr_map, file, value_decl)
+					if stmt_value_decl, is_value_decl := stmt.derived.(^ast.Value_Decl); is_value_decl {
+						register_when_consts_from_value_decl(&when_expr_map, file, stmt_value_decl)
 					}
 				}
 			}

@@ -253,12 +253,12 @@ resolve_type_comp_literal :: proc(
 									if _, ok := symbol.value.(SymbolUnionValue); ok {
 										if call_expr, ok := s.types[i].derived.(^ast.Call_Expr);
 										   ok && len(call_expr.args) == 1 {
-											if symbol, ok := resolve_type_expression(ast_context, call_expr.args[0]);
-											   ok {
+											if arg_symbol, arg_ok := resolve_type_expression(ast_context, call_expr.args[0]);
+											   arg_ok {
 												return resolve_type_comp_literal(
 													ast_context,
 													position_context,
-													symbol,
+													arg_symbol,
 													cast(^ast.Comp_Lit)field_value.value,
 												)
 											}
@@ -349,8 +349,8 @@ are_symbol_untyped_basic_same_typed :: proc(a, b: Symbol) -> (bool, bool) {
 			}
 			// Untyped ints are allowed to map to floats
 			if untyped.type == .Integer {
-				names := untyped_map[.Float]
-				for name in names {
+				float_names := untyped_map[.Float]
+				for name in float_names {
 					if basic.ident.name == name {
 						return true, true
 					}
@@ -464,8 +464,8 @@ is_symbol_same_typed :: proc(ast_context: ^AstContext, a, b: Symbol, flags: ast.
 	// In order to correctly equate the symbols for overloaded functions, we need to check both directions
 	if same, ok := are_symbol_untyped_basic_same_typed(a, b); ok {
 		return same
-	} else if same, ok := are_symbol_untyped_basic_same_typed(b, a); ok {
-		return same
+	} else if same_rev, ok_rev := are_symbol_untyped_basic_same_typed(b, a); ok_rev {
+		return same_rev
 	}
 
 	a_id := reflect.union_variant_typeid(a.value)
@@ -1021,10 +1021,10 @@ proc_field_type_for_call :: proc(field: ^ast.Field) -> (type: ^ast.Expr, ok: boo
 
 proc_field_from_list_at :: proc(fields: []^ast.Field, index: int) -> (field: ^ast.Field, ok: bool) #optional_ok {
 	current := 0
-	for field in fields {
-		count := max(1, len(field.names))
+	for f in fields {
+		count := max(1, len(f.names))
 		if index < current + count {
-			return field, true
+			return f, true
 		}
 		current += count
 	}
@@ -1260,7 +1260,6 @@ resolve_function_overload :: proc(ast_context: ^AstContext, group: ^ast.Proc_Gro
 					ast_context.use_locals = true
 
 					arg_symbol: Symbol
-					ok: bool
 
 					if call_arg.bad_expr {
 						continue
@@ -1544,10 +1543,10 @@ get_proc_return_types :: proc(
 	return_types := make([dynamic]^ast.Expr, context.temp_allocator)
 	if ret, ok := check_builtin_proc_return_type(ast_context, symbol, call, is_mutable); ok {
 		appended := false
-		if call, ok := ret.derived.(^ast.Call_Expr); ok {
-			symbol := Symbol{}
-			if ok := internal_resolve_type_expression(ast_context, call.expr, &symbol); ok {
-				return get_proc_return_types(ast_context, symbol, call, true)
+		if ret_call, is_call := ret.derived.(^ast.Call_Expr); is_call {
+			ret_symbol := Symbol{}
+			if internal_resolve_type_expression(ast_context, ret_call.expr, &ret_symbol) {
+				return get_proc_return_types(ast_context, ret_symbol, ret_call, true)
 			}
 		}
 		append(&return_types, ret)
@@ -1807,8 +1806,8 @@ get_objc_instancetype_return_type :: proc(
 			}
 			receiver_callee = paren.expr
 		}
-		receiver_selector, is_selector := receiver_callee.derived.(^ast.Selector_Expr)
-		if !is_selector {
+		receiver_selector, is_receiver_selector := receiver_callee.derived.(^ast.Selector_Expr)
+		if !is_receiver_selector {
 			return nil, false
 		}
 		receiver_expr = receiver_selector.expr
@@ -1830,8 +1829,8 @@ contextualize_objc_call_symbol :: proc(ast_context: ^AstContext, symbol: Symbol,
 	changed := false
 	for ret, i in procedure.return_types {
 		return_type := ret.type if ret.type != nil else ret.default_value
-		contextual_type, ok := get_objc_instancetype_return_type(ast_context, symbol, call, return_type)
-		if !ok {
+		contextual_type, contextual_ok := get_objc_instancetype_return_type(ast_context, symbol, call, return_type)
+		if !contextual_ok {
 			continue
 		}
 
@@ -2022,7 +2021,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 	case ^ast.Comp_Lit:
 		return internal_resolve_type_expression(ast_context, v.type, out)
 	case ^ast.Unary_Expr:
-		ok := internal_resolve_type_expression(ast_context, v.expr, out)
+		ok = internal_resolve_type_expression(ast_context, v.expr, out)
 		if v.op.kind == .And {
 			out.pointers += 1
 		} else if v.op.kind == .Sub || v.op.kind == .Add || v.op.kind == .Not || v.op.kind == .Xor {
@@ -2039,7 +2038,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		}
 		return ok
 	case ^ast.Or_Else_Expr:
-		ok := internal_resolve_type_expression(ast_context, v.x, out)
+		ok = internal_resolve_type_expression(ast_context, v.x, out)
 		return ok
 	case ^ast.Or_Return_Expr:
 		ok = internal_resolve_type_expression(ast_context, v.expr, out)
@@ -2053,7 +2052,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 		}
 		return ok
 	case ^ast.Deref_Expr:
-		ok := internal_resolve_type_expression(ast_context, v.expr, out)
+		ok = internal_resolve_type_expression(ast_context, v.expr, out)
 		out.pointers -= 1
 		return ok
 	case ^ast.Paren_Expr:
@@ -2107,7 +2106,7 @@ internal_resolve_type_expression :: proc(ast_context: ^AstContext, node: ^ast.Ex
 			true
 		return ok
 	case ^ast.Pointer_Type:
-		ok := internal_resolve_type_expression(ast_context, v.elem, out)
+		ok = internal_resolve_type_expression(ast_context, v.elem, out)
 		out.pointers += 1
 		if pointer_is_soa(v^) {
 			out.flags += {.SoaPointer}
@@ -2341,7 +2340,7 @@ resolve_index_expr :: proc(ast_context: ^AstContext, index_expr: ^ast.Index_Expr
 
 resolve_selector_call_expr :: proc(ast_context: ^AstContext, v: ^ast.Selector_Call_Expr) -> (Symbol, bool) {
 	selector := Symbol{}
-	if ok := internal_resolve_type_expression(ast_context, v.expr, &selector); ok {
+	if internal_resolve_type_expression(ast_context, v.expr, &selector) {
 		ast_context.use_locals = false
 
 		set_ast_package_from_symbol_scoped(ast_context, selector)
@@ -2381,11 +2380,11 @@ resolve_type_assertion_expr :: proc(ast_context: ^AstContext, v: ^ast.Type_Asser
 
 					if ok := internal_resolve_type_expression(ast_context, proc_value.return_types[0].type, &symbol);
 					   ok {
-						if union_value, ok := symbol.value.(SymbolUnionValue); ok {
-							if len(union_value.types) != 1 {
+						if ret_union, ok := symbol.value.(SymbolUnionValue); ok {
+							if len(ret_union.types) != 1 {
 								return {}, false
 							}
-							ok = internal_resolve_type_expression(ast_context, union_value.types[0], &symbol)
+							ok = internal_resolve_type_expression(ast_context, ret_union.types[0], &symbol)
 							return symbol, ok
 						}
 					}
@@ -2452,14 +2451,14 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 	spall.trace(#procedure)
 
 	selector := Symbol{}
-	if ok := internal_resolve_type_expression(ast_context, node.expr, &selector); ok {
+	if internal_resolve_type_expression(ast_context, node.expr, &selector) {
 		set_ast_package_from_symbol_scoped(ast_context, selector)
 
 		symbol := Symbol{}
 		#partial switch s in selector.value {
 		case SymbolFixedArrayValue:
-			if symbol, ok := resolve_soa_selector_field(ast_context, selector, s.expr, s.len, node.field.name); ok {
-				return symbol, ok
+			if soa_symbol, ok := resolve_soa_selector_field(ast_context, selector, s.expr, s.len, node.field.name); ok {
+				return soa_symbol, ok
 			}
 			if .Soa in selector.flags {
 				return {}, false
@@ -2565,15 +2564,15 @@ resolve_selector_expression :: proc(ast_context: ^AstContext, node: ^ast.Selecto
 					basic_sym.flags = {.Mutable}
 					return basic_sym, true
 				}
-				if symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
-					return symbol, true
+				if alias_symbol, ok := resolve_field_access_through_imported_alias(ast_context, s.ident, node); ok {
+					return alias_symbol, true
 				}
 			}
 		case SymbolGenericValue:
 			if s.expr != nil {
 				if ident, ok := s.expr.derived.(^ast.Ident); ok && node.field != nil {
-					if symbol, ok := resolve_field_access_through_imported_alias(ast_context, ident, node); ok {
-						return symbol, true
+					if alias_symbol, ok := resolve_field_access_through_imported_alias(ast_context, ident, node); ok {
+						return alias_symbol, true
 					}
 				}
 			}
@@ -2609,8 +2608,8 @@ get_package_ident_from_symbol :: proc(symbol: Symbol) -> (ident: ^ast.Ident, ok:
 		}
 	case SymbolGenericValue:
 		if v.expr != nil {
-			if ident, ok := v.expr.derived.(^ast.Ident); ok {
-				return ident, true
+			if expr_ident, is_ident := v.expr.derived.(^ast.Ident); is_ident {
+				return expr_ident, true
 			}
 		}
 	}
@@ -2736,15 +2735,15 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 
 	if v, ok := keyword_map[node.name]; ok {
 		//keywords
-		ident := new_type(ast.Ident, node.pos, node.end, ast_context.allocator)
-		ident.name = node.name
+		keyword_ident := new_type(ast.Ident, node.pos, node.end, ast_context.allocator)
+		keyword_ident.name = node.name
 
-		switch ident.name {
+		switch keyword_ident.name {
 		case "nil":
 			return {}, false
 		case "true", "false":
 			token := tokenizer.Token {
-				text = ident.name,
+				text = keyword_ident.name,
 			}
 			return {
 					type = .Keyword,
@@ -2757,10 +2756,10 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 			return {
 					type = .Keyword,
 					signature = node.name,
-					name = ident.name,
+					name = keyword_ident.name,
 					pkg = ast_context.current_package,
-					value = SymbolBasicValue{ident = ident},
-					uri = common.create_uri(ident.pos.file, ast_context.allocator).uri,
+					value = SymbolBasicValue{ident = keyword_ident},
+					uri = common.create_uri(keyword_ident.pos.file, ast_context.allocator).uri,
 				},
 				true
 		}
@@ -3100,14 +3099,14 @@ struct_type_from_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 	set_ast_package_scoped(ast_context)
 
 	if local, ok := get_local(ast_context^, node); ok && (ast_context.use_locals || local.local_global) {
-		v, ok := local.rhs.derived.(^ast.Struct_Type)
-		return v, ok
+		struct_type, is_struct := local.rhs.derived.(^ast.Struct_Type)
+		return struct_type, is_struct
 	}
 
 	if global, ok := ast_context.globals[node.name];
 	   ast_context.current_package == ast_context.document_package && ok {
-		v, ok := global.expr.derived.(^ast.Struct_Type)
-		return v, ok
+		struct_type, is_struct := global.expr.derived.(^ast.Struct_Type)
+		return struct_type, is_struct
 	}
 
 	return nil, false
@@ -3124,21 +3123,21 @@ resolve_slice_expression :: proc(
 ) {
 	symbol = resolve_type_expression(ast_context, expr) or_return
 
-	expr: ^ast.Expr
+	elem_expr: ^ast.Expr
 
 	#partial switch v in symbol.value {
 	case SymbolSliceValue:
-		expr = v.expr
+		elem_expr = v.expr
 	case SymbolFixedArrayValue:
-		expr = v.expr
+		elem_expr = v.expr
 	case SymbolDynamicArrayValue:
-		expr = v.expr
+		elem_expr = v.expr
 	case SymbolMultiPointerValue:
 		// Slicing multi-pointer behaviour outlined here: https://odin-lang.org/docs/overview/#multi-pointers
 		if slice_expr.high == nil {
 			return symbol, true
 		}
-		expr = v.expr
+		elem_expr = v.expr
 	case SymbolUntypedValue:
 		if v.type == .String {
 			return symbol, true
@@ -3159,7 +3158,7 @@ resolve_slice_expression :: proc(
 	}
 
 	symbol.value = SymbolSliceValue {
-		expr = expr,
+		expr = elem_expr,
 	}
 
 	return symbol, true
@@ -3719,7 +3718,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		expand_usings(ast_context, &b)
 		return to_symbol(b), ok
 	case SymbolGenericValue:
-		ret, ok := resolve_type_expression(ast_context, v.expr)
+		ret, ret_ok := resolve_type_expression(ast_context, v.expr)
 		if symbol.type == .Variable {
 			ret.type = symbol.type
 		}
@@ -3729,7 +3728,7 @@ resolve_symbol_return :: proc(ast_context: ^AstContext, symbol: Symbol, ok := tr
 		if .Mutable in symbol.flags {
 			ret.flags |= {.Mutable}
 		}
-		return ret, ok
+		return ret, ret_ok
 	}
 
 	return symbol, true
@@ -3831,8 +3830,8 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		usings := get_using_packages(ast_context)
 
 		for pkg in usings {
-			if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
-				return symbol, ok
+			if found, ok := lookup(node.name, pkg, node.pos.file); ok {
+				return found, ok
 			}
 		}
 	}
@@ -3851,26 +3850,26 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		}
 
 		if strings.compare(imp.base, node.name) == 0 {
-			symbol := Symbol {
+			pkg_symbol := Symbol {
 				type  = .Package,
 				pkg   = imp.name,
 				value = SymbolPackageValue{},
 				range = imp.range,
 			}
 
-			try_build_package(symbol.pkg)
+			try_build_package(pkg_symbol.pkg)
 
-			return symbol, true
+			return pkg_symbol, true
 		}
 	}
 
 	pkg := get_package_from_node(node)
-	if symbol, ok := lookup(node.name, pkg, node.pos.file); ok {
-		return symbol, ok
+	if found, ok := lookup(node.name, pkg, node.pos.file); ok {
+		return found, ok
 	}
 
-	if symbol, ok := lookup(node.name, "$builtin", node.pos.file); ok {
-		return symbol, ok
+	if found, ok := lookup(node.name, "$builtin", node.pos.file); ok {
+		return found, ok
 	}
 
 	return {}, false
@@ -4060,10 +4059,10 @@ resolve_container_allocator :: proc(ast_context: ^AstContext, container_name: st
 			if v, ok := symbol.value.(SymbolStructValue); ok {
 				for name, i in v.names {
 					if name == "allocator" {
-						if symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
-							construct_struct_field_symbol(&symbol, container_name, v, i)
-							build_documentation(ast_context, &symbol, true)
-							return symbol, true
+						if field_symbol, ok := resolve_type_expression(ast_context, v.types[i]); ok {
+							construct_struct_field_symbol(&field_symbol, container_name, v, i)
+							build_documentation(ast_context, &field_symbol, true)
+							return field_symbol, true
 						}
 					}
 				}
@@ -4847,8 +4846,8 @@ make_symbol_enum_from_ast :: proc(
 	values := make([dynamic]^ast.Expr, ast_context.allocator)
 
 	for n in v.fields {
-		name, range, value := get_enum_field_name_range_value(n, ast_context.file.src)
-		append(&names, name)
+		field_name, range, value := get_enum_field_name_range_value(n, ast_context.file.src)
+		append(&names, field_name)
 		append(&ranges, range)
 		append(&values, value)
 	}
@@ -5078,8 +5077,8 @@ unwrap_enum :: proc(ast_context: ^AstContext, node: ^ast.Expr) -> (SymbolEnumVal
 		case SymbolEnumValue:
 			return value, false, true
 		case SymbolUnionValue:
-			result, ok := unwrap_super_enum(ast_context, value)
-			return result, true, ok
+			result, super_ok := unwrap_super_enum(ast_context, value)
+			return result, true, super_ok
 		case SymbolSliceValue:
 			return unwrap_enum(ast_context, value.expr)
 		case SymbolFixedArrayValue:
@@ -5218,8 +5217,8 @@ field_exists_in_comp_lit :: proc(comp_lit: ^ast.Comp_Lit, name: string) -> bool 
 					}
 				} else if selector, ok := field.field.derived.(^ast.Implicit_Selector_Expr); ok {
 					if selector.field != nil {
-						if ident, ok := selector.field.derived.(^ast.Ident); ok {
-							if ident.name == name {
+						if field_ident, is_ident := selector.field.derived.(^ast.Ident); is_ident {
+							if field_ident.name == name {
 								return true
 							}
 						}

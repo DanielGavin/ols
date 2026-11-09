@@ -212,10 +212,10 @@ try_build_package :: proc(pkg_name: string) {
 				continue
 			}
 
-			data, err := os.read_entire_file(fullpath, context.allocator)
+			data, read_err := os.read_entire_file(fullpath, context.allocator)
 
-			if err != nil {
-				log.errorf("failed to read entire file for indexing %v: %v", fullpath, err)
+			if read_err != nil {
+				log.errorf("failed to read entire file for indexing %v: %v", fullpath, read_err)
 				continue
 			}
 

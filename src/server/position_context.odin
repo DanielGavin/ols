@@ -387,19 +387,19 @@ fallback_position_context_completion :: proc(
 
 		parser.advance_token(&p)
 
-		e := parser.parse_expr(&p, true)
+		dot_expr := parser.parse_expr(&p, true)
 
-		if e == nil {
+		if dot_expr == nil {
 			position_context.abort_completion = true
 			return
-		} else if e, ok := e.derived.(^ast.Bad_Expr); ok {
+		} else if _, is_bad := dot_expr.derived.(^ast.Bad_Expr); is_bad {
 			position_context.abort_completion = true
 			return
 		}
 
-		position_context.selector = e
+		position_context.selector = dot_expr
 
-		ident := new_type(ast.Ident, e.pos, e.end, context.temp_allocator)
+		ident := new_type(ast.Ident, dot_expr.pos, dot_expr.end, context.temp_allocator)
 		ident.name = string(position_context.file.src[last_dot + 1:end_offset])
 
 		if ident.name != "" {

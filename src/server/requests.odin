@@ -295,7 +295,7 @@ consume_requests :: proc(config: ^common.Config, writer: ^Writer) -> bool {
 		delete_index := -1
 		for request, i in requests {
 			if request.id == d.id {
-				delete_index := i
+				delete_index = i
 				break
 			}
 		}
@@ -393,8 +393,8 @@ call :: proc(value: json.Value, id: RequestId, writer: ^Writer, config: ^common.
 read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfig, uri: common.Uri) {
 	if v, ok := ols_config.enable_parser_errors.(bool); ok {
 		config.enable_parser_errors = v
-	} else if v, ok := ols_config.disable_parser_errors.(bool); ok {
-		config.enable_parser_errors = !v
+	} else if disable, disable_ok := ols_config.disable_parser_errors.(bool); disable_ok {
+		config.enable_parser_errors = !disable
 	}
 	config.enable_diagnostics = ols_config.enable_diagnostics.(bool) or_else config.enable_diagnostics
 	config.thread_count = ols_config.thread_pool_count.(int) or_else config.thread_count

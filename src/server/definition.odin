@@ -216,8 +216,8 @@ try_resolve_proc_group_overload :: proc(
 	full_symbol := symbol
 	if result, ok := get_full_symbol_from_selector(ast_context, selector_expr, symbol); ok {
 		full_symbol = result
-	} else if result, ok := get_full_symbol_from_identifier(ast_context, position_context, symbol); ok {
-		full_symbol = result
+	} else if ident_result, ident_ok := get_full_symbol_from_identifier(ast_context, position_context, symbol); ident_ok {
+		full_symbol = ident_result
 	}
 
 	proc_group_value, is_proc_group := full_symbol.value.(SymbolProcedureGroupValue)

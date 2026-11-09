@@ -90,7 +90,7 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 	if !config.enable_diagnostics {
 		return
 	}
-	path := strings.clone(path, checker.allocator)
+	owned_path := strings.clone(path, checker.allocator)
 
 	buffers := make([dynamic]Check_Buffer, 0, len(document_storage.documents), checker.allocator)
 	for _, &document in document_storage.documents {
@@ -110,7 +110,7 @@ queue_check_request :: proc(mode: Check_Mode, path: string, config: ^common.Conf
 
 	request := Check_Request{
 		check_mode = mode,
-		path       = path,
+		path       = owned_path,
 		buffers    = buffers[:],
 	}
 
@@ -525,9 +525,9 @@ check :: proc(mode: Check_Mode, check_paths: []string, buffers: []Check_Buffer, 
 			running_count -= 1
 
 			for {
-				n, read_err := os.read(p.reader, buf[:])
-				if n > 0 {
-					_, _ = append(&p.buffer, ..buf[:n])
+				remaining, read_err := os.read(p.reader, buf[:])
+				if remaining > 0 {
+					_, _ = append(&p.buffer, ..buf[:remaining])
 				}
 				if read_err != nil {
 					break

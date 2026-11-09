@@ -365,12 +365,12 @@ resolve_node :: proc(node: ^ast.Node, data: ^FileResolveData) {
 			} else if data.save_unresolved {
 				//If we failed to resolve the identifier of an selector expression, we check if the base was resolved correctly.
 				//This matters for adding unimported imports.
-				_, ok := resolve_type_expression(data.ast_context, n.expr)
+				_, base_ok := resolve_type_expression(data.ast_context, n.expr)
 
 				data.symbols[cast(uintptr)node] = SymbolAndNode {
 					node                              = n,
 					is_unresolved                     = true,
-					is_selector_expression_unresolved = !ok,
+					is_selector_expression_unresolved = !base_ok,
 				}
 			}
 			resolve_node(n.expr, data)

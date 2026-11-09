@@ -276,9 +276,9 @@ document_apply_changes :: proc(
 	for change in changes {
 		//for some reason sublime doesn't seem to care even if i tell it to do incremental sync
 		if range, ok := change.range.(common.Range); ok {
-			absolute_range, ok := common.get_absolute_range(range, document.text[:document.used_text])
+			absolute_range, range_ok := common.get_absolute_range(range, document.text[:document.used_text])
 
-			if !ok {
+			if !range_ok {
 				return .ParseError
 			}
 

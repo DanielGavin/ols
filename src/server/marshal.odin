@@ -324,14 +324,14 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 				// check for string type
 				{
-					v := any{key, info.key.id}
-					ti := runtime.type_info_base(type_info_of(v.id))
-					a := any{v.data, ti.id}
+					key_v := any{key, info.key.id}
+					key_ti := runtime.type_info_base(type_info_of(key_v.id))
+					key_a := any{key_v.data, key_ti.id}
 					name: string
 
-					#partial switch info in ti.variant {
+					#partial switch info in key_ti.variant {
 					case runtime.Type_Info_String:
-						switch s in a {
+						switch s in key_a {
 						case string:
 							name = s
 						case cstring:
@@ -358,10 +358,10 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			data := rawptr(uintptr(v.data) + info.offsets[i])
 
 			{
-				ti := runtime.type_info_base(type_info_of(id))
-				a := any{data, ti.id}
+				field_ti := runtime.type_info_base(type_info_of(id))
+				field_a := any{data, field_ti.id}
 
-				if reflect.is_union(ti) && reflect.is_nil(a) && name != "result" {
+				if reflect.is_union(field_ti) && reflect.is_nil(field_a) && name != "result" {
 					continue
 				}
 			}
