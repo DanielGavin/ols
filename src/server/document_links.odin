@@ -35,7 +35,7 @@ get_document_links :: proc(document: ^Document) -> ([]DocumentLink, bool) {
 			continue
 		}
 
-		//Temporarly assuming non unicode
+		//Temporarily assuming non unicode
 		node := ast.Node {
 			pos = {
 				offset = imp.relpath.pos.offset + 1,

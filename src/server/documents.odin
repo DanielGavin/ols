@@ -246,7 +246,7 @@ document_setup :: proc(document: ^Document) {
 }
 
 /*
-	Function that applies changes to the given document through incremental syncronization
+	Function that applies changes to the given document through incremental synchronization
 */
 document_apply_changes :: proc(
 	uri_string: string,
