@@ -85,10 +85,10 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 	a := any{v.data, ti.id}
 
 	#partial switch info in ti.variant {
-	case runtime.Type_Info_Named:
+	case ^runtime.Type_Info_Named:
 		unreachable()
 
-	case runtime.Type_Info_Integer:
+	case ^runtime.Type_Info_Integer:
 		buf: [40]byte
 		u: u128
 		switch i in a {
@@ -168,13 +168,13 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_string(w, s) or_return
 
 
-	case runtime.Type_Info_Rune:
+	case ^runtime.Type_Info_Rune:
 		r := a.(rune)
 		io.write_byte(w, '"') or_return
 		io.write_escaped_rune(w, r, '"', true) or_return
 		io.write_byte(w, '"') or_return
 
-	case runtime.Type_Info_Float:
+	case ^runtime.Type_Info_Float:
 		switch f in a {
 		case f16:
 			io.write_f16(w, f) or_return
@@ -186,7 +186,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			return .Unsupported_Type
 		}
 
-	case runtime.Type_Info_Complex:
+	case ^runtime.Type_Info_Complex:
 		r, i: f64
 		switch z in a {
 		case complex32:
@@ -205,10 +205,10 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		io.write_f64(w, i) or_return
 		io.write_byte(w, ']') or_return
 
-	case runtime.Type_Info_Quaternion:
+	case ^runtime.Type_Info_Quaternion:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_String:
+	case ^runtime.Type_Info_String:
 		switch s in a {
 		case string:
 			json.write_quoted_json_string(w, s) or_return
@@ -216,7 +216,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			json.write_quoted_json_string(w, string(s)) or_return
 		}
 
-	case runtime.Type_Info_Boolean:
+	case ^runtime.Type_Info_Boolean:
 		val: bool
 		switch b in a {
 		case bool:
@@ -232,34 +232,34 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		}
 		io.write_string(w, val ? "true" : "false") or_return
 
-	case runtime.Type_Info_Any:
+	case ^runtime.Type_Info_Any:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Type_Id:
+	case ^runtime.Type_Info_Type_Id:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Pointer:
+	case ^runtime.Type_Info_Pointer:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Multi_Pointer:
+	case ^runtime.Type_Info_Multi_Pointer:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Soa_Pointer:
+	case ^runtime.Type_Info_Soa_Pointer:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Procedure:
+	case ^runtime.Type_Info_Procedure:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Parameters:
+	case ^runtime.Type_Info_Parameters:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Simd_Vector:
+	case ^runtime.Type_Info_Simd_Vector:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Matrix:
+	case ^runtime.Type_Info_Matrix:
 		return .Unsupported_Type
 
-	case runtime.Type_Info_Array:
+	case ^runtime.Type_Info_Array:
 		opt_write_start(w, opt, '[') or_return
 		for i in 0 ..< info.count {
 			opt_write_iteration(w, opt, i) or_return
@@ -268,8 +268,8 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		}
 		opt_write_end(w, opt, ']') or_return
 
-	case runtime.Type_Info_Enumerated_Array:
-		index := runtime.type_info_base(info.index).variant.(runtime.Type_Info_Enum)
+	case ^runtime.Type_Info_Enumerated_Array:
+		index := runtime.type_info_base(info.index).variant.(^runtime.Type_Info_Enum)
 		opt_write_start(w, opt, '[') or_return
 		for i in 0 ..< info.count {
 			opt_write_iteration(w, opt, i) or_return
@@ -278,7 +278,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		}
 		opt_write_end(w, opt, ']') or_return
 
-	case runtime.Type_Info_Dynamic_Array:
+	case ^runtime.Type_Info_Dynamic_Array:
 		opt_write_start(w, opt, '[') or_return
 		array := cast(^mem.Raw_Dynamic_Array)v.data
 		for i in 0 ..< array.len {
@@ -288,7 +288,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		}
 		opt_write_end(w, opt, ']') or_return
 
-	case runtime.Type_Info_Slice:
+	case ^runtime.Type_Info_Slice:
 		opt_write_start(w, opt, '[') or_return
 		slice := cast(^mem.Raw_Slice)v.data
 		for i in 0 ..< slice.len {
@@ -298,7 +298,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 		}
 		opt_write_end(w, opt, ']') or_return
 
-	case runtime.Type_Info_Map:
+	case ^runtime.Type_Info_Map:
 		m := (^mem.Raw_Map)(v.data)
 		opt_write_start(w, opt, '{') or_return
 
@@ -330,7 +330,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 					name: string
 
 					#partial switch info in ti.variant {
-					case runtime.Type_Info_String:
+					case ^runtime.Type_Info_String:
 						switch s in a {
 						case string:
 							name = s
@@ -350,7 +350,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 		opt_write_end(w, opt, '}') or_return
 
-	case runtime.Type_Info_Struct:
+	case ^runtime.Type_Info_Struct:
 		opt_write_start(w, opt, '{') or_return
 
 		for name, i in info.names[0:info.field_count] {
@@ -378,7 +378,7 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 
 		opt_write_end(w, opt, '}') or_return
 
-	case runtime.Type_Info_Union:
+	case ^runtime.Type_Info_Union:
 		tag_ptr := uintptr(v.data) + info.tag_offset
 		tag_any := any{rawptr(tag_ptr), info.tag_type.id}
 
@@ -411,17 +411,17 @@ marshal_to_writer :: proc(w: io.Writer, v: any, opt: ^Marshal_Options) -> (err: 
 			return marshal_to_writer(w, any{v.data, id}, opt)
 		}
 
-	case runtime.Type_Info_Enum:
+	case ^runtime.Type_Info_Enum:
 		return marshal_to_writer(w, any{v.data, info.base.id}, opt)
 
-	case runtime.Type_Info_Bit_Set:
+	case ^runtime.Type_Info_Bit_Set:
 		is_bit_set_different_endian_to_platform :: proc(ti: ^runtime.Type_Info) -> bool {
 			if ti == nil {
 				return false
 			}
 			t := runtime.type_info_base(ti)
 			#partial switch info in t.variant {
-			case runtime.Type_Info_Integer:
+			case ^runtime.Type_Info_Integer:
 				switch info.endianness {
 				case .Platform:
 					return false
