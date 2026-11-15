@@ -5,6 +5,33 @@ import "core:testing"
 import test "src:testing"
 
 @(test)
+ast_inlay_hints_variable_types :: proc(t: ^testing.T) {
+	source := test.Source {
+		main     = `package test
+
+		AGE[[: int]] :: 25
+
+		dimensions :: proc() -> (int, int) {
+			return 1920, 1080
+		}
+
+		main :: proc() {
+			name[[: string]] := "John"
+			width[[: int]], height[[: int]] := dimensions()
+			known: int = 1
+			known = 2
+		}
+		`,
+		packages = {},
+		config = {
+			enable_inlay_hints_variable_types = true,
+		},
+	}
+
+	test.expect_inlay_hints(t, &source)
+}
+
+@(test)
 ast_inlay_hints_default_params :: proc(t: ^testing.T) {
 	source := test.Source {
 		main     = `package test

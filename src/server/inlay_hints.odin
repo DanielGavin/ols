@@ -67,6 +67,7 @@ get_inlay_hints :: proc(
 			add_param_hints(node, data)
 			add_return_hints(node, data)
 			add_result_hints(node, data)
+			add_variable_type_hints(node, data)
 
 			return visitor
 		},
@@ -82,6 +83,81 @@ get_inlay_hints :: proc(
 		case ^ast.Poly_Type: return expr_name(v.type)
 		case: return
 		}
+	}
+
+	inferred_type_name :: proc(symbol: Symbol, file: string) -> string {
+		if symbol.type_expr != nil {
+			return node_to_string(symbol.type_expr)
+		}
+
+		type_name: string
+		#partial switch value in symbol.value {
+		case SymbolBasicValue:
+			if value.ident != nil {
+				type_name = value.ident.name
+			}
+		case SymbolUntypedValue:
+			switch value.type {
+			case .Integer:
+				type_name = "int"
+			case .Float:
+				type_name = "f64"
+			case .Complex:
+				type_name = "complex128"
+			case .Quaternion:
+				type_name = "quaternion256"
+			case .String:
+				type_name = "string"
+			case .Bool:
+				type_name = "bool"
+			case .Rune:
+				type_name = "rune"
+			}
+		case SymbolStructValue, SymbolUnionValue, SymbolEnumValue, SymbolBitFieldValue:
+			type_name = symbol.type_name if symbol.type_name != "" else symbol.name
+		case SymbolGenericValue:
+			if value.expr != nil {
+				type_name = node_to_string(value.expr)
+			}
+		case:
+			if type_expr := symbol_to_expr(symbol, file); type_expr != nil {
+				if symbol.pointers > 0 {
+					type_expr = wrap_pointer(type_expr, symbol.pointers)
+				}
+				type_name = node_to_string(type_expr)
+			}
+		}
+
+		return type_name
+	}
+
+	/*
+		Adds inlay hints for inferred variable and constant declarations.
+	*/
+	add_variable_type_hints :: proc(node: ^ast.Node, data: ^Visitor_Data) -> (ok: bool) {
+		if !data.config.enable_inlay_hints_variable_types do return
+
+		decl := node.derived.(^ast.Value_Decl) or_return
+		if decl.type != nil || len(decl.values) == 0 do return
+
+		src := string(data.document.text)
+		for name in decl.names {
+			ident := name.derived.(^ast.Ident) or_continue
+			if ident.name == "_" do continue
+
+			symbol_and_node := data.symbols[uintptr(name)] or_continue
+			if symbol_and_node.symbol.type != .Variable && symbol_and_node.symbol.type != .Constant {
+				continue
+			}
+			type_name := inferred_type_name(symbol_and_node.symbol, data.document.fullpath)
+			if type_name == "" do continue
+
+			range := common.get_token_range(name^, src)
+			hint_text := fmt.tprintf(": %s", type_name)
+			append(&data.hints, InlayHint{range.end, .Type, hint_text})
+		}
+
+		return true
 	}
 
 	/*
