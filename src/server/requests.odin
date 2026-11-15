@@ -542,6 +542,8 @@ read_ols_initialize_options :: proc(config: ^common.Config, ols_config: OlsConfi
 		ols_config.enable_inlay_hints_implicit_return.(bool) or_else config.enable_inlay_hints_implicit_return
 	config.enable_inlay_hints_optional_result =
 		ols_config.enable_inlay_hints_optional_result.(bool) or_else config.enable_inlay_hints_optional_result
+	config.enable_inlay_hints_variable_types =
+		ols_config.enable_inlay_hints_variable_types.(bool) or_else config.enable_inlay_hints_variable_types
 
 	config.enable_fake_method = ols_config.enable_fake_methods.(bool) or_else config.enable_fake_method
 	config.enable_overload_resolution =
@@ -735,6 +737,7 @@ request_initialize :: proc(
 	config.enable_inlay_hints_params = false
 	config.enable_inlay_hints_default_params = false
 	config.enable_inlay_hints_implicit_return = false
+	config.enable_inlay_hints_variable_types = false
 
 	config.enable_parser_errors = true
 	config.enable_diagnostics = true
@@ -873,7 +876,8 @@ request_initialize :: proc(
 				inlayHintProvider = (config.enable_inlay_hints_params ||
 					config.enable_inlay_hints_default_params ||
 					config.enable_inlay_hints_implicit_return ||
-					config.enable_inlay_hints_optional_result),
+					config.enable_inlay_hints_optional_result ||
+					config.enable_inlay_hints_variable_types),
 				documentSymbolProvider = config.enable_document_symbols,
 				hoverProvider = config.enable_hover,
 				documentFormattingProvider = config.enable_format,
