@@ -10,6 +10,8 @@ ast_inlay_hints_variable_types :: proc(t: ^testing.T) {
 		main     = `package test
 
 		AGE[[: int]] :: 25
+		Point :: struct { x: int }
+		Coordinate :: distinct int
 
 		dimensions :: proc() -> (int, int) {
 			return 1920, 1080
@@ -18,6 +20,15 @@ ast_inlay_hints_variable_types :: proc(t: ^testing.T) {
 		main :: proc() {
 			name[[: string]] := "John"
 			width[[: int]], height[[: int]] := dimensions()
+			point[[: Point]] := Point{x = 1}
+			anonymous[[: struct{x: int}]] := struct { x: int }{x = 2}
+			coordinate[[: Coordinate]] := Coordinate(3)
+			pointer[[: ^Point]] := &Point{x = 4}
+			array[[: [2]int]] := [2]int{1, 2}
+			slice[[: []int]] := []int{1, 2}
+			mapping[[: map[string]int]] := map[string]int{"one" = 1}
+			procedure[[: proc()]] := proc() {}
+			abstract[[: any]] := any(4)
 			known: int = 1
 			known = 2
 		}

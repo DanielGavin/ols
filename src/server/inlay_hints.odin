@@ -85,7 +85,77 @@ get_inlay_hints :: proc(
 		}
 	}
 
-	inferred_type_name :: proc(symbol: Symbol, file: string) -> string {
+	inferred_source_type :: proc(expr: ^ast.Expr) -> ^ast.Expr {
+		if expr == nil {
+			return nil
+		}
+
+		#partial switch value in expr.derived {
+		case ^ast.Comp_Lit:
+			return value.type
+		case ^ast.Type_Cast:
+			return value.type
+		case ^ast.Type_Assertion:
+			return value.type
+		case ^ast.Auto_Cast:
+			return inferred_source_type(value.expr)
+		case ^ast.Paren_Expr:
+			return inferred_source_type(value.expr)
+		case ^ast.Tag_Expr:
+			return inferred_source_type(value.expr)
+		}
+
+		return nil
+	}
+
+	anonymous_struct_type_name :: proc(value: SymbolStructValue) -> string {
+		sb := strings.builder_make(context.temp_allocator)
+		strings.write_string(&sb, "struct {")
+		for name, i in value.names {
+			if i > 0 {
+				strings.write_string(&sb, ", ")
+			}
+			if name != "" {
+				strings.write_string(&sb, name)
+				if len(value.types) > i && value.types[i] != nil {
+					strings.write_string(&sb, ": ")
+				}
+			}
+			if len(value.types) > i && value.types[i] != nil {
+				strings.write_string(&sb, node_to_string(value.types[i]))
+			}
+		}
+		strings.write_string(&sb, "}")
+		return strings.to_string(sb)
+	}
+
+	add_pointer_prefix :: proc(type_name: string, pointers: int) -> string {
+		if pointers <= 0 {
+			return type_name
+		}
+
+		sb := strings.builder_make(context.temp_allocator)
+		for _ in 0..<pointers {
+			strings.write_rune(&sb, '^')
+		}
+		strings.write_string(&sb, type_name)
+		return strings.to_string(sb)
+	}
+
+	inferred_type_name :: proc(symbol: Symbol, file: string, initializer: ^ast.Expr) -> string {
+		if .Distinct in symbol.flags {
+			if symbol.type_name != "" {
+				return add_pointer_prefix(symbol.type_name, symbol.pointers)
+			}
+			if symbol.name != "" {
+				return add_pointer_prefix(symbol.name, symbol.pointers)
+			}
+		}
+
+		if source_type := inferred_source_type(initializer); source_type != nil {
+			return node_to_string(source_type)
+		}
+
 		if symbol.type_expr != nil {
 			return node_to_string(symbol.type_expr)
 		}
@@ -113,22 +183,33 @@ get_inlay_hints :: proc(
 			case .Rune:
 				type_name = "rune"
 			}
-		case SymbolStructValue, SymbolUnionValue, SymbolEnumValue, SymbolBitFieldValue:
+		case SymbolStructValue:
+			if .Anonymous in symbol.flags {
+				type_name = anonymous_struct_type_name(value)
+			} else {
+				type_name = symbol.type_name if symbol.type_name != "" else symbol.name
+			}
+		case SymbolUnionValue, SymbolEnumValue, SymbolBitFieldValue:
 			type_name = symbol.type_name if symbol.type_name != "" else symbol.name
 		case SymbolGenericValue:
 			if value.expr != nil {
 				type_name = node_to_string(value.expr)
 			}
+		case SymbolPolyTypeValue:
+			if value.ident != nil {
+				type_name = fmt.tprintf("$%s", value.ident.name)
+			}
 		case:
 			if type_expr := symbol_to_expr(symbol, file); type_expr != nil {
-				if symbol.pointers > 0 {
-					type_expr = wrap_pointer(type_expr, symbol.pointers)
+				if proc_type, ok := type_expr.derived.(^ast.Proc_Type); ok &&
+				   len(proc_type.results.list) == 0 {
+					proc_type.results = nil
 				}
 				type_name = node_to_string(type_expr)
 			}
 		}
 
-		return type_name
+		return add_pointer_prefix(type_name, symbol.pointers)
 	}
 
 	/*
@@ -141,7 +222,7 @@ get_inlay_hints :: proc(
 		if decl.type != nil || len(decl.values) == 0 do return
 
 		src := string(data.document.text)
-		for name in decl.names {
+		for name, i in decl.names {
 			ident := name.derived.(^ast.Ident) or_continue
 			if ident.name == "_" do continue
 
@@ -149,7 +230,15 @@ get_inlay_hints :: proc(
 			if symbol_and_node.symbol.type != .Variable && symbol_and_node.symbol.type != .Constant {
 				continue
 			}
-			type_name := inferred_type_name(symbol_and_node.symbol, data.document.fullpath)
+			initializer: ^ast.Expr
+			if len(decl.values) == len(decl.names) {
+				initializer = decl.values[i]
+			}
+			type_name := inferred_type_name(
+				symbol_and_node.symbol,
+				data.document.fullpath,
+				initializer,
+			)
 			if type_name == "" do continue
 
 			range := common.get_token_range(name^, src)
