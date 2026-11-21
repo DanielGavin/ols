@@ -1274,10 +1274,9 @@ visit_stmt :: proc(
 				result = paren.expr
 			}
 
-			document = cons(text("return"), if_break("("), break_with(" "), visit_expr(p, result))
-
-			document = nest(document)
-			document = group(cons(document, if_break(" \\"), break_with(""), if_break(")")))
+			return_document := cons(text("return"), if_break("("), break_with(" "), visit_expr(p, result))
+			return_document = group(cons(nest(return_document), if_break(" \\"), break_with(""), if_break(")")))
+			document = cons(document, return_document)
 		} else {
 			document = cons(document, text("return"))
 

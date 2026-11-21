@@ -42,5 +42,7 @@ return_with_comp_lit_expression_in_the_end :: proc() {
         }        
 }
 
-	
+return_with_no_bounds_check :: proc(values: []int) -> int {
+    #no_bounds_check   return values[0]
+}
 
