@@ -870,12 +870,12 @@ get_symbol_package_name :: proc(
 		return "$builtin"
 	}
 
-	if strings.contains(uri, "intrinsics.odin") {
-		intrinsics_path, _ := filepath.join(
-			elems = {common.config.collections["base"], "/intrinsics"},
-			allocator = context.temp_allocator,
-		)
-		intrinsics_path, _ = filepath.replace_separators(intrinsics_path, '/', context.temp_allocator)
+	intrinsics_path, _ := filepath.join(
+		elems = {common.config.collections["base"], "/intrinsics"},
+		allocator = context.temp_allocator,
+	)
+	intrinsics_path, _ = filepath.replace_separators(intrinsics_path, '/', context.temp_allocator)
+	if directory == intrinsics_path {
 		return get_index_unique_string(collection, intrinsics_path)
 	}
 
