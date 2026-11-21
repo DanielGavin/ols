@@ -123,8 +123,8 @@ eval_const_int :: proc(
 			if len(text) < 3 {
 				return 0, false
 			}
-			r, _, _, success := strconv.unquote_char(text[1:len(text) - 1], '\'')
-			return i64(r), success
+			r, _, _, err := strconv.unquote_char(text[1:len(text) - 1], '\'')
+			return i64(r), err == nil
 		}
 	case ^ast.Paren_Expr:
 		return eval_const_int(ast_context, v.expr, depth + 1, locals)
