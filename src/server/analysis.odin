@@ -2664,15 +2664,10 @@ resolve_field_access_through_imported_alias :: proc(
 	Symbol,
 	bool,
 ) {
-	for imp in ast_context.imports {
-		if strings.compare(imp.base, ident.name) == 0 {
-			try_build_package(ast_context.current_package)
-			if node.field != nil {
-				symbol, ok := lookup(node.field.name, imp.name, node.pos.file)
-				if ok {
-					return resolve_symbol_return(ast_context, symbol)
-				}
-			}
+	if imp, ok := lookup_document_import(ast_context, ident.pos.file, ident.name); ok && node.field != nil {
+		try_build_package(imp.name)
+		if symbol, ok := lookup(node.field.name, imp.name, node.pos.file); ok {
+			return resolve_symbol_return(ast_context, symbol)
 		}
 	}
 
@@ -2715,6 +2710,18 @@ resolve_symbol_proc_first_return_symbol :: proc(ast_context: ^AstContext, symbol
 
 resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
 	return internal_resolve_type_identifier(ast_context, node)
+}
+
+lookup_document_import :: proc(ast_context: ^AstContext, fullpath, name: string) -> (Package, bool) {
+	if fullpath != ast_context.fullpath {
+		return {}, false
+	}
+	for imp in ast_context.imports {
+		if imp.base == name {
+			return imp, true
+		}
+	}
+	return {}, false
 }
 
 internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -> (Symbol, bool) {
@@ -2770,7 +2777,8 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 		return resolve_local_identifier(ast_context, node, &local)
 	}
 
-	if ast_context.use_usings {
+	fullpath := node.pos.file
+	if ast_context.use_usings && fullpath == ast_context.fullpath {
 		for u in ast_context.usings {
 			for imp in ast_context.imports {
 				if strings.compare(imp.name, u.pkg_name) == 0 {
@@ -2783,22 +2791,16 @@ internal_resolve_type_identifier :: proc(ast_context: ^AstContext, node: ast.Ide
 	}
 
 	if ast_context.use_imports {
-		for imp in ast_context.imports {
-			if imp.name == ast_context.current_package {
-				continue
+		if imp, ok := lookup_document_import(ast_context, fullpath, node.name); ok && imp.name != ast_context.current_package {
+			symbol := Symbol {
+				type  = .Package,
+				pkg   = imp.name,
+				value = SymbolPackageValue{},
 			}
 
-			if strings.compare(imp.base, node.name) == 0 {
-				symbol := Symbol {
-					type  = .Package,
-					pkg   = imp.name,
-					value = SymbolPackageValue{},
-				}
+			try_build_package(symbol.pkg)
 
-				try_build_package(symbol.pkg)
-
-				return resolve_symbol_return(ast_context, symbol)
-			}
+			return resolve_symbol_return(ast_context, symbol)
 		}
 	}
 
@@ -3827,7 +3829,8 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		return symbol, true
 	}
 
-	if ast_context.use_usings {
+	fullpath := node.pos.file
+	if ast_context.use_usings && fullpath == ast_context.fullpath {
 		usings := get_using_packages(ast_context)
 
 		for pkg in usings {
@@ -3845,23 +3848,17 @@ resolve_location_identifier :: proc(ast_context: ^AstContext, node: ast.Ident) -
 		return symbol, true
 	}
 
-	for imp in ast_context.imports {
-		if imp.name == ast_context.current_package {
-			continue
+	if imp, ok := lookup_document_import(ast_context, fullpath, node.name); ok && imp.name != ast_context.current_package {
+		symbol := Symbol {
+			type  = .Package,
+			pkg   = imp.name,
+			value = SymbolPackageValue{},
+			range = imp.range,
 		}
 
-		if strings.compare(imp.base, node.name) == 0 {
-			symbol := Symbol {
-				type  = .Package,
-				pkg   = imp.name,
-				value = SymbolPackageValue{},
-				range = imp.range,
-			}
+		try_build_package(symbol.pkg)
 
-			try_build_package(symbol.pkg)
-
-			return symbol, true
-		}
+		return symbol, true
 	}
 
 	pkg := get_package_from_node(node)

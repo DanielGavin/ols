@@ -7675,3 +7675,76 @@ hover_on_generic_proc_group :: proc(t: ^testing.T) {
 	}
 	test.expect_hover_contains(t, &source, "baz")
 }
+
+@(test)
+ast_hover_inferred_field_type_with_same_name_as_import :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "cgltf"
+		import "image"
+
+		main :: proc(texture: cgltf.texture) {
+			img := texture.image_
+			u{*}ri := img.uri
+			_ = image.Image{}
+		}
+		`,
+		packages = {
+			{
+				pkg = "cgltf",
+				source = `package cgltf
+				image :: struct { uri: cstring }
+				texture :: struct { image_: ^image }
+				`,
+			},
+			{pkg = "image", source = "package image\nImage :: struct {}"},
+		},
+	}
+
+	test.expect_hover(t, &source, "test.uri: cstring")
+}
+
+@(test)
+ast_hover_indexed_overload_uses_imports_from_its_source_file :: proc(t: ^testing.T) {
+	source := test.Source {
+		main = `package test
+		import "helper"
+		import target "other"
+
+		main :: proc() {
+			res{*}ult := helper.pick(helper.Value, helper.Number)
+			_ = target.pick(0, 0)
+		}
+		`,
+		packages = {
+			{
+				pkg = "original",
+				source = `package original
+				Small :: distinct i16
+				Numbers :: [2]u16{1, 2}
+				pick :: proc(value: Small, number: u16) -> i16 { return i16(value) }
+				`,
+			},
+			{
+				pkg = "other",
+				source = `package other
+				Small :: distinct i64
+				Numbers :: [2]u64{1, 2}
+				pick :: proc(value: Small, number: u64) -> i64 { return i64(value) }
+				`,
+			},
+			{
+				pkg = "helper",
+				source = `package helper
+				import target "../original"
+
+				Value := cast(target.Small)0
+				Number := target.Numbers[0]
+				pick :: proc { target.pick }
+				`,
+			},
+		},
+	}
+
+	test.expect_hover(t, &source, "test.result: i16")
+}

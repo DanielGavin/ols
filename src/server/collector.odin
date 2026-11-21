@@ -247,6 +247,7 @@ collect_struct_fields :: proc(
 	}
 
 	b.poly = cast(^ast.Field_List)clone_type(struct_type.poly_params, collection.allocator, &collection.unique_strings)
+	replace_package_alias(b.poly, package_map, collection)
 	for clause in struct_type.where_clauses {
 		append(&b.where_clauses, clone_expr(clause, collection.allocator, &collection.unique_strings))
 	}
@@ -281,7 +282,9 @@ collect_bit_field_fields :: proc(
 			append(&ranges, common.get_token_range(ident, file.src))
 			append(&docs, clone_comment_group(field.docs, collection.allocator, &collection.unique_strings))
 			append(&comments, clone_comment_group(field.comments, collection.allocator, &collection.unique_strings))
-			append(&bit_sizes, clone_type(field.bit_size, collection.allocator, &collection.unique_strings))
+			bit_size := clone_type(field.bit_size, collection.allocator, &collection.unique_strings)
+			replace_package_alias(bit_size, package_map, collection)
+			append(&bit_sizes, bit_size)
 		}
 	}
 
@@ -373,6 +376,7 @@ collect_union_fields :: proc(
 		where_clauses = clone_array(union_type.where_clauses, collection.allocator, &collection.unique_strings),
 	}
 	replace_package_alias(value.align, package_map, collection)
+	replace_package_alias(value.poly, package_map, collection)
 
 	return value
 }
@@ -986,9 +990,9 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		case ^ast.Proc_Group:
 			token = v^
 			token_type = .Function
-			symbol.value = SymbolProcedureGroupValue {
-				group = clone_type(col_expr, collection.allocator, &collection.unique_strings),
-			}
+			group := clone_type(col_expr, collection.allocator, &collection.unique_strings)
+			replace_package_alias(group, package_map, collection)
+			symbol.value = SymbolProcedureGroupValue{group = group}
 			if _, is_objc := get_attribute_objc_name(expr.attributes, expr.name); is_objc {
 				symbol.flags |= {.ObjC}
 				if get_attribute_objc_is_class_method(expr.attributes) {
@@ -1112,6 +1116,8 @@ collect_symbols :: proc(collection: ^SymbolCollection, file: ast.File, uri: stri
 		symbol.uri = get_index_unique_string(collection, uri)
 		symbol.type_expr = clone_type(expr.type_expr, collection.allocator, &collection.unique_strings)
 		symbol.value_expr = clone_type(expr.value_expr, collection.allocator, &collection.unique_strings)
+		replace_package_alias(symbol.type_expr, package_map, collection)
+		replace_package_alias(symbol.value_expr, package_map, collection)
 		symbol.comment = get_comment(expr.comment, collection.allocator)
 
 		// symbol.pkg was already set earlier before the switch
@@ -1321,18 +1327,27 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case ^ast.Paren_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 	case ^ast.Selector_Expr:
-		if _, ok := n.expr.derived.(^ast.Ident); ok {
-			ident := n.expr.derived.(^ast.Ident)
-
-			if package_name, ok := package_map[ident.name]; ok {
-				ident.name = get_index_unique_string(collection, package_name)
-			}
-		} else {
-			replace_package_alias(n.expr, package_map, collection)
-			replace_package_alias(n.field, package_map, collection)
-		}
-	case ^ast.Implicit_Selector_Expr:
-		replace_package_alias(n.field, package_map, collection)
+		replace_package_alias(n.expr, package_map, collection)
+	case ^ast.Selector_Call_Expr:
+		replace_package_alias(n.expr, package_map, collection)
+		replace_package_alias(n.call, package_map, collection)
+	case ^ast.Type_Cast:
+		replace_package_alias(n.type, package_map, collection)
+		replace_package_alias(n.expr, package_map, collection)
+	case ^ast.Auto_Cast:
+		replace_package_alias(n.expr, package_map, collection)
+	case ^ast.Deref_Expr:
+		replace_package_alias(n.expr, package_map, collection)
+	case ^ast.Index_Expr:
+		replace_package_alias(n.expr, package_map, collection)
+		replace_package_alias(n.index, package_map, collection)
+	case ^ast.Matrix_Index_Expr:
+		replace_package_alias(n.expr, package_map, collection)
+		replace_package_alias(n.row_index, package_map, collection)
+		replace_package_alias(n.column_index, package_map, collection)
+	case ^ast.Type_Assertion:
+		replace_package_alias(n.expr, package_map, collection)
+		replace_package_alias(n.type, package_map, collection)
 	case ^ast.Slice_Expr:
 		replace_package_alias(n.expr, package_map, collection)
 		replace_package_alias(n.low, package_map, collection)
@@ -1351,6 +1366,13 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 		replace_package_alias(n.elem, package_map, collection)
 	case ^ast.Dynamic_Array_Type:
 		replace_package_alias(n.elem, package_map, collection)
+	case ^ast.Fixed_Capacity_Dynamic_Array_Type:
+		replace_package_alias(n.elem, package_map, collection)
+		replace_package_alias(n.capacity, package_map, collection)
+	case ^ast.Matrix_Type:
+		replace_package_alias(n.elem, package_map, collection)
+		replace_package_alias(n.row_count, package_map, collection)
+		replace_package_alias(n.column_count, package_map, collection)
 	case ^ast.Struct_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
 		replace_package_alias(n.align, package_map, collection)
@@ -1363,7 +1385,12 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case ^ast.Field_List:
 		replace_package_alias(n.list, package_map, collection)
 	case ^ast.Field_Value:
-		replace_package_alias(n.field, package_map, collection)
+		if n.field != nil {
+			// Keep bare field names and named arguments as written.
+			if _, is_ident := n.field.derived.(^ast.Ident); !is_ident {
+				replace_package_alias(n.field, package_map, collection)
+			}
+		}
 		replace_package_alias(n.value, package_map, collection)
 	case ^ast.Union_Type:
 		replace_package_alias(n.poly_params, package_map, collection)
@@ -1383,8 +1410,20 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 		replace_package_alias(n.args, package_map, collection)
 	case ^ast.Typeid_Type:
 		replace_package_alias(n.specialization, package_map, collection)
+	case ^ast.Ternary_If_Expr:
+		replace_package_alias(n.x, package_map, collection)
+		replace_package_alias(n.cond, package_map, collection)
+		replace_package_alias(n.y, package_map, collection)
+	case ^ast.Ternary_When_Expr:
+		replace_package_alias(n.x, package_map, collection)
+		replace_package_alias(n.cond, package_map, collection)
+		replace_package_alias(n.y, package_map, collection)
+	case ^ast.Or_Else_Expr:
+		replace_package_alias(n.x, package_map, collection)
+		replace_package_alias(n.y, package_map, collection)
+	case ^ast.Or_Return_Expr:
+		replace_package_alias(n.expr, package_map, collection)
 	case ^ast.Poly_Type:
-		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.specialization, package_map, collection)
 	case ^ast.Proc_Group:
 		replace_package_alias(n.args, package_map, collection)
@@ -1394,13 +1433,13 @@ replace_package_alias_node :: proc(node: ^ast.Node, package_map: map[string]stri
 	case ^ast.Helper_Type:
 		replace_package_alias(n.type, package_map, collection)
 	case ^ast.Proc_Lit:
+		replace_package_alias(n.type, package_map, collection)
 	case ^ast.Multi_Pointer_Type:
 		replace_package_alias(n.elem, package_map, collection)
 	case ^ast.Bit_Field_Type:
 		replace_package_alias(n.backing_type, package_map, collection)
 		replace_package_alias(n.fields, package_map, collection)
 	case ^ast.Bit_Field_Field:
-		replace_package_alias(n.name, package_map, collection)
 		replace_package_alias(n.type, package_map, collection)
 		replace_package_alias(n.bit_size, package_map, collection)
 	case:
