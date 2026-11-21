@@ -228,10 +228,11 @@ try_build_package :: proc(pkg_name: string) {
 			}
 
 			dir := filepath.base(filepath.dir(fullpath))
+			uri := common.create_uri(fullpath, context.allocator)
 
 			pkg := new(ast.Package)
 			pkg.kind = .Normal
-			pkg.fullpath = fullpath
+			pkg.fullpath = uri.path
 			pkg.name = dir
 
 			if dir == "runtime" || strings.contains(fullpath, "base/runtime") {
@@ -239,7 +240,7 @@ try_build_package :: proc(pkg_name: string) {
 			}
 
 			file := ast.File {
-				fullpath = fullpath,
+				fullpath = uri.path,
 				src      = string(data),
 				pkg      = pkg,
 			}
@@ -252,8 +253,6 @@ try_build_package :: proc(pkg_name: string) {
 				}
 				continue
 			}
-
-			uri := common.create_uri(fullpath, context.allocator)
 
 			collect_symbols(&indexer.index.collection, file, uri.uri)
 
