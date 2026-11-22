@@ -187,8 +187,8 @@ resolve_when_expr :: proc(
 			return resolve_when_ident(when_expr_map, odin_expr.name)
 		case ^ast.Basic_Lit:
 			if odin_expr.tok.kind == .String {
-				s, _, unquoted := strconv.unquote_string(odin_expr.tok.text, context.temp_allocator)
-				return s, unquoted
+				s, _, err := strconv.unquote_string(odin_expr.tok.text, context.temp_allocator)
+				return s, err == nil
 			}
 			return resolve_when_ident(when_expr_map, odin_expr.tok.text)
 		case ^ast.Implicit_Selector_Expr:
