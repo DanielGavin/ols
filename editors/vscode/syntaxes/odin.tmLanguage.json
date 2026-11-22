@@ -162,7 +162,7 @@
 			"name": "meta.definition.variable.odin",
 			"match": "([A-Za-z_]\\w*)\\s*(:\\s*:)",
 			"captures": {
-				"1": { "name": "variable.other.constant.odin" },
+				"1": { "name": "constant.language.odin" },
 				"2": { "name": "keyword.operator.assignment.odin" }
 			}
 		},
@@ -481,7 +481,7 @@
 					"match": "\\b(context)\\b"
 				},
 				{
-					"name": "variable.other.constant.odin",
+					"name": "constant.other.odin",
 					"match": "\\b(ODIN_ARCH|ODIN_OS)\\b"
 				},
 				{
@@ -491,6 +491,10 @@
 				{
 					"name": "constant.language.odin",
 					"match": "---"
+				},
+				{
+					"name": "constant.other.odin",
+					"match": "\\b([A-Z_0-9])+\\b"
 				},
 				{
 					"name": "constant.numeric.odin",
