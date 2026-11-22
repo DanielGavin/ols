@@ -1117,9 +1117,13 @@ expect_inlay_hints :: proc(t: ^testing.T, src: ^Source) {
 					hint_str := src.main[last:i]
 					last = i + len(HINT_CLOSE)
 					i = last - 1
+					hint_kind := server.InlayHintKind.Parameter
+					if strings.has_prefix(hint_str, ": ") {
+						hint_kind = .Type
+					}
 					append(
 						&expected_hints,
-						server.InlayHint{position = {line, col}, label = hint_str, kind = .Parameter},
+						server.InlayHint{position = {line, col}, label = hint_str, kind = hint_kind},
 					)
 				}
 			} else {
